@@ -13,7 +13,6 @@ import React from 'react';
 import { CallLog } from '@cometchat/calls-sdk-javascript';
 import { useCometChatContext } from '../../context/CometChatContext';
 import { CometChatSettings } from '../../CometChatSettings';
-import { TaskMentionFormatter } from '../../util/TaskMentionFormatter';
 
 interface ThreadProps {
   message: CometChat.BaseMessage;
@@ -31,7 +30,7 @@ export const CometChatThreadedMessages = (props: ThreadProps) => {
     message,
     requestBuilderState,
     selectedItem,
-    onClose = () => { },
+    onClose = () => {},
     showComposer = false,
     onSubtitleClicked,
     goToMessageId,
@@ -49,9 +48,6 @@ export const CometChatThreadedMessages = (props: ThreadProps) => {
 
   function getFormatters() {
     const formatters = CometChatUIKit.getDataSource().getAllTextFormatters({});
-    // Add Task Mention Formatter
-    formatters.push(new TaskMentionFormatter());
-
     if (searchKeyword) {
       formatters.push(new CometChatTextHighlightFormatter(searchKeyword));
     }

@@ -36,7 +36,7 @@ import {
   CometChatGroupEvents,
   CometChatGroupMembers,
   CometChatGroups,
-
+  CometChatIncomingCall,
   CometChatMessageEvents,
   CometChatToast,
   CometChatUIKit,
@@ -100,9 +100,9 @@ function CometChatHome({
   const showJoinGroupRef = useRef(false);
   const [newChat, setNewChat] = useState<
     | {
-      user?: CometChat.User;
-      group?: CometChat.Group;
-    }
+        user?: CometChat.User;
+        group?: CometChat.Group;
+      }
     | undefined
   >();
   const [showAlertPopup, setShowAlertPopup] = useState({ visible: false, description: '' });
@@ -2048,7 +2048,7 @@ function CometChatHome({
           if (
             ((selectedItem as CometChat.Group).getGuid?.() === kickedFrom.getGuid() ||
               ((selectedItem as CometChat.Conversation).getConversationWith?.() as CometChat.Group)?.getGuid?.() ===
-              kickedFrom.getGuid()) &&
+                kickedFrom.getGuid()) &&
             kickedUser.getUid() === loggedInUser?.getUid()
           ) {
             setShowAlertPopup({ visible: true, description: getLocalizedString('member_banned') });
@@ -2063,7 +2063,7 @@ function CometChatHome({
           if (
             ((selectedItem as CometChat.Group).getGuid?.() === kickedFrom.getGuid() ||
               ((selectedItem as CometChat.Conversation).getConversationWith?.() as CometChat.Group)?.getGuid?.() ===
-              kickedFrom.getGuid()) &&
+                kickedFrom.getGuid()) &&
             kickedUser.getUid() === loggedInUser?.getUid()
           ) {
             setShowAlertPopup({ visible: true, description: getLocalizedString('member_removed') });
@@ -2278,7 +2278,7 @@ function CometChatHome({
         )}
 
         {SideComponentWrapper}
-
+        <CometChatIncomingCall />
         {showToast ? <CometChatToast text={toastTextRef.current} onClose={closeToast} /> : null}
       </div>
     )
