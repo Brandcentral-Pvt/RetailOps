@@ -10,6 +10,7 @@ app.use(cors({
     'http://localhost:5175',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
+    'https://retailops.vercel.app',
     process.env.FRONTEND_URL,
     /\.vercel\.app$/
   ].filter(Boolean),
@@ -132,6 +133,7 @@ const io = new Server(server, {
       'http://localhost:5175',
       'http://localhost:3000',
       'http://127.0.0.1:5173',
+      'https://retailops.vercel.app', // Production Frontend
       process.env.FRONTEND_URL,
       /\.vercel\.app$/
     ].filter(Boolean),
