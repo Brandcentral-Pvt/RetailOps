@@ -1,0 +1,806 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import KPICard from '../components/KPICard';
+import octoparseService from '../services/octoparseService';
+import { db } from '../services/db';
+import { calculateLQS } from '../utils/lqs';
+import {
+  Package,
+  Activity,
+  Trophy,
+  AlertTriangle,
+  Zap,
+  TrendingUp,
+  BarChart2,
+  Star,
+  Plus,
+  Table,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  RefreshCw,
+  Search,
+  Scan,
+  IndianRupee,
+  ChevronRight,
+  TrendingDown,
+  Trash2
+} from 'lucide-react';
+
+// Helper function to generate week labels with date stamps
+const generateWeekColumns = (history) => {
+  if (!history || history.length === 0) return ['W1'];
+
+  // Sort by date if available
+  const sorted = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  return sorted.map((item, idx) => {
+    if (item.date) {
+      const date = new Date(item.date);
+      return `W${idx + 1}\n${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`;
+    }
+    return `W${idx + 1}`;
+  });
+};
+
+// Helper to get week label short format
+const getWeekLabel = (week, index) => {
+  if (week.includes('\n')) {
+    return week.split('\n')[0];
+  }
+  return week;
+};
+
+// Week columns for table headers
+const WEEK_COLUMNS = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8'];
+
+// Helper function for week history badges
+const getWeekHistoryBadge = (value, type) => {
+  if (!value && value !== 0) return <span style={{ color: '#9ca3af' }}>-</span>;
+
+  if (type === 'price') {
+    return <span style={{ fontWeight: 500, color: '#059669' }}>₹{value.toLocaleString()}</span>;
+  } else if (type === 'number') {
+    return <span style={{ fontWeight: 500, color: '#2563eb' }}>#{value.toLocaleString()}</span>;
+  } else if (type === 'rating') {
+    return <span style={{ fontWeight: 500, color: '#d97706' }}>{value.toFixed(1)}</span>;
+  }
+  return value;
+};
+
+// Extended demo ASIN data with date stamps and 8 weeks of history
+const demoAsins = [
+  {
+    id: '1',
+    asinCode: 'B07XYZ123',
+    sku: 'SKU-WE-001',
+    title: 'Wireless Bluetooth Earbuds Pro with Noise Cancellation',
+    imageUrl: 'https://placehold.co/100x100?text=Earbuds',
+    brand: 'AudioTech',
+    category: 'Electronics',
+    currentPrice: 2499,
+    currentRank: 1250,
+    rating: 4.5,
+    reviewCount: 1250,
+    buyBoxWin: true,
+    couponDetails: '₹100 Off',
+    dealDetails: 'Lightning Deal',
+    totalOffers: 15,
+    imagesCount: 7,
+    hasAPlus: true,
+    descLength: 520,
+    lqs: 85,
+    status: 'Active',
+    weekHistory: [
+      { week: 'Week 1', date: '2024-12-01', price: 2399, bsr: 1400, rating: 4.4, reviews: 1180 },
+      { week: 'Week 2', date: '2024-12-08', price: 2499, bsr: 1350, rating: 4.4, reviews: 1200 },
+      { week: 'Week 3', date: '2024-12-15', price: 2499, bsr: 1300, rating: 4.5, reviews: 1215 },
+      { week: 'Week 4', date: '2024-12-22', price: 2599, bsr: 1280, rating: 4.5, reviews: 1225 },
+      { week: 'Week 5', date: '2024-12-29', price: 2499, bsr: 1250, rating: 4.5, reviews: 1235 },
+      { week: 'Week 6', date: '2025-01-05', price: 2399, bsr: 1220, rating: 4.5, reviews: 1240 },
+      { week: 'Week 7', date: '2025-01-12', price: 2499, bsr: 1200, rating: 4.5, reviews: 1245 },
+      { week: 'Week 8', date: '2025-01-19', price: 2499, bsr: 1250, rating: 4.5, reviews: 1250 },
+    ],
+  },
+  {
+    id: '2',
+    asinCode: 'B07ABC456',
+    sku: 'SKU-SW-002',
+    title: 'Smart Watch Elite - Fitness Tracker with GPS',
+    imageUrl: 'https://placehold.co/100x100?text=Watch',
+    brand: 'FitGear',
+    category: 'Electronics',
+    currentPrice: 8999,
+    currentRank: 890,
+    rating: 4.2,
+    reviewCount: 890,
+    buyBoxWin: true,
+    couponDetails: 'None',
+    dealDetails: 'None',
+    totalOffers: 8,
+    imagesCount: 5,
+    hasAPlus: true,
+    descLength: 480,
+    lqs: 72,
+    status: 'Active',
+    weekHistory: [
+      { week: 'Week 1', date: '2024-12-01', price: 8799, bsr: 950, rating: 4.1, reviews: 820 },
+      { week: 'Week 2', date: '2024-12-08', price: 8999, bsr: 920, rating: 4.1, reviews: 835 },
+      { week: 'Week 3', date: '2024-12-15', price: 9199, bsr: 900, rating: 4.2, reviews: 850 },
+      { week: 'Week 4', date: '2024-12-22', price: 8999, bsr: 910, rating: 4.2, reviews: 860 },
+      { week: 'Week 5', date: '2024-12-29', price: 8799, bsr: 895, rating: 4.2, reviews: 870 },
+      { week: 'Week 6', date: '2025-01-05', price: 8999, bsr: 890, rating: 4.2, reviews: 880 },
+      { week: 'Week 7', date: '2025-01-12', price: 9199, bsr: 885, rating: 4.2, reviews: 885 },
+      { week: 'Week 8', date: '2025-01-19', price: 8999, bsr: 890, rating: 4.2, reviews: 890 },
+    ],
+  },
+  {
+    id: '3',
+    asinCode: 'B07DEF789',
+    sku: 'SKU-YM-003',
+    title: 'Premium Yoga Mat - Non-Slip Exercise Mat',
+    imageUrl: 'https://placehold.co/100x100?text=Yoga',
+    brand: 'FitLife',
+    category: 'Sports',
+    currentPrice: 1299,
+    currentRank: 3200,
+    rating: 4.8,
+    reviewCount: 3200,
+    buyBoxWin: true,
+    couponDetails: '₹50 Off',
+    dealDetails: 'None',
+    totalOffers: 22,
+    imagesCount: 6,
+    hasAPlus: false,
+    descLength: 280,
+    lqs: 68,
+    status: 'Active',
+    weekHistory: [
+      { week: 'Week 1', date: '2024-12-01', price: 1199, bsr: 3500, rating: 4.7, reviews: 3050 },
+      { week: 'Week 2', date: '2024-12-08', price: 1299, bsr: 3400, rating: 4.7, reviews: 3080 },
+      { week: 'Week 3', date: '2024-12-15', price: 1299, bsr: 3350, rating: 4.7, reviews: 3100 },
+      { week: 'Week 4', date: '2024-12-22', price: 1399, bsr: 3300, rating: 4.7, reviews: 3120 },
+      { week: 'Week 5', date: '2024-12-29', price: 1299, bsr: 3250, rating: 4.8, reviews: 3140 },
+      { week: 'Week 6', date: '2025-01-05', price: 1199, bsr: 3220, rating: 4.8, reviews: 3160 },
+      { week: 'Week 7', date: '2025-01-12', price: 1299, bsr: 3210, rating: 4.8, reviews: 3180 },
+      { week: 'Week 8', date: '2025-01-19', price: 1299, bsr: 3200, rating: 4.8, reviews: 3200 },
+    ],
+  },
+  {
+    id: '4',
+    asinCode: 'B07GHI012',
+    sku: 'SKU-KT-004',
+    title: 'Kitchen Scale Digital - Precision Food Scale',
+    imageUrl: 'https://placehold.co/100x100?text=Scale',
+    brand: 'HomeChef',
+    category: 'Home & Kitchen',
+    currentPrice: 799,
+    currentRank: 4500,
+    rating: 4.3,
+    reviewCount: 4500,
+    buyBoxWin: false,
+    couponDetails: 'None',
+    dealDetails: 'None',
+    totalOffers: 35,
+    imagesCount: 8,
+    hasAPlus: true,
+    descLength: 420,
+    lqs: 78,
+    status: 'Active',
+    weekHistory: [
+      { week: 'Week 1', date: '2024-12-01', price: 699, bsr: 4800, rating: 4.2, reviews: 4300 },
+      { week: 'Week 2', date: '2024-12-08', price: 799, bsr: 4700, rating: 4.2, reviews: 4350 },
+      { week: 'Week 3', date: '2024-12-15', price: 849, bsr: 4650, rating: 4.3, reviews: 4400 },
+      { week: 'Week 4', date: '2024-12-22', price: 799, bsr: 4600, rating: 4.3, reviews: 4420 },
+      { week: 'Week 5', date: '2024-12-29', price: 749, bsr: 4550, rating: 4.3, reviews: 4440 },
+      { week: 'Week 6', date: '2025-01-05', price: 799, bsr: 4520, rating: 4.3, reviews: 4460 },
+      { week: 'Week 7', date: '2025-01-12', price: 849, bsr: 4510, rating: 4.3, reviews: 4480 },
+      { week: 'Week 8', date: '2025-01-19', price: 799, bsr: 4500, rating: 4.3, reviews: 4500 },
+    ],
+  },
+  {
+    id: '5',
+    asinCode: 'B07JKL345',
+    sku: 'SKU-SP-005',
+    title: 'Security Camera 1080P - Wireless Home Security',
+    imageUrl: 'https://placehold.co/100x100?text=Camera',
+    brand: 'SecureHome',
+    category: 'Electronics',
+    currentPrice: 3499,
+    currentRank: 1850,
+    rating: 4.1,
+    reviewCount: 1850,
+    buyBoxWin: true,
+    couponDetails: '₹200 Off',
+    dealDetails: 'Prime Deal',
+    totalOffers: 12,
+    imagesCount: 9,
+    hasAPlus: true,
+    descLength: 680,
+    lqs: 82,
+    status: 'Active',
+    weekHistory: [
+      { week: 'Week 1', date: '2024-12-01', price: 3299, bsr: 2000, rating: 4.0, reviews: 1750 },
+      { week: 'Week 2', date: '2024-12-08', price: 3499, bsr: 1950, rating: 4.0, reviews: 1770 },
+      { week: 'Week 3', date: '2024-12-15', price: 3699, bsr: 1900, rating: 4.1, reviews: 1790 },
+      { week: 'Week 4', date: '2024-12-22', price: 3499, bsr: 1880, rating: 4.1, reviews: 1805 },
+      { week: 'Week 5', date: '2024-12-29', price: 3299, bsr: 1860, rating: 4.1, reviews: 1820 },
+      { week: 'Week 6', date: '2025-01-05', price: 3499, bsr: 1855, rating: 4.1, reviews: 1830 },
+      { week: 'Week 7', date: '2025-01-12', price: 3699, bsr: 1852, rating: 4.1, reviews: 1840 },
+      { week: 'Week 8', date: '2025-01-19', price: 3499, bsr: 1850, rating: 4.1, reviews: 1850 },
+    ],
+  },
+];
+
+const AsinManagerPage = () => {
+  const [asins, setAsins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showDashboard, setShowDashboard] = useState(true);
+  const [showTable, setShowTable] = useState(true);
+  const [newAsin, setNewAsin] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Use getAsins directly
+        const response = await db.request('/asins');
+
+        // Handle both possible response formats: [{...}] or { asins: [...] }
+        const asinsData = response?.asins || response?.data || (Array.isArray(response) ? response : []);
+
+        if (asinsData && asinsData.length > 0) {
+          setAsins(asinsData);
+          setError(null);
+        } else {
+          console.warn('No ASINs found in database');
+          setAsins([]);
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Error fetching ASINs:', err);
+        setError(err.message);
+        setAsins(demoAsins); // Fallback to demo data on error for now
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const kpis = useMemo(() => {
+    const total = asins.length;
+    const avgLqs = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.lqs || 0), 0) / total) : 0;
+    const buyBoxWins = asins.filter(a => a.buyBoxWin).length;
+    const buyBoxRate = total > 0 ? Math.round((buyBoxWins / total) * 100) : 0;
+    const lowLqs = asins.filter(a => (a.lqs || 0) < 70).length;
+    const activeDeals = asins.filter(a => a.dealDetails && a.dealDetails !== 'None').length;
+    const avgPrice = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / total) : 0;
+    const avgBSR = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.currentRank || 0), 0) / total) : 0;
+    const totalReviews = asins.reduce((sum, a) => sum + (a.reviewCount || 0), 0);
+
+    return [
+      { label: 'ALL ASINS', value: total, color: '#6366f1', icon: <Package size={14} /> },
+      { label: 'AVG LQS', value: avgLqs + '%', color: '#10b981', icon: <Activity size={14} /> },
+      { label: 'BUY BOX', value: buyBoxRate + '%', color: '#f59e0b', icon: <Trophy size={14} /> },
+      { label: 'LOW LQS', value: lowLqs, color: '#ef4444', icon: <AlertTriangle size={14} /> },
+      { label: 'DEALS', value: activeDeals, color: '#8b5cf6', icon: <Zap size={14} /> },
+      { label: 'AVG PRICE', value: '₹' + avgPrice.toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
+    ];
+  }, [asins]);
+
+  const weekColumns = useMemo(() => {
+    if (asins.length > 0 && asins[0]?.weekHistory) {
+      return generateWeekColumns(asins[0].weekHistory);
+    }
+    return ['W1'];
+  }, [asins]);
+
+  const handleSync = useCallback(async () => {
+    if (!newAsin.trim()) {
+      alert('Please enter at least one ASIN');
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const asinList = newAsin.split(',').map(a => a.trim()).filter(a => a.length > 0);
+
+      const result = await octoparseService.syncAsins(asinList);
+
+      const newAsinsData = asinList.map(asinCode => ({
+        id: String(Date.now()) + Math.random(),
+        asinCode,
+        title: 'Scraping in progress...',
+        imageUrl: 'https://placehold.co/100x100?text=Scraping',
+        brand: 'Pending',
+        category: 'Pending',
+        currentPrice: 0,
+        currentRank: 0,
+        rating: 0,
+        reviewCount: 0,
+        buyBoxWin: false,
+        couponDetails: 'None',
+        dealDetails: 'None',
+        totalOffers: 0,
+        imagesCount: 0,
+        hasAPlus: false,
+        descLength: 0,
+        lqs: 0,
+        status: 'Scraping',
+        weekHistory: weekColumns.map((week, idx) => ({
+          week: getWeekLabel(week, idx),
+          date: null,
+          price: 0,
+          bsr: 0,
+          rating: 0,
+          reviews: 0
+        })),
+        executionId: result.executionId
+      }));
+
+      setAsins(prev => [...prev, ...newAsinsData]);
+      setNewAsin('');
+      setShowAddModal(false);
+
+      alert(`Scraping started for ${asinList.length} ASIN(s). Check Scrape Tasks page for progress.`);
+    } catch (error) {
+      console.error('Sync failed:', error);
+      alert('Failed to start scraping: ' + error.message);
+    } finally {
+      setSyncing(false);
+    }
+  }, [newAsin, weekColumns]);
+
+  const getLqsBadge = (lqs) => {
+    let bgColor = '#059669';
+    let textColor = '#fff';
+    if (lqs < 60) { bgColor = '#dc2626'; }
+    else if (lqs < 80) { bgColor = '#d97706'; }
+    return (
+      <span
+        className="badge"
+        style={{ backgroundColor: bgColor, color: textColor, fontWeight: 600, fontSize: '0.75rem' }}
+      >
+        {lqs}
+      </span>
+    );
+  };
+
+  const getBuyBoxBadge = (buyBoxWin) => {
+    const bgColor = buyBoxWin ? '#059669' : '#6b7280';
+    return (
+      <span
+        className="badge"
+        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+      >
+        {buyBoxWin ? 'Won' : 'Lost'}
+      </span>
+    );
+  };
+
+  const getAplusBadge = (hasAPlus) => {
+    const bgColor = hasAPlus ? '#059669' : '#6b7280';
+    return (
+      <span
+        className="badge"
+        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+      >
+        {hasAPlus ? 'Yes' : 'No'}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status) => {
+    const bgColor = status === 'Active' ? '#059669' : '#d97706';
+    return (
+      <span
+        className="badge"
+        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+      >
+        {status}
+      </span>
+    );
+  };
+
+  // Collapsible Section Component
+  const CollapsibleSection = ({ title, icon: Icon, isOpen, onToggle, children, badge }) => (
+    <div className="card mb-4 border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+      <div
+        className="card-header d-flex justify-content-between align-items-center cursor-pointer px-4 py-3"
+        onClick={onToggle}
+        style={{ cursor: 'pointer', backgroundColor: '#fff', borderBottom: '1px solid rgba(0,0,0,0.05)' }}
+      >
+        <h5 className="card-title mb-0 d-flex align-items-center gap-2" style={{ color: '#111827', fontWeight: 600 }}>
+          <div className="p-2 bg-primary-subtle text-primary rounded-3">
+            <Icon size={18} />
+          </div>
+          {title}
+          {badge && <span className="badge rounded-pill bg-primary shadow-sm ms-2">{badge}</span>}
+        </h5>
+        <button className="btn btn-sm btn-light rounded-circle shadow-sm p-1">
+          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+      </div>
+      {isOpen && <div className="card-body px-4 pb-4 pt-2" style={{ backgroundColor: '#fff' }}>{children}</div>}
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="container-fluid p-0">
+        <header className="main-header" style={{ padding: '1.5rem 2rem', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+          <h1 className="page-title mb-0 d-flex align-items-center gap-2" style={{ fontSize: '1.75rem', fontWeight: 700 }}>
+            <Scan className="text-primary" size={28} />
+            ASIN Manager
+          </h1>
+        </header>
+        <div className="page-content py-5">
+          {error ? (
+            <div className="alert alert-warning border-0 shadow-sm rounded-4 mx-4" role="alert">
+              <AlertTriangle className="me-2" size={18} />
+              {error} - Showing demo data
+            </div>
+          ) : (
+            <div className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+              <RefreshCw className="text-primary spin mb-3" size={40} />
+              <p className="text-muted fw-500">Synchronizing Operation Data...</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <header className="main-header" style={{ padding: '1.5rem 2rem', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+        <div className="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 className="page-title mb-1 d-flex align-items-center gap-2" style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+              <Scan className="text-primary" size={28} />
+              ASIN <span className="text-primary">Performance</span> Manager
+            </h1>
+            <p className="text-muted small mb-0">Operational Inventory tracking & Listing Quality Metrics</p>
+          </div>
+          <div className="d-flex align-items-center gap-3">
+            <div className="btn-group p-1 bg-white border shadow-sm rounded-pill">
+              <button className="btn btn-sm px-3 rounded-pill border-0 transition-all btn-primary shadow-sm" style={{ fontSize: '12px', fontWeight: '600' }}>
+                <TrendingUp size={14} className="me-1" /> Performance
+              </button>
+              <button className="btn btn-sm px-3 rounded-pill border-0 transition-all text-muted hover-bg-light" style={{ fontSize: '12px', fontWeight: '600' }}>
+                <Table size={14} className="me-1" /> Analytics
+              </button>
+            </div>
+            <button className="btn btn-primary d-flex align-items-center gap-2 rounded-pill px-4 shadow-sm" onClick={() => setShowAddModal(true)}>
+              <Plus size={18} /> Add ASIN
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="page-content">
+        {error && (
+          <div className="alert alert-warning d-flex align-items-center mb-4 mx-2 border-0 shadow-sm rounded-4" role="alert" style={{ padding: '0.75rem 1.25rem' }}>
+            <AlertTriangle className="me-2 text-warning" size={18} />
+            <span className="small fw-500">Database connection intermittent. Performance metrics may reflect cached or baseline data.</span>
+          </div>
+        )}
+
+        {/* Single Collapsible Section containing KPIs and Performance Overview */}
+        <CollapsibleSection
+          title="ASIN Performance Overview"
+          icon={TrendingUp}
+          isOpen={showDashboard}
+          onToggle={() => setShowDashboard(!showDashboard)}
+        >
+          {/* KPI Dashboard - Compact Dot Badges */}
+          <div className="d-flex flex-wrap gap-3 mb-4 mt-2">
+            {kpis.map((kpi, idx) => (
+              <div
+                key={idx}
+                className="d-flex align-items-center gap-2 px-3 py-2 rounded-pill border bg-white border-light-subtle shadow-sm transition-all hover-shadow-md"
+                style={{ fontSize: '13px', fontWeight: '500', minWidth: 'fit-content' }}
+              >
+                <div
+                  className="d-flex align-items-center justify-content-center rounded-circle"
+                  style={{ width: '24px', height: '24px', backgroundColor: kpi.color + '20', color: kpi.color }}
+                >
+                  {kpi.icon}
+                </div>
+                <div className="d-flex flex-column" style={{ lineHeight: '1.1' }}>
+                  <span className="text-muted text-uppercase" style={{ fontSize: '9px', fontWeight: '700', letterSpacing: '0.05em' }}>{kpi.label}</span>
+                  <span className="fw-bold text-dark" style={{ fontSize: '14px' }}>{kpi.value}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Performance Summary Cards */}
+          <div className="row g-4 mb-4">
+            <div className="col-lg-4">
+              <div className="card h-100 border-0 shadow-sm" style={{ borderRadius: '16px' }}>
+                <div className="card-header bg-white border-0 pt-4 px-4 pb-0">
+                  <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                    <div className="p-2 bg-success-subtle text-success rounded-3"><IndianRupee size={16} /></div>
+                    Price Dynamics
+                  </h6>
+                </div>
+                <div className="card-body px-4 pb-4">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted small">Average Price</span>
+                    <span className="fw-bold">₹{Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / (asins.length || 1)).toLocaleString()}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted small">Highest Recorded</span>
+                    <span className="fw-bold text-success">₹{Math.max(...asins.map(a => a.currentPrice || 0)).toLocaleString()}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted small">Lowest Entry</span>
+                    <span className="fw-bold text-danger">₹{Math.min(...asins.map(a => a.currentPrice || 0)).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-lg-4">
+              <div className="card h-100 border-0 shadow-sm" style={{ borderRadius: '16px' }}>
+                <div className="card-header bg-white border-0 pt-4 px-4 pb-0">
+                  <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                    <div className="p-2 bg-primary-subtle text-primary rounded-3"><BarChart2 size={16} /></div>
+                    Algorithm Visibility
+                  </h6>
+                </div>
+                <div className="card-body px-4 pb-4">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted small">Average BSR</span>
+                    <span className="fw-bold">#{Math.round(asins.reduce((sum, a) => sum + (a.currentRank || 0), 0) / (asins.length || 1)).toLocaleString()}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted small">Best Performer</span>
+                    <span className="fw-bold text-primary">#{Math.min(...asins.map(a => a.currentRank || 9999999)).toLocaleString()}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted small">Tracking Pool</span>
+                    <span className="fw-bold">{asins.length} Active ASINs</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-lg-4">
+              <div className="card h-100 border-0 shadow-sm" style={{ borderRadius: '16px' }}>
+                <div className="card-header bg-white border-0 pt-4 px-4 pb-0">
+                  <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                    <div className="p-2 bg-warning-subtle text-warning rounded-3"><Zap size={16} /></div>
+                    Optimization Index
+                  </h6>
+                </div>
+                <div className="card-body px-4 pb-4">
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted small">A+ Content Adoption</span>
+                    <span className="fw-bold">{asins.filter(a => a.hasAPlus).length} / {asins.length}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span className="text-muted small">Avg Description</span>
+                    <span className="fw-bold">{Math.round(asins.reduce((sum, a) => sum + (a.descLength || 0), 0) / (asins.length || 1))} chars</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted small">Avg Media Assets</span>
+                    <span className="fw-bold">{Math.round(asins.reduce((sum, a) => sum + (a.imagesCount || 0), 0) / (asins.length || 1))} imgs</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Collapsible ASIN Table */}
+        <div className="card border-0 shadow-sm mb-5" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+          <div className="card-header d-flex justify-content-between align-items-center px-4 py-3" style={{ backgroundColor: '#fff', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <h5 className="card-title mb-0 d-flex align-items-center gap-2 text-dark fw-bold" style={{ fontSize: '1.1rem' }}>
+              <Table size={18} className="text-primary" />
+              Inventory & Performance Ledger
+              <span className="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle smallest px-3 ms-2">
+                {asins.length} Active SKUs
+              </span>
+            </h5>
+            <button
+              className="btn btn-sm btn-light shadow-sm rounded-circle p-1"
+              onClick={() => setShowTable(!showTable)}
+            >
+              {showTable ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
+          {showTable && (
+            <div className="card-body p-0" style={{ backgroundColor: '#fff' }}>
+              <div className="d-flex justify-content-between align-items-center gap-2 p-3 border-bottom bg-light-subtle">
+                <div className="d-flex align-items-center gap-2">
+                  <div className="input-group input-group-sm rounded-pill overflow-hidden border shadow-sm" style={{ width: '300px' }}>
+                    <span className="input-group-text bg-white border-0 text-muted ps-3"><Search size={14} /></span>
+                    <input type="text" className="form-control border-0 ps-0" placeholder="Search ASIN, SKU or Product..." style={{ fontSize: '13px' }} />
+                  </div>
+                </div>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-white btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm border rounded-pill px-3" onClick={() => console.log('Export CSV')}>
+                    <Download size={14} className="text-primary" /> Export CSV
+                  </button>
+                  <button className="btn btn-primary btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm rounded-pill px-3" onClick={() => loadData()}>
+                    <RefreshCw size={14} /> Sync All
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable table container */}
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table table-hover mb-0" style={{ fontSize: '0.8rem', minWidth: '1200px' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb', zIndex: 10 }}>
+                    <tr>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>ASIN</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>SKU</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', minWidth: '180px' }}>Product</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Price</th>
+                      <th colSpan="8" style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 600, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #c7d2fe' }}>Price by Week</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>BSR</th>
+                      <th colSpan="8" style={{ backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #bbf7d0', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <div className="d-flex align-items-center justify-content-center gap-2">
+                          <BarChart2 size={12} /> BSR by Week
+                        </div>
+                      </th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rating</th>
+                      <th colSpan="8" style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #fde68a', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <div className="d-flex align-items-center justify-content-center gap-2">
+                          <Star size={12} /> Rating by Week
+                        </div>
+                      </th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reviews</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>LQS</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Buy Box</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>A+</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Images</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Desc Len</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Status</th>
+                    </tr>
+                    <tr>
+                      {/* Price by Week headers */}
+                      {weekColumns.map(week => (
+                        <th key={`price-${week}`} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #c7d2fe' }}>{week}</th>
+                      ))}
+                      {/* BSR by Week headers */}
+                      {weekColumns.map(week => (
+                        <th key={`bsr-${week}`} style={{ backgroundColor: '#dcfce7', color: '#166534', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #bbf7d0' }}>{week}</th>
+                      ))}
+                      {/* Rating by Week headers */}
+                      {weekColumns.map(week => (
+                        <th key={`rating-${week}`} style={{ backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #fde68a' }}>{week}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {asins.map(asin => (
+                      <tr key={asin.id} style={{ backgroundColor: '#fff' }}>
+                        <td style={{ fontWeight: 600, color: '#111827', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.asinCode}</td>
+                        <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.sku}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          <div className="d-flex align-items-center gap-2" style={{ maxWidth: '180px' }}>
+                            <img src={asin.imageUrl} alt={asin.title} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} />
+                            <span style={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              display: 'block'
+                            }}>
+                              {asin.title}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#059669', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          ₹{asin.currentPrice?.toLocaleString()}
+                        </td>
+                        {/* Price by Week columns */}
+                        {asin.weekHistory?.map((week, idx) => (
+                          <td key={`price-${idx}`} style={{ backgroundColor: '#f5f3ff', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                            {getWeekHistoryBadge(week.price, 'price')}
+                          </td>
+                        ))}
+                        <td style={{ fontWeight: 600, color: '#2563eb', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          #{asin.currentRank?.toLocaleString()}
+                        </td>
+                        {/* BSR by Week columns */}
+                        {asin.weekHistory?.map((week, idx) => (
+                          <td key={`bsr-${idx}`} style={{ backgroundColor: '#f0fdf4', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                            {getWeekHistoryBadge(week.bsr, 'number')}
+                          </td>
+                        ))}
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          <div className="d-flex align-items-center gap-1">
+                            <Star size={12} className="text-warning fill-warning" />
+                            <span style={{ fontWeight: 500 }}>{asin.rating}</span>
+                          </div>
+                        </td>
+                        {/* Rating by Week columns */}
+                        {asin.weekHistory?.map((week, idx) => (
+                          <td key={`rating-${idx}`} style={{ backgroundColor: '#fffbeb', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                            {getWeekHistoryBadge(week.rating, 'rating')}
+                          </td>
+                        ))}
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          {asin.reviewCount?.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          {getLqsBadge(asin.lqs)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          {getBuyBoxBadge(asin.buyBoxWin)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          {getAplusBadge(asin.hasAPlus)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          <span className="badge" style={{ backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 500 }}>
+                            {asin.imagesCount}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                            {asin.descLength} chars
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          {getStatusBadge(asin.status)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Add ASIN Modal */}
+        {showAddModal && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(17, 24, 39, 0.7)', backdropFilter: 'blur(4px)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                <div className="modal-header border-0 px-4 pt-4 pb-0">
+                  <h5 className="h5 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <div className="p-2 bg-primary-subtle text-primary rounded-3">
+                      <Plus size={20} />
+                    </div>
+                    Add New ASINs
+                  </h5>
+                  <button type="button" className="btn-close" onClick={() => setShowAddModal(false)}></button>
+                </div>
+                <div className="modal-body px-4 py-4">
+                  <p className="text-muted small mb-4">Enter Amazon Standard Identification Numbers separated by commas. Our agents will begin scraping live performance data immediately.</p>
+                  <div className="mb-0">
+                    <label className="form-label fw-bold text-dark small mb-2 d-flex align-items-center gap-2">
+                      <Scan size={14} className="text-primary" /> Target ASIN List
+                    </label>
+                    <textarea
+                      className="form-control border shadow-sm"
+                      rows="4"
+                      style={{ borderRadius: '12px', fontSize: '14px', padding: '12px' }}
+                      placeholder="e.g. B07XYZ123, B07ABC456, B07DEF789"
+                      value={newAsin}
+                      onChange={(e) => setNewAsin(e.target.value)}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer border-0 px-4 pb-4 pt-0">
+                  <button type="button" className="btn btn-light fw-bold rounded-pill px-4" onClick={() => setShowAddModal(false)}>Cancel</button>
+                  <button type="button" className="btn btn-primary fw-bold rounded-pill px-4 shadow-sm" onClick={handleSync} disabled={syncing}>
+                    {syncing ? <><RefreshCw size={16} className="me-2 spin" /> Initiating...</> : 'Start Scraping'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
+export default AsinManagerPage;

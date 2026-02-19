@@ -1,0 +1,95 @@
+const mongoose = require('mongoose');
+const Seller = require('../backend/models/Seller');
+const path = require('path');
+
+// Hardcoding URI for script execution since dotenv is acting up in this context
+// In a real env, we'd fix the package resolution, but this is a one-off script
+const MONGODB_URI = "mongodb://localhost:27017/gms_db";
+const fetch = require('node-fetch');
+
+const COMETCHAT_APP_ID = "167556928fc00314a";
+const COMETCHAT_REGION = "in";
+const COMETCHAT_API_KEY = "e9b80ec532f553e701de51613d81ca4c81c726cc"; // Using Auth Key for simplicity in this script, or use REST API Key if available
+
+const COMETCHAT_API_URL = `https://${COMETCHAT_APP_ID}.api-${COMETCHAT_REGION}.cometchat.io/v3.0/users`;
+
+async function syncSellers() {
+    try {
+        console.log('🔌 Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGODB_URI);
+        console.log('✅ Connected to MongoDB');
+
+        const sellers = await Seller.find({});
+        console.log(`📊 Found ${sellers.length} sellers to sync.`);
+
+        for (const seller of sellers) {
+            const uid = `seller_${seller.sellerId.replace(/[@.]/g, '_').toLowerCase()}`;
+            const name = seller.name;
+            const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=128`;
+
+            const payload = {
+                uid: uid,
+                name: name,
+                avatar: avatar,
+                role: 'seller',
+                tags: ['gms-user'] // Tagging for filtering
+            };
+
+            console.log(`Processing ${name} (${uid})...`);
+
+            try {
+                // Try to create user
+                const response = await fetch(COMETCHAT_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'apiKey': COMETCHAT_API_KEY,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log(`✅ Created/Updated: ${name}`);
+                } else if (data.code === 'ERR_UID_ALREADY_EXISTS') {
+                    // Update if exists to ensure tags are set
+                    const updateResponse = await fetch(`${COMETCHAT_API_URL}/${uid}`, {
+                        method: 'PUT',
+                        headers: {
+                            'apiKey': COMETCHAT_API_KEY,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: name,
+                            avatar: avatar,
+                            tags: ['gms-user']
+                        })
+                    });
+                    const updateData = await updateResponse.json();
+                    if (updateResponse.ok) {
+                        console.log(`♻️ Updated existing: ${name}`);
+                    } else {
+                        console.error(`❌ Failed to update ${name}:`, updateData);
+                    }
+                } else {
+                    console.error(`❌ Failed to create ${name}:`, data);
+                }
+
+            } catch (err) {
+                console.error(`Error processing ${name}:`, err.message);
+            }
+        }
+
+        console.log('🎉 Sync completed!');
+        process.exit(0);
+
+    } catch (error) {
+        console.error('Fatal Error:', error);
+        process.exit(1);
+    }
+}
+
+syncSellers();

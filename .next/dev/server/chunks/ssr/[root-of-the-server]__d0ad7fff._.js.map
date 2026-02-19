@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["file:///Users/jenilrupapara/Easysell%20Projects/GMS%20Report/gms-dashboard/src/app/layout.jsx"],"sourcesContent":["import {\n    ClerkProvider,\n    SignInButton,\n    SignUpButton,\n    SignedIn,\n    SignedOut,\n    UserButton,\n} from \"@clerk/nextjs\";\nimport 'bootstrap/dist/css/bootstrap.min.css';\nimport \"../index.css\";\n\nexport const metadata = {\n    title: \"GMS Dashboard\",\n    description: \"Next.js GMS Dashboard with Clerk\",\n};\n\nexport default function RootLayout({ children }) {\n    return (\n        <ClerkProvider>\n            <html lang=\"en\">\n                <body>\n                    {/* We'll move the Header component logic into layout or keep it separate */}\n                    {children}\n                </body>\n            </html>\n        </ClerkProvider>\n    );\n}\n"],"names":[],"mappings":";;;;;;;AAAA;;;;;AAWO,MAAM,WAAW;IACpB,OAAO;IACP,aAAa;AACjB;AAEe,SAAS,WAAW,EAAE,QAAQ,EAAE;IAC3C,qBACI,8OAAC,0LAAa;kBACV,cAAA,8OAAC;YAAK,MAAK;sBACP,cAAA,8OAAC;0BAEI;;;;;;;;;;;;;;;;AAKrB"}}]
+}

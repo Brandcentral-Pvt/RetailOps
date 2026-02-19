@@ -1,0 +1,148 @@
+/* Alerts & Notifications Styles */
+
+.rounded-4 {
+    border-radius: 1rem !important;
+}
+
+.transition-all {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-light-subtle {
+    background-color: rgba(248, 249, 250, 0.7) !important;
+}
+
+.smallest {
+    font-size: 0.7rem;
+    letter-spacing: 0.025em;
+}
+
+.list-group-item {
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.list-group-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    z-index: 1;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Glassmorphism utility */
+.glass-card {
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* iOS-Inspired Premium Notifications */
+
+:root {
+    --ios-blur: blur(20px);
+    --ios-bg: rgba(255, 255, 255, 0.7);
+    --ios-border: rgba(255, 255, 255, 0.5);
+    --ios-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.notification-container-glass {
+    background: var(--ios-bg);
+    backdrop-filter: var(--ios-blur);
+    -webkit-backdrop-filter: var(--ios-blur);
+    border: 1px solid var(--ios-border);
+    border-radius: 24px;
+    box-shadow: var(--ios-shadow);
+}
+
+.ios-card {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 12px;
+}
+
+.ios-card:hover {
+    transform: scale(1.01);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.05);
+}
+
+.ios-app-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    /* iOS Squircle approximation */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.notification-unread-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #007aff;
+    /* iOS Blue */
+    border-radius: 50%;
+}
+
+.ios-stat-card {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 1.25rem;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ios-search-pill {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border: none !important;
+    backdrop-filter: blur(4px);
+}
+
+.ios-btn-primary {
+    background: #007aff !important;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+}
+
+.ios-btn-white {
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: #333;
+}
