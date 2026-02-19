@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 // Auth helper functions
 const getAuthHeader = () => {
@@ -430,7 +430,7 @@ export const asinApi = {
 };
 
 
-const REVENUE_API_BASE = 'http://localhost:3001/api/revenue';
+const REVENUE_API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/revenue`;
 
 export const dashboardApi = {
   getSummary: async (period = '30d') => {

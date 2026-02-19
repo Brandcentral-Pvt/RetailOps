@@ -5,8 +5,16 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5175', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5175',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    process.env.FRONTEND_URL, // Allow dynamic frontend URL from env
+    /\.vercel\.app$/ // Allow all Vercel subdomains
+  ].filter(Boolean),
   credentials: true
+}
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -120,7 +128,14 @@ console.log('📡 Initializing Socket.io...');
 const { Server } = require('socket.io');
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5175', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5175',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+      process.env.FRONTEND_URL,
+      /\.vercel\.app$/
+    ].filter(Boolean),
     credentials: true
   },
   pingTimeout: 60000,

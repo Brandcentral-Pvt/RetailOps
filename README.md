@@ -147,9 +147,18 @@ The `DatabaseService` class acts as the single source for all API interactions.
   - **Purpose**: Scans and repairs broken relationships between ASINs and Sellers.
   - **Usage**: Run if ASINs disappear from the dashboard.
 
+### 🛠️ Vercel Deployment Note
+If you encounter `Running "vercel build"` errors with `Missing script: "build"`, Vercel is likely detecting the `backend` folder as the project root.
+
+**Resolution:**
+1. Go to your Vercel Project Settings > **General**.
+2. Locate the **Root Directory** setting.
+3. Ensure it is set to `.` (the project root) and NOT `backend`.
+4. Redeploy.
+
 ---
 
-## �🚦 Getting Started
+## 🚦 Getting Started
 
 ### Prerequisites
 - Node.js v18+

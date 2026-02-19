@@ -9,13 +9,13 @@ const ExportButton = ({ data, fileName = 'export', format = 'excel', className =
       alert('No data available to export');
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       const formatParam = format === 'excel' ? 'xlsx' : 'csv';
       const response = await axios.post(
-        `http://localhost:3001/api/export/${formatParam}`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/export/${formatParam}`,
         { data },
         {
           responseType: 'blob',
@@ -32,11 +32,11 @@ const ExportButton = ({ data, fileName = 'export', format = 'excel', className =
       link.setAttribute('download', `${fileName}.${formatParam}`);
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
     } catch (error) {
       console.error('❌ Export error:', error);
       alert('Export failed. Please try again.');
