@@ -13,6 +13,7 @@ import { CometChat } from '@cometchat/chat-sdk-javascript';
 import { useCometChatContext } from '../../context/CometChatContext';
 import { AppContext } from '../../context/AppContext';
 import { CometChatSettings } from '../../CometChatSettings';
+import { TaskMentionFormatter } from '../../util/TaskMentionFormatter';
 
 interface MessagesViewProps {
   user?: CometChat.User;
@@ -44,8 +45,8 @@ export const CometChatMessages = (props: MessagesViewProps) => {
     onHeaderClicked,
     onThreadRepliesClick,
     showComposer,
-    onBack = () => {},
-    onSearchClicked = () => {},
+    onBack = () => { },
+    onSearchClicked = () => { },
     goToMessageId,
     searchKeyword,
     showGroupActionMessages,
@@ -101,6 +102,9 @@ export const CometChatMessages = (props: MessagesViewProps) => {
   function getFormatters() {
     const formatters = CometChatUIKit.getDataSource().getAllTextFormatters({});
 
+    // Add Task Mention Formatter
+    formatters.push(new TaskMentionFormatter());
+
     if (searchKeyword) {
       formatters.push(new CometChatTextHighlightFormatter(searchKeyword));
     }
@@ -133,11 +137,11 @@ export const CometChatMessages = (props: MessagesViewProps) => {
     if (group) {
       return chatFeaturesRef.current && chatFeaturesRef.current.deeperUserEngagement?.groupInfo
         ? onHeaderClicked()
-        : () => {};
+        : () => { };
     } else if (userRef) {
       return chatFeaturesRef.current && chatFeaturesRef.current.deeperUserEngagement?.userInfo
         ? onHeaderClicked()
-        : () => {};
+        : () => { };
     }
   }, [group, onHeaderClicked]);
 
