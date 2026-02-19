@@ -68,6 +68,7 @@
     "withSideBar": true,
     "tabs": [
       "chats",
+      "calls",
       "users",
       "groups"
     ],

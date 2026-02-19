@@ -280,13 +280,11 @@ function CometChatHome({
   const fetchDefaultUser = () => {
     if (!autoOpenFirstItem) return;
     if (defaultUser) {
+      setSelectedItem(defaultUser);
       setAppState({ type: 'updateSelectedItemUser', payload: defaultUser });
     } else {
       const limit = 30,
-        userRequest: CometChat.UsersRequest = new CometChat.UsersRequestBuilder()
-          .setLimit(limit)
-          .setTags(['gms-user'])
-          .build();
+        userRequest: CometChat.UsersRequest = new CometChat.UsersRequestBuilder().setLimit(limit).build();
 
       userRequest.fetchNext().then(
         (userList: CometChat.User[]) => {
@@ -431,22 +429,9 @@ function CometChatHome({
     }
   }, [layoutFeatures?.tabs, layoutFeatures?.withSideBar, loggedInUser, defaultActiveTab, activeTab]);
 
-  // Persist active chat on selection change
   useEffect(() => {
     if (activeTab === 'chats' && appState.selectedItem) {
       setSelectedItem(appState.selectedItem);
-
-      // Save last active chat details to localStorage
-      const item = appState.selectedItem;
-      if (item instanceof CometChat.Conversation) {
-        const type = item.getConversationType();
-        const id = item.getConversationType() === 'user'
-          ? (item.getConversationWith() as CometChat.User).getUid()
-          : (item.getConversationWith() as CometChat.Group).getGuid();
-
-        localStorage.setItem('lastActiveChat', JSON.stringify({ type, id }));
-      }
-
     } else if (activeTab === 'users' && appState.selectedItemUser) {
       setSelectedItem(appState.selectedItemUser);
     } else if (activeTab === 'groups' && appState.selectedItemGroup) {
@@ -456,28 +441,7 @@ function CometChatHome({
     } else {
       setSelectedItem(undefined);
     }
-  }, [activeTab, appState.selectedItem, appState.selectedItemUser, appState.selectedItemGroup, appState.selectedItemCall]);
-
-  // Restore last chat on load
-  useEffect(() => {
-    const restoreLastChat = async () => {
-      const lastChat = localStorage.getItem('lastActiveChat');
-      if (lastChat && !selectedItem && !appState.selectedItem) {
-        try {
-          const { type, id } = JSON.parse(lastChat);
-          const conversation = await CometChat.getConversation(id, type);
-          setSelectedItem(conversation);
-          setAppState({ type: 'updateSelectedItem', payload: conversation });
-        } catch (e) {
-          console.warn("Failed to restore last chat", e);
-        }
-      }
-    };
-
-    if (loggedInUser && !hasInitializedTab.current) {
-      restoreLastChat();
-    }
-  }, [loggedInUser]);
+  }, [activeTab]);
 
   const InformationComponent = useCallback(() => {
     return (
@@ -796,9 +760,7 @@ function CometChatHome({
     };
 
     const TabContent: React.FC<TabContentProps> = ({ selectedTab }) => {
-      let usersRequestBuilder = new CometChat.UsersRequestBuilder()
-        .setLimit(30)
-        .setTags(['gms-user']);
+      let usersRequestBuilder = new CometChat.UsersRequestBuilder().setLimit(30);
       if (chatFeatures?.userManagement?.friendsOnly) {
         usersRequestBuilder = usersRequestBuilder.friendsOnly(true);
       }

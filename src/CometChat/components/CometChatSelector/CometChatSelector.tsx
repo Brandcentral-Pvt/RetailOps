@@ -51,14 +51,14 @@ const CometChatSelector = (props: SelectorProps) => {
     showJoinGroup,
     activeItem,
     activeTab,
-    onSelectorItemClicked = () => { },
-    onProtectedGroupJoin = () => { },
+    onSelectorItemClicked = () => {},
+    onProtectedGroupJoin = () => {},
     showCreateGroup,
-    setShowCreateGroup = () => { },
-    onHide = () => { },
-    onNewChatClicked = () => { },
-    onGroupCreated = () => { },
-    onSearchClicked = () => { },
+    setShowCreateGroup = () => {},
+    onHide = () => {},
+    onNewChatClicked = () => {},
+    onGroupCreated = () => {},
+    onSearchClicked = () => {},
     hideCreateGroupButton = true,
   } = props;
 
@@ -69,9 +69,7 @@ const CometChatSelector = (props: SelectorProps) => {
 
   // Build usersRequestBuilder for users tab
   const usersRequestBuilder = React.useMemo(() => {
-    let builder = new CometChat.UsersRequestBuilder()
-      .setLimit(30)
-      .setTags(['gms-user']);
+    let builder = new CometChat.UsersRequestBuilder().setLimit(30);
     if (chatFeatures?.userManagement?.friendsOnly) {
       builder = builder.friendsOnly(true);
     }
