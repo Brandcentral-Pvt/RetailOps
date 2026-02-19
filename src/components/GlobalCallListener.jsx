@@ -99,19 +99,28 @@ export const GlobalCallListener = () => {
     };
 
     const onDecline = (call) => {
+        console.log("[GlobalCallListener] User declined call:", call);
         stopRing();
         setIncomingCall(null);
-        // The component handles rejection internally, but we update local state
     };
 
-    // We pass null for onAccept to let CometChat UI Kit handle the acceptance and navigation if configured
-    // Or we can intercept it. For now, we mainly want to stop the ring.
-    // However, CometChatIncomingCall prop 'onAccept' might expect a function.
-
     const onAccept = (call) => {
+        console.log("[GlobalCallListener] User accepted call:", call);
         stopRing();
         setIncomingCall(null);
-    }
+    };
+
+    // Robust stopRing function
+    const stopRing = () => {
+        try {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+        } catch (error) {
+            console.error("[GlobalCallListener] Error stopping ringtone:", error);
+        }
+    };
 
 
     return (
