@@ -82,12 +82,7 @@ export const GlobalCallListener = () => {
         audioRef.current.play().catch(e => console.error("Error playing ringtone:", e));
     };
 
-    const stopRing = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-    };
+
 
     const showNotification = (title, body) => {
         if (Notification.permission === 'granted') {
