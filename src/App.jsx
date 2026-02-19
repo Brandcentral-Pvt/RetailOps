@@ -97,6 +97,7 @@ function AppRoutes() {
 import { SocketProvider } from './contexts/SocketContext';
 import { ToastProvider } from './contexts/ToastContext';
 import GlobalNotificationListener from './components/GlobalNotificationListener';
+import { GlobalCallListener } from './components/GlobalCallListener';
 
 function App() {
   return (
@@ -104,6 +105,7 @@ function App() {
       <SocketProvider>
         <ToastProvider>
           <GlobalNotificationListener />
+          <GlobalCallListener />
           <AppRoutes />
         </ToastProvider>
       </SocketProvider>

@@ -36,7 +36,7 @@ import {
   CometChatGroupEvents,
   CometChatGroupMembers,
   CometChatGroups,
-  CometChatIncomingCall,
+
   CometChatMessageEvents,
   CometChatToast,
   CometChatUIKit,
@@ -2316,7 +2316,7 @@ function CometChatHome({
         )}
 
         {SideComponentWrapper}
-        <CometChatIncomingCall />
+
         {showToast ? <CometChatToast text={toastTextRef.current} onClose={closeToast} /> : null}
       </div>
     )
