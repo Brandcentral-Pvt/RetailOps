@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.37.5",
     "@cometchat/calls-sdk-javascript": "^4.2.4",
     "@cometchat/chat-sdk-javascript": "^4.1.6",
     "@cometchat/chat-uikit-react": "^6.3.11",
@@ -31,7 +30,6 @@
     "lucide-react": "^0.563.0",
     "multer": "^2.0.2",
     "mysql2": "^3.14.2",
-    "next": "^16.1.6",
     "react": "^19.1.0",
     "react-apexcharts": "^1.7.0",
     "react-chartjs-2": "^5.3.0",
