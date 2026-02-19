@@ -156,6 +156,29 @@ If you encounter `Running "vercel build"` errors with `Missing script: "build"`,
 3. Ensure it is set to `.` (the project root) and NOT `backend`.
 4. Redeploy.
 
+### 🚀 Backend Deployment (Render)
+To support Socket.io and Cron jobs, deploy the backend to [Render](https://render.com).
+
+1.  **Select "Web Service"** and connect your GitHub repo.
+2.  **Configuration**:
+    - **name**: `gms-backend`
+    - **Region**: Same as CometChat (e.g., Singapore/US)
+    - **Root Directory**: `backend` (Important!)
+    - **Build Command**: `npm install`
+    - **Start Command**: `node server.js`
+3.  **Environment Variables**:
+    - copy all values from `backend/.env`
+    - Add `FRONTEND_URL`: `https://retail-ops-black.vercel.app`
+
+### 🔗 Frontend Connection
+After Render deploys, copy the **onrender.com** URL.
+
+1.  Go to **Vercel Project Settings > Environment Variables**.
+2.  Add `VITE_API_URL` with value: `https://your-app-name.onrender.com/api` (ensure `/api` suffix is added if your backend expects it, but our refactor handles the base URL). *Correction*: Our code appends `/api`, so just the base URL `https://your-app-name.onrender.com` or if `server.js` routes are at root... checking code... `api.js` appends `/api`. Wait, `server.js` mounts at `/api`.
+    - **Actually**: The code uses `VITE_API_URL` as the base. If `VITE_API_URL` is set, it uses it.
+    - **Value**: `https://your-app-name.onrender.com/api` (The code logic is `import.meta.env.VITE_API_URL || 'http://localhost:3001/api'`).
+3.  **Redeploy Frontend** on Vercel.
+
 ---
 
 ## 🚦 Getting Started
