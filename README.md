@@ -156,6 +156,17 @@ If you encounter `Running "vercel build"` errors with `Missing script: "build"`,
 3. Ensure it is set to `.` (the project root) and NOT `backend`.
 4. Redeploy.
 
+### 🛠️ Render Deployment Troubleshooting
+If you see `Error: Cannot find module '/opt/render/project/src/backend/eslint.config.js'`, it means Render is running the wrong start command.
+
+**Resolution:**
+1. Go to Render Dashboard > **Settings**.
+2. **Root Directory**: Ensure it is set to `backend`.
+3. **Start Command**: Ensure it is `node server.js` (NOT `npm start` or `node .`).
+4. **Build Command**: Ensure it is `npm install`.
+
+---
+
 ### 🚀 Backend Deployment (Render)
 To support Socket.io and Cron jobs, deploy the backend to [Render](https://render.com).
 

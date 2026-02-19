@@ -10,11 +10,10 @@ app.use(cors({
     'http://localhost:5175',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
-    process.env.FRONTEND_URL, // Allow dynamic frontend URL from env
-    /\.vercel\.app$/ // Allow all Vercel subdomains
+    process.env.FRONTEND_URL,
+    /\.vercel\.app$/
   ].filter(Boolean),
   credentials: true
-}
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
