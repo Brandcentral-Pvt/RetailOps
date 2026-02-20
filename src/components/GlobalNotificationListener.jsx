@@ -38,21 +38,32 @@ const GlobalNotificationListener = () => {
 
         const handleNewNotification = (data) => {
             const notification = data.notification || data;
-            // Only show if it's not a basic chat message (handled above)
-            if (notification.type !== 'CHAT_MESSAGE') {
-                addToast({
-                    title: 'New Notification',
-                    message: notification.message,
-                    type: 'info',
-                    onClick: () => {
-                        if (notification.referenceModel === 'Action') {
-                            navigate(`/actions?id=${notification.referenceId}`);
-                        } else {
-                            navigate('/alerts');
-                        }
-                    }
-                });
+
+            // For chat messages, we only show toast if not already on chat page
+            if (notification.type === 'CHAT_MESSAGE') {
+                if (location.pathname !== '/chat') {
+                    addToast({
+                        title: 'New Chat Message',
+                        message: notification.message,
+                        type: 'message',
+                        onClick: () => navigate('/chat')
+                    });
+                }
+                return;
             }
+
+            addToast({
+                title: 'New Notification',
+                message: notification.message,
+                type: 'info',
+                onClick: () => {
+                    if (notification.referenceModel === 'Action') {
+                        navigate(`/actions?id=${notification.referenceId}`);
+                    } else {
+                        navigate('/alerts');
+                    }
+                }
+            });
         };
 
         socket.on('private-message', handlePrivateMessage);

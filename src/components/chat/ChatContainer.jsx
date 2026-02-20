@@ -1,63 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { CometChatUIKit } from '@cometchat/chat-uikit-react';
-import { CometChat } from '@cometchat/chat-sdk-javascript';
-import { CometChatHome } from '../../CometChat/components/CometChatHome/CometChatHome';
-import { AppContextProvider } from '../../CometChat/context/AppContext';
-import '../../CometChat/styles/CometChatApp.css';
+import React, { useEffect, useState } from 'react';
+import { CometChat } from "@cometchat/chat-sdk-javascript";
+import { CometChatUIKitLoginListener } from "@cometchat/chat-uikit-react";
+import { CometChatHome } from "CometChat/components/CometChatHome/CometChatHome";
+import CometChatLogin from "CometChat/components/CometChatLogin/CometChatLogin";
+import { AppContextProvider } from "CometChat/context/AppContext";
+import { useCometChatContext } from "CometChat/context/CometChatContext";
+import useSystemColorScheme from "CometChat/customHooks";
+import useThemeStyles from "CometChat/customHook/useThemeStyles";
+import "@cometchat/chat-uikit-react/css-variables.css";
+
+import { useAuth } from "../../contexts/AuthContext";
+import { CometChatUIKit } from "@cometchat/chat-uikit-react";
 
 const ChatContainer = () => {
-    const { user: currentUser } = useAuth();
-    const [ccUser, setCCUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+    const [loggedInUser, setLoggedInUser] = useState(null);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const { styleFeatures, setStyleFeatures } = useCometChatContext();
+    const systemTheme = useSystemColorScheme();
+    const getLoggedInUser = CometChatUIKitLoginListener?.getLoggedInUser();
 
     useEffect(() => {
-        const initChat = async () => {
-            if (!currentUser) return;
+        setLoggedInUser(getLoggedInUser);
+    }, [getLoggedInUser]);
 
-            try {
-                const loggedInUser = await CometChatUIKit.getLoggedinUser();
-                const targetUid = currentUser.email.replace(/[@.]/g, '_').toLowerCase();
+    useEffect(() => {
+        if (user && !loggedInUser && !isLoggingIn) {
+            const uid = user.email.replace(/[@.]/g, '_').toLowerCase();
+            setIsLoggingIn(true);
+            CometChatUIKit.login(uid)
+                .then(ccUser => {
+                    setLoggedInUser(ccUser);
+                    setIsLoggingIn(false);
+                })
+                .catch(error => {
+                    console.error("CometChat auto-login failed:", error);
+                    setIsLoggingIn(false);
+                });
+        }
+    }, [user, loggedInUser, isLoggingIn]);
 
-                if (loggedInUser && loggedInUser.getUid() === targetUid) {
-                    setCCUser(loggedInUser);
-                    setLoading(false);
-                } else {
-                    if (loggedInUser) await CometChatUIKit.logout();
+    useEffect(() => {
+        document.body.classList.add('chat-page-active');
 
-                    try {
-                        const user = await CometChatUIKit.login(targetUid);
-                        setCCUser(user);
-                    } catch (loginError) {
-                        console.warn('CometChat login failed, attempting creation...', loginError);
-                        const authKey = "e9b80ec532f553e701de51613d81ca4c81c726cc";
-                        const newUser = new CometChat.User(targetUid);
-                        newUser.setName(`${currentUser.firstName} ${currentUser.lastName}`.trim());
-                        const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.firstName)}+${encodeURIComponent(currentUser.lastName)}&background=0D8ABC&color=fff&size=128`;
-                        newUser.setAvatar(currentUser.avatar || defaultAvatar);
-                        newUser.setTags(['gms-user']);
+        CometChat.addLoginListener(
+            "gms-dashboard-chat",
+            new CometChat.LoginListener({
+                loginSuccess: (user) => {
+                    setLoggedInUser(user);
+                },
+                logoutSuccess: () => {
+                    setLoggedInUser(null);
+                },
+            })
+        );
 
-                        await CometChat.createUser(newUser, authKey);
-                        const userAfterCreation = await CometChatUIKit.login(targetUid);
-                        setCCUser(userAfterCreation);
-                    }
-                    setLoading(false);
-                }
-            } catch (error) {
-                console.error('CometChat initialization error:', error);
-                setLoading(false);
-            }
+        return () => {
+            document.body.classList.remove('chat-page-active');
+            CometChat.removeLoginListener("gms-dashboard-chat");
         };
+    }, []);
 
-        initChat();
-    }, [currentUser]);
-
-    if (loading) return <div className="p-5 text-center">Loading Chat...</div>;
+    // Apply theme styles based on CometChat settings
+    useThemeStyles(styleFeatures, systemTheme, setStyleFeatures, loggedInUser);
 
     return (
-        <div style={{ height: '100vh', width: '100%' }}>
+        <div className="h-100 w-100 overflow-hidden">
             <AppContextProvider>
-                {ccUser ? <CometChatHome /> : <div className="p-5 text-center">Initializing...</div>}
+                {loggedInUser ? (
+                    <CometChatHome />
+                ) : isLoggingIn ? (
+                    <div className="h-100 d-flex flex-column align-items-center justify-content-center bg-light">
+                        <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 className="text-dark mb-1">Initializing Chat</h4>
+                        <p className="text-muted">Please wait while we connect you...</p>
+                    </div>
+                ) : (
+                    <CometChatLogin />
+                )}
             </AppContextProvider>
         </div>
     );

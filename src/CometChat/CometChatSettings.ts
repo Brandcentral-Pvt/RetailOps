@@ -3,7 +3,7 @@
   "chatFeatures": {
     "coreMessagingExperience": {
       "typingIndicator": true,
-      "threadConversationAndReplies": true,
+      "threadConversationAndReplies": false,
       "photosSharing": true,
       "videoSharing": true,
       "audioSharing": true,
@@ -14,7 +14,7 @@
       "userAndFriendsPresence": true,
       "conversationAndAdvancedSearch": true,
       "moderation": true,
-      "quotedReplies": false,
+      "quotedReplies": true,
       "markAsUnread": false
     },
     "deeperUserEngagement": {
@@ -77,7 +77,7 @@
   "style": {
     "theme": "light",
     "color": {
-      "brandColor": "#2b49e2",
+      "brandColor": "#5952d6",
       "primaryTextLight": "#141414",
       "primaryTextDark": "#FFFFFF",
       "secondaryTextLight": "#727272",
@@ -85,7 +85,7 @@
     },
     "typography": {
       "font": "roboto",
-      "size": "default"
+      "size": "compact"
     }
   },
   "noCode": {

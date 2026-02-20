@@ -18,6 +18,8 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB connection options
 const mongoOptions = {
@@ -162,6 +164,14 @@ server.listen(PORT, () => {
   const recurringTaskScheduler = require('./services/recurringTaskScheduler');
   recurringTaskScheduler.start();
   console.log('⏰ Recurring task scheduler initialized');
+
+  // Trigger initial CometChat sync on startup
+  try {
+    const { syncAllToCometChat } = require('./services/cometChatService');
+    syncAllToCometChat(); // Fire and forget
+  } catch (err) {
+    console.error('Initial CometChat sync failed:', err);
+  }
 });
 
 const onlineUsers = new Map(); // userId -> socketId
@@ -169,27 +179,196 @@ const onlineUsers = new Map(); // userId -> socketId
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
 
-  socket.on('join', (userId) => {
-    socket.userId = userId;
-    onlineUsers.set(userId, socket.id);
-    socket.join(userId);
-    console.log(`👤 User ${userId} joined their private room`);
+  socket.on('join', async (userId) => {
+    try {
+      socket.userId = userId;
+      onlineUsers.set(userId, socket.id);
 
-    // Broadcast user is online
-    io.emit('user_status_change', { userId, status: 'online' });
+      // Update user status in DB
+      const User = require('./models/User');
+      await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: Date.now() });
 
-    // Send list of currently online users to the joining user
-    socket.emit('online_users', Array.from(onlineUsers.keys()));
+      // Join personal room
+      socket.join(userId);
+
+      // Join rooms for all active conversations
+      const Conversation = require('./models/Conversation');
+      const conversations = await Conversation.find({ participants: userId, isActive: true });
+      conversations.forEach(conv => {
+        socket.join(conv._id.toString());
+      });
+
+      console.log(`👤 User ${userId} joined their rooms`);
+      io.emit('user_status_change', { userId, status: 'online' });
+    } catch (err) {
+      console.error('Socket join error:', err);
+    }
   });
 
-  socket.on('typing', ({ senderId, recipientId }) => {
-    io.to(recipientId).emit('typing', { senderId });
+  socket.on('join_room', (roomId) => {
+    if (typeof roomId === 'string') {
+      socket.join(roomId);
+      console.log(`🔌 Socket ${socket.id} joined room: ${roomId}`);
+    }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('typing', ({ conversationId, senderId, isTyping }) => {
+    socket.to(conversationId).emit('typing', { conversationId, senderId, isTyping });
+  });
+
+  socket.on('send_message', async (data) => {
+    try {
+      const Message = require('./models/Message');
+      const Conversation = require('./models/Conversation');
+
+      const { conversationId, senderId, content, type, fileUrl, replyTo } = data;
+
+      const message = await Message.create({
+        conversationId,
+        sender: senderId,
+        type: type || 'TEXT',
+        content,
+        fileUrl,
+        replyTo
+      });
+
+      const populatedMessage = await Message.findById(message._id)
+        .populate('sender', 'firstName lastName avatar')
+        .populate('replyTo');
+
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: message._id,
+        updatedAt: Date.now()
+      });
+
+      io.to(conversationId).emit('receive_message', populatedMessage);
+    } catch (err) {
+      console.error('Socket send_message error:', err);
+    }
+  });
+
+  socket.on('add_reaction', async ({ messageId, emoji, userId }) => {
+    try {
+      const Message = require('./models/Message');
+      const message = await Message.findByIdAndUpdate(
+        messageId,
+        { $push: { reactions: { userId, emoji } } },
+        { new: true }
+      ).populate('sender', 'firstName lastName avatar');
+
+      io.to(message.conversationId.toString()).emit('message_reaction_updated', { messageId, reactions: message.reactions });
+    } catch (err) {
+      console.error('Socket add_reaction error:', err);
+    }
+  });
+
+  socket.on('message_read', async ({ messageId, userId }) => {
+    try {
+      const Message = require('./models/Message');
+      const message = await Message.findByIdAndUpdate(
+        messageId,
+        { $addToSet: { 'status.readBy': userId } },
+        { new: true }
+      );
+
+      if (message) {
+        io.to(message.conversationId.toString()).emit('message_status_updated', {
+          messageId,
+          status: message.status
+        });
+      }
+    } catch (err) {
+      console.error('Socket message_read error:', err);
+    }
+  });
+
+  // Calling Signaling
+  socket.on('invite_to_call', async ({ conversationId, callerId, type, receiverId }) => {
+    try {
+      const Call = require('./models/Call');
+      const call = await Call.create({
+        conversationId,
+        callerId,
+        receiverId,
+        type,
+        status: 'INITIATED'
+      });
+
+      const populatedCall = await Call.findById(call._id).populate('callerId', 'firstName lastName avatar');
+
+      // Notify the receiver
+      io.to(receiverId).emit('incoming_call', populatedCall);
+      // Notify the caller (confirmation)
+      socket.emit('call_initiated', populatedCall);
+    } catch (err) {
+      console.error('Socket invite_to_call error:', err);
+    }
+  });
+
+  socket.on('accept_call', async ({ callId }) => {
+    try {
+      const Call = require('./models/Call');
+      const call = await Call.findByIdAndUpdate(callId, {
+        status: 'ONGOING',
+        startedAt: new Date()
+      }, { new: true }).populate('callerId receiverId');
+
+      if (call) {
+        io.to(call.callerId._id.toString()).emit('call_accepted', call);
+        io.to(call.receiverId._id.toString()).emit('call_accepted', call);
+      }
+    } catch (err) {
+      console.error('Socket accept_call error:', err);
+    }
+  });
+
+  socket.on('reject_call', async ({ callId }) => {
+    try {
+      const Call = require('./models/Call');
+      const call = await Call.findByIdAndUpdate(callId, { status: 'REJECTED' }, { new: true });
+      if (call) {
+        io.to(call.callerId.toString()).emit('call_rejected', { callId });
+      }
+    } catch (err) {
+      console.error('Socket reject_call error:', err);
+    }
+  });
+
+  socket.on('end_call', async ({ callId }) => {
+    try {
+      const Call = require('./models/Call');
+      const call = await Call.findById(callId);
+      if (call && call.status !== 'ENDED') {
+        const endedAt = new Date();
+        const duration = call.startedAt ? Math.floor((endedAt - call.startedAt) / 1000) : 0;
+
+        const updatedCall = await Call.findByIdAndUpdate(callId, {
+          status: 'ENDED',
+          endedAt,
+          duration
+        }, { new: true });
+
+        io.to(call.callerId.toString()).emit('call_ended', { callId, duration });
+        if (call.receiverId) {
+          io.to(call.receiverId.toString()).emit('call_ended', { callId, duration });
+        }
+      }
+    } catch (err) {
+      console.error('Socket end_call error:', err);
+    }
+  });
+
+  // WebRTC Signaling Passthrough
+  socket.on('webrtc_signal', ({ targetId, signal, callId }) => {
+    io.to(targetId).emit('webrtc_signal', { fromId: socket.userId, signal, callId });
+  });
+
+  socket.on('disconnect', async () => {
     console.log('🔌 Socket disconnected:', socket.id);
     if (socket.userId) {
       onlineUsers.delete(socket.userId);
+      const User = require('./models/User');
+      await User.findByIdAndUpdate(socket.userId, { isOnline: false, lastSeen: Date.now() });
       io.emit('user_status_change', { userId: socket.userId, status: 'offline' });
     }
   });

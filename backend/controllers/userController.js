@@ -56,6 +56,29 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+exports.getManagers = async (req, res) => {
+  try {
+    // Find roles that qualify as managers (admin, manager, or Brand Manager)
+    const roles = await Role.find({ name: { $in: ['admin', 'manager', 'Brand Manager'] } });
+    const roleIds = roles.map(r => r._id);
+
+    const managers = await User.find({
+      role: { $in: roleIds },
+      isActive: true
+    })
+      .select('firstName lastName email role')
+      .populate('role', 'name displayName');
+
+    res.json({
+      success: true,
+      data: managers
+    });
+  } catch (error) {
+    console.error('Get managers error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get managers' });
+  }
+};
+
 exports.getUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -161,6 +184,14 @@ exports.updateUser = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('role');
 
+    // Sync to CometChat on update
+    try {
+      const { syncUserToCometChat } = require('../services/cometChatService');
+      syncUserToCometChat(updatedUser);
+    } catch (chatError) {
+      console.error('CometChat Sync Error during user update:', chatError);
+    }
+
     res.json({ success: true, data: updatedUser });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update user' });
@@ -189,7 +220,16 @@ exports.deleteUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot delete your own account' });
     }
 
+    const uid = require('../services/cometChatService').sanitizeUid(user.email);
     await User.findByIdAndDelete(req.params.id);
+
+    // Sync to CometChat on deletion
+    try {
+      const { deleteFromCometChat } = require('../services/cometChatService');
+      deleteFromCometChat(uid); // Fire and forget
+    } catch (chatError) {
+      console.error('CometChat Deletion Error:', chatError);
+    }
 
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
@@ -223,6 +263,14 @@ exports.toggleUserStatus = async (req, res) => {
     await user.save();
 
     await user.populate('role', 'name displayName color');
+
+    // Sync to CometChat on status toggle
+    try {
+      const { syncUserToCometChat } = require('../services/cometChatService');
+      syncUserToCometChat(user);
+    } catch (chatError) {
+      console.error('CometChat Sync Error during user status toggle:', chatError);
+    }
 
     res.json({ success: true, data: user });
   } catch (error) {

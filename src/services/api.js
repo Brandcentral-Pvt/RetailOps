@@ -210,18 +210,12 @@ export const userApi = {
   },
 
   getManagers: async () => {
-    // role is an ObjectId ref in User model, so we can't filter by name in the query.
-    // Fetch all users and filter by populated role name client-side.
-    const res = await fetch(`${API_BASE}/users`, {
+    const res = await fetch(`${API_BASE}/users/managers`, {
       headers: { ...getAuthHeader() },
     });
     if (!res.ok) throw new Error('Failed to fetch managers');
     const data = await res.json();
-    const users = data.users || data.data || (Array.isArray(data) ? data : []);
-    return users.filter(u => {
-      const roleName = u.role?.name || u.role;
-      return roleName === 'Brand Manager';
-    });
+    return data.data || [];
   },
 };
 
@@ -642,6 +636,78 @@ const api = {
     },
     markAllAsRead: async () => {
       return api.put('/notifications/read', { notificationId: 'all' });
+    }
+  },
+  chatApi: {
+    getConversations: async () => {
+      return api.get('/chat/conversations');
+    },
+    getUsers: async () => {
+      return api.get('/chat/users');
+    },
+    getSellers: async () => {
+      return api.get('/chat/sellers');
+    },
+    createConversation: async (participantId, sellerId) => {
+      return api.post('/chat/conversations', { participantId, sellerId });
+    },
+    getMessages: async (conversationId, params = {}) => {
+      return api.get(`/chat/messages/${conversationId}`, params);
+    },
+    markAsRead: async (conversationId) => {
+      return api.post(`/chat/messages/${conversationId}/read`);
+    },
+    sendMessage: async (data) => {
+      return api.post('/chat/send', data);
+    },
+    uploadFile: async (formData) => {
+      return api.post('/chat/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+    },
+    createGroup: async (groupData) => {
+      return api.post('/chat/groups', groupData);
+    },
+    addGroupMembers: async (conversationId, participants) => {
+      return api.post(`/chat/groups/${conversationId}/members`, { participants });
+    },
+    removeGroupMember: async (conversationId, userId) => {
+      return api.post(`/chat/groups/${conversationId}/members/remove`, { userId });
+    },
+    searchMessages: async (query) => {
+      return api.get('/chat/search', { query });
+    },
+    editMessage: async (messageId, content) => {
+      return api.put(`/chat/messages/${messageId}`, { content });
+    },
+    deleteMessage: async (messageId) => {
+      return api.delete(`/chat/messages/${messageId}`);
+    },
+    forwardMessage: async (messageId, targetConversationId) => {
+      return api.post('/chat/messages/forward', { messageId, targetConversationId });
+    },
+    getMessageReceipts: async (messageId) => {
+      return api.get(`/chat/messages/${messageId}/receipts`);
+    },
+    getLinkPreview: async (url) => {
+      return api.get('/chat/link-preview', { url });
+    },
+    updateMemberRole: async (conversationId, userId, role) => {
+      return api.put(`/chat/groups/${conversationId}/role`, { userId, role });
+    },
+    getSharedMedia: async (conversationId, type) => {
+      return api.get(`/chat/groups/${conversationId}/media`, { type });
+    },
+    togglePinMessage: async (messageId) => {
+      return api.put(`/chat/messages/${messageId}/pin`);
+    },
+    createPoll: async (pollData) => {
+      return api.post('/chat/messages/poll', pollData);
+    },
+    votePoll: async (messageId, optionIndex) => {
+      return api.post(`/chat/messages/${messageId}/vote`, { optionIndex });
     }
   }
 };

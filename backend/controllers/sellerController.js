@@ -102,7 +102,7 @@ exports.createSeller = async (req, res) => {
   try {
     const userRole = req.user?.role?.name || req.user?.role;
     const isAdmin = userRole === 'admin';
-    const isManager = userRole === 'Brand Manager';
+    const isManager = userRole === 'manager' || userRole === 'Brand Manager';
 
     // Extract managerId from body (admin can select a manager)
     const { managerId, ...sellerData } = req.body;
@@ -166,6 +166,14 @@ exports.updateSeller = async (req, res) => {
       return res.status(404).json({ error: 'Seller not found' });
     }
 
+    // Sync to CometChat on update
+    try {
+      const { syncSellerToCometChat } = require('../services/cometChatService');
+      syncSellerToCometChat(seller);
+    } catch (chatError) {
+      console.error('CometChat Sync Error during seller update:', chatError);
+    }
+
     res.json(seller);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -200,7 +208,16 @@ exports.deleteSeller = async (req, res) => {
       { $pull: { assignedSellers: seller._id } }
     );
 
+    const uid = `seller_${require('../services/cometChatService').sanitizeUid(seller.sellerId)}`;
     await seller.deleteOne();
+
+    // Sync to CometChat on deletion
+    try {
+      const { deleteFromCometChat } = require('../services/cometChatService');
+      deleteFromCometChat(uid); // Fire and forget
+    } catch (chatError) {
+      console.error('CometChat Deletion Error:', chatError);
+    }
     res.json({ message: 'Seller deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -244,59 +261,3 @@ exports.importSellers = async (req, res) => {
   }
 };
 
-// Seed demo data
-exports.seedDemoData = async (req, res) => {
-  try {
-    // Check if data already exists
-    const existingSellers = await Seller.countDocuments();
-    if (existingSellers > 0) {
-      return res.json({ message: 'Demo data already exists', count: existingSellers });
-    }
-
-    const demoSellers = [
-      { name: 'TechGear Pro', marketplace: 'amazon.in', sellerId: 'A1B2C3D4E5F6', apiKey: 'oct_xxx123', plan: 'Pro', scrapeLimit: 500, totalAsins: 45, activeAsins: 42, status: 'Active', lastScraped: new Date() },
-      { name: 'HomeEssentials', marketplace: 'amazon.in', sellerId: 'A2B3C4D5E6F7', apiKey: 'oct_xxx456', plan: 'Enterprise', scrapeLimit: 2000, totalAsins: 78, activeAsins: 75, status: 'Active', lastScraped: new Date() },
-      { name: 'SportZone', marketplace: 'amazon.com', sellerId: 'A3B4C5D6E7F8', apiKey: 'oct_xxx789', plan: 'Starter', scrapeLimit: 100, totalAsins: 32, activeAsins: 30, status: 'Active', lastScraped: new Date() },
-      { name: 'FashionHub', marketplace: 'amazon.uk', sellerId: 'A4B5C6D7E8F9', apiKey: 'oct_xxx012', plan: 'Pro', scrapeLimit: 500, totalAsins: 56, activeAsins: 52, status: 'Active', lastScraped: new Date() },
-      { name: 'BeautyCare', marketplace: 'amazon.in', sellerId: 'A5B6C7D8E9F0', apiKey: 'oct_xxx345', plan: 'Pro', scrapeLimit: 500, totalAsins: 89, activeAsins: 85, status: 'Paused', lastScraped: new Date(Date.now() - 86400000) },
-      { name: 'KitchenMaster', marketplace: 'amazon.com', sellerId: 'A6B7C8D9E0F1', apiKey: 'oct_xxx678', plan: 'Enterprise', scrapeLimit: 2000, totalAsins: 41, activeAsins: 40, status: 'Active', lastScraped: new Date() },
-      { name: 'PetParadise', marketplace: 'amazon.in', sellerId: 'A7B8C9D0E1F2', apiKey: 'oct_xxx901', plan: 'Pro', scrapeLimit: 500, totalAsins: 67, activeAsins: 62, status: 'Active', lastScraped: new Date(Date.now() - 172800000) },
-      { name: 'Office Supplies Co', marketplace: 'amazon.uk', sellerId: 'A8B9C0D1E2F3', apiKey: 'oct_xxx234', plan: 'Starter', scrapeLimit: 100, totalAsins: 23, activeAsins: 20, status: 'Active', lastScraped: new Date() },
-    ];
-
-    const sellers = await Seller.insertMany(demoSellers);
-
-    // Create demo ASINs for each seller
-    const demoAsins = [
-      { asinCode: 'B07XYZ123', title: 'Wireless Bluetooth Earbuds Pro with Noise Cancellation', brand: 'AudioTech', currentPrice: 49.99, currentRank: 1250, rating: 4.5, reviewCount: 1250, lqs: 85 },
-      { asinCode: 'B07ABC456', title: 'Smart Watch Elite - Fitness Tracker with Heart Rate Monitor', brand: 'FitGear', currentPrice: 199.99, currentRank: 890, rating: 4.2, reviewCount: 890, lqs: 72 },
-      { asinCode: 'B07DEF789', title: 'Premium Yoga Mat - Non-Slip Exercise Mat for Home Gym', brand: 'FitLife', currentPrice: 29.99, currentRank: 3200, rating: 4.8, reviewCount: 2100, lqs: 92 },
-      { asinCode: 'B07GHI012', title: 'Automatic Coffee Maker Deluxe - 12-Cup Programmable Coffee Machine', brand: 'KitchenPro', currentPrice: 79.99, currentRank: 1560, rating: 4.3, reviewCount: 650, lqs: 68 },
-      { asinCode: 'B07JKL345', title: 'Portable Bluetooth Speaker - Waterproof Wireless Speaker with Bass', brand: 'SoundWave', currentPrice: 39.99, currentRank: 2100, rating: 4.1, reviewCount: 1800, lqs: 75 },
-    ];
-
-    const asinsToInsert = [];
-    for (const seller of sellers) {
-      for (const asin of demoAsins) {
-        asinsToInsert.push({
-          ...asin,
-          seller: seller._id,
-          status: 'Active',
-          lastScraped: new Date(),
-          history: [],
-          ratingHistory: [],
-        });
-      }
-    }
-
-    await Asin.insertMany(asinsToInsert);
-
-    res.status(201).json({
-      message: 'Demo data seeded successfully',
-      sellers: sellers.length,
-      asins: asinsToInsert.length,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};

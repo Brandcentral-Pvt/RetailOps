@@ -3,6 +3,7 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
+router.get('/managers', authenticate, userController.getManagers);
 router.get('/', authenticate, requirePermission('users_view'), userController.getUsers);
 router.get('/:id', authenticate, requirePermission('users_view'), userController.getUser);
 router.post('/', authenticate, requirePermission('users_create'), userController.createUser);

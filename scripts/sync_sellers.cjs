@@ -7,9 +7,9 @@ const path = require('path');
 const MONGODB_URI = "mongodb://localhost:27017/gms_db";
 const fetch = require('node-fetch');
 
-const COMETCHAT_APP_ID = "167556928fc00314a";
+const COMETCHAT_APP_ID = "1675623ba4da04e9e";
 const COMETCHAT_REGION = "in";
-const COMETCHAT_API_KEY = "e9b80ec532f553e701de51613d81ca4c81c726cc"; // Using Auth Key for simplicity in this script, or use REST API Key if available
+const COMETCHAT_API_KEY = "d07adba4924933e6c9c6ab5d15ec2abe92704a5c"; // Using Auth Key for simplicity in this script, or use REST API Key if available
 
 const COMETCHAT_API_URL = `https://${COMETCHAT_APP_ID}.api-${COMETCHAT_REGION}.cometchat.io/v3.0/users`;
 

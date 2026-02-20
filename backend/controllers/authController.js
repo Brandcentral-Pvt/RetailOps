@@ -233,6 +233,14 @@ exports.updateProfile = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('role');
 
+    // Sync to CometChat on profile update
+    try {
+      const { syncUserToCometChat } = require('../services/cometChatService');
+      syncUserToCometChat(user);
+    } catch (chatError) {
+      console.error('CometChat Sync Error during profile update:', chatError);
+    }
+
     res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update profile' });

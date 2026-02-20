@@ -11,6 +11,12 @@ export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
 
     useEffect(() => {
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    useEffect(() => {
         if (user) {
             const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace('/api', '');
             const newSocket = io(socketUrl, {
@@ -21,7 +27,30 @@ export const SocketProvider = ({ children }) => {
 
             newSocket.emit('join', user._id || user.id);
 
-            return () => newSocket.close();
+            // Notification handling
+            newSocket.on('receive_message', (message) => {
+                if (document.hidden && Notification.permission === "granted") {
+                    new Notification(`New message from ${message.sender?.firstName || 'User'}`, {
+                        body: message.content,
+                        icon: message.sender?.avatar || '/favicon.ico'
+                    });
+                }
+            });
+
+            newSocket.on('incoming_call', (call) => {
+                if (document.hidden && Notification.permission === "granted") {
+                    new Notification(`Incoming ${call.type} Call`, {
+                        body: `${call.callerId?.firstName} is calling you...`,
+                        icon: call.callerId?.avatar || '/favicon.ico'
+                    });
+                }
+            });
+
+            return () => {
+                newSocket.off('receive_message');
+                newSocket.off('incoming_call');
+                newSocket.close();
+            };
         } else if (socket) {
             socket.close();
             setSocket(null);

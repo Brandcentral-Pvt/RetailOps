@@ -14,6 +14,7 @@ const sellerSchema = new mongoose.Schema({
   status: { type: String, enum: ['Active', 'Paused'], default: 'Active' },
   users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   marketSyncTaskId: { type: String },
+  cometChatUid: { type: String, index: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

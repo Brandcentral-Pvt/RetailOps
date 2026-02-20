@@ -81,7 +81,7 @@ const asinItemSchema = new mongoose.Schema({
   status: { type: String, required: true, enum: ['pending', 'fetched', 'calculated', 'error'] },
   errorMessage: { type: String },
   createdAt: { type: Date, required: true },
-  
+
   // Product Data
   title: { type: String },
   categoryId: { type: String },
@@ -243,16 +243,6 @@ const seedInitialData = async () => {
     console.log('[Revenue Calculator] Seeded refund fees');
   }
 
-  const userCount = await RevenueUser.countDocuments();
-  if (userCount === 0) {
-    const initialUser = {
-      id: 'admin-1',
-      email: 'info@easysell.in',
-      role: 'admin'
-    };
-    await RevenueUser.create(initialUser);
-    console.log('[Revenue Calculator] Seeded admin user (info@easysell.in / Easysell@123)');
-  }
 };
 
 module.exports = {

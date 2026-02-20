@@ -14,6 +14,17 @@ class RecurringTaskScheduler {
             await this.checkAndNotifyOverdueTasks();
         });
 
+        // Run CometChat full sync every 6 hours
+        cron.schedule('0 */6 * * *', async () => {
+            console.log('Running background CometChat sync...');
+            try {
+                const { syncAllToCometChat } = require('./cometChatService');
+                await syncAllToCometChat();
+            } catch (err) {
+                console.error('Background CometChat sync failed:', err);
+            }
+        });
+
         console.log('Recurring task scheduler started');
     }
 

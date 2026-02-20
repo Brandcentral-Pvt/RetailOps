@@ -94,6 +94,18 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Seller',
   }],
+  isOnline: {
+    type: Boolean,
+    default: false,
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now,
+  },
+  cometChatUid: {
+    type: String,
+    index: true,
+  },
 }, { timestamps: true });
 
 // Virtual for full name
