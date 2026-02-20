@@ -13,24 +13,11 @@ const {
 } = require('../models/RevenueCalculatorModel');
 const { calculateProfits } = require('../services/feeCalculationEngine');
 
-// --- Authentication ---
-router.post('/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
-    const user = await RevenueUser.findOne({ email, password });
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    res.json({ id: user.id, email: user.email, role: user.role });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 // --- Fee Management Routes ---
 // Get all fee structures by type
-router.get('/fees/:type', async (req, res) => {
+router.get('/fees/:type', authenticate, requirePermission('calculator_view'), async (req, res) => {
   try {
     const type = req.params.type;
     let model;
@@ -64,7 +51,7 @@ router.get('/fees/:type', async (req, res) => {
 });
 
 // Create or update fee
-router.post('/fees/:type', async (req, res) => {
+router.post('/fees/:type', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const type = req.params.type;
     let model;
@@ -108,7 +95,7 @@ router.post('/fees/:type', async (req, res) => {
 });
 
 // Delete fee
-router.delete('/fees/:type/:id', async (req, res) => {
+router.delete('/fees/:type/:id', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const type = req.params.type;
     const { id } = req.params;
@@ -143,7 +130,7 @@ router.delete('/fees/:type/:id', async (req, res) => {
 });
 
 // Delete all fees for type
-router.delete('/fees/:type/all', async (req, res) => {
+router.delete('/fees/:type/all', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const type = req.params.type;
     let model;
@@ -177,7 +164,7 @@ router.delete('/fees/:type/all', async (req, res) => {
 });
 
 // --- Category Mapping Routes ---
-router.get('/mappings', async (req, res) => {
+router.get('/mappings', authenticate, requirePermission('calculator_view'), async (req, res) => {
   try {
     const mappings = await CategoryMap.find();
     res.json(mappings);
@@ -187,7 +174,7 @@ router.get('/mappings', async (req, res) => {
   }
 });
 
-router.post('/mappings', async (req, res) => {
+router.post('/mappings', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const doc = req.body;
     if (!doc.id) {
@@ -207,7 +194,7 @@ router.post('/mappings', async (req, res) => {
   }
 });
 
-router.delete('/mappings/:id', async (req, res) => {
+router.delete('/mappings/:id', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const { id } = req.params;
     await CategoryMap.deleteOne({ id });
@@ -218,7 +205,7 @@ router.delete('/mappings/:id', async (req, res) => {
   }
 });
 
-router.delete('/mappings/all', async (req, res) => {
+router.delete('/mappings/all', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     await CategoryMap.deleteMany({});
     res.json({ ok: true });
@@ -229,7 +216,7 @@ router.delete('/mappings/all', async (req, res) => {
 });
 
 // --- Node Mapping Routes ---
-router.get('/nodemaps', async (req, res) => {
+router.get('/nodemaps', authenticate, requirePermission('calculator_view'), async (req, res) => {
   try {
     const nodeMaps = await NodeMap.find();
     res.json(nodeMaps);
@@ -239,7 +226,7 @@ router.get('/nodemaps', async (req, res) => {
   }
 });
 
-router.post('/nodemaps', async (req, res) => {
+router.post('/nodemaps', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const doc = req.body;
     if (!doc.id) {
@@ -259,7 +246,7 @@ router.post('/nodemaps', async (req, res) => {
   }
 });
 
-router.delete('/nodemaps/:id', async (req, res) => {
+router.delete('/nodemaps/:id', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     const { id } = req.params;
     await NodeMap.deleteOne({ id });
@@ -270,7 +257,7 @@ router.delete('/nodemaps/:id', async (req, res) => {
   }
 });
 
-router.delete('/nodemaps/all', async (req, res) => {
+router.delete('/nodemaps/all', authenticate, requirePermission('calculator_config'), async (req, res) => {
   try {
     await NodeMap.deleteMany({});
     res.json({ ok: true });
@@ -281,7 +268,7 @@ router.delete('/nodemaps/all', async (req, res) => {
 });
 
 // --- ASIN Management Routes ---
-router.get('/asins', async (req, res) => {
+router.get('/asins', authenticate, requirePermission('calculator_view'), async (req, res) => {
   try {
     const asins = await AsinItem.find();
     res.json(asins);
@@ -291,7 +278,7 @@ router.get('/asins', async (req, res) => {
   }
 });
 
-router.post('/asins/bulk', async (req, res) => {
+router.post('/asins/bulk', authenticate, requirePermission('calculator_bulk'), async (req, res) => {
   try {
     const items = req.body || [];
     const processedItems = items.map(item => ({
@@ -322,7 +309,7 @@ router.post('/asins/bulk', async (req, res) => {
   }
 });
 
-router.put('/asins/:id', async (req, res) => {
+router.put('/asins/:id', authenticate, requirePermission('calculator_bulk'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body || {};
@@ -334,7 +321,7 @@ router.put('/asins/:id', async (req, res) => {
   }
 });
 
-router.delete('/asins/:id', async (req, res) => {
+router.delete('/asins/:id', authenticate, requirePermission('calculator_bulk'), async (req, res) => {
   try {
     const { id } = req.params;
     await AsinItem.deleteOne({ id });
@@ -345,7 +332,7 @@ router.delete('/asins/:id', async (req, res) => {
   }
 });
 
-router.delete('/asins', async (req, res) => {
+router.delete('/asins', authenticate, requirePermission('calculator_bulk'), async (req, res) => {
   try {
     await AsinItem.deleteMany({});
     res.json({ ok: true });
@@ -356,7 +343,7 @@ router.delete('/asins', async (req, res) => {
 });
 
 // --- Storage Fee Convenience Route ---
-router.get('/fees/storage', async (req, res) => {
+router.get('/fees/storage', authenticate, requirePermission('calculator_view'), async (req, res) => {
   try {
     const fees = await StorageFee.find();
     res.json(fees);
@@ -372,7 +359,7 @@ router.get('/health', (req, res) => {
 });
 
 // --- Calculation Route ---
-router.post('/calculate', async (req, res) => {
+router.post('/calculate', authenticate, requirePermission('calculator_bulk'), async (req, res) => {
   try {
     const { asinIds } = req.body; // Can be empty to calculate all
     await calculateProfits(asinIds);

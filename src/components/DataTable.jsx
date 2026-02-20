@@ -23,7 +23,8 @@ const DataTable = ({
   pagination = false,
   pageSize = 10,
   compact = false,
-  actions = null
+  actions = null,
+  customRenderers = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -146,7 +147,29 @@ const DataTable = ({
                 />
               </div>
             )}
-            {actions}
+            {Array.isArray(actions) ? (
+              <div className="d-flex align-items-center gap-2">
+                {actions.map((action, idx) => (
+                  <button
+                    key={idx}
+                    className={`btn ${action.className || 'btn-sm btn-light'} d-flex align-items-center gap-2`}
+                    onClick={() => action.onClick && action.onClick()}
+                    title={action.label}
+                  >
+                    {action.icon && (
+                      action.icon.startsWith('bi-') ? (
+                        <i className={`bi ${action.icon}`}></i>
+                      ) : (
+                        action.icon // Assume it's a React component if not a string starting with bi-
+                      )
+                    )}
+                    <span className="d-none d-md-inline">{action.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              actions
+            )}
           </div>
         </div>
       )}
@@ -180,7 +203,7 @@ const DataTable = ({
                       className={`px-4 py-3 border-0 border-bottom border-light align-middle fw-600 ${isNumeric(item[col]) ? 'text-end tabular-nums' : 'text-start'}`}
                       style={{ fontSize: '12px', color: '#1e293b' }}
                     >
-                      {item[col]}
+                      {customRenderers[col] ? customRenderers[col](item) : item[col]}
                     </td>
                   ))}
                 </tr>

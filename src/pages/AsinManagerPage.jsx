@@ -241,34 +241,35 @@ const AsinManagerPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        // Use getAsins directly
-        const response = await db.request('/asins');
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Use getAsins directly
+      const response = await db.request('/asins');
 
-        // Handle both possible response formats: [{...}] or { asins: [...] }
-        const asinsData = response?.asins || response?.data || (Array.isArray(response) ? response : []);
+      // Handle both possible response formats: [{...}] or { asins: [...] }
+      const asinsData = response?.asins || response?.data || (Array.isArray(response) ? response : []);
 
-        if (asinsData && asinsData.length > 0) {
-          setAsins(asinsData);
-          setError(null);
-        } else {
-          console.warn('No ASINs found in database');
-          setAsins([]);
-          setError(null);
-        }
-      } catch (err) {
-        console.error('Error fetching ASINs:', err);
-        setError(err.message);
-        setAsins(demoAsins); // Fallback to demo data on error for now
-      } finally {
-        setLoading(false);
+      if (asinsData && asinsData.length > 0) {
+        setAsins(asinsData);
+        setError(null);
+      } else {
+        console.warn('No ASINs found in database');
+        setAsins([]);
+        setError(null);
       }
-    };
-    loadData();
+    } catch (err) {
+      console.error('Error fetching ASINs:', err);
+      setError(err.message);
+      setAsins(demoAsins); // Fallback to demo data on error for now
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const kpis = useMemo(() => {
     const total = asins.length;

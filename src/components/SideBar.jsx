@@ -4,30 +4,33 @@ import { useAuth } from '../contexts/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
 
   const navItems = [
-    { path: '/dashboard', icon: 'bi-grid-3x3-gap', label: 'Dashboard' },
-    { path: '/sellers', icon: 'bi-shop', label: 'Sellers' },
-    { path: '/asin-tracker', icon: 'bi-upc-scan', label: 'ASIN Manager' },
-    { path: '/scrape-tasks', icon: 'bi-cloud-download', label: 'Scrape Tasks' },
-    { path: '/actions', icon: 'bi-kanban', label: 'Actions' },
-    { path: '/actions/achievement-report', icon: 'bi-bar-chart-line', label: 'Performance Report' },
-    { path: '/activity-log', icon: 'bi-journal-text', label: 'Activity Log' },
+    { path: '/dashboard', icon: 'bi-grid-3x3-gap', label: 'Dashboard', permission: 'dashboard_view' },
+    { path: '/sellers', icon: 'bi-shop', label: 'Sellers', permission: 'sellers_view' },
+    { path: '/asin-tracker', icon: 'bi-upc-scan', label: 'ASIN Manager', permission: 'sellers_view' },
+    { path: '/scrape-tasks', icon: 'bi-cloud-download', label: 'Scrape Tasks', permission: 'scraping_view' },
+    { path: '/actions', icon: 'bi-kanban', label: 'Actions', permission: 'actions_view' },
+    { path: '/actions/achievement-report', icon: 'bi-bar-chart-line', label: 'Performance Report', permission: 'reports_monthly_view' },
+    { path: '/activity-log', icon: 'bi-journal-text', label: 'Activity Log', permission: 'settings_view' },
     { path: '/chat', icon: 'bi-chat-dots', label: 'Direct Chat' },
-    { path: '/revenue-calculator', icon: 'bi-calculator', label: 'Revenue Calculator' },
-    { path: '/sku-report', icon: 'bi-box-seam', label: 'SKU Report' },
-    { path: '/parent-asin-report', icon: 'bi-collection', label: 'Parent ASIN' },
-    { path: '/month-wise-report', icon: 'bi-calendar3', label: 'Monthly Report' },
-    { path: '/ads-report', icon: 'bi-megaphone', label: 'Ads Report' },
-    { path: '/profit-loss', icon: 'bi-currency-dollar', label: 'Profit & Loss' },
-    { path: '/inventory', icon: 'bi-box-seam', label: 'Inventory' },
-    { path: '/alerts', icon: 'bi-bell', label: 'Alerts' },
-    { path: '/users', icon: 'bi-people', label: 'Users' },
-    { path: '/settings', icon: 'bi-gear', label: 'Settings' },
-    { path: '/upload-export', icon: 'bi-arrow-left-right', label: 'Upload/Export' },
+    { path: '/revenue-calculator', icon: 'bi-calculator', label: 'Revenue Calculator', permission: 'calculator_view' },
+    { path: '/sku-report', icon: 'bi-box-seam', label: 'SKU Report', permission: 'reports_sku_view' },
+    { path: '/parent-asin-report', icon: 'bi-collection', label: 'Parent ASIN', permission: 'reports_parent_view' },
+    { path: '/month-wise-report', icon: 'bi-calendar3', label: 'Monthly Report', permission: 'reports_monthly_view' },
+    { path: '/ads-report', icon: 'bi-megaphone', label: 'Ads Report', permission: 'reports_ads_view' },
+    { path: '/profit-loss', icon: 'bi-currency-dollar', label: 'Profit & Loss', permission: 'reports_profit_view' },
+    { path: '/inventory', icon: 'bi-box-seam', label: 'Inventory', permission: 'reports_inventory_view' },
+    { path: '/alerts', icon: 'bi-bell', label: 'Alerts', permission: 'dashboard_view' },
+    { path: '/users', icon: 'bi-people', label: 'Users', permission: 'users_view' },
+    { path: '/roles', icon: 'bi-shield-check', label: 'Roles', permission: 'roles_view' },
+    { path: '/settings', icon: 'bi-gear', label: 'Settings', permission: 'settings_view' },
+    { path: '/upload-export', icon: 'bi-arrow-left-right', label: 'Upload/Export', permission: 'sellers_manage_asins' },
   ];
+
+  const filteredItems = navItems.filter(item => !item.permission || hasPermission(item.permission));
 
   const handleLogout = () => {
     logout();
@@ -46,7 +49,7 @@ const Sidebar = () => {
       </div>
       <nav className="sidebar-nav">
         <ul className="nav flex-column">
-          {navItems.map((item) => (
+          {filteredItems.map((item) => (
             <li key={item.path} className="sidebar-nav-item">
               <NavLink
                 to={item.path}

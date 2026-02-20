@@ -127,5 +127,37 @@ exports.requireRole = (...roles) => {
   };
 };
 
+// Middleware to check if user has access to a specific seller
+exports.checkSellerAccess = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const isAdmin = req.user.role && req.user.role.name === 'admin';
+    if (isAdmin) {
+      return next();
+    }
+
+    const sellerId = req.params.sellerId || req.body.sellerId || req.query.sellerId;
+    if (!sellerId) {
+      return next(); // If no sellerId is provided, we skip this check (it should be handled by validators if required)
+    }
+
+    const assignedSellers = req.user.assignedSellers.map(s => s._id.toString());
+    if (!assignedSellers.includes(sellerId.toString())) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this seller\'s data'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Seller access check error:', error);
+    res.status(500).json({ success: false, message: 'Seller access check failed' });
+  }
+};
+
 exports.auth = exports.authenticate;
 exports.isAdmin = exports.requireRole('admin');

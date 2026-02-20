@@ -87,28 +87,31 @@ Role.seedDefaultRoles = async function (permissionModel) {
 
   for (const roleData of defaultRoles) {
     const existingRole = await this.findOne({ name: roleData.name });
+    let rolePermissions;
+    if (roleData.name === 'admin') {
+      rolePermissions = allPermissions.map(p => p._id);
+    } else if (roleData.name === 'manager') {
+      rolePermissions = allPermissions
+        .filter(p => ['dashboard', 'reports', 'sellers', 'scraping', 'actions', 'calculator', 'inventory'].includes(p.category))
+        .map(p => p._id);
+    } else if (roleData.name === 'analyst') {
+      rolePermissions = allPermissions
+        .filter(p => ['dashboard', 'reports', 'actions', 'calculator', 'inventory'].includes(p.category))
+        .map(p => p._id);
+    } else {
+      rolePermissions = allPermissions
+        .filter(p => p.action === 'view' && p.category !== 'settings')
+        .map(p => p._id);
+    }
 
     if (!existingRole) {
-      // For admin, give all permissions
-      // For others, give limited permissions based on level
-      let rolePermissions;
-      if (roleData.name === 'admin') {
-        rolePermissions = allPermissions.map(p => p._id);
-      } else if (roleData.name === 'manager') {
-        rolePermissions = allPermissions
-          .filter(p => ['dashboard', 'reports', 'sellers', 'scraping', 'actions', 'calculator', 'inventory'].includes(p.category))
-          .map(p => p._id);
-      } else if (roleData.name === 'analyst') {
-        rolePermissions = allPermissions
-          .filter(p => ['dashboard', 'reports', 'actions', 'calculator', 'inventory'].includes(p.category))
-          .map(p => p._id);
-      } else {
-        rolePermissions = allPermissions
-          .filter(p => p.action === 'view' && p.category !== 'settings')
-          .map(p => p._id);
-      }
-
       await this.create({ ...roleData, permissions: rolePermissions });
+    } else if (existingRole.isSystem) {
+      // Refresh permissions and other metadata for system roles
+      await this.findByIdAndUpdate(existingRole._id, {
+        ...roleData,
+        permissions: rolePermissions
+      });
     }
   }
 };

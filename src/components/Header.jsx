@@ -26,7 +26,7 @@ import { Dropdown } from './base/dropdown/dropdown';
 import './Header.css';
 
 const Header = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, hasPermission } = useAuth();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -145,31 +145,35 @@ const Header = () => {
     };
 
     const navItems = [
-        { path: '/dashboard', label: 'Dashboard', icon: 'bi-grid-3x3-gap' },
-        { path: '/sellers', label: 'Sellers', icon: 'bi-shop' },
-        { path: '/asin-tracker', label: 'ASIN Manager', icon: 'bi-upc-scan' },
-        { path: '/actions', label: 'Actions', icon: 'bi-diagram-3' },
+        { path: '/dashboard', label: 'Dashboard', icon: 'bi-grid-3x3-gap', permission: 'dashboard_view' },
+        { path: '/sellers', label: 'Sellers', icon: 'bi-shop', permission: 'sellers_view' },
+        { path: '/asin-tracker', label: 'ASIN Manager', icon: 'bi-upc-scan', permission: 'sellers_view' },
+        { path: '/actions', label: 'Actions', icon: 'bi-diagram-3', permission: 'actions_view' },
     ];
 
     const analysisItems = [
-        { path: '/actions/achievement-report', label: 'Performance', icon: 'bi-bar-chart-line' },
-        { path: '/ads-report', label: 'Ads Report', icon: 'bi-megaphone' },
-        { path: '/sku-report', label: 'SKU Report', icon: 'bi-box-seam' },
-        { path: '/parent-asin-report', label: 'Parent ASIN', icon: 'bi-collection' },
-        { path: '/month-wise-report', label: 'Monthly Report', icon: 'bi-calendar3' },
-        { path: '/profit-loss', label: 'Profit & Loss', icon: 'bi-currency-dollar' },
-        { path: '/activity-log', label: 'Activity Log', icon: 'bi-journal-text' },
+        { path: '/actions/achievement-report', label: 'Performance', icon: 'bi-bar-chart-line', permission: 'reports_monthly_view' },
+        { path: '/ads-report', label: 'Ads Report', icon: 'bi-megaphone', permission: 'reports_ads_view' },
+        { path: '/sku-report', label: 'SKU Report', icon: 'bi-box-seam', permission: 'reports_sku_view' },
+        { path: '/parent-asin-report', label: 'Parent ASIN', icon: 'bi-collection', permission: 'reports_parent_view' },
+        { path: '/month-wise-report', label: 'Monthly Report', icon: 'bi-calendar3', permission: 'reports_monthly_view' },
+        { path: '/profit-loss', label: 'Profit & Loss', icon: 'bi-currency-dollar', permission: 'reports_profit_view' },
+        { path: '/activity-log', label: 'Activity Log', icon: 'bi-journal-text', permission: 'settings_view' },
     ];
 
     const toolItems = [
-        { path: '/scrape-tasks', label: 'Scrape Tasks', icon: 'bi-cloud-download' },
-        { path: '/revenue-calculator', label: 'Revenue Calc', icon: 'bi-calculator' },
-        { path: '/inventory', label: 'Inventory', icon: 'bi-box-seam' },
-        { path: '/alerts', label: 'Alerts', icon: 'bi-bell' },
-        { path: '/upload-export', label: 'Upload/Export', icon: 'bi-arrow-left-right' },
-        { path: '/actions/templates', label: 'Task Templates', icon: 'bi-clipboard-check' },
+        { path: '/scrape-tasks', label: 'Scrape Tasks', icon: 'bi-cloud-download', permission: 'scraping_view' },
+        { path: '/revenue-calculator', label: 'Revenue Calc', icon: 'bi-calculator', permission: 'calculator_view' },
+        { path: '/inventory', label: 'Inventory', icon: 'bi-box-seam', permission: 'reports_inventory_view' },
+        { path: '/alerts', label: 'Alerts', icon: 'bi-bell', permission: 'dashboard_view' },
+        { path: '/upload-export', label: 'Upload/Export', icon: 'bi-arrow-left-right', permission: 'sellers_manage_asins' },
+        { path: '/actions/templates', label: 'Task Templates', icon: 'bi-clipboard-check', permission: 'actions_manage' },
         { path: '/chat', label: 'Direct Chat', icon: 'bi-chat-dots' },
     ];
+
+    const filteredNavItems = navItems.filter(item => !item.permission || hasPermission(item.permission));
+    const filteredAnalysisItems = analysisItems.filter(item => !item.permission || hasPermission(item.permission));
+    const filteredToolItems = toolItems.filter(item => !item.permission || hasPermission(item.permission));
 
     return (
         <header className="main-header">
@@ -185,7 +189,7 @@ const Header = () => {
                 {/* Navigation Section */}
                 <nav className="header-nav">
                     <ul className="nav-list">
-                        {navItems.map(item => (
+                        {filteredNavItems.map(item => (
                             <li key={item.path} className="nav-item">
                                 <NavLink to={item.path} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                                     <i className={`bi ${item.icon} me-1`}></i>
@@ -195,38 +199,42 @@ const Header = () => {
                         ))}
 
                         {/* Analysis Dropdown */}
-                        <li className="nav-item dropdown">
-                            <button className="nav-link dropdown-toggle btn btn-link">
-                                <BarChart2 size={16} className="me-1" />
-                                Analytics
-                                <ChevronDown size={12} className="ms-1" />
-                            </button>
-                            <div className="dropdown-menu-content shadow-sm">
-                                {analysisItems.map(item => (
-                                    <NavLink key={item.path} to={item.path} className="dropdown-item-link">
-                                        <i className={`bi ${item.icon} me-2`}></i>
-                                        {item.label}
-                                    </NavLink>
-                                ))}
-                            </div>
-                        </li>
+                        {filteredAnalysisItems.length > 0 && (
+                            <li className="nav-item dropdown">
+                                <button className="nav-link dropdown-toggle btn btn-link">
+                                    <BarChart2 size={16} className="me-1" />
+                                    Analytics
+                                    <ChevronDown size={12} className="ms-1" />
+                                </button>
+                                <div className="dropdown-menu-content shadow-sm">
+                                    {filteredAnalysisItems.map(item => (
+                                        <NavLink key={item.path} to={item.path} className="dropdown-item-link">
+                                            <i className={`bi ${item.icon} me-2`}></i>
+                                            {item.label}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            </li>
+                        )}
 
                         {/* Tools Dropdown */}
-                        <li className="nav-item dropdown">
-                            <button className="nav-link dropdown-toggle btn btn-link">
-                                <Layout size={16} className="me-1" />
-                                Tools
-                                <ChevronDown size={12} className="ms-1" />
-                            </button>
-                            <div className="dropdown-menu-content shadow-sm">
-                                {toolItems.map(item => (
-                                    <NavLink key={item.path} to={item.path} className="dropdown-item-link">
-                                        <i className={`bi ${item.icon} me-2`}></i>
-                                        {item.label}
-                                    </NavLink>
-                                ))}
-                            </div>
-                        </li>
+                        {filteredToolItems.length > 0 && (
+                            <li className="nav-item dropdown">
+                                <button className="nav-link dropdown-toggle btn btn-link">
+                                    <Layout size={16} className="me-1" />
+                                    Tools
+                                    <ChevronDown size={12} className="ms-1" />
+                                </button>
+                                <div className="dropdown-menu-content shadow-sm">
+                                    {filteredToolItems.map(item => (
+                                        <NavLink key={item.path} to={item.path} className="dropdown-item-link">
+                                            <i className={`bi ${item.icon} me-2`}></i>
+                                            {item.label}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            </li>
+                        )}
                     </ul>
                 </nav>
 

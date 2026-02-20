@@ -5,6 +5,6 @@ const { authenticate } = require('../middleware/auth');
 
 
 // Get dashboard summary from database
-router.get('/dashboard', seedController.getDashboardSummary);
+router.get('/dashboard', authenticate, seedController.getDashboardSummary);
 
 module.exports = router;

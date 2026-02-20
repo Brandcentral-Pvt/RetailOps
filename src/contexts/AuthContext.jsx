@@ -129,6 +129,24 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(updatedUser));
     };
 
+    const hasPermission = (permissionName) => {
+        if (!user || !user.role) return false;
+        if (user.role.name === 'admin') return true;
+        if (!user.role.permissions) return false;
+
+        return user.role.permissions.some(p => p.name === permissionName);
+    };
+
+    const hasAnyPermission = (permissionNames) => {
+        if (!user || !user.role) return false;
+        if (user.role.name === 'admin') return true;
+        if (!user.role.permissions) return false;
+
+        return permissionNames.some(name =>
+            user.role.permissions.some(p => p.name === name)
+        );
+    };
+
     const value = {
         user,
         loading,
@@ -137,7 +155,10 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         refreshUser,
-        isAuthenticated: !!user
+        hasPermission,
+        hasAnyPermission,
+        isAuthenticated: !!user,
+        isAdmin: user?.role?.name === 'admin'
     };
 
     return (

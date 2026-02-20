@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { userApi, roleApi } from '../services/api';
+import { userApi, roleApi, sellerApi } from '../services/api';
 import {
   Users,
   Shield,
@@ -27,15 +27,12 @@ import {
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [editingRole, setEditingRole] = useState(null);
   const [filters, setFilters] = useState({ search: '', role: '', isActive: '' });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
-  const [selectedPermissions, setSelectedPermissions] = useState([]);
-  const [permissions, setPermissions] = useState([]);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -45,15 +42,7 @@ const UsersPage = () => {
     phone: '',
     role: '',
     isActive: true,
-  });
-
-  const [roleFormData, setRoleFormData] = useState({
-    name: '',
-    displayName: '',
-    description: '',
-    level: 0,
-    color: '#4F46E5',
-    permissions: [],
+    assignedSellers: [],
   });
 
   const loadUsers = useCallback(async () => {
@@ -77,9 +66,9 @@ const UsersPage = () => {
       console.error('Failed to load users:', error);
     }
     setLoading(false);
-  }, [pagination.page, filters]);
+  }, [pagination.page, pagination.limit, filters]);
 
-  const loadRoles = async () => {
+  const loadRoles = useCallback(async () => {
     try {
       const response = await roleApi.getAll();
       if (response.success) {
@@ -88,26 +77,24 @@ const UsersPage = () => {
     } catch (error) {
       console.error('Failed to load roles:', error);
     }
-  };
+  }, []);
 
-  const loadPermissions = async () => {
+  const loadSellers = useCallback(async () => {
     try {
-      const response = await roleApi.getPermissions();
+      const response = await sellerApi.getAll({ limit: 1000 });
       if (response.success) {
-        setPermissions(response.data.permissions);
-        setPermissionsGrouped(response.data.groupedPermissions);
+        setSellers(response.data.sellers);
       }
     } catch (error) {
-      console.error('Failed to load permissions:', error);
+      console.error('Failed to load sellers:', error);
     }
-  };
-
-  const [permissionsGrouped, setPermissionsGrouped] = useState({});
+  }, []);
 
   useEffect(() => {
     loadUsers();
     loadRoles();
-  }, [loadUsers]);
+    loadSellers();
+  }, [loadUsers, loadRoles, loadSellers]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -129,6 +116,7 @@ const UsersPage = () => {
         phone: user.phone || '',
         role: user.role?._id || user.role || '',
         isActive: user.isActive,
+        assignedSellers: user.assignedSellers?.map(s => s._id || s) || [],
       });
     } else {
       setEditingUser(null);
@@ -140,37 +128,19 @@ const UsersPage = () => {
         phone: '',
         role: '',
         isActive: true,
+        assignedSellers: [],
       });
     }
     setShowModal(true);
   };
 
-  const handleOpenRoleModal = (role = null) => {
-    if (role) {
-      setEditingRole(role);
-      setRoleFormData({
-        name: role.name,
-        displayName: role.displayName,
-        description: role.description || '',
-        level: role.level,
-        color: role.color,
-        permissions: role.permissions?.map(p => p._id) || [],
-      });
-      setSelectedPermissions(role.permissions?.map(p => p._id) || []);
-    } else {
-      setEditingRole(null);
-      setRoleFormData({
-        name: '',
-        displayName: '',
-        description: '',
-        level: 0,
-        color: '#4F46E5',
-        permissions: [],
-      });
-      setSelectedPermissions([]);
-    }
-    setShowRoleModal(true);
-    loadPermissions();
+  const toggleSeller = (sellerId) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedSellers: prev.assignedSellers.includes(sellerId)
+        ? prev.assignedSellers.filter(id => id !== sellerId)
+        : [...prev.assignedSellers, sellerId]
+    }));
   };
 
   const handleSaveUser = async () => {
@@ -185,22 +155,6 @@ const UsersPage = () => {
     } catch (error) {
       console.error('Failed to save user:', error);
       alert(error.message || 'Failed to save user');
-    }
-  };
-
-  const handleSaveRole = async () => {
-    try {
-      const data = { ...roleFormData, permissions: selectedPermissions };
-      if (editingRole) {
-        await roleApi.update(editingRole._id, data);
-      } else {
-        await roleApi.create(data);
-      }
-      setShowRoleModal(false);
-      loadRoles();
-    } catch (error) {
-      console.error('Failed to save role:', error);
-      alert(error.message || 'Failed to save role');
     }
   };
 
@@ -222,37 +176,6 @@ const UsersPage = () => {
     } catch (error) {
       console.error('Failed to toggle user status:', error);
       alert(error.message || 'Failed to toggle user status');
-    }
-  };
-
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm('Are you sure you want to delete this role?')) return;
-    try {
-      await roleApi.delete(roleId);
-      loadRoles();
-    } catch (error) {
-      console.error('Failed to delete role:', error);
-      alert(error.message || 'Failed to delete role');
-    }
-  };
-
-  const togglePermission = (permissionId) => {
-    setSelectedPermissions(prev =>
-      prev.includes(permissionId)
-        ? prev.filter(id => id !== permissionId)
-        : [...prev, permissionId]
-    );
-  };
-
-  const toggleAllPermissions = (category) => {
-    const categoryPerms = permissions.filter(p => p.category === category);
-    const categoryIds = categoryPerms.map(p => p._id);
-    const allSelected = categoryIds.every(id => selectedPermissions.includes(id));
-
-    if (allSelected) {
-      setSelectedPermissions(prev => prev.filter(id => !categoryIds.includes(id)));
-    } else {
-      setSelectedPermissions(prev => [...new Set([...prev, ...categoryIds])]);
     }
   };
 
@@ -285,13 +208,10 @@ const UsersPage = () => {
             </div>
           </div>
           <div className="d-flex gap-2">
-            <button
-              className="btn btn-white fw-bold d-flex align-items-center gap-2 shadow-sm border"
-              onClick={() => document.getElementById('roles-section')?.scrollIntoView({ behavior: 'smooth' })}
-            >
+            <Link to="/roles" className="btn btn-white fw-bold d-flex align-items-center gap-2 shadow-sm border">
               <Shield size={16} />
               Manage Roles
-            </button>
+            </Link>
             <button className="btn btn-primary fw-bold d-flex align-items-center gap-2 shadow-sm" onClick={() => handleOpenUserModal()}>
               <UserPlus size={16} />
               Add New User
@@ -620,6 +540,43 @@ const UsersPage = () => {
                       ))}
                     </select>
                   </div>
+
+                  <div className="col-12">
+                    <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">
+                      <Shield size={14} className="text-primary" />
+                      Assigned Sellers (Data Access Control)
+                    </label>
+                    <div className="card shadow-none border-0 bg-light-subtle" style={{ borderRadius: '16px', backgroundColor: '#f9fafb' }}>
+                      <div className="card-body p-3">
+                        <div className="row g-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                          {sellers.map(seller => (
+                            <div key={seller._id} className="col-md-4 col-sm-6">
+                              <div
+                                className={`p-2 rounded-3 border transition-all cursor-pointer d-flex align-items-center gap-2 ${formData.assignedSellers.includes(seller._id) ? 'bg-primary-subtle border-primary-subtle' : 'bg-white border-light'}`}
+                                onClick={() => toggleSeller(seller._id)}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="form-check-input m-0 shadow-none border-0"
+                                  checked={formData.assignedSellers.includes(seller._id)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleSeller(seller._id);
+                                  }}
+                                  style={{ width: '16px', height: '16px' }}
+                                />
+                                <span className="smallest fw-medium text-truncate" title={seller.name}>{seller.name}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="smallest text-muted mt-2 mb-0">
+                      <Info size={12} className="me-1" />
+                      Non-admin users can only see data for their assigned sellers.
+                    </p>
+                  </div>
                   <div className="col-12 mt-3">
                     <div className="form-check form-switch d-flex align-items-center gap-2 ps-0">
                       <label className="form-check-label smallest fw-bold text-muted text-uppercase order-0" htmlFor="isActive">Account Active</label>
@@ -645,218 +602,6 @@ const UsersPage = () => {
           </div>
         </div>
       )}
-
-      {/* Role Modal */}
-      {showRoleModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(17, 24, 39, 0.7)', backdropFilter: 'blur(4px)' }}>
-          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style={{ maxWidth: '1200px', width: '95%' }}>
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
-              <div className="modal-header border-0 px-4 pt-4 pb-0">
-                <h5 className="h5 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                  <div className="p-2 bg-primary-subtle text-primary rounded-3">
-                    <Shield size={20} />
-                  </div>
-                  {editingRole ? 'Configure Security Role' : 'Define New Role'}
-                </h5>
-                <button type="button" className="btn-close" onClick={() => setShowRoleModal(false)}></button>
-              </div>
-              <div className="modal-body px-4 py-4">
-                <div className="row g-4 mb-4 pb-4 border-bottom border-light">
-                  <div className="col-md-4">
-                    <label className="form-label smallest fw-bold text-primary text-uppercase mb-2 d-flex align-items-center gap-2">
-                      <Shield size={14} />
-                      Technical Identifier
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-lg bg-light border-0 px-3 fs-6 fw-medium"
-                      style={{ borderRadius: '12px', height: '48px' }}
-                      value={roleFormData.name}
-                      onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
-                      disabled={editingRole?.isSystem}
-                      placeholder="e.g. system_admin"
-                      required
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label smallest fw-bold text-primary text-uppercase mb-2 d-flex align-items-center gap-2">
-                      <UserPlus size={14} />
-                      Display Label
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-lg bg-light border-0 px-3 fs-6"
-                      style={{ borderRadius: '12px', height: '48px' }}
-                      value={roleFormData.displayName}
-                      onChange={(e) => setRoleFormData({ ...roleFormData, displayName: e.target.value })}
-                      placeholder="e.g. System Admin"
-                      required
-                    />
-                  </div>
-                  <div className="col-md-2">
-                    <label className="form-label smallest fw-bold text-primary text-uppercase mb-2 d-flex align-items-center gap-2">
-                      <Shield size={14} />
-                      Priority
-                    </label>
-                    <input
-                      type="number"
-                      className="form-control form-control-lg bg-light border-0 px-3 fs-6"
-                      style={{ borderRadius: '12px', height: '48px' }}
-                      value={roleFormData.level}
-                      onChange={(e) => setRoleFormData({ ...roleFormData, level: parseInt(e.target.value) })}
-                      min="0" max="100"
-                    />
-                  </div>
-                  <div className="col-md-2">
-                    <label className="form-label smallest fw-bold text-primary text-uppercase mb-2 d-flex align-items-center gap-1">
-                      Role Color
-                    </label>
-                    <div className="d-flex align-items-center justify-content-center bg-light rounded-3 px-2" style={{ height: '48px' }}>
-                      <input
-                        type="color"
-                        className="form-control form-control-color border-0 bg-transparent p-0 cursor-pointer"
-                        style={{ height: '32px', width: '32px' }}
-                        value={roleFormData.color}
-                        onChange={(e) => setRoleFormData({ ...roleFormData, color: e.target.value })}
-                      />
-                      <span className="ms-2 smallest text-muted font-monospace">{roleFormData.color}</span>
-                    </div>
-                  </div>
-                  <div className="col-12 mt-3">
-                    <label className="form-label smallest fw-bold text-primary text-uppercase mb-2 d-flex align-items-center gap-2">
-                      Role Description
-                    </label>
-                    <input
-                      className="form-control form-control-lg bg-light border-0 px-3 fs-6"
-                      style={{ borderRadius: '12px', height: '48px' }}
-                      placeholder="Provide a brief overview of what this role can do..."
-                      value={roleFormData.description}
-                      onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="d-flex align-items-center gap-2 mb-4">
-                  <div className="h6 fw-bold mb-0 text-dark">Permission Matrix</div>
-                  <div className="ms-auto smallest text-muted">Grant specific access capabilities for this role</div>
-                </div>
-
-                <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-                  {Object.entries(permissionsGrouped).map(([category, perms]) => (
-                    <div key={category} className="col">
-                      <div className="card h-100 border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden', backgroundColor: '#fdfdfd' }}>
-                        <div className="card-header border-0 d-flex justify-content-between align-items-center py-3 px-3" style={{ backgroundColor: 'rgba(79, 70, 229, 0.03)' }}>
-                          <span className="text-uppercase smallest fw-bold text-primary">{category}</span>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-soft-primary px-2 py-1 smallest fw-bold border-0 shadow-none"
-                            onClick={() => toggleAllPermissions(category)}
-                            style={{ fontSize: '10px' }}
-                          >
-                            Toggle All
-                          </button>
-                        </div>
-                        <div className="card-body py-2 px-3" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                          {perms.map(perm => (
-                            <div key={perm._id} className="form-check py-2 border-bottom border-light-subtle last-border-0 transition-all hover-bg-light rounded-2 px-4">
-                              <input
-                                type="checkbox"
-                                className="form-check-input shadow-none cursor-pointer"
-                                id={`perm-${perm._id}`}
-                                checked={selectedPermissions.includes(perm._id)}
-                                onChange={() => togglePermission(perm._id)}
-                                style={{ width: '16px', height: '16px' }}
-                              />
-                              <label className="form-check-label smallest text-dark ms-2 fw-medium cursor-pointer w-100" htmlFor={`perm-${perm._id}`}>
-                                {perm.displayName}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
-                  <button type="button" className="btn btn-white fw-bold px-4" onClick={() => setShowRoleModal(false)} style={{ borderRadius: '12px' }}>Cancel</button>
-                  <button type="button" className="btn btn-primary fw-bold px-4" onClick={handleSaveRole} style={{ borderRadius: '12px' }}>
-                    {editingRole ? 'Save Changes' : 'Create Role'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div id="roles-section" className="mt-5 px-4 mb-5">
-        <div className="d-flex align-items-center gap-2 mb-4">
-          <Shield size={20} className="text-primary" />
-          <h5 className="h5 fw-bold mb-0 text-dark">Platform Roles</h5>
-          <span className="badge rounded-pill bg-light text-muted border smallest px-3">{roles.length} Total</span>
-        </div>
-        <div className="row g-4">
-          {roles.map(role => (
-            <div key={role._id} className="col-md-4 col-lg-3">
-              <div className="card h-100 border-0 shadow-sm hover-shadow transition-all" style={{ borderRadius: '20px' }}>
-                <div className="card-body p-4 d-flex flex-column">
-                  <div className="d-flex justify-content-between align-items-start mb-3">
-                    <span
-                      className="badge rounded-pill px-3 py-2 fw-bold"
-                      style={{
-                        backgroundColor: `${role.color || '#6B7280'}15`,
-                        color: role.color || '#6B7280',
-                        border: `1px solid ${role.color || '#6B7280'}30`
-                      }}
-                    >
-                      Priority {role.level}
-                    </span>
-                    {!role.isSystem && (
-                      <button
-                        className="btn btn-icon btn-light-danger border-0 shadow-none hover-danger transition-all"
-                        onClick={() => handleDeleteRole(role._id)}
-                        style={{ width: '30px', height: '30px' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                  <h6 className="h6 fw-bold text-dark mb-1">{role.displayName}</h6>
-                  <p className="smallest text-muted mb-4 flex-grow-1" style={{ display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {role.description || 'No description provided for this role.'}
-                  </p>
-
-                  <div className="d-flex align-items-center justify-content-between pt-3 border-top border-light">
-                    <div className="d-flex align-items-center gap-1 text-primary smallest fw-bold">
-                      <Shield size={12} />
-                      {role.permissions?.length || 0} Permissions
-                    </div>
-                    <button className="btn btn-link p-0 smallest fw-bold text-muted text-decoration-none d-flex align-items-center gap-1 hover-primary" onClick={() => handleOpenRoleModal(role)}>
-                      Configure
-                      <ChevronRight size={12} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="col-md-4 col-lg-3">
-            <div
-              className="card h-100 border-2 border-dashed border-light-subtle shadow-none d-flex align-items-center justify-content-center cursor-pointer hover-bg-light transition-all"
-              style={{ borderRadius: '20px', minHeight: '180px' }}
-              onClick={() => handleOpenRoleModal()}
-            >
-              <div className="text-center p-4">
-                <div className="avatar bg-white shadow-sm rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style={{ width: '48px', height: '48px' }}>
-                  <Plus size={24} className="text-primary" />
-                </div>
-                <div className="fw-bold text-dark">Add New Role</div>
-                <div className="smallest text-muted">Create custom permissions</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </>
   );
 };
