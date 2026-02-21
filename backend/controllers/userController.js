@@ -26,12 +26,23 @@ exports.getUsers = async (req, res) => {
     const sort = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
+    const isAdmin = req.user.role && req.user.role.name === 'admin';
+    if (!isAdmin) {
+      const hierarchyService = require('../services/hierarchyService');
+      const subordinates = await hierarchyService.getSubordinateIds(req.user._id);
+      query.$or = [
+        { _id: req.user._id }, // Include self
+        { _id: { $in: subordinates } }
+      ];
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .populate('role', 'name displayName color')
+        .populate('role', 'name displayName color level')
         .populate('assignedSellers', 'name marketplace')
+        .populate('supervisors', 'firstName lastName email')
         .sort(sort)
         .skip(skip)
         .limit(parseInt(limit)),
@@ -84,7 +95,8 @@ exports.getUser = async (req, res) => {
     const user = await User.findById(req.params.id)
       .populate('role')
       .populate('role.permissions')
-      .populate('assignedSellers', 'name marketplace');
+      .populate('assignedSellers', 'name marketplace')
+      .populate('supervisors', 'firstName lastName email');
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -120,6 +132,7 @@ exports.createUser = async (req, res) => {
       phone,
       role: roleId,
       assignedSellers: assignedSellers || [],
+      supervisors: req.body.supervisors || [],
       createdBy: req.user._id,
     });
 
@@ -162,6 +175,10 @@ exports.updateUser = async (req, res) => {
 
     if (assignedSellers) {
       updateData.assignedSellers = assignedSellers;
+    }
+
+    if (req.body.supervisors) {
+      updateData.supervisors = req.body.supervisors;
     }
 
     if (roleId) {

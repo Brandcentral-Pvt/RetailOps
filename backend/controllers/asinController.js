@@ -366,24 +366,39 @@ exports.createAsins = async (req, res) => {
       }
     }
 
-    const asinsToInsert = asins.map(a => new Asin(a));
-    const asinsResult = await Asin.insertMany(asinsToInsert, { ordered: false });
+    // Use bulkWrite to perform upserts, avoiding duplicate key errors
+    const bulkOps = asins.map(a => {
+      const filter = { asinCode: a.asinCode };
+      if (a.seller) {
+        filter.seller = a.seller;
+      } else {
+        filter.seller = { $exists: false }; // Match global ASINs
+      }
+      return {
+        updateOne: {
+          filter: filter,
+          update: { $setOnInsert: a },
+          upsert: true
+        }
+      };
+    });
+
+    const asinsResult = await Asin.bulkWrite(bulkOps, { ordered: false });
 
     // Update seller counts
-    const sellerIds = [...new Set(asins.map(a => a.seller))];
+    const sellerIds = [...new Set(asins.map(a => a.seller).filter(Boolean))];
     for (const sellerId of sellerIds) {
       await updateSellerAsinCount(sellerId);
     }
 
     res.status(201).json({
-      message: 'ASINs created successfully',
-      count: asinsResult.length,
+      message: 'ASINs processed successfully',
+      insertedCount: asinsResult.upsertedCount,
+      matchedCount: asinsResult.matchedCount,
     });
   } catch (error) {
-    if (error.writeErrors) {
-      return res.status(400).json({ error: `Some ASINs already exist: ${error.writeErrors.length}` });
-    }
-    res.status(500).json({ error: error.message });
+    console.error('Bulk Insert Error:', error);
+    res.status(500).json({ error: 'Failed to process bulk ASINs' });
   }
 };
 

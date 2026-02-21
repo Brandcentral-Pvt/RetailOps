@@ -106,6 +106,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     index: true,
   },
+  supervisors: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
 }, { timestamps: true });
 
 // Virtual for full name

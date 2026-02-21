@@ -88,3 +88,14 @@ exports.getDashboardSummary = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to get dashboard summary' });
   }
 };
+
+exports.seedAll = async (req, res) => {
+  try {
+    const Permission = require('../models/Permission');
+    await Role.seedDefaultRoles(Permission);
+    res.json({ success: true, message: 'System roles and permissions seeded successfully' });
+  } catch (error) {
+    console.error('Seed all error:', error);
+    res.status(500).json({ success: false, message: 'Failed to seed system roles' });
+  }
+};

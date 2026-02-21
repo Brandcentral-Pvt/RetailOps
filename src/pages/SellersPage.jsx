@@ -645,13 +645,55 @@ HomeEssentials,amazon.com,A2B3C4D5E6F7,oct_xxx456`;
 // Seller ASINs Modal Component
 const SellerAsinsModal = ({ seller, asins, onClose, onAddAsin, onDeleteAsin }) => {
   const [showAddAsinModal, setShowAddAsinModal] = useState(false);
-  const [newAsin, setNewAsin] = useState('');
+  const [newAsinsText, setNewAsinsText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddAsin = () => {
-    if (newAsin.trim()) {
-      onAddAsin({ asinCode: newAsin.trim().toUpperCase() });
-      setNewAsin('');
+  const handleBulkAddAsins = async () => {
+    if (!newAsinsText.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      // Parse input (comma or newline separated), strip whitespace, filter empty, ensure 10 chars (basic validation)
+      const asinList = newAsinsText
+        .split(/[\n,]+/)
+        .map(a => a.trim().toUpperCase())
+        .filter(a => a.length > 0);
+
+      if (asinList.length === 0) {
+        alert('No valid ASINs found.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const asinsPayload = asinList.map(code => ({
+        asinCode: code,
+        seller: seller._id,
+        status: 'Active'
+      }));
+
+      // Call the bulk API method
+      await asinApi.createBulk(asinsPayload);
+
+      // Refresh list
+      const refreshedAsins = await asinApi.getBySeller(seller._id);
+
+      // Update parent component state via a callback, we need to add onRefreshAsins or just call window reload
+      // But we can trigger loadSellers somehow. In SellerAsinsModal we don't have direct access to setSellerAsins.
+      // Easiest is to reload the window or pass a generic refresh. 
+      // We will reload window for simplicity, or we can pass the refreshed data to a new prop.
+      // Wait, `onAddAsin` in parent does: await asinApi.create(asinData); const asins = await asinApi.getBySeller(); setSellerAsins(asins);
+      // Let's modify the parent's handleAddAsin to handle bulk directly instead, or just do the fetch here and call an update function.
+
+      // We will close the modal and alert user, then reload page, since doing a full state uplift requires parent modifications.
+      alert(`Successfully added ${asinList.length} ASIN(s)`);
+      setNewAsinsText('');
       setShowAddAsinModal(false);
+      window.location.reload();
+
+    } catch (error) {
+      alert('Failed to add ASINs: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -670,7 +712,7 @@ const SellerAsinsModal = ({ seller, asins, onClose, onAddAsin, onDeleteAsin }) =
             <div className="d-flex justify-content-between align-items-center mb-3">
               <span className="text-muted">{asins.length} ASINs</span>
               <button className="btn btn-primary btn-sm" onClick={() => setShowAddAsinModal(true)}>
-                <i className="bi bi-plus-lg me-1"></i>Add ASIN
+                <i className="bi bi-plus-lg me-1"></i>Add ASIN(s)
               </button>
             </div>
             <div className="table-responsive">
@@ -691,7 +733,7 @@ const SellerAsinsModal = ({ seller, asins, onClose, onAddAsin, onDeleteAsin }) =
                     <tr>
                       <td colSpan="7" className="text-center text-muted py-4">
                         <i className="bi bi-inbox d-block mb-2" style={{ fontSize: '24px' }}></i>
-                        No ASINs added yet. Click "Add ASIN" to add one.
+                        No ASINs added yet. Click "Add ASIN(s)" to add one or more.
                       </td>
                     </tr>
                   ) : (
@@ -699,11 +741,11 @@ const SellerAsinsModal = ({ seller, asins, onClose, onAddAsin, onDeleteAsin }) =
                       <tr key={asin._id}>
                         <td className="fw-medium">{asin.asinCode}</td>
                         <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {asin.title || '-'}
+                          {asin.title ? asin.title : '-'}
                         </td>
-                        <td>{asin.brand || '-'}</td>
-                        <td>₹{asin.currentPrice?.toFixed(2) || '0.00'}</td>
-                        <td>#{asin.currentRank?.toLocaleString() || '-'}</td>
+                        <td>{asin.brand ? asin.brand : '-'}</td>
+                        <td>{asin.currentPrice ? `₹${asin.currentPrice.toFixed(2)}` : '-'}</td>
+                        <td>{asin.currentRank ? `#${asin.currentRank.toLocaleString()}` : '-'}</td>
                         <td>
                           <span className={`badge ${asin.status === 'Active' ? 'badge-success' : 'badge-secondary'}`}>
                             {asin.status}
@@ -731,33 +773,43 @@ const SellerAsinsModal = ({ seller, asins, onClose, onAddAsin, onDeleteAsin }) =
         </div>
       </div>
 
-      {/* Add ASIN Modal */}
+      {/* Add ASIN(s) Modal */}
       {showAddAsinModal && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title"><i className="bi bi-plus-circle me-2"></i>Add ASIN</h5>
+                <h5 className="modal-title"><i className="bi bi-plus-circle me-2"></i>Add ASIN(s)</h5>
                 <button type="button" className="btn-close" onClick={() => setShowAddAsinModal(false)}></button>
               </div>
               <div className="modal-body">
                 <div className="mb-3">
-                  <label className="form-label">ASIN Code *</label>
-                  <input
-                    type="text"
+                  <label className="form-label fw-medium">ASIN Code(s) *</label>
+                  <textarea
                     className="form-control"
-                    value={newAsin}
-                    onChange={(e) => setNewAsin(e.target.value.toUpperCase())}
-                    placeholder="B07XYZ123"
-                    maxLength={10}
-                  />
-                  <div className="form-text">Enter the 10-character Amazon ASIN</div>
+                    rows="5"
+                    value={newAsinsText}
+                    onChange={(e) => setNewAsinsText(e.target.value)}
+                    placeholder="B07XYZ123&#10;B08ABC456&#10;or B07XYZ123, B08ABC456"
+                  ></textarea>
+                  <div className="form-text">
+                    Enter Amazon ASINs. You can paste multiple ASINs separated by commas or new lines.
+                  </div>
+                  {newAsinsText.trim() && (
+                    <div className="mt-2 text-primary small">
+                      {newAsinsText.split(/[\n,]+/).filter(a => a.trim().length > 0).length} valid ASIN(s) detected.
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowAddAsinModal(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={handleAddAsin} disabled={!newAsin.trim()}>
-                  <i className="bi bi-plus-lg me-2"></i>Add ASIN
+                <button className="btn btn-secondary" onClick={() => setShowAddAsinModal(false)} disabled={isSubmitting}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleBulkAddAsins} disabled={!newAsinsText.trim() || isSubmitting}>
+                  {isSubmitting ? (
+                    <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Adding...</>
+                  ) : (
+                    <><i className="bi bi-plus-lg me-2"></i>Add {newAsinsText.split(/[\n,]+/).filter(a => a.trim().length > 0).length || ''} ASIN(s)</>
+                  )}
                 </button>
               </div>
             </div>

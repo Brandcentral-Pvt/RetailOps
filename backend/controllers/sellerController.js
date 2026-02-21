@@ -35,12 +35,15 @@ exports.getSellers = async (req, res) => {
       const enriched = await enrichSellersWithManagers(sellers);
 
       return res.json({
-        sellers: enriched,
-        pagination: {
-          page: 1,
-          limit: enriched.length,
-          total: enriched.length,
-          totalPages: 1
+        success: true,
+        data: {
+          sellers: enriched,
+          pagination: {
+            page: 1,
+            limit: enriched.length,
+            total: enriched.length,
+            totalPages: 1
+          }
         }
       });
     }
@@ -60,13 +63,16 @@ exports.getSellers = async (req, res) => {
     const enriched = await enrichSellersWithManagers(sellers);
 
     res.json({
-      sellers: enriched,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      success: true,
+      data: {
+        sellers: enriched,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

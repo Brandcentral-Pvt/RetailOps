@@ -23,12 +23,6 @@ exports.syncAsin = async (req, res) => {
         }
 
         const taskId = asin.seller?.marketSyncTaskId;
-        if (!taskId) {
-            return res.status(400).json({
-                success: false,
-                error: 'No Sync Task configured for this seller'
-            });
-        }
 
         // Check if sync already in progress
         if (asin.scrapeStatus === 'SCRAPING') {
@@ -40,20 +34,48 @@ exports.syncAsin = async (req, res) => {
         asin.status = 'Scraping';
         await asin.save();
 
-        // Trigger extraction in service (Discreet ASIN sync)
-        const syncResult = await MarketSyncService.triggerSync(
-            taskId,
-            [{ name: 'ASIN', value: asin.asinCode }]
-        );
+        if (taskId) {
+            // Option A: Use Octoparse (Managed Task)
+            console.log(`🤖 Using Octoparse for ASIN: ${asin.asinCode}`);
+            await MarketSyncService.triggerSync(
+                taskId,
+                [{ name: 'ASIN', value: asin.asinCode }]
+            );
 
-        res.json({
-            success: true,
-            message: 'Market data sync initiated',
-            status: 'SCRAPING'
-        });
+            res.json({
+                success: true,
+                message: 'Market data sync initiated (Octoparse)',
+                status: 'SCRAPING'
+            });
+        } else {
+            // Option B: Fallback to Direct Web Scraping
+            console.log(`🕷️ Using Direct Scraper for ASIN: ${asin.asinCode}`);
+            const DirectScraperService = require('../services/directScraperService');
+
+            // We run this asynchronously to return response immediately, 
+            // OR synchronously for direct scraper since it's faster.
+            // Let's do it synchronously for immediate user feedback.
+            try {
+                const rawData = await DirectScraperService.scrapeAsin(asin.asinCode);
+                const updatedAsin = await MarketSyncService.updateAsinMetrics(asin._id, rawData);
+
+                res.json({
+                    success: true,
+                    message: 'Market data synced successfully (Direct)',
+                    status: 'COMPLETED',
+                    data: updatedAsin
+                });
+            } catch (scrapeError) {
+                // Revert status if scraping fails
+                asin.scrapeStatus = 'FAILED';
+                asin.status = 'Error';
+                await asin.save();
+                throw scrapeError;
+            }
+        }
     } catch (error) {
         console.error('Market Sync Controller Error:', error.message);
-        res.status(500).json({ success: false, error: 'Internal Market Sync Error' });
+        res.status(500).json({ success: false, error: 'Internal Market Sync Error: ' + error.message });
     }
 };
 
@@ -111,20 +133,92 @@ exports.syncSellerAsins = async (req, res) => {
             { $set: { scrapeStatus: 'SCRAPING', status: 'Scraping' } }
         );
 
-        // Trigger extraction in service (Batch ASIN sync)
-        await MarketSyncService.triggerSync(
-            seller.marketSyncTaskId,
-            [{ name: 'ASIN', value: asinCodes.join(',') }]
-        );
+        if (seller.marketSyncTaskId) {
+            console.log(`🤖 Using Octoparse for Batch Sync for Seller: ${seller.name}`);
+            // Trigger extraction in service (Batch ASIN sync)
+            await MarketSyncService.triggerSync(
+                seller.marketSyncTaskId,
+                [{ name: 'ASIN', value: asinCodes.join(',') }]
+            );
+
+            res.json({
+                success: true,
+                message: `Batch sync initiated (Octoparse) for ${asins.length} ASINs`,
+                count: asins.length
+            });
+        } else {
+            console.log(`🕷️ Using Direct Scraper for Batch Sync for Seller: ${seller.name}`);
+            // Process asynchronously in background so we don't block the request
+            const DirectScraperService = require('../services/directScraperService');
+
+            // Fire and forget background process
+            setTimeout(async () => {
+                for (const asin of asins) {
+                    try {
+                        const rawData = await DirectScraperService.scrapeAsin(asin.asinCode);
+                        await MarketSyncService.updateAsinMetrics(asin._id, rawData);
+                        console.log(`✅ Background sync completed for ASIN: ${asin.asinCode}`);
+                    } catch (err) {
+                        console.error(`❌ Background sync failed for ASIN: ${asin.asinCode}`, err.message);
+                        await Asin.updateOne({ _id: asin._id }, { $set: { scrapeStatus: 'FAILED', status: 'Error' } });
+                    }
+                    // Wait a bit between requests to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }, 0);
+
+            res.json({
+                success: true,
+                message: `Batch sync initiated (Direct) in background for ${asins.length} ASINs`,
+                count: asins.length
+            });
+        }
+    } catch (error) {
+        console.error('Batch Sync Error:', error.message);
+        res.status(500).json({ success: false, error: 'Internal Batch Sync Error: ' + error.message });
+    }
+};
+
+/**
+ * Fetch results from provider and apply to ASINs.
+ */
+exports.fetchAndApplyResults = async (req, res) => {
+    try {
+        const { sellerId } = req.params;
+        const seller = await Seller.findById(sellerId);
+
+        if (!seller || !seller.marketSyncTaskId) {
+            return res.status(404).json({ success: false, error: 'Seller or Sync Task not found' });
+        }
+
+        const data = await MarketSyncService.retrieveResults(seller.marketSyncTaskId);
+
+        if (!data || data.length === 0) {
+            return res.json({ success: true, message: 'No new data found from provider' });
+        }
+
+        let updatedCount = 0;
+        for (const item of data) {
+            // Find ASIN by code for this seller
+            const asin = await Asin.findOne({
+                asinCode: item.ASIN || item.asin,
+                seller: sellerId
+            });
+
+            if (asin) {
+                await MarketSyncService.updateAsinMetrics(asin._id, item);
+                updatedCount++;
+            }
+        }
 
         res.json({
             success: true,
-            message: `Batch sync initiated for ${asins.length} ASINs`,
-            count: asins.length
+            message: `Processed ${data.length} items, updated ${updatedCount} ASINs`,
+            count: updatedCount
         });
     } catch (error) {
-        console.error('Batch Sync Error:', error.message);
-        res.status(500).json({ success: false, error: 'Internal Batch Sync Error' });
+        console.error('Fetch Results Error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch and apply results' });
     }
 };
 

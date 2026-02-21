@@ -20,7 +20,7 @@ const weekHistorySchema = new mongoose.Schema({
 const asinSchema = new mongoose.Schema({
   asinCode: { type: String, required: true },
   sku: { type: String }, // SKU field
-  seller: { type: mongoose.Schema.Types.ObjectId, ref: 'Seller', required: true },
+  seller: { type: mongoose.Schema.Types.ObjectId, ref: 'Seller' },
   title: { type: String },
   description: { type: String }, // Description content
   imageUrl: { type: String },

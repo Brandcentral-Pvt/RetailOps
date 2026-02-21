@@ -112,14 +112,42 @@ class MarketDataSyncService {
             const asin = await Asin.findById(asinId);
             if (!asin) throw new Error('ASIN not found');
 
-            // Map data (Example mapping based on Octoparse Amazon templates)
+            // Clean raw data fields (handling cross-platform inconsistencies)
+            const price = parseFloat(rawData.price || rawData.currentPrice || 0);
+            const bsr = parseInt(rawData.bsr || rawData.salesRank || 0);
+            const rating = parseFloat(rawData.rating || 0);
+            const reviews = parseInt(rawData.reviews || rawData.reviewCount || 0);
+            const imageCount = parseInt(rawData.imageCount || rawData.imagesCount || 0);
+            const title = rawData.title || asin.title;
+            const description = rawData.description || asin.description;
+            const hasAplus = rawData.hasAplus === true || rawData.hasAplus === 'true';
+
+            // Calculate LQS (Listing Quality Score) - Basic logic
+            // 1. Title length (> 150 chars: 20 pts)
+            // 2. Images (>= 7: 20 pts)
+            // 3. Rating (>= 4.5: 20 pts)
+            // 4. A+ Content (exists: 20 pts)
+            // 5. Description length (> 500 chars: 20 pts)
+            let lqs = 0;
+            if (title && title.length > 150) lqs += 20;
+            if (imageCount >= 7) lqs += 20;
+            if (rating >= 4.5) lqs += 20;
+            if (hasAplus) lqs += 20;
+            if (description && description.length > 500) lqs += 20;
+
             const updates = {
-                currentPrice: rawData.price || asin.currentPrice,
-                bsr: rawData.bsr || asin.bsr,
-                rating: rawData.rating || asin.rating,
-                reviewCount: rawData.reviews || asin.reviewCount,
+                title,
+                description,
+                currentPrice: price > 0 ? price : asin.currentPrice,
+                bsr: bsr > 0 ? bsr : asin.bsr,
+                rating: rating > 0 ? rating : asin.rating,
+                reviewCount: reviews > 0 ? reviews : asin.reviewCount,
+                imagesCount: imageCount > 0 ? imageCount : asin.imagesCount,
+                hasAplus,
+                lqs,
                 lastScraped: new Date(),
-                scrapeStatus: 'COMPLETED'
+                scrapeStatus: 'COMPLETED',
+                status: 'Active'
             };
 
             // Update history
@@ -129,6 +157,16 @@ class MarketDataSyncService {
                 salesRank: updates.bsr,
                 reviews: updates.reviewCount
             });
+
+            // Update LQS Details
+            asin.lqsDetails = {
+                titleLength: title ? title.length : 0,
+                imageCount,
+                rating,
+                reviewCount: reviews,
+                hasAplus,
+                descriptionLength: description ? description.length : 0
+            };
 
             Object.assign(asin, updates);
             await asin.save();

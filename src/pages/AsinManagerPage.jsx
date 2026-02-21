@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import KPICard from '../components/KPICard';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
+import { asinApi } from '../services/api';
 import { calculateLQS } from '../utils/lqs';
 import {
   Package,
@@ -55,7 +56,7 @@ const WEEK_COLUMNS = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8'];
 
 // Helper function for week history badges
 const getWeekHistoryBadge = (value, type) => {
-  if (!value && value !== 0) return <span style={{ color: '#9ca3af' }}>-</span>;
+  if (!value) return <span style={{ color: '#9ca3af' }}>-</span>;
 
   if (type === 'price') {
     return <span style={{ fontWeight: 500, color: '#059669' }}>₹{value.toLocaleString()}</span>;
@@ -244,11 +245,9 @@ const AsinManagerPage = () => {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      // Use getAsins directly
-      const response = await db.request('/asins');
 
-      // Handle both possible response formats: [{...}] or { asins: [...] }
-      const asinsData = response?.asins || response?.data || (Array.isArray(response) ? response : []);
+      const response = await asinApi.getAll({ limit: 500 });
+      const asinsData = response?.asins || [];
 
       if (asinsData && asinsData.length > 0) {
         setAsins(asinsData);
@@ -307,53 +306,36 @@ const AsinManagerPage = () => {
 
     setSyncing(true);
     try {
-      const asinList = newAsin.split(',').map(a => a.trim()).filter(a => a.length > 0);
+      const asinList = newAsin.split(/[\n,]+/).map(a => a.trim().toUpperCase()).filter(a => a.length > 0);
 
-      const result = await octoparseService.syncAsins(asinList);
+      if (asinList.length === 0) {
+        alert('No valid ASINs found.');
+        setSyncing(false);
+        return;
+      }
 
-      const newAsinsData = asinList.map(asinCode => ({
-        id: String(Date.now()) + Math.random(),
-        asinCode,
-        title: 'Scraping in progress...',
-        imageUrl: 'https://placehold.co/100x100?text=Scraping',
-        brand: 'Pending',
-        category: 'Pending',
-        currentPrice: 0,
-        currentRank: 0,
-        rating: 0,
-        reviewCount: 0,
-        buyBoxWin: false,
-        couponDetails: 'None',
-        dealDetails: 'None',
-        totalOffers: 0,
-        imagesCount: 0,
-        hasAPlus: false,
-        descLength: 0,
-        lqs: 0,
-        status: 'Scraping',
-        weekHistory: weekColumns.map((week, idx) => ({
-          week: getWeekLabel(week, idx),
-          date: null,
-          price: 0,
-          bsr: 0,
-          rating: 0,
-          reviews: 0
-        })),
-        executionId: result.executionId
+      const asinsPayload = asinList.map(code => ({
+        asinCode: code,
+        status: 'Active'
       }));
 
-      setAsins(prev => [...prev, ...newAsinsData]);
+      // Call the bulk API method
+      await asinApi.createBulk(asinsPayload);
+
+      // Refresh list
+      await loadData();
+
+      alert(`Successfully added ${asinList.length} ASIN(s) to the tracking pool.`);
       setNewAsin('');
       setShowAddModal(false);
 
-      alert(`Scraping started for ${asinList.length} ASIN(s). Check Scrape Tasks page for progress.`);
     } catch (error) {
-      console.error('Sync failed:', error);
-      alert('Failed to start scraping: ' + error.message);
+      console.error('Failed to add ASINs:', error);
+      alert('Failed to add ASINs: ' + error.message);
     } finally {
       setSyncing(false);
     }
-  }, [newAsin, weekColumns]);
+  }, [newAsin, loadData]);
 
   const getLqsBadge = (lqs) => {
     let bgColor = '#059669';
@@ -370,7 +352,8 @@ const AsinManagerPage = () => {
     );
   };
 
-  const getBuyBoxBadge = (buyBoxWin) => {
+  const getBuyBoxBadge = (buyBoxWin, status) => {
+    if (status === 'Scraping') return <span style={{ color: '#9ca3af' }}>-</span>;
     const bgColor = buyBoxWin ? '#059669' : '#6b7280';
     return (
       <span
@@ -382,7 +365,8 @@ const AsinManagerPage = () => {
     );
   };
 
-  const getAplusBadge = (hasAPlus) => {
+  const getAplusBadge = (hasAPlus, status) => {
+    if (status === 'Scraping') return <span style={{ color: '#9ca3af' }}>-</span>;
     const bgColor = hasAPlus ? '#059669' : '#6b7280';
     return (
       <span
@@ -633,8 +617,8 @@ const AsinManagerPage = () => {
               </div>
 
               {/* Scrollable table container */}
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table table-hover mb-0" style={{ fontSize: '0.8rem', minWidth: '1200px' }}>
+              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', margin: '1rem' }}>
+                <table className="table table-bordered table-hover mb-0" style={{ fontSize: '0.8rem', minWidth: '1200px' }}>
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb', zIndex: 10 }}>
                     <tr>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>ASIN</th>
@@ -678,8 +662,8 @@ const AsinManagerPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {asins.map(asin => (
-                      <tr key={asin.id} style={{ backgroundColor: '#fff' }}>
+                    {asins.map((asin, index) => (
+                      <tr key={asin._id || index} style={{ backgroundColor: '#fff' }}>
                         <td style={{ fontWeight: 600, color: '#111827', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.asinCode}</td>
                         <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.sku}</td>
                         <td style={{ padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
@@ -696,7 +680,7 @@ const AsinManagerPage = () => {
                           </div>
                         </td>
                         <td style={{ fontWeight: 600, color: '#059669', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          ₹{asin.currentPrice?.toLocaleString()}
+                          {asin.currentPrice ? `₹${asin.currentPrice.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         {/* Price by Week columns */}
                         {asin.weekHistory?.map((week, idx) => (
@@ -705,7 +689,7 @@ const AsinManagerPage = () => {
                           </td>
                         ))}
                         <td style={{ fontWeight: 600, color: '#2563eb', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          #{asin.currentRank?.toLocaleString()}
+                          {asin.currentRank ? `#${asin.currentRank.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         {/* BSR by Week columns */}
                         {asin.weekHistory?.map((week, idx) => (
@@ -714,10 +698,12 @@ const AsinManagerPage = () => {
                           </td>
                         ))}
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          <div className="d-flex align-items-center gap-1">
-                            <Star size={12} className="text-warning fill-warning" />
-                            <span style={{ fontWeight: 500 }}>{asin.rating}</span>
-                          </div>
+                          {asin.rating ? (
+                            <div className="d-flex align-items-center gap-1">
+                              <Star size={12} className="text-warning fill-warning" />
+                              <span style={{ fontWeight: 500 }}>{asin.rating}</span>
+                            </div>
+                          ) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         {/* Rating by Week columns */}
                         {asin.weekHistory?.map((week, idx) => (
@@ -726,26 +712,30 @@ const AsinManagerPage = () => {
                           </td>
                         ))}
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          {asin.reviewCount?.toLocaleString()}
+                          {asin.reviewCount ? asin.reviewCount.toLocaleString() : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          {getLqsBadge(asin.lqs)}
+                          {asin.lqs ? getLqsBadge(asin.lqs) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          {getBuyBoxBadge(asin.buyBoxWin)}
+                          {getBuyBoxBadge(asin.buyBoxWin, asin.status)}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          {getAplusBadge(asin.hasAPlus)}
+                          {getAplusBadge(asin.hasAPlus, asin.status)}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          <span className="badge" style={{ backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 500 }}>
-                            {asin.imagesCount}
-                          </span>
+                          {asin.imagesCount ? (
+                            <span className="badge" style={{ backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 500 }}>
+                              {asin.imagesCount}
+                            </span>
+                          ) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                            {asin.descLength} chars
-                          </span>
+                          {asin.descLength ? (
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              {asin.descLength} chars
+                            </span>
+                          ) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
                           {getStatusBadge(asin.status)}

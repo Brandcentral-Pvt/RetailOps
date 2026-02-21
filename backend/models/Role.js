@@ -64,6 +64,22 @@ const defaultRoles = [
     color: '#0891B2',
   },
   {
+    name: 'team_leader',
+    displayName: 'Team Leader',
+    description: 'Manages a specific team and their tasks',
+    isSystem: true,
+    level: 40,
+    color: '#8B5CF6',
+  },
+  {
+    name: 'employee',
+    displayName: 'Employee',
+    description: 'Core team member executing tasks',
+    isSystem: true,
+    level: 20,
+    color: '#10B981',
+  },
+  {
     name: 'viewer',
     displayName: 'Viewer',
     description: 'Read-only access to dashboards and reports',
@@ -92,11 +108,19 @@ Role.seedDefaultRoles = async function (permissionModel) {
       rolePermissions = allPermissions.map(p => p._id);
     } else if (roleData.name === 'manager') {
       rolePermissions = allPermissions
-        .filter(p => ['dashboard', 'reports', 'sellers', 'scraping', 'actions', 'calculator', 'inventory'].includes(p.category))
+        .filter(p => ['dashboard', 'reports', 'sellers', 'scraping', 'actions', 'calculator', 'inventory', 'users'].includes(p.category))
         .map(p => p._id);
     } else if (roleData.name === 'analyst') {
       rolePermissions = allPermissions
         .filter(p => ['dashboard', 'reports', 'actions', 'calculator', 'inventory'].includes(p.category))
+        .map(p => p._id);
+    } else if (roleData.name === 'team_leader') {
+      rolePermissions = allPermissions
+        .filter(p => ['dashboard', 'reports', 'actions', 'calculator', 'inventory', 'users'].includes(p.category) && p.action !== 'manage')
+        .map(p => p._id);
+    } else if (roleData.name === 'employee') {
+      rolePermissions = allPermissions
+        .filter(p => ['dashboard', 'actions', 'calculator', 'inventory'].includes(p.category) && ['view', 'edit', 'execute'].includes(p.action))
         .map(p => p._id);
     } else {
       rolePermissions = allPermissions

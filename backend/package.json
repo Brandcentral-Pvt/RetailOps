@@ -12,6 +12,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.21.2",
+    "jsdom": "^28.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^7.8.7",
     "multer": "^1.4.5-lts.1",
@@ -19,7 +20,9 @@
     "nodemailer": "^8.0.1",
     "openai": "^6.22.0",
     "socket.io": "^4.8.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xmldom": "^0.6.0",
+    "xpath": "^0.0.34"
   },
   "keywords": [],
   "author": "",

@@ -139,6 +139,53 @@ export const seedApi = {
   },
 };
 
+// Market Sync API
+export const marketSyncApi = {
+  getStatus: async () => {
+    const res = await fetch(`${API_BASE}/market-sync/status`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch sync status');
+    return res.json();
+  },
+
+  syncAsin: async (id) => {
+    const res = await fetch(`${API_BASE}/market-sync/sync/${id}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to trigger ASIN sync');
+    }
+    return res.json();
+  },
+
+  syncSellerAsins: async (sellerId) => {
+    const res = await fetch(`${API_BASE}/market-sync/sync-all/${sellerId}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to trigger batch sync');
+    }
+    return res.json();
+  },
+
+  fetchResults: async (sellerId) => {
+    const res = await fetch(`${API_BASE}/market-sync/fetch-results/${sellerId}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to fetch results');
+    }
+    return res.json();
+  }
+};
+
 // User API
 export const userApi = {
   getAll: async (params = {}) => {

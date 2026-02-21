@@ -159,5 +159,50 @@ exports.checkSellerAccess = async (req, res, next) => {
   }
 };
 
+// Middleware to check if user has access to another user based on hierarchy
+exports.checkUserHierarchyAccess = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const targetUserId = req.params.id;
+    if (!targetUserId) return next();
+
+    // 1. Self access is always allowed
+    if (req.user._id.toString() === targetUserId) {
+      return next();
+    }
+
+    // 2. Admin access is always allowed
+    if (req.user.role && req.user.role.name === 'admin') {
+      return next();
+    }
+
+    // 3. Check if user has global users_view permission (e.g., HR, Manager with global view)
+    const hasGlobalView = await req.user.hasPermission('users_view');
+    if (hasGlobalView) {
+      return next();
+    }
+
+    // 4. Check if target user is a subordinate
+    const hierarchyService = require('../services/hierarchyService');
+    const subordinates = await hierarchyService.getSubordinateIds(req.user._id);
+
+    if (subordinates.includes(targetUserId)) {
+      return next();
+    }
+
+    // 5. Fallback to 403
+    res.status(403).json({
+      success: false,
+      message: 'You do not have permission to access this user\'s profile'
+    });
+  } catch (error) {
+    console.error('Hierarchy access check error:', error);
+    res.status(500).json({ success: false, message: 'Hierarchy access check failed' });
+  }
+};
+
 exports.auth = exports.authenticate;
 exports.isAdmin = exports.requireRole('admin');

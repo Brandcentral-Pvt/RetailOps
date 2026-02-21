@@ -44,6 +44,7 @@ const UsersPage = () => {
     role: '',
     isActive: true,
     assignedSellers: [],
+    supervisors: [],
   });
 
   const loadUsers = useCallback(async () => {
@@ -118,6 +119,7 @@ const UsersPage = () => {
         role: user.role?._id || user.role || '',
         isActive: user.isActive,
         assignedSellers: user.assignedSellers?.map(s => s._id || s) || [],
+        supervisors: user.supervisors?.map(s => s._id || s) || [],
       });
     } else {
       setEditingUser(null);
@@ -130,6 +132,7 @@ const UsersPage = () => {
         role: '',
         isActive: true,
         assignedSellers: [],
+        supervisors: [],
       });
     }
     setShowModal(true);
@@ -308,6 +311,7 @@ const UsersPage = () => {
                     <th className="px-4 py-3 border-0 smallest fw-bold text-muted text-uppercase">Team Member</th>
                     <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Email Identity</th>
                     <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Access Level</th>
+                    <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Supervisor(s)</th>
                     <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Account Status</th>
                     <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Last Login</th>
                     <th className="px-4 py-3 border-0 text-end smallest fw-bold text-muted text-uppercase">Control</th>
@@ -368,6 +372,19 @@ const UsersPage = () => {
                           >
                             {user.role?.displayName || 'Standard User'}
                           </span>
+                        </td>
+                        <td>
+                          <div className="d-flex flex-wrap gap-1">
+                            {user.supervisors?.length > 0 ? (
+                              user.supervisors.map(s => (
+                                <span key={s._id} className="smallest text-muted bg-light px-2 py-1 rounded">
+                                  {s.firstName} {s.lastName[0]}.
+                                </span>
+                              ))
+                            ) : (
+                              <span className="smallest text-muted opacity-50">None</span>
+                            )}
+                          </div>
                         </td>
                         <td>
                           {user.isActive ? (
@@ -577,6 +594,46 @@ const UsersPage = () => {
                       <Info size={12} className="me-1" />
                       Non-admin users can only see data for their assigned sellers.
                     </p>
+                  </div>
+
+                  <div className="col-12 mt-3">
+                    <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">
+                      <UserCheck size={14} className="text-primary" />
+                      Supervisors (Hierarchical Authorities)
+                    </label>
+                    <div className="card shadow-none border-0 bg-light-subtle" style={{ borderRadius: '16px', backgroundColor: '#f9fafb' }}>
+                      <div className="card-body p-3">
+                        <div className="row g-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                          {users.filter(u => u._id !== editingUser?._id && (u.role?.level || 0) >= (formData.role ? roles.find(r => r._id === formData.role)?.level || 0 : 0)).map(u => (
+                            <div key={u._id} className="col-md-4 col-sm-6">
+                              <div
+                                className={`p-2 rounded-3 border transition-all cursor-pointer d-flex align-items-center gap-2 ${formData.supervisors.includes(u._id) ? 'bg-primary-subtle border-primary-subtle' : 'bg-white border-light'}`}
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    supervisors: prev.supervisors.includes(u._id)
+                                      ? prev.supervisors.filter(id => id !== u._id)
+                                      : [...prev.supervisors, u._id]
+                                  }));
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="form-check-input m-0 shadow-none border-0"
+                                  checked={formData.supervisors.includes(u._id)}
+                                  readOnly
+                                  style={{ width: '16px', height: '16px' }}
+                                />
+                                <span className="smallest fw-medium text-truncate">{u.firstName} {u.lastName}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {users.filter(u => u._id !== editingUser?._id && (u.role?.level || 0) >= (formData.role ? roles.find(r => r._id === formData.role)?.level || 0 : 0)).length === 0 && (
+                          <div className="smallest text-muted py-2 text-center italic">No potential supervisors available for this role level.</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div className="col-12 mt-3">
                     <div className="form-check form-switch d-flex align-items-center gap-2 ps-0">

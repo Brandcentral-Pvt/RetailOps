@@ -20,22 +20,29 @@ exports.getObjectives = async (req, res) => {
 
         // Refine isolation for non-admins
         if (!isAdmin) {
+            const hierarchyService = require('../services/hierarchyService');
+            const subordinateIds = await hierarchyService.getSubordinateIds(req.user._id);
+            const teamIds = [req.user._id, ...subordinateIds];
+
             const Action = require('../models/Action');
             const KeyResult = require('../models/KeyResult');
 
-            // 1. Objectives I own
-            // 2. Objectives that have actions assigned to me or created by me
-            const myActions = await Action.find({
-                $or: [{ assignedTo: req.user._id }, { createdBy: req.user._id }]
+            // 1. Objectives my team owns
+            // 2. Objectives that have actions assigned to my team or created by my team
+            const teamActions = await Action.find({
+                $or: [
+                    { assignedTo: { $in: teamIds } },
+                    { createdBy: { $in: teamIds } }
+                ]
             }).select('keyResultId');
 
-            const myKrIds = myActions.map(a => a.keyResultId).filter(id => id);
-            const myKrs = await KeyResult.find({ _id: { $in: myKrIds } }).select('objectiveId');
-            const myObjectiveIdsFromTasks = myKrs.map(kr => kr.objectiveId).filter(id => id);
+            const teamKrIds = teamActions.map(a => a.keyResultId).filter(id => id);
+            const teamKrs = await KeyResult.find({ _id: { $in: teamKrIds } }).select('objectiveId');
+            const teamObjectiveIdsFromTasks = teamKrs.map(kr => kr.objectiveId).filter(id => id);
 
             filter.$or = [
-                { owners: req.user._id },
-                { _id: { $in: myObjectiveIdsFromTasks } }
+                { owners: { $in: teamIds } },
+                { _id: { $in: teamObjectiveIdsFromTasks } }
             ];
         }
 

@@ -64,9 +64,13 @@ router.get('/', protect, requireAnyPermission(['actions_view', 'actions_manage']
         // Enforce data isolation for non-admins
         const userRole = req.user.role?.name || req.user.role;
         if (userRole !== 'admin') {
+            const hierarchyService = require('../services/hierarchyService');
+            const subordinateIds = await hierarchyService.getSubordinateIds(req.user._id);
+            const teamIds = [req.user._id, ...subordinateIds];
+
             filter.$or = [
-                { assignedTo: req.user._id },
-                { createdBy: req.user._id }
+                { assignedTo: { $in: teamIds } },
+                { createdBy: { $in: teamIds } }
             ];
 
             // Also keep seller filter if applicable

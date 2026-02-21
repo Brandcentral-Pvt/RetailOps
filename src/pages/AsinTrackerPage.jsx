@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../components/DataTable';
 import KPICard from '../components/KPICard';
-import { asinApi } from '../services/api';
+import { asinApi, marketSyncApi } from '../services/api';
 
 // Generate 12-week history data
 const generateHistoryData = (basePrice, baseBSR, baseRating, baseReviews) => {
@@ -24,10 +24,10 @@ const generateHistoryData = (basePrice, baseBSR, baseRating, baseReviews) => {
 
 // Demo ASIN data with new fields
 const demoAsinData = [
-  { 
-    asin: 'B07XYZ123', 
+  {
+    asin: 'B07XYZ123',
     sku: 'SKU-WE-001',
-    title: 'Wireless Earbuds Pro with Active Noise Cancellation', 
+    title: 'Wireless Earbuds Pro with Active Noise Cancellation',
     category: 'Electronics',
     price: 2499,
     bsr: 1250,
@@ -40,10 +40,10 @@ const demoAsinData = [
     imageCount: 8,
     history: generateHistoryData(2499, 1250, 4.5, 1250)
   },
-  { 
-    asin: 'B07ABC456', 
+  {
+    asin: 'B07ABC456',
     sku: 'SKU-SW-002',
-    title: 'Smart Watch Elite Series 5 GPS', 
+    title: 'Smart Watch Elite Series 5 GPS',
     category: 'Electronics',
     price: 8999,
     bsr: 890,
@@ -56,10 +56,10 @@ const demoAsinData = [
     imageCount: 12,
     history: generateHistoryData(8999, 890, 4.2, 890)
   },
-  { 
-    asin: 'B07DEF789', 
+  {
+    asin: 'B07DEF789',
     sku: 'SKU-YM-003',
-    title: 'Premium Yoga Mat Extra Wide Non-Slip', 
+    title: 'Premium Yoga Mat Extra Wide Non-Slip',
     category: 'Sports',
     price: 1299,
     bsr: 3200,
@@ -72,10 +72,10 @@ const demoAsinData = [
     imageCount: 6,
     history: generateHistoryData(1299, 3200, 4.8, 2100)
   },
-  { 
-    asin: 'B07GHI012', 
+  {
+    asin: 'B07GHI012',
     sku: 'SKU-CM-004',
-    title: 'Automatic Coffee Maker Deluxe 12-Cup', 
+    title: 'Automatic Coffee Maker Deluxe 12-Cup',
     category: 'Home & Kitchen',
     price: 4599,
     bsr: 1560,
@@ -88,10 +88,10 @@ const demoAsinData = [
     imageCount: 10,
     history: generateHistoryData(4599, 1560, 4.3, 650)
   },
-  { 
-    asin: 'B07JKL345', 
+  {
+    asin: 'B07JKL345',
     sku: 'SKU-BS-005',
-    title: 'Bluetooth Speaker Waterproof 360° Sound', 
+    title: 'Bluetooth Speaker Waterproof 360° Sound',
     category: 'Electronics',
     price: 1999,
     bsr: 2100,
@@ -104,10 +104,10 @@ const demoAsinData = [
     imageCount: 9,
     history: generateHistoryData(1999, 2100, 4.1, 1800)
   },
-  { 
-    asin: 'B07MNO678', 
+  {
+    asin: 'B07MNO678',
     sku: 'SKU-RS-006',
-    title: 'Running Shoes Pro Lightweight Cushion', 
+    title: 'Running Shoes Pro Lightweight Cushion',
     category: 'Sports',
     price: 3499,
     bsr: 980,
@@ -120,10 +120,10 @@ const demoAsinData = [
     imageCount: 7,
     history: generateHistoryData(3499, 980, 4.6, 520)
   },
-  { 
-    asin: 'B07PQR901', 
+  {
+    asin: 'B07PQR901',
     sku: 'SKU-CW-007',
-    title: 'Professional Cookware Set 5-Piece Stainless Steel', 
+    title: 'Professional Cookware Set 5-Piece Stainless Steel',
     category: 'Home & Kitchen',
     price: 5499,
     bsr: 4500,
@@ -136,10 +136,10 @@ const demoAsinData = [
     imageCount: 15,
     history: generateHistoryData(5499, 4500, 4.4, 320)
   },
-  { 
-    asin: 'B07STU234', 
+  {
+    asin: 'B07STU234',
     sku: 'SKU-TS-008',
-    title: 'Adjustable Tablet Stand Aluminum Alloy', 
+    title: 'Adjustable Tablet Stand Aluminum Alloy',
     category: 'Electronics',
     price: 1299,
     bsr: 5600,
@@ -159,7 +159,7 @@ const AsinTrackerPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedAsin, setSelectedAsin] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  
+
   // Single collapsible state for all dashboard content
   const [showDashboard, setShowDashboard] = useState(true);
   const [showTable, setShowTable] = useState(true);
@@ -204,6 +204,32 @@ const AsinTrackerPage = () => {
     setShowDetails(true);
   };
 
+  const handleSync = async (asin) => {
+    try {
+      const response = await marketSyncApi.syncAsin(asin._id);
+      alert(response.message || 'Sync initiated successfully');
+      loadData();
+    } catch (err) {
+      console.error('Sync failed:', err);
+      alert(err.message || 'Failed to initiate sync');
+    }
+  };
+
+  const handleFetchResults = async () => {
+    if (asins.length === 0) return;
+    const sellerId = asins[0].seller?._id || asins[0].seller;
+    if (!sellerId) return;
+
+    try {
+      const response = await marketSyncApi.fetchResults(sellerId);
+      alert(response.message || 'Results fetched successfully');
+      loadData();
+    } catch (err) {
+      console.error('Fetch results failed:', err);
+      alert(err.message || 'Failed to fetch results');
+    }
+  };
+
   const getLqsBadge = (lqs) => {
     let className = 'bg-success';
     if (lqs < 60) className = 'bg-danger';
@@ -212,14 +238,14 @@ const AsinTrackerPage = () => {
   };
 
   const getBuyBoxBadge = (buyBox) => {
-    return buyBox 
-      ? <span className="badge bg-success"><i className="bi bi-check"></i> Yes</span> 
+    return buyBox
+      ? <span className="badge bg-success"><i className="bi bi-check"></i> Yes</span>
       : <span className="badge bg-secondary"><i className="bi bi-x"></i> No</span>;
   };
 
   const getAplusBadge = (hasAplus) => {
-    return hasAplus 
-      ? <span className="badge bg-success"><i className="bi bi-check"></i> Yes</span> 
+    return hasAplus
+      ? <span className="badge bg-success"><i className="bi bi-check"></i> Yes</span>
       : <span className="badge bg-secondary"><i className="bi bi-x"></i> No</span>;
   };
 
@@ -261,8 +287,8 @@ const AsinTrackerPage = () => {
   // Collapsible section component
   const CollapsibleSection = ({ title, icon, isOpen, onToggle, badge, children }) => (
     <div className="card mb-4">
-      <div 
-        className="card-header d-flex justify-content-between align-items-center" 
+      <div
+        className="card-header d-flex justify-content-between align-items-center"
         onClick={onToggle}
         style={{ cursor: 'pointer' }}
       >
@@ -297,15 +323,20 @@ const AsinTrackerPage = () => {
   return (
     <>
       <header className="main-header">
-        <h1 className="page-title"><i className="bi bi-upc-scan"></i>ASIN Tracker</h1>
+        <div className="d-flex justify-content-between align-items-center w-100">
+          <h1 className="page-title"><i className="bi bi-upc-scan"></i>ASIN Tracker</h1>
+          <button className="btn btn-outline-primary" onClick={handleFetchResults}>
+            <i className="bi bi-cloud-download me-2"></i>Fetch Results
+          </button>
+        </div>
       </header>
 
       <div className="page-content">
         {/* Single Collapsible Section containing KPIs and Performance Overview */}
-        <CollapsibleSection 
-          title="ASIN Performance Overview" 
+        <CollapsibleSection
+          title="ASIN Performance Overview"
           icon="bi bi-graph-up"
-          isOpen={showDashboard} 
+          isOpen={showDashboard}
           onToggle={() => setShowDashboard(!showDashboard)}
         >
           {/* KPI Cards */}
@@ -345,14 +376,14 @@ const AsinTrackerPage = () => {
         </CollapsibleSection>
 
         {/* Collapsible ASIN Table */}
-        <CollapsibleSection 
-          title="ASIN Performance" 
+        <CollapsibleSection
+          title="ASIN Performance"
           icon="bi bi-table"
-          isOpen={showTable} 
+          isOpen={showTable}
           onToggle={() => setShowTable(!showTable)}
           badge={asins.length}
         >
-          <DataTable 
+          <DataTable
             data={asins}
             columns={['asin', 'sku', 'title', 'price', 'bsr', 'rating', 'reviews', 'lqs', 'hasAplus', 'descLength', 'imageCount', 'priceTrend', 'bsrTrend']}
             searchable={true}
@@ -360,20 +391,21 @@ const AsinTrackerPage = () => {
             pagination={true}
             pageSize={10}
             customRenderers={{
-              price: (asin) => <span className="fw-medium">₹{asin.price?.toLocaleString()}</span>,
-              bsr: (asin) => <span>#{asin.bsr?.toLocaleString()}</span>,
-              rating: (asin) => getRatingStars(asin.rating),
-              lqs: (asin) => getLqsBadge(asin.lqs),
-              buyBox: (asin) => getBuyBoxBadge(asin.buyBox),
-              hasAplus: (asin) => getAplusBadge(asin.hasAplus),
-              descLength: (asin) => <span className="text-muted">{asin.descLength} chars</span>,
-              imageCount: (asin) => <span className="badge bg-info">{asin.imageCount} images</span>,
+              price: (asin) => <span className="fw-medium">{asin.price ? `₹${asin.price.toLocaleString()}` : '-'}</span>,
+              bsr: (asin) => <span>{asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}</span>,
+              rating: (asin) => asin.rating ? getRatingStars(asin.rating) : '-',
+              reviews: (asin) => asin.reviews ? asin.reviews.toLocaleString() : '-',
+              lqs: (asin) => asin.lqs ? getLqsBadge(asin.lqs) : '-',
+              buyBox: (asin) => typeof asin.buyBox !== 'undefined' ? getBuyBoxBadge(asin.buyBox) : '-',
+              hasAplus: (asin) => typeof asin.hasAplus !== 'undefined' ? getAplusBadge(asin.hasAplus) : '-',
+              descLength: (asin) => <span className="text-muted">{asin.descLength ? `${asin.descLength.toLocaleString()} chars` : '-'}</span>,
+              imageCount: (asin) => <span>{asin.imageCount || '-'}</span>,
               priceTrend: (asin) => getPriceTrend(asin.history),
               bsrTrend: (asin) => getBsrTrend(asin.history),
             }}
             actions={[
               { label: 'View', icon: 'bi-eye', className: 'btn-sm', onClick: handleViewDetails },
-              { label: 'Sync', icon: 'bi-arrow-repeat', className: 'btn-sm btn-outline-primary', onClick: (asin) => console.log('Sync', asin) },
+              { label: 'Sync', icon: 'bi-arrow-repeat', className: 'btn-sm btn-outline-primary', onClick: handleSync },
             ]}
           />
         </CollapsibleSection>
@@ -397,7 +429,7 @@ const AsinTrackerPage = () => {
                         <span className="badge bg-info me-2">SKU: {selectedAsin.sku}</span>
                         {getBuyBoxBadge(selectedAsin.buyBox)}
                       </p>
-                      
+
                       <div className="row mb-3">
                         <div className="col-sm-6">
                           <small className="text-muted">Current Price</small>
@@ -408,7 +440,7 @@ const AsinTrackerPage = () => {
                           <div className="fw-bold fs-5">#{selectedAsin.bsr?.toLocaleString()}</div>
                         </div>
                       </div>
-                      
+
                       <div className="row mb-3">
                         <div className="col-sm-6">
                           <small className="text-muted">Rating</small>
@@ -419,13 +451,13 @@ const AsinTrackerPage = () => {
                           <div className="fw-bold">{selectedAsin.reviews?.toLocaleString()}</div>
                         </div>
                       </div>
-                      
+
                       <div className="mb-3">
                         <small className="text-muted">LQS Score</small>
                         <div className="mt-1">{getLqsBadge(selectedAsin.lqs)}</div>
                       </div>
                     </div>
-                    
+
                     {/* Product Optimization */}
                     <div className="col-md-4">
                       <div className="card">
@@ -453,7 +485,7 @@ const AsinTrackerPage = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Weekly History */}
                   <div className="mt-4">
                     <h6>Weekly History</h6>
