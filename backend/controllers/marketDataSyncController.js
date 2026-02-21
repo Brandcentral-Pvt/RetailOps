@@ -16,9 +16,10 @@ exports.syncAsin = async (req, res) => {
 
         // Security check
         const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-        const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === asin.seller._id.toString());
+        const sellerIdStr = asin.seller ? (asin.seller._id ? asin.seller._id.toString() : asin.seller.toString()) : null;
+        const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === sellerIdStr);
 
-        if (!isAdmin && !isAssigned) {
+        if (!isAdmin && !isAssigned && sellerIdStr) {
             return res.status(403).json({ success: false, error: 'Unauthorized access to ASIN sync' });
         }
 

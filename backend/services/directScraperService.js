@@ -88,18 +88,25 @@ class DirectScraperService {
                 throw new Error(`Failed to parse product title - layout mismatch or bot blocker.`);
             }
 
+            let ratingStr = getText('//*[@id="averageCustomerReviews"]')?.split('out of')[0]?.trim() || getText('//*[@id="acrPopover"]')?.split('out of')[0]?.trim();
+            const reviewCountText = getText('//*[@id="acrCustomerReviewText"]');
+
+            const descriptionText = getText('//*[@id="productDescription"]') || getText('//*[@id="productFactsDesktopExpander"]/div[1]/ul') || getText('//*[@id="feature-bullets"]/ul');
+
             // User provided XPaths
             const data = {
                 asin: asin,
                 title: title,
-                rating: getText('//*[@id="averageCustomerReviews"]')?.split('out of')[0]?.trim(),
-                price: getText('//*[@id="corePriceDisplay_desktop_feature_div"]/div[1]/span[3]'),
+                rating: ratingStr,
+                reviews: parseInt(reviewCountText.replace(/[^\d]/g, '')) || 0,
+                price: getText('//*[@id="corePriceDisplay_desktop_feature_div"]/div[1]/span[3]') || getText('//*[@id="priceblock_ourprice"]'),
                 mrp: getText('//*[@id="corePriceDisplay_desktop_feature_div"]/div[2]/span/span[1]/span[2]/span/span[1]'),
                 bsr: getText('//*[@id="detailBullets_feature_div"]/ul/li[15]/span'),
                 imageCount: xpath.select('//*[@id="altImages"]/ul/li', doc)?.length || 0,
-                mainImage: getAttr('//*[@id="landingImage"]', 'src'),
-                description: getText('//*[@id="productFactsDesktopExpander"]/div[1]/ul'),
-                hasAplus: xpath.select('//*[@id="aplus"]', doc)?.length > 0,
+                mainImage: getAttr('//*[@id="landingImage"]', 'src') || getAttr('//*[@id="imgBlkFront"]', 'src'),
+                description: descriptionText,
+                bulletPoints: xpath.select('//*[@id="feature-bullets"]/ul/li', doc)?.length || 0,
+                hasAplus: xpath.select('//*[@id="aplus"]/div/div', doc)?.length > 0,
                 category: getText('//*[@id="wayfinding-breadcrumbs_feature_div"]/ul'),
                 boughtLastMonth: getText('//*[@id="socialProofingAsinFaceout_feature_div"]/div/div'),
                 soldBy: getText('//*[@id="merchantInfoFeature_feature_div"]/div[2]/div[1]/span'),
@@ -107,7 +114,7 @@ class DirectScraperService {
             };
 
             // Parse numeric values
-            data.price = parseFloat(data.price.replace(/[^\d.]/g, '')) || 0;
+            data.price = parseFloat(data.price?.replace(/[^\d.]/g, '')) || 0;
             data.rating = parseFloat(data.rating) || 0;
 
             // Extract BSR from complicated string "15 in Electronics (See Top 100 in Electronics)"

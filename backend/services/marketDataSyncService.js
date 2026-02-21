@@ -118,6 +118,7 @@ class MarketDataSyncService {
             const rating = parseFloat(rawData.rating || 0);
             const reviews = parseInt(rawData.reviews || rawData.reviewCount || 0);
             const imageCount = parseInt(rawData.imageCount || rawData.imagesCount || 0);
+            const bulletPoints = parseInt(rawData.bulletPoints || rawData.bulletPointsCount || 0);
             const title = rawData.title || asin.title;
             const description = rawData.description || asin.description;
             const hasAplus = rawData.hasAplus === true || rawData.hasAplus === 'true';
@@ -143,7 +144,10 @@ class MarketDataSyncService {
                 rating: rating > 0 ? rating : asin.rating,
                 reviewCount: reviews > 0 ? reviews : asin.reviewCount,
                 imagesCount: imageCount > 0 ? imageCount : asin.imagesCount,
+                imageUrl: rawData.mainImage || rawData.imageUrl || asin.imageUrl,
                 hasAplus,
+                bulletPoints,
+                descLength: description ? description.length : 0,
                 lqs,
                 lastScraped: new Date(),
                 scrapeStatus: 'COMPLETED',
@@ -165,7 +169,8 @@ class MarketDataSyncService {
                 rating,
                 reviewCount: reviews,
                 hasAplus,
-                descriptionLength: description ? description.length : 0
+                descriptionLength: description ? description.length : 0,
+                bulletPoints
             };
 
             Object.assign(asin, updates);

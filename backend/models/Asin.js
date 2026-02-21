@@ -13,6 +13,7 @@ const weekHistorySchema = new mongoose.Schema({
   hasAplus: { type: Boolean, default: false },
   // New metrics for detailed tracking
   titleLength: { type: Number, default: 0 },
+  bulletPoints: { type: Number, default: 0 },
   videoCount: { type: Number, default: 0 },
   offers: { type: Number, default: 0 },
 });
@@ -41,6 +42,8 @@ const asinSchema = new mongoose.Schema({
   imagesCount: { type: Number, default: 0 },
   hasAplus: { type: Boolean, default: false },
   lqs: { type: Number, default: 0 },
+  bulletPoints: { type: Number, default: 0 },
+  descLength: { type: Number, default: 0 },
   subBSRs: [{ type: String }],
   mrp: { type: Number, default: 0 },
   currentASP: { type: Number, default: 0 },

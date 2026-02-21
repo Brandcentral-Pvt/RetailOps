@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import KPICard from '../components/KPICard';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
-import { asinApi } from '../services/api';
+import { asinApi, marketSyncApi } from '../services/api';
 import { calculateLQS } from '../utils/lqs';
 import {
   Package,
@@ -241,6 +241,7 @@ const AsinManagerPage = () => {
   const [syncing, setSyncing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState(null);
+  const [scrapingIds, setScrapingIds] = useState(new Set());
 
   const loadData = useCallback(async () => {
     try {
@@ -336,6 +337,53 @@ const AsinManagerPage = () => {
       setSyncing(false);
     }
   }, [newAsin, loadData]);
+
+  const handleIndividualScrape = async (asinId) => {
+    try {
+      setScrapingIds(prev => new Set(prev).add(asinId));
+      await marketSyncApi.syncAsin(asinId);
+      alert('Scraping initiated successfully!');
+      loadData();
+    } catch (err) {
+      console.error('Scrape failed:', err);
+      alert('Failed to start scraping: ' + err.message);
+    } finally {
+      setScrapingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(asinId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleBulkScrape = async () => {
+    if (asins.length === 0) return;
+    const confirmScrape = window.confirm(`Initiate scraping for all ${asins.length} ASINs? This may take some time.`);
+    if (!confirmScrape) return;
+
+    let successCount = 0;
+
+    // Scrape all sequentially so we don't accidentally overload the backend/network
+    for (const asin of asins) {
+      if (asin.scrapeStatus === 'SCRAPING') continue; // Skip already scraping
+      try {
+        setScrapingIds(prev => new Set(prev).add(asin._id));
+        await marketSyncApi.syncAsin(asin._id);
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to scrape ${asin.asinCode}:`, err);
+      } finally {
+        setScrapingIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(asin._id);
+          return newSet;
+        });
+      }
+    }
+
+    alert(`Scraping completed. Successfully initiated/scraped ${successCount} ASINs.`);
+    loadData();
+  };
 
   const getLqsBadge = (lqs) => {
     let bgColor = '#059669';
@@ -610,6 +658,9 @@ const AsinManagerPage = () => {
                   <button className="btn btn-white btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm border rounded-pill px-3" onClick={() => console.log('Export CSV')}>
                     <Download size={14} className="text-primary" /> Export CSV
                   </button>
+                  <button className="btn btn-outline-primary btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm rounded-pill px-3" onClick={handleBulkScrape} disabled={asins.length === 0}>
+                    <RefreshCw size={14} /> Scrape All
+                  </button>
                   <button className="btn btn-primary btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm rounded-pill px-3" onClick={() => loadData()}>
                     <RefreshCw size={14} /> Sync All
                   </button>
@@ -617,48 +668,49 @@ const AsinManagerPage = () => {
               </div>
 
               {/* Scrollable table container */}
-              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', margin: '1rem' }}>
-                <table className="table table-bordered table-hover mb-0" style={{ fontSize: '0.8rem', minWidth: '1200px' }}>
+              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', margin: '0' }}>
+                <table className="table table-bordered table-hover mb-0 w-100" style={{ fontSize: '0.8rem', minWidth: '1200px' }}>
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb', zIndex: 10 }}>
                     <tr>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>ASIN</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>SKU</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', minWidth: '180px' }}>Product</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Price</th>
-                      <th colSpan="8" style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 600, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #c7d2fe' }}>Price by Week</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>BSR</th>
-                      <th colSpan="8" style={{ backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #bbf7d0', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <th colSpan={weekColumns.length || 1} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 600, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #c7d2fe' }}>Price by Week</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>BSR</th>
+                      <th colSpan={weekColumns.length || 1} style={{ backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #bbf7d0', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         <div className="d-flex align-items-center justify-content-center gap-2">
                           <BarChart2 size={12} /> BSR by Week
                         </div>
                       </th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rating</th>
-                      <th colSpan="8" style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #fde68a', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Rating</th>
+                      <th colSpan={weekColumns.length || 1} style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #fde68a', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         <div className="d-flex align-items-center justify-content-center gap-2">
                           <Star size={12} /> Rating by Week
                         </div>
                       </th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reviews</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>LQS</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Buy Box</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>A+</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Images</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Desc Len</th>
-                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Status</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Reviews</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>LQS</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Buy Box</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>A+</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Images</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Desc Len</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Status</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Actions</th>
                     </tr>
                     <tr>
                       {/* Price by Week headers */}
-                      {weekColumns.map(week => (
-                        <th key={`price-${week}`} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #c7d2fe' }}>{week}</th>
-                      ))}
+                      {weekColumns.length > 0 ? weekColumns.map(week => (
+                        <th key={`price-${week}`} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #c7d2fe', textAlign: 'center' }}>{week}</th>
+                      )) : <th style={{ backgroundColor: '#e0e7ff', color: '#3730a3', padding: '0.5rem', border: '1px solid #c7d2fe', textAlign: 'center' }}>-</th>}
                       {/* BSR by Week headers */}
-                      {weekColumns.map(week => (
-                        <th key={`bsr-${week}`} style={{ backgroundColor: '#dcfce7', color: '#166534', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #bbf7d0' }}>{week}</th>
-                      ))}
+                      {weekColumns.length > 0 ? weekColumns.map(week => (
+                        <th key={`bsr-${week}`} style={{ backgroundColor: '#dcfce7', color: '#166534', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #bbf7d0', textAlign: 'center' }}>{week}</th>
+                      )) : <th style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.5rem', border: '1px solid #bbf7d0', textAlign: 'center' }}>-</th>}
                       {/* Rating by Week headers */}
-                      {weekColumns.map(week => (
-                        <th key={`rating-${week}`} style={{ backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #fde68a' }}>{week}</th>
-                      ))}
+                      {weekColumns.length > 0 ? weekColumns.map(week => (
+                        <th key={`rating-${week}`} style={{ backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 500, fontSize: '0.7rem', padding: '0.5rem 0.25rem', border: '1px solid #fde68a', textAlign: 'center' }}>{week}</th>
+                      )) : <th style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.5rem', border: '1px solid #fde68a', textAlign: 'center' }}>-</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -667,13 +719,14 @@ const AsinManagerPage = () => {
                         <td style={{ fontWeight: 600, color: '#111827', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.asinCode}</td>
                         <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.sku}</td>
                         <td style={{ padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          <div className="d-flex align-items-center gap-2" style={{ maxWidth: '180px' }}>
-                            <img src={asin.imageUrl} alt={asin.title} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} />
+                          <div className="d-flex align-items-center gap-2" style={{ maxWidth: '280px' }}>
+                            <img src={asin.imageUrl} alt={asin.title} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
                             <span style={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              display: 'block'
+                              display: 'block',
+                              whiteSpace: 'normal',
+                              wordBreak: 'break-word',
+                              lineHeight: '1.3',
+                              fontSize: '0.85rem'
                             }}>
                               {asin.title}
                             </span>
@@ -683,62 +736,85 @@ const AsinManagerPage = () => {
                           {asin.currentPrice ? `₹${asin.currentPrice.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         {/* Price by Week columns */}
-                        {asin.weekHistory?.map((week, idx) => (
-                          <td key={`price-${idx}`} style={{ backgroundColor: '#f5f3ff', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center' }}>
-                            {getWeekHistoryBadge(week.price, 'price')}
-                          </td>
-                        ))}
-                        <td style={{ fontWeight: 600, color: '#2563eb', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        {weekColumns.length > 0 ? weekColumns.map((week, idx) => {
+                          const wData = asin.weekHistory?.find(w => w.week === week);
+                          return (
+                            <td key={`price-${idx}`} style={{ backgroundColor: '#f5f3ff', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                              {wData && wData.price ? getWeekHistoryBadge(wData.price, 'price') : '-'}
+                            </td>
+                          );
+                        }) : <td style={{ padding: '0.5rem', textAlign: 'center', border: '1px solid #e5e7eb' }}>-</td>}
+                        <td style={{ fontWeight: 600, color: '#2563eb', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {asin.currentRank ? `#${asin.currentRank.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         {/* BSR by Week columns */}
-                        {asin.weekHistory?.map((week, idx) => (
-                          <td key={`bsr-${idx}`} style={{ backgroundColor: '#f0fdf4', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center' }}>
-                            {getWeekHistoryBadge(week.bsr, 'number')}
-                          </td>
-                        ))}
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        {weekColumns.length > 0 ? weekColumns.map((week, idx) => {
+                          const wData = asin.weekHistory?.find(w => w.week === week);
+                          return (
+                            <td key={`bsr-${idx}`} style={{ backgroundColor: '#f0fdf4', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                              {wData && wData.bsr ? getWeekHistoryBadge(wData.bsr, 'number') : '-'}
+                            </td>
+                          );
+                        }) : <td style={{ padding: '0.5rem', textAlign: 'center', border: '1px solid #e5e7eb' }}>-</td>}
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', verticalAlign: 'middle' }}>
                           {asin.rating ? (
-                            <div className="d-flex align-items-center gap-1">
+                            <div className="d-flex align-items-center justify-content-center gap-1">
                               <Star size={12} className="text-warning fill-warning" />
                               <span style={{ fontWeight: 500 }}>{asin.rating}</span>
                             </div>
-                          ) : <span style={{ color: '#9ca3af' }}>-</span>}
+                          ) : <span style={{ color: '#9ca3af', display: 'block', textAlign: 'center' }}>-</span>}
                         </td>
                         {/* Rating by Week columns */}
-                        {asin.weekHistory?.map((week, idx) => (
-                          <td key={`rating-${idx}`} style={{ backgroundColor: '#fffbeb', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center' }}>
-                            {getWeekHistoryBadge(week.rating, 'rating')}
-                          </td>
-                        ))}
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        {weekColumns.length > 0 ? weekColumns.map((week, idx) => {
+                          const wData = asin.weekHistory?.find(w => w.week === week);
+                          return (
+                            <td key={`rating-${idx}`} style={{ backgroundColor: '#fffbeb', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                              {wData && wData.rating ? getWeekHistoryBadge(wData.rating, 'rating') : '-'}
+                            </td>
+                          );
+                        }) : <td style={{ padding: '0.5rem', textAlign: 'center', border: '1px solid #e5e7eb' }}>-</td>}
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {asin.reviewCount ? asin.reviewCount.toLocaleString() : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {asin.lqs ? getLqsBadge(asin.lqs) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {getBuyBoxBadge(asin.buyBoxWin, asin.status)}
                         </td>
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                          {getAplusBadge(asin.hasAPlus, asin.status)}
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                          {getAplusBadge(asin.hasAplus, asin.status)}
                         </td>
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {asin.imagesCount ? (
                             <span className="badge" style={{ backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 500 }}>
                               {asin.imagesCount}
                             </span>
                           ) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {asin.descLength ? (
                             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                              {asin.descLength} chars
+                              {asin.descLength}
                             </span>
                           ) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
-                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {getStatusBadge(asin.status)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                          <button
+                            className="btn btn-sm btn-outline-primary rounded-pill d-flex align-items-center gap-1"
+                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
+                            onClick={() => handleIndividualScrape(asin._id)}
+                            disabled={scrapingIds.has(asin._id) || asin.scrapeStatus === 'SCRAPING'}
+                          >
+                            {(scrapingIds.has(asin._id) || asin.scrapeStatus === 'SCRAPING') ? (
+                              <><RefreshCw size={12} className="spin" /> Scraping...</>
+                            ) : (
+                              <><RefreshCw size={12} /> Scrape</>
+                            )}
+                          </button>
                         </td>
                       </tr>
                     ))}

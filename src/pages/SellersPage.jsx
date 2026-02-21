@@ -43,7 +43,15 @@ const SellersPage = () => {
     setLoading(true);
     try {
       const response = await sellerApi.getAll();
-      setSellers(response.sellers);
+      if (response && response.data && Array.isArray(response.data.sellers)) {
+        setSellers(response.data.sellers);
+      } else if (response && Array.isArray(response.sellers)) {
+        setSellers(response.sellers);
+      } else if (Array.isArray(response)) {
+        setSellers(response);
+      } else {
+        setSellers([]);
+      }
     } catch (error) {
       console.error('Failed to load sellers:', error);
     }
@@ -51,8 +59,9 @@ const SellersPage = () => {
   };
 
   const filteredSellers = useMemo(() => {
+    if (!Array.isArray(sellers)) return [];
     if (activeTab === 'all') return sellers;
-    return sellers.filter(s => s.status.toLowerCase() === activeTab);
+    return sellers.filter(s => s.status && s.status.toLowerCase() === activeTab);
   }, [sellers, activeTab]);
 
 
