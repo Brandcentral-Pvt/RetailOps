@@ -209,7 +209,7 @@ const AlertsPage = () => {
                 </button>
               </div>
 
-              <div className="input-group ios-search-pill rounded- pill px-3 py-1 shadow-sm mb-4">
+              <div className="input-group ios-search-pill rounded-pill px-3 py-1 shadow-sm mb-4">
                 <span className="input-group-text bg-transparent border-0 p-0 me-2 text-muted">
                   <SearchIcon size={18} />
                 </span>

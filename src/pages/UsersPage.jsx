@@ -21,7 +21,8 @@ import {
   UserCheck,
   UserX,
   Filter,
-  Plus
+  Plus,
+  Info
 } from 'lucide-react';
 
 const UsersPage = () => {
@@ -226,7 +227,7 @@ const UsersPage = () => {
           <div className="col-md-3">
             <div className="card border-0 shadow-sm p-3" style={{ borderRadius: '16px' }}>
               <div className="d-flex align-items-center gap-3">
-                <div className="p-2 bg-blue- soft text-primary rounded-circle" style={{ backgroundColor: '#eff6ff' }}>
+                <div className="p-2 bg-blue-soft text-primary rounded-circle" style={{ backgroundColor: '#eff6ff' }}>
                   <Users size={20} />
                 </div>
                 <div>
