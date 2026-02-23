@@ -98,6 +98,7 @@ exports.getAsinsBySeller = async (req, res) => {
     }
 
     const asins = await Asin.find({ seller: req.params.sellerId })
+      .populate('seller', 'name marketplace')
       .sort({ createdAt: -1 });
 
     res.json(asins);

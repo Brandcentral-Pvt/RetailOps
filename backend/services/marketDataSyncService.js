@@ -121,6 +121,7 @@ class MarketDataSyncService {
             const bulletPoints = parseInt(rawData.bulletPoints || rawData.bulletPointsCount || 0);
             const title = rawData.title || asin.title;
             const description = rawData.description || asin.description;
+            const category = rawData.category || asin.category;
             const hasAplus = rawData.hasAplus === true || rawData.hasAplus === 'true';
 
             // Calculate LQS (Listing Quality Score) - Basic logic
@@ -139,6 +140,7 @@ class MarketDataSyncService {
             const updates = {
                 title,
                 description,
+                category,
                 currentPrice: price > 0 ? price : asin.currentPrice,
                 bsr: bsr > 0 ? bsr : asin.bsr,
                 rating: rating > 0 ? rating : asin.rating,

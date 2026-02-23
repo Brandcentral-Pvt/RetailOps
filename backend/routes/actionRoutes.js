@@ -819,14 +819,7 @@ router.post('/create-from-analysis/:asinId', protect, requireAnyPermission(['act
             return res.status(404).json({ success: false, message: 'ASIN not found' });
         }
 
-        // Get analysis results
-        const analysisResponse = await router.handle({
-            params: { asinId: req.params.asinId },
-            user: req.user
-        });
-
-        // For simplicity, we'll re-run the analysis logic here
-        // In production, you might want to cache this or use a service
+        // Compute suggested actions directly from the scraped ASIN data
         const suggestedActions = [];
 
         // Run the same analysis as above

@@ -356,6 +356,21 @@ const AsinManagerPage = () => {
     }
   };
 
+  const handleCreateTasks = async (asinId, asinCode) => {
+    try {
+      if (!window.confirm(`Auto-generate optimization tasks for ASIN ${asinCode}?`)) return;
+      const res = await db.createActionsFromAnalysis(asinId);
+      if (res && res.actionsCreated) {
+        alert(`Successfully created ${res.actionsCreated} optimization tasks!`);
+      } else {
+        alert('Analysis complete. No critical tasks needed at this time.');
+      }
+    } catch (err) {
+      console.error('Task creation failed:', err);
+      alert('Failed to create tasks: ' + err.message);
+    }
+  };
+
   const handleBulkScrape = async () => {
     if (asins.length === 0) return;
     const confirmScrape = window.confirm(`Initiate scraping for all ${asins.length} ASINs? This may take some time.`);
@@ -673,7 +688,9 @@ const AsinManagerPage = () => {
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb', zIndex: 10 }}>
                     <tr>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>ASIN</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Seller ID</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>SKU</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Category</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', minWidth: '180px' }}>Product</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Price</th>
                       <th colSpan={weekColumns.length || 1} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 600, textAlign: 'center', padding: '0.5rem', borderBottom: '2px solid #c7d2fe' }}>Price by Week</th>
@@ -696,6 +713,7 @@ const AsinManagerPage = () => {
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Images</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Desc Len</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Status</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Last Scraped</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Actions</th>
                     </tr>
                     <tr>
@@ -717,7 +735,9 @@ const AsinManagerPage = () => {
                     {asins.map((asin, index) => (
                       <tr key={asin._id || index} style={{ backgroundColor: '#fff' }}>
                         <td style={{ fontWeight: 600, color: '#111827', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.asinCode}</td>
-                        <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.sku}</td>
+                        <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.seller?.name || asin.seller || <span style={{ color: '#9ca3af' }}>Global</span>}</td>
+                        <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.sku || <span style={{ color: '#9ca3af' }}>-</span>}</td>
+                        <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', fontSize: '0.75rem', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={asin.category || ''}>{asin.category || <span style={{ color: '#9ca3af' }}>-</span>}</td>
                         <td style={{ padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
                           <div className="d-flex align-items-center gap-2" style={{ maxWidth: '280px' }}>
                             <img src={asin.imageUrl} alt={asin.title} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
@@ -803,18 +823,34 @@ const AsinManagerPage = () => {
                           {getStatusBadge(asin.status)}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
-                          <button
-                            className="btn btn-sm btn-outline-primary rounded-pill d-flex align-items-center gap-1"
-                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
-                            onClick={() => handleIndividualScrape(asin._id)}
-                            disabled={scrapingIds.has(asin._id) || asin.scrapeStatus === 'SCRAPING'}
-                          >
-                            {(scrapingIds.has(asin._id) || asin.scrapeStatus === 'SCRAPING') ? (
-                              <><RefreshCw size={12} className="spin" /> Scraping...</>
-                            ) : (
-                              <><RefreshCw size={12} /> Scrape</>
-                            )}
-                          </button>
+                          {asin.lastScraped ? (
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                              {new Date(asin.lastScraped).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          ) : <span style={{ color: '#9ca3af' }}>-</span>}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                          <div className="d-flex align-items-center justify-content-center gap-1">
+                            <button
+                              className="btn btn-sm btn-outline-primary rounded-pill d-flex align-items-center gap-1"
+                              style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
+                              onClick={() => handleIndividualScrape(asin._id)}
+                              disabled={scrapingIds.has(asin._id) || asin.scrapeStatus === 'SCRAPING'}
+                            >
+                              {(scrapingIds.has(asin._id) || asin.scrapeStatus === 'SCRAPING') ? (
+                                <><RefreshCw size={12} className="spin" /> Scraping...</>
+                              ) : (
+                                <><RefreshCw size={12} /> Scrape</>
+                              )}
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-success rounded-pill d-flex align-items-center gap-1"
+                              style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}
+                              onClick={() => handleCreateTasks(asin._id, asin.asinCode)}
+                            >
+                              <Plus size={12} /> Create Task
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

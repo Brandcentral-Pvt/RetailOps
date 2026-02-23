@@ -107,7 +107,7 @@ class DirectScraperService {
                 description: descriptionText,
                 bulletPoints: xpath.select('//*[@id="feature-bullets"]/ul/li', doc)?.length || 0,
                 hasAplus: xpath.select('//*[@id="aplus"]/div/div', doc)?.length > 0,
-                category: getText('//*[@id="wayfinding-breadcrumbs_feature_div"]/ul'),
+                category: getText('//*[@id="wayfinding-breadcrumbs_feature_div"]/ul/li[7]/span/a') || getText('//*[@id="wayfinding-breadcrumbs_feature_div"]/ul'),
                 boughtLastMonth: getText('//*[@id="socialProofingAsinFaceout_feature_div"]/div/div'),
                 soldBy: getText('//*[@id="merchantInfoFeature_feature_div"]/div[2]/div[1]/span'),
                 scrapedAt: new Date().toISOString()
