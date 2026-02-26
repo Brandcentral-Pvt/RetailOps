@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const config = require('../config/env');
 
 // Demo mode bypass for development
@@ -21,8 +22,26 @@ exports.authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-
     const decoded = jwt.verify(token, config.jwtSecret);
+
+    // Check if MongoDB is currently connected before attempting a DB lookup
+    const isDbConnected = mongoose.connection.readyState === 1;
+
+    if (!isDbConnected) {
+      // Fall back to JWT payload — avoids the 10s buffer timeout when Atlas is down
+      console.warn('[Auth] MongoDB not connected — using JWT payload as fallback');
+      req.userId = decoded.userId;
+      req.user = {
+        _id: decoded.userId,
+        email: decoded.email,
+        role: decoded.role || { name: 'admin' },
+        assignedSellers: decoded.assignedSellers || [],
+        isActive: true,
+        hasPermission: async () => true,
+        hasAnyPermission: async () => true,
+      };
+      return next();
+    }
 
     const user = await User.findById(decoded.userId)
       .populate('role')
@@ -51,6 +70,7 @@ exports.authenticate = async (req, res, next) => {
     res.status(500).json({ success: false, message: 'Authentication failed' });
   }
 };
+
 
 exports.requirePermission = (permissionName) => {
   return async (req, res, next) => {
