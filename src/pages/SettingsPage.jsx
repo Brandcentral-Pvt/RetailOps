@@ -13,6 +13,10 @@ const SettingsPage = () => {
     smtpSecure: 'tls',
     notifications: true,
     emailReports: false,
+    minLqsScore: 80,
+    minTitleLength: 80,
+    minImageCount: 7,
+    minDescLength: 1000,
   });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -244,6 +248,71 @@ const SettingsPage = () => {
                 >
                   <i className="bi bi-send me-1"></i> Send Test Email
                 </button>
+              </div>
+            </div>
+
+            {/* ASIN Optimization Rules */}
+            <div className="card mb-4">
+              <div className="card-header">
+                <h5 className="mb-0"><i className="bi bi-sliders"></i> ASIN Optimization Rules (Bulk Actions)</h5>
+              </div>
+              <div className="card-body">
+                <p className="text-muted mb-3">
+                  Set the threshold requirements for auto-generating optimization tasks for your ASINs. Any ASIN falling below these targets will be flagged for tasks.
+                </p>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Minimum Target LQS Score</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="minLqsScore"
+                      value={settings.minLqsScore}
+                      onChange={handleChange}
+                      placeholder="80"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Minimum Title Length</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="minTitleLength"
+                      value={settings.minTitleLength}
+                      onChange={handleChange}
+                      placeholder="100"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Minimum Image Count</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="minImageCount"
+                      value={settings.minImageCount}
+                      onChange={handleChange}
+                      placeholder="7"
+                      min="0"
+                    />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Minimum Description Length</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="minDescLength"
+                      value={settings.minDescLength}
+                      onChange={handleChange}
+                      placeholder="500"
+                      min="0"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

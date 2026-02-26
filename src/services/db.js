@@ -506,6 +506,13 @@ class DatabaseService {
   }
 
   /**
+   * Bulk create grouped actions from ASIN analysis
+   */
+  async createBulkActionsFromAnalysis() {
+    return this.request('/actions/bulk-create-from-analysis', { method: 'POST' }, null);
+  }
+
+  /**
    * Get overdue actions
    */
   async getOverdueActions() {

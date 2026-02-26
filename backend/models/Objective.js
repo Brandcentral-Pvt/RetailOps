@@ -47,6 +47,14 @@ const objectiveSchema = new mongoose.Schema({
     description: {
         type: String
     },
+    goal: {
+        type: String,
+        default: ''
+    },
+    measurementMetrics: {
+        type: String,
+        default: ''
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

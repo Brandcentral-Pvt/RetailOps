@@ -45,7 +45,8 @@ const ActionsPage = () => {
       pending: 0,
       inProgress: 0,
       review: 0,
-      completed: 0
+      completed: 0,
+      rejected: 0
     }
   });
 
@@ -126,7 +127,8 @@ const ActionsPage = () => {
         pending: 0,
         inProgress: 0,
         review: 0,
-        completed: 0
+        completed: 0,
+        rejected: 0
       }
     };
 
@@ -515,6 +517,16 @@ const ActionsPage = () => {
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0dcaf0' }}></div>
           <span className="text-info text-uppercase" style={{ fontSize: '11px', letterSpacing: '0.05em' }}>Review</span>
           <span className="fw-bold">{kpis.status.review}</span>
+        </div>
+
+        <div
+          onClick={() => handleFilterClick('REJECTED')}
+          className={`d-flex align-items-center gap-2 px-3 py-1 rounded-pill border cursor-pointer transition-all ${activeFilter === 'REJECTED' ? 'bg-danger-subtle border-danger' : 'bg-white border-light-subtle shadow-sm'}`}
+          style={{ fontSize: '13px', fontWeight: '500' }}
+        >
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#dc3545' }}></div>
+          <span className="text-danger text-uppercase" style={{ fontSize: '11px', letterSpacing: '0.05em' }}>Rejected</span>
+          <span className="fw-bold">{kpis.status.rejected}</span>
         </div>
 
         <div

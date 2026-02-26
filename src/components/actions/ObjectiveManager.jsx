@@ -6,6 +6,8 @@ import { db } from '../../services/db';
 const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }) => {
     const [step, setStep] = useState(1); // 1: Info, 2: Template, 3: Tasks/Asins
     const [title, setTitle] = useState(objective?.title || '');
+    const [goal, setGoal] = useState(objective?.goal || '');
+    const [measurementMetrics, setMeasurementMetrics] = useState(objective?.measurementMetrics || '');
     const [owners, setOwners] = useState(
         objective?.owners?.map(o => o._id || o) ||
         (objective?.owner ? [objective.owner._id || objective.owner] : [])
@@ -24,6 +26,12 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
     const [availableAsins, setAvailableAsins] = useState([]);
     const [selectedAsins, setSelectedAsins] = useState([]);
     const [ownerSearchQuery, setOwnerSearchQuery] = useState('');
+    const [optimizationRules, setOptimizationRules] = useState({
+        minLqsScore: 80,
+        minTitleLength: 100,
+        minImageCount: 7,
+        minDescLength: 500
+    });
 
     // Auto-calculate end date based on type
     useEffect(() => {
@@ -63,12 +71,24 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
         const fetchData = async () => {
             try {
                 const sRes = await db.getSellers();
-                if (sRes && Array.isArray(sRes.sellers)) setSellers(sRes.sellers);
+                if (sRes && sRes.data && Array.isArray(sRes.data.sellers)) setSellers(sRes.data.sellers);
+                else if (sRes && Array.isArray(sRes.sellers)) setSellers(sRes.sellers);
                 else if (Array.isArray(sRes)) setSellers(sRes);
 
                 const tRes = await db.getTaskTemplates();
                 if (tRes && Array.isArray(tRes.data)) setTemplates(tRes.data);
                 else if (Array.isArray(tRes)) setTemplates(tRes);
+
+                const settingsRes = await db.getSettings();
+                if (settingsRes && settingsRes.data) {
+                    const rules = {};
+                    settingsRes.data.forEach(s => {
+                        if (['minLqsScore', 'minTitleLength', 'minImageCount', 'minDescLength'].includes(s.key)) {
+                            rules[s.key] = Number(s.value);
+                        }
+                    });
+                    setOptimizationRules(prev => ({ ...prev, ...rules }));
+                }
             } catch (err) {
                 console.error("Failed to fetch initial data:", err);
             }
@@ -95,11 +115,13 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
         const fetchSellers = async () => {
             try {
                 const res = await db.getSellers();
-                // Check if response is { sellers: [...], pagination: ... }
-                if (res && Array.isArray(res.sellers)) {
+                // Check if response has data object containing sellers
+                if (res && res.data && Array.isArray(res.data.sellers)) {
+                    setSellers(res.data.sellers);
+                } else if (res && Array.isArray(res.sellers)) {
                     setSellers(res.sellers);
                 } else if (res && res.success && Array.isArray(res.data)) {
-                    // Check if response is { success: true, data: [...] }
+                    // Fallback if data is the array
                     setSellers(res.data);
                 } else if (Array.isArray(res)) {
                     // Check if response is directly [...]
@@ -141,6 +163,8 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
         try {
             const objectiveData = {
                 title,
+                goal,
+                measurementMetrics,
                 type,
                 startDate,
                 endDate,
@@ -264,6 +288,24 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
         }
     };
 
+    const autoSelectNeedingOptimization = () => {
+        const needing = availableAsins.filter(asin => {
+            const isTitleShort = !asin.title || (asin.title.length < optimizationRules.minTitleLength);
+            const isImageCountLow = (asin.imagesCount || 0) < optimizationRules.minImageCount;
+            const isDescShort = (asin.descLength || 0) < optimizationRules.minDescLength;
+            const isLqsLow = (asin.lqs || 0) < optimizationRules.minLqsScore;
+            const noAplus = !asin.hasAplus;
+
+            return isTitleShort || isImageCountLow || isDescShort || isLqsLow || noAplus;
+        }).map(asin => asin._id);
+
+        if (needing.length === 0) {
+            alert("No ASINs found needing optimization based on current rules.");
+        } else {
+            setSelectedAsins([...new Set([...selectedAsins, ...needing])]);
+        }
+    };
+
     return (
         <div className="d-flex flex-column" style={{ maxHeight: '90vh', minWidth: '600px' }}>
             <div className="modal-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
@@ -312,6 +354,30 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                                     placeholder="e.g., Growth Strategy"
                                     value={baseTitle}
                                     onChange={(e) => setBaseTitle(e.target.value)}
+                                    required
+                                />
+                            </div>
+
+                            <div className="col-12">
+                                <label className="form-label small fw-bold text-muted text-uppercase">Goal</label>
+                                <textarea
+                                    className="form-control"
+                                    rows="2"
+                                    placeholder="What is the primary goal of this project?"
+                                    value={goal}
+                                    onChange={(e) => setGoal(e.target.value)}
+                                    required
+                                />
+                            </div>
+
+                            <div className="col-12">
+                                <label className="form-label small fw-bold text-muted text-uppercase">Measurement Metrics</label>
+                                <textarea
+                                    className="form-control"
+                                    rows="2"
+                                    placeholder="How will success be measured? (e.g., Increase sales by 20%)"
+                                    value={measurementMetrics}
+                                    onChange={(e) => setMeasurementMetrics(e.target.value)}
                                     required
                                 />
                             </div>
@@ -482,7 +548,17 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                         </div>
 
                         <div className="mb-4">
-                            <h6 className="fw-bold text-uppercase small text-muted mb-3">Targeted ASINs (Optional)</h6>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <h6 className="fw-bold text-uppercase small text-muted mb-0">Targeted ASINs (Optional)</h6>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-primary rounded-pill d-flex align-items-center gap-1 px-3"
+                                    onClick={autoSelectNeedingOptimization}
+                                >
+                                    <Sparkles size={14} />
+                                    Suggest ASINs Needing Attention
+                                </button>
+                            </div>
                             <div className="asin-selector bg-light rounded-3 border p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                 {availableAsins.length > 0 ? (
                                     <div className="row g-2">

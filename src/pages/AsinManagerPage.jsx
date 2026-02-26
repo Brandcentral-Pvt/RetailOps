@@ -400,6 +400,21 @@ const AsinManagerPage = () => {
     loadData();
   };
 
+  const handleBulkCreateActions = async () => {
+    try {
+      if (!window.confirm('Auto-generate optimization tasks for all ASINs?')) return;
+      const res = await db.createBulkActionsFromAnalysis();
+      if (res && res.count > 0) {
+        alert(`Successfully generated ${res.count} bulk optimization tasks!`);
+      } else {
+        alert('Analysis complete. All ASINs look good! No optimization actions needed.');
+      }
+    } catch (err) {
+      console.error('Bulk task creation failed:', err);
+      alert('Failed to create bulk tasks: ' + err.message);
+    }
+  };
+
   const getLqsBadge = (lqs) => {
     let bgColor = '#059669';
     let textColor = '#fff';
@@ -670,6 +685,9 @@ const AsinManagerPage = () => {
                   </div>
                 </div>
                 <div className="d-flex gap-2">
+                  <button className="btn btn-outline-success btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm rounded-pill px-3" onClick={handleBulkCreateActions} disabled={asins.length === 0}>
+                    <Zap size={14} /> Create Actions for Needed ASINs
+                  </button>
                   <button className="btn btn-white btn-sm fw-bold d-flex align-items-center gap-2 shadow-sm border rounded-pill px-3" onClick={() => console.log('Export CSV')}>
                     <Download size={14} className="text-primary" /> Export CSV
                   </button>

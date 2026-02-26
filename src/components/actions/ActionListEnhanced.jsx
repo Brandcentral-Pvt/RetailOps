@@ -102,6 +102,7 @@ const ActionList = ({
         if (activeFilter === 'IN_PROGRESS') return action.status === 'IN_PROGRESS';
         if (activeFilter === 'REVIEW') return action.status === 'REVIEW';
         if (activeFilter === 'COMPLETED') return action.status === 'COMPLETED';
+        if (activeFilter === 'REJECTED') return action.status === 'REJECTED';
         if (activeFilter === 'OVERDUE') return action.timeTracking?.deadline && new Date(action.timeTracking.deadline) < now && action.status !== 'COMPLETED';
         if (activeFilter === 'TOMORROW') {
             if (!action.timeTracking?.deadline) return false;

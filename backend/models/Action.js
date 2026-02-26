@@ -49,7 +49,7 @@ const actionSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['PENDING', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'CANCELLED'],
+        enum: ['PENDING', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'CANCELLED', 'REJECTED'],
         default: 'PENDING',
         required: true
     },
@@ -296,12 +296,13 @@ actionSchema.methods.reviewTask = function (reviewerId, decision, comments) {
         this.completion.completedAt = now;
         this.completion.completedBy = reviewerId; // Manager completes it
     } else {
-        this.status = 'PENDING'; // Go back to pending as requested
+        this.status = 'REJECTED';
         this.stage.current = 'NOT_STARTED';
 
         // Reset time tracking for restart
         if (this.timeTracking) {
             this.timeTracking.startedAt = null;
+            this.timeTracking.completedAt = null;
         }
     }
 
