@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const systemSettingController = require('../controllers/systemSettingController');
-const { auth, isAdmin } = require('../middleware/auth');
+const { auth, isAdmin, authenticate } = require('../middleware/auth');
 
-// All settings routes protected by auth and restricted to admins
-router.use(auth, isAdmin);
+// GET settings: any authenticated user can read (needed for ASIN optimization rules etc.)
+router.get('/', auth, systemSettingController.getSettings);
+router.get('/:key', auth, systemSettingController.getSettingByKey);
 
-router.get('/', systemSettingController.getSettings);
-router.post('/update', systemSettingController.updateSettings);
-router.post('/test-email', systemSettingController.testEmail);
-router.get('/:key', systemSettingController.getSettingByKey);
+// Write routes: admin only
+router.post('/update', auth, isAdmin, systemSettingController.updateSettings);
+router.post('/test-email', auth, isAdmin, systemSettingController.testEmail);
 
 module.exports = router;
