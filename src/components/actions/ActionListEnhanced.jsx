@@ -1,11 +1,51 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Edit2, Trash2, CheckCircle, Clock, AlertTriangle, Filter, Search, Play, Square, Plus, Sparkles, Loader2, BarChart2, Calendar, AlertCircle, ArrowDown, Minus, ThumbsUp, ThumbsDown, RotateCcw, FileText } from 'lucide-react';
 import CompletionModal from './CompletionModal';
-import Tooltip from '../base/Tooltip';
+import { Popover, PopoverHeader, PopoverBody } from 'reactstrap';
+
+/* ── Reusable review-remark popover ─────────────────────────────── */
+const ReviewRemarkPopover = ({ id, status, comments }) => {
+    const [open, setOpen] = useState(false);
+    const toggle = (e) => { e && e.stopPropagation(); setOpen(o => !o); };
+    const popoverId = `rrp-${id}`;
+    return (
+        <>
+            <div
+                id={popoverId}
+                className="d-flex align-items-center"
+                style={{ cursor: 'pointer' }}
+                onClick={toggle}
+            >
+                <span
+                    className={`small text-truncate d-inline-block ${status === 'REJECTED' ? 'text-danger' : 'text-success'}`}
+                    style={{ maxWidth: '150px', fontSize: '11px', textDecoration: 'underline dotted' }}
+                >
+                    {status === 'REJECTED' && <AlertCircle size={10} className="me-1" />}
+                    {comments}
+                </span>
+            </div>
+            <Popover
+                placement="top"
+                target={popoverId}
+                isOpen={open}
+                toggle={toggle}
+                trigger="click"
+            >
+                <PopoverHeader className={status === 'REJECTED' ? 'text-danger' : 'text-success'}>
+                    {status === 'REJECTED' ? '❌ Rejection Remark' : '✅ Approval Remark'}
+                </PopoverHeader>
+                <PopoverBody style={{ maxWidth: 280, fontSize: 13, lineHeight: 1.5 }}>
+                    {comments}
+                </PopoverBody>
+            </Popover>
+        </>
+    );
+};
 
 const ActionList = ({
     actions = [],
     objectives = [],
+    standaloneActions = [],
     loading,
     activeFilter = 'ALL',
     searchQuery = '',
@@ -228,6 +268,15 @@ const ActionList = ({
             }
         });
 
+        // Inject standalone (auto-generated) actions after objective rows
+        const filteredStandalone = standaloneActions.filter(matchesFilters);
+        if (filteredStandalone.length > 0) {
+            rows.push({ type: 'DIVIDER', id: 'standalone-divider', data: { label: `🤖 Auto-Generated Tasks (${filteredStandalone.length})` } });
+            filteredStandalone.forEach(action => {
+                rows.push({ type: 'ACTION', level: 0, id: action._id || action.id, data: action, standalone: true });
+            });
+        }
+
         return (
             <div className="smartsheet-container mt-4">
                 <table className="smartsheet-table">
@@ -250,6 +299,18 @@ const ActionList = ({
                         {rows.map((row, index) => {
                             const isExpanded = expandedRows[row.id];
                             const { data, level, type } = row;
+
+                            // Divider separator between objectives and standalone tasks
+                            if (type === 'DIVIDER') {
+                                return (
+                                    <tr key={row.id} style={{ background: 'rgba(99,102,241,0.08)', borderTop: '2px solid rgba(99,102,241,0.25)', borderBottom: '1px solid rgba(99,102,241,0.12)' }}>
+                                        <td colSpan={11} style={{ padding: '8px 16px', fontWeight: 700, color: '#6366f1', fontSize: '0.82rem', letterSpacing: '0.03em' }}>
+                                            {data.label}
+                                        </td>
+                                    </tr>
+                                );
+                            }
+
                             return (
                                 <tr key={row.id + '-' + type} className={`row-level-${level} ${type.toLowerCase()}-row`}>
                                     <td className="row-index">{index + 1}</td>
@@ -352,14 +413,11 @@ const ActionList = ({
                                     <td className="text-center">{renderPriorityIcon(data.priority)}</td>
                                     <td>
                                         {type === 'ACTION' && data.review?.comments ? (
-                                            <Tooltip content={data.review.comments}>
-                                                <div className="d-flex align-items-center">
-                                                    <span className={`small text-truncate d-inline-block ${data.review.status === 'REJECTED' ? 'text-danger' : 'text-success'}`} style={{ maxWidth: '150px', fontSize: '11px' }}>
-                                                        {data.review.status === 'REJECTED' && <AlertCircle size={10} className="me-1" />}
-                                                        {data.review.comments}
-                                                    </span>
-                                                </div>
-                                            </Tooltip>
+                                            <ReviewRemarkPopover
+                                                id={data._id}
+                                                status={data.review.status}
+                                                comments={data.review.comments}
+                                            />
                                         ) : (
                                             <span className="text-muted smallest">--</span>
                                         )}
@@ -515,14 +573,11 @@ const ActionList = ({
                                 <td className="text-center">{renderPriorityIcon(action.priority)}</td>
                                 <td>
                                     {action.review?.comments ? (
-                                        <Tooltip content={action.review.comments}>
-                                            <div className="d-flex align-items-center">
-                                                <span className={`small text-truncate d-inline-block ${action.review.status === 'REJECTED' ? 'text-danger' : 'text-success'}`} style={{ maxWidth: '150px', fontSize: '11px' }}>
-                                                    {action.review.status === 'REJECTED' && <AlertCircle size={10} className="me-1" />}
-                                                    {action.review.comments}
-                                                </span>
-                                            </div>
-                                        </Tooltip>
+                                        <ReviewRemarkPopover
+                                            id={action._id}
+                                            status={action.review.status}
+                                            comments={action.review.comments}
+                                        />
                                     ) : (
                                         <span className="text-muted smallest">--</span>
                                     )}

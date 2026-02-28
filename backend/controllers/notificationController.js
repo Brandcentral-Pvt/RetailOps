@@ -65,6 +65,29 @@ exports.markAsRead = async (req, res) => {
     }
 };
 
+// Permanently delete a notification (dismiss)
+exports.deleteNotification = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        if (id === 'all-read') {
+            // Delete all read notifications for this user
+            await Notification.deleteMany({ recipient: userId, isRead: true });
+        } else {
+            const result = await Notification.findOneAndDelete({ _id: id, recipient: userId });
+            if (!result) {
+                return res.status(404).json({ success: false, message: 'Notification not found' });
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete Notification Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
 // Internal helper to create notification
 exports.createNotification = async (recipientId, type, referenceModel, referenceId, message) => {
     try {

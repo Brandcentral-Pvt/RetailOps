@@ -3,7 +3,8 @@
    ========================================================================== */
 .app-layout {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  /* sidebar left + content right */
   min-height: 100vh;
   background-color: #F8FAFC;
 }
@@ -23,10 +24,12 @@ body.chat-page-active {
 }
 
 .routes-container {
-  padding: 1.5rem;
+  padding: 1.5rem 2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  /* prevent flex children from overflowing */
 }
 
 body.chat-page-active .app-layout {
@@ -48,8 +51,8 @@ body.chat-page-active .routes-container {
   /* Guaranteed height inheritance */
 }
 
-/* Page Header Styles */
-.main-header {
+/* Page-level section header (inside a page, NOT the global top nav) */
+.page-header {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #E2E8F0;

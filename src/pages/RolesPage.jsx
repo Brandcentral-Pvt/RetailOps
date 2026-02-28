@@ -132,6 +132,18 @@ const RolesPage = () => {
         }
     };
 
+    const handleDisplayNameChange = (e) => {
+        const value = e.target.value;
+        setRoleFormData(prev => {
+            const newData = { ...prev, displayName: value };
+            // Auto-slugify Technical Name for NEW roles only
+            if (!editingRole) {
+                newData.name = value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            }
+            return newData;
+        });
+    };
+
     if (loading && roles.length === 0) {
         return (
             <div className="page-content bg-light" style={{ minHeight: '100vh' }}>
@@ -307,7 +319,7 @@ const RolesPage = () => {
                                             className="form-control form-control-lg bg-light border-0 px-3 fs-6"
                                             style={{ borderRadius: '12px' }}
                                             value={roleFormData.displayName}
-                                            onChange={(e) => setRoleFormData({ ...roleFormData, displayName: e.target.value })}
+                                            onChange={handleDisplayNameChange}
                                             placeholder="e.g. Data Analyst"
                                             required
                                         />
@@ -367,33 +379,41 @@ const RolesPage = () => {
                                                         onClick={() => toggleAllPermissions(category)}
                                                         style={{ borderRadius: '8px' }}
                                                     >
-                                                        Toggle Logic
+                                                        {perms.every(p => selectedPermissions.includes(p._id)) ? 'Deselect All' : 'Select All'}
                                                     </button>
                                                 </div>
                                                 <div className="card-body py-3 px-4" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                                                     <div className="d-flex flex-column gap-1">
-                                                        {perms.map(perm => (
-                                                            <div
-                                                                key={perm._id}
-                                                                className={`form-check py-2.5 px-3 rounded-3 transition-all cursor-pointer d-flex align-items-center ${selectedPermissions.includes(perm._id) ? 'bg-primary-subtle' : 'hover-bg-light'}`}
-                                                                onClick={() => togglePermission(perm._id)}
-                                                            >
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="form-check-input shadow-none cursor-pointer"
-                                                                    id={`perm-${perm._id}`}
-                                                                    checked={selectedPermissions.includes(perm._id)}
-                                                                    onChange={(e) => {
-                                                                        e.stopPropagation();
-                                                                        togglePermission(perm._id);
-                                                                    }}
-                                                                    style={{ width: '18px', height: '18px' }}
-                                                                />
-                                                                <label className="form-check-label smallest text-dark ms-2 fw-medium cursor-pointer w-100" onClick={(e) => e.stopPropagation()}>
-                                                                    {perm.displayName}
-                                                                </label>
-                                                            </div>
-                                                        ))}
+                                                        {perms.map(perm => {
+                                                            const isChecked = selectedPermissions.includes(perm._id);
+                                                            return (
+                                                                <div
+                                                                    key={perm._id}
+                                                                    className={`form-check py-2 px-3 rounded-3 transition-all cursor-pointer d-flex align-items-center mb-1 ${isChecked ? 'bg-primary-subtle' : 'hover-bg-light'}`}
+                                                                    onClick={() => togglePermission(perm._id)}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="form-check-input shadow-none cursor-pointer"
+                                                                        id={`perm-${perm._id}`}
+                                                                        checked={isChecked}
+                                                                        onChange={(e) => {
+                                                                            // e.stopPropagation(); // Removed to allow interaction
+                                                                            togglePermission(perm._id);
+                                                                        }}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        style={{ width: '18px', height: '18px' }}
+                                                                    />
+                                                                    <label
+                                                                        className="form-check-label smallest text-dark ms-2 fw-medium cursor-pointer w-100 py-1"
+                                                                        htmlFor={`perm-${perm._id}`}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        {perm.displayName}
+                                                                    </label>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             </div>

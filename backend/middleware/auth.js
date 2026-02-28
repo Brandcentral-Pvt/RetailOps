@@ -30,9 +30,11 @@ exports.authenticate = async (req, res, next) => {
     if (!isDbConnected) {
       // Fall back to JWT payload — avoids the 10s buffer timeout when Atlas is down
       console.warn('[Auth] MongoDB not connected — using JWT payload as fallback');
-      req.userId = decoded.userId;
+      let userId;
+      try { userId = new mongoose.Types.ObjectId(decoded.userId); } catch { userId = decoded.userId; }
+      req.userId = userId;
       req.user = {
-        _id: decoded.userId,
+        _id: userId,
         email: decoded.email,
         role: decoded.role || { name: 'admin' },
         assignedSellers: decoded.assignedSellers || [],

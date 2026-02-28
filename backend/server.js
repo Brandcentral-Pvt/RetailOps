@@ -70,6 +70,9 @@ const roleRoutes = require('./routes/roleRoutes');
 const seedRoutes = require('./routes/seedRoutes');
 const revenueCalculatorRoutes = require('./routes/revenueCalculatorRoutes');
 const actionRoutes = require('./routes/actionRoutes');
+const fileRoutes = require('./routes/fileRoutes');
+const apiKeyRoutes = require('./routes/apiKeyRoutes');
+const teamRoutes = require('./routes/teamRoutes');
 
 app.use('/api', dataRoutes);
 app.use('/api', uploadRoutes);
@@ -83,6 +86,9 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/seed', seedRoutes);
 app.use('/api/revenue', revenueCalculatorRoutes);
 app.use('/api/actions', actionRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/keys', apiKeyRoutes);
+app.use('/api/teams', teamRoutes);
 const objectiveRoutes = require('./routes/objectiveRoutes');
 app.use('/api/objectives', objectiveRoutes);
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -100,6 +106,11 @@ app.use('/api/settings', systemSettingRoutes);
 // AI Routes
 const aiRoutes = require('./routes/aiRoutes');
 app.use('/api/ai', aiRoutes);
+
+// Keepa Seller ASIN Tracker Routes
+const sellerAsinTrackerRoutes = require('./routes/sellerAsinTrackerRoutes');
+app.use('/api/seller-tracker', sellerAsinTrackerRoutes);
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

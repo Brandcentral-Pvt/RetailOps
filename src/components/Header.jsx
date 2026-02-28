@@ -1,23 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Bell,
     Search,
-    Menu,
-    User,
-    LogOut,
-    Settings,
-    ChevronDown,
-    BarChart2,
-    Wrench,
-    Database,
-    Shield,
     MessageSquare,
-    TrendingUp,
-    Layout,
     Info,
-    Check
+    Check,
+    TrendingUp
 } from 'lucide-react';
 import api from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
@@ -144,101 +134,13 @@ const Header = () => {
         }
     };
 
-    const navItems = [
-        { path: '/dashboard', label: 'Dashboard', icon: 'bi-grid-3x3-gap', permission: 'dashboard_view' },
-        { path: '/sellers', label: 'Sellers', icon: 'bi-shop', permission: 'sellers_view' },
-        { path: '/asin-tracker', label: 'ASIN Manager', icon: 'bi-upc-scan', permission: 'sellers_view' },
-        { path: '/actions', label: 'Actions', icon: 'bi-diagram-3', permission: 'actions_view' },
-    ];
-
-    const analysisItems = [
-        { path: '/actions/achievement-report', label: 'Performance', icon: 'bi-bar-chart-line', permission: 'reports_monthly_view' },
-        { path: '/ads-report', label: 'Ads Report', icon: 'bi-megaphone', permission: 'reports_ads_view' },
-        { path: '/sku-report', label: 'SKU Report', icon: 'bi-box-seam', permission: 'reports_sku_view' },
-        { path: '/parent-asin-report', label: 'Parent ASIN', icon: 'bi-collection', permission: 'reports_parent_view' },
-        { path: '/month-wise-report', label: 'Monthly Report', icon: 'bi-calendar3', permission: 'reports_monthly_view' },
-        { path: '/profit-loss', label: 'Profit & Loss', icon: 'bi-currency-dollar', permission: 'reports_profit_view' },
-        { path: '/activity-log', label: 'Activity Log', icon: 'bi-journal-text', permission: 'settings_view' },
-    ];
-
-    const toolItems = [
-        { path: '/scrape-tasks', label: 'Scrape Tasks', icon: 'bi-cloud-download', permission: 'scraping_view' },
-        { path: '/revenue-calculator', label: 'Revenue Calc', icon: 'bi-calculator', permission: 'calculator_view' },
-        { path: '/inventory', label: 'Inventory', icon: 'bi-box-seam', permission: 'reports_inventory_view' },
-        { path: '/alerts', label: 'Alerts', icon: 'bi-bell', permission: 'dashboard_view' },
-        { path: '/upload-export', label: 'Upload/Export', icon: 'bi-arrow-left-right', permission: 'sellers_manage_asins' },
-        { path: '/actions/templates', label: 'Task Templates', icon: 'bi-clipboard-check', permission: 'actions_manage' },
-        { path: '/chat', label: 'Direct Chat', icon: 'bi-chat-dots' },
-    ];
-
-    const filteredNavItems = navItems.filter(item => !item.permission || hasPermission(item.permission));
-    const filteredAnalysisItems = analysisItems.filter(item => !item.permission || hasPermission(item.permission));
-    const filteredToolItems = toolItems.filter(item => !item.permission || hasPermission(item.permission));
-
     return (
         <header className="main-header">
             <div className="header-container">
-                {/* Logo Section */}
-                <div className="header-logo" onClick={() => navigate('/')}>
-                    <div className="logo-icon">
-                        <TrendingUp size={22} color="white" strokeWidth={2.5} />
-                    </div>
-                    <span className="logo-text">Retail<span style={{ color: '#2563eb' }}>Ops</span></span>
-                </div>
+                {/* Flex spacer — logo is in sidebar */}
+                <div style={{ flex: 1 }} />
 
-                {/* Navigation Section */}
-                <nav className="header-nav">
-                    <ul className="nav-list">
-                        {filteredNavItems.map(item => (
-                            <li key={item.path} className="nav-item">
-                                <NavLink to={item.path} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                                    <i className={`bi ${item.icon} me-1`}></i>
-                                    {item.label}
-                                </NavLink>
-                            </li>
-                        ))}
-
-                        {/* Analysis Dropdown */}
-                        {filteredAnalysisItems.length > 0 && (
-                            <li className="nav-item dropdown">
-                                <button className="nav-link dropdown-toggle btn btn-link">
-                                    <BarChart2 size={16} className="me-1" />
-                                    Analytics
-                                    <ChevronDown size={12} className="ms-1" />
-                                </button>
-                                <div className="dropdown-menu-content shadow-sm">
-                                    {filteredAnalysisItems.map(item => (
-                                        <NavLink key={item.path} to={item.path} className="dropdown-item-link">
-                                            <i className={`bi ${item.icon} me-2`}></i>
-                                            {item.label}
-                                        </NavLink>
-                                    ))}
-                                </div>
-                            </li>
-                        )}
-
-                        {/* Tools Dropdown */}
-                        {filteredToolItems.length > 0 && (
-                            <li className="nav-item dropdown">
-                                <button className="nav-link dropdown-toggle btn btn-link">
-                                    <Layout size={16} className="me-1" />
-                                    Tools
-                                    <ChevronDown size={12} className="ms-1" />
-                                </button>
-                                <div className="dropdown-menu-content shadow-sm">
-                                    {filteredToolItems.map(item => (
-                                        <NavLink key={item.path} to={item.path} className="dropdown-item-link">
-                                            <i className={`bi ${item.icon} me-2`}></i>
-                                            {item.label}
-                                        </NavLink>
-                                    ))}
-                                </div>
-                            </li>
-                        )}
-                    </ul>
-                </nav>
-
-                {/* Right Side Section */}
+                {/* Right Side: search + notifications + account */}
                 <div className="header-right">
                     {/* Search Bar */}
                     <div className="header-search">

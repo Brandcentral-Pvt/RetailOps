@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, CheckCircle, AlertTriangle, Info, XCircle, Trash2, Check, Clock, Filter, Search as SearchIcon, RefreshCw, Loader2, MessageSquare } from 'lucide-react';
+import { Alert } from 'reactstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Bell, CheckCircle, AlertTriangle, Info, XCircle, Check, Search as SearchIcon, RefreshCw, Loader2, MessageSquare } from 'lucide-react';
 import api from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
-import './Alerts.css'; // We'll create this or use existing styles
+import './Alerts.css';
 
 const AlertsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -91,6 +93,22 @@ const AlertsPage = () => {
       } catch (err) {
         console.error('Failed to mark all as read:', err);
       }
+    }
+  };
+
+  // Permanently delete (dismiss) an alert — won't reappear after refresh
+  const dismissAlert = async (id) => {
+    const wasUnread = !notifications.find(n => n._id === id)?.isRead;
+    // Optimistically remove from UI right away
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    if (wasUnread) {
+      setStats(prev => ({ ...prev, unreadCount: Math.max(0, prev.unreadCount - 1) }));
+    }
+    try {
+      await api.delete(`/notifications/${id}`);
+    } catch (err) {
+      console.error('Dismiss failed — refreshing:', err);
+      fetchNotifications(); // restore accuracy if backend call fails
     }
   };
 
@@ -194,6 +212,7 @@ const AlertsPage = () => {
             </div>
 
             <div className="mb-4">
+              {/* Read / Unread toggle */}
               <div className="d-flex gap-2 p-1 bg-white rounded-pill shadow-sm d-inline-flex mb-3">
                 <button
                   className={`btn btn-sm rounded-pill px-4 fw-medium border-0 ${!filters.unreadOnly ? 'bg-primary text-white' : 'text-muted'}`}
@@ -209,6 +228,27 @@ const AlertsPage = () => {
                 </button>
               </div>
 
+              {/* Type filter */}
+              <div className="d-flex gap-2 flex-wrap mb-3">
+                {[
+                  { id: 'all', label: 'All Types' },
+                  { id: 'ALERT', label: '🔴 Alerts' },
+                  { id: 'SYSTEM', label: '🔵 System' },
+                  { id: 'ACTION_ASSIGNED', label: '🟢 Updates' },
+                  { id: 'CHAT_MESSAGE', label: '💬 Chat' },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setFilters(prev => ({ ...prev, type: t.id }))}
+                    className={`btn btn-sm rounded-pill fw-medium border-0 px-3 ${filters.type === t.id ? 'bg-dark text-white' : 'bg-white text-muted shadow-sm'
+                      }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
               <div className="input-group ios-search-pill rounded-pill px-3 py-1 shadow-sm mb-4">
                 <span className="input-group-text bg-transparent border-0 p-0 me-2 text-muted">
                   <SearchIcon size={18} />
@@ -216,10 +256,18 @@ const AlertsPage = () => {
                 <input
                   type="text"
                   className="form-control bg-transparent border-0 p-0 shadow-none"
-                  placeholder="Search"
+                  placeholder="Search notifications…"
                   value={filters.searchTerm}
                   onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                 />
+                {filters.searchTerm && (
+                  <button
+                    className="btn btn-link p-0 text-muted"
+                    onClick={() => setFilters(prev => ({ ...prev, searchTerm: '' }))}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
 
@@ -238,46 +286,48 @@ const AlertsPage = () => {
                   <p className="text-muted px-4">You're all caught up. Any new system messages will appear here.</p>
                 </div>
               ) : (
-                <div className="d-flex flex-column gap-1">
+                <div className="d-flex flex-column gap-2">
                   {notifications
                     .filter(n =>
-                      filters.searchTerm === '' ||
-                      n.message.toLowerCase().includes(filters.searchTerm.toLowerCase())
+                      (filters.type === 'all' ||
+                        n.type === filters.type ||
+                        (filters.type === 'CHAT_MESSAGE' && (n.type === 'CHAT_MESSAGE' || n.type === 'CHAT_MENTION'))) &&
+                      (filters.searchTerm === '' ||
+                        n.message.toLowerCase().includes(filters.searchTerm.toLowerCase()))
                     )
                     .map((notification, idx) => (
-                      <div key={notification._id} className="ios-card p-3 animate-fade-in" style={{ animationDelay: `${idx * 0.05}s` }}>
-                        <div className="d-flex gap-3 align-items-center">
-                          <div className="ios-app-icon" style={{ backgroundColor: `${getTypeColor(notification.type)}15`, color: getTypeColor(notification.type) === 'primary' ? '#007aff' : getTypeColor(notification.type) === 'danger' ? '#ff3b30' : getTypeColor(notification.type) === 'success' ? '#34c759' : '#5856d6' }}>
-                            {getTypeIcon(notification.type)}
-                          </div>
-                          <div className="flex-grow-1 min-width-0">
-                            <div className="d-flex justify-content-between align-items-center mb-1">
-                              <span className="text-uppercase smallest fw-bold" style={{ color: '#8e8e93', letterSpacing: '0.05em' }}>
+                      <Alert
+                        key={notification._id}
+                        color={getTypeColor(notification.type)}
+                        isOpen={true}
+                        toggle={() => dismissAlert(notification._id)}
+                        className={`mb-0 shadow-sm animate-fade-in ${!notification.isRead ? 'fw-semibold' : ''}`}
+                        style={{ animationDelay: `${idx * 0.05}s`, borderRadius: 12 }}
+                      >
+                        <div className="d-flex align-items-center gap-2">
+                          {getTypeIcon(notification.type)}
+                          <div className="flex-grow-1">
+                            <div className="d-flex justify-content-between">
+                              <small className="text-uppercase fw-bold" style={{ letterSpacing: '0.05em', opacity: 0.7 }}>
                                 {notification.type.replace(/_/g, ' ')}
-                              </span>
-                              <div className="d-flex align-items-center gap-2">
-                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                  {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                {!notification.isRead && <div className="notification-unread-dot"></div>}
-                              </div>
+                              </small>
+                              <small className="opacity-75">
+                                {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </small>
                             </div>
-                            <p className={`mb-0 small text-truncate-2 ${!notification.isRead ? 'fw-bold text-dark' : 'text-muted'}`} style={{ lineHeight: '1.4' }}>
-                              {notification.message}
-                            </p>
+                            <div className="mt-1">{notification.message}</div>
                           </div>
-                          <div className="ms-auto ps-2">
-                            {!notification.isRead && (
-                              <button
-                                className="btn btn-link link-primary p-0 text-decoration-none"
-                                onClick={() => acknowledgeNotification(notification._id)}
-                              >
-                                <Check size={20} />
-                              </button>
-                            )}
-                          </div>
+                          {!notification.isRead && (
+                            <button
+                              className="btn btn-link p-0 ms-2"
+                              title="Mark as read"
+                              onClick={() => acknowledgeNotification(notification._id)}
+                            >
+                              <Check size={18} />
+                            </button>
+                          )}
                         </div>
-                      </div>
+                      </Alert>
                     ))}
                 </div>
               )}

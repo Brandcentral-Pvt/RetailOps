@@ -55,6 +55,20 @@ const objectiveSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    measurementMetric: {
+        type: String,
+        enum: ['GMS', 'ACOS', 'ROI', 'PROFIT', 'CONVERSION_RATE', 'ORDER_COUNT', 'NONE'],
+        default: 'NONE'
+    },
+    goalSettings: {
+        targetValue: { type: Number },
+        timeframe: { type: Number },
+        isGoalPrimary: { type: Boolean, default: false }
+    },
+    selectedRoadmap: {
+        type: String,
+        default: 'NONE'
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

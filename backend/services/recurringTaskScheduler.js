@@ -25,7 +25,35 @@ class RecurringTaskScheduler {
             }
         });
 
+        // Run Keepa Seller ASIN auto-discovery every 12 hours
+        cron.schedule('0 */12 * * *', async () => {
+            console.log('[Keepa] Running scheduled seller ASIN sync...');
+            try {
+                if (!process.env.KEEPA_API_KEY) {
+                    console.log('[Keepa] Skipping: KEEPA_API_KEY not set');
+                    return;
+                }
+                const { syncSellerFromKeepaInternal } = require('../controllers/sellerAsinTrackerController');
+                const Seller = require('../models/Seller');
+                const sellers = await Seller.find({ status: 'Active' });
+                for (const seller of sellers) {
+                    try {
+                        const r = await syncSellerFromKeepaInternal(seller);
+                        if (r.added > 0) {
+                            console.log(`[Keepa] ${seller.name}: +${r.added} new ASINs auto-added`);
+                        }
+                    } catch (e) {
+                        console.error(`[Keepa] Failed for ${seller.name}:`, e.message);
+                    }
+                }
+                console.log('[Keepa] Scheduled sync complete');
+            } catch (err) {
+                console.error('[Keepa] Scheduled sync error:', err);
+            }
+        });
+
         console.log('Recurring task scheduler started');
+
     }
 
     stop() {

@@ -360,10 +360,12 @@ const AsinManagerPage = () => {
     try {
       if (!window.confirm(`Auto-generate optimization tasks for ASIN ${asinCode}?`)) return;
       const res = await db.createActionsFromAnalysis(asinId);
-      if (res && res.actionsCreated) {
-        alert(`Successfully created ${res.actionsCreated} optimization tasks!`);
+      if (res && res.count > 0) {
+        alert(`✅ Successfully created ${res.count} optimization task(s) for ${asinCode}!`);
+      } else if (res && res.success === false) {
+        alert(`❌ Error: ${res.message || 'Failed to create tasks'}`);
       } else {
-        alert('Analysis complete. No critical tasks needed at this time.');
+        alert(`Analysis complete for ${asinCode}. No critical tasks needed at this time.`);
       }
     } catch (err) {
       console.error('Task creation failed:', err);
@@ -405,7 +407,9 @@ const AsinManagerPage = () => {
       if (!window.confirm('Auto-generate optimization tasks for all ASINs?')) return;
       const res = await db.createBulkActionsFromAnalysis();
       if (res && res.count > 0) {
-        alert(`Successfully generated ${res.count} bulk optimization tasks!`);
+        alert(`✅ Successfully generated ${res.count} bulk optimization tasks!`);
+      } else if (res && res.success === false) {
+        alert(`❌ Error: ${res.message || 'Failed to create tasks'}`);
       } else {
         alert('Analysis complete. All ASINs look good! No optimization actions needed.');
       }

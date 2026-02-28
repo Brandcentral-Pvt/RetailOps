@@ -36,9 +36,20 @@ const actionSchema = new mongoose.Schema({
             'INVENTORY_MANAGEMENT',
             'COMPETITOR_ANALYSIS',
             'KEYWORD_OPTIMIZATION',
-            'GENERAL_OPTIMIZATION'
+            'GENERAL_OPTIMIZATION',
+            'GOAL_DRIVEN_TASK'
         ],
         required: true
+    },
+    measurementMetric: {
+        type: String,
+        enum: ['GMS', 'ACOS', 'ROI', 'PROFIT', 'CONVERSION_RATE', 'ORDER_COUNT', 'NONE'],
+        default: 'NONE'
+    },
+    goalSettings: {
+        targetValue: { type: Number },
+        timeframe: { type: Number }, // in months
+        isGoalPrimary: { type: Boolean, default: false }
     },
     title: { type: String, required: true },
     description: { type: String, required: true },

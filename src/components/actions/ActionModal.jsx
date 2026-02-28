@@ -23,6 +23,12 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
         startDate: '',
         deadline: '',
         keyResultId: initialKeyResultId || '',
+        measurementMetric: 'NONE',
+        goalSettings: {
+            targetValue: '',
+            timeframe: 1,
+            isGoalPrimary: false
+        }
     });
 
     // Fetch templates
@@ -60,21 +66,13 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                 startDate: (action.timeTracking?.startDate || action.startDate) ? new Date(action.timeTracking?.startDate || action.startDate).toISOString().split('T')[0] : '',
                 deadline: (action.timeTracking?.deadline || action.deadline || action.dueDate) ? new Date(action.timeTracking?.deadline || action.deadline || action.dueDate).toISOString().split('T')[0] : '',
                 recurring: action.recurring || { enabled: false, frequency: 'WEEKLY', daysOfWeek: [] },
-                keyResultId: action.keyResultId || initialKeyResultId || ''
-            });
-        } else {
-            setFormData({
-                title: '',
-                description: '',
-                type: 'TITLE_OPTIMIZATION',
-                priority: 'MEDIUM',
-                status: 'PENDING',
-                asins: [],
-                assignedTo: '',
-                startDate: '',
-                deadline: '',
-                recurring: { enabled: false, frequency: 'WEEKLY', daysOfWeek: [] },
-                keyResultId: initialKeyResultId || ''
+                keyResultId: initialKeyResultId || '',
+                measurementMetric: 'NONE',
+                goalSettings: {
+                    targetValue: '',
+                    timeframe: 1,
+                    isGoalPrimary: false
+                }
             });
         }
         setSelectedTemplate('');
@@ -201,17 +199,94 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                                                 placeholder="What needs to be done?"
                                             />
                                         </div>
-                                        <div className="mb-0">
+                                        <div className="mb-4">
                                             <label className="form-label-clean">Description & Instructions</label>
                                             <textarea
                                                 name="description"
                                                 value={formData.description}
                                                 onChange={handleChange}
-                                                rows="8"
+                                                rows="4"
                                                 className="form-input-clean"
                                                 placeholder="Provide detailed instructions or context for this task..."
                                             />
                                         </div>
+
+                                        {/* Goal Selection UI */}
+                                        <div className="row g-3 mb-4">
+                                            <div className="col-md-6">
+                                                <label className="form-label-clean">Measurement Metric</label>
+                                                <select
+                                                    name="measurementMetric"
+                                                    value={formData.measurementMetric}
+                                                    onChange={handleChange}
+                                                    className="form-input-clean"
+                                                >
+                                                    <option value="NONE">No Specific Metric</option>
+                                                    <option value="GMS">GMS (Gross Merchandise Sales)</option>
+                                                    <option value="ACOS">ACOS (Advertising Cost of Sales)</option>
+                                                    <option value="ROI">ROI (Return on Investment)</option>
+                                                    <option value="PROFIT">Profit</option>
+                                                    <option value="CONVERSION_RATE">Conversion Rate</option>
+                                                    <option value="ORDER_COUNT">Order Count</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-md-6">
+                                                <div className="d-flex align-items-center justify-content-between mb-2">
+                                                    <label className="form-label-clean mb-0">Enable Goal-Based Generation</label>
+                                                    <div className="form-check form-switch m-0">
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="checkbox"
+                                                            checked={formData.goalSettings?.isGoalPrimary}
+                                                            onChange={(e) => setFormData({
+                                                                ...formData,
+                                                                goalSettings: { ...formData.goalSettings, isGoalPrimary: e.target.checked }
+                                                            })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {formData.goalSettings?.isGoalPrimary && (
+                                            <div className="p-3 bg-soft-primary rounded-3 border border-primary border-opacity-10 mb-4 animate-fadeIn">
+                                                <div className="row g-3">
+                                                    <div className="col-md-6">
+                                                        <label className="form-label-clean small fw-bold">Target Value ({formData.measurementMetric})</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input-clean bg-white"
+                                                            placeholder="e.g. 10000000"
+                                                            value={formData.goalSettings.targetValue}
+                                                            onChange={(e) => setFormData({
+                                                                ...formData,
+                                                                goalSettings: { ...formData.goalSettings, targetValue: e.target.value }
+                                                            })}
+                                                        />
+                                                    </div>
+                                                    <div className="col-md-6">
+                                                        <label className="form-label-clean small fw-bold">Timeframe (Months)</label>
+                                                        <div className="d-flex align-items-center gap-3">
+                                                            <input
+                                                                type="range"
+                                                                min="1"
+                                                                max="24"
+                                                                className="form-range flex-grow-1"
+                                                                value={formData.goalSettings.timeframe}
+                                                                onChange={(e) => setFormData({
+                                                                    ...formData,
+                                                                    goalSettings: { ...formData.goalSettings, timeframe: e.target.value }
+                                                                })}
+                                                            />
+                                                            <span className="badge bg-primary rounded-pill px-3">{formData.goalSettings.timeframe}m</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="smallest text-muted mt-2 ps-1 italic">
+                                                    * This will automatically create {formData.goalSettings.timeframe} monthly recurring tasks.
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Completion Info */}
                                         {action?.completion?.remarks && (

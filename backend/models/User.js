@@ -110,6 +110,10 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  currentTeam: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Team',
+  },
 }, { timestamps: true });
 
 // Virtual for full name

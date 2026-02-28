@@ -4,10 +4,33 @@ import { db } from '../../services/db';
 
 
 const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }) => {
+    const ROADMAP_PRESETS = {
+        'NONE': { name: 'Custom (No Preset)', goals: [] },
+        '101_PROJECT': {
+            name: '101 Project Roadmap',
+            description: 'Standardized growth roadmap with 6 primary goals for GMS, Ads, Reviews, and Operations.',
+            goals: [
+                { title: 'GMS Achievement', metric: 'GMS', targetValue: 1000 },
+                { title: 'Ads Achievement', metric: 'ROI' },
+                { title: 'Review Achievement', metric: 'ORDER_COUNT' },
+                { title: 'PO Fulfilment', metric: 'NONE' },
+                { title: 'Top 200 ASIN Check', metric: 'NONE' },
+                { title: 'New ASIN 90 Days Check', metric: 'NONE' }
+            ]
+        }
+    };
+
     const [step, setStep] = useState(1); // 1: Info, 2: Template, 3: Tasks/Asins
+    const [selectedRoadmap, setSelectedRoadmap] = useState('NONE');
+    const [roadmapTaskMapping, setRoadmapTaskMapping] = useState({}); // { 'Goal Title': [templateIds] }
     const [title, setTitle] = useState(objective?.title || '');
     const [goal, setGoal] = useState(objective?.goal || '');
-    const [measurementMetrics, setMeasurementMetrics] = useState(objective?.measurementMetrics || '');
+    const [measurementMetric, setMeasurementMetric] = useState(objective?.measurementMetric || 'NONE');
+    const [goalSettings, setGoalSettings] = useState(objective?.goalSettings || {
+        targetValue: '',
+        timeframe: 1,
+        isGoalPrimary: false
+    });
     const [owners, setOwners] = useState(
         objective?.owners?.map(o => o._id || o) ||
         (objective?.owner ? [objective.owner._id || objective.owner] : [])
@@ -164,7 +187,9 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
             const objectiveData = {
                 title,
                 goal,
-                measurementMetrics,
+                measurementMetric,
+                goalSettings,
+                selectedRoadmap,
                 type,
                 startDate,
                 endDate,
@@ -200,46 +225,102 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
     };
 
     const handleStep2Submit = () => {
-        if (selectedTemplates.length === 0) {
+        const isRoadmapSelected = selectedRoadmap !== 'NONE' && ROADMAP_PRESETS[selectedRoadmap];
+        const hasRoadmapMappings = Object.values(roadmapTaskMapping).some(ids => ids.length > 0);
+
+        if (!isRoadmapSelected && selectedTemplates.length === 0) {
             alert('Please select at least one task template');
             return;
         }
+
+        if (isRoadmapSelected && !hasRoadmapMappings) {
+            alert('Please select at least one template for your roadmap goals');
+            return;
+        }
+
         setStep(3); // Move to Task Config
     };
 
     const handleFinalSubmit = async () => {
-        if (selectedTemplates.length === 0) return;
+        const isRoadmapSelected = selectedRoadmap !== 'NONE' && ROADMAP_PRESETS[selectedRoadmap];
+        if (!isRoadmapSelected && selectedTemplates.length === 0) return;
+
         setLoading(true);
         try {
-            for (const template of selectedTemplates) {
-                // Create a Key Result for each template
-                const krRes = await db.createKeyResult({
-                    title: template.title,
-                    objectiveId: createdObjective._id || createdObjective.id,
-                    metric: 'Completion',
-                    targetValue: 100,
-                    unit: '%',
-                    status: 'NOT_STARTED'
-                });
+            const sellerObj = sellers.find(s => (s._id || s.id) === (createdObjective.sellerId || selectedSeller));
+            const fallbackManager = sellerObj?.managers?.[0]?._id || sellerObj?.managers?.[0];
+            const assignedTo = defaultAssignee || owners[0] || fallbackManager || '';
 
-                const kr = krRes.data || krRes;
-                const krId = kr._id || kr.id;
+            if (isRoadmapSelected) {
+                const roadmap = ROADMAP_PRESETS[selectedRoadmap];
+                for (const roadmapGoal of roadmap.goals) {
+                    // Create a Key Result for each goal in the roadmap
+                    const krRes = await db.createKeyResult({
+                        title: roadmapGoal.title,
+                        objectiveId: createdObjective._id || createdObjective.id,
+                        metric: roadmapGoal.metric || 'Completion',
+                        targetValue: roadmapGoal.targetValue || 100,
+                        unit: roadmapGoal.metric === 'GMS' ? 'Value' : '%',
+                        status: 'NOT_STARTED'
+                    });
 
-                // Generate 1 Task for ALL selected ASINs (or one generic task)
-                const sellerObj = sellers.find(s => (s._id || s.id) === (createdObjective.sellerId || selectedSeller));
-                const fallbackManager = sellerObj?.managers?.[0]?._id || sellerObj?.managers?.[0];
+                    const kr = krRes.data || krRes;
+                    const krId = kr._id || kr.id;
 
-                await db.createAction({
-                    title: template.title,
-                    description: template.description,
-                    type: template.type,
-                    priority: template.priority,
-                    keyResultId: krId,
-                    sellerId: createdObjective.sellerId || selectedSeller,
-                    asins: selectedAsins, // Pass the array of IDs
-                    assignedTo: defaultAssignee || owners[0] || fallbackManager || '',
-                    status: 'PENDING'
-                });
+                    // Create actions for each template mapped to this roadmap goal
+                    const mappedTemplateIds = roadmapTaskMapping[roadmapGoal.title] || [];
+                    for (const tId of mappedTemplateIds) {
+                        const template = templates.find(t => t._id === tId);
+                        if (!template) continue;
+
+                        await db.createAction({
+                            title: template.title,
+                            description: template.description || template.title,
+                            type: template.type || 'ONE_TIME',
+                            priority: template.priority || 'MEDIUM',
+                            keyResultId: krId,
+                            sellerId: createdObjective.sellerId || selectedSeller,
+                            asins: selectedAsins,
+                            assignedTo: assignedTo,
+                            status: 'PENDING',
+                            startDate: createdObjective.startDate || startDate,
+                            deadline: createdObjective.endDate || endDate,
+                            measurementMetric: roadmapGoal.metric || 'NONE',
+                            goalSettings: goalSettings // Inherit from objective settings
+                        });
+                    }
+                }
+            } else {
+                for (const template of selectedTemplates) {
+                    // Create a Key Result for each template
+                    const krRes = await db.createKeyResult({
+                        title: template.title,
+                        objectiveId: createdObjective._id || createdObjective.id,
+                        metric: 'Completion',
+                        targetValue: 100,
+                        unit: '%',
+                        status: 'NOT_STARTED'
+                    });
+
+                    const kr = krRes.data || krRes;
+                    const krId = kr._id || kr.id;
+
+                    await db.createAction({
+                        title: template.title,
+                        description: template.description,
+                        type: template.type,
+                        priority: template.priority,
+                        keyResultId: krId,
+                        sellerId: createdObjective.sellerId || selectedSeller,
+                        asins: selectedAsins,
+                        assignedTo: assignedTo,
+                        status: 'PENDING',
+                        startDate: createdObjective.startDate || startDate,
+                        deadline: createdObjective.endDate || endDate,
+                        measurementMetric: measurementMetric,
+                        goalSettings: goalSettings
+                    });
+                }
             }
 
             if (onObjectiveCreated) onObjectiveCreated();
@@ -357,6 +438,29 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                                     required
                                 />
                             </div>
+                            <div className="col-12">
+                                <label className="form-label small fw-bold text-muted text-uppercase">Roadmap Preset (Optional)</label>
+                                <div className="row g-3">
+                                    {Object.entries(ROADMAP_PRESETS).map(([key, roadmap]) => (
+                                        <div key={key} className="col-md-6">
+                                            <div
+                                                className={`card p-3 cursor-pointer border-2 transition-all ${selectedRoadmap === key ? 'border-primary bg-soft-primary' : 'border-light hover-bg-light'}`}
+                                                onClick={() => setSelectedRoadmap(key)}
+                                            >
+                                                <div className="d-flex align-items-center gap-2 mb-1">
+                                                    <div className={`rounded-pill p-1 ${selectedRoadmap === key ? 'bg-primary text-white' : 'bg-light text-muted'}`}>
+                                                        {selectedRoadmap === key ? <Check size={14} /> : <div style={{ width: 14, height: 14 }} />}
+                                                    </div>
+                                                    <h6 className="fw-bold mb-0 small">{roadmap.name}</h6>
+                                                </div>
+                                                {roadmap.description && (
+                                                    <p className="text-muted small mb-0 mt-1" style={{ fontSize: '0.75rem' }}>{roadmap.description}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
                             <div className="col-12">
                                 <label className="form-label small fw-bold text-muted text-uppercase">Goal</label>
@@ -371,16 +475,72 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                             </div>
 
                             <div className="col-12">
-                                <label className="form-label small fw-bold text-muted text-uppercase">Measurement Metrics</label>
-                                <textarea
-                                    className="form-control"
-                                    rows="2"
-                                    placeholder="How will success be measured? (e.g., Increase sales by 20%)"
-                                    value={measurementMetrics}
-                                    onChange={(e) => setMeasurementMetrics(e.target.value)}
-                                    required
-                                />
+                                <div className="row g-3">
+                                    <div className="col-md-6">
+                                        <label className="form-label small fw-bold text-muted text-uppercase">Measurement Metric</label>
+                                        <select
+                                            className="form-select"
+                                            value={measurementMetric}
+                                            onChange={(e) => setMeasurementMetric(e.target.value)}
+                                            required
+                                        >
+                                            <option value="NONE">No Specific Metric</option>
+                                            <option value="GMS">GMS (Gross Merchandise Sales)</option>
+                                            <option value="ACOS">ACOS (Advertising Cost of Sales)</option>
+                                            <option value="ROI">ROI (Return on Investment)</option>
+                                            <option value="PROFIT">Profit</option>
+                                            <option value="CONVERSION_RATE">Conversion Rate</option>
+                                            <option value="ORDER_COUNT">Order Count</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <div className="d-flex align-items-center justify-content-between h-100 pt-4">
+                                            <label className="form-check-label small fw-bold text-muted text-uppercase mb-0">Enable Goal-Based Tasks</label>
+                                            <div className="form-check form-switch m-0">
+                                                <input
+                                                    className="form-check-input"
+                                                    type="checkbox"
+                                                    checked={goalSettings.isGoalPrimary}
+                                                    onChange={(e) => setGoalSettings({ ...goalSettings, isGoalPrimary: e.target.checked })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            {goalSettings.isGoalPrimary && (
+                                <div className="col-12">
+                                    <div className="p-3 bg-soft-primary rounded-3 border border-primary border-opacity-10 animate-fadeIn">
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label small fw-bold text-muted text-uppercase">Target Value</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    placeholder="e.g. 10000000"
+                                                    value={goalSettings.targetValue}
+                                                    onChange={(e) => setGoalSettings({ ...goalSettings, targetValue: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label small fw-bold text-muted text-uppercase">Timeframe (Months)</label>
+                                                <div className="d-flex align-items-center gap-3">
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="24"
+                                                        className="form-range flex-grow-1"
+                                                        value={goalSettings.timeframe}
+                                                        onChange={(e) => setGoalSettings({ ...goalSettings, timeframe: e.target.value })}
+                                                    />
+                                                    <span className="badge bg-primary rounded-pill px-3">{goalSettings.timeframe}m</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="col-12">
                                 <label className="form-label small fw-bold text-muted text-uppercase">Project Owners (Optional)</label>
@@ -478,54 +638,147 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
 
                 {step === 2 && (
                     <div className="template-selection">
-                        {/* Group templates by category */}
-                        {Object.entries(
-                            templates.reduce((acc, t) => {
-                                acc[t.category] = acc[t.category] || [];
-                                acc[t.category].push(t);
-                                return acc;
-                            }, {})
-                        ).map(([category, categoryTemplates]) => {
-                            const allSelected = categoryTemplates.every(ct =>
-                                selectedTemplates.some(st => st._id === ct._id)
-                            );
+                        {selectedRoadmap !== 'NONE' && ROADMAP_PRESETS[selectedRoadmap] ? (
+                            <div className="roadmap-mapping animate-fadeIn">
+                                <div className="p-3 bg-soft-primary rounded-3 border border-primary border-opacity-10 mb-4">
+                                    <h6 className="fw-bold text-primary mb-1">
+                                        <Sparkles size={16} className="me-2" />
+                                        Roadmap Mapping: {ROADMAP_PRESETS[selectedRoadmap].name}
+                                    </h6>
+                                    <p className="text-muted small mb-0">Select templates for each project goal below.</p>
+                                </div>
+                                {ROADMAP_PRESETS[selectedRoadmap].goals.map((goal, idx) => (
+                                    <div key={idx} className="card border-light mb-4 shadow-sm overflow-hidden">
+                                        <div className="card-header bg-light py-2 px-3 border-0 d-flex justify-content-between align-items-center">
+                                            <h6 className="fw-bold mb-0 small text-uppercase text-muted">{goal.title}</h6>
+                                            <span className="badge bg-primary rounded-pill small">
+                                                {(roadmapTaskMapping[goal.title] || []).length} Selected
+                                            </span>
+                                        </div>
+                                        <div className="card-body p-3">
+                                            {/* List of selected templates for this goal */}
+                                            <div className="d-flex flex-wrap gap-2 mb-3">
+                                                {(roadmapTaskMapping[goal.title] || []).map(tId => {
+                                                    const t = templates.find(temp => temp._id === tId);
+                                                    if (!t) return null;
+                                                    return (
+                                                        <span key={tId} className="badge bg-soft-primary text-primary d-flex align-items-center gap-2 px-3 py-2 border border-primary border-opacity-10">
+                                                            {t.title}
+                                                            <X
+                                                                size={14}
+                                                                className="cursor-pointer hover-text-danger"
+                                                                onClick={() => {
+                                                                    const current = roadmapTaskMapping[goal.title] || [];
+                                                                    setRoadmapTaskMapping({
+                                                                        ...roadmapTaskMapping,
+                                                                        [goal.title]: current.filter(id => id !== tId)
+                                                                    });
+                                                                }}
+                                                            />
+                                                        </span>
+                                                    );
+                                                })}
+                                                {(roadmapTaskMapping[goal.title] || []).length === 0 && (
+                                                    <div className="text-muted small italic w-100 py-2 border-dashed border rounded text-center">
+                                                        No templates selected for this goal yet.
+                                                    </div>
+                                                )}
+                                            </div>
 
-                            return (
-                                <div key={category} className="mb-4">
-                                    <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 className="fw-bold text-uppercase small text-muted mb-0">{category}</h6>
-                                        <button
-                                            className={`btn btn-sm ${allSelected ? 'btn-primary' : 'btn-outline-primary'} py-1 px-3 rounded-pill`}
-                                            onClick={() => toggleCategory(category, categoryTemplates)}
-                                        >
-                                            {allSelected ? 'Deselect All' : 'Select Category'}
-                                        </button>
-                                    </div>
-                                    <div className="row g-3">
-                                        {categoryTemplates.map(t => {
-                                            const isSelected = selectedTemplates.some(st => st._id === t._id);
-                                            return (
-                                                <div key={t._id || t.id} className="col-md-6">
-                                                    <div
-                                                        className={`card h-100 cursor-pointer border-2 transition-all ${isSelected ? 'border-primary bg-soft-primary' : 'border-light hov-border-primary'}`}
-                                                        onClick={() => toggleTemplate(t)}
-                                                    >
-                                                        <div className="card-body p-3">
-                                                            <div className="d-flex justify-content-between align-items-start mb-2">
-                                                                <span className="badge bg-soft-primary text-primary small">{t.type}</span>
-                                                                {isSelected && <div className="bg-primary text-white rounded-pill p-1"><Check size={14} /></div>}
+                                            {/* Search/Selection for templates in this goal */}
+                                            <div className="dropdown">
+                                                <button className="btn btn-outline-primary btn-sm rounded-pill px-4 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                    + Add Task from Template
+                                                </button>
+                                                <div className="dropdown-menu p-2 shadow border-0" style={{ minWidth: '300px', maxHeight: '300px', overflowY: 'auto' }}>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control form-control-sm mb-2"
+                                                        placeholder="Search templates..."
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                    {templates.map(t => {
+                                                        const isSelected = (roadmapTaskMapping[goal.title] || []).includes(t._id);
+                                                        return (
+                                                            <div
+                                                                key={t._id}
+                                                                className={`dropdown-item small d-flex align-items-center justify-content-between cursor-pointer rounded ${isSelected ? 'bg-soft-primary' : ''}`}
+                                                                onClick={() => {
+                                                                    const current = roadmapTaskMapping[goal.title] || [];
+                                                                    if (isSelected) {
+                                                                        setRoadmapTaskMapping({
+                                                                            ...roadmapTaskMapping,
+                                                                            [goal.title]: current.filter(id => id !== t._id)
+                                                                        });
+                                                                    } else {
+                                                                        setRoadmapTaskMapping({
+                                                                            ...roadmapTaskMapping,
+                                                                            [goal.title]: [...current, t._id]
+                                                                        });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {t.title}
+                                                                {isSelected && <Check size={14} className="text-primary" />}
                                                             </div>
-                                                            <h6 className="fw-bold mb-1">{t.title}</h6>
-                                                            <p className="text-muted small mb-0 text-truncate-2">{t.description}</p>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            /* Original Category-based selection */
+                            Object.entries(
+                                templates.reduce((acc, t) => {
+                                    acc[t.category] = acc[t.category] || [];
+                                    acc[t.category].push(t);
+                                    return acc;
+                                }, {})
+                            ).map(([category, categoryTemplates]) => {
+                                const allSelected = categoryTemplates.every(ct =>
+                                    selectedTemplates.some(st => st._id === ct._id)
+                                );
+
+                                return (
+                                    <div key={category} className="mb-4">
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 className="fw-bold text-uppercase small text-muted mb-0">{category}</h6>
+                                            <button
+                                                className={`btn btn-sm ${allSelected ? 'btn-primary' : 'btn-outline-primary'} py-1 px-3 rounded-pill`}
+                                                onClick={() => toggleCategory(category, categoryTemplates)}
+                                            >
+                                                {allSelected ? 'Deselect All' : 'Select Category'}
+                                            </button>
+                                        </div>
+                                        <div className="row g-3">
+                                            {categoryTemplates.map(t => {
+                                                const isSelected = selectedTemplates.some(st => st._id === t._id);
+                                                return (
+                                                    <div key={t._id || t.id} className="col-md-6">
+                                                        <div
+                                                            className={`card h-100 cursor-pointer border-2 transition-all ${isSelected ? 'border-primary bg-soft-primary' : 'border-light hov-border-primary'}`}
+                                                            onClick={() => toggleTemplate(t)}
+                                                        >
+                                                            <div className="card-body p-3">
+                                                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                                                    <span className="badge bg-soft-primary text-primary small">{t.type}</span>
+                                                                    {isSelected && <div className="bg-primary text-white rounded-pill p-1"><Check size={14} /></div>}
+                                                                </div>
+                                                                <h6 className="fw-bold mb-1">{t.title}</h6>
+                                                                <p className="text-muted small mb-0 text-truncate-2">{t.description}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
                 )}
 
@@ -648,14 +901,17 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
             </div>
 
             <style>{`
-                .bg-soft-primary { background-color: #e7f1ff; }
-                .bg-soft-info { background-color: #e1f5fe; }
+                .bg-primary-subtle { background-color: #e7f1ff; }
+                .bg-soft-primary { background-color: rgba(13, 110, 253, 0.05); }
+                .bg-soft-info { background-color: rgba(13, 202, 240, 0.05); }
                 .cursor-pointer { cursor: pointer; }
                 .hov-border-primary:hover { border-color: #0d6efd !important; }
                 .hover-bg-light:hover { background-color: #f8f9fa !important; }
                 .transition-all { transition: all 0.2s ease; }
                 .animate-spin { animation: spin 1s linear infinite; }
+                .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
         </div>
     );

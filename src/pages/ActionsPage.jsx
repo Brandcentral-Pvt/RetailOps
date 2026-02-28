@@ -13,6 +13,7 @@ const ActionsPage = () => {
   const { user: currentUser } = useAuth();
   const [objectives, setObjectives] = useState([]);
   const [allActions, setAllActions] = useState([]); // Flatted actions for KPIs
+  const [standaloneActions, setStandaloneActions] = useState([]); // Auto-generated / orphan actions
   const [loading, setLoading] = useState(true);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
@@ -61,6 +62,14 @@ const ActionsPage = () => {
 
       setObjectives(loadedObjectives);
       calculateKPIs(loadedObjectives);
+
+      // Fetch ALL actions (including standalone/auto-generated)
+      const actionsRes = await db.getActions();
+      const allFetched = actionsRes?.data || actionsRes || [];
+
+      // Separate standalone actions (no keyResultId) from objective-linked ones
+      const standalone = allFetched.filter(a => !a.keyResultId);
+      setStandaloneActions(standalone);
 
       // Fetch Users, Sellers & ASINs for assignment/tagging
       const usersRes = await db.getUsers();
@@ -563,6 +572,7 @@ const ActionsPage = () => {
           <ActionListEnhanced
             objectives={objectives}
             actions={allActions}
+            standaloneActions={standaloneActions}
             loading={loading}
             activeFilter={activeFilter}
             searchQuery={searchQuery}

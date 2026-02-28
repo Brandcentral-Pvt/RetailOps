@@ -35,12 +35,21 @@ class DatabaseService {
         if (res.status === 401) {
           localStorage.removeItem('authToken');
           window.location.href = '/login';
+          return fallback;
         }
-        throw new Error(`HTTP ${res.status}`);
+        // For all other errors, try to parse body and throw a meaningful error
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          errMsg = body.message || body.error || errMsg;
+        } catch (_) { /* ignore parse errors */ }
+        throw new Error(errMsg);
       }
       return await res.json();
     } catch (error) {
       console.error(`[DB] Request failed for ${path}:`, error);
+      // Re-throw if it's a real error (not just a network/parse issue on fallback paths)
+      if (fallback === null) throw error;
       return fallback;
     }
   }
