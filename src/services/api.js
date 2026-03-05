@@ -183,6 +183,18 @@ export const marketSyncApi = {
       throw new Error(error.error || 'Failed to fetch results');
     }
     return res.json();
+  },
+
+  syncAll: async () => {
+    const res = await fetch(`${API_BASE}/market-sync/sync-all`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to trigger global sync');
+    }
+    return res.json();
   }
 };
 
@@ -405,6 +417,15 @@ export const asinApi = {
       headers: { ...getAuthHeader() }
     });
     if (!res.ok) throw new Error('Failed to fetch ASINs');
+    return res.json();
+  },
+
+  getStats: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE}/asins/stats?${query}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch ASIN stats');
     return res.json();
   },
 

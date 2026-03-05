@@ -181,6 +181,113 @@ exports.syncSellerAsins = async (req, res) => {
 };
 
 /**
+ * Trigger batch sync for all active ASINs across all sellers assigned to the user.
+ */
+exports.syncAllAsins = async (req, res) => {
+    console.log('📨 Entering syncAllAsins handler');
+    try {
+        const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+        const filter = { status: 'Active' };
+
+        if (!isAdmin) {
+            const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
+            filter.seller = { $in: allowedSellerIds };
+        }
+
+        const asins = await Asin.find(filter).populate('seller');
+        if (asins.length === 0) {
+            return res.json({ success: true, message: 'No active ASINs to sync' });
+        }
+
+        // Update ASIN statuses
+        await Asin.updateMany(
+            { _id: { $in: asins.map(a => a._id) } },
+            { $set: { scrapeStatus: 'SCRAPING', status: 'Scraping' } }
+        );
+
+        // Process in background
+        const DirectScraperService = require('../services/directScraperService');
+        const MarketSyncService = require('../services/marketDataSyncService');
+        const SocketService = require('../services/socketService');
+
+        // Fire and forget background process
+        setTimeout(async () => {
+            const CONCURRENCY_LIMIT = parseInt(process.env.CONCURRENCY_LIMIT || '5', 10);
+            const CHUNK_SIZE = 5; // Emit progress more frequently for UI responsiveness
+            let processedCount = 0;
+            const io = SocketService.getIo(); // Correctly get Socket.io instance
+
+            const broadcastProgress = (statusText) => {
+                if (io) {
+                    // Broadcast globally so any connected dashboard sees the global sync progress
+                    io.emit('scrape_progress', {
+                        total: asins.length,
+                        processed: processedCount,
+                        status: statusText,
+                        timestamp: Date.now()
+                    });
+                }
+            };
+
+            console.log(`🚀 Starting background sync for ${asins.length} ASINs with concurrency ${CONCURRENCY_LIMIT}`);
+            broadcastProgress('Initializing Scrape Task...');
+
+            // Helper function to process a single ASIN
+            const processAsin = async (asin) => {
+                try {
+                    if (asin.seller?.marketSyncTaskId) {
+                        await MarketSyncService.triggerSync(
+                            asin.seller.marketSyncTaskId,
+                            [{ name: 'ASIN', value: asin.asinCode }]
+                        );
+                    } else {
+                        const rawData = await DirectScraperService.scrapeAsin(asin.asinCode);
+                        await MarketSyncService.updateAsinMetrics(asin._id, rawData);
+                    }
+                    console.log(`✅ Background sync completed for ASIN: ${asin.asinCode}`);
+                } catch (err) {
+                    console.error(`❌ Background sync failed for ASIN: ${asin.asinCode}`, err.message);
+                    await Asin.updateOne({ _id: asin._id }, { $set: { scrapeStatus: 'FAILED', status: 'Error' } });
+                }
+            };
+
+            // Process strictly with concurrency limit using a queue pool
+            let index = 0;
+            const workers = Array(CONCURRENCY_LIMIT).fill(null).map(async () => {
+                while (index < asins.length) {
+                    const currentIndex = index++;
+                    const asin = asins[currentIndex];
+                    await processAsin(asin);
+                    processedCount++;
+
+                    if (processedCount % CHUNK_SIZE === 0 || processedCount === asins.length) {
+                        const percent = ((processedCount / asins.length) * 100).toFixed(1);
+                        console.log(`📊 Sync Progress: ${processedCount}/${asins.length} ASINs processed (${percent}%).`);
+                        broadcastProgress(`Scraping in progress... (${percent}%)`);
+                    }
+                    // Small delay between requests per worker to be polite
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            });
+
+            await Promise.all(workers);
+            console.log(`🎉 Global sync finished processing ${asins.length} ASINs.`);
+            broadcastProgress('Complete');
+
+        }, 0);
+
+        res.json({
+            success: true,
+            message: `Global sync initiated for ${asins.length} ASINs`,
+            count: asins.length
+        });
+    } catch (error) {
+        console.error('Global Sync Error:', error.message);
+        res.status(500).json({ success: false, error: 'Internal Global Sync Error: ' + error.message });
+    }
+};
+
+/**
  * Fetch results from provider and apply to ASINs.
  */
 exports.fetchAndApplyResults = async (req, res) => {

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const xpath = require('xpath');
 const { DOMParser } = require('xmldom');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 /**
  * Service for direct web scraping of Amazon India.
@@ -13,6 +14,13 @@ class DirectScraperService {
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
         ];
+
+        this.proxyUrl = process.env.PROXY_URL;
+        if (this.proxyUrl) {
+            console.log('🛡️ Direct Scraper initialized with Proxy');
+        } else {
+            console.log('⚠️ Direct Scraper initialized WITHOUT Proxy (IP ban risk for high volume)');
+        }
     }
 
     getRandomUserAgent() {
@@ -32,7 +40,7 @@ class DirectScraperService {
         try {
             console.log(`🌐 Scraping direct [Attempt ${retries + 1}]: ${url}`);
 
-            const response = await axios.get(url, {
+            const requestConfig = {
                 headers: {
                     'User-Agent': this.getRandomUserAgent(),
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -41,7 +49,13 @@ class DirectScraperService {
                     'Viewport-Width': '1920'
                 },
                 timeout: 15000 // Increased timeout
-            });
+            };
+
+            if (this.proxyUrl) {
+                requestConfig.httpsAgent = new HttpsProxyAgent(this.proxyUrl);
+            }
+
+            const response = await axios.get(url, requestConfig);
 
             if (response.status !== 200) {
                 throw new Error(`Failed to fetch page: Status ${response.status}`);

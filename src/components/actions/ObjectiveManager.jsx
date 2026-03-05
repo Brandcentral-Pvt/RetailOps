@@ -29,6 +29,7 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
     const [goalSettings, setGoalSettings] = useState(objective?.goalSettings || {
         targetValue: '',
         timeframe: 1,
+        frequency: 'MONTHLY',
         isGoalPrimary: false
     });
     const [owners, setOwners] = useState(
@@ -513,7 +514,7 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                                 <div className="col-12">
                                     <div className="p-3 bg-soft-primary rounded-3 border border-primary border-opacity-10 animate-fadeIn">
                                         <div className="row g-3">
-                                            <div className="col-md-6">
+                                            <div className="col-md-4">
                                                 <label className="form-label small fw-bold text-muted text-uppercase">Target Value</label>
                                                 <input
                                                     type="number"
@@ -523,18 +524,36 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                                                     onChange={(e) => setGoalSettings({ ...goalSettings, targetValue: e.target.value })}
                                                 />
                                             </div>
-                                            <div className="col-md-6">
-                                                <label className="form-label small fw-bold text-muted text-uppercase">Timeframe (Months)</label>
+                                            <div className="col-md-4">
+                                                <label className="form-label small fw-bold text-muted text-uppercase">Frequency</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={goalSettings.frequency || 'MONTHLY'}
+                                                    onChange={(e) => setGoalSettings({ ...goalSettings, frequency: e.target.value })}
+                                                >
+                                                    <option value="DAILY">Daily</option>
+                                                    <option value="WEEKLY">Weekly</option>
+                                                    <option value="MONTHLY">Monthly</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-md-4">
+                                                <label className="form-label small fw-bold text-muted text-uppercase">Duration ({
+                                                    goalSettings.frequency === 'DAILY' ? 'Days' :
+                                                        goalSettings.frequency === 'WEEKLY' ? 'Weeks' : 'Months'
+                                                })</label>
                                                 <div className="d-flex align-items-center gap-3">
                                                     <input
                                                         type="range"
                                                         min="1"
-                                                        max="24"
+                                                        max={goalSettings.frequency === 'DAILY' ? '90' : goalSettings.frequency === 'WEEKLY' ? '52' : '24'}
                                                         className="form-range flex-grow-1"
                                                         value={goalSettings.timeframe}
                                                         onChange={(e) => setGoalSettings({ ...goalSettings, timeframe: e.target.value })}
                                                     />
-                                                    <span className="badge bg-primary rounded-pill px-3">{goalSettings.timeframe}m</span>
+                                                    <span className="badge bg-primary rounded-pill px-3">{goalSettings.timeframe}{
+                                                        goalSettings.frequency === 'DAILY' ? 'd' :
+                                                            goalSettings.frequency === 'WEEKLY' ? 'w' : 'm'
+                                                    }</span>
                                                 </div>
                                             </div>
                                         </div>

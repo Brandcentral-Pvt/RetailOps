@@ -11,8 +11,14 @@ const { authenticate, requirePermission, checkSellerAccess } = require('../middl
 // Basic health check for service
 router.get('/status', authenticate, marketSyncController.getSyncStatus);
 
+// Diagnostic route
+router.get('/ping', (req, res) => res.json({ message: 'market-sync router is active' }));
+
 // Trigger sync for a specific ASIN
 router.post('/sync/:id', authenticate, requirePermission('sellers_manage_asins'), marketSyncController.syncAsin);
+
+// Trigger global sync for all ASINs across all sellers
+router.post('/sync-all', authenticate, requirePermission('sellers_manage_asins'), marketSyncController.syncAllAsins);
 
 // Trigger batch sync for all ASINs of a seller
 router.post('/sync-all/:sellerId', authenticate, requirePermission('sellers_manage_asins'), checkSellerAccess, marketSyncController.syncSellerAsins);

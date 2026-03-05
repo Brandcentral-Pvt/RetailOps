@@ -27,6 +27,7 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
         goalSettings: {
             targetValue: '',
             timeframe: 1,
+            frequency: 'MONTHLY',
             isGoalPrimary: false
         }
     });
@@ -69,9 +70,10 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                 keyResultId: initialKeyResultId || '',
                 measurementMetric: 'NONE',
                 goalSettings: {
-                    targetValue: '',
-                    timeframe: 1,
-                    isGoalPrimary: false
+                    targetValue: action.goalSettings?.targetValue || '',
+                    timeframe: action.goalSettings?.timeframe || 1,
+                    frequency: action.goalSettings?.frequency || 'MONTHLY',
+                    isGoalPrimary: action.goalSettings?.isGoalPrimary || false
                 }
             });
         }
@@ -251,7 +253,7 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                                         {formData.goalSettings?.isGoalPrimary && (
                                             <div className="p-3 bg-soft-primary rounded-3 border border-primary border-opacity-10 mb-4 animate-fadeIn">
                                                 <div className="row g-3">
-                                                    <div className="col-md-6">
+                                                    <div className="col-md-4">
                                                         <label className="form-label-clean small fw-bold">Target Value ({formData.measurementMetric})</label>
                                                         <input
                                                             type="number"
@@ -264,13 +266,31 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                                                             })}
                                                         />
                                                     </div>
-                                                    <div className="col-md-6">
-                                                        <label className="form-label-clean small fw-bold">Timeframe (Months)</label>
+                                                    <div className="col-md-4">
+                                                        <label className="form-label-clean small fw-bold">Frequency</label>
+                                                        <select
+                                                            className="form-input-clean bg-white"
+                                                            value={formData.goalSettings.frequency || 'MONTHLY'}
+                                                            onChange={(e) => setFormData({
+                                                                ...formData,
+                                                                goalSettings: { ...formData.goalSettings, frequency: e.target.value }
+                                                            })}
+                                                        >
+                                                            <option value="DAILY">Daily</option>
+                                                            <option value="WEEKLY">Weekly</option>
+                                                            <option value="MONTHLY">Monthly</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="col-md-4">
+                                                        <label className="form-label-clean small fw-bold">Duration ({
+                                                            formData.goalSettings.frequency === 'DAILY' ? 'Days' :
+                                                                formData.goalSettings.frequency === 'WEEKLY' ? 'Weeks' : 'Months'
+                                                        })</label>
                                                         <div className="d-flex align-items-center gap-3">
                                                             <input
                                                                 type="range"
                                                                 min="1"
-                                                                max="24"
+                                                                max={formData.goalSettings.frequency === 'DAILY' ? '90' : formData.goalSettings.frequency === 'WEEKLY' ? '52' : '24'}
                                                                 className="form-range flex-grow-1"
                                                                 value={formData.goalSettings.timeframe}
                                                                 onChange={(e) => setFormData({
@@ -278,12 +298,18 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                                                                     goalSettings: { ...formData.goalSettings, timeframe: e.target.value }
                                                                 })}
                                                             />
-                                                            <span className="badge bg-primary rounded-pill px-3">{formData.goalSettings.timeframe}m</span>
+                                                            <span className="badge bg-primary rounded-pill px-3">{formData.goalSettings.timeframe}{
+                                                                formData.goalSettings.frequency === 'DAILY' ? 'd' :
+                                                                    formData.goalSettings.frequency === 'WEEKLY' ? 'w' : 'm'
+                                                            }</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div className="smallest text-muted mt-2 ps-1 italic">
-                                                    * This will automatically create {formData.goalSettings.timeframe} monthly recurring tasks.
+                                                    * This will automatically create {formData.goalSettings.timeframe} {
+                                                        formData.goalSettings.frequency === 'DAILY' ? 'daily' :
+                                                            formData.goalSettings.frequency === 'WEEKLY' ? 'weekly' : 'monthly'
+                                                    } recurring tasks.
                                                 </div>
                                             </div>
                                         )}

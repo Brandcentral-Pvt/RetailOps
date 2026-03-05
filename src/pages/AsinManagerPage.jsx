@@ -3,6 +3,7 @@ import KPICard from '../components/KPICard';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi } from '../services/api';
+import { useSocket } from '../contexts/SocketContext';
 import { calculateLQS } from '../utils/lqs';
 import {
   Package,
@@ -242,26 +243,28 @@ const AsinManagerPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState(null);
   const [scrapingIds, setScrapingIds] = useState(new Set());
+  const [stats, setStats] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
+  const [scrapeProgress, setScrapeProgress] = useState(null);
+  const socket = useSocket();
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (page = 1) => {
     try {
       setLoading(true);
 
-      const response = await asinApi.getAll({ limit: 500 });
-      const asinsData = response?.asins || [];
+      const [asinRes, statsRes] = await Promise.all([
+        asinApi.getAll({ page, limit: 25 }),
+        asinApi.getStats()
+      ]);
 
-      if (asinsData && asinsData.length > 0) {
-        setAsins(asinsData);
-        setError(null);
-      } else {
-        console.warn('No ASINs found in database');
-        setAsins([]);
-        setError(null);
-      }
+      setAsins(asinRes?.asins || []);
+      setPagination(asinRes?.pagination || { page: 1, limit: 25, total: 0, totalPages: 0 });
+      setStats(statsRes);
+      setError(null);
     } catch (err) {
       console.error('Error fetching ASINs:', err);
       setError(err.message);
-      setAsins(demoAsins); // Fallback to demo data on error for now
+      setAsins(demoAsins);
     } finally {
       setLoading(false);
     }
@@ -271,7 +274,32 @@ const AsinManagerPage = () => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('scrape_progress', (data) => {
+      setScrapeProgress(data);
+      if (data.status === 'Complete') {
+        setTimeout(() => {
+          setScrapeProgress(null);
+          loadData(pagination.page);
+        }, 3000);
+      }
+    });
+    return () => socket.off('scrape_progress');
+  }, [socket, loadData, pagination.page]);
+
   const kpis = useMemo(() => {
+    if (stats) {
+      return [
+        { label: 'ALL ASINS', value: stats.total || 0, color: '#6366f1', icon: <Package size={14} /> },
+        { label: 'AVG LQS', value: (stats.avgLQS || 0) + '%', color: '#10b981', icon: <Activity size={14} /> },
+        { label: 'BUY BOX', value: (stats.buyBoxRate || 0) + '%', color: '#f59e0b', icon: <Trophy size={14} /> },
+        { label: 'TOTAL REVIEWS', value: (stats.totalReviews || 0).toLocaleString(), color: '#8b5cf6', icon: <Star size={14} /> },
+        { label: 'AVG BSR', value: '#' + (stats.avgBSR || 0).toLocaleString(), color: '#ef4444', icon: <Activity size={14} /> },
+        { label: 'AVG PRICE', value: '₹' + (stats.avgPrice || 0).toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
+      ];
+    }
+
     const total = asins.length;
     const avgLqs = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.lqs || 0), 0) / total) : 0;
     const buyBoxWins = asins.filter(a => a.buyBoxWin).length;
@@ -279,8 +307,6 @@ const AsinManagerPage = () => {
     const lowLqs = asins.filter(a => (a.lqs || 0) < 70).length;
     const activeDeals = asins.filter(a => a.dealDetails && a.dealDetails !== 'None').length;
     const avgPrice = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / total) : 0;
-    const avgBSR = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.currentRank || 0), 0) / total) : 0;
-    const totalReviews = asins.reduce((sum, a) => sum + (a.reviewCount || 0), 0);
 
     return [
       { label: 'ALL ASINS', value: total, color: '#6366f1', icon: <Package size={14} /> },
@@ -290,7 +316,7 @@ const AsinManagerPage = () => {
       { label: 'DEALS', value: activeDeals, color: '#8b5cf6', icon: <Zap size={14} /> },
       { label: 'AVG PRICE', value: '₹' + avgPrice.toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
     ];
-  }, [asins]);
+  }, [asins, stats]);
 
   const weekColumns = useMemo(() => {
     if (asins.length > 0 && asins[0]?.weekHistory) {
@@ -374,32 +400,18 @@ const AsinManagerPage = () => {
   };
 
   const handleBulkScrape = async () => {
-    if (asins.length === 0) return;
-    const confirmScrape = window.confirm(`Initiate scraping for all ${asins.length} ASINs? This may take some time.`);
+    const totalCount = stats?.total || asins.length;
+    const confirmScrape = window.confirm(`Initiate scraping for all ${totalCount} ASINs? This will be processed in the background.`);
     if (!confirmScrape) return;
 
-    let successCount = 0;
-
-    // Scrape all sequentially so we don't accidentally overload the backend/network
-    for (const asin of asins) {
-      if (asin.scrapeStatus === 'SCRAPING') continue; // Skip already scraping
-      try {
-        setScrapingIds(prev => new Set(prev).add(asin._id));
-        await marketSyncApi.syncAsin(asin._id);
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to scrape ${asin.asinCode}:`, err);
-      } finally {
-        setScrapingIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(asin._id);
-          return newSet;
-        });
-      }
+    try {
+      await marketSyncApi.syncAll();
+      alert(`Scraping initiated successfully for all ${totalCount} ASINs.`);
+      loadData(pagination.page);
+    } catch (err) {
+      console.error('Bulk scrape failed:', err);
+      alert('Failed to start bulk scraping: ' + err.message);
     }
-
-    alert(`Scraping completed. Successfully initiated/scraped ${successCount} ASINs.`);
-    loadData();
   };
 
   const handleBulkCreateActions = async () => {
@@ -556,6 +568,30 @@ const AsinManagerPage = () => {
           </div>
         )}
 
+        {scrapeProgress && (
+          <div className="card border-0 shadow-sm rounded-4 mb-4" style={{ overflow: 'hidden' }}>
+            <div className="card-body p-4 bg-primary bg-opacity-10 border-start border-primary border-4">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="fw-bold text-primary d-flex align-items-center gap-2">
+                  <RefreshCw size={18} className="animate-spin" />
+                  Live Syncing Data...
+                </div>
+                <div className="fw-bold text-primary">
+                  {scrapeProgress.processed} / {scrapeProgress.total} ASINs
+                </div>
+              </div>
+              <div className="progress" style={{ height: '8px', backgroundColor: 'rgba(255, 255, 255, 0.15)' }}>
+                <div
+                  className="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                  role="progressbar"
+                  style={{ width: `${(scrapeProgress.processed / scrapeProgress.total) * 100}%` }}
+                ></div>
+              </div>
+              <div className="text-muted small mt-2">{scrapeProgress.status}</div>
+            </div>
+          </div>
+        )}
+
         {/* Single Collapsible Section containing KPIs and Performance Overview */}
         <CollapsibleSection
           title="ASIN Performance Overview"
@@ -598,7 +634,7 @@ const AsinManagerPage = () => {
                 <div className="card-body px-4 pb-4">
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted small">Average Price</span>
-                    <span className="fw-bold">₹{Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / (asins.length || 1)).toLocaleString()}</span>
+                    <span className="fw-bold">₹{(stats?.avgPrice || 0).toLocaleString()}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted small">Highest Recorded</span>
@@ -622,7 +658,7 @@ const AsinManagerPage = () => {
                 <div className="card-body px-4 pb-4">
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted small">Average BSR</span>
-                    <span className="fw-bold">#{Math.round(asins.reduce((sum, a) => sum + (a.currentRank || 0), 0) / (asins.length || 1)).toLocaleString()}</span>
+                    <span className="fw-bold">#{(stats?.avgBSR || 0).toLocaleString()}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted small">Best Performer</span>
@@ -630,7 +666,7 @@ const AsinManagerPage = () => {
                   </div>
                   <div className="d-flex justify-content-between">
                     <span className="text-muted small">Tracking Pool</span>
-                    <span className="fw-bold">{asins.length} Active ASINs</span>
+                    <span className="fw-bold">{stats?.total || 0} Active ASINs</span>
                   </div>
                 </div>
               </div>
@@ -878,6 +914,62 @@ const AsinManagerPage = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Pagination UI */}
+              <div className="d-flex justify-content-between align-items-center p-4 border-top bg-light-subtle">
+                <div className="text-muted small">
+                  Showing <span className="fw-bold">{asins.length}</span> of <span className="fw-bold">{pagination.total}</span> ASINs
+                </div>
+                <nav>
+                  <ul className="pagination pagination-sm mb-0 gap-1">
+                    <li className={`page-item ${pagination.page === 1 ? 'disabled' : ''}`}>
+                      <button
+                        className="page-link rounded-pill border-0 shadow-sm px-3"
+                        onClick={() => loadData(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                      >
+                        Previous
+                      </button>
+                    </li>
+                    {[...Array(pagination.totalPages)].map((_, i) => {
+                      const pageNum = i + 1;
+                      // Only show first, last, and pages around current
+                      if (
+                        pageNum === 1 ||
+                        pageNum === pagination.totalPages ||
+                        (pageNum >= pagination.page - 1 && pageNum <= pagination.page + 1)
+                      ) {
+                        return (
+                          <li key={pageNum} className={`page-item ${pagination.page === pageNum ? 'active' : ''}`}>
+                            <button
+                              className={`page-link rounded-circle border-0 shadow-sm mx-1 ${pagination.page === pageNum ? 'bg-primary' : ''}`}
+                              onClick={() => loadData(pageNum)}
+                              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              {pageNum}
+                            </button>
+                          </li>
+                        );
+                      } else if (
+                        pageNum === pagination.page - 2 ||
+                        pageNum === pagination.page + 2
+                      ) {
+                        return <li key={pageNum} className="page-item disabled"><span className="page-link border-0">...</span></li>;
+                      }
+                      return null;
+                    })}
+                    <li className={`page-item ${pagination.page === pagination.totalPages ? 'disabled' : ''}`}>
+                      <button
+                        className="page-link rounded-pill border-0 shadow-sm px-3"
+                        onClick={() => loadData(pagination.page + 1)}
+                        disabled={pagination.page === pagination.totalPages}
+                      >
+                        Next
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
               </div>
             </div>
           )}

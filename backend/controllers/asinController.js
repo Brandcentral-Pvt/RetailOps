@@ -299,8 +299,18 @@ exports.getAsinStats = async (req, res) => {
 
     const totalAsins = await Asin.countDocuments(filter);
     const activeAsins = await Asin.countDocuments({ ...filter, status: 'Active' });
+    const avgBSR = await Asin.aggregate([
+      { $match: { ...filter, currentRank: { $gt: 0 } } },
+      { $group: { _id: null, avgBSR: { $avg: '$currentRank' } } },
+    ]);
+
+    const totalReviews = await Asin.aggregate([
+      { $match: filter },
+      { $group: { _id: null, totalReviews: { $sum: '$reviewCount' } } },
+    ]);
+
     const avgLQS = await Asin.aggregate([
-      { $match: { ...filter, lqs: { $gt: 0 } } },
+      { $match: filter },
       { $group: { _id: null, avgLQS: { $avg: '$lqs' } } },
     ]);
 
@@ -309,12 +319,17 @@ exports.getAsinStats = async (req, res) => {
       { $group: { _id: null, avgPrice: { $avg: '$currentPrice' } } },
     ]);
 
+    const buyBoxWins = await Asin.countDocuments({ ...filter, buyBoxWin: true });
+
     res.json({
       total: totalAsins,
       active: activeAsins,
       statusBreakdown: stats.reduce((acc, s) => ({ ...acc, [s._id]: s.count }), {}),
       avgLQS: avgLQS[0]?.avgLQS?.toFixed(2) || 0,
       avgPrice: avgPrice[0]?.avgPrice?.toFixed(2) || 0,
+      avgBSR: avgBSR[0]?.avgBSR?.toFixed(0) || 0,
+      totalReviews: totalReviews[0]?.totalReviews || 0,
+      buyBoxRate: totalAsins > 0 ? ((buyBoxWins / totalAsins) * 100).toFixed(0) : 0
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

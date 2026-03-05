@@ -30,9 +30,16 @@ const ScrapeTasksPage = () => {
   const loadSellers = async () => {
     try {
       const response = await sellerApi.getAll();
-      setSellers(response.sellers);
+      if (response && response.data && Array.isArray(response.data.sellers)) {
+        setSellers(response.data.sellers);
+      } else if (response && Array.isArray(response.sellers)) {
+        setSellers(response.sellers);
+      } else {
+        setSellers([]);
+      }
     } catch (error) {
       console.error('Failed to load sellers:', error);
+      setSellers([]);
     }
   };
 
@@ -53,12 +60,12 @@ const ScrapeTasksPage = () => {
 
   const handleCreateTask = async () => {
     if (!selectedSellerId) return;
-    
+
     setCreating(true);
     try {
       const seller = sellers.find(s => s._id === selectedSellerId);
       if (!seller) return;
-      
+
       // Get ASINs based on scrape type
       let asins = [];
       if (sellerAsins.length > 0) {
@@ -67,15 +74,15 @@ const ScrapeTasksPage = () => {
         // If no ASINs in DB, use demo ASINs
         asins = ['B07XYZ123', 'B07ABC456', 'B07DEF789', 'B07GHI012', 'B07JKL345'];
       }
-      
+
       if (asins.length === 0) {
         alert('No ASINs found for this seller. Please add ASINs in the Sellers page first.');
         setCreating(false);
         return;
       }
-      
+
       const result = await octoparseService.startScrapeTask(asins, seller.marketplace);
-      
+
       // Add seller info to the task
       const updatedTasks = [{
         ...result,
@@ -85,13 +92,13 @@ const ScrapeTasksPage = () => {
         scrapeType,
         createdAt: new Date().toISOString(),
       }, ...tasks];
-      
+
       setTasks(updatedTasks);
       setShowCreateModal(false);
       setSelectedSellerId('');
       setSellerAsins([]);
       setScrapeType('all');
-      
+
       alert(`Scraping task created for ${seller.name}. ${asins.length} ASINs will be scraped.`);
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -251,7 +258,7 @@ const ScrapeTasksPage = () => {
                         <td>
                           <div className="d-flex align-items-center gap-2">
                             <div className="progress flex-grow-1" style={{ height: '8px', width: '100px' }}>
-                              <div 
+                              <div
                                 className={`progress-bar ${task.status === 'FAILED' ? 'bg-danger' : ''}`}
                                 style={{ width: `${task.progress}%` }}
                               ></div>
@@ -263,7 +270,7 @@ const ScrapeTasksPage = () => {
                         <td>
                           <div className="d-flex gap-1">
                             {task.status === 'COMPLETED' && (
-                              <button 
+                              <button
                                 className="btn btn-sm btn-outline-primary"
                                 onClick={() => handleViewResults(task)}
                                 title="View Results"
@@ -272,7 +279,7 @@ const ScrapeTasksPage = () => {
                               </button>
                             )}
                             {(task.status === 'PENDING' || task.status === 'RUNNING') && (
-                              <button 
+                              <button
                                 className="btn btn-sm btn-outline-danger"
                                 onClick={() => octoparseService.cancelScrapeTask(task.executionId).then(loadTasks)}
                                 title="Cancel"
@@ -280,7 +287,7 @@ const ScrapeTasksPage = () => {
                                 <i className="bi bi-x"></i>
                               </button>
                             )}
-                            <button 
+                            <button
                               className="btn btn-sm btn-outline-secondary"
                               onClick={() => handleDeleteTask(task)}
                               title="Delete"
@@ -311,23 +318,23 @@ const ScrapeTasksPage = () => {
               <div className="modal-body">
                 <div className="mb-3">
                   <label className="form-label">Select Seller *</label>
-                  <select 
+                  <select
                     className="form-select"
                     value={selectedSellerId}
                     onChange={(e) => handleSellerChange(e.target.value)}
                   >
                     <option value="">Choose a seller...</option>
-                    {sellers.filter(s => s.status === 'Active').map(seller => (
+                    {(sellers || []).filter(s => s.status === 'Active').map(seller => (
                       <option key={seller._id} value={seller._id}>
                         {seller.name} ({seller.marketplace})
                       </option>
                     ))}
                   </select>
                   <div className="form-text">
-                    {sellers.filter(s => s.status === 'Active').length} active sellers available
+                    {(sellers || []).filter(s => s.status === 'Active').length} active sellers available
                   </div>
                 </div>
-                
+
                 {selectedSellerId && (
                   <div className="mb-3">
                     <div className="alert alert-info">
@@ -339,13 +346,13 @@ const ScrapeTasksPage = () => {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="mb-3">
                   <label className="form-label">Scrape Type</label>
                   <div className="d-flex gap-3">
                     <div className="form-check">
-                      <input 
-                        type="radio" 
+                      <input
+                        type="radio"
                         className="form-check-input"
                         id="scrapeAll"
                         name="scrapeType"
@@ -358,8 +365,8 @@ const ScrapeTasksPage = () => {
                       <div className="form-text">Scrape all ASINs for this seller</div>
                     </div>
                     <div className="form-check">
-                      <input 
-                        type="radio" 
+                      <input
+                        type="radio"
                         className="form-check-input"
                         id="scrapePending"
                         name="scrapeType"
@@ -374,7 +381,7 @@ const ScrapeTasksPage = () => {
                   </div>
                 </div>
 
-                {!sellers || sellers.filter(s => s.status === 'Active').length === 0 && (
+                {(!sellers || sellers.filter(s => s.status === 'Active').length === 0) && (
                   <div className="alert alert-warning">
                     <i className="bi bi-exclamation-triangle me-2"></i>
                     No active sellers found. Please add sellers first in the Sellers page.
@@ -384,8 +391,8 @@ const ScrapeTasksPage = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setSelectedSellerId(''); setSellerAsins([]); }}>Cancel</button>
-                <button 
-                  className="btn btn-primary" 
+                <button
+                  className="btn btn-primary"
                   onClick={handleCreateTask}
                   disabled={!selectedSellerId || creating || sellers.filter(s => s.status === 'Active').length === 0}
                 >
