@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const Filters = ({
   filters,
@@ -10,10 +12,20 @@ const Filters = ({
   showStatus = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [tempRange, setTempRange] = useState([null, null]);
+  const [showCustomRange, setShowCustomRange] = useState(filters.dateRange === 'custom');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    onFilterChange({ [name]: value });
+    if (name === 'dateRange' && value === 'custom') {
+      setShowCustomRange(true);
+      onFilterChange({ [name]: value });
+    } else if (name === 'dateRange') {
+      setShowCustomRange(false);
+      onFilterChange({ [name]: value, customStartDate: null, customEndDate: null });
+    } else {
+      onFilterChange({ [name]: value });
+    }
   };
 
   const handleSearchChange = (e) => {
@@ -85,7 +97,35 @@ const Filters = ({
                 <option value="lastMonth">Last Month</option>
                 <option value="thisQuarter">This Quarter</option>
                 <option value="thisYear">This Year</option>
+                <option value="custom">Custom Range...</option>
               </select>
+            </div>
+          )}
+
+          {showDateRange && showCustomRange && (
+            <div className="filter-group-inline animate-fadeIn" style={{ flex: 1.5 }}>
+              <label className="form-label">
+                <i className="bi bi-calendar-range me-1"></i>
+                Select Dates
+              </label>
+              <div className="d-flex align-items-center bg-white border rounded px-2" style={{ height: '38px' }}>
+                <DatePicker
+                  selectsRange={true}
+                  startDate={filters.customStartDate || tempRange[0]}
+                  endDate={filters.customEndDate || tempRange[1]}
+                  onChange={(update) => {
+                    const [start, end] = update;
+                    setTempRange(update);
+                    if (start && end) {
+                      onFilterChange({ customStartDate: start, customEndDate: end });
+                    }
+                  }}
+                  className="form-control border-0 bg-transparent smallest p-0"
+                  dateFormat="MMM d, yyyy"
+                  placeholderText="Click to select range"
+                  isClearable={true}
+                />
+              </div>
             </div>
           )}
 

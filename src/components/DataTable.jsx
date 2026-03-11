@@ -203,7 +203,12 @@ const DataTable = ({
                       className={`px-4 py-3 border-0 border-bottom border-light align-middle fw-600 ${isNumeric(item[col]) ? 'text-end tabular-nums' : 'text-start'}`}
                       style={{ fontSize: '12px', color: '#1e293b' }}
                     >
-                      {customRenderers[col] ? customRenderers[col](item) : item[col]}
+                      {customRenderers[col]
+                        ? customRenderers[col](item)
+                        : (typeof item[col] === 'object' && item[col] !== null && !React.isValidElement(item[col])
+                          ? JSON.stringify(item[col])
+                          : item[col])
+                      }
                     </td>
                   ))}
                 </tr>

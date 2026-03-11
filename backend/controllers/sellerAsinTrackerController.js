@@ -13,7 +13,16 @@ const { getSellerAsins, getTokenStatus, getDomainId } = require('../services/kee
  */
 exports.getTrackerList = async (req, res) => {
     try {
-        const sellers = await Seller.find({}).sort({ name: 1 }).lean();
+        const userRole = req.user.role?.name || req.user.role;
+        const isAdmin = userRole === 'admin';
+        const filter = {};
+
+        if (!isAdmin) {
+            const assignedSellerIds = (req.user.assignedSellers || []).map(s => s._id || s);
+            filter._id = { $in: assignedSellerIds };
+        }
+
+        const sellers = await Seller.find(filter).sort({ name: 1 }).lean();
         // Enrich with ASIN counts from DB
         const result = await Promise.all(sellers.map(async (seller) => {
             const total = await Asin.countDocuments({ seller: seller._id });
@@ -42,6 +51,14 @@ exports.getTrackerList = async (req, res) => {
  */
 exports.getSellerAsins = async (req, res) => {
     try {
+        const userRole = req.user.role?.name || req.user.role;
+        const isAdmin = userRole === 'admin';
+        const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
+
+        if (!isAdmin && !assignedSellerIds.includes(req.params.sellerId)) {
+            return res.status(403).json({ success: false, message: 'Unauthorized access to this seller tracker' });
+        }
+
         const seller = await Seller.findById(req.params.sellerId);
         if (!seller) return res.status(404).json({ success: false, message: 'Seller not found' });
 
@@ -137,6 +154,14 @@ const syncSellerFromKeepa = async (seller) => {
  */
 exports.syncSeller = async (req, res) => {
     try {
+        const userRole = req.user.role?.name || req.user.role;
+        const isAdmin = userRole === 'admin';
+        const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
+
+        if (!isAdmin && !assignedSellerIds.includes(req.params.sellerId)) {
+            return res.status(403).json({ success: false, message: 'Unauthorized to sync this seller' });
+        }
+
         const seller = await Seller.findById(req.params.sellerId);
         if (!seller) return res.status(404).json({ success: false, message: 'Seller not found' });
 

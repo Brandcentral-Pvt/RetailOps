@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import NumberChart from '../components/common/NumberChart';
 import Chart from 'react-apexcharts';
 import {
   LayoutDashboard,
@@ -39,8 +40,11 @@ const Dashboard = () => {
   const [data, setData] = useState({
     kpis: [],
     revenueData: [],
+    stackedBarSeries: [],
+    areaSeries: [],
     categoryData: [],
     topProducts: [],
+    labels: [],
     userStats: null,
     teamStats: null,
     alerts: [],
@@ -59,11 +63,14 @@ const Dashboard = () => {
         'thisYear': '1y'
       };
       const response = await api.dashboardApi.getSummary(periodMap[dateRange] || '30d');
-      const { kpi, revenue, units, category, tableData, userStats, teamStats, alerts } = response;
+      const { kpi, revenue, areaSeries, stackedBarSeries, labels, category, tableData, userStats, teamStats, alerts } = response;
 
       setData({
         kpis: kpi || [],
         revenueData: revenue?.[0]?.data || [],
+        stackedBarSeries: stackedBarSeries || [],
+        areaSeries: areaSeries || [],
+        labels: labels || [],
         categoryData: category || [],
         topProducts: tableData?.map((p, idx) => ({ ...p, rank: idx + 1, name: p.title })) || [],
         userStats,
@@ -106,41 +113,99 @@ const Dashboard = () => {
   };
 
   // ApexCharts Configurations
-  const revenueChartOptions = {
+  const stackedBarOptions = {
     chart: {
-      id: 'revenue-trend',
+      type: 'bar',
+      stacked: true,
       toolbar: { show: false },
-      background: 'transparent',
       sparkline: { enabled: false },
     },
-    colors: ['#4F46E5'],
-    stroke: { curve: 'smooth', width: 3 },
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.45,
-        opacityTo: 0.1,
-        stops: [0, 100]
-      }
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: '55%',
+        borderRadius: 4,
+        borderRadiusApplication: 'end',
+      },
     },
     xaxis: {
-      categories: data.revenueData.map((_, i) => `${i + 1}`),
-      labels: { show: false },
+      categories: data.labels && data.labels.length > 0 ? data.labels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       axisBorder: { show: false },
-      axisTicks: { show: false }
+      axisTicks: { show: false },
+      labels: { style: { colors: '#64748b', fontSize: '10px' } }
     },
-    yaxis: { labels: { show: true, style: { colors: '#64748b' } } },
-    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+    yaxis: {
+      labels: { style: { colors: '#64748b', fontSize: '10px' } }
+    },
+    grid: {
+      borderColor: '#f1f5f9',
+      strokeDashArray: 4,
+      padding: { left: 0, right: 0 }
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'right',
+      fontSize: '11px',
+      fontFamily: 'inherit',
+      fontWeight: 600,
+      labels: { colors: '#64748b' },
+      markers: { radius: 12 }
+    },
+    colors: ['#4F46E5', '#10B981', '#EF4444'],
     dataLabels: { enabled: false },
     tooltip: { theme: 'light' }
   };
 
-  const categoryChartOptions = {
+  const areaChartOptions = {
+    chart: {
+      type: 'area',
+      stacked: true,
+      toolbar: { show: false },
+    },
+    stroke: { curve: 'smooth', width: 2 },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.4,
+        opacityTo: 0.05,
+        stops: [0, 90, 100]
+      }
+    },
+    xaxis: {
+      categories: data.labels && data.labels.length > 0 ? data.labels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { style: { colors: '#64748b', fontSize: '10px' } }
+    },
+    yaxis: {
+      labels: { style: { colors: '#64748b', fontSize: '10px' } }
+    },
+    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'right',
+      fontSize: '11px',
+      fontWeight: 600,
+    },
+    colors: ['#4F46E5', '#8B5CF6', '#F59E0B'],
+    dataLabels: { enabled: false },
+    tooltip: { theme: 'light' }
+  };
+
+  const donutChartOptions = {
     chart: { type: 'donut' },
     labels: data.categoryData.map(c => c.name),
     colors: ['#4F46E5', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'],
-    legend: { position: 'bottom', fontSize: '12px' },
+    stroke: { width: 0 },
+    legend: {
+      position: 'bottom',
+      fontSize: '12px',
+      fontWeight: 600,
+      labels: { colors: '#64748b' }
+    },
     dataLabels: { enabled: false },
     plotOptions: {
       pie: {
@@ -148,9 +213,12 @@ const Dashboard = () => {
           size: '75%',
           labels: {
             show: true,
+            name: { show: true, fontSize: '14px', fontWeight: 600, color: '#64748b' },
+            value: { show: true, fontSize: '20px', fontWeight: 700, color: '#111827' },
             total: {
               show: true,
-              label: 'Total ASINs',
+              label: 'Total',
+              color: '#64748b',
               formatter: () => data.kpis.find(k => k.title === 'Active ASINs')?.value || 0
             }
           }
@@ -159,25 +227,17 @@ const Dashboard = () => {
     }
   };
 
-  const MetricPill = ({ title, value, icon: Icon, color }) => (
-    <div className="stat-pill py-1 px-3">
-      <div className="stat-pill-icon" style={{ backgroundColor: `${color}15`, color: color, width: '22px', height: '22px' }}>
-        <Icon size={12} />
-      </div>
-      <div>
-        <div className="stat-pill-label" style={{ fontSize: '10px' }}>{title}</div>
-        <div className="stat-pill-value" style={{ fontSize: '0.85rem' }}>{value}</div>
-      </div>
-    </div>
-  );
 
-  const DashboardCard = ({ title, icon: Icon, children, extra }) => (
-    <div className="glass-card h-100" style={{ borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h6 className="mb-0 d-flex align-items-center gap-2 fw-bold text-dark" style={{ fontSize: '0.85rem' }}>
-          <Icon size={16} className="text-primary" />
-          {title}
-        </h6>
+  const DashboardCard = ({ title, icon: Icon, children, extra, subtitle }) => (
+    <div className="glass-card shadow-sm h-100" style={{ borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,0.05)' }}>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h6 className="mb-0 d-flex align-items-center gap-2 fw-800 text-dark" style={{ fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+            {Icon && <Icon size={18} className="text-secondary" strokeWidth={2.5} />}
+            {title}
+          </h6>
+          {subtitle && <p className="text-muted smallest mb-0 mt-1" style={{ fontSize: '10px' }}>{subtitle}</p>}
+        </div>
         {extra}
       </div>
       <div style={{ flex: 1 }}>{children}</div>
@@ -224,42 +284,52 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Metric Bar */}
-      <div className="d-flex flex-wrap gap-2 mb-3">
+      {/* Standardized Metric Grid */}
+      <div className="row g-3 mb-4">
         {data.kpis.map((kpi, idx) => (
-          <MetricPill
-            key={idx}
-            title={kpi.title}
-            value={kpi.value}
-            icon={kpi.icon.includes('shop') ? ShoppingBag : kpi.icon.includes('box') ? Package : kpi.icon.includes('rupee') ? IndianRupee : TrendingUp}
-            color={idx % 2 === 0 ? '#4F46E5' : '#8B5CF6'}
-          />
+          <div key={idx} className="col-md-3 col-6">
+            <NumberChart
+              label={kpi.title}
+              value={kpi.value}
+              icon={kpi.icon.includes('shop') ? ShoppingBag : kpi.icon.includes('box') ? Package : kpi.icon.includes('rupee') ? IndianRupee : TrendingUp}
+              delta={kpi.trend}
+              deltaType={kpi.trendType}
+              color={['#4f46e5', '#8b5cf6', '#10b981', '#f59e0b'][idx % 4]}
+            />
+          </div>
         ))}
       </div>
 
       <div className="row g-3 mb-3">
-        {/* Main Trend Chart */}
+        {/* Main Area Chart */}
         <div className="col-lg-8">
-          <DashboardCard title="Revenue Intelligence" icon={TrendingUp} extra={<span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill smallest" style={{ fontSize: '10px' }}>LIVE TREND</span>}>
-            <div style={{ minHeight: '260px' }}>
-              {data.revenueData.length > 0 ? (
-                <Chart options={revenueChartOptions} series={[{ name: 'Valuation', data: data.revenueData }]} type="area" height={260} />
-              ) : (
-                <div className="d-flex align-items-center justify-content-center h-100 text-muted smallest">No trend data available</div>
-              )}
+          <DashboardCard title="Revenue Flow" icon={TrendingUp} extra={<span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 rounded-pill smallest" style={{ fontSize: '10px' }}>MULTI-SERIES</span>}>
+            <div style={{ minHeight: '280px' }}>
+              <Chart options={areaChartOptions} series={data.areaSeries} type="area" height={280} />
             </div>
           </DashboardCard>
         </div>
 
-        {/* Category Breakdown */}
+        {/* Portfolio Distribution (Donut) */}
         <div className="col-lg-4">
           <DashboardCard title="Portfolio Mix" icon={PieChart} extra={<button className="btn btn-link btn-sm p-0 text-muted"><Settings size={12} /></button>}>
             <div className="d-flex align-items-center justify-content-center h-100">
               {data.categoryData.length > 0 ? (
-                <Chart options={categoryChartOptions} series={data.categoryData.map(c => c.data[0])} type="donut" width="100%" height={260} />
+                <Chart options={donutChartOptions} series={data.categoryData.map(c => c.data[0])} type="donut" width="100%" height={280} />
               ) : (
                 <div className="text-muted smallest">No category data</div>
               )}
+            </div>
+          </DashboardCard>
+        </div>
+      </div>
+
+      {/* Stacked Bar Chart Row */}
+      <div className="row g-3 mb-3">
+        <div className="col-12">
+          <DashboardCard title="Monthly Performance Breakdown" icon={BarChart2} extra={<span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill smallest" style={{ fontSize: '10px' }}>STACKED PERFORMANCE</span>}>
+            <div style={{ minHeight: '300px' }}>
+              <Chart options={stackedBarOptions} series={data.stackedBarSeries} type="bar" height={300} />
             </div>
           </DashboardCard>
         </div>

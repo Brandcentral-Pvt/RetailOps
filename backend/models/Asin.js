@@ -33,6 +33,13 @@ const asinSchema = new mongoose.Schema({
   bsr: { type: Number, default: 0 }, // Main BSR
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
+  ratingBreakdown: {
+    fiveStar: { type: Number, default: 0 },
+    fourStar: { type: Number, default: 0 },
+    threeStar: { type: Number, default: 0 },
+    twoStar: { type: Number, default: 0 },
+    oneStar: { type: Number, default: 0 },
+  },
   buyBoxPrice: { type: Number, default: 0 },
   buyBoxSellerId: { type: String },
   buyBoxWin: { type: Boolean, default: false },

@@ -308,9 +308,9 @@ const AsinTrackerPage = () => {
   if (loading) {
     return (
       <>
-        <header className="main-header">
+        <div className="page-header">
           <h1 className="page-title"><i className="bi bi-upc-scan"></i>ASIN Tracker</h1>
-        </header>
+        </div>
         <div className="page-content">
           <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
             <div className="loading-spinner"></div>
@@ -322,14 +322,14 @@ const AsinTrackerPage = () => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <div className="d-flex justify-content-between align-items-center w-100">
           <h1 className="page-title"><i className="bi bi-upc-scan"></i>ASIN Tracker</h1>
           <button className="btn btn-outline-primary" onClick={handleFetchResults}>
             <i className="bi bi-cloud-download me-2"></i>Fetch Results
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="page-content">
         {/* Single Collapsible Section containing KPIs and Performance Overview */}

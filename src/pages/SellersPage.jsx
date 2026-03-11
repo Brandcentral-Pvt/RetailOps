@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DataTable from '../components/DataTable';
+import ListView from '../components/common/ListView';
+import ProgressBar from '../components/common/ProgressBar';
 import KPICard from '../components/KPICard';
 import { sellerApi, asinApi, authApi, userApi } from '../services/api';
 import {
@@ -228,9 +230,9 @@ const SellersPage = () => {
   if (loading) {
     return (
       <>
-        <header className="main-header">
-          <h1 className="page-title"><i className="bi bi-shop"></i>Seller Management</h1>
-        </header>
+        <div className="page-header">
+          <h1 className="page-title"><Store size={20} className="text-primary" /> Seller Management</h1>
+        </div>
         <div className="page-content">
           <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
             <div className="loading-spinner"></div>
@@ -242,24 +244,24 @@ const SellersPage = () => {
 
   return (
     <>
-      <header className="main-header border-0 bg-transparent px-4 py-4">
+      <div className="page-header">
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div>
-            <h1 className="h3 fw-bold mb-1" style={{ color: '#111827' }}>Seller Management</h1>
+            <h1 className="page-title mb-1">Seller Management</h1>
             <p className="text-muted small mb-0">Monitor and manage your connected storefronts</p>
           </div>
           <div className="d-flex gap-2">
-            <button className="btn btn-white shadow-sm border-0 d-flex align-items-center gap-2" onClick={() => setShowImportModal(true)}>
-              <FileUp size={18} />
+            <button className="btn btn-white btn-sm shadow-sm border d-flex align-items-center gap-2" onClick={() => setShowImportModal(true)}>
+              <FileUp size={16} />
               <span>Import CSV</span>
             </button>
-            <button className="btn btn-primary shadow-sm border-0 d-flex align-items-center gap-2 px-4" onClick={() => setShowAddModal(true)}>
-              <Plus size={18} />
+            <button className="btn btn-primary btn-sm shadow-sm border-0 d-flex align-items-center gap-2 px-4" onClick={() => setShowAddModal(true)}>
+              <Plus size={16} />
               <span>Add Seller</span>
             </button>
           </div>
         </div>
-      </header>
+      </div>
       <div className="page-content">
 
         {/* Tabs and Search */}
@@ -287,143 +289,141 @@ const SellersPage = () => {
           </div>
         </div>
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table data-table custom-premium-table mb-0">
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>#</th>
-                  <th style={{ width: '25%' }}>Store Details</th>
-                  <th>Region</th>
-                  <th>Manager</th>
-                  <th>Health</th>
-                  <th>Resources</th>
-                  <th>Consumption</th>
-                  <th>Status</th>
-                  <th className="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSellers.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="text-center text-muted py-4">
-                      <i className="bi bi-inbox d-block mb-2" style={{ fontSize: '24px' }}></i>
-                      No sellers found. Add a seller to get started.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSellers.map((seller, index) => (
-                    <tr key={seller._id}>
-                      <td className="text-muted smallest align-middle">{index + 1}</td>
-                      <td className="align-middle">
-                        <div className="d-flex align-items-center gap-3">
+          <ListView
+            columns={[
+              {
+                label: 'Store Details',
+                key: 'name',
+                width: '25%',
+                render: (_, seller) => (
+                  <div className="d-flex align-items-center gap-3">
+                    <div
+                      className="seller-avatar d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                        color: '#fff',
+                        fontSize: '13px'
+                      }}
+                    >
+                      {seller.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="fw-bold text-dark smallest">{seller.name}</div>
+                      <div className="smallest text-muted d-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
+                        <span className="font-monospace">{seller.sellerId}</span>
+                        <span className="opacity-50">•</span>
+                        <span>{seller.plan}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                label: 'Manager',
+                key: 'managers',
+                width: '15%',
+                render: (managers) => (
+                  <div className="d-flex flex-column gap-1">
+                    {managers?.length > 0 ? (
+                      managers.map((m) => (
+                        <div key={m._id} className="d-flex align-items-center gap-2">
                           <div
-                            className="seller-avatar d-flex align-items-center justify-content-center fw-bold shadow-sm"
-                            style={{
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '12px',
-                              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                              color: '#fff',
-                              fontSize: '14px'
-                            }}
+                            className="rounded-circle border border-white shadow-sm d-flex align-items-center justify-content-center bg-light text-primary smallest fw-bold"
+                            style={{ width: '18px', height: '18px', flexShrink: 0, fontSize: '9px' }}
                           >
-                            {seller.name.charAt(0)}
+                            {m.firstName.charAt(0)}
                           </div>
-                          <div>
-                            <div className="fw-bold text-dark" style={{ fontSize: '13px' }}>{seller.name}</div>
-                            <div className="smallest text-muted d-flex align-items-center gap-1">
-                              <span className="font-monospace">{seller.sellerId}</span>
-                              <span className="mx-1">•</span>
-                              <span>{seller.plan} Plan</span>
-                            </div>
-                          </div>
+                          <span className="smallest text-dark fw-medium" style={{ fontSize: '10px' }}>
+                            {m.firstName} {m.lastName[0]}.
+                          </span>
                         </div>
-                      </td>
-                      <td className="align-middle">{getMarketplaceBadge(seller.marketplace)}</td>
-                      <td className="align-middle">
-                        {seller.managers && seller.managers.length > 0 ? (
-                          <div className="d-flex flex-column gap-1">
-                            {seller.managers.map((m) => (
-                              <div key={m._id} className="d-flex align-items-center gap-2">
-                                <div
-                                  className="rounded-circle border border-2 border-white shadow-sm d-flex align-items-center justify-content-center bg-light text-primary smallest fw-bold"
-                                  style={{ width: '20px', height: '20px', flexShrink: 0 }}
-                                >
-                                  {m.firstName.charAt(0)}
-                                </div>
-                                <span className="smallest text-dark fw-medium" style={{ whiteSpace: 'nowrap' }}>
-                                  {m.firstName} {m.lastName}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted smallest italic opacity-50">No Manager</span>
-                        )}
-                      </td>
-                      <td className="align-middle">{getHealthIndicator(seller)}</td>
-                      <td className="align-middle">
-                        <div
-                          className="d-flex align-items-center gap-2 cursor-pointer"
-                          onClick={() => handleViewAsins(seller)}
-                        >
-                          <Package size={14} className="text-muted" />
-                          <div>
-                            <div className="fw-bold text-dark smallest">{seller.totalAsins || 0} ASINs</div>
-                            <div className="text-muted smallest" style={{ fontSize: '9px' }}>{seller.activeAsins || 0} Live</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="align-middle" style={{ minWidth: '140px' }}>
-                        <div className="d-flex flex-column gap-1">
-                          <div className="d-flex justify-content-between smallest mb-1">
-                            <span className="text-muted fw-bold">Daily Scrape</span>
-                            <span className="text-dark fw-bold">{Math.round(((seller.scrapeUsed || 0) / (seller.scrapeLimit || 100)) * 100)}%</span>
-                          </div>
-                          <div className="progress shadow-none bg-light border" style={{ height: '6px' }}>
-                            <div
-                              className={`progress-bar rounded-pill ${(seller.scrapeUsed || 0) / (seller.scrapeLimit || 100) > 0.8 ? 'bg-danger' : (seller.scrapeUsed || 0) / (seller.scrapeLimit || 100) > 0.5 ? 'bg-warning' : 'bg-primary'}`}
-                              style={{ width: `${Math.min(((seller.scrapeUsed || 0) / (seller.scrapeLimit || 100)) * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                          <div className="smallest text-muted d-flex align-items-center gap-1 mt-1">
-                            <Clock size={10} />
-                            <span>{seller.lastScraped ? new Date(seller.lastScraped).toLocaleDateString() : 'No Scrape'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="align-middle">{getStatusBadge(seller.status)}</td>
-                      <td className="align-middle text-end">
-                        <div className="d-flex gap-1 justify-content-end">
-                          <button
-                            className="btn btn-icon btn-white border shadow-sm"
-                            onClick={() => handleViewAsins(seller)}
-                            title="Store Inventory"
-                          >
-                            <LayoutGrid size={14} />
-                          </button>
-                          <button
-                            className={`btn btn-icon border shadow-sm ${seller.status === 'Active' ? 'btn-white' : 'btn-soft-success'}`}
-                            onClick={() => handleToggleStatus(seller._id)}
-                            title={seller.status === 'Active' ? 'Pause Stream' : 'Start Stream'}
-                          >
-                            {seller.status === 'Active' ? <Pause size={14} /> : <Play size={14} />}
-                          </button>
-                          <button
-                            className="btn btn-icon btn-soft-danger border shadow-sm"
-                            onClick={() => handleDeleteSeller(seller._id)}
-                            title="Remove"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      ))
+                    ) : (
+                      <span className="text-muted smallest opacity-50 italic">None</span>
+                    )}
+                  </div>
+                )
+              },
+              {
+                label: 'Health',
+                key: 'health',
+                width: '10%',
+                render: (_, seller) => getHealthIndicator(seller)
+              },
+              {
+                label: 'Resources',
+                key: 'totalAsins',
+                width: '12%',
+                render: (total, seller) => (
+                  <div className="d-flex align-items-center gap-2 cursor-pointer" onClick={() => handleViewAsins(seller)}>
+                    <Package size={12} className="text-muted" />
+                    <div>
+                      <div className="fw-bold text-dark smallest">{total || 0} ASINs</div>
+                      <div className="text-muted smallest" style={{ fontSize: '9px' }}>{seller.activeAsins || 0} Live</div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                label: 'Consumption',
+                key: 'scrapeUsed',
+                width: '18%',
+                render: (used, seller) => {
+                  const limit = seller.scrapeLimit || 100;
+                  const ratio = used / limit;
+                  return (
+                    <div className="d-flex flex-column gap-1">
+                      <ProgressBar
+                        value={ratio * 100}
+                        label="Daily Scrape"
+                        hint
+                        color={ratio > 0.8 ? 'danger' : ratio > 0.5 ? 'warning' : 'primary'}
+                        size="xs"
+                      />
+                      <div className="smallest text-muted d-flex align-items-center gap-1 mt-1" style={{ fontSize: '9px' }}>
+                        <Clock size={10} />
+                        <span>{seller.lastScraped ? new Date(seller.lastScraped).toLocaleDateString() : 'No Scrape'}</span>
+                      </div>
+                    </div>
+                  );
+                }
+              },
+              {
+                label: 'Status',
+                key: 'status',
+                width: '10%',
+                render: (status) => getStatusBadge(status)
+              }
+            ]}
+            rows={filteredSellers}
+            groupBy="marketplace"
+            rowKey="_id"
+            options={{ selectable: true }}
+            renderGroupHeader={({ group, rows }) => (
+              <div className="d-flex align-items-center gap-2">
+                {getMarketplaceBadge(group)}
+                <span className="text-muted smallest fw-bold">{rows.length} STORES</span>
+              </div>
+            )}
+            actions={(seller) => (
+              <>
+                <button className="btn btn-icon btn-white border shadow-sm btn-sm" onClick={() => handleViewAsins(seller)} title="Inventory">
+                  <LayoutGrid size={12} />
+                </button>
+                <button
+                  className={`btn btn-icon border shadow-sm btn-sm ${seller.status === 'Active' ? 'btn-white' : 'btn-soft-success'}`}
+                  onClick={() => handleToggleStatus(seller._id)}
+                  title={seller.status === 'Active' ? 'Pause' : 'Start'}
+                >
+                  {seller.status === 'Active' ? <Pause size={12} /> : <Play size={12} />}
+                </button>
+              </>
+            )}
+            emptyMessage="No sellers found. Add a seller to get started."
+          />
         </div>
       </div>
 

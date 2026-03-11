@@ -24,6 +24,7 @@ import {
   Plus,
   Info
 } from 'lucide-react';
+import ListView from '../components/common/ListView';
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -186,9 +187,9 @@ const UsersPage = () => {
   if (loading && users.length === 0) {
     return (
       <>
-        <header className="main-header">
+        <div className="page-header">
           <h1 className="page-title"><Users size={24} className="me-2" />User Management</h1>
-        </header>
+        </div>
         <div className="page-content">
           <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
             <div className="loading-spinner"></div>
@@ -200,7 +201,7 @@ const UsersPage = () => {
 
   return (
     <>
-      <header className="main-header bg-white border-bottom py-3 px-4">
+      <div className="page-header">
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div className="d-flex align-items-center gap-3">
             <div className="p-2 bg-primary-subtle text-primary rounded-3">
@@ -222,7 +223,7 @@ const UsersPage = () => {
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="page-content px-4 py-4" style={{ backgroundColor: '#f8fafc' }}>
         {/* Statistics or Quick Filters - Optional but good for Premium feel */}
@@ -301,164 +302,138 @@ const UsersPage = () => {
           </div>
         </div>
 
-        {/* Users Table Card */}
+        {/* Users List Card */}
         <div className="card border-0 shadow-sm" style={{ borderRadius: '20px', overflow: 'hidden' }}>
           <div className="card-body p-0">
-            <div className="table-responsive">
-              <table className="table align-middle mb-0">
-                <thead className="bg-light">
-                  <tr>
-                    <th className="px-4 py-3 border-0 smallest fw-bold text-muted text-uppercase">Team Member</th>
-                    <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Email Identity</th>
-                    <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Access Level</th>
-                    <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Supervisor(s)</th>
-                    <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Account Status</th>
-                    <th className="py-3 border-0 smallest fw-bold text-muted text-uppercase">Last Login</th>
-                    <th className="px-4 py-3 border-0 text-end smallest fw-bold text-muted text-uppercase">Control</th>
-                  </tr>
-                </thead>
-                <tbody className="border-top-0">
-                  {users.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-5 text-muted">
-                        <div className="mb-2">
-                          <Users size={40} className="opacity-25" />
+            <ListView
+              columns={[
+                {
+                  label: 'Team Member',
+                  key: 'name',
+                  width: '30%',
+                  render: (_, user) => (
+                    <div className="d-flex align-items-center gap-3">
+                      <Link
+                        to={`/profile/${user._id}`}
+                        className="avatar d-flex align-items-center justify-content-center text-white fw-bold shadow-sm text-decoration-none"
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          background: user.role?.color ? `linear-gradient(135deg, ${user.role.color}, ${user.role.color}dd)` : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                          fontSize: '13px'
+                        }}
+                      >
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </Link>
+                      <div>
+                        <div className="fw-bold text-dark smallest">{user.firstName} {user.lastName}</div>
+                        <div className="smallest text-muted d-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
+                          <Phone size={10} />
+                          {user.phone || 'No phone'}
                         </div>
-                        <div className="fw-bold">No team members found</div>
-                        <div className="smallest">Try adjusting your filters or search terms.</div>
-                      </td>
-                    </tr>
-                  ) : (
-                    users.map(user => (
-                      <tr key={user._id} className="hover-shadow-sm transition-all">
-                        <td className="px-4">
-                          <div className="d-flex align-items-center gap-3">
-                            <Link
-                              to={`/profile/${user._id}`}
-                              className="avatar d-flex align-items-center justify-content-center text-white fw-bold shadow-sm text-decoration-none"
-                              style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '12px',
-                                background: user.role?.color ? `linear-gradient(135deg, ${user.role.color}, ${user.role.color}dd)` : 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                                fontSize: '14px'
-                              }}
-                            >
-                              {user.firstName?.[0]}{user.lastName?.[0]}
-                            </Link>
-                            <div>
-                              <Link to={`/profile/${user._id}`} className="fw-bold text-dark fs-6 text-decoration-none hover-primary">{user.firstName} {user.lastName}</Link>
-                              <div className="smallest text-muted d-flex align-items-center gap-1">
-                                <Phone size={10} />
-                                {user.phone || 'No phone set'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center gap-2 text-dark">
-                            <Mail size={14} className="text-muted" />
-                            <span className="fs-6">{user.email}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            className="badge rounded-pill px-3 py-2 fw-bold"
-                            style={{
-                              backgroundColor: `${user.role?.color || '#6B7280'}15`,
-                              color: user.role?.color || '#6B7280',
-                              border: `1px solid ${user.role?.color || '#6B7280'}30`
-                            }}
-                          >
-                            {user.role?.displayName || 'Standard User'}
+                      </div>
+                    </div>
+                  )
+                },
+                {
+                  label: 'Email Identity',
+                  key: 'email',
+                  width: '20%',
+                  render: (email) => (
+                    <div className="d-flex align-items-center gap-2 text-dark smallest">
+                      <Mail size={12} className="text-muted" />
+                      <span>{email}</span>
+                    </div>
+                  )
+                },
+                {
+                  label: 'Supervisors',
+                  key: 'supervisors',
+                  width: '15%',
+                  render: (supervisors) => (
+                    <div className="d-flex flex-wrap gap-1">
+                      {supervisors?.length > 0 ? (
+                        supervisors.map(s => (
+                          <span key={s._id} className="smallest text-muted bg-light px-2 py-1 rounded" style={{ fontSize: '10px' }}>
+                            {s.firstName} {s.lastName[0]}.
                           </span>
-                        </td>
-                        <td>
-                          <div className="d-flex flex-wrap gap-1">
-                            {user.supervisors?.length > 0 ? (
-                              user.supervisors.map(s => (
-                                <span key={s._id} className="smallest text-muted bg-light px-2 py-1 rounded">
-                                  {s.firstName} {s.lastName[0]}.
-                                </span>
-                              ))
-                            ) : (
-                              <span className="smallest text-muted opacity-50">None</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          {user.isActive ? (
-                            <span className="badge rounded-pill bg-success-subtle text-success px-3 py-2 d-inline-flex align-items-center gap-1 fw-bold">
-                              <CheckCircle2 size={12} />
-                              Active
-                            </span>
-                          ) : (
-                            <span className="badge rounded-pill bg-danger-subtle text-danger px-3 py-2 d-inline-flex align-items-center gap-1 fw-bold">
-                              <XCircle size={12} />
-                              Inactive
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          <div className="text-dark fs-6 d-flex align-items-center gap-2">
-                            <Clock size={14} className="text-muted" />
-                            {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}
-                          </div>
-                        </td>
-                        <td className="px-4">
-                          <div className="d-flex gap-2 justify-content-end">
-                            <button
-                              className="btn btn-icon btn-white border shadow-sm hover-primary"
-                              onClick={() => handleOpenUserModal(user)}
-                              title="Edit Member"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              className={`btn btn-icon border shadow-sm ${user.isActive ? 'btn-white hover-warning' : 'btn-soft-success'}`}
-                              onClick={() => handleToggleUserStatus(user._id)}
-                              title={user.isActive ? 'Deactivate Access' : 'Restore Access'}
-                            >
-                              {user.isActive ? <Pause size={14} /> : <Play size={14} />}
-                            </button>
-                            <button
-                              className="btn btn-icon btn-white border shadow-sm hover-danger"
-                              onClick={() => handleDeleteUser(user._id)}
-                              title="Delete Member"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {pagination.pages > 1 && (
-              <div className="d-flex justify-content-center p-3 border-top">
-                <nav>
-                  <ul className="pagination mb-0">
-                    <li className={`page-item ${pagination.page === 1 ? 'disabled' : ''}`}>
-                      <button className="page-link" onClick={() => handlePageChange(pagination.page - 1)}>Previous</button>
-                    </li>
-                    {[...Array(pagination.pages)].map((_, idx) => (
-                      <li key={idx} className={`page-item ${pagination.page === idx + 1 ? 'active' : ''}`}>
-                        <button className="page-link" onClick={() => handlePageChange(idx + 1)}>{idx + 1}</button>
-                      </li>
-                    ))}
-                    <li className={`page-item ${pagination.page === pagination.pages ? 'disabled' : ''}`}>
-                      <button className="page-link" onClick={() => handlePageChange(pagination.page + 1)}>Next</button>
-                    </li>
-                  </ul>
-                </nav>
-              </div>
-            )}
+                        ))
+                      ) : (
+                        <span className="smallest text-muted opacity-50" style={{ fontSize: '10px' }}>None</span>
+                      )}
+                    </div>
+                  )
+                },
+                {
+                  label: 'Status',
+                  key: 'isActive',
+                  width: '12%',
+                  render: (isActive) => isActive ? (
+                    <span className="badge rounded-pill bg-success-subtle text-success px-2 py-1 d-inline-flex align-items-center gap-1 fw-bold" style={{ fontSize: '10px' }}>
+                      <CheckCircle2 size={10} /> Active
+                    </span>
+                  ) : (
+                    <span className="badge rounded-pill bg-danger-subtle text-danger px-2 py-1 d-inline-flex align-items-center gap-1 fw-bold" style={{ fontSize: '10px' }}>
+                      <XCircle size={10} /> Inactive
+                    </span>
+                  )
+                },
+                {
+                  label: 'Last Login',
+                  key: 'lastLogin',
+                  width: '13%',
+                  render: (val) => (
+                    <div className="text-muted smallest d-flex align-items-center gap-2" style={{ fontSize: '11px' }}>
+                      <Clock size={12} />
+                      {val ? new Date(val).toLocaleDateString() : 'Never'}
+                    </div>
+                  )
+                }
+              ]}
+              rows={users}
+              groupBy={(user) => user.role?.displayName || 'Standard User'}
+              rowKey="_id"
+              options={{ selectable: true }}
+              actions={(user) => (
+                <>
+                  <button className="btn btn-icon btn-white border shadow-sm btn-sm" onClick={() => handleOpenUserModal(user)} title="Edit">
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    className={`btn btn-icon border shadow-sm btn-sm ${user.isActive ? 'btn-white hover-warning' : 'btn-soft-success'}`}
+                    onClick={() => handleToggleUserStatus(user._id)}
+                    title={user.isActive ? 'Deactivate' : 'Restore'}
+                  >
+                    {user.isActive ? <Pause size={12} /> : <Play size={12} />}
+                  </button>
+                </>
+              )}
+              emptyMessage="No team members found"
+            />
           </div>
         </div>
+
+        {/* Pagination */}
+        {pagination.pages > 1 && (
+          <div className="d-flex justify-content-center p-3 border-top">
+            <nav>
+              <ul className="pagination mb-0">
+                <li className={`page-item ${pagination.page === 1 ? 'disabled' : ''}`}>
+                  <button className="page-link" onClick={() => handlePageChange(pagination.page - 1)}>Previous</button>
+                </li>
+                {[...Array(pagination.pages)].map((_, idx) => (
+                  <li key={idx} className={`page-item ${pagination.page === idx + 1 ? 'active' : ''}`}>
+                    <button className="page-link" onClick={() => handlePageChange(idx + 1)}>{idx + 1}</button>
+                  </li>
+                ))}
+                <li className={`page-item ${pagination.page === pagination.pages ? 'disabled' : ''}`}>
+                  <button className="page-link" onClick={() => handlePageChange(pagination.page + 1)}>Next</button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        )}
       </div>
 
       {/* User Modal */}

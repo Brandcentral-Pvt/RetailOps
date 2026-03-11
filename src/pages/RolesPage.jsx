@@ -156,8 +156,8 @@ const RolesPage = () => {
 
     return (
         <div className="page-content" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-            <header className="main-header bg-white border-bottom py-3 px-4 sticky-top shadow-sm">
-                <div className="d-flex justify-content-between align-items-center">
+            <div className="page-header">
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div className="d-flex align-items-center gap-3">
                         <div className="p-2 bg-primary-subtle text-primary rounded-3">
                             <Shield size={24} />
@@ -172,7 +172,7 @@ const RolesPage = () => {
                         Create Custom Role
                     </button>
                 </div>
-            </header>
+            </div>
 
             <div className="container-fluid px-4 py-4">
                 {/* Helper Note */}
@@ -204,33 +204,26 @@ const RolesPage = () => {
                                         >
                                             Priority {role.level}
                                         </span>
-                                        {!role.isSystem && (
-                                            <div className="d-flex gap-2">
-                                                <button
-                                                    className="btn btn-icon btn-light border shadow-none hover-primary transition-all"
-                                                    onClick={() => handleOpenRoleModal(role)}
-                                                    style={{ width: '32px', height: '32px', borderRadius: '10px' }}
-                                                >
-                                                    <Pencil size={14} />
-                                                </button>
-                                                <button
-                                                    className="btn btn-icon btn-light-danger border-0 shadow-none hover-danger transition-all"
-                                                    onClick={() => handleDeleteRole(role._id)}
-                                                    style={{ width: '32px', height: '32px', borderRadius: '10px' }}
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        )}
-                                        {role.isSystem && (
+                                        <div className="d-flex gap-2">
                                             <button
-                                                className="btn btn-icon btn-light border shadow-none hover-primary transition-all"
+                                                className="btn btn-light border shadow-sm text-primary d-flex align-items-center justify-content-center"
                                                 onClick={() => handleOpenRoleModal(role)}
-                                                style={{ width: '32px', height: '32px', borderRadius: '10px' }}
+                                                style={{ width: '38px', height: '38px', borderRadius: '10px' }}
+                                                title="Edit Role"
                                             >
-                                                <Pencil size={14} />
+                                                <i className="bi bi-pencil-square" style={{ fontSize: '1.2rem' }}></i>
                                             </button>
-                                        )}
+                                            {!role.isSystem && (
+                                                <button
+                                                    className="btn btn-light border shadow-sm text-danger d-flex align-items-center justify-content-center"
+                                                    onClick={() => handleDeleteRole(role._id)}
+                                                    style={{ width: '38px', height: '38px', borderRadius: '10px' }}
+                                                    title="Delete Role"
+                                                >
+                                                    <i className="bi bi-trash" style={{ fontSize: '1.2rem' }}></i>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="mb-3">
@@ -244,12 +237,11 @@ const RolesPage = () => {
 
                                     <div className="d-flex align-items-center justify-content-between pt-3 border-top border-light">
                                         <div className="d-flex align-items-center gap-1 text-primary smallest fw-bold">
-                                            <Shield size={12} />
                                             {role.permissions?.length || 0} Capabilities
                                         </div>
                                         {role.isSystem && (
                                             <span className="smallest fw-bold text-muted d-flex align-items-center gap-1">
-                                                <CheckCircle2 size={12} className="text-success" />
+                                                <i className="bi bi-patch-check-fill text-success" style={{ fontSize: '12px' }}></i>
                                                 System Role
                                             </span>
                                         )}

@@ -40,10 +40,21 @@ exports.getObjectives = async (req, res) => {
             const teamKrs = await KeyResult.find({ _id: { $in: teamKrIds } }).select('objectiveId');
             const teamObjectiveIdsFromTasks = teamKrs.map(kr => kr.objectiveId).filter(id => id);
 
-            filter.$or = [
-                { owners: { $in: teamIds } },
-                { _id: { $in: teamObjectiveIdsFromTasks } }
+            // Fetch assigned sellers to restrict objectives by seller
+            const assignedSellerIds = (req.user.assignedSellers || []).map(s => s._id || s);
+
+            filter.$and = [
+                {
+                    $or: [
+                        { owners: { $in: teamIds } },
+                        { _id: { $in: teamObjectiveIdsFromTasks } }
+                    ]
+                }
             ];
+
+            if (assignedSellerIds.length > 0) {
+                filter.$and.push({ sellerId: { $in: assignedSellerIds } });
+            }
         }
 
         if (req.query.sellerId) filter.sellerId = req.query.sellerId;

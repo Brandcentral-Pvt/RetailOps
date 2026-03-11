@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
-import Sidebar from './components/SideBar';
+import Sidebar from './components/common/Sidebar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';

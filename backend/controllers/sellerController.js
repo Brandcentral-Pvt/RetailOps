@@ -23,6 +23,39 @@ const enrichSellersWithManagers = async (sellers) => {
   });
 };
 
+/**
+ * Enrich sellers with dynamic ASIN counts so it's always accurate.
+ */
+const enrichSellersWithAsinCounts = async (sellers) => {
+  if (!sellers || sellers.length === 0) return sellers;
+  const sellerIds = sellers.map(s => s._id);
+
+  const counts = await Asin.aggregate([
+    { $match: { seller: { $in: sellerIds } } },
+    {
+      $group: {
+        _id: '$seller',
+        totalAsins: { $sum: 1 },
+        activeAsins: { $sum: { $cond: [{ $eq: ['$status', 'Active'] }, 1, 0] } }
+      }
+    }
+  ]);
+
+  const countMap = {};
+  counts.forEach(c => {
+    countMap[c._id.toString()] = c;
+  });
+
+  return sellers.map(seller => {
+    const stats = countMap[seller._id.toString()] || { totalAsins: 0, activeAsins: 0 };
+    return {
+      ...seller,
+      totalAsins: stats.totalAsins,
+      activeAsins: stats.activeAsins
+    };
+  });
+};
+
 // Get all sellers
 exports.getSellers = async (req, res) => {
   try {
@@ -32,16 +65,17 @@ exports.getSellers = async (req, res) => {
 
       const filter = { _id: { $in: sellerIds } };
       const sellers = await Seller.find(filter).sort({ createdAt: -1 });
-      const enriched = await enrichSellersWithManagers(sellers);
+      const enrichedWithManagers = await enrichSellersWithManagers(sellers);
+      const fullyEnriched = await enrichSellersWithAsinCounts(enrichedWithManagers);
 
       return res.json({
         success: true,
         data: {
-          sellers: enriched,
+          sellers: fullyEnriched,
           pagination: {
             page: 1,
-            limit: enriched.length,
-            total: enriched.length,
+            limit: fullyEnriched.length,
+            total: fullyEnriched.length,
             totalPages: 1
           }
         }
@@ -60,12 +94,13 @@ exports.getSellers = async (req, res) => {
       .limit(parseInt(limit));
 
     const total = await Seller.countDocuments(filter);
-    const enriched = await enrichSellersWithManagers(sellers);
+    const enrichedWithManagers = await enrichSellersWithManagers(sellers);
+    const fullyEnriched = await enrichSellersWithAsinCounts(enrichedWithManagers);
 
     res.json({
       success: true,
       data: {
-        sellers: enriched,
+        sellers: fullyEnriched,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),

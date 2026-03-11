@@ -655,7 +655,10 @@ const api = {
     const query = new URLSearchParams(params).toString();
     const url = `${API_BASE}${endpoint}${query ? `?${query}` : ''}`;
     const res = await fetch(url, { headers: { ...getAuthHeader() } });
-    if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed: ${res.statusText}`);
+    }
     return res.json();
   },
   post: async (endpoint, data = {}) => {
@@ -664,7 +667,10 @@ const api = {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed: ${res.statusText}`);
+    }
     return res.json();
   },
   put: async (endpoint, data) => {
@@ -673,7 +679,10 @@ const api = {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed: ${res.statusText}`);
+    }
     return res.json();
   },
   delete: async (endpoint) => {
@@ -681,7 +690,10 @@ const api = {
       method: 'DELETE',
       headers: { ...getAuthHeader() },
     });
-    if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed: ${res.statusText}`);
+    }
     return res.json();
   },
 

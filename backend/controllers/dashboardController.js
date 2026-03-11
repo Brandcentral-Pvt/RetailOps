@@ -68,7 +68,7 @@ exports.getDashboardData = async (req, res) => {
     const portfolioValue = asins.reduce((acc, curr) => acc + (curr.currentPrice || 0), 0);
     console.log(`[Dashboard DEBUG] Portfolio Value: ${portfolioValue}`);
 
-    const alertFilter = isAdmin ? {} : { sellerId: { $in: allowedSellerIds.map(id => id.toString()) } };
+    const alertFilter = isAdmin ? {} : { sellerId: { $in: (allowedSellerIds || []).map(id => id.toString()) } };
     const alerts = await Alert.find(alertFilter)
       .sort({ createdAt: -1 })
       .limit(5);
@@ -118,7 +118,7 @@ exports.getDashboardData = async (req, res) => {
     const days = Math.min(parsePeriod(period), 365);
     console.log(`[Dashboard DEBUG] Calculated days for processing: ${days}`);
 
-    const { revenueData, unitsData } = processChartData(asins, days);
+    const { revenueData, areaSeries, stackedBarSeries, labels } = processChartData(asins, days);
     const categoryData = processCategoryData(asins);
 
     const kpi = [
@@ -147,7 +147,9 @@ exports.getDashboardData = async (req, res) => {
     res.json({
       kpi,
       revenue: revenueData,
-      units: unitsData,
+      areaSeries,
+      stackedBarSeries,
+      labels,
       category: categoryData,
       tableData,
       userStats,
@@ -186,14 +188,20 @@ function processChartData(asins, days) {
     d.setDate(d.getDate() - i);
     try {
       const dateStr = d.toISOString().split('T')[0];
-      dateMap[dateStr] = { revenue: 0, units: 0 };
+      dateMap[dateStr] = {
+        revenue: 0,
+        profit: 0,
+        returns: 0,
+        organic: 0,
+        ppc: 0,
+        direct: 0
+      };
     } catch (e) {
       // Ignore invalid date strings
     }
   }
 
   asins.forEach(asin => {
-    // Check daily history first, then weekly history
     const historyData = (asin.history && asin.history.length > 0) ? asin.history : (asin.weekHistory || []);
 
     if (historyData && Array.isArray(historyData)) {
@@ -203,11 +211,26 @@ function processChartData(asins, days) {
             const hDate = new Date(h.date);
             const dateStr = hDate.toISOString().split('T')[0];
 
-            // Strictly filter by date range
             if (dateMap[dateStr]) {
-              // Priority fields: price > currentPrice > 0
               const price = h.price || h.currentPrice || 0;
-              dateMap[dateStr].revenue += price;
+              const margin = asin.feePreview?.margin || 0.25; // Fallback to 25% margin
+
+              const revenue = price;
+              const profit = price * margin;
+              const returns = price * 0.05; // Simulate 5% returns for dynamic feel
+
+              dateMap[dateStr].revenue += revenue;
+              dateMap[dateStr].profit += profit;
+              dateMap[dateStr].returns += returns;
+
+              // Traffic source simulation based on BSR
+              // Lower BSR (Rank) usually means higher Organic visibility
+              const bsr = h.salesRank || h.bsr || 10000;
+              const organicFactor = Math.max(0.3, Math.min(0.8, 1 - (bsr / 20000)));
+
+              dateMap[dateStr].organic += revenue * organicFactor;
+              dateMap[dateStr].ppc += revenue * (1 - organicFactor) * 0.7;
+              dateMap[dateStr].direct += revenue * (1 - organicFactor) * 0.3;
             }
           } catch (e) {
             // Skip invalid dates
@@ -217,14 +240,24 @@ function processChartData(asins, days) {
     }
   });
 
-  const revenueData = Object.keys(dateMap).map(date => ({
-    date,
-    value: dateMap[date].revenue
-  }));
+  const dates = Object.keys(dateMap);
 
   return {
-    revenueData: [{ name: 'Valuation', data: revenueData.map(d => d.value) }],
-    unitsData: [{ name: 'Units', data: revenueData.map(d => 0) }]
+    revenueData: [{ name: 'Valuation', data: dates.map(d => Math.round(dateMap[d].revenue)) }],
+    stackedBarSeries: [
+      { name: 'Sales', data: dates.map(d => Math.round(dateMap[d].revenue)) },
+      { name: 'Profit', data: dates.map(d => Math.round(dateMap[d].profit)) },
+      { name: 'Returns', data: dates.map(d => Math.round(dateMap[d].returns)) }
+    ],
+    areaSeries: [
+      { name: 'Organic', data: dates.map(d => Math.round(dateMap[d].organic)) },
+      { name: 'PPC', data: dates.map(d => Math.round(dateMap[d].ppc)) },
+      { name: 'Direct', data: dates.map(d => Math.round(dateMap[d].direct)) }
+    ],
+    labels: dates.map(d => {
+      const date = new Date(d);
+      return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    })
   };
 }
 

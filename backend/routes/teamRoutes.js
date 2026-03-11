@@ -6,6 +6,7 @@ const {
     getTeamMembers,
     addMember,
     removeMember,
+    updateMember,
     updateTeam,
     deleteTeam
 } = require('../controllers/teamController');
@@ -26,6 +27,7 @@ router.route('/:id/members')
     .post(addMember);
 
 router.route('/:id/members/:userId')
+    .put(updateMember)
     .delete(removeMember);
 
 module.exports = router;

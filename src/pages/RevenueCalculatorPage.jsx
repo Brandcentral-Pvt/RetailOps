@@ -82,9 +82,9 @@ const DashboardView = ({ asins, onNavigate }) => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <h1 className="page-title"><i className="bi bi-calculator"></i>Revenue Calculator Dashboard</h1>
-      </header>
+      </div>
       <div className="page-content">
         {/* API Settings Toggle */}
         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -273,9 +273,9 @@ const UploadPage = ({ onUploadComplete, onNavigate }) => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <h1 className="page-title"><i className="bi bi-upload"></i>Bulk Import ASINs</h1>
-      </header>
+      </div>
       <div className="page-content">
         <div className="row g-4">
           {/* Manual Entry */}
@@ -397,9 +397,9 @@ const RevenueCalculatorPage = () => {
   if (loading) {
     return (
       <>
-        <header className="main-header">
+        <div className="page-header">
           <h1 className="page-title"><i className="bi bi-calculator"></i>Revenue Calculator</h1>
-        </header>
+        </div>
         <div className="page-content">
           <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
             <div className="loading-spinner"></div>
@@ -411,9 +411,9 @@ const RevenueCalculatorPage = () => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <h1 className="page-title"><i className="bi bi-calculator"></i>Revenue Calculator</h1>
-      </header>
+      </div>
       <div className="page-content">
         {/* Quick Navigation */}
         <div className="d-flex justify-content-between align-items-center mb-4">

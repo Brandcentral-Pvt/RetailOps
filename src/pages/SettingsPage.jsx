@@ -80,9 +80,9 @@ const SettingsPage = () => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <h1 className="page-title"><i className="bi bi-gear"></i>Settings</h1>
-      </header>
+      </div>
       <div className="page-content">
         <div className="row">
           <div className="col-lg-8">

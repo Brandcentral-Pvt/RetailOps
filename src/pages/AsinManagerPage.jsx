@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import KPICard from '../components/KPICard';
+import ProgressBar from '../components/common/ProgressBar';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi } from '../services/api';
@@ -484,6 +485,27 @@ const AsinManagerPage = () => {
     );
   };
 
+  const renderRatingBreakdown = (breakdown) => {
+    if (!breakdown || (!breakdown.fiveStar && !breakdown.fourStar && !breakdown.threeStar && !breakdown.twoStar && !breakdown.oneStar)) {
+      return <span style={{ color: '#9ca3af' }}>-</span>;
+    }
+
+    // Very condensed mini bar chart or simple text representation
+    // Using a tooltip might be best for full details, but let's show a tiny inline representation
+    return (
+      <div className="d-flex flex-column gap-1" style={{ fontSize: '0.65rem', width: '60px' }}>
+        <div className="d-flex align-items-center justify-content-between">
+          <span className="text-success fw-bold">5★</span>
+          <span className="text-muted">{breakdown.fiveStar || 0}%</span>
+        </div>
+        <div className="d-flex align-items-center justify-content-between">
+          <span className="text-secondary fw-bold">1★</span>
+          <span className="text-muted">{breakdown.oneStar || 0}%</span>
+        </div>
+      </div>
+    );
+  };
+
   // Collapsible Section Component
   const CollapsibleSection = ({ title, icon: Icon, isOpen, onToggle, children, badge }) => (
     <div className="card mb-4 border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
@@ -535,30 +557,30 @@ const AsinManagerPage = () => {
 
   return (
     <>
-      <header className="main-header" style={{ padding: '1.5rem 2rem', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+      <div className="page-header">
         <div className="d-flex justify-content-between align-items-center">
           <div>
-            <h1 className="page-title mb-1 d-flex align-items-center gap-2" style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              <Scan className="text-primary" size={28} />
+            <h1 className="page-title mb-1">
+              <Scan className="text-primary" size={24} />
               ASIN <span className="text-primary">Performance</span> Manager
             </h1>
             <p className="text-muted small mb-0">Operational Inventory tracking & Listing Quality Metrics</p>
           </div>
           <div className="d-flex align-items-center gap-3">
             <div className="btn-group p-1 bg-white border shadow-sm rounded-pill">
-              <button className="btn btn-sm px-3 rounded-pill border-0 transition-all btn-primary shadow-sm" style={{ fontSize: '12px', fontWeight: '600' }}>
-                <TrendingUp size={14} className="me-1" /> Performance
+              <button className="btn btn-sm px-3 rounded-pill border-0 transition-all btn-primary shadow-sm" style={{ fontSize: '11px', fontWeight: '600' }}>
+                <TrendingUp size={12} className="me-1" /> Performance
               </button>
-              <button className="btn btn-sm px-3 rounded-pill border-0 transition-all text-muted hover-bg-light" style={{ fontSize: '12px', fontWeight: '600' }}>
-                <Table size={14} className="me-1" /> Analytics
+              <button className="btn btn-sm px-3 rounded-pill border-0 transition-all text-muted hover-bg-light" style={{ fontSize: '11px', fontWeight: '600' }}>
+                <Table size={12} className="me-1" /> Analytics
               </button>
             </div>
-            <button className="btn btn-primary d-flex align-items-center gap-2 rounded-pill px-4 shadow-sm" onClick={() => setShowAddModal(true)}>
-              <Plus size={18} /> Add ASIN
+            <button className="btn btn-primary btn-sm d-flex align-items-center gap-2 rounded-pill px-4 shadow-sm" onClick={() => setShowAddModal(true)}>
+              <Plus size={16} /> Add ASIN
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="page-content">
         {error && (
@@ -569,25 +591,26 @@ const AsinManagerPage = () => {
         )}
 
         {scrapeProgress && (
-          <div className="card border-0 shadow-sm rounded-4 mb-4" style={{ overflow: 'hidden' }}>
-            <div className="card-body p-4 bg-primary bg-opacity-10 border-start border-primary border-4">
-              <div className="d-flex justify-content-between align-items-center mb-2">
+          <div className="card border-0 shadow rounded-4 mb-4" style={{ overflow: 'hidden', borderLeft: '4px solid #4f46e5' }}>
+            <div className="card-body p-4 bg-white">
+              <div className="d-flex justify-content-between align-items-center mb-3">
                 <div className="fw-bold text-primary d-flex align-items-center gap-2">
                   <RefreshCw size={18} className="animate-spin" />
-                  Live Syncing Data...
+                  Live Syncing Operation Data...
                 </div>
-                <div className="fw-bold text-primary">
-                  {scrapeProgress.processed} / {scrapeProgress.total} ASINs
+                <div className="fw-bold text-primary smallest">
+                  {scrapeProgress.processed} / {scrapeProgress.total} ASINs PROCESSED
                 </div>
               </div>
-              <div className="progress" style={{ height: '8px', backgroundColor: 'rgba(255, 255, 255, 0.15)' }}>
-                <div
-                  className="progress-bar progress-bar-striped progress-bar-animated bg-primary"
-                  role="progressbar"
-                  style={{ width: `${(scrapeProgress.processed / scrapeProgress.total) * 100}%` }}
-                ></div>
+              <ProgressBar
+                value={(scrapeProgress.processed / scrapeProgress.total) * 100}
+                color="primary"
+                size="md"
+              />
+              <div className="text-muted smallest mt-2 fw-medium d-flex align-items-center gap-2">
+                <div className="spinner-grow spinner-grow-sm text-primary" style={{ width: '8px', height: '8px' }}></div>
+                {scrapeProgress.status}
               </div>
-              <div className="text-muted small mt-2">{scrapeProgress.status}</div>
             </div>
           </div>
         )}
@@ -765,10 +788,12 @@ const AsinManagerPage = () => {
                         </div>
                       </th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Reviews</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', padding: '0.75rem 1rem', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>5★/1★ Split</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>LQS</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Buy Box</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>A+</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Images</th>
+                      <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Bullets</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Desc Len</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Status</th>
                       <th rowSpan="2" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Last Scraped</th>
@@ -855,6 +880,9 @@ const AsinManagerPage = () => {
                           {asin.reviewCount ? asin.reviewCount.toLocaleString() : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                          {renderRatingBreakdown(asin.ratingBreakdown)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                           {asin.lqs ? getLqsBadge(asin.lqs) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -867,6 +895,13 @@ const AsinManagerPage = () => {
                           {asin.imagesCount ? (
                             <span className="badge" style={{ backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 500 }}>
                               {asin.imagesCount}
+                            </span>
+                          ) : <span style={{ color: '#9ca3af' }}>-</span>}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
+                          {asin.bulletPoints ? (
+                            <span className="badge" style={{ backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 500 }}>
+                              {asin.bulletPoints}
                             </span>
                           ) : <span style={{ color: '#9ca3af' }}>-</span>}
                         </td>

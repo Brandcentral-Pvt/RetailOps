@@ -28,8 +28,8 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
     const [defaultAssignee, setDefaultAssignee] = useState('');
     const [baseTitle, setBaseTitle] = useState(objective?.title || '');
     const [type, setType] = useState(objective?.type || 'MONTHLY');
-    const [startDate, setStartDate] = useState(objective?.startDate ? new Date(objective.startDate) : new Date());
-    const [endDate, setEndDate] = useState(objective?.endDate ? new Date(objective.endDate) : new Date());
+    const [dateRange, setDateRange] = useState([objective?.startDate ? new Date(objective.startDate) : new Date(), objective?.endDate ? new Date(objective.endDate) : new Date()]);
+    const [startDate, endDate] = dateRange;
     const [sellers, setSellers] = useState([]);
     const [selectedSeller, setSelectedSeller] = useState(objective?.sellerId || '');
     const [loading, setLoading] = useState(false);
@@ -62,7 +62,7 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
             end.setMonth(end.getMonth() + 3);
         }
 
-        setEndDate(end);
+        setDateRange([startDate, end]);
     }, [startDate, type]);
 
     const handleAddKR = () => {
@@ -529,31 +529,20 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
                                                 <option value="QUARTERLY">Quarterly</option>
                                             </select>
                                         </div>
-                                        <div className="col-md-3">
-                                            <label className="form-label small fw-bold text-muted text-uppercase">Start Date</label>
-                                            <div className="d-flex bg-white border rounded">
+                                        <div className="col-md-6">
+                                            <label className="form-label small fw-bold text-muted text-uppercase">Project Duration (Range)</label>
+                                            <div className="d-flex bg-white border rounded align-items-center px-3 py-1">
+                                                <Calendar size={18} className="text-primary me-2" />
                                                 <DatePicker
-                                                    selected={startDate}
-                                                    onChange={(date) => setStartDate(date)}
-                                                    className="form-control border-0"
+                                                    selectsRange={true}
+                                                    startDate={startDate}
+                                                    endDate={endDate}
+                                                    onChange={(update) => setDateRange(update)}
+                                                    className="form-control border-0 bg-transparent flex-grow-1"
                                                     dateFormat="MMM d, yyyy"
+                                                    placeholderText="Select start and end dates"
                                                     required
                                                 />
-                                                <div className="d-flex align-items-center px-2 text-muted"><Calendar size={16} /></div>
-                                            </div>
-                                        </div>
-                                        <div className="col-md-3">
-                                            <label className="form-label small fw-bold text-muted text-uppercase">End Date</label>
-                                            <div className="d-flex bg-white border rounded">
-                                                <DatePicker
-                                                    selected={endDate}
-                                                    onChange={(date) => setEndDate(date)}
-                                                    className="form-control border-0"
-                                                    dateFormat="MMM d, yyyy"
-                                                    required
-                                                    minDate={startDate}
-                                                />
-                                                <div className="d-flex align-items-center px-2 text-muted"><Calendar size={16} /></div>
                                             </div>
                                         </div>
                                     </div>

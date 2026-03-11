@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import KPICard from '../components/KPICard';
+import ProgressBar from '../components/common/ProgressBar';
 import { sellerApi, asinApi } from '../services/api';
 import octoparseService from '../services/octoparseService';
 
@@ -167,9 +168,9 @@ const ScrapeTasksPage = () => {
   if (loading) {
     return (
       <>
-        <header className="main-header">
+        <div className="page-header">
           <h1 className="page-title"><i className="bi bi-cloud-download"></i>Scrape Tasks</h1>
-        </header>
+        </div>
         <div className="page-content">
           <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
             <div className="loading-spinner"></div>
@@ -181,14 +182,14 @@ const ScrapeTasksPage = () => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <h1 className="page-title"><i className="bi bi-cloud-download"></i>Scrape Tasks</h1>
           <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
             <i className="bi bi-plus-lg me-2"></i>Create Task
           </button>
         </div>
-      </header>
+      </div>
       <div className="page-content">
         <div className="kpi-grid mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
           {kpis.map((kpi, idx) => (
@@ -256,14 +257,13 @@ const ScrapeTasksPage = () => {
                         </td>
                         <td>{getStatusBadge(task.status)}</td>
                         <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <div className="progress flex-grow-1" style={{ height: '8px', width: '100px' }}>
-                              <div
-                                className={`progress-bar ${task.status === 'FAILED' ? 'bg-danger' : ''}`}
-                                style={{ width: `${task.progress}%` }}
-                              ></div>
-                            </div>
-                            <span className="fs-sm">{task.progress}%</span>
+                          <div style={{ width: '120px' }}>
+                            <ProgressBar
+                              value={task.progress}
+                              color={task.status === 'FAILED' ? 'danger' : 'primary'}
+                              size="sm"
+                              hint
+                            />
                           </div>
                         </td>
                         <td className="text-muted fs-sm">{formatDate(task.startedAt || task.createdAt)}</td>

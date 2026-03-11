@@ -25,7 +25,7 @@ const AlertRulesPage = () => {
   });
 
   const toggleRule = (id) => {
-    setRules(rules.map(rule => 
+    setRules(rules.map(rule =>
       rule.id === id ? { ...rule, status: !rule.status } : rule
     ));
   };
@@ -67,12 +67,12 @@ const AlertRulesPage = () => {
 
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <h1 className="page-title">
           <i className="bi bi-gear"></i>
           Alert Rules
         </h1>
-      </header>
+      </div>
       <div className="page-content">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <p className="text-muted mb-0">Configure automatic alerts based on your business metrics</p>

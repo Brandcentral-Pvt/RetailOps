@@ -5,12 +5,12 @@ import ExportButton from '../components/ExportButton';
 const UploadExport = () => {
   return (
     <>
-      <header className="main-header">
+      <div className="page-header">
         <h1 className="page-title">
           <i className="bi bi-arrow-left-right"></i>
           Upload & Export
         </h1>
-      </header>
+      </div>
       <div className="page-content">
         <div className="row">
           <div className="col-lg-6 mb-4">

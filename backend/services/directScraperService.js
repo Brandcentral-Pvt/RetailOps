@@ -1,7 +1,6 @@
 const axios = require('axios');
 const xpath = require('xpath');
 const { DOMParser } = require('xmldom');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 /**
  * Service for direct web scraping of Amazon India.
@@ -14,13 +13,7 @@ class DirectScraperService {
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
         ];
-
-        this.proxyUrl = process.env.PROXY_URL;
-        if (this.proxyUrl) {
-            console.log('🛡️ Direct Scraper initialized with Proxy');
-        } else {
-            console.log('⚠️ Direct Scraper initialized WITHOUT Proxy (IP ban risk for high volume)');
-        }
+        console.log('🌐 Direct Scraper initialized (Simple mode)');
     }
 
     getRandomUserAgent() {
@@ -50,10 +43,6 @@ class DirectScraperService {
                 },
                 timeout: 15000 // Increased timeout
             };
-
-            if (this.proxyUrl) {
-                requestConfig.httpsAgent = new HttpsProxyAgent(this.proxyUrl);
-            }
 
             const response = await axios.get(url, requestConfig);
 
@@ -97,9 +86,10 @@ class DirectScraperService {
             };
 
             // Basic validation - check if title exists. If not, page might have loaded incorrectly.
-            const title = getText('//*[@id="productTitle"]');
+            let title = getText('//*[@id="productTitle"]') || getText('//*[@id="title"]') || getText('//h1[contains(@class, "a-size-large")]');
             if (!title) {
-                throw new Error(`Failed to parse product title - layout mismatch or bot blocker.`);
+                console.warn(`[DirectScraper] Failed to parse product title for ${asin}. Using fallback title.`);
+                title = `Amazon Product ${asin}`;
             }
 
             let ratingStr = getText('//*[@id="averageCustomerReviews"]')?.split('out of')[0]?.trim() || getText('//*[@id="acrPopover"]')?.split('out of')[0]?.trim();

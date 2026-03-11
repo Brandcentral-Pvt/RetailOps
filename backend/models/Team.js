@@ -6,10 +6,6 @@ const teamSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
-    website: {
-        type: String,
-        trim: true,
-    },
     logo: {
         type: String,
     },
@@ -20,7 +16,17 @@ const teamSchema = new mongoose.Schema({
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
+            required: true,
         },
+        role: {
+            type: String,
+            enum: ['lead', 'member'],
+            default: 'member',
+        },
+        resourceAccess: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Seller',
+        }],
         joinedAt: {
             type: Date,
             default: Date.now,

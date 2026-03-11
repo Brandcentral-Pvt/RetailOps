@@ -3,6 +3,8 @@ import { X, Save, Calendar, User, Tag, AlertCircle, CheckCircle, ThumbsUp, Thumb
 import ActionChat from './ActionChat';
 import { db } from '../../services/db';
 import './ActionModal.css';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], sellers = [], actions = [], onNavigateToAction, initialKeyResultId = null }) => {
     const [messages, setMessages] = useState([]);
@@ -64,8 +66,8 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
                 status: action.status || 'PENDING',
                 asins: action.asins?.map(a => a._id || a) || [],
                 assignedTo: action.assignedTo?._id || action.assignedTo || action.assignee || '',
-                startDate: (action.timeTracking?.startDate || action.startDate) ? new Date(action.timeTracking?.startDate || action.startDate).toISOString().split('T')[0] : '',
-                deadline: (action.timeTracking?.deadline || action.deadline || action.dueDate) ? new Date(action.timeTracking?.deadline || action.deadline || action.dueDate).toISOString().split('T')[0] : '',
+                startDate: (action.timeTracking?.startDate || action.startDate) ? new Date(action.timeTracking?.startDate || action.startDate) : null,
+                deadline: (action.timeTracking?.deadline || action.deadline || action.dueDate) ? new Date(action.timeTracking?.deadline || action.deadline || action.dueDate) : null,
                 recurring: action.recurring || { enabled: false, frequency: 'WEEKLY', daysOfWeek: [] },
                 keyResultId: initialKeyResultId || '',
                 measurementMetric: 'NONE',
@@ -505,14 +507,22 @@ const ActionModal = ({ action, isOpen, onClose, onSave, asins = [], users = [], 
 
                                         <hr className="my-4 opacity-50" />
 
-                                        <div className="mb-3">
-                                            <label className="form-label-clean"><Calendar size={14} className="me-2" /> Start Date</label>
-                                            <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className="form-input-clean small" />
-                                        </div>
-
                                         <div className="mb-4">
-                                            <label className="form-label-clean"><Calendar size={14} className="me-2 text-danger" /> Deadline</label>
-                                            <input type="date" name="deadline" value={formData.deadline} onChange={handleChange} className="form-input-clean small border-danger border-opacity-25" />
+                                            <label className="form-label-clean"><Calendar size={14} className="me-2" /> Task Duration (Range)</label>
+                                            <div className="d-flex bg-white border rounded align-items-center px-2 py-1">
+                                                <DatePicker
+                                                    selectsRange={true}
+                                                    startDate={formData.startDate}
+                                                    endDate={formData.deadline}
+                                                    onChange={(update) => {
+                                                        const [start, end] = update;
+                                                        setFormData({ ...formData, startDate: start, deadline: end });
+                                                    }}
+                                                    className="form-control border-0 bg-transparent smallest"
+                                                    dateFormat="MMM d, yyyy"
+                                                    placeholderText="Select duration"
+                                                />
+                                            </div>
                                         </div>
 
                                         <button type="submit" className="btn btn-primary w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2">

@@ -35,32 +35,41 @@ exports.syncAsin = async (req, res) => {
         asin.status = 'Scraping';
         await asin.save();
 
-        if (taskId) {
-            // Option A: Use Octoparse (Managed Task)
-            console.log(`🤖 Using Octoparse for ASIN: ${asin.asinCode}`);
-            await MarketSyncService.triggerSync(
-                taskId,
-                [{ name: 'ASIN', value: asin.asinCode }]
-            );
+        const isConfigured = MarketSyncService.isConfigured();
+        let useDirect = !taskId || !isConfigured;
 
-            res.json({
-                success: true,
-                message: 'Market data sync initiated (Octoparse)',
-                status: 'SCRAPING'
-            });
-        } else {
+        console.log(`[SyncAsin] Decision for ${asin.asinCode}: taskId=${taskId}, isConfigured=${isConfigured} => useDirect=${useDirect}`);
+
+        if (!useDirect) {
+            try {
+                // Option A: Use Octoparse (Managed Task)
+                console.log(`🤖 Using Octoparse for ASIN: ${asin.asinCode}`);
+                await MarketSyncService.triggerSync(
+                    taskId,
+                    [{ name: 'ASIN', value: asin.asinCode }]
+                );
+
+                return res.json({
+                    success: true,
+                    message: 'Market data sync initiated (Octoparse)',
+                    status: 'SCRAPING'
+                });
+            } catch (octoError) {
+                console.warn(`⚠️ Octoparse Sync failed for ${asin.asinCode}, falling back to Direct:`, octoError.message);
+                useDirect = true;
+            }
+        }
+
+        if (useDirect) {
             // Option B: Fallback to Direct Web Scraping
             console.log(`🕷️ Using Direct Scraper for ASIN: ${asin.asinCode}`);
             const DirectScraperService = require('../services/directScraperService');
 
-            // We run this asynchronously to return response immediately, 
-            // OR synchronously for direct scraper since it's faster.
-            // Let's do it synchronously for immediate user feedback.
             try {
                 const rawData = await DirectScraperService.scrapeAsin(asin.asinCode);
                 const updatedAsin = await MarketSyncService.updateAsinMetrics(asin._id, rawData);
 
-                res.json({
+                return res.json({
                     success: true,
                     message: 'Market data synced successfully (Direct)',
                     status: 'COMPLETED',
@@ -134,22 +143,32 @@ exports.syncSellerAsins = async (req, res) => {
             { $set: { scrapeStatus: 'SCRAPING', status: 'Scraping' } }
         );
 
-        if (seller.marketSyncTaskId) {
-            console.log(`🤖 Using Octoparse for Batch Sync for Seller: ${seller.name}`);
-            // Trigger extraction in service (Batch ASIN sync)
-            await MarketSyncService.triggerSync(
-                seller.marketSyncTaskId,
-                [{ name: 'ASIN', value: asinCodes.join(',') }]
-            );
+        const isConfigured = MarketSyncService.isConfigured();
+        let useDirect = !seller.marketSyncTaskId || !isConfigured;
 
-            res.json({
-                success: true,
-                message: `Batch sync initiated (Octoparse) for ${asins.length} ASINs`,
-                count: asins.length
-            });
-        } else {
+        console.log(`[SellerSync] Decision for ${seller.name}: taskId=${seller.marketSyncTaskId}, isConfigured=${isConfigured} => useDirect=${useDirect}`);
+
+        if (!useDirect) {
+            try {
+                console.log(`🤖 Using Octoparse for Batch Sync for Seller: ${seller.name}`);
+                await MarketSyncService.triggerSync(
+                    seller.marketSyncTaskId,
+                    [{ name: 'ASIN', value: asinCodes.join(',') }]
+                );
+
+                return res.json({
+                    success: true,
+                    message: `Batch sync initiated (Octoparse) for ${asins.length} ASINs`,
+                    count: asins.length
+                });
+            } catch (octoError) {
+                console.warn(`⚠️ Octoparse Batch Sync failed for ${seller.name}, falling back to Direct:`, octoError.message);
+                useDirect = true;
+            }
+        }
+
+        if (useDirect) {
             console.log(`🕷️ Using Direct Scraper for Batch Sync for Seller: ${seller.name}`);
-            // Process asynchronously in background so we don't block the request
             const DirectScraperService = require('../services/directScraperService');
 
             // Fire and forget background process
@@ -163,12 +182,11 @@ exports.syncSellerAsins = async (req, res) => {
                         console.error(`❌ Background sync failed for ASIN: ${asin.asinCode}`, err.message);
                         await Asin.updateOne({ _id: asin._id }, { $set: { scrapeStatus: 'FAILED', status: 'Error' } });
                     }
-                    // Wait a bit between requests to avoid rate limiting
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
             }, 0);
 
-            res.json({
+            return res.json({
                 success: true,
                 message: `Batch sync initiated (Direct) in background for ${asins.length} ASINs`,
                 count: asins.length
@@ -235,12 +253,24 @@ exports.syncAllAsins = async (req, res) => {
             // Helper function to process a single ASIN
             const processAsin = async (asin) => {
                 try {
-                    if (asin.seller?.marketSyncTaskId) {
-                        await MarketSyncService.triggerSync(
-                            asin.seller.marketSyncTaskId,
-                            [{ name: 'ASIN', value: asin.asinCode }]
-                        );
-                    } else {
+                    const isConfigured = MarketSyncService.isConfigured();
+                    let useDirect = !asin.seller?.marketSyncTaskId || !isConfigured;
+
+                    console.log(`[BatchSync] Processing ${asin.asinCode}: taskId=${asin.seller?.marketSyncTaskId}, isConfigured=${isConfigured} => useDirect=${useDirect}`);
+
+                    if (!useDirect) {
+                        try {
+                            await MarketSyncService.triggerSync(
+                                asin.seller.marketSyncTaskId,
+                                [{ name: 'ASIN', value: asin.asinCode }]
+                            );
+                        } catch (octoError) {
+                            console.warn(`⚠️ Octoparse trigger failed for ${asin.asinCode}, falling back to Direct:`, octoError.message);
+                            useDirect = true;
+                        }
+                    }
+
+                    if (useDirect) {
                         const rawData = await DirectScraperService.scrapeAsin(asin.asinCode);
                         await MarketSyncService.updateAsinMetrics(asin._id, rawData);
                     }

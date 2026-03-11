@@ -12,7 +12,8 @@ exports.getTeams = async (req, res) => {
                 { 'members.user': req.user._id }
             ]
         }).populate('owner', 'firstName lastName email avatar')
-            .populate('members.user', 'firstName lastName email avatar role');
+            .populate('members.user', 'firstName lastName email avatar role')
+            .populate('members.resourceAccess', 'name marketplace');
 
         res.status(200).json({
             success: true,
@@ -31,8 +32,11 @@ exports.createTeam = async (req, res) => {
     try {
         req.body.owner = req.user._id;
 
-        // Add owner as first member
-        req.body.members = [{ user: req.user._id }];
+        // Add owner as lead member
+        req.body.members = [{
+            user: req.user._id,
+            role: 'lead'
+        }];
 
         const team = await Team.create(req.body);
 
@@ -61,7 +65,8 @@ exports.getTeamMembers = async (req, res) => {
                     path: 'role',
                     select: 'displayName name color'
                 }
-            });
+            })
+            .populate('members.resourceAccess', 'name marketplace');
 
         if (!team) {
             return res.status(404).json({ success: false, message: 'Team not found' });
@@ -76,36 +81,83 @@ exports.getTeamMembers = async (req, res) => {
     }
 };
 
-// @desc    Add member to team
-// @route   POST /api/teams/:id/members
+// @desc    Update member in team
+// @route   PUT /api/teams/:id/members/:userId
 // @access  Private
-exports.addMember = async (req, res) => {
+exports.updateMember = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { role, resourceAccess } = req.body;
         const team = await Team.findById(req.params.id);
 
         if (!team) {
             return res.status(404).json({ success: false, message: 'Team not found' });
         }
 
-        // Check if user is owner of team
-        if (team.owner.toString() !== req.user._id.toString() && req.user.role.name !== 'admin') {
+        // Check if user is owner, lead, or admin
+        const member = team.members.find(m => m.user.toString() === req.user._id.toString());
+        const isLead = member && member.role === 'lead';
+
+        if (team.owner.toString() !== req.user._id.toString() && !isLead && req.user.role.name !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized' });
+        }
+
+        // Find member to update
+        const memberIdx = team.members.findIndex(m => m.user.toString() === req.params.userId);
+        if (memberIdx === -1) {
+            return res.status(404).json({ success: false, message: 'Member not found' });
+        }
+
+        if (role) team.members[memberIdx].role = role;
+        if (resourceAccess) team.members[memberIdx].resourceAccess = resourceAccess;
+
+        await team.save();
+
+        res.status(200).json({
+            success: true,
+            data: team.members[memberIdx]
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Add member to team
+// @route   POST /api/teams/:id/members
+// @access  Private
+exports.addMember = async (req, res) => {
+    try {
+        const { email, userId, role, resourceAccess } = req.body;
+        const team = await Team.findById(req.params.id);
+
+        if (!team) {
+            return res.status(404).json({ success: false, message: 'Team not found' });
+        }
+
+        // Check if user is owner, lead, or admin
+        const member = team.members.find(m => m.user.toString() === req.user._id.toString());
+        const isLead = member && member.role === 'lead';
+
+        if (team.owner.toString() !== req.user._id.toString() && !isLead && req.user.role.name !== 'admin') {
             return res.status(403).json({ success: false, message: 'Not authorized to add members' });
         }
 
-        const userToAdd = await User.findOne({ email });
+        const userToAdd = userId ? await User.findById(userId) : await User.findOne({ email });
 
         if (!userToAdd) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
         // Check if user is already a member
-        const isMember = team.members.find(m => m.user.toString() === userToAdd._id.toString());
-        if (isMember) {
+        const alreadyMember = team.members.find(m => m.user.toString() === userToAdd._id.toString());
+        if (alreadyMember) {
             return res.status(400).json({ success: false, message: 'User is already a member' });
         }
 
-        team.members.push({ user: userToAdd._id });
+        team.members.push({
+            user: userToAdd._id,
+            role: role || 'member',
+            resourceAccess: resourceAccess || []
+        });
         await team.save();
 
         res.status(200).json({
