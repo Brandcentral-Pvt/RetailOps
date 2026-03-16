@@ -11,6 +11,11 @@ const adsPerformanceSchema = new mongoose.Schema({
   impressions: { type: Number, default: 0 },
   clicks: { type: Number, default: 0 },
   orders: { type: Number, default: 0 },
+  // Additional metrics from CSV
+  acos: { type: Number, default: 0 }, // ACoS (Advertising Cost of Sales) - percentage
+  roas: { type: Number, default: 0 }, // ROAS (Return on Ad Spend) - ratio
+  ctr: { type: Number, default: 0 }, // Click Through Rate - percentage
+  aov: { type: Number, default: 0 }, // Average Order Value
   uploaded_at: { type: Date, default: Date.now }
 });
 

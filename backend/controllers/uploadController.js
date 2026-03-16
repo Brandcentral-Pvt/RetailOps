@@ -21,14 +21,14 @@ exports.uploadMonthlyData = async (req, res) => {
     const requiredColumns = ['ASIN', 'Ordered Revenue', 'Ordered Units'];
     const headers = Object.keys(jsonData[0] || {});
     const missingColumns = requiredColumns.filter(col => !headers.includes(col));
-    
+
     if (missingColumns.length > 0) {
       throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
     }
 
     for (let index = 0; index < jsonData.length; index++) {
       const row = jsonData[index];
-      
+
       try {
         const asin = row["ASIN"];
         const revenue = parseFloat((row["Ordered Revenue"] || '0').toString().replace(/,/g, ""));
@@ -91,7 +91,7 @@ exports.uploadMonthlyData = async (req, res) => {
     }
 
     fs.unlinkSync(filePath);
-    
+
     res.json({
       message: "Upload processed successfully",
       inserted: inserts.length,
@@ -105,7 +105,7 @@ exports.uploadMonthlyData = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Upload Error:", err);
-    
+
     // Cleanup file if it exists
     if (req.file?.path && fs.existsSync(req.file.path)) {
       try {
@@ -114,7 +114,7 @@ exports.uploadMonthlyData = async (req, res) => {
         console.error("❌ File cleanup error:", cleanupErr);
       }
     }
-    
+
     res.status(400).json({
       error: err.message || "Upload failed",
       code: err.code || "UPLOAD_ERROR"
@@ -131,7 +131,7 @@ exports.uploadAdsData = async (req, res) => {
 
     const reportType = req.body.reportType || 'daily'; // 'daily' or 'monthly'
     const reportDate = req.body.date; // For daily: YYYY-MM-DD, For monthly: YYYY-MM
-    
+
     if (!reportDate) {
       throw new Error("Report date is required");
     }
@@ -149,7 +149,12 @@ exports.uploadAdsData = async (req, res) => {
       impressions: ['metrics.impressions', 'Impressions', 'impressions'],
       clicks: ['metrics.clicks', 'Clicks', 'clicks'],
       orders: ['metrics.orders', '7 Day Total Orders', 'Total Orders', 'orders'],
-      date: ['date', 'Date', 'Day', 'metrics.date']
+      date: ['date', 'Date', 'Day', 'metrics.date'],
+      // Additional metrics
+      acos: ['metrics.acos', 'ACoS', 'acos'],
+      roas: ['metrics.roas', 'ROAS', 'roas'],
+      ctr: ['metrics.ctr', 'CTR', 'ctr'],
+      aov: ['metrics.aov', 'AOV', 'aov']
     };
 
     const cleanValue = (val) => {
@@ -185,6 +190,17 @@ exports.uploadAdsData = async (req, res) => {
         const sku = findValue(row, mappings.sku);
         const rowDate = findValue(row, mappings.date);
 
+        // Parse additional metrics
+        const acosStr = findValue(row, mappings.acos);
+        const roasStr = findValue(row, mappings.roas);
+        const ctrStr = findValue(row, mappings.ctr);
+        const aovStr = findValue(row, mappings.aov);
+
+        const acos = acosStr ? parseFloat(acosStr.replace(/,/g, "")) : 0;
+        const roas = roasStr ? parseFloat(roasStr.replace(/,/g, "")) : 0;
+        const ctr = ctrStr ? parseFloat(ctrStr.replace(/,/g, "")) : 0;
+        const aov = aovStr ? parseFloat(aovStr.replace(/,/g, "")) : 0;
+
         const filter = { asin, reportType };
         const updateData = {
           advertised_sku: sku,
@@ -193,6 +209,10 @@ exports.uploadAdsData = async (req, res) => {
           impressions,
           clicks,
           orders,
+          acos,
+          roas,
+          ctr,
+          aov,
           uploaded_at: new Date()
         };
 
@@ -204,8 +224,8 @@ exports.uploadAdsData = async (req, res) => {
         } else {
           // For monthly, use the provided reportDate if rowDate isn't a full date
           const finalMonth = rowDate || reportDate;
-          const monthDate = finalMonth.includes('-') && finalMonth.split('-').length === 2 
-            ? `${finalMonth}-01` 
+          const monthDate = finalMonth.includes('-') && finalMonth.split('-').length === 2
+            ? `${finalMonth}-01`
             : finalMonth;
           filter.month = new Date(monthDate);
           updateData.month = new Date(monthDate);
@@ -261,7 +281,7 @@ exports.getUploadStats = async (req, res) => {
         $sort: { "_id.year": -1, "_id.month": -1 }
       }
     ]);
-    
+
     res.json(stats);
   } catch (error) {
     console.error("❌ Stats fetch error:", error);

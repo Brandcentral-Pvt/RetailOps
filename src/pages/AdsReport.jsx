@@ -24,6 +24,7 @@ import api, { asinApi, sellerApi } from '../services/api';
 
 const AdsReport = () => {
   const [data, setData] = useState([]);
+  const [dailyData, setDailyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('last30');
   const [filters, setFilters] = useState({
@@ -55,6 +56,7 @@ const AdsReport = () => {
       const response = await api.get(`/data/ads-report`, { startDate, endDate, reportType });
 
       setData(response.data || []);
+      setDailyData(response.dailyData || []);
     } catch (error) {
       console.error('Failed to load ads data:', error);
     }
@@ -89,10 +91,8 @@ const AdsReport = () => {
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      const matchesType = filters.campaignType === 'all' || item.type === filters.campaignType;
-      const matchesStatus = filters.status === 'all' || item.status === filters.status;
-      const matchesSearch = filters.searchTerm === '' || item.campaign.toLowerCase().includes(filters.searchTerm.toLowerCase());
-      return matchesType && matchesStatus && matchesSearch;
+      const matchesSearch = filters.searchTerm === '' || (item.asin && item.asin.toString().toLowerCase().includes(filters.searchTerm.toLowerCase()));
+      return matchesSearch;
     });
   }, [data, filters]);
 
@@ -162,7 +162,8 @@ const AdsReport = () => {
       clicks: <span className="fw-600">{(item.clicks || 0).toLocaleString()}</span>,
       impressions: <span className="fw-600">{(item.impressions || 0).toLocaleString()}</span>,
       orders: <span className="fw-600">{(item.orders || 0).toLocaleString()}</span>,
-      ctr: <span className="fw-600">{(item.ctr || 0).toFixed(2)}%</span>
+      ctr: <span className="fw-600">{(item.ctr || 0).toFixed(2)}%</span>,
+      aov: <span className="fw-600 text-dark">₹{(item.aov || 0).toLocaleString()}</span>
     }));
   }, [data]);
 
@@ -179,7 +180,7 @@ const AdsReport = () => {
     dataLabels: { enabled: false },
     fill: { type: 'solid', opacity: 0.1 },
     xaxis: {
-      categories: filteredData.map(d => d.asin),
+      categories: dailyData.map(d => d.date),
       labels: { show: true, style: { colors: '#64748b', fontSize: '11px' }, rotate: -45 },
       tickPlacement: 'on'
     },
@@ -285,8 +286,8 @@ const AdsReport = () => {
               <Chart
                 options={performanceChartOptions}
                 series={[
-                  { name: 'Ad Spend', data: filteredData.map(d => d.ad_spend) },
-                  { name: 'Ad Sales', data: filteredData.map(d => d.ad_sales) }
+                  { name: 'Ad Spend', data: dailyData.map(d => d.ad_spend) },
+                  { name: 'Ad Sales', data: dailyData.map(d => d.ad_sales) }
                 ]}
                 type="line"
                 height="100%"
@@ -301,13 +302,13 @@ const AdsReport = () => {
             <div className="h-100 d-flex align-items-center justify-content-center">
               <Chart
                 options={{
-                  labels: filteredData.slice(0, 5).map(d => d.asin),
+                  labels: data.slice(0, 5).map(d => d.asin),
                   colors: ['#4F46E5', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'],
                   legend: { position: 'bottom', fontSize: '11px' },
                   dataLabels: { enabled: false },
                   plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: 'TOTAL' } } } } }
                 }}
-                series={filteredData.slice(0, 5).map(d => d.ad_spend || 1)}
+                series={data.slice(0, 5).map(d => d.ad_spend || 1)}
                 type="donut"
                 width="100%"
               />
@@ -406,7 +407,7 @@ const AdsReport = () => {
             <div className="p-0 text-nowrap">
               <DataTable
                 data={dashboardData}
-                columns={['asin', 'spend', 'sales', 'clicks', 'impressions', 'orders', 'ctr', 'acos', 'roas']}
+                columns={['asin', 'spend', 'sales', 'clicks', 'impressions', 'ctr', 'acos', 'roas', 'aov']}
                 pagination={true}
                 pageSize={8}
                 compact={true}

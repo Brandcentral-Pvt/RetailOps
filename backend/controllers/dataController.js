@@ -282,7 +282,61 @@ exports.getAdsReport = async (req, res) => {
       query.reportType = 'monthly';
     }
 
-    // 3. Aggregate results per ASIN
+    // 3. Aggregate results per date for the line chart
+    const dailyData = await AdsPerformance.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+          ad_spend: { $sum: '$ad_spend' },
+          ad_sales: { $sum: '$ad_sales' },
+          impressions: { $sum: '$impressions' },
+          clicks: { $sum: '$clicks' },
+          orders: { $sum: '$orders' }
+        }
+      },
+      { $sort: { _id: 1 } },
+      {
+        $project: {
+          date: '$_id',
+          ad_spend: 1,
+          ad_sales: 1,
+          impressions: 1,
+          clicks: 1,
+          orders: 1,
+          acos: {
+            $cond: [
+              { $gt: ['$ad_sales', 0] },
+              { $multiply: [{ $divide: ['$ad_spend', '$ad_sales'] }, 100] },
+              0
+            ]
+          },
+          roas: {
+            $cond: [
+              { $gt: ['$ad_spend', 0] },
+              { $divide: ['$ad_sales', '$ad_spend'] },
+              0
+            ]
+          },
+          ctr: {
+            $cond: [
+              { $gt: ['$impressions', 0] },
+              { $multiply: [{ $divide: ['$clicks', '$impressions'] }, 100] },
+              0
+            ]
+          },
+          aov: {
+            $cond: [
+              { $gt: ['$orders', 0] },
+              { $divide: ['$ad_sales', '$orders'] },
+              0
+            ]
+          }
+        }
+      }
+    ]);
+
+    // 4. Aggregate results per ASIN
     const adsData = await AdsPerformance.aggregate([
       { $match: query },
       {
@@ -323,12 +377,19 @@ exports.getAdsReport = async (req, res) => {
               { $multiply: [{ $divide: ["$clicks", "$impressions"] }, 100] },
               0
             ]
+          },
+          aov: {
+            $cond: [
+              { $gt: ["$orders", 0] },
+              { $divide: ["$ad_sales", "$orders"] },
+              0
+            ]
           }
         }
       }
     ]);
 
-    res.json({ data: adsData });
+    res.json({ data: adsData, dailyData: dailyData });
   } catch (err) {
     console.error("❌ Ads Report Error:", err);
     res.status(500).send("Error fetching ads data");
