@@ -68,14 +68,22 @@ const AdsReport = () => {
   const kpis = useMemo(() => {
     const totalSpend = data.reduce((sum, item) => sum + (item.ad_spend || 0), 0);
     const totalSales = data.reduce((sum, item) => sum + (item.ad_sales || 0), 0);
+    const totalClicks = data.reduce((sum, item) => sum + (item.clicks || 0), 0);
+    const totalImpressions = data.reduce((sum, item) => sum + (item.impressions || 0), 0);
+    const totalOrders = data.reduce((sum, item) => sum + (item.orders || 0), 0);
     const avgRoas = totalSpend > 0 ? (totalSales / totalSpend).toFixed(2) : '0.00';
     const avgAcos = totalSales > 0 ? ((totalSpend / totalSales) * 100).toFixed(1) : '0.0';
+    const ctr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0.00';
 
     return [
-      { title: 'Ad Spend', value: `₹${totalSpend.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', trend: '' },
-      { title: 'Ad Sales', value: `₹${totalSales.toLocaleString()}`, icon: TrendingUp, color: '#8B5CF6', trend: '' },
-      { title: 'Avg ROAS', value: `${avgRoas}x`, icon: Activity, color: '#EC4899', trend: '' },
-      { title: 'Avg ACoS', value: `${avgAcos}%`, icon: Target, color: '#F59E0B', trend: '' },
+      { title: 'Total Spend', value: `₹${totalSpend.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', trend: '' },
+      { title: 'Total Sales', value: `₹${totalSales.toLocaleString()}`, icon: TrendingUp, color: '#8B5CF6', trend: '' },
+      { title: 'Total Orders', value: totalOrders.toLocaleString(), icon: Layers, color: '#EC4899', trend: '' },
+      { title: 'Total Clicks', value: totalClicks.toLocaleString(), icon: Target, color: '#F59E0B', trend: '' },
+      { title: 'Impressions', value: totalImpressions.toLocaleString(), icon: Activity, color: '#10B981', trend: '' },
+      { title: 'CTR', value: `${ctr}%`, icon: BarChart3, color: '#EF4444', trend: '' },
+      { title: 'Avg ROAS', value: `${avgRoas}x`, icon: ArrowUpRight, color: '#06B6D4', trend: '' },
+      { title: 'Avg ACoS', value: `${avgAcos}%`, icon: ArrowDownRight, color: '#84CC16', trend: '' },
     ];
   }, [data]);
 
@@ -135,45 +143,69 @@ const AdsReport = () => {
     return data.map((item, idx) => ({
       ...item,
       id: idx,
-      asin: <span className="fw-700 text-primary">{item.asin}</span>,
+      asin: <span className="fw-700 text-primary" style={{ fontSize: '12px' }}>{item.asin}</span>,
       acos: (
-        <span className="fw-700" style={{ color: getAcosColor(item.acos) }}>
-          {parseFloat(item.acos).toFixed(1)}%
+        <span className="fw-700 badge" style={{
+          color: getAcosColor(item.acos),
+          backgroundColor: `${getAcosColor(item.acos)}15`
+        }}>
+          {parseFloat(item.acos || 0).toFixed(1)}%
         </span>
       ),
       roas: (
         <span className="fw-700 text-dark">
-          {parseFloat(item.roas).toFixed(2)}x
+          {parseFloat(item.roas || 0).toFixed(2)}x
         </span>
       ),
-      spend: <span className="fw-600">₹{(item.ad_spend || 0).toLocaleString()}</span>,
-      sales: <span className="fw-600">₹{(item.ad_sales || 0).toLocaleString()}</span>,
+      spend: <span className="fw-600 text-success">₹{(item.ad_spend || 0).toLocaleString()}</span>,
+      sales: <span className="fw-600 text-primary">₹{(item.ad_sales || 0).toLocaleString()}</span>,
       clicks: <span className="fw-600">{(item.clicks || 0).toLocaleString()}</span>,
-      impressions: <span className="fw-600">{(item.impressions || 0).toLocaleString()}</span>
+      impressions: <span className="fw-600">{(item.impressions || 0).toLocaleString()}</span>,
+      orders: <span className="fw-600">{(item.orders || 0).toLocaleString()}</span>,
+      ctr: <span className="fw-600">{(item.ctr || 0).toFixed(2)}%</span>
     }));
   }, [data]);
 
   // Chart options for Performance Efficiency
   const performanceChartOptions = {
-    chart: { type: 'area', toolbar: { show: false }, background: 'transparent' },
+    chart: {
+      type: 'line',
+      toolbar: { show: true, tools: { download: true, selection: false, zoom: true, pan: true, reset: true } },
+      background: 'transparent',
+      animations: { enabled: true, easing: 'easeinout', speed: 800 }
+    },
     colors: ['#4F46E5', '#10B981'],
-    stroke: { curve: 'smooth', width: 2 },
+    stroke: { curve: 'smooth', width: 3, dashArray: [0, 5] },
     dataLabels: { enabled: false },
-    fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
-    xaxis: { categories: data.map(d => d.asin), labels: { show: false } },
-    yaxis: { labels: { show: true, style: { colors: '#64748b' } } },
-    tooltip: { theme: 'light' },
-    grid: { show: true, borderColor: '#f1f5f9', strokeDashArray: 4 }
+    fill: { type: 'solid', opacity: 0.1 },
+    xaxis: {
+      categories: filteredData.map(d => d.asin),
+      labels: { show: true, style: { colors: '#64748b', fontSize: '11px' }, rotate: -45 },
+      tickPlacement: 'on'
+    },
+    yaxis: { labels: { show: true, style: { colors: '#64748b' }, formatter: (val) => `₹${val.toLocaleString()}` } },
+    tooltip: { theme: 'light', y: { formatter: (val) => `₹${val.toLocaleString()}` } },
+    grid: { show: true, borderColor: '#f1f5f9', strokeDashArray: 4 },
+    legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px' },
+    markers: { size: 4, strokeWidth: 0, hover: { size: 6 } }
   };
 
   const MetricPill = ({ title, value, icon: Icon, color, trend }) => (
-    <div className="stat-pill">
-      <div className="stat-pill-icon" style={{ backgroundColor: `${color}15`, color: color }}>
-        <Icon size={14} />
+    <div className="stat-pill" style={{
+      minWidth: '140px',
+      flex: '1 1 auto',
+      padding: '12px 16px',
+      borderRadius: '12px',
+      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+      border: '1px solid #e2e8f0'
+    }}>
+      <div className="stat-pill-icon" style={{ backgroundColor: `${color}15`, color: color, width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon size={16} />
       </div>
-      <div>
-        <div className="stat-pill-label">{title} <span className="ms-1" style={{ fontSize: '9px', color: trend.startsWith('+') ? '#10b981' : '#ef4444' }}>{trend}</span></div>
-        <div className="stat-pill-value">{value}</div>
+      <div style={{ marginTop: '8px' }}>
+        <div className="stat-pill-label" style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</div>
+        <div className="stat-pill-value" style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginTop: '2px' }}>{value}</div>
       </div>
     </div>
   );
@@ -249,14 +281,14 @@ const AdsReport = () => {
         {/* Trend Visualization */}
         <div className="col-lg-8">
           <DashboardCard title="Performance Efficiency" icon={Activity} extra={<span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill smallest">SPEND VS SALES</span>}>
-            <div style={{ height: '280px' }}>
+            <div style={{ height: '320px' }}>
               <Chart
                 options={performanceChartOptions}
                 series={[
                   { name: 'Ad Spend', data: filteredData.map(d => d.ad_spend) },
                   { name: 'Ad Sales', data: filteredData.map(d => d.ad_sales) }
                 ]}
-                type="area"
+                type="line"
                 height="100%"
               />
             </div>
@@ -269,13 +301,13 @@ const AdsReport = () => {
             <div className="h-100 d-flex align-items-center justify-content-center">
               <Chart
                 options={{
-                  labels: data.slice(0, 5).map(d => d.asin),
+                  labels: filteredData.slice(0, 5).map(d => d.asin),
                   colors: ['#4F46E5', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'],
-                  legend: { position: 'bottom' },
+                  legend: { position: 'bottom', fontSize: '11px' },
                   dataLabels: { enabled: false },
                   plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: 'TOTAL' } } } } }
                 }}
-                series={data.slice(0, 5).map(d => d.ad_spend || 1)}
+                series={filteredData.slice(0, 5).map(d => d.ad_spend || 1)}
                 type="donut"
                 width="100%"
               />
@@ -374,7 +406,7 @@ const AdsReport = () => {
             <div className="p-0 text-nowrap">
               <DataTable
                 data={dashboardData}
-                columns={['asin', 'spend', 'clicks', 'impressions', 'sales', 'acos', 'roas']}
+                columns={['asin', 'spend', 'sales', 'clicks', 'impressions', 'orders', 'ctr', 'acos', 'roas']}
                 pagination={true}
                 pageSize={8}
                 compact={true}
