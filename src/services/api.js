@@ -652,9 +652,11 @@ export const settingsApi = {
 // Generic API Client
 const api = {
   get: async (endpoint, params = {}) => {
+    const authHeader = getAuthHeader();
+    console.log('[API GET]', endpoint, 'Auth:', Object.keys(authHeader).length > 0 ? 'Token present' : 'NO TOKEN');
     const query = new URLSearchParams(params).toString();
     const url = `${API_BASE}${endpoint}${query ? `?${query}` : ''}`;
-    const res = await fetch(url, { headers: { ...getAuthHeader() } });
+    const res = await fetch(url, { headers: authHeader });
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
       throw new Error(error.message || `Request failed: ${res.statusText}`);

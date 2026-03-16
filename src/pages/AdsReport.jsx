@@ -253,8 +253,8 @@ const AdsReport = () => {
               <Chart
                 options={performanceChartOptions}
                 series={[
-                  { name: 'Ad Spend', data: filteredData.map(d => d.spend) },
-                  { name: 'Ad Sales', data: filteredData.map(d => d.sales) }
+                  { name: 'Ad Spend', data: filteredData.map(d => d.ad_spend) },
+                  { name: 'Ad Sales', data: filteredData.map(d => d.ad_sales) }
                 ]}
                 type="area"
                 height="100%"
