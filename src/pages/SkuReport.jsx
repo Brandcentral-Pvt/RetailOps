@@ -37,31 +37,22 @@ const SkuReport = () => {
   const loadSkuData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await asinApi.getAll({ limit: 100 });
-      const asins = response.asins || [];
-
-      const skuData = asins.map((asin, idx) => {
-        const units = Math.floor(Math.random() * 200) + 50;
-        const revenue = Math.round(asin.currentPrice * units);
-        const conversion = (Math.random() * 8 + 2).toFixed(1);
-        const status = idx % 5 === 0 ? 'Low Stock' : 'In Stock';
-
-        return {
-          id: idx + 1,
-          sku: `SKU-${String(idx + 1).padStart(3, '0')}`,
-          asin: asin.asinCode,
-          title: asin.title || 'Unknown Product',
-          category: asin.brand || 'Uncategorized',
-          revenue,
-          units,
-          aov: asin.currentPrice,
-          acos: (Math.random() * 20 + 15).toFixed(1),
-          roas: (Math.random() * 3 + 2).toFixed(2),
-          sessions: Math.floor(Math.random() * 3000) + 1000,
-          conversion,
-          status
-        };
-      });
+      const response = await api.get('/data/sku-report');
+      const skuData = (response.data || []).map((item, idx) => ({
+        id: idx + 1,
+        sku: item.sku || 'N/A',
+        asin: item.asin || 'N/A',
+        title: item.title || 'Product ' + (idx + 1),
+        category: item.category || 'General',
+        revenue: item.total_revenue || 0,
+        units: item.units_sold || 0,
+        aov: item.price || 0,
+        acos: '0.0',
+        roas: '0.00',
+        sessions: 0,
+        conversion: '0.0',
+        status: 'Active'
+      }));
 
       setData(skuData);
     } catch (error) {

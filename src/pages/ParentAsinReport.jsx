@@ -37,36 +37,23 @@ const ParentAsinReport = () => {
   const loadParentData = useCallback(async () => {
     setLoading(true);
     try {
-      const asinResponse = await asinApi.getAll({ limit: 200 });
-      const asins = asinResponse.asins || [];
+      const response = await api.get('/data/parent-asin-report');
+      const parentData = (response.data || []).map((item, idx) => ({
+        id: idx + 1,
+        parentAsin: item._id || 'N/A',
+        title: item.title || 'Collection ' + (idx + 1),
+        brand: item.brand || 'General',
+        childCount: item.childCount || 0,
+        revenue: item.total_revenue || 0,
+        units: 0,
+        acos: '0.0',
+        roas: '0.00',
+        rating: '4.5',
+        reviews: 0,
+        growth: '0.0'
+      }));
 
-      // Group ASINs by brand to simulate Parent ASINs
-      const brandGroups = {};
-      asins.forEach(asin => {
-        const brand = asin.brand || 'Other';
-        if (!brandGroups[brand]) {
-          brandGroups[brand] = {
-            id: brand,
-            parentAsin: `P-${brand.substring(0, 3).toUpperCase()}-092`,
-            title: `${brand} Essential Collection`,
-            brand: brand,
-            childCount: 0,
-            revenue: 0,
-            units: 0,
-            acos: (Math.random() * 15 + 10).toFixed(1),
-            roas: (Math.random() * 4 + 2).toFixed(2),
-            rating: (Math.random() * 0.6 + 4.1).toFixed(1),
-            reviews: Math.floor(Math.random() * 2000) + 500,
-            growth: (Math.random() * 20 - 5).toFixed(1)
-          };
-        }
-        const group = brandGroups[brand];
-        group.childCount++;
-        group.units += Math.floor(Math.random() * 300) + 100;
-        group.revenue += Math.round(asin.currentPrice * (group.units / group.childCount));
-      });
-
-      setData(Object.values(brandGroups));
+      setData(parentData);
     } catch (error) {
       console.error('Failed to load Parent ASIN data:', error);
     }

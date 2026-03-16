@@ -11,18 +11,20 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel'
+    'application/vnd.ms-excel',
+    'text/csv',
+    'application/csv'
   ];
   
-  if (allowedTypes.includes(file.mimetype)) {
+  if (allowedTypes.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
     cb(null, true);
   } else {
-    cb(new Error('Only Excel files (.xlsx, .xls) are accepted'), false);
+    cb(new Error('Only Excel (.xlsx, .xls) and CSV files are accepted'), false);
   }
 };
 
 const limits = {
-  fileSize: 10 * 1024 * 1024 // 10MB
+  fileSize: 20 * 1024 * 1024 // 20MB
 };
 
 const upload = multer({ 
@@ -31,7 +33,8 @@ const upload = multer({
   limits 
 });
 
-router.post('/upload-monthly', upload.single('file'), uploadController.uploadMonthlyData);
-router.get('/upload-stats', uploadController.getUploadStats);
+router.post('/upload/upload-monthly', upload.single('file'), uploadController.uploadMonthlyData);
+router.post('/upload/upload-ads', upload.single('file'), uploadController.uploadAdsData);
+router.get('/upload/upload-stats', uploadController.getUploadStats);
 
 module.exports = router;

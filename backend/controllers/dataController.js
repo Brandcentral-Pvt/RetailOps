@@ -1,5 +1,7 @@
 const Master = require("../models/Master");
 const MonthlyPerformance = require("../models/MonthlyPerformance");
+const AdsPerformance = require("../models/AdsPerformance");
+const Asin = require("../models/Asin");
 
 // Get category-specific attribute mapping
 const getCategoryAttributes = (category) => {
@@ -248,70 +250,145 @@ exports.getSizeShare = async (req, res) => {
   }
 };
 
-// Dummy ads data API (Updated for multi-tenancy)
+// Real ads data API with multi-tenancy and aggregation
 exports.getAdsReport = async (req, res) => {
   try {
+    const { startDate, endDate, reportType = 'daily' } = req.query;
     const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
     const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
 
-    const dummyAds = [
-      { asin: "B0A1", ad_spend: 1200, clicks: 300, orders: 25, acos: 15.4, ctr: 5.1 },
-      { asin: "B0A2", ad_spend: 800, clicks: 180, orders: 20, acos: 18.7, ctr: 4.2 },
-      { asin: "B0A3", ad_spend: 2000, clicks: 500, orders: 45, acos: 12.3, ctr: 6.0 },
-    ];
-
+    // 1. Get allowed ASINs
+    let allowedAsinCodes = [];
     if (!isAdmin) {
-      // Filter dummy data to simulate isolation based on allowed sellers
-      // In a real scenario, this would query a model with a seller relationship
-      const asinsInAllowedSellers = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
-      const allowedAsins = asinsInAllowedSellers.map(a => a.asinCode);
-
-      const filteredAds = dummyAds.filter(ad => allowedAsins.includes(ad.asin));
-      return res.json(filteredAds);
+      const allowedAsins = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
+      allowedAsinCodes = allowedAsins.map(a => a.asinCode);
     }
 
-    res.json(dummyAds);
+    // 2. Build Query
+    const query = {};
+    if (!isAdmin) {
+      query.asin = { $in: allowedAsinCodes };
+    }
+
+    if (reportType === 'daily' && (startDate || endDate)) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate);
+      query.reportType = 'daily';
+    } else if (reportType === 'monthly' && (startDate || endDate)) {
+      query.month = {};
+      if (startDate) query.month.$gte = new Date(startDate);
+      if (endDate) query.month.$lte = new Date(endDate);
+      query.reportType = 'monthly';
+    }
+
+    // 3. Aggregate results per ASIN
+    const adsData = await AdsPerformance.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: "$asin",
+          ad_spend: { $sum: "$ad_spend" },
+          ad_sales: { $sum: "$ad_sales" },
+          impressions: { $sum: "$impressions" },
+          clicks: { $sum: "$clicks" },
+          orders: { $sum: "$orders" }
+        }
+      },
+      {
+        $project: {
+          asin: "$_id",
+          ad_spend: 1,
+          ad_sales: 1,
+          impressions: 1,
+          clicks: 1,
+          orders: 1,
+          acos: {
+            $cond: [
+              { $gt: ["$ad_sales", 0] },
+              { $multiply: [{ $divide: ["$ad_spend", "$ad_sales"] }, 100] },
+              0
+            ]
+          },
+          roas: {
+            $cond: [
+              { $gt: ["$ad_spend", 0] },
+              { $divide: ["$ad_sales", "$ad_spend"] },
+              0
+            ]
+          },
+          ctr: {
+            $cond: [
+              { $gt: ["$impressions", 0] },
+              { $multiply: [{ $divide: ["$clicks", "$impressions"] }, 100] },
+              0
+            ]
+          }
+        }
+      }
+    ]);
+
+    res.json({ data: adsData });
   } catch (err) {
+    console.error("❌ Ads Report Error:", err);
     res.status(500).send("Error fetching ads data");
   }
 };
 
-// SKU Report API (Updated for multi-tenancy)
+// SKU Report API 
 exports.getSkuReport = async (req, res) => {
   try {
     const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
     const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
 
-    const dummySkuData = [
-      { sku: "SKU001", asin: "B0A1", title: "Product 1", size: "S", revenue: 15000, units_sold: 150, price: 100, stock: 200 },
-      { sku: "SKU002", asin: "B0A2", title: "Product 2", size: "M", revenue: 20000, units_sold: 200, price: 100, stock: 150 },
-      { sku: "SKU003", asin: "B0A3", title: "Product 3", size: "L", revenue: 25000, units_sold: 250, price: 100, stock: 100 },
-    ];
-
+    const query = {};
     if (!isAdmin) {
       const asinsInAllowedSellers = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
-      const allowedAsins = asinsInAllowedSellers.map(a => a.asinCode);
-
-      const filteredSku = dummySkuData.filter(sku => allowedAsins.includes(sku.asin));
-      return res.json(filteredSku);
+      const allowedAsinCodes = asinsInAllowedSellers.map(a => a.asinCode);
+      query.asin = { $in: allowedAsinCodes };
     }
 
-    res.json(dummySkuData);
+    const skuData = await Master.find(query).limit(500);
+    res.json(skuData);
   } catch (err) {
+    console.error("❌ SKU Report Error:", err);
     res.status(500).send("Error fetching SKU report data");
   }
 };
 
-// Parent ASIN Report API (Dummy implementation)
+// Parent ASIN Report API
 exports.getParentAsinReport = async (req, res) => {
   try {
-    const dummyParentAsinData = [
-      { parent_asin: "B0A0", title: "Product Family 1", total_revenue: 35000, total_units_sold: 350, sku_count: 2, average_price: 100, total_stock: 350 },
-      { parent_asin: "B0B0", title: "Product Family 2", total_revenue: 25000, total_units_sold: 250, sku_count: 1, average_price: 100, total_stock: 100 },
-    ];
-    // In a real scenario, this would also need filtering via a lookup to ASINs/Seller
-    res.json(dummyParentAsinData);
+    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+
+    const query = {};
+    if (!isAdmin) {
+      const asinsInAllowedSellers = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
+      const allowedAsinCodes = asinsInAllowedSellers.map(a => a.asinCode);
+      query.asin = { $in: allowedAsinCodes };
+    }
+
+    const parentAsinData = await Master.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: "$parent_asin",
+          asin_count: { $sum: 1 },
+          skus: { $push: "$sku" }
+        }
+      },
+      {
+        $project: {
+          parent_asin: "$_id",
+          asin_count: 1,
+          skus: 1
+        }
+      }
+    ]);
+    res.json(parentAsinData);
   } catch (err) {
+    console.error("❌ Parent ASIN Report Error:", err);
     res.status(500).send("Error fetching Parent ASIN report data");
   }
 };
@@ -319,13 +396,30 @@ exports.getParentAsinReport = async (req, res) => {
 // Month-wise Report API
 exports.getMonthWiseReport = async (req, res) => {
   try {
-    const dummyMonthlyData = [
-      { month: "2024-01", total_revenue: 15000, total_units_sold: 150, average_price: 100, sku_count: 3, growth_rate: 10 },
-      { month: "2024-02", total_revenue: 18000, total_units_sold: 180, average_price: 100, sku_count: 3, growth_rate: 20 },
-      { month: "2024-03", total_revenue: 21000, total_units_sold: 210, average_price: 100, sku_count: 3, growth_rate: 16.67 },
-    ];
-    res.json(dummyMonthlyData);
+    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+
+    const query = {};
+    if (!isAdmin) {
+      const asinsInAllowedSellers = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
+      const allowedAsinCodes = asinsInAllowedSellers.map(a => a.asinCode);
+      query.asin = { $in: allowedAsinCodes };
+    }
+
+    const monthlyData = await MonthlyPerformance.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$month" } },
+          total_revenue: { $sum: "$ordered_revenue" },
+          total_units_sold: { $sum: "$ordered_units" }
+        }
+      },
+      { $sort: { "_id": -1 } }
+    ]);
+    res.json(monthlyData);
   } catch (err) {
+    console.error("❌ Monthly Report Error:", err);
     res.status(500).send("Error fetching monthly report data");
   }
 };

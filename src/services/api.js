@@ -661,11 +661,21 @@ const api = {
     }
     return res.json();
   },
-  post: async (endpoint, data = {}) => {
+  post: async (endpoint, data = {}, config = {}) => {
+    const isFormData = data instanceof FormData;
+    let headers = { ...getAuthHeader(), ...(config.headers || {}) };
+
+    // Remove Content-Type for FormData - browser sets it with boundary automatically
+    if (isFormData) {
+      delete headers['Content-Type'];
+    } else {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
+      headers,
+      body: isFormData ? data : JSON.stringify(data),
     });
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
@@ -673,11 +683,21 @@ const api = {
     }
     return res.json();
   },
-  put: async (endpoint, data) => {
+  put: async (endpoint, data, config = {}) => {
+    const isFormData = data instanceof FormData;
+    let headers = { ...getAuthHeader(), ...(config.headers || {}) };
+
+    // Remove Content-Type for FormData - browser sets it with boundary automatically
+    if (isFormData) {
+      delete headers['Content-Type'];
+    } else {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-      body: JSON.stringify(data),
+      headers,
+      body: isFormData ? data : JSON.stringify(data),
     });
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));

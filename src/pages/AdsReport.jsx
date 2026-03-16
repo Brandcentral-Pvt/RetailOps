@@ -32,67 +32,50 @@ const AdsReport = () => {
     searchTerm: ''
   });
 
+  const [reportType, setReportType] = useState('daily');
+
   const loadAdsData = useCallback(async () => {
     setLoading(true);
     try {
-      const asinResponse = await asinApi.getAll({ limit: 500 });
-      const sellerResponse = await sellerApi.getAll({ limit: 100 });
+      let startDate;
+      const now = new Date();
+      let endDate = now.toISOString().split('T')[0]; // Initialize endDate to today's date
 
-      const asins = asinResponse.asins || [];
-      const sellers = sellerResponse.sellers || [];
-      const totalAsins = asins.length || 10;
-      const totalSellers = sellers.length || 1;
+      // Create a new Date object for startDate calculation to avoid modifying 'now' before endDate is set
+      const startDateCalc = new Date();
 
-      const campaignTypes = ['Sponsored Products', 'Sponsored Brands', 'Sponsored Display', 'Sponsored TV'];
-      const statuses = ['Active', 'Paused', 'Ended'];
-      const campaigns = ['Summer Sale', 'New Product Launch', 'Brand Awareness', 'Holiday Special', 'Competitor Conquest', 'Retargeting Drive', 'Category Dominance', 'Prime Day Boost', 'Video Campaign', 'Store Spotlight'];
+      if (dateRange === 'last7') {
+        startDate = new Date(startDateCalc.setDate(startDateCalc.getDate() - 7)).toISOString().split('T')[0];
+      } else if (dateRange === 'last30') {
+        startDate = new Date(startDateCalc.setDate(startDateCalc.getDate() - 30)).toISOString().split('T')[0];
+      } else if (dateRange === 'last90') {
+        startDate = new Date(startDateCalc.setDate(startDateCalc.getDate() - 90)).toISOString().split('T')[0];
+      }
 
-      const generatedData = campaigns.map((campaign, idx) => {
-        const type = campaignTypes[idx % campaignTypes.length];
-        const status = statuses[idx % statuses.length];
-        const baseSpend = 5000 + (totalAsins * 100) + (totalSellers * 500);
-        const spend = Math.round(baseSpend + Math.random() * baseSpend);
-        const ratio = 3 + Math.random() * 2;
-        const sales = Math.round(spend * ratio);
+      const response = await api.get(`/data/ads-report`, { startDate, endDate, reportType });
 
-        return {
-          id: idx + 1,
-          campaign: `${campaign} ${new Date().getFullYear()}`,
-          type,
-          status,
-          spend,
-          impressions: Math.round(spend * 35),
-          clicks: Math.round(spend * 0.8),
-          ctr: (0.8 + Math.random() * 0.5).toFixed(2),
-          cpc: (spend / Math.round(spend * 0.8)).toFixed(2),
-          sales,
-          acos: ((spend / sales) * 100).toFixed(1),
-          roas: (sales / spend).toFixed(2),
-        };
-      });
-
-      setData(generatedData);
+      setData(response.data || []);
     } catch (error) {
       console.error('Failed to load ads data:', error);
     }
     setLoading(false);
-  }, []);
+  }, [dateRange, reportType]);
 
   useEffect(() => {
     loadAdsData();
   }, [loadAdsData]);
 
   const kpis = useMemo(() => {
-    const totalSpend = data.reduce((sum, item) => sum + item.spend, 0);
-    const totalSales = data.reduce((sum, item) => sum + item.sales, 0);
+    const totalSpend = data.reduce((sum, item) => sum + (item.ad_spend || 0), 0);
+    const totalSales = data.reduce((sum, item) => sum + (item.ad_sales || 0), 0);
     const avgRoas = totalSpend > 0 ? (totalSales / totalSpend).toFixed(2) : '0.00';
     const avgAcos = totalSales > 0 ? ((totalSpend / totalSales) * 100).toFixed(1) : '0.0';
 
     return [
-      { title: 'Ad Spend', value: `₹${totalSpend.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', trend: '+12%' },
-      { title: 'Ad Sales', value: `₹${totalSales.toLocaleString()}`, icon: TrendingUp, color: '#8B5CF6', trend: '+18%' },
-      { title: 'Avg ROAS', value: `${avgRoas}x`, icon: Activity, color: '#EC4899', trend: '+5%' },
-      { title: 'Avg ACoS', value: `${avgAcos}%`, icon: Target, color: '#F59E0B', trend: '-2%' },
+      { title: 'Ad Spend', value: `₹${totalSpend.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', trend: '' },
+      { title: 'Ad Sales', value: `₹${totalSales.toLocaleString()}`, icon: TrendingUp, color: '#8B5CF6', trend: '' },
+      { title: 'Avg ROAS', value: `${avgRoas}x`, icon: Activity, color: '#EC4899', trend: '' },
+      { title: 'Avg ACoS', value: `${avgAcos}%`, icon: Target, color: '#F59E0B', trend: '' },
     ];
   }, [data]);
 
@@ -105,44 +88,27 @@ const AdsReport = () => {
     });
   }, [data, filters]);
 
-  const handleCsvImport = (e) => {
+  const handleCsvImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target.result;
-      const rows = text.split('\n').filter(row => row.trim() !== '');
-      if (rows.length < 2) return;
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('reportType', reportType);
+    // reportDate? For monthly we might need a monthpicker, but defaults for now
+    formData.append('date', new Date().toISOString().split('T')[0]);
 
-      const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
-
-      const importedData = rows.slice(1).map((row, idx) => {
-        const values = row.split(',').map(v => v.trim());
-        const entry = {};
-        headers.forEach((header, i) => {
-          entry[header] = values[i];
-        });
-
-        const spend = parseFloat(entry.spend) || 0;
-        const sales = parseFloat(entry.sales) || 0;
-
-        return {
-          id: `imp-${idx}`,
-          campaign: entry.campaign || `Imported Campaign ${idx + 1}`,
-          type: entry.type || 'Sponsored Products',
-          status: entry.status || 'Active',
-          spend: spend,
-          clicks: parseInt(entry.clicks) || 0,
-          sales: sales,
-          acos: sales > 0 ? ((spend / sales) * 100).toFixed(1) : '0.0',
-          roas: spend > 0 ? (sales / spend).toFixed(2) : '0.00'
-        };
-      });
-
-      setData(importedData);
-    };
-    reader.readAsText(file);
+    try {
+      await api.post('/upload/upload-ads', formData);
+      alert('Ads data uploaded successfully');
+      loadAdsData();
+    } catch (error) {
+      console.error('Failed to upload ads data:', error);
+      alert('Upload failed: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -166,23 +132,26 @@ const AdsReport = () => {
   };
 
   const dashboardData = useMemo(() => {
-    return filteredData.map(item => ({
+    return data.map((item, idx) => ({
       ...item,
-      status: getStatusBadge(item.status),
+      id: idx,
+      asin: <span className="fw-700 text-primary">{item.asin}</span>,
       acos: (
         <span className="fw-700" style={{ color: getAcosColor(item.acos) }}>
-          {item.acos}%
+          {parseFloat(item.acos).toFixed(1)}%
         </span>
       ),
       roas: (
         <span className="fw-700 text-dark">
-          {item.roas}x
+          {parseFloat(item.roas).toFixed(2)}x
         </span>
       ),
-      spend: <span className="fw-600">₹{item.spend.toLocaleString()}</span>,
-      sales: <span className="fw-600">₹{item.sales.toLocaleString()}</span>
+      spend: <span className="fw-600">₹{(item.ad_spend || 0).toLocaleString()}</span>,
+      sales: <span className="fw-600">₹{(item.ad_sales || 0).toLocaleString()}</span>,
+      clicks: <span className="fw-600">{(item.clicks || 0).toLocaleString()}</span>,
+      impressions: <span className="fw-600">{(item.impressions || 0).toLocaleString()}</span>
     }));
-  }, [filteredData]);
+  }, [data]);
 
   // Chart options for Performance Efficiency
   const performanceChartOptions = {
@@ -191,7 +160,7 @@ const AdsReport = () => {
     stroke: { curve: 'smooth', width: 2 },
     dataLabels: { enabled: false },
     fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
-    xaxis: { categories: filteredData.map(d => d.campaign.split(' ')[0]), labels: { show: false } },
+    xaxis: { categories: data.map(d => d.asin), labels: { show: false } },
     yaxis: { labels: { show: true, style: { colors: '#64748b' } } },
     tooltip: { theme: 'light' },
     grid: { show: true, borderColor: '#f1f5f9', strokeDashArray: 4 }
@@ -231,7 +200,7 @@ const AdsReport = () => {
               <div className="bg-primary text-white p-1 rounded-2"><Megaphone size={18} /></div>
               <h1 className="h4 fw-800 mb-0" style={{ letterSpacing: '-0.02em' }}>Ads Intelligence</h1>
             </div>
-            <p className="text-muted small mb-0">Performance Analysis & Campaign Optimization</p>
+            <p className="text-muted small mb-0">Performance Analysis & Product Optimization</p>
           </div>
 
           <div className="d-flex align-items-center gap-2">
@@ -296,17 +265,17 @@ const AdsReport = () => {
 
         {/* Campaign Mix */}
         <div className="col-lg-4">
-          <DashboardCard title="Campaign Mix" icon={PieChart}>
+          <DashboardCard title="Product Mix" icon={PieChart}>
             <div className="h-100 d-flex align-items-center justify-content-center">
               <Chart
                 options={{
-                  labels: ['SP', 'SB', 'SD', 'STV'],
-                  colors: ['#4F46E5', '#8B5CF6', '#EC4899', '#F59E0B'],
+                  labels: data.slice(0, 5).map(d => d.asin),
+                  colors: ['#4F46E5', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'],
                   legend: { position: 'bottom' },
                   dataLabels: { enabled: false },
                   plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: 'TOTAL' } } } } }
                 }}
-                series={[45, 25, 20, 10]}
+                series={data.slice(0, 5).map(d => d.ad_spend || 1)}
                 type="donut"
                 width="100%"
               />
@@ -331,7 +300,7 @@ const AdsReport = () => {
                 <input
                   type="text"
                   className="border-0 bg-transparent flex-grow-1 smallest fw-600 outline-none"
-                  placeholder="Campaign name..."
+                  placeholder="ASIN..."
                   value={filters.searchTerm}
                   onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
                 />
@@ -353,15 +322,15 @@ const AdsReport = () => {
             </div>
 
             <div className="mb-4">
-              <label className="smallest fw-bolder text-muted mb-2 d-block text-uppercase">Campaign Status</label>
+              <label className="smallest fw-bolder text-muted mb-2 d-block text-uppercase">Report Type</label>
               <div className="d-flex flex-wrap gap-2">
-                {['all', 'Active', 'Paused'].map(status => (
+                {['daily', 'monthly'].map(type => (
                   <button
-                    key={status}
-                    className={`btn btn-xs rounded-pill px-3 py-1 ${filters.status === status ? 'btn-primary' : 'btn-light border'} fw-600`}
-                    onClick={() => setFilters(prev => ({ ...prev, status }))}
+                    key={type}
+                    className={`btn btn-xs rounded-pill px-3 py-1 ${reportType === type ? 'btn-primary' : 'btn-light border'} fw-600`}
+                    onClick={() => setReportType(type)}
                   >
-                    {status.toUpperCase()}
+                    {type.toUpperCase()}
                   </button>
                 ))}
               </div>
@@ -381,7 +350,7 @@ const AdsReport = () => {
             <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
               <h6 className="fw-bold mb-0 d-flex align-items-center gap-2">
                 <BarChart3 size={18} className="text-primary" />
-                Campaign Performance Ledger
+                Product Performance Ledger
               </h6>
               <div className="d-flex gap-2">
                 <button
@@ -405,7 +374,7 @@ const AdsReport = () => {
             <div className="p-0 text-nowrap">
               <DataTable
                 data={dashboardData}
-                columns={['campaign', 'type', 'status', 'spend', 'clicks', 'sales', 'acos', 'roas']}
+                columns={['asin', 'spend', 'clicks', 'impressions', 'sales', 'acos', 'roas']}
                 pagination={true}
                 pageSize={8}
                 compact={true}
