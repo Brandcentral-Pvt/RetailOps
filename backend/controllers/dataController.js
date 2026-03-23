@@ -315,7 +315,14 @@ exports.getAdsReport = async (req, res) => {
           ad_sales: { $sum: '$ad_sales' },
           impressions: { $sum: '$impressions' },
           clicks: { $sum: '$clicks' },
-          orders: { $sum: '$orders' }
+          orders: { $sum: '$orders' },
+          conversions: { $sum: '$conversions' },
+          sessions: { $sum: '$sessions' },
+          page_views: { $sum: '$page_views' },
+          organic_sales: { $sum: '$organic_sales' },
+          organic_orders: { $sum: '$organic_orders' },
+          same_sku_sales: { $sum: '$same_sku_sales' },
+          same_sku_orders: { $sum: '$same_sku_orders' }
         }
       },
       { $sort: { _id: 1 } },
@@ -327,6 +334,13 @@ exports.getAdsReport = async (req, res) => {
           impressions: 1,
           clicks: 1,
           orders: 1,
+          conversions: 1,
+          sessions: 1,
+          page_views: 1,
+          organic_sales: 1,
+          organic_orders: 1,
+          same_sku_sales: 1,
+          same_sku_orders: 1,
           acos: {
             $cond: [
               { $gt: ['$ad_sales', 0] },
@@ -354,6 +368,20 @@ exports.getAdsReport = async (req, res) => {
               { $divide: ['$ad_sales', '$orders'] },
               0
             ]
+          },
+          cpc: {
+            $cond: [
+              { $gt: ['$clicks', 0] },
+              { $divide: ['$ad_spend', '$clicks'] },
+              0
+            ]
+          },
+          conversion_rate: {
+            $cond: [
+              { $gt: ['$clicks', 0] },
+              { $multiply: [{ $divide: ['$orders', '$clicks'] }, 100] },
+              0
+            ]
           }
         }
       }
@@ -369,7 +397,14 @@ exports.getAdsReport = async (req, res) => {
           ad_sales: { $sum: "$ad_sales" },
           impressions: { $sum: "$impressions" },
           clicks: { $sum: "$clicks" },
-          orders: { $sum: "$orders" }
+          orders: { $sum: "$orders" },
+          conversions: { $sum: "$conversions" },
+          sessions: { $sum: "$sessions" },
+          page_views: { $sum: "$page_views" },
+          organic_sales: { $sum: "$organic_sales" },
+          organic_orders: { $sum: "$organic_orders" },
+          same_sku_sales: { $sum: "$same_sku_sales" },
+          same_sku_orders: { $sum: "$same_sku_orders" }
         }
       },
       {
@@ -380,6 +415,13 @@ exports.getAdsReport = async (req, res) => {
           impressions: 1,
           clicks: 1,
           orders: 1,
+          conversions: 1,
+          sessions: 1,
+          page_views: 1,
+          organic_sales: 1,
+          organic_orders: 1,
+          same_sku_sales: 1,
+          same_sku_orders: 1,
           acos: {
             $cond: [
               { $gt: ["$ad_sales", 0] },
@@ -405,6 +447,20 @@ exports.getAdsReport = async (req, res) => {
             $cond: [
               { $gt: ["$orders", 0] },
               { $divide: ["$ad_sales", "$orders"] },
+              0
+            ]
+          },
+          cpc: {
+            $cond: [
+              { $gt: ["$clicks", 0] },
+              { $divide: ["$ad_spend", "$clicks"] },
+              0
+            ]
+          },
+          conversion_rate: {
+            $cond: [
+              { $gt: ["$clicks", 0] },
+              { $multiply: [{ $divide: ["$orders", "$clicks"] }, 100] },
               0
             ]
           }

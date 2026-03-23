@@ -628,16 +628,16 @@ const ObjectiveManager = ({ onObjectiveCreated, onClose, objective, users = [] }
 
                 {step === 2 && (
                     <div className="template-selection">
-                        {selectedRoadmap !== 'NONE' && ROADMAP_PRESETS[selectedRoadmap] ? (
+                        {selectedRoadmap !== 'NONE' && roadmapPresets[selectedRoadmap] ? (
                             <div className="roadmap-mapping animate-fadeIn">
                                 <div className="p-3 bg-soft-primary rounded-3 border border-primary border-opacity-10 mb-4">
                                     <h6 className="fw-bold text-primary mb-1">
                                         <Sparkles size={16} className="me-2" />
-                                        Roadmap Mapping: {ROADMAP_PRESETS[selectedRoadmap].name}
+                                        Roadmap Mapping: {roadmapPresets[selectedRoadmap].name}
                                     </h6>
                                     <p className="text-muted small mb-0">Select templates for each project goal below.</p>
                                 </div>
-                                {ROADMAP_PRESETS[selectedRoadmap].goals.map((goal, idx) => (
+                                {roadmapPresets[selectedRoadmap].goals.map((goal, idx) => (
                                     <div key={idx} className="card border-light mb-4 shadow-sm overflow-hidden">
                                         <div className="card-header bg-light py-2 px-3 border-0 d-flex justify-content-between align-items-center">
                                             <h6 className="fw-bold mb-0 small text-uppercase text-muted">{goal.title}</h6>

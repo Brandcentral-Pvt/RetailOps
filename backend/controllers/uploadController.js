@@ -127,7 +127,8 @@ exports.uploadAdsData = async (req, res) => {
     const filePath = req.file.path;
     const workbook = XLSX.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = XLSX.utils.sheet_to_json(sheet);
+    // Use raw: true so XLSX doesn't auto-convert triple-quoted dates to serial numbers
+    const jsonData = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
 
     const reportType = req.body.reportType || 'daily'; // 'daily' or 'monthly'
     const reportDate = req.body.date; // For daily: YYYY-MM-DD, For monthly: YYYY-MM
@@ -150,25 +151,92 @@ exports.uploadAdsData = async (req, res) => {
       clicks: ['metrics.clicks', 'Clicks', 'clicks'],
       orders: ['metrics.orders', '7 Day Total Orders', 'Total Orders', 'orders'],
       date: ['date', 'Date', 'Day', 'metrics.date'],
-      // Additional metrics
+      // Performance metrics
       acos: ['metrics.acos', 'ACoS', 'acos'],
       roas: ['metrics.roas', 'ROAS', 'roas'],
       ctr: ['metrics.ctr', 'CTR', 'ctr'],
-      aov: ['metrics.aov', 'AOV', 'aov']
+      aov: ['metrics.aov', 'AOV', 'aov'],
+      // Additional metrics from CSV
+      cpc: ['metrics.cpc', 'CPC', 'cpc'],
+      conversion_rate: ['metrics.conversion_rate', 'Conversion Rate', 'conversion_rate'],
+      conversions: ['metrics.conversions', 'Conversions', 'conversions'],
+      // Same SKU metrics
+      same_sku_sales: ['metrics.same_sku_sales', 'Same SKU Sales', 'same_sku_sales'],
+      same_sku_orders: ['metrics.same_sku_orders', 'Same SKU Orders', 'same_sku_orders'],
+      // Budget metrics
+      daily_budget: ['metrics.daily_budget', 'Daily Budget', 'daily_budget'],
+      total_budget: ['metrics.total_budget', 'Total Budget', 'total_budget'],
+      max_spend: ['metrics.max_spend', 'Max Spend', 'max_spend'],
+      avg_spend: ['metrics.avg_spend', 'Avg Spend', 'avg_spend'],
+      // Totals
+      total_sales: ['metrics.total_sales', 'Total Sales', 'total_sales'],
+      total_acos: ['metrics.total_acos', 'Total ACoS', 'total_acos'],
+      total_units: ['metrics.total_units', 'Total Units', 'total_units'],
+      // Organic metrics
+      organic_sales: ['metrics.organic_sales', 'Organic Sales', 'organic_sales'],
+      organic_orders: ['metrics.organic_orders', 'Organic Orders', 'organic_orders'],
+      // Traffic & engagement
+      page_views: ['metrics.page_views', 'Page Views', 'page_views'],
+      ad_sales_perc: ['metrics.ad_sales_perc', 'Ad Sales %', 'ad_sales_perc'],
+      tos_is: ['metrics.tos_is', 'TOS IS', 'tos_is'],
+      sessions: ['metrics.sessions', 'Sessions', 'sessions'],
+      buy_box_percentage: ['metrics.buy_box_percentage', 'Buy Box %', 'buy_box_percentage'],
+      browser_sessions: ['metrics.browser_sessions', 'Browser Sessions', 'browser_sessions'],
+      mobile_app_sessions: ['metrics.mobile_app_sessions', 'Mobile App Sessions', 'mobile_app_sessions']
     };
 
     const cleanValue = (val) => {
       if (val === null || val === undefined) return null;
       let cleaned = val.toString().trim();
-      // Remove double quotes if present (e.g., """2026-02-27""" or """None""")
+      // Remove double/triple quotes (e.g., """2026-02-27""" or """None""")
       cleaned = cleaned.replace(/^"+|"+$/g, '');
       if (cleaned.toLowerCase() === 'none' || cleaned === '') return null;
+      return cleaned;
+    };
+
+    // Parse date — handles M/D/YY (XLSX formatted), YYYY-MM-DD, and Excel serial numbers
+    const parseDate = (val) => {
+      if (!val) return null;
+      let cleaned = val.toString().trim().replace(/^"+|"+$/g, '');
+      if (cleaned.toLowerCase() === 'none' || cleaned === '') return null;
+
+      // Excel serial number (e.g., 46080)
+      if (!isNaN(cleaned) && Number(cleaned) > 10000) {
+        const excelEpoch = new Date(1899, 11, 30);
+        const d = new Date(excelEpoch.getTime() + Number(cleaned) * 86400000);
+        return d.toISOString().split('T')[0];
+      }
+
+      // M/D/YY format (e.g., "2/27/26" → "2026-02-27")
+      const shortMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+      if (shortMatch) {
+        let year = parseInt(shortMatch[3]);
+        year = year < 100 ? 2000 + year : year; // 26 → 2026
+        const month = shortMatch[1].padStart(2, '0');
+        const day = shortMatch[2].padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      // M/D/YYYY format (e.g., "2/27/2026")
+      const longMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (longMatch) {
+        const month = longMatch[1].padStart(2, '0');
+        const day = longMatch[2].padStart(2, '0');
+        return `${longMatch[3]}-${month}-${day}`;
+      }
+
+      // Already YYYY-MM-DD
       return cleaned;
     };
 
     const findValue = (row, fields) => {
       const key = Object.keys(row).find(k => fields.includes(k));
       return key ? cleanValue(row[key]) : null;
+    };
+
+    const findDate = (row, fields) => {
+      const key = Object.keys(row).find(k => fields.includes(k));
+      return key ? parseDate(row[key]) : null;
     };
 
     for (let index = 0; index < jsonData.length; index++) {
@@ -188,18 +256,71 @@ exports.uploadAdsData = async (req, res) => {
         const clicks = parseInt(findValue(row, mappings.clicks) || 0);
         const orders = parseInt(findValue(row, mappings.orders) || 0);
         const sku = findValue(row, mappings.sku);
-        const rowDate = findValue(row, mappings.date);
+        const rowDate = findDate(row, mappings.date);
 
         // Parse additional metrics
         const acosStr = findValue(row, mappings.acos);
         const roasStr = findValue(row, mappings.roas);
         const ctrStr = findValue(row, mappings.ctr);
         const aovStr = findValue(row, mappings.aov);
+        const cpcStr = findValue(row, mappings.cpc);
+        const conversionRateStr = findValue(row, mappings.conversion_rate);
+        const conversionsStr = findValue(row, mappings.conversions);
 
         const acos = acosStr ? parseFloat(acosStr.replace(/,/g, "")) : 0;
         const roas = roasStr ? parseFloat(roasStr.replace(/,/g, "")) : 0;
         const ctr = ctrStr ? parseFloat(ctrStr.replace(/,/g, "")) : 0;
         const aov = aovStr ? parseFloat(aovStr.replace(/,/g, "")) : 0;
+        const cpc = cpcStr ? parseFloat(cpcStr.replace(/,/g, "")) : 0;
+        const conversion_rate = conversionRateStr ? parseFloat(conversionRateStr.replace(/,/g, "")) : 0;
+        const conversions = conversionsStr ? parseInt(conversionsStr.replace(/,/g, "")) : 0;
+
+        // Parse same SKU metrics
+        const sameSkuSalesStr = findValue(row, mappings.same_sku_sales);
+        const sameSkuOrdersStr = findValue(row, mappings.same_sku_orders);
+        const same_sku_sales = sameSkuSalesStr ? parseFloat(sameSkuSalesStr.replace(/,/g, "")) : 0;
+        const same_sku_orders = sameSkuOrdersStr ? parseInt(sameSkuOrdersStr.replace(/,/g, "")) : 0;
+
+        // Parse budget metrics
+        const dailyBudgetStr = findValue(row, mappings.daily_budget);
+        const totalBudgetStr = findValue(row, mappings.total_budget);
+        const maxSpendStr = findValue(row, mappings.max_spend);
+        const avgSpendStr = findValue(row, mappings.avg_spend);
+        const daily_budget = dailyBudgetStr ? parseFloat(dailyBudgetStr.replace(/,/g, "")) : 0;
+        const total_budget = totalBudgetStr ? parseFloat(totalBudgetStr.replace(/,/g, "")) : 0;
+        const max_spend = maxSpendStr ? parseFloat(maxSpendStr.replace(/,/g, "")) : 0;
+        const avg_spend = avgSpendStr ? parseFloat(avgSpendStr.replace(/,/g, "")) : 0;
+
+        // Parse totals
+        const totalSalesStr = findValue(row, mappings.total_sales);
+        const totalAcosStr = findValue(row, mappings.total_acos);
+        const totalUnitsStr = findValue(row, mappings.total_units);
+        const total_sales = totalSalesStr ? parseFloat(totalSalesStr.replace(/,/g, "")) : 0;
+        const total_acos = totalAcosStr ? parseFloat(totalAcosStr.replace(/,/g, "")) : 0;
+        const total_units = totalUnitsStr ? parseInt(totalUnitsStr.replace(/,/g, "")) : 0;
+
+        // Parse organic metrics
+        const organicSalesStr = findValue(row, mappings.organic_sales);
+        const organicOrdersStr = findValue(row, mappings.organic_orders);
+        const organic_sales = organicSalesStr ? parseFloat(organicSalesStr.replace(/,/g, "")) : 0;
+        const organic_orders = organicOrdersStr ? parseInt(organicOrdersStr.replace(/,/g, "")) : 0;
+
+
+        // Parse traffic & engagement
+        const pageViewsStr = findValue(row, mappings.page_views);
+        const adSalesPercStr = findValue(row, mappings.ad_sales_perc);
+        const tosIsStr = findValue(row, mappings.tos_is);
+        const sessionsStr = findValue(row, mappings.sessions);
+        const buyBoxPercStr = findValue(row, mappings.buy_box_percentage);
+        const browserSessionsStr = findValue(row, mappings.browser_sessions);
+        const mobileAppSessionsStr = findValue(row, mappings.mobile_app_sessions);
+        const page_views = pageViewsStr ? parseInt(pageViewsStr.replace(/,/g, "")) : 0;
+        const ad_sales_perc = adSalesPercStr ? parseFloat(adSalesPercStr.replace(/,/g, "")) : 0;
+        const tos_is = tosIsStr ? parseFloat(tosIsStr.replace(/,/g, "")) : 0;
+        const sessions = sessionsStr ? parseInt(sessionsStr.replace(/,/g, "")) : 0;
+        const buy_box_percentage = buyBoxPercStr ? parseFloat(buyBoxPercStr.replace(/,/g, "")) : 0;
+        const browser_sessions = browserSessionsStr ? parseInt(browserSessionsStr.replace(/,/g, "")) : 0;
+        const mobile_app_sessions = mobileAppSessionsStr ? parseInt(mobileAppSessionsStr.replace(/,/g, "")) : 0;
 
         const filter = { asin, reportType };
         const updateData = {
@@ -213,6 +334,27 @@ exports.uploadAdsData = async (req, res) => {
           roas,
           ctr,
           aov,
+          cpc,
+          conversion_rate,
+          conversions,
+          same_sku_sales,
+          same_sku_orders,
+          daily_budget,
+          total_budget,
+          max_spend,
+          avg_spend,
+          total_sales,
+          total_acos,
+          total_units,
+          organic_sales,
+          organic_orders,
+          page_views,
+          ad_sales_perc,
+          tos_is,
+          sessions,
+          buy_box_percentage,
+          browser_sessions,
+          mobile_app_sessions,
           uploaded_at: new Date()
         };
 
