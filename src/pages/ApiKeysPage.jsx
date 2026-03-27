@@ -4,6 +4,8 @@ import { Copy, Check, ChevronRight, Eye, EyeOff, RefreshCw, Plus, Trash2, Edit, 
 import api from '../services/api';
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, Alert } from 'reactstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const CATEGORY_COLORS = {
     'Scraping': '#6366F1',
@@ -11,14 +13,6 @@ const CATEGORY_COLORS = {
     'AI': '#10B981',
     'Communication': '#EC4899',
     'Other': '#64748B'
-};
-
-/* ─── Helpers ──────────────────────────────────────────────────── */
-const maskKey = (val) => {
-    if (!val) return '';
-    const s = String(val).trim();
-    if (s.length <= 8) return '•'.repeat(s.length);
-    return s.slice(0, 4) + '•'.repeat(Math.max(6, s.length - 8)) + s.slice(-4);
 };
 
 /* ─── Sub-components ───────────────────────────────────────────── */
@@ -72,7 +66,7 @@ const ApiKeysPage = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
-    useEffect(() => { fetchKeys(); }, []);
+useEffect(() => { fetchKeys(); }, []);
 
     const fetchKeys = async () => {
         setLoading(true);
@@ -177,9 +171,14 @@ const ApiKeysPage = () => {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
-    return (
-        <div className="container-fluid py-4">
-            {/* Breadcrumb & Header */}
+return (
+    <div className="container-fluid py-4">
+        {loading && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+                <LoadingIndicator type="line-simple" size="md" />
+            </div>
+        )}
+        {/* Breadcrumb & Header */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h4 className="fw-bold mb-1" style={{ color: '#0f172a' }}>API Keys Management</h4>
@@ -239,19 +238,13 @@ const ApiKeysPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {loading && apiKeys.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="text-center py-5 text-muted">
-                                        <Loader2 className="spin me-2" size={20} /> Loading keys...
-                                    </td>
-                                </tr>
-                            ) : apiKeys.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="text-center py-5 text-muted">
-                                        No API keys configured. Click "Add New Key" to get started.
-                                    </td>
-                                </tr>
-                            ) : apiKeys.map((key) => {
+{apiKeys.length === 0 ? (
+    <tr>
+        <td colSpan={5} className="text-center py-5 text-muted">
+            No API keys configured. Click "Add New Key" to get started.
+        </td>
+    </tr>
+) : apiKeys.map((key) => {
                                 const isRevealed = !!revealedKeys[key._id];
                                 const displayValue = isRevealed ? revealedKeys[key._id] : key.value;
 

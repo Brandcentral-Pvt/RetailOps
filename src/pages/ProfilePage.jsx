@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { User, Mail, Shield, Calendar, Camera, Edit2, Loader2 } from 'lucide-react';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const ProfilePage = () => {
     const { id } = useParams();
@@ -102,12 +104,8 @@ const ProfilePage = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-                <Loader2 className="animate-spin text-primary" size={48} />
-            </div>
-        );
+    if (loading && !user) { 
+        return <PageLoader message="Loading Profile..." />; 
     }
 
     if (error) {
@@ -123,6 +121,11 @@ const ProfilePage = () => {
 
     return (
         <div className="container-fluid py-4">
+        {loading && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+                <LoadingIndicator type="line-simple" size="md" />
+            </div>
+        )}
             <div className="row justify-content-center">
                 <div className="col-lg-10 col-xl-8">
                     {/* Header Card */}

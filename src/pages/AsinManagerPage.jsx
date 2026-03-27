@@ -31,6 +31,8 @@ import {
   Sparkles,
   Image
 } from 'lucide-react';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 // Helper to generate tiered structure for history columns
 const generateHistoryStructure = (history) => {
@@ -562,7 +564,11 @@ const AsinManagerPage = () => {
     </div>
   );
 
-  if (loading) {
+  if (loading && asins.length === 0) {
+    return <PageLoader message="Loading ASIN Manager..." />;
+  }
+
+  if (loading && asins.length > 0) {
     return (
       <div className="container-fluid p-0">
         <header className="main-header" style={{ padding: '1.5rem 2rem', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
@@ -570,6 +576,9 @@ const AsinManagerPage = () => {
             <Scan className="text-primary" size={28} />
             ASIN Manager
           </h1>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+            <LoadingIndicator type="line-simple" size="md" />
+          </div>
         </header>
         <div className="page-content py-5">
           {error ? (

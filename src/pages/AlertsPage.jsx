@@ -6,6 +6,8 @@ import api from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
 import EmptyState from '../components/common/EmptyState';
 import './Alerts.css';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const AlertsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -24,6 +26,10 @@ const AlertsPage = () => {
     type: 'all'
   });
   const socket = useSocket();
+
+  if (loading && notifications.length === 0) {
+    return <PageLoader message="Loading Alerts..." />;
+  }
 
   const fetchNotifications = async () => {
     try {
@@ -162,6 +168,11 @@ const AlertsPage = () => {
   return (
     <>
       <div className="container-fluid py-5 min-vh-100" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        {loading && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+            <LoadingIndicator type="line-simple" size="md" />
+          </div>
+        )}
         <div className="row justify-content-center">
           <div className="col-lg-10 col-xl-9">
 
@@ -216,13 +227,13 @@ const AlertsPage = () => {
             <div className="mb-4">
               {/* Read / Unread toggle */}
               <div className="d-flex gap-2 p-1 bg-zinc-100 border border-zinc-200 rounded-pill d-inline-flex mb-3">
-                <button
-                  className={`btn btn-sm rounded-pill px-4 fw-bold border-0 transition-all ${!filters.unreadOnly ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500'}`}
-                  style={!filters.unreadOnly ? { backgroundColor: '#18181B' } : {}}
-                  onClick={() => setFilters({ ...filters, unreadOnly: false })}
-                >
-                  Recent
-                </button>
+                  <button
+                    className={`btn btn-sm rounded-pill px-4 fw-bold border-0 transition-all ${!filters.unreadOnly ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500'}`}
+                    style={!filters.unreadOnly ? { backgroundColor: '#18181B' } : {}}
+                    onClick={() => setFilters({ ...filters, unreadOnly: false })}
+                  >
+                    Recent
+                  </button>
                 <button
                   className={`btn btn-sm rounded-pill px-4 fw-bold border-0 transition-all ${filters.unreadOnly ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500'}`}
                   style={filters.unreadOnly ? { backgroundColor: '#18181B' } : {}}
@@ -232,26 +243,26 @@ const AlertsPage = () => {
                 </button>
               </div>
 
-                {/* Type filter */}
-                <div className="d-flex gap-2 flex-wrap mb-3">
-                  {[
-                    { id: 'all', label: 'All Types' },
-                    { id: 'ALERT', label: '🔴 Alerts' },
-                    { id: 'SYSTEM', label: '🔵 System' },
-                    { id: 'ACTION_ASSIGNED', label: '🟢 Updates' },
-                    { id: 'CHAT_MESSAGE', label: '💬 Chat' },
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setFilters(prev => ({ ...prev, type: t.id }))}
-                      className={`btn btn-sm rounded-pill fw-bold border border-zinc-200 px-3 shadow-none transition-all ${filters.type === t.id ? 'bg-zinc-900 text-white border-zinc-900 shadow-sm' : 'bg-white text-zinc-500'
-                        }`}
-                      style={filters.type === t.id ? { backgroundColor: '#18181B' } : {}}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+              {/* Type filter */}
+              <div className="d-flex gap-2 flex-wrap mb-3">
+                {[
+                  { id: 'all', label: 'All Types' },
+                  { id: 'ALERT', label: '🔴 Alerts' },
+                  { id: 'SYSTEM', label: '🔵 System' },
+                  { id: 'ACTION_ASSIGNED', label: '🟢 Updates' },
+                  { id: 'CHAT_MESSAGE', label: '💬 Chat' },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setFilters(prev => ({ ...prev, type: t.id }))}
+                    className={`btn btn-sm rounded-pill fw-bold border border-zinc-200 px-3 shadow-none transition-all ${filters.type === t.id ? 'bg-zinc-900 text-white border-zinc-900 shadow-sm' : 'bg-white text-zinc-500'
+                    }`}
+                    style={filters.type === t.id ? { backgroundColor: '#18181B' } : {}}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
               {/* Search */}
               <div className="input-group ios-search-pill rounded-pill px-3 py-1 shadow-sm mb-4">
@@ -277,12 +288,7 @@ const AlertsPage = () => {
             </div>
 
             <div className="notifications-stack">
-              {loading && notifications.length === 0 ? (
-                <div className="text-center py-5 mt-5">
-                  <Loader2 className="animate-spin text-primary mb-3" size={40} />
-                  <p className="text-muted">Fetching updates...</p>
-                </div>
-              ) : notifications.length === 0 ? (
+              {notifications.length === 0 ? (
                 <EmptyState
                   icon={Bell}
                   title="All caught up!"

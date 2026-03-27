@@ -115,15 +115,15 @@ function AppRoutes() {
                   <Route path="/alerts" element={<ProtectedRoute permission="dashboard_view"><AlertsPage /></ProtectedRoute>} />
                   <Route path="/alert-rules" element={<ProtectedRoute permission="settings_view"><AlertRulesPage /></ProtectedRoute>} />
                   <Route path="/scrape-tasks" element={<ProtectedRoute permission="scraping_view"><ScrapeTasksPage /></ProtectedRoute>} />
-                   <Route path="/sellers" element={<ProtectedRoute permission="sellers_view"><SellersPage /></ProtectedRoute>} />
+                  <Route path="/sellers" element={<ProtectedRoute permission="sellers_view"><SellersPage /></ProtectedRoute>} />
                   <Route path="/seller-tracker" element={<ProtectedRoute permission="sellers_view"><SellerAsinTrackerPage /></ProtectedRoute>} />
                   <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="sellers_view"><SellerAsinTrackerPage /></ProtectedRoute>} />
                   <Route path="/activity-log" element={<ProtectedRoute permission="settings_view"><ActivityLog /></ProtectedRoute>} />
                   <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
                   <Route path="/actions/achievement-report" element={<ProtectedRoute permission="reports_monthly_view"><GoalAchievementReport /></ProtectedRoute>} />
                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
-                   
-                   <Route path="/profile" element={<ProfilePage />} />
+
+                  <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/profile/:id" element={<ProfilePage />} />
                   <Route path="/chat" element={<ChatContainer />} />
                   <Route path="/unauthorized" element={<Unauthorized />} />

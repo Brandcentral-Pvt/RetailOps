@@ -3,6 +3,9 @@ import DataTable from '../components/DataTable';
 import KPICard from '../components/KPICard';
 import { asinApi, marketSyncApi } from '../services/api';
 
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
+
 // Generate 12-week history data
 const generateHistoryData = (basePrice, baseBSR, baseRating, baseReviews) => {
   const history = [];
@@ -305,20 +308,7 @@ const AsinTrackerPage = () => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <>
-        <div className="page-header">
-          <h1 className="page-title"><i className="bi bi-upc-scan"></i>ASIN Tracker</h1>
-        </div>
-        <div className="page-content">
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </>
-    );
-  }
+   if (loading && asins.length === 0) { return <PageLoader message="Loading Asin Tracker..." />; }
 
   return (
     <>
@@ -331,8 +321,13 @@ const AsinTrackerPage = () => {
         </div>
       </div>
 
-      <div className="page-content">
-        {/* Single Collapsible Section containing KPIs and Performance Overview */}
+       <div className="page-content">
+         {loading && (
+           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+             <LoadingIndicator type="line-simple" size="md" />
+           </div>
+         )}
+         {/* Single Collapsible Section containing KPIs and Performance Overview */}
         <CollapsibleSection
           title="ASIN Performance Overview"
           icon="bi bi-graph-up"

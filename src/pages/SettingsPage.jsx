@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState({
@@ -78,12 +80,16 @@ const SettingsPage = () => {
     setTestingOctoparse(false);
   };
 
-  return (
-    <>
-      <div className="page-header">
-        <h1 className="page-title"><i className="bi bi-gear"></i>Settings</h1>
-      </div>
-      <div className="page-content">
+   return (
+     <>
+       {loading && (
+         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #4F46E5, #10B981)', zIndex: 9999 }}>
+         </div>
+       )}
+       <div className="page-header">
+         <h1 className="page-title"><i className="bi bi-gear"></i>Settings</h1>
+       </div>
+       <div className="page-content">
         <div className="row">
           <div className="col-lg-8">
             {/* Octoparse API Settings */}

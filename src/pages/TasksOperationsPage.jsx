@@ -5,6 +5,8 @@ import ActionModal from '../components/actions/ActionModal';
 import CompletionModal from '../components/actions/CompletionModal';
 import ReviewModal from '../components/actions/ReviewModal';
 import { useNavigate } from 'react-router-dom';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const TasksOperationsPage = () => {
     const [actions, setActions] = useState([]);
@@ -21,6 +23,10 @@ const TasksOperationsPage = () => {
     const [asins, setAsins] = useState([]);
     const navigate = useNavigate();
     const currentUser = db.getUser();
+
+    if (loading && actions.length === 0) {
+        return <PageLoader message="Loading Tasks Operations..." />;
+    }
 
     const loadTasks = async () => {
         setLoading(true);
@@ -145,6 +151,11 @@ const TasksOperationsPage = () => {
 
     return (
         <div className="container-fluid p-4">
+            {loading && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+                    <LoadingIndicator type="line-simple" size="md" />
+                </div>
+            )}
             <header className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 className="fw-bold h2 mb-1">Task Operations</h1>
@@ -208,13 +219,7 @@ const TasksOperationsPage = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan="7" className="text-center py-5">
-                                            <div className="spinner-border spinner-border-sm text-primary"></div>
-                                        </td>
-                                    </tr>
-                                ) : filteredActions.length > 0 ? (
+                                {filteredActions.length > 0 ? (
                                     filteredActions.map(action => (
                                         <tr key={action._id} onClick={() => handleEditAction(action)} style={{ cursor: 'pointer' }}>
                                             <td className="ps-4">
@@ -257,9 +262,9 @@ const TasksOperationsPage = () => {
                                             <td>
                                                 <span className={`badge ${action.status === 'COMPLETED' ? 'bg-success-subtle text-success' :
                                                     action.status === 'IN_PROGRESS' ? 'bg-primary-subtle text-primary' :
-                                                        action.status === 'REVIEW' ? 'bg-info-subtle text-info' :
-                                                            'bg-warning-subtle text-warning-emphasis'
-                                                    }`}>
+                                                    action.status === 'REVIEW' ? 'bg-info-subtle text-info' :
+                                                        'bg-warning-subtle text-warning-emphasis'
+                                                }`}>
                                                     {action.status?.replace('_', ' ')}
                                                 </span>
                                             </td>

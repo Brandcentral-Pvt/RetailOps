@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { RefreshCw, Package, Search, ChevronDown, ChevronUp, Zap, Activity, AlertTriangle, ExternalLink, BarChart2, Store, Plus, Filter, Database, Globe } from 'lucide-react';
 import api from '../services/api';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 /* ── Zinc Design Tokens (inline) ─────────────────────────── */
 const Z = {
@@ -364,18 +366,18 @@ const SellerAsinTrackerPage = () => {
 
   /* ── Loading state ─── */
   if (loading && sellers.length === 0) {
-    return (
-      <div style={{ minHeight: '100vh', background: Z.white, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-        <RefreshCw className="spin" size={48} style={{ color: Z[900], marginBottom: 12 }} />
-        <h5 style={{ color: Z[900], fontWeight: 700 }}>Connecting to Keepa...</h5>
-        <p style={{ color: Z[500] }}>Retrieving operational data streams</p>
-      </div>
-    );
+    return <PageLoader message="Connecting to Keepa..." />;
   }
 
   return (
     <div style={{ backgroundColor: Z.bg, minHeight: '100vh' }}>
       <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      )}
 
       {/* ── Professional Header ─── */}
       <div style={{ background: Z.white, borderBottom: `1px solid ${Z[200]}`, boxShadow: '0 1px 2px rgba(0,0,0,0.03)', padding: '20px 28px', marginBottom: 24 }}>

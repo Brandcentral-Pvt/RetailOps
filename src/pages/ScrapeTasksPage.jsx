@@ -3,6 +3,8 @@ import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import { sellerApi, asinApi } from '../services/api';
 import octoparseService from '../services/octoparseService';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const ScrapeTasksPage = () => {
   const [tasks, setTasks] = useState([]);
@@ -165,23 +167,15 @@ const ScrapeTasksPage = () => {
     return new Date(dateStr).toLocaleString();
   };
 
-  if (loading) {
-    return (
-      <>
-        <div className="page-header">
-          <h1 className="page-title"><i className="bi bi-cloud-download"></i>Scrape Tasks</h1>
-        </div>
-        <div className="page-content">
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </>
-    );
-  }
+  if (loading && tasks.length === 0) { return <PageLoader message="Loading Scrape Tasks..." />; }
 
   return (
     <>
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      )}
       <div className="page-header">
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
           <h1 className="page-title"><i className="bi bi-cloud-download"></i>Scrape Tasks</h1>

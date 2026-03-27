@@ -3,6 +3,8 @@ import { db } from '../services/db';
 import {
     Plus, Edit2, Trash2, Search, Clock, Check, Loader2, Tag, Zap, Sparkles, Target, Settings, LayoutTemplate
 } from 'lucide-react';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const TemplateManagerPage = () => {
     // Shared State
@@ -11,12 +13,30 @@ const TemplateManagerPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Configuration State (with hardcoded defaults)
+    const [categories, setCategories] = useState(['SEO & Content', 'Sales & Marketing', 'Operations & General', 'PPC & Advertising', 'Compliance & Legal']);
+    const [taskTypes, setTaskTypes] = useState([
+        { value: 'TITLE_OPTIMIZATION', label: 'Title SEO' },
+        { value: 'A_PLUS_CONTENT', label: 'A+ Content' },
+        { value: 'PRICING_STRATEGY', label: 'Pricing' },
+        { value: 'INVENTORY_MANAGEMENT', label: 'Inventory' },
+        { value: 'GENERAL_OPTIMIZATION', label: 'General' },
+        { value: 'IMAGE_OPTIMIZATION', label: 'Images' },
+        { value: 'DESCRIPTION_OPTIMIZATION', label: 'Description' }
+    ]);
+    const [priorities, setPriorities] = useState(['LOW', 'MEDIUM', 'HIGH', 'URGENT']);
+    const [metrics, setMetrics] = useState(['NONE', 'GMS', 'ACOS', 'ROI', 'PROFIT', 'CONVERSION_RATE', 'ORDER_COUNT', 'LISTING', 'PO_FULFILLMENT', 'LQS', 'ADS_SPEND', 'PRODUCTS_TO_LIST']);
+
     // Task Templates State
     const [taskTemplates, setTaskTemplates] = useState([]);
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [currentTaskTemplate, setCurrentTaskTemplate] = useState(null);
     const [taskFormData, setTaskFormData] = useState({
-        title: '', description: '', type: 'GENERAL', priority: 'MEDIUM', category: 'General', estimatedMinutes: 30
+        title: '', description: '', 
+        type: taskTypes.length > 0 ? taskTypes[0].value : 'GENERAL_OPTIMIZATION', 
+        priority: priorities.length > 0 ? priorities[1] : 'MEDIUM', 
+        category: categories.length > 0 ? categories[2] : 'Operations & General', 
+        estimatedMinutes: 30
     });
 
     // Goal Templates State
@@ -27,38 +47,42 @@ const TemplateManagerPage = () => {
         name: '', description: '', goals: []
     });
 
-    // AI Generation State
-    const [showAiModal, setShowAiModal] = useState(false);
-    const [aiPrompt, setAiPrompt] = useState('');
-    const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiSuggestions, setAiSuggestions] = useState(null);
+      // AI Generation State
+      const [showAiModal, setShowAiModal] = useState(false);
+      const [aiPrompt, setAiPrompt] = useState('');
+      const [aiGenerating, setAiGenerating] = useState(false);
+      const [aiSuggestions, setAiSuggestions] = useState(null);
 
-    // Constants
-    const categories = ['SEO & Content', 'Sales & Marketing', 'Operations & General', 'PPC & Advertising', 'Compliance & Legal'];
-    const types = [
-        { value: 'TITLE_OPTIMIZATION', label: 'Title SEO' },
-        { value: 'A_PLUS_CONTENT', label: 'A+ Content' },
-        { value: 'PRICING_STRATEGY', label: 'Pricing' },
-        { value: 'INVENTORY_MANAGEMENT', label: 'Inventory' },
-        { value: 'GENERAL_OPTIMIZATION', label: 'General' },
-        { value: 'IMAGE_OPTIMIZATION', label: 'Images' },
-        { value: 'DESCRIPTION_OPTIMIZATION', label: 'Description' }
-    ];
-    const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-    const metrics = ['NONE', 'GMS', 'ACOS', 'ROI', 'PROFIT', 'CONVERSION_RATE', 'ORDER_COUNT', 'LISTING', 'PO_FULFILLMENT', 'LQS', 'ADS_SPEND', 'PRODUCTS_TO_LIST'];
+      // Show page loader when loading (waiting for templates and settings)
+      if (loading) {
+        return <PageLoader message="Loading Templates..." />;
+      }
 
     // Data Fetching
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const [taskRes, goalRes] = await Promise.all([
+            // Fetch templates and configuration in parallel
+            const [taskRes, goalRes, configRes] = await Promise.all([
                 db.getTaskTemplates(),
-                db.getGoalTemplates()
+                db.getGoalTemplates(),
+                db.getSettings('template_manager') // Fetch template manager specific settings
             ]);
+            
             if (taskRes?.success) setTaskTemplates(taskRes.data);
             if (goalRes?.success) setGoalTemplates(goalRes.data);
+            
+            // Update configuration from database if available
+            if (configRes?.success) {
+                const config = configRes.data;
+                if (config.categories) setCategories(config.categories);
+                if (config.taskTypes) setTaskTypes(config.taskTypes);
+                if (config.priorities) setPriorities(config.priorities);
+                if (config.metrics) setMetrics(config.metrics);
+            }
         } catch (error) {
-            console.error('Failed to fetch templates:', error);
+            console.error('Failed to fetch templates or configuration:', error);
+            // Keep hardcoded defaults if database fails
         } finally {
             setLoading(false);
         }
@@ -148,12 +172,10 @@ const TemplateManagerPage = () => {
         try {
             // Re-using the strategy/goals/ai-preview endpoint 
             // Note: In a production app, we might want a specific template suggestion endpoint
-            const response = await fetch('/api/strategy/goals/ai-preview', {
+            const data = await db.request('/strategy/goals/ai-preview', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ intent: aiPrompt })
             });
-            const data = await response.json();
             if (data.success) {
                 setAiSuggestions(data.data);
             } else {
@@ -254,7 +276,12 @@ const TemplateManagerPage = () => {
 
     return (
         <div className="container-fluid py-4 min-vh-100" style={{ backgroundColor: '#f8fafc' }}>
-            {/* Action Header */}
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      )}
+             {/* Action Header */}
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div className="d-flex align-items-center gap-3">
                     <div className="p-2 rounded-3 shadow-sm" style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)', color: 'white' }}>
@@ -375,82 +402,80 @@ const TemplateManagerPage = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white border-top-0">
-                            {loading ? (
-                                <tr><td colSpan="5" className="text-center py-5"><Loader2 className="animate-spin text-primary" size={24} /></td></tr>
-                            ) : activeTab === 'task' ? (
-                                filteredTasks.length === 0 ? <tr><td colSpan="5" className="text-center py-5 text-muted small">No task configurations found.</td></tr> :
-                                    filteredTasks.map(t => {
-                                        const priorityRender = getPriorityBadge(t.priority);
-                                        return (
-                                            <tr key={t._id}>
-                                                <td className="ps-4 py-3 border-light opacity-75">
-                                                    <div className="fw-bold text-dark fs-6" style={{ letterSpacing: '-0.01em' }}>{t.title}</div>
-                                                    <div className="small text-muted text-truncate mt-1" style={{ maxWidth: '350px' }}>{t.description || 'No description provided'}</div>
-                                                </td>
-                                                <td className="py-3 border-light">
-                                                    <div className="d-flex align-items-center gap-2 small fw-medium" style={{ color: '#4b5563' }}>
-                                                        <Settings size={14} />
-                                                        {types.find(type => type.value === t.type)?.label || t.type}
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 border-light">
-                                                    <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '11px', border: '1px solid #e2e8f0' }}>
-                                                        {t.category}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 border-light">
-                                                    <span className="badge rounded-pill" style={{ backgroundColor: priorityRender.bg, color: priorityRender.color, fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em' }}>
-                                                        {t.priority}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 text-end pe-4 border-light">
-                                                    <div className="d-flex justify-content-end gap-2">
-                                                        <button className="btn btn-sm btn-light rounded-circle shadow-sm" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleOpenTaskModal(t)}>
-                                                            <Edit2 size={14} className="text-primary" />
-                                                        </button>
-                                                        <button className="btn btn-sm btn-light rounded-circle shadow-sm text-danger" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleDeleteTask(t._id)}>
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })
-                            ) : (
-                                filteredGoals.length === 0 ? <tr><td colSpan="3" className="text-center py-5 text-muted small">No roadmaps created yet.</td></tr> :
-                                    filteredGoals.map(t => (
-                                        <tr key={t._id}>
-                                            <td className="ps-4 py-3 border-light">
-                                                <div className="fw-bold text-dark fs-6" style={{ letterSpacing: '-0.01em' }}>{t.name}</div>
-                                                <div className="small text-muted text-truncate mt-1" style={{ maxWidth: '450px' }}>{t.description || 'No description provided'}</div>
-                                            </td>
-                                            <td className="py-3 border-light">
-                                                <div className="d-flex flex-wrap gap-1">
-                                                    {t.goals?.slice(0, 3).map((g, i) => (
-                                                        <span key={i} className="badge rounded-pill bg-light text-dark fw-medium border" style={{ fontSize: '11px' }}>
-                                                            {g.metric.replace('_', ' ')}
-                                                        </span>
-                                                    ))}
-                                                    {t.goals?.length > 3 && (
-                                                        <span className="badge rounded-pill bg-light text-muted fw-bold border" style={{ fontSize: '11px' }}>
-                                                            +{t.goals.length - 3} more
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="py-3 text-end pe-4 border-light">
-                                                <div className="d-flex justify-content-end gap-2">
-                                                    <button className="btn btn-sm btn-light rounded-circle shadow-sm" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleOpenGoalModal(t)}>
-                                                        <Edit2 size={14} className="text-primary" />
-                                                    </button>
-                                                    <button className="btn btn-sm btn-light rounded-circle shadow-sm text-danger" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleDeleteGoal(t._id)}>
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                            )}
+                            {activeTab === 'task' ? (
+                                 filteredTasks.length === 0 ? <tr><td colSpan="5" className="text-center py-5 text-muted small">No task configurations found.</td></tr> :
+                                     filteredTasks.map(t => {
+                                         const priorityRender = getPriorityBadge(t.priority);
+                                         return (
+                                             <tr key={t._id}>
+                                                 <td className="ps-4 py-3 border-light opacity-75">
+                                                     <div className="fw-bold text-dark fs-6" style={{ letterSpacing: '-0.01em' }}>{t.title}</div>
+                                                     <div className="small text-muted text-truncate mt-1" style={{ maxWidth: '350px' }}>{t.description || 'No description provided'}</div>
+                                                 </td>
+                                                 <td className="py-3 border-light">
+                                                     <div className="d-flex align-items-center gap-2 small fw-medium" style={{ color: '#4b5563' }}>
+                                                         <Settings size={14} />
+                                                         {types.find(type => type.value === t.type)?.label || t.type}
+                                                     </div>
+                                                 </td>
+                                                 <td className="py-3 border-light">
+                                                     <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '11px', border: '1px solid #e2e8f0' }}>
+                                                         {t.category}
+                                                     </span>
+                                                 </td>
+                                                 <td className="py-3 border-light">
+                                                     <span className="badge rounded-pill" style={{ backgroundColor: priorityRender.bg, color: priorityRender.color, fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em' }}>
+                                                         {t.priority}
+                                                     </span>
+                                                 </td>
+                                                 <td className="py-3 text-end pe-4 border-light">
+                                                     <div className="d-flex justify-content-end gap-2">
+                                                         <button className="btn btn-sm btn-light rounded-circle shadow-sm" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleOpenTaskModal(t)}>
+                                                             <Edit2 size={14} className="text-primary" />
+                                                         </button>
+                                                         <button className="btn btn-sm btn-light rounded-circle shadow-sm text-danger" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleDeleteTask(t._id)}>
+                                                             <Trash2 size={14} />
+                                                         </button>
+                                                     </div>
+                                                 </td>
+                                             </tr>
+                                         )
+                                     })
+                             ) : (
+                                 filteredGoals.length === 0 ? <tr><td colSpan="3" className="text-center py-5 text-muted small">No roadmaps created yet.</td></tr> :
+                                     filteredGoals.map(t => (
+                                         <tr key={t._id}>
+                                             <td className="ps-4 py-3 border-light">
+                                                 <div className="fw-bold text-dark fs-6" style={{ letterSpacing: '-0.01em' }}>{t.name}</div>
+                                                 <div className="small text-muted text-truncate mt-1" style={{ maxWidth: '450px' }}>{t.description || 'No description provided'}</div>
+                                             </td>
+                                             <td className="py-3 border-light">
+                                                 <div className="d-flex flex-wrap gap-1">
+                                                     {t.goals?.slice(0, 3).map((g, i) => (
+                                                         <span key={i} className="badge rounded-pill bg-light text-dark fw-medium" style={{ fontSize: '11px' }}>
+                                                             {g.metric.replace('_', ' ')}
+                                                         </span>
+                                                     ))}
+                                                     {t.goals?.length > 3 && (
+                                                         <span className="badge rounded-pill bg-light text-muted fw-bold" style={{ fontSize: '11px' }}>
+                                                             +{t.goals.length - 3} more
+                                                         </span>
+                                                     )}
+                                                 </div>
+                                             </td>
+                                             <td className="py-3 text-end pe-4 border-light">
+                                                 <div className="d-flex justify-content-end gap-2">
+                                                     <button className="btn btn-sm btn-light rounded-circle shadow-sm" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleOpenGoalModal(t)}>
+                                                         <Edit2 size={14} className="text-primary" />
+                                                     </button>
+                                                     <button className="btn btn-sm btn-light rounded-circle shadow-sm text-danger" style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => handleDeleteGoal(t._id)}>
+                                                         <Trash2 size={14} />
+                                                     </button>
+                                                 </div>
+                                             </td>
+                                         </tr>
+                                     ))
+                             )}
                         </tbody>
                     </table>
                 </div>

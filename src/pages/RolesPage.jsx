@@ -9,6 +9,8 @@ import {
     ChevronRight,
     Info
 } from 'lucide-react';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const RolesPage = () => {
     const [roles, setRoles] = useState([]);
@@ -145,13 +147,7 @@ const RolesPage = () => {
     };
 
     if (loading && roles.length === 0) {
-        return (
-            <div className="page-content bg-light" style={{ minHeight: '100vh' }}>
-                <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-                    <div className="loading-spinner"></div>
-                </div>
-            </div>
-        );
+        return <PageLoader message="Loading Roles..." />;
     }
 
     return (

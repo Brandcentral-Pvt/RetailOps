@@ -20,6 +20,7 @@ const actionSchema = new mongoose.Schema({
     },
     scopeIds: [{ type: String }],
     resolvedAsins: [{ type: String, index: true }], // Flattened ASIN array for data tracking
+    asins: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Asin', index: true }], // Populated ASIN array for detailed tracking
 
     // STRATEGIC LINKAGE
     goalId: {

@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import EmptyState from '../components/common/EmptyState';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 /* ── File-type helpers ────────────────────────────────────────────── */
 const EXT_MAP = {
@@ -265,8 +267,13 @@ const FileManagerPage = () => {
         { id: 'trash', label: 'Trash', icon: <Trash2 size={16} /> },
     ];
 
-    return (
-        <div style={{ display: 'flex', height: 'calc(100vh - 73px)', overflow: 'hidden', margin: '-1.5rem -2rem', background: '#FFFFFF' }}>
+     return (
+         <div style={{ display: 'flex', height: 'calc(100vh - 73px)', overflow: 'hidden', margin: '-1.5rem -2rem', background: '#FFFFFF' }}>
+             {loading && (
+                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+                     <LoadingIndicator type="line-simple" size="md" />
+                 </div>
+             )}
 
             {/* ── Left sidebar ─────────────────────────────────────── */}
             <div style={{
@@ -385,27 +392,27 @@ const FileManagerPage = () => {
                     </div>
                 </div>
 
-                {/* File area */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
-                    {loading ? (
-                        <div style={{ textAlign: 'center', paddingTop: '4rem', color: '#94A3B8', fontSize: 14 }}>Loading files…</div>
-                    ) : filtered.length === 0 ? (
-                        section === 'trash' ? (
-                            <EmptyState
-                                icon={Trash2}
-                                title="Trash is empty"
-                                description="Files you delete will appear here for 30 days before permanent removal."
-                                action={null}
-                            />
-                        ) : (
-                            <div style={{ textAlign: 'center', paddingTop: '5rem' }}>
-                                <FolderOpen size={48} color="#CBD5E1" style={{ marginBottom: 12 }} />
-                                <div style={{ color: '#94A3B8', fontSize: 14, fontWeight: 600 }}>
-                                    {search ? 'No files match your search' : 'No files yet — upload to get started'}
-                                </div>
-                            </div>
-                        )
-                    ) : view === 'grid' ? (
+                 {/* File area */}
+                 <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
+                     {loading && files.length === 0 ? (
+                         <PageLoader message="Loading Files..." />
+                     ) : filtered.length === 0 ? (
+                         section === 'trash' ? (
+                             <EmptyState
+                                 icon={Trash2}
+                                 title="Trash is empty"
+                                 description="Files you delete will appear here for 30 days before permanent removal."
+                                 action={null}
+                             />
+                         ) : (
+                             <div style={{ textAlign: 'center', paddingTop: '5rem' }}>
+                                 <FolderOpen size={48} color="#CBD5E1" style={{ marginBottom: 12 }} />
+                                 <div style={{ color: '#94A3B8', fontSize: 14, fontWeight: 600 }}>
+                                     {search ? 'No files match your search' : 'No files yet — upload to get started'}
+                                 </div>
+                             </div>
+                         )
+                     ) : view === 'grid' ? (
                         /* ── Grid view */
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '1rem' }}>
                             {filtered.map(file => (

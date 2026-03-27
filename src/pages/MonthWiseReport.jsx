@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import DateRangePicker from '../components/common/DateRangePicker';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import Chart from 'react-apexcharts';
 import {
   Calendar,
@@ -36,22 +36,24 @@ const MonthWiseReport = () => {
   const [filters, setFilters] = useState({
     searchTerm: ''
   });
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const loadMonthlyData = useCallback(async () => {
     setLoading(true);
     try {
       let params = {};
       if (dateRange === 'custom' && customStart && customEnd) {
-        params = { 
-          startDate: customStart.toISOString().split('T')[0], 
-          endDate: customEnd.toISOString().split('T')[0] 
+        params = {
+          startDate: customStart.toISOString().split('T')[0],
+          endDate: customEnd.toISOString().split('T')[0]
         };
       } else {
         const firstDay = new Date(selectedYear, selectedMonth, 1);
         const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
-        params = { 
-          startDate: firstDay.toISOString().split('T')[0], 
-          endDate: lastDay.toISOString().split('T')[0] 
+        params = {
+          startDate: firstDay.toISOString().split('T')[0],
+          endDate: lastDay.toISOString().split('T')[0]
         };
       }
       const query = new URLSearchParams(params).toString();
@@ -160,8 +162,24 @@ const MonthWiseReport = () => {
     </div>
   );
 
+  if (loading && data.length === 0) {
+    return (
+      <div className="dashboard-container p-4 d-flex flex-column justify-content-center align-items-center" style={{ backgroundColor: '#fdfdfd', minHeight: '100vh' }}>
+        <div style={{ width: '300px', textAlign: 'center' }}>
+          <p className="text-muted small mb-3 fw-600">Loading Monthly Intelligence...</p>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container p-4" style={{ backgroundColor: '#fdfdfd', minHeight: '100vh' }}>
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      )}
       <header className="mb-4">
         <div className="d-flex justify-content-between align-items-center flex-wrap gap-4">
           <div>
@@ -175,7 +193,7 @@ const MonthWiseReport = () => {
           <div className="d-flex align-items-center gap-2">
             <div className="d-flex align-items-center gap-2 bg-white border border-zinc-200 p-1.5 rounded-3 shadow-sm">
               <Calendar size={14} className="text-muted ms-2" />
-              <select 
+              <select
                 className="form-select form-select-sm border-0 smallest fw-700 text-zinc-700 focus-none bg-transparent shadow-none"
                 style={{ width: '120px' }}
                 value={selectedMonth}
@@ -188,7 +206,7 @@ const MonthWiseReport = () => {
                   <option key={i} value={i}>{m}</option>
                 ))}
               </select>
-              <select 
+              <select
                 className="form-select form-select-sm border-0 smallest fw-700 text-zinc-700 focus-none bg-transparent shadow-none"
                 style={{ width: '80px' }}
                 value={selectedYear}
@@ -202,33 +220,16 @@ const MonthWiseReport = () => {
                 ))}
               </select>
               <div className="vr bg-zinc-200 mx-1" style={{ height: '20px' }}></div>
-              <div className="px-1 d-flex align-items-center">
-                <DatePicker
-                  selected={customStart}
-                  onChange={([s, e]) => { 
-                    setCustomStart(s); 
-                    setCustomEnd(e); 
-                    if (s && e) setDateRange('custom'); 
-                  }}
-                  startDate={customStart}
-                  endDate={customEnd}
-                  selectsRange
-                  placeholderText="Custom Range"
-                  className="bg-transparent border-0 smallest text-zinc-600 fw-bold"
-                  style={{ width: '130px', outline: 'none' }}
-                />
-                {(dateRange === 'custom') && (
-                  <X 
-                    size={14} 
-                    className="text-muted cursor-pointer ms-1" 
-                    onClick={() => {
-                      setDateRange('month');
-                      setCustomStart(null);
-                      setCustomEnd(null);
-                    }} 
-                  />
-                )}
-              </div>
+              <DateRangePicker
+                startDate={customStart}
+                endDate={customEnd}
+                onDateChange={(start, end) => {
+                  setCustomStart(start);
+                  setCustomEnd(end);
+                  if (start && end) setDateRange('custom');
+                }}
+                placeholder="Custom Range"
+              />
             </div>
             <button className="btn btn-dark btn-sm rounded-pill px-3 py-2 shadow-sm fw-700 d-flex align-items-center gap-2" onClick={loadMonthlyData}>
               <RefreshCw size={14} className={loading ? 'spin' : ''} />

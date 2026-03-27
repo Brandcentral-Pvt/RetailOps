@@ -18,7 +18,7 @@ class NIMService {
   async chat(messages, options = {}) {
     try {
       const completion = await this.client.chat.completions.create({
-        model: options.model || "minimaxai/minimax-m2.1",
+        model: options.model || "minimaxai/minimax-m2.5",
         messages,
         temperature: options.temperature || 0.6,
         max_tokens: options.max_tokens || 2048,
@@ -27,7 +27,12 @@ class NIMService {
 
       return completion.choices[0].message.content;
     } catch (error) {
-      console.error('[NIM Service] Inference Error:', error);
+      console.error('[NIM Service] Inference Error:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        stack: error.stack
+      });
       throw new Error(`AI Inference Failed: ${error.message}`);
     }
   }
@@ -40,7 +45,8 @@ class NIMService {
       const cleaned = content.replace(/```json|```/g, '').trim();
       return JSON.parse(cleaned);
     } catch (e) {
-      console.error('[NIM Service] JSON Parse Error:', e, content);
+      console.error('[NIM Service] JSON Parse Error:', e.message);
+      console.error('[NIM Service] Raw Content was:', content);
       throw new Error('AI returned malformed JSON payload.');
     }
   }

@@ -40,6 +40,8 @@ import api, { seedApi } from '../services/api';
 import Card from '../components/common/Card';
 import PageHeader from '../components/common/PageHeader';
 import { SkeletonKpiCard } from '../components/common/Skeleton';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard = () => {
@@ -260,6 +262,9 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="dashboard-container p-3" style={{ backgroundColor: 'var(--color-surface-1)', minHeight: '100vh' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
         <PageHeader
           title="Dashboard"
           subtitle="Market Intelligence Command Center"
@@ -322,6 +327,11 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container p-3" style={{ backgroundColor: 'var(--color-surface-1)', minHeight: '100vh' }}>
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      )}
       {/* Page Header */}
       <PageHeader
         title="Dashboard"

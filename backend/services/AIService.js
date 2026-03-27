@@ -197,8 +197,28 @@ class AIService {
             const content = completion.choices[0].message.content;
             return this._cleanJSON(content);
         } catch (error) {
-            console.error('NVIDIA Task Generation Error:', error);
-            throw new Error('Failed to generate weekly tasks via NVIDIA NIM');
+            console.error('AI Task Generation Error:', error);
+            throw new Error('Failed to generate weekly tasks via AI');
+        }
+    }
+
+    /**
+     * Generic Chat Completion via Perplexity Sonar
+     */
+    async chat(messages, options = {}) {
+        try {
+            const completion = await this.openai.chat.completions.create({
+                model: options.model || "sonar",
+                messages,
+                temperature: options.temperature || 0.6,
+                max_tokens: options.max_tokens || 2048,
+                response_format: options.json ? { type: "json_object" } : undefined
+            });
+
+            return completion.choices[0].message.content;
+        } catch (error) {
+            console.error('[AI Service] Chat Inference Error:', error);
+            throw new Error(`AI Inference Failed: ${error.message}`);
         }
     }
 }

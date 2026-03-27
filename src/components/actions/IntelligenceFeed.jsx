@@ -41,9 +41,9 @@ const IntelligenceFeed = ({ insights, loading }) => {
                 {getInsightIcon(insight.type)}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{insight.message}</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{insight.message || insight.reasoning}</div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                  {insight.type} • {new Date(insight.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {insight.type} {insight.timestamp ? `• ${new Date(insight.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                 </div>
               </div>
             </div>

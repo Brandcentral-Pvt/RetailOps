@@ -13,6 +13,8 @@ import {
     Target
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const GoalAchievementReport = () => {
     const [data, setData] = useState(null);
@@ -42,20 +44,19 @@ const GoalAchievementReport = () => {
         fetchReport();
     }, [fetchReport]);
 
-    if (loading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-                <div className="text-center">
-                    <div className="spinner-border text-primary mb-3" role="status"></div>
-                    <div className="text-muted small fw-medium">Analyzing Performance...</div>
-                </div>
-            </div>
-        );
+    if (loading && !data) {
+        return <PageLoader message="Analyzing Performance..." />;
     }
 
     const { metrics = [], summary = {} } = data || {};
 
     return (
+        <>
+        {loading && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+                <LoadingIndicator type="line-simple" size="md" />
+            </div>
+        )}
         <div className="p-4 bg-light min-vh-100">
             {/* Header */}
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -228,6 +229,7 @@ const GoalAchievementReport = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

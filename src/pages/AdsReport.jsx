@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import NumberChart from '../components/common/NumberChart';
 import Chart from 'react-apexcharts';
-import { CHART_COLORS, mergeApexOptions, areaChartOptions } from '../utils/chartTheme';
+import { CHART_COLORS, areaChartOptions } from '../utils/chartTheme';
 import {
   Megaphone, TrendingUp, IndianRupee, Activity, Target, ArrowUpRight,
   ArrowDownRight, BarChart3, Layers, Search, RefreshCw, Calendar, FileUp,
@@ -9,12 +9,13 @@ import {
   ChevronRight, Copy, Check, ArrowUp, ArrowDown, Minus, Upload, PieChart,
   Filter, BarChart2, Settings, Percent, Zap, XCircle
 } from 'lucide-react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import DateRangePicker from '../components/common/DateRangePicker';
 import api from '../services/api';
 import Card from '../components/common/Card';
 import PageHeader from '../components/common/PageHeader';
 import KPICard from '../components/KPICard';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import './AdsReport.css';
 
 // ─── Utility Helpers ────────────────────────────────────────────
@@ -53,20 +54,18 @@ const getDelta = (curr, prev) => {
   return ((curr - prev) / Math.abs(prev)) * 100;
 };
 
-const getDateRangeMs = (key) => {
-  const day = 86400000;
-  const map = { '7d': 7, '30d': 30, '90d': 90, '6m': 180, '1y': 365 };
-  return map[key] ? map[key] * day : null;
+
+
+
+
+const daysBetween = (a, b) => {
+  if (!a || !b) return 0;
+  return Math.ceil(Math.abs(new Date(b) - new Date(a)) / 86400000) + 1;
 };
 
 const formatDateShort = (d) => {
   if (!d) return '';
   return new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-const daysBetween = (a, b) => {
-  if (!a || !b) return 0;
-  return Math.ceil(Math.abs(new Date(b) - new Date(a)) / 86400000) + 1;
 };
 
 // ─── Component ──────────────────────────────────────────────────
@@ -88,13 +87,11 @@ const AdsReport = () => {
   const [sortDir, setSortDir] = useState('desc');
   const [viewMode, setViewMode] = useState('asin'); // 'asin' or 'daily'
   const [tablePage, setTablePage] = useState(1);
-  const [drawerAsin, setDrawerAsin] = useState(null);
-  const [selectedAsin, setSelectedAsin] = useState(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncDone, setSyncDone] = useState(false);
-  const [copiedAsin, setCopiedAsin] = useState(false);
-  const fileRef = useRef(null);
-  const [reportType] = useState('daily');
+   const [drawerAsin, setDrawerAsin] = useState(null);
+   const [selectedAsin, setSelectedAsin] = useState(null);
+   const [copiedAsin, setCopiedAsin] = useState(false);
+   const fileRef = useRef(null);
+   const [reportType] = useState('daily');
   const TABLE_PAGE_SIZE = 15;
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -126,11 +123,11 @@ const AdsReport = () => {
     const rangeDays = daysBetween(start, end);
     const pe = new Date(new Date(start).getTime() - 86400000);
     const ps = new Date(pe.getTime() - (rangeDays - 1) * 86400000);
-    return { 
-      startDate: start, 
-      endDate: end, 
-      prevStartDate: ps.toISOString().split('T')[0], 
-      prevEndDate: pe.toISOString().split('T')[0] 
+    return {
+      startDate: start,
+      endDate: end,
+      prevStartDate: ps.toISOString().split('T')[0],
+      prevEndDate: pe.toISOString().split('T')[0]
     };
   }, [dateRange, selectedMonth, selectedYear, customStart, customEnd]);
 
@@ -215,46 +212,38 @@ const AdsReport = () => {
     };
   }, [data]);
 
-  const efficiencyMetrics = useMemo(() => {
-    const sum = (k) => data.reduce((s, i) => s + (i[k] || 0), 0);
-    const ts = sum('ad_spend'), tsa = sum('ad_sales');
-    const tc = sum('clicks'), ti = sum('impressions'), to = sum('orders');
-    const roas = ts > 0 ? tsa / ts : 0;
-    const acos = tsa > 0 ? (ts / tsa) * 100 : 0;
-    const cpc = tc > 0 ? ts / tc : 0;
-    const convRate = tc > 0 ? (to / tc) * 100 : 0;
-    const ctr = ti > 0 ? (tc / ti) * 100 : 0;
-    const aov = to > 0 ? tsa / to : 0;
-    const bbArr = data.filter(d => d.buy_box_percentage > 0);
-    const bb = bbArr.length > 0 ? bbArr.reduce((s, d) => s + d.buy_box_percentage, 0) / bbArr.length : 0;
-    
-    // Calculate a visibility/conversion index if not present
-    const conversionIndex = tc > 0 ? (to / tc) : 0;
-    
-    return [
-      { 
-        label: 'Ad Sales Share', 
-        value: fmtPct(tsa > 0 ? (tsa / (sum('total_sales') || 1) * 100) : 0), 
-        pct: Math.min(100, (tsa / (sum('total_sales') || 1) * 100) / 0.3), // Benchmark 30%
-        color: 'var(--indigo-500)', 
-        benchmark: 'Target: 30%' 
-      },
-      { 
-        label: 'Spend Efficacy', 
-        value: fmtX(roas), 
-        pct: Math.min(100, (roas / 5.0) * 100), // Benchmark 5.0x
-        color: 'var(--emerald-500)', 
-        benchmark: 'Target: 5.0x' 
-      },
-      { 
-        label: 'Catalog Visibility', 
-        value: fmtPct(conversionIndex * 100), 
-        pct: Math.min(100, (conversionIndex / 0.02) * 100), // Benchmark 2%
-        color: 'var(--amber-500)', 
-        benchmark: 'Target: 2.0%' 
-      }
-    ];
-  }, [data]);
+const efficiencyMetrics = useMemo(() => {
+  const sum = (k) => data.reduce((s, i) => s + (i[k] || 0), 0);
+  const ts = sum('ad_spend'), tsa = sum('ad_sales');
+  const tc = sum('clicks'), to = sum('orders');
+
+  // Calculate a visibility/conversion index if not present
+  const conversionIndex = tc > 0 ? (to / tc) : 0;
+
+  return [
+    {
+      label: 'Ad Sales Share',
+      value: fmtPct(tsa > 0 ? (tsa / (sum('total_sales') || 1) * 100) : 0),
+      pct: Math.min(100, (tsa / (sum('total_sales') || 1) * 100) / 0.3), // Benchmark 30%
+      color: 'var(--indigo-500)',
+      benchmark: 'Target: 30%'
+    },
+    {
+      label: 'Spend Efficacy',
+      value: fmtX(tsa > 0 ? tsa / ts : 0),
+      pct: Math.min(100, ((tsa > 0 ? tsa / ts : 0) / 5.0) * 100), // Benchmark 5.0x
+      color: 'var(--emerald-500)',
+      benchmark: 'Target: 5.0x'
+    },
+    {
+      label: 'Catalog Visibility',
+      value: fmtPct(conversionIndex * 100),
+      pct: Math.min(100, (conversionIndex / 0.02) * 100), // Benchmark 2%
+      color: 'var(--amber-500)',
+      benchmark: 'Target: 2.0%'
+    }
+  ];
+}, [data]);
 
   // ─── Chart Config ───────────────────────────────────────────
   const chartConfig = useMemo(() => {
@@ -362,7 +351,7 @@ const AdsReport = () => {
   // ─── Table Data ─────────────────────────────────────────────
   const filteredTableData = useMemo(() => {
     let rows = viewMode === 'asin' ? [...data] : [...dailyData];
-    
+
     if (tableSearch) {
       const q = tableSearch.toLowerCase();
       if (viewMode === 'asin') {
@@ -407,10 +396,7 @@ const AdsReport = () => {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const handleSync = async () => {
-    setSyncing(true); await loadData(); setSyncing(false);
-    setSyncDone(true); setTimeout(() => setSyncDone(false), 2000);
-  };
+
 
   const handleExport = () => {
     const headers = ['ASIN', 'Spend', 'Sales', 'Orders', 'Clicks', 'Impressions', 'CTR', 'CPC', 'Conv Rate', 'ROAS', 'ACoS', 'Organic Sales', 'AOV'];
@@ -485,7 +471,7 @@ const AdsReport = () => {
     const v = row[key];
     switch (key) {
       case 'asin': return <span className="asin-cell">{v}</span>;
-      case 'date': return <span className="fw-bold">{fmtDateShort(v)}</span>;
+       case 'date': return <span className="fw-bold">{formatDateShort(v)}</span>;
       case 'ad_spend': case 'ad_sales': case 'organic_sales': case 'total_sales': case 'cpc': case 'aov': return fmtFull(v);
       case 'orders': case 'clicks': case 'impressions': return fmtNum(v);
       case 'ctr': case 'conversion_rate': return fmtPct(v);
@@ -503,10 +489,20 @@ const AdsReport = () => {
       default: return v || '—';
     }
   };
+  
+  // ─── Render ─────────────────────────────────────────────
+  // Loading state for initial data load
+  if (loading && data.length === 0) {
+    return <PageLoader message="Loading Ads Report..." />;
+  }
 
-  // ─── Render ─────────────────────────────────────────────────
-  return (
-    <div className="page-container pb-5">
+   return (
+     <div className="page-container pb-5">
+       {loading && (
+         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+           <LoadingIndicator type="line-simple" size="md" />
+         </div>
+       )}
       <div className="page-header mb-4">
         <div className="d-flex justify-content-between align-items-center">
           <div>
@@ -521,7 +517,7 @@ const AdsReport = () => {
           <div className="d-flex align-items-center gap-2">
             <div className="d-flex align-items-center gap-2 bg-white border border-zinc-200 p-1.5 rounded-3 shadow-sm">
               <Calendar size={14} className="text-muted ms-2" />
-              <select 
+              <select
                 className="form-select form-select-sm border-0 smallest fw-700 text-zinc-700 focus-none bg-transparent"
                 style={{ width: '120px' }}
                 value={selectedMonth}
@@ -532,7 +528,7 @@ const AdsReport = () => {
               >
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select 
+              <select
                 className="form-select form-select-sm border-0 smallest fw-700 text-zinc-700 focus-none bg-transparent"
                 style={{ width: '80px' }}
                 value={selectedYear}
@@ -544,59 +540,42 @@ const AdsReport = () => {
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <div className="vr bg-zinc-200 mx-1" style={{ height: '20px' }}></div>
-              <div className="px-1 d-flex align-items-center">
-                <DatePicker
-                  selected={customStart}
-                  onChange={([s, e]) => { 
-                    setCustomStart(s); 
-                    setCustomEnd(e); 
-                    if (s && e) setDateRange('custom'); 
-                  }}
-                  startDate={customStart}
-                  endDate={customEnd}
-                  selectsRange
-                  placeholderText="Custom Range"
-                  className="bg-transparent border-0 smallest text-zinc-600 fw-bold"
-                  style={{ width: '130px', outline: 'none' }}
-                />
-                {(dateRange === 'custom') && (
-                  <X 
-                    size={14} 
-                    className="text-muted cursor-pointer ms-1" 
-                    onClick={() => {
-                      setDateRange('month');
-                      setCustomStart(null);
-                      setCustomEnd(null);
-                    }} 
-                  />
-                )}
-              </div>
+              <DateRangePicker
+                startDate={customStart}
+                endDate={customEnd}
+                onDateChange={(start, end) => {
+                  setCustomStart(start);
+                  setCustomEnd(end);
+                  if (start && end) setDateRange('custom');
+                }}
+                placeholder="Custom Range"
+              />
             </div>
-            
+
             <div className="d-flex gap-2">
-              <button 
+              <button
                 className={`btn btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all border shadow-sm ${compareMode ? 'btn-primary border-primary' : 'btn-white border-zinc-200 text-zinc-600'}`}
                 style={{ fontSize: '11px' }}
                 onClick={() => setCompareMode(!compareMode)}
               >
                 <Activity size={14} className="me-1" /> Compare
               </button>
-              
-              <button 
-                className="btn btn-white btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all border shadow-sm text-zinc-600" 
-                style={{ fontSize: '11px' }} 
+
+              <button
+                className="btn btn-white btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all border shadow-sm text-zinc-600"
+                style={{ fontSize: '11px' }}
                 onClick={() => fileRef.current.click()}
                 disabled={loading}
               >
                 {loading ? <RefreshCw size={14} className="me-1 spin" /> : <Upload size={14} className="me-1" />}
                 Import
               </button>
-              <input 
-                type="file" 
-                ref={fileRef} 
-                onChange={handleCsvImport} 
-                accept=".csv,.xlsx,.xls" 
-                style={{ display: 'none' }} 
+              <input
+                type="file"
+                ref={fileRef}
+                onChange={handleCsvImport}
+                accept=".csv,.xlsx,.xls"
+                style={{ display: 'none' }}
               />
 
               <button className="btn btn-white btn-sm rounded-circle p-2 shadow-sm border border-zinc-200" onClick={loadData}>
@@ -753,11 +732,11 @@ const AdsReport = () => {
             <div className="ads-filter-bar px-1 mb-2">
               <div className="ads-search-box border-gray-100">
                 <Search size={13} className="text-muted" />
-                <input 
-                  className="form-input border-0 p-0 smallest fw-500" 
-                  placeholder={viewMode === 'asin' ? "Filter ASIN/SKU..." : "YYYY-MM-DD..."} 
-                  value={tableSearch} 
-                  onChange={e => setTableSearch(e.target.value)} 
+                <input
+                  className="form-input border-0 p-0 smallest fw-500"
+                  placeholder={viewMode === 'asin' ? "Filter ASIN/SKU..." : "YYYY-MM-DD..."}
+                  value={tableSearch}
+                  onChange={e => setTableSearch(e.target.value)}
                 />
               </div>
               {viewMode === 'asin' && (
@@ -799,7 +778,7 @@ const AdsReport = () => {
                   </tbody>
                 </table>
               </div>
-              
+
               <div className="d-flex justify-content-between align-items-center mt-4 px-2">
                 <div className="smallest text-muted fw-600 uppercase letter-spacing-1">
                   Showing {Math.min(filteredTableData.length, (tablePage - 1) * TABLE_PAGE_SIZE + 1)}–{Math.min(filteredTableData.length, tablePage * TABLE_PAGE_SIZE)} of {filteredTableData.length} records

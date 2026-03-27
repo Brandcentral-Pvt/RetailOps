@@ -13,6 +13,8 @@ import api, { userApi } from '../services/api';
 import ListView from '../components/common/ListView';
 import Breadcrumbs from '../components/common/Breadcrumbs';
 import Popover from '../components/common/Popover';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const TeamManagementPage = () => {
     const [teams, setTeams] = useState([]);
@@ -164,13 +166,7 @@ const TeamManagementPage = () => {
         if (activeTab !== tab) setActiveTab(tab);
     };
 
-    if (loading && teams.length === 0) {
-        return (
-            <div className="d-flex justify-content-center align-items-center vh-100 bg-white">
-                <Loader2 className="spin text-primary" size={32} />
-            </div>
-        );
-    }
+    if (loading && teams.length === 0) { return <PageLoader message="Loading Teams..." />; }
 
     const breadcrumbItems = [
         { label: 'Home', route: '/', icon: Globe },
@@ -179,9 +175,14 @@ const TeamManagementPage = () => {
     ];
 
     return (
-        <div className="team-hub-container bg-white" style={{ minHeight: '100vh' }}>
-            {/* Header & Breadcrumbs */}
-            <div className="px-4 py-3 border-bottom sticky-top bg-white z-index-10">
+         <div className="team-hub-container bg-white" style={{ minHeight: '100vh' }}>
+             {loading && (
+               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+                 <LoadingIndicator type="line-simple" size="md" />
+               </div>
+             )}
+             {/* Header & Breadcrumbs */}
+             <div className="px-4 py-3 border-bottom sticky-top bg-white z-index-10">
                 <Breadcrumbs items={breadcrumbItems} className="mb-2" />
                 <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-3">

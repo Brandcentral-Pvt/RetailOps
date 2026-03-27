@@ -4,6 +4,8 @@ import KPICard from '../components/KPICard';
 import ResultsPage from '../components/ResultsPage';
 import FeesPage from '../components/FeesPage';
 import { db } from '../services/db';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 // --- Helper: Robust CSV Parser ---
 const parseCSV = (text) => {
@@ -394,20 +396,7 @@ const RevenueCalculatorPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <div className="page-header">
-          <h1 className="page-title"><i className="bi bi-calculator"></i>Revenue Calculator</h1>
-        </div>
-        <div className="page-content">
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </>
-    );
-  }
+  if (loading && asins.length === 0) { return <PageLoader message="Loading Revenue Calculator..." />; }
 
   return (
     <>
@@ -415,6 +404,11 @@ const RevenueCalculatorPage = () => {
         <h1 className="page-title"><i className="bi bi-calculator"></i>Revenue Calculator</h1>
       </div>
       <div className="page-content">
+        {loading && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+            <LoadingIndicator type="line-simple" size="md" />
+          </div>
+        )}
         {/* Quick Navigation */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div className="d-flex gap-2">

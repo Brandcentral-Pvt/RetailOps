@@ -25,6 +25,8 @@ import {
   Info
 } from 'lucide-react';
 import ListView from '../components/common/ListView';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -185,18 +187,7 @@ const UsersPage = () => {
   };
 
   if (loading && users.length === 0) {
-    return (
-      <>
-        <div className="page-header">
-          <h1 className="page-title"><Users size={24} className="me-2" />User Management</h1>
-        </div>
-        <div className="page-content">
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </>
-    );
+    return <PageLoader message="Loading Users..." />;
   }
 
   return (

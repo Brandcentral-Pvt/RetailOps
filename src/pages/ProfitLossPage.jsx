@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
+import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import Filters from '../components/Filters';
 import DataTable from '../components/DataTable';
 import KPICard from '../components/KPICard';
@@ -104,23 +106,17 @@ const ProfitLossPage = () => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  if (loading) {
-    return (
-      <>
-        <div className="page-header">
-          <h1 className="page-title"><i className="bi bi-currency-dollar"></i>Profit & Loss</h1>
-        </div>
-        <div className="page-content">
-          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </>
-    );
+  if (loading && data.length === 0) {
+    return <PageLoader message="Loading Profit & Loss..." />;
   }
 
   return (
     <>
+      {loading && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LoadingIndicator type="line-simple" size="md" />
+        </div>
+      )}
       <div className="page-header">
         <h1 className="page-title"><i className="bi bi-currency-dollar"></i>Profit & Loss</h1>
       </div>

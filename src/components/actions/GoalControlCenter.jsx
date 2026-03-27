@@ -18,8 +18,11 @@ const GoalControlCenter = ({ goalData, loading }) => {
     );
   }
 
-  const gmsValue = goalData ? `₹${(goalData.actual / 1000).toFixed(1)}K / ₹${(goalData.target / 1000).toFixed(1)}K` : '₹0 / ₹0';
-  const gmsProgress = goalData ? Math.round((goalData.actual / goalData.target) * 100) : 0;
+  const actual = goalData?.achievedGMS || 0;
+  const target = goalData?.targetGMS || 0;
+
+  const gmsValue = target > 0 ? `₹${(actual / 1000).toFixed(1)}K / ₹${(target / 1000).toFixed(1)}K` : '₹0 / ₹0';
+  const gmsProgress = target > 0 ? Math.round((actual / target) * 100) : 0;
 
   return (
     <div className="row g-3 mb-4">
@@ -37,7 +40,7 @@ const GoalControlCenter = ({ goalData, loading }) => {
       <div className="col-md-4">
         <NumberChart
           label="Daily RR Required"
-          value={`₹${goalData?.dailyRequiredRR?.toLocaleString() || '0'}`}
+          value={`₹${Math.round(goalData?.dailyRequiredRevenue || 0).toLocaleString()}`}
           icon={Zap}
           subtitle="Target to stay on track"
           color="#f59e0b"
@@ -46,9 +49,9 @@ const GoalControlCenter = ({ goalData, loading }) => {
       <div className="col-md-4">
         <NumberChart
           label="Gap to Target"
-          value={`₹${(goalData?.gapToTarget / 1000).toFixed(1)}K`}
+          value={`₹${(Math.max(0, target - actual) / 1000).toFixed(1)}K`}
           icon={Target}
-          subtitle={`By ${new Date(goalData?.targetDate).toLocaleDateString()}`}
+          subtitle={`By ${goalData?.endDate ? new Date(goalData.endDate).toLocaleDateString() : 'N/A'}`}
           color="#ef4444"
         />
       </div>

@@ -11,6 +11,7 @@ class AIGoalService {
    * Input: "Reach 1Cr GMS in 90 days"
    */
   async generatePreview(intent) {
+    console.log('[AI Goal Service] Generating Preview for intent:', intent);
     const prompt = `
       You are the Brandcentral growth engine.
       Analyze this user intent and provide a strategic goal preview.
