@@ -29,10 +29,12 @@ import {
   TrendingDown,
   Trash2,
   Sparkles,
-  Image
+  Image,
+  Eye
 } from 'lucide-react';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
+import AsinDetailModal from '../components/AsinDetailModal';
 
 // Helper to generate tiered structure for history columns
 const generateHistoryStructure = (history) => {
@@ -82,7 +84,7 @@ const demoAsins = [
     brand: 'AudioTech',
     category: 'Electronics',
     currentPrice: 2499,
-    currentRank: 1250,
+    bsr: 1250,
     rating: 4.5,
     reviewCount: 1250,
     buyBoxWin: true,
@@ -114,7 +116,7 @@ const demoAsins = [
     brand: 'FitGear',
     category: 'Electronics',
     currentPrice: 8999,
-    currentRank: 890,
+    bsr: 890,
     rating: 4.2,
     reviewCount: 890,
     buyBoxWin: true,
@@ -146,7 +148,7 @@ const demoAsins = [
     brand: 'FitLife',
     category: 'Sports',
     currentPrice: 1299,
-    currentRank: 3200,
+    bsr: 3200,
     rating: 4.8,
     reviewCount: 3200,
     buyBoxWin: true,
@@ -178,7 +180,7 @@ const demoAsins = [
     brand: 'HomeChef',
     category: 'Home & Kitchen',
     currentPrice: 799,
-    currentRank: 4500,
+    bsr: 4500,
     rating: 4.3,
     reviewCount: 4500,
     buyBoxWin: false,
@@ -210,7 +212,7 @@ const demoAsins = [
     brand: 'SecureHome',
     category: 'Electronics',
     currentPrice: 3499,
-    currentRank: 1850,
+    bsr: 1850,
     rating: 4.1,
     reviewCount: 1850,
     buyBoxWin: true,
@@ -249,6 +251,13 @@ const AsinManagerPage = () => {
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
   const [scrapeProgress, setScrapeProgress] = useState(null);
   const socket = useSocket();
+  const [selectedAsin, setSelectedAsin] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  const handleViewAsin = (asin) => {
+    setSelectedAsin(asin);
+    setShowDetailModal(true);
+  };
 
   const loadData = useCallback(async (page = 1) => {
     try {
@@ -419,7 +428,7 @@ const AsinManagerPage = () => {
       if (res.success) {
         alert(`✅ AI Image Generated!\nView it at: ${res.imageUrl}`);
         // Refresh ASIN data to show updated action status if needed
-        loadAsins();
+        loadData();
       } else {
         alert(`❌ Generation failed: ${res.error || 'Unknown error'}`);
       }
@@ -758,7 +767,7 @@ const AsinManagerPage = () => {
                     </div>
                     <div className="d-flex justify-content-between align-items-center">
                       <span className="text-zinc-500 small">Best Performer</span>
-                      <span className="fw-bold text-primary">#{(Math.min(...asins.map(a => a.currentRank || 9999999), 9999999) === 9999999 ? 0 : Math.min(...asins.map(a => a.currentRank || 9999999))).toLocaleString()}</span>
+                      <span className="fw-bold text-primary">#{(Math.min(...asins.map(a => a.bsr || 9999999), 9999999) === 9999999 ? 0 : Math.min(...asins.map(a => a.bsr || 9999999))).toLocaleString()}</span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center">
                       <span className="text-zinc-500 small">Tracking Pool</span>
@@ -905,22 +914,44 @@ const AsinManagerPage = () => {
                   <tbody>
                     {asins.map((asin, index) => (
                       <tr key={asin._id || index} style={{ backgroundColor: '#fff' }}>
-                        <td style={{ fontWeight: 600, color: '#111827', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.asinCode}</td>
+                        <td style={{ fontWeight: 600, color: '#111827', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                          <div className="d-flex align-items-center gap-2">
+                            <span 
+                              onClick={() => handleViewAsin(asin)} 
+                              style={{ cursor: 'pointer', color: '#2563eb' }}
+                              className="hover-underline"
+                            >
+                              {asin.asinCode}
+                            </span>
+                            <button 
+                              onClick={() => handleViewAsin(asin)} 
+                              className="btn btn-link p-0 text-zinc-400 hover:text-primary transition-colors"
+                              title="View History Charts"
+                            >
+                              <Eye size={14} />
+                            </button>
+                          </div>
+                        </td>
                         <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.seller?.name || asin.seller || <span style={{ color: '#9ca3af' }}>Global</span>}</td>
                         <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>{asin.sku || <span style={{ color: '#9ca3af' }}>-</span>}</td>
                         <td style={{ color: '#4b5563', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', fontSize: '0.75rem', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={asin.category || ''}>{asin.category || <span style={{ color: '#9ca3af' }}>-</span>}</td>
                         <td style={{ padding: '0.5rem', borderBottom: '1px solid #e5e7eb' }}>
                           <div className="d-flex align-items-center gap-2" style={{ maxWidth: '280px' }}>
                             <img src={asin.imageUrl} alt={asin.title} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
-                            <span style={{
-                              display: 'block',
-                              whiteSpace: 'normal',
-                              wordBreak: 'break-word',
-                              lineHeight: '1.3',
-                              fontSize: '0.85rem'
-                            }}>
-                              {asin.title}
-                            </span>
+                              <span 
+                                onClick={() => handleViewAsin(asin)}
+                                style={{
+                                  display: 'block',
+                                  whiteSpace: 'normal',
+                                  wordBreak: 'break-word',
+                                  lineHeight: '1.3',
+                                  fontSize: '0.85rem',
+                                  cursor: 'pointer'
+                                }}
+                                className="hover-text-primary"
+                              >
+                                {asin.title}
+                              </span>
                           </div>
                         </td>
                         <td style={{ fontWeight: 600, color: '#059669', padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
@@ -938,7 +969,7 @@ const AsinManagerPage = () => {
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb', verticalAlign: 'middle' }}>
                           <div className="d-flex flex-column align-items-center">
                             <span style={{ fontWeight: 600, color: '#2563eb' }}>
-                              {asin.currentRank ? `#${asin.currentRank.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
+                              {asin.bsr ? `#${asin.bsr.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
                             </span>
                             {asin.subBSRs && asin.subBSRs.length > 0 && (
                               <div className="mt-1 d-flex flex-column gap-1 w-100">
@@ -1176,6 +1207,11 @@ const AsinManagerPage = () => {
           </div>
         )}
       </div>
+      <AsinDetailModal 
+        asin={selectedAsin} 
+        isOpen={showDetailModal} 
+        onClose={() => setShowDetailModal(false)} 
+      />
     </div>
   );
 };

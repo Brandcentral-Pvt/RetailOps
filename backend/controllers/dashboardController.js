@@ -60,7 +60,7 @@ exports.getDashboardData = async (req, res) => {
     console.log(`[Dashboard DEBUG] Sellers - Total: ${totalSellers}, Active: ${activeSellers}`);
 
     const totalAsins = await Asin.countDocuments(filter);
-    const activeAsins = await Asin.countDocuments({ ...filter, status: 'Active' });
+    const activeAsins = await Asin.countDocuments({ ...filter, status: { $in: ['Active', 'Scraping'] } });
     console.log(`[Dashboard DEBUG] ASINs - Total: ${totalAsins}, Active: ${activeAsins}`);
 
     const asins = await Asin.find(filter).lean();
@@ -170,7 +170,7 @@ exports.getDashboardData = async (req, res) => {
         adsByAsin[ad.asin].organic += (ad.organic_sales || 0);
     });
 
-    const topAsins = await Asin.find({ ...filter, status: 'Active' })
+    const topAsins = await Asin.find({ ...filter, status: { $in: ['Active', 'Scraping'] } })
       .sort({ currentPrice: -1 })
       .limit(10)
       .populate('seller', 'name');

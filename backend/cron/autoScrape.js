@@ -10,6 +10,7 @@ class AutoScrapeScheduler {
         // Run every hour at minute 0
         cron.schedule('0 * * * *', async () => {
             console.log('🔄 Running hourly check for ASINs needing scrape...');
+            await this.cleanupStuckScrapes();
             await this.runScrapeCycle();
         });
     }
@@ -57,6 +58,33 @@ class AutoScrapeScheduler {
             console.log('🏁 Auto-scrape cycle completed.');
         } catch (error) {
             console.error('❌ Auto-scrape cycle failed:', error);
+        }
+    }
+
+    static async cleanupStuckScrapes() {
+        try {
+            const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            
+            // Revert ASINs stuck in 'Scraping' for more than 4 hours back to 'Active'
+            const result = await Asin.updateMany(
+                { 
+                    status: 'Scraping', 
+                    updatedAt: { $lt: fourHoursAgo } 
+                },
+                { 
+                    $set: { 
+                        status: 'Active', 
+                        scrapeStatus: 'FAILED',
+                        scrapeError: 'Scrape timed out after 4 hours'
+                    } 
+                }
+            );
+            
+            if (result.modifiedCount > 0) {
+                console.log(`🧹 Maintenance: Cleaned up ${result.modifiedCount} stuck ASIN scrapes.`);
+            }
+        } catch (error) {
+            console.error('❌ Error cleaning up stuck scrapes:', error);
         }
     }
 }
