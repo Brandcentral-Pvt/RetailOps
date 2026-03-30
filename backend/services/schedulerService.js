@@ -25,9 +25,9 @@ class SchedulerService {
             await this.runKeepaSync();
         });
 
-        // 2. Octoparse Scrape Task Trigger (Daily at 2:00 AM)
-        this.jobs.triggerOctoparse = cron.schedule('0 2 * * *', async () => {
-            console.log('🕒 Starting Octoparse Daily Task Trigger...');
+        // 2. Octoparse Scrape Task Trigger (Hourly check for 24h sync)
+        this.jobs.triggerOctoparse = cron.schedule('0 * * * *', async () => {
+            console.log('🕒 Checking for Sellers due for Market Data Sync...');
             await this.runOctoparseTrigger();
         });
 
@@ -93,13 +93,46 @@ class SchedulerService {
      */
     async runOctoparseTrigger() {
         try {
-            const sellers = await Seller.find({ status: 'Active', marketSyncTaskId: { $exists: true, $ne: '' } });
-            console.log(`[Scheduler] Triggering Octoparse tasks for ${sellers.length} configured sellers...`);
+            const Asin = require('../models/Asin');
+            const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+            const now = new Date();
+
+            // Find active sellers with a configured task
+            const sellers = await Seller.find({ 
+                status: 'Active', 
+                marketSyncTaskId: { $exists: true, $ne: '' } 
+            });
+
+            console.log(`[Scheduler] Checking ${sellers.length} sellers for sync eligibility...`);
 
             for (const seller of sellers) {
                 try {
-                    console.log(`[Scheduler] 🚀 Triggering sync for Seller: ${seller.name}`);
-                    await MarketSyncService.triggerSync(seller.marketSyncTaskId, []);
+                    const lastSync = seller.lastScraped ? new Date(seller.lastScraped).getTime() : 0;
+                    const due = (Date.now() - lastSync) >= TWENTY_FOUR_HOURS;
+
+                    if (!due) {
+                        console.log(`[Scheduler] ⏭️ Skipping ${seller.name} (Last sync: ${seller.lastScraped || 'Never'})`);
+                        continue;
+                    }
+
+                    console.log(`[Scheduler] 🚀 Auto-Triggering sync for Seller: ${seller.name}`);
+
+                    // Fetch active ASINs to update loop items
+                    const asins = await Asin.find({ seller: seller._id, status: 'Active' });
+                    const asinCodes = asins.map(a => a.asinCode);
+
+                    if (asinCodes.length === 0) {
+                        console.log(`[Scheduler] ⏭️ Skipping ${seller.name} - No active ASINs`);
+                        continue;
+                    }
+
+                    await MarketSyncService.triggerSync(seller.marketSyncTaskId, asinCodes);
+
+                    // Update seller lastScraped timestamp
+                    seller.lastScraped = now;
+                    await seller.save();
+                    
+                    console.log(`[Scheduler] ✅ Octoparse sync initiated for ${seller.name} (${asinCodes.length} ASINs)`);
                 } catch (err) {
                     console.error(`[Scheduler] ❌ Failed to trigger Octoparse for seller ${seller.name}:`, err.message);
                 }

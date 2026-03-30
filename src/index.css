@@ -1,15 +1,13 @@
+@import "tailwindcss";
+
+/* 1. Global Pre-requisites (@imports must come before any other rules) */
+@import './styles/tokens.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
 /* ==========================================================================
    GMS Dashboard - Global Styles & Typography
    ========================================================================== */
-
-/* Design Tokens - Must be at the very top */
-@import './styles/tokens.css';
-
-/* Import Inter font for better typography */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-/* Bootstrap Icons - Must be at the top */
-@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
 
 /* ==========================================================================
    CSS Variables - Design System

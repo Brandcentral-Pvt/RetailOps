@@ -11,7 +11,11 @@ import {
   PlusCircle,
   MoreVertical,
   ArrowRight,
-  Target
+  Target,
+  Trash2,
+  Loader2,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import GoalControlCenter from '../components/actions/GoalControlCenter.jsx';
@@ -25,6 +29,14 @@ const ActionsPage = () => {
   const [activeView, setActiveView] = useState('strategic'); // 'strategic' | 'operations'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [quickTaskForm, setQuickTaskForm] = useState({
+    title: '',
+    description: '',
+    type: 'GENERAL_OPTIMIZATION',
+    priority: 'MEDIUM'
+  });
 
   // Fetch Current Goal Progress
   const { data: goalData, isLoading: goalLoading, refetch: refetchGoal } = useQuery({
@@ -44,10 +56,10 @@ const ActionsPage = () => {
   });
 
   // Fetch Tasks (Tactical)
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
+  const { data: tasks, isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
     queryKey: ['growth-tasks'],
     queryFn: async () => {
-      return await db.request('/tasks');
+      return await db.getActions();
     }
   });
 
@@ -60,14 +72,60 @@ const ActionsPage = () => {
   });
 
   const getStatusCount = (status) => {
-    if (!tasks) return 0;
-    if (status === 'ALL') return tasks.length;
-    return tasks.filter(t => t.status === status).length;
+    const taskList = tasks?.data || tasks || [];
+    if (status === 'ALL') return taskList.length;
+    return taskList.filter(t => t.status === status).length;
   };
 
-  const filteredTasks = tasks?.filter(task => {
+  const handleCreateQuickTask = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const user = db.getUser();
+      const res = await db.createAction({
+        ...quickTaskForm,
+        createdBy: user?._id || user?.id,
+        status: 'PENDING'
+      });
+      if (res?.success || res) {
+        await refetchTasks();
+        setShowQuickTaskModal(false);
+        setQuickTaskForm({
+          title: '',
+          description: '',
+          type: 'GENERAL_OPTIMIZATION',
+          priority: 'MEDIUM'
+        });
+      }
+    } catch (error) {
+      alert('Failed to create task: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteTask = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
+    try {
+      await db.deleteAction(id);
+      await refetchTasks();
+    } catch (error) {
+      alert('Failed to delete task: ' + error.message);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await db.updateAction(id, { status: newStatus });
+      await refetchTasks();
+    } catch (error) {
+      alert('Failed to update status: ' + error.message);
+    }
+  };
+
+  const filteredTasks = (tasks?.data || tasks || [])?.filter(task => {
     const matchesSearch = searchQuery 
-      ? task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      ? task.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
         task.description?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
     const matchesStatus = filterStatus ? task.status === filterStatus : true;
@@ -95,7 +153,11 @@ const ActionsPage = () => {
               </button>
             </div>
             <div className="vr mx-2" style={{ height: '24px' }}></div>
-            <button className="btn btn-sm btn-white border rounded-pill px-3 d-flex align-items-center gap-2 h-100" style={{ height: '40px' }}>
+            <button 
+              className="btn btn-sm btn-white border rounded-pill px-3 d-flex align-items-center gap-2 h-100" 
+              style={{ height: '40px' }}
+              onClick={() => setShowQuickTaskModal(true)}
+            >
               <Plus size={16} /> Quick Task
             </button>
             <button className="btn btn-sm btn-zinc-900 text-white rounded-pill px-4 border-0 shadow-sm" style={{ backgroundColor: '#18181B', height: '40px' }}>
@@ -121,7 +183,7 @@ const ActionsPage = () => {
 
           <div className="row g-3">
             <div className="col-lg-8">
-              <TaskBoard tasks={tasks?.slice(0, 5)} loading={tasksLoading} />
+              <TaskBoard tasks={(tasks?.data || tasks || [])?.slice(0, 5)} loading={tasksLoading} />
             </div>
             <div className="col-lg-4">
               <IntelligenceFeed insights={insights} loading={insightsLoading} />
@@ -248,13 +310,26 @@ const ActionsPage = () => {
                           </div>
                         </td>
                         <td>
-                          <div className="d-flex align-items-center gap-1">
-                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: task.priority === 'HIGH' ? '#ef4444' : '#3b82f6' }}></div>
-                            <span className="smallest fw-bold">{task.priority}</span>
-                          </div>
+                          <select 
+                            className="form-select form-select-sm border-0 bg-light fw-bold text-uppercase" 
+                            style={{ fontSize: '10px', width: '120px', borderRadius: '6px' }}
+                            value={task.status}
+                            onChange={(e) => handleStatusChange(task.id || task._id, e.target.value)}
+                          >
+                            <option value="PENDING">Pending</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="REVIEW">Review</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                          </select>
                         </td>
                         <td className="text-end pe-4">
-                          <button className="btn btn-sm btn-icon btn-light rounded-circle"><MoreVertical size={14} /></button>
+                          <button 
+                            className="btn btn-sm btn-icon btn-light rounded-circle text-danger ms-2"
+                            onClick={() => handleDeleteTask(task.id || task._id)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -270,6 +345,82 @@ const ActionsPage = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Task Modal */}
+      {showQuickTaskModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '16px' }}>
+              <form onSubmit={handleCreateQuickTask}>
+                <div className="modal-header border-0 pb-0 pe-4 pt-4">
+                  <h5 className="fw-bold mb-0">Create Quick Task</h5>
+                  <button type="button" className="btn-close shadow-none" onClick={() => setShowQuickTaskModal(false)}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <div className="mb-3">
+                    <label className="form-label smallest fw-bold text-muted text-uppercase">Task Title</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="What needs to be done?"
+                      required
+                      value={quickTaskForm.title}
+                      onChange={(e) => setQuickTaskForm({...quickTaskForm, title: e.target.value})}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label smallest fw-bold text-muted text-uppercase">Description</label>
+                    <textarea 
+                      className="form-control" 
+                      rows="3" 
+                      placeholder="Add details..."
+                      required
+                      value={quickTaskForm.description}
+                      onChange={(e) => setQuickTaskForm({...quickTaskForm, description: e.target.value})}
+                    />
+                  </div>
+                  <div className="row g-3">
+                    <div className="col-6">
+                      <label className="form-label smallest fw-bold text-muted text-uppercase">Type</label>
+                      <select 
+                        className="form-select"
+                        value={quickTaskForm.type}
+                        onChange={(e) => setQuickTaskForm({...quickTaskForm, type: e.target.value})}
+                      >
+                        <option value="GENERAL_OPTIMIZATION">General</option>
+                        <option value="TITLE_OPTIMIZATION">Title SEO</option>
+                        <option value="IMAGE_OPTIMIZATION">Images</option>
+                        <option value="PRICING_STRATEGY">Pricing</option>
+                        <option value="INVENTORY_MANAGEMENT">Inventory</option>
+                      </select>
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label smallest fw-bold text-muted text-uppercase">Priority</label>
+                      <select 
+                        className="form-select"
+                        value={quickTaskForm.priority}
+                        onChange={(e) => setQuickTaskForm({...quickTaskForm, priority: e.target.value})}
+                      >
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HIGH">High</option>
+                        <option value="URGENT">Urgent</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer border-0 pt-0 p-4">
+                  <button type="button" className="btn btn-light rounded-pill px-4" onClick={() => setShowQuickTaskModal(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary rounded-pill px-4" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 size={16} className="animate-spin me-2" /> : <Check size={16} className="me-2" />}
+                    Create Task
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -84,7 +84,7 @@ const ScrapeTasksPage = () => {
         return;
       }
 
-      const result = await octoparseService.startScrapeTask(asins, seller.marketplace);
+      const result = await octoparseService.startScrapeTask(asins, seller.marketplace, seller._id);
 
       // Add seller info to the task
       const updatedTasks = [{

@@ -118,8 +118,8 @@ exports.syncSellerAsins = async (req, res) => {
         const { sellerId } = req.params;
         const seller = await Seller.findById(sellerId);
 
-        if (!seller || !seller.marketSyncTaskId) {
-            return res.status(404).json({ success: false, error: 'Seller or Sync Task not found' });
+        if (!seller) {
+            return res.status(404).json({ success: false, error: 'Seller not found' });
         }
 
         // Security check

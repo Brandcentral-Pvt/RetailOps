@@ -9,7 +9,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
   const history = asin.history || asin.weekHistory || [];
   const priceSeries = [{
     name: 'Price',
-    data: history.map(h => h.price || 0)
+    data: history.map(h => h.price || null)
   }];
 
   const priceOptions = {
@@ -26,16 +26,16 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     },
     yaxis: {
       title: { text: 'Price (₹)', style: { fontWeight: 600 } },
-      labels: { formatter: (val) => `₹${val}` }
+      labels: { formatter: (val) => val ? `₹${val.toLocaleString()}` : '' }
     },
     markers: { size: 4 },
-    tooltip: { y: { formatter: (val) => `₹${val.toLocaleString()}` } }
+    tooltip: { y: { formatter: (val) => val ? `₹${val.toLocaleString()}` : 'N/A' } }
   };
 
   // Prepare data for BSR Chart
   const bsrSeries = [{
     name: 'Main BSR',
-    data: history.map(h => h.bsr || 0)
+    data: history.map(h => h.bsr || null)
   }];
 
   // Handle Sub-BSRs if they exist in a chartable format

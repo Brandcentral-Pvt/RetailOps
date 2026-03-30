@@ -415,7 +415,7 @@ const TemplateManagerPage = () => {
                                                  <td className="py-3 border-light">
                                                      <div className="d-flex align-items-center gap-2 small fw-medium" style={{ color: '#4b5563' }}>
                                                          <Settings size={14} />
-                                                         {types.find(type => type.value === t.type)?.label || t.type}
+                                                         {taskTypes.find(type => type.value === t.type)?.label || t.type}
                                                      </div>
                                                  </td>
                                                  <td className="py-3 border-light">
@@ -512,7 +512,7 @@ const TemplateManagerPage = () => {
                                         <div className="col-md-6">
                                             <label className="form-label small fw-bold text-uppercase text-muted" style={{ letterSpacing: '0.05em', fontSize: '11px' }}>Action Type</label>
                                             <select className="form-select" style={{ borderRadius: '10px' }} value={taskFormData.type} onChange={(e) => setTaskFormData({ ...taskFormData, type: e.target.value })}>
-                                                {types.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                {taskTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                             </select>
                                         </div>
                                     </div>

@@ -10,9 +10,11 @@ const imageGenerationService = require('./imageGenerationService');
  */
 class MarketDataSyncService {
     constructor() {
-        this.baseUrl = 'https://openapi.octoparse.com'; // Internal only
+        this.baseUrl = 'https://openapi.octoparse.com';
         this.token = null;
+        this.refreshToken = null;
         this.tokenExpiry = null;
+        this.tokenType = 'Bearer';
     }
 
     /**
@@ -21,49 +23,108 @@ class MarketDataSyncService {
     isConfigured() {
         const username = process.env.MARKET_SYNC_USERNAME;
         const password = process.env.MARKET_SYNC_PASSWORD;
+        const apiKey = process.env.MARKET_SYNC_API_KEY;
+        
         // Check if defined and not default demo values
-        return !!(username && password &&
+        return !!(apiKey || (username && password &&
             username !== 'demo-provider' &&
-            password !== 'demo-pass');
+            password !== 'demo-pass'));
     }
 
     /**
      * Handles OAuth2.0 authentication with the data provider.
      */
     async authenticate() {
-        if (this.token && this.tokenExpiry > Date.now()) {
+        if (this.token && this.tokenExpiry > Date.now() + 60000) {
+            return this.token;
+        }
+
+        const apiKey = process.env.MARKET_SYNC_API_KEY;
+        if (apiKey && apiKey.startsWith('op_sk_')) {
+            console.log('✅ Using Octoparse API Key for authentication');
+            this.token = apiKey;
+            this.tokenExpiry = Date.now() + 3600000;
             return this.token;
         }
 
         try {
             console.log('🔄 Authenticating with Market Data provider...');
-            // In a real scenario, these would come from process.env via config
             const username = process.env.MARKET_SYNC_USERNAME;
             const password = process.env.MARKET_SYNC_PASSWORD;
 
             if (!username || !password) {
-                const error = new Error('Market Sync credentials missing (OCTOPARSE_NOT_CONFIGURED)');
+                const error = new Error('Market Sync credentials missing');
                 error.code = 'CONFIG_MISSING';
                 throw error;
             }
 
-            const response = await axios.post(`${this.baseUrl}/token`, {
-                username,
-                password,
-                grant_type: 'password'
-            }, {
+            // Standard OAuth2 Password Grant
+            const params = new URLSearchParams();
+            params.append('username', username);
+            params.append('password', password);
+            params.append('grant_type', 'password');
+
+            const response = await axios.post(`${this.baseUrl}/token`, params.toString(), {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
-            this.token = response.data.access_token;
-            // Set expiry with 5 min buffer (expiry is in seconds)
-            this.tokenExpiry = Date.now() + (response.data.expires_in - 300) * 1000;
+            const data = response.data;
+            if (data.error) {
+                throw new Error(`Auth Provider Error: ${data.error_description || data.error}`);
+            }
+
+            this.token = data.access_token;
+            this.refreshToken = data.refresh_token;
+            // expires_in is usually 3600 seconds
+            this.tokenExpiry = Date.now() + (data.expires_in - 300) * 1000;
 
             console.log('✅ Market Data authentication successful');
             return this.token;
         } catch (error) {
-            console.error('❌ Market Data Auth Error:', error.message);
+            console.error('❌ Market Data Auth Error:', error.response?.data || error.message);
             throw error;
+        }
+    }
+
+    /**
+     * Updates the dynamic ASIN list (URL/Text Loop) for a task.
+     */
+    async updateTaskLoopItems(taskId, items) {
+        const token = await this.authenticate();
+        try {
+            // Find LoopAction ID if not provided
+            let actionId = process.env.OCTOPARSE_LOOP_ACTION_ID;
+
+            if (!actionId) {
+                console.log(`🔍 Finding LoopAction ID for task: ${taskId}`);
+                const actionRes = await axios.get(`${this.baseUrl}/task/getActions`, {
+                    params: { taskId },
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const loopAction = actionRes.data.data?.find(a => a.actionType === "LoopAction");
+                actionId = loopAction?.actionId;
+            }
+
+            if (!actionId) {
+                console.warn(`⚠️ No LoopAction found for task ${taskId}. Cannot update ASINs.`);
+                return false;
+            }
+
+            console.log(`🔄 Updating loop items for task ${taskId} (ActionId: ${actionId})`);
+            await axios.post(`${this.baseUrl}/task/updateLoopItems`, {
+                taskId,
+                actionId,
+                loopItems: items.join('\n'), // Octoparse text list often expects newline separated or array
+                isAppend: false
+            }, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+
+            return true;
+        } catch (error) {
+            console.error('❌ Update Loop Items Error:', error.response?.data || error.message);
+            return false;
         }
     }
 
@@ -75,27 +136,154 @@ class MarketDataSyncService {
     async triggerSync(taskId, parameters) {
         const token = await this.authenticate();
         try {
-            // Note: In Octoparse OpenAPI v1.0, updating parameters requires specific actionIds.
-            // If parameters are provided, you typically use /task/updateTaskParameters 
-            // or /task/updateLoopItems. Since we may not have actionIds, we will log a warning
-            // but still proceed to start the task.
+            // 1. Update ASIN list if provided
             if (parameters && parameters.length > 0) {
-                console.warn('⚠️ Market Sync: Updating parameters dynamically requires Octoparse actionIds in OpenAPI v1.0. Proceeding to start task directly.');
+                const asins = parameters.map(p => p.value || p.ASIN || p).filter(Boolean);
+                if (asins.length > 0) {
+                    await this.updateTaskLoopItems(taskId, asins);
+                }
             }
 
-            // Start the task in the Cloud
+            // 2. Start the task in the Cloud
+            console.log(`🚀 Starting Octoparse Cloud Extraction: ${taskId}`);
             const response = await axios.post(`${this.baseUrl}/cloudextraction/start`, { taskId }, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
 
             if (response.data.error) {
                 throw new Error(`Provider Error: ${response.data.error.message}`);
             }
 
-            return { success: true, taskId, lotNo: response.data.data?.lotNo };
+            return { 
+                success: true, 
+                taskId, 
+                lotNo: response.data.data?.lotNo,
+                status: response.data.data?.status
+            };
         } catch (error) {
             console.error('❌ Trigger Sync Error:', error.response?.data || error.message);
             throw error;
+        }
+    }
+
+    async updateTaskLoopItems(taskId, items) {
+        const token = await this.authenticate();
+        try {
+            let actionId = process.env.OCTOPARSE_LOOP_ACTION_ID;
+
+            if (!actionId) {
+                console.log(`🔍 Finding LoopAction ID for task: ${taskId}`);
+                const actionRes = await axios.get(`${this.baseUrl}/api/task/getActions`, {
+                    params: { taskId },
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const loopAction = actionRes.data.data?.find(a => a.actionType === "LoopAction");
+                actionId = loopAction?.actionId;
+            }
+
+            if (!actionId) {
+                console.warn(`⚠️ No LoopAction found for task ${taskId}. Cannot update ASINs.`);
+                return false;
+            }
+
+            console.log(`🔄 Updating loop items for task ${taskId} (ActionId: ${actionId})`);
+            await axios.post(`${this.baseUrl}/api/task/updateLoopItems`, {
+                taskId,
+                actionId,
+                loopItems: items.join('\n'), 
+                isAppend: false
+            }, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+
+            return true;
+        } catch (error) {
+            console.error('❌ Update Loop Items Error:', error.response?.data || error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Triggers a data extraction task for a list of ASINs.
+     * @param {string} taskId - The ID of the scraper task configured in the external provider.
+     * @param {Array} parameters - Key-value pairs of parameters.
+     */
+    async triggerSync(taskId, parameters) {
+        const token = await this.authenticate();
+        try {
+            // 1. Update ASIN list if provided
+            if (parameters && parameters.length > 0) {
+                // Handle various input formats: flat array, array of objects, or comma-separated strings
+                const asins = parameters.flatMap(p => {
+                    const val = p.value || p.ASIN || p;
+                    if (typeof val === 'string' && val.includes(',')) {
+                        return val.split(',').map(s => s.trim());
+                    }
+                    return val;
+                }).filter(Boolean);
+
+                if (asins.length > 0) {
+                    await this.updateTaskLoopItems(taskId, asins);
+                }
+            }
+
+            // 2. Start the task in the Cloud
+            console.log(`🚀 Starting Octoparse Cloud Extraction: ${taskId}`);
+            const response = await axios.get(`${this.baseUrl}/api/CloudTask/StartTask`, {
+                params: { taskId },
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const data = response.data;
+            if (data.error && data.error !== 'The task is already running.') {
+                // Some versions return 200 with error property, some throw 400
+                throw new Error(`Provider Error: ${data.message || data.error}`);
+            }
+
+            return { 
+                success: true, 
+                taskId, 
+                lotNo: data.data?.lotNo,
+                status: data.data?.status || 'Running'
+            };
+        } catch (error) {
+            console.error('❌ Trigger Sync Error:', error.response?.data || error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Stop a running task.
+     */
+    async stopSync(taskId) {
+        const token = await this.authenticate();
+        try {
+            await axios.get(`${this.baseUrl}/api/CloudTask/StopTask`, {
+                params: { taskId },
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return true;
+        } catch (error) {
+            console.error('❌ Stop Sync Error:', error.response?.data || error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Get task status.
+     */
+    async getStatus(taskId) {
+        const token = await this.authenticate();
+        try {
+            const response = await axios.get(`${this.baseUrl}/api/CloudTask/GetTaskStatus`, {
+                params: { taskId },
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return response.data.data;
+        } catch (error) {
+            console.error('❌ Get Status Error:', error.response?.data || error.message);
+            return null;
         }
     }
 
@@ -106,7 +294,7 @@ class MarketDataSyncService {
         const token = await this.authenticate();
         try {
             // Use OpenAPI v1.0 endpoint for Non-Exported Data
-            const response = await axios.get(`${this.baseUrl}/data/notexported`, {
+            const response = await axios.get(`${this.baseUrl}/api/notexporteddata/get`, {
                 params: { taskId, size },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -115,16 +303,20 @@ class MarketDataSyncService {
                 throw new Error(`Provider Error: ${response.data.error.message}`);
             }
 
+            const results = response.data.data?.dataList || response.data.data?.data || [];
+
             // Mark data as exported after successful retrieval
-            try {
-                await axios.post(`${this.baseUrl}/data/markexported`, { taskId }, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-            } catch (markError) {
-                console.error('⚠️ Market Sync: Failed to mark data as exported', markError.message);
+            if (results.length > 0) {
+                try {
+                    await axios.post(`${this.baseUrl}/api/notexporteddata/update`, { taskId }, {
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                    });
+                } catch (markError) {
+                    console.error('⚠️ Market Sync: Failed to mark data as exported', markError.message);
+                }
             }
 
-            return response.data.data?.data || [];
+            return results;
         } catch (error) {
             console.error('❌ Retrieve Results Error:', error.response?.data || error.message);
             throw error;
@@ -147,8 +339,8 @@ class MarketDataSyncService {
                 return match ? parseFloat(match[0]) : 0;
             };
 
-            const price = cleanPriceString(rawData.asp || rawData.price || rawData.currentPrice);
-            const mrp = cleanPriceString(rawData.mrp || rawData.listPrice);
+            const price = cleanPriceString(rawData.asp || rawData.price || rawData.currentPrice || rawData.Field2);
+            const mrp = cleanPriceString(rawData.mrp || rawData.listPrice || rawData.Field3);
 
             // BSR mapping & cleaning (Custom Template mapping: BSR, sub_BSR)
             const cleanBsrString = (str) => {
@@ -164,9 +356,9 @@ class MarketDataSyncService {
             if (Array.isArray(rawData.subBSRs)) {
                 // If direct scraper returned an array (new format)
                 subBSRs = rawData.subBSRs.filter(s => s && s.trim().length > 0);
-            } else if (rawData.sub_BSR) {
+            } else if (rawData.sub_BSR || rawData.Field10) {
                 // FALLBACK for Octoparse or other sources
-                const subMatch = rawData.sub_BSR.toString().trim();
+                const subMatch = (rawData.sub_BSR || rawData.Field10).toString().trim();
                 if (subMatch) subBSRs = [subMatch];
             } else {
                 // Fallback to existing if no new data found (optional, but keep for resilience)
@@ -175,19 +367,20 @@ class MarketDataSyncService {
 
             // Image Count cleaning (Custom Template mapping: image_count is an HTML string of <li> tags)
             let imageCount = 0;
-            if (rawData.image_count) {
+            if (rawData.image_count || rawData.Field6) {
                 // Count the number of <li> or <img> tags or imageThumbnail classes
-                const matches = rawData.image_count.toString().match(/<li[^>]*>/g);
+                const imageStr = (rawData.image_count || rawData.Field6).toString();
+                const matches = imageStr.match(/<li[^>]*>/g) || imageStr.match(/<img[^>]*>/g);
                 imageCount = matches ? matches.length : parseInt(rawData.imageCount || rawData.imagesCount || 0);
             }
 
             // Standard fields (Custom Template mapping: Title, category, sold_by, Main_Image, Rating)
-            let rating = parseFloat(rawData.rating || 0);
-            let reviews = parseInt(rawData.reviews || rawData.reviewCount || 0);
+            let rating = parseFloat(rawData.rating || rawData.Field7 || 0);
+            let reviews = parseInt(rawData.reviews || rawData.reviewCount || rawData.Field8 || 0);
             let ratingBreakdown = { fiveStar: 0, fourStar: 0, threeStar: 0, twoStar: 0, oneStar: 0 };
 
-            if (rawData.Rating) {
-                const ratingStr = rawData.Rating.toString();
+            if (rawData.Rating || rawData.Field7) {
+                const ratingStr = (rawData.Rating || rawData.Field7).toString();
                 const ratingMatch = ratingStr.match(/([\d.]+) out of 5/);
                 if (ratingMatch) rating = parseFloat(ratingMatch[1]);
 
@@ -213,15 +406,15 @@ class MarketDataSyncService {
                 if (points.length > 0) bulletPoints = points.length;
             }
 
-            const title = (rawData.Title || rawData.title || asin.title || '').trim();
+            const title = (rawData.Title || rawData.title || rawData.Field1 || asin.title || '').trim();
             const description = rawData.description || asin.description;
-            const category = (rawData.category || asin.category || '').trim();
+            const category = (rawData.category || rawData.Field4 || asin.category || '').trim();
 
             let hasAplus = rawData.hasAplus === true || rawData.hasAplus === 'true';
             if (rawData.A_plus) {
                 hasAplus = rawData.A_plus.toString().trim().length > 20;
             }
-            const imageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || asin.imageUrl;
+            const imageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || rawData.Field5 || asin.imageUrl;
 
             // Custom sold_by
             const buyBoxSellerId = rawData.sold_by ? rawData.sold_by.trim() : asin.buyBoxSellerId;
