@@ -315,12 +315,21 @@ class MarketDataSyncService {
         let lastError = null;
         for (const base of baseUrls) {
             const variants = [
-                { name: 'V1 GET', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId } },
-                { name: 'V1 POST Q', url: `${base}/api/CloudTask/StartTask?taskId=${taskId}`, method: 'post' },
-                { name: 'V3 POST B', url: `${base}/cloud_extraction/start`, method: 'post', data: { taskId } },
-                { name: 'V2 GET Lower', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskid: taskId } },
-                { name: 'V1 GET LowerBearer', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId }, lowerBearer: true },
-                { name: 'Advanced Trigger', url: `${base}/api/CloudTask/AddRunTask`, method: 'get', params: { taskId } }
+                // Modern OpenAPI V1.0 (Standard for Paid Plans)
+                { name: 'OpenAPI V1.0 (POST /task/start)', url: `${base}/task/start`, method: 'post', data: { taskId } },
+                { name: 'OpenAPI V1.0 (POST /api/task/start)', url: `${base}/api/task/start`, method: 'post', data: { taskId } },
+                
+                // Legacy V1 (Standard/Enterprise)
+                { name: 'Legacy V1 (POST Q)', url: `${base}/api/CloudTask/StartTask?taskId=${taskId}`, method: 'post' },
+                { name: 'Legacy V1 (GET)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId } },
+                
+                // Variation Handling (Casing & Lowercase Bearer)
+                { name: 'V1 (GET Lowercase ID)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskid: taskId } },
+                { name: 'OpenAPI (POST Lowercase Bearer)', url: `${base}/task/start`, method: 'post', data: { taskId }, lowerBearer: true },
+                { name: 'V1 (GET Lowercase Bearer)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId }, lowerBearer: true },
+                
+                // Advanced/AddRun
+                { name: 'Advanced Trigger (AddRunTask)', url: `${base}/api/CloudTask/AddRunTask`, method: 'get', params: { taskId } }
             ];
 
             for (const v of variants) {
@@ -365,22 +374,31 @@ class MarketDataSyncService {
      */
     async fetchTaskResults(taskId) {
         const token = await this.authenticate();
-        try {
-            console.log(`📥 Fetching unexported data for task: ${taskId}...`);
-            const response = await axios.get(`${this.baseUrl}/data/notexportdata`, {
-                params: { taskId },
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        const paths = [
+            '/task/data/notexporteddata',   // Modern OpenAPI
+            '/api/notexporteddata/get',     // Alternative V1
+            '/data/notexportdata'           // Previous Attempt
+        ];
 
-            const data = response.data?.data || [];
-            if (data.length > 0) {
-                return data;
+        let lastErr = null;
+        for (const path of paths) {
+            try {
+                console.log(`📥 Trying Data Fetch at ${path} for task: ${taskId}...`);
+                const response = await axios.get(`${this.baseUrl}${path}`, {
+                    params: { taskId },
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.data?.data || Array.isArray(response.data)) {
+                    const dataList = response.data.data?.dataList || response.data.data || response.data;
+                    return Array.isArray(dataList) ? dataList : [];
+                }
+            } catch (err) {
+                lastErr = err.response?.data?.error?.message || err.message;
+                console.warn(`⚠️ Path ${path} failed: ${lastErr}`);
             }
-            return [];
-        } catch (error) {
-            console.error('❌ Fetch Results Error:', error.response?.data || error.message);
-            throw error;
         }
+        throw new Error(`Failed to fetch results from any known Octoparse endpoint: ${lastErr}`);
     }
 
     /**
@@ -912,62 +930,74 @@ class MarketDataSyncService {
     }
 
     /**
-     * Polls and retrieves results from a completed sync task with auto-pagination for large data sets.
-     * @param {string} taskId - Octoparse task ID
-     * @param {string} executionId - Optional specific execution ID
+     * Internal utility to fetch data from any valid Octoparse endpoint.
+     */
+    async _fetchDataBatch(taskId, size, offset, executionId = null) {
+        const token = await this.authenticate();
+        const paths = [
+            '/task/data/notexporteddata',   // OpenAPI V1.0
+            '/api/notexporteddata/get',     // Legacy V1 (Common)
+            '/data/notexportdata',           // Legacy V1 (Alt)
+            '/api/notexporteddata'          // V1 Extension
+        ];
+
+        let lastErr = null;
+        for (const path of paths) {
+            try {
+                const params = { taskId, size, offset };
+                if (executionId) params.executionId = executionId;
+
+                const response = await axios.get(`${this.baseUrl}${path}`, {
+                    params,
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                // Octoparse API success check
+                if (response.data?.data || Array.isArray(response.data)) {
+                    const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
+                    return Array.isArray(dataList) ? dataList : [];
+                }
+            } catch (err) {
+                lastErr = err.response?.data?.error?.message || err.message;
+            }
+        }
+        throw new Error(`Exhausted all data paths for task ${taskId}: ${lastErr}`);
+    }
+
+    /**
+     * Polls and retrieves results from a completed sync task with auto-pagination.
      */
     async retrieveResults(taskId, executionId = null) {
-        const token = await this.authenticate();
         let allResults = [];
         let offset = 0;
         const size = 1000;
         let hasMore = true;
 
         try {
-            console.log(`📥 Starting fetch from Octoparse (Task: ${taskId})`);
-            
+            console.log(`📥 Multi-Path Retrieval triggered for Task: ${taskId}`);
             while (hasMore) {
-                const params = { taskId, size, offset };
-                if (executionId) params.executionId = executionId;
-
-                const response = await axios.get(`${this.baseUrl}/api/notexporteddata/get`, {
-                    params,
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.data.error) {
-                    throw new Error(`Provider Error: ${response.data.error.message}`);
-                }
-
-                const dataList = response.data.data?.dataList || response.data.data?.data || [];
+                const dataList = await this._fetchDataBatch(taskId, size, offset, executionId);
                 allResults = allResults.concat(dataList);
                 
                 console.log(`📦 Fetched ${dataList.length} items (Total: ${allResults.length})`);
-
-                // If fewer than 'size' items returned, we've reached the end
                 if (dataList.length < size) {
                     hasMore = false;
                 } else {
                     offset += size;
                 }
             }
-
-            // Mark data as exported after successful retrieval of ALL pages
-            if (allResults.length > 0) {
-                try {
-                    await axios.post(`${this.baseUrl}/api/notexporteddata/update`, { taskId }, {
-                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                    });
-                } catch (markError) {
-                    console.error('⚠️ Market Sync: Failed to mark data as exported', markError.message);
-                }
-            }
-
             return allResults;
         } catch (error) {
-            console.error('❌ Retrieve Results Error:', error.response?.data || error.message);
+            console.error('❌ Retrieve Results Error:', error.message);
             throw error;
         }
+    }
+
+    /**
+     * Fetch unexported results (simplified wrapper for retrieveResults)
+     */
+    async fetchTaskResults(taskId) {
+        return this.retrieveResults(taskId);
     }
 
     /**

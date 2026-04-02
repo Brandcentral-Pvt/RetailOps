@@ -748,7 +748,17 @@ exports.syncResults = async (req, res) => {
             count: mappingResult.count 
         });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        console.error('❌ Results Sync Error:', error.message);
+        
+        // Handle common Octoparse "Not Found" as a success state meaning "No Data available right now"
+        if (error.message && error.message.includes('404')) {
+            return res.json({ 
+                success: true, 
+                message: 'No unexported data available in Octoparse for this task (Status 404).',
+                count: 0
+            });
+        }
+        res.status(500).json({ success: false, error: 'Failed to sync results: ' + error.message });
     }
 };
 

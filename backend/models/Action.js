@@ -82,7 +82,48 @@ const actionSchema = new mongoose.Schema({
         actualDuration: { type: Number } // in minutes
     },
 
-    instructions: { type: String }
+    instructions: { type: String },
+
+    // ORGANIZATIONAL METADATA
+    sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Seller', index: true },
+    
+    // WORKFLOW STATE
+    stage: {
+        current: { 
+            type: String, 
+            enum: ['NOT_STARTED', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'REJECTED'],
+            default: 'NOT_STARTED'
+        },
+        history: [stageHistorySchema]
+    },
+
+    // OUTCOME DATA
+    completion: {
+        remarks: { type: String },
+        audioUrl: { type: String },
+        audioTranscript: { type: String },
+        submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        submittedAt: { type: Date },
+        completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        completedAt: { type: Date }
+    },
+
+    // REVIEW DATA
+    review: {
+        requestedAt: { type: Date },
+        reviewedAt: { type: Date },
+        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        comments: { type: String },
+        status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'] }
+    },
+
+    // AUTOMATION DATA
+    recurring: {
+        enabled: { type: Boolean, default: false },
+        frequency: { type: String, enum: ['DAILY', 'WEEKLY', 'MONTHLY'] },
+        daysOfWeek: [{ type: Number }], // 0-6
+        parentActionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Action' }
+    }
 }, { timestamps: true });
 
 // Protocols for performance
