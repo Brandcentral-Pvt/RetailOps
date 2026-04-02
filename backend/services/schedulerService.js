@@ -102,17 +102,28 @@ class SchedulerService {
             });
 
             console.log(`[Scheduler] 🚀 Starting Nightly Octoparse Sync for ${sellers.length} sellers...`);
-
-            // Use Promise.all for concurrent triggering of scrapes
-            // (Each trigger handles its own background polling/ingestion)
-            await Promise.all(sellers.map(async (seller) => {
-                try {
-                    console.log(`[Scheduler] 🤖 Launching sync for ${seller.name}...`);
-                    await MarketSyncService.syncSellerAsinsToOctoparse(seller._id, { triggerScrape: true });
-                } catch (err) {
-                    console.error(`[Scheduler] ❌ Failed to trigger Octoparse for seller ${seller.name}:`, err.message);
+            
+            // Process in batches to avoid API rate limits (e.g., 5 at a time)
+            const BATCH_SIZE = 5;
+            for (let i = 0; i < sellers.length; i += BATCH_SIZE) {
+                const batch = sellers.slice(i, i + BATCH_SIZE);
+                console.log(`[Scheduler] 📦 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}...`);
+                
+                await Promise.all(batch.map(async (seller) => {
+                    try {
+                        console.log(`[Scheduler] 🤖 Launching sync for ${seller.name}...`);
+                        // This handles Injection -> Start Task -> Start Background Poller
+                        await MarketSyncService.syncSellerAsinsToOctoparse(seller._id, { triggerScrape: true });
+                    } catch (err) {
+                        console.error(`[Scheduler] ❌ Failed to trigger Octoparse for seller ${seller.name}:`, err.message);
+                    }
+                }));
+                
+                // Pause briefly between batches to respect account constraints
+                if (i + BATCH_SIZE < sellers.length) {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 }
-            }));
+            }
 
             console.log('[Scheduler] ✅ All nightly Octoparse tasks triggered.');
         } catch (error) {

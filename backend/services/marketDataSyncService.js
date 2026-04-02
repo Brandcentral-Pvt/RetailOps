@@ -799,101 +799,89 @@ class MarketDataSyncService {
      */
     async pollAndAutomate(sellerId, taskId, options = {}) {
         const fullSync = options.fullSync || false;
-        console.log(`🕵️ Starting automated monitoring for Seller: ${sellerId}, Task: ${taskId}... (Mode: ${fullSync ? 'FULL REFRESH' : 'INCREMENTAL'})`);
+        console.log(`🕵️ [AUTO] Monitoring Seller: ${sellerId}, Task: ${taskId}... (Mode: ${fullSync ? 'FULL' : 'INC'})`);
         
         let attempts = 0;
-        const maxAttempts = 50; 
+        const maxAttempts = 100; // Increased to handle longer tasks
+        const startTime = Date.now();
+        const FOUR_HOURS = 4 * 60 * 60 * 1000;
         
-        const FAST_INTERVAL = 60000;
-        const STANDARD_INTERVAL = 300000;
-        const INITIAL_WAIT = 15000;
+        const FAST_INTERVAL = 60000;      // 1 min
+        const STANDARD_INTERVAL = 300000; // 5 mins
+        const INITIAL_WAIT = 30000;      // 30 secs
 
-        console.log(`⏳ Monitoring started. First status check in 15 seconds...`);
         await this.wait(INITIAL_WAIT); 
 
         while (attempts < maxAttempts) {
+            // Stuck detection: Don't poll forever
+            if (Date.now() - startTime > FOUR_HOURS) {
+                console.error(`⏰ [TIMEOUT] Task ${taskId} exceeded 4h limit. Aborting polling.`);
+                return;
+            }
+
             try {
                 const statusInfo = await this.getStatus(taskId);
                 
                 if (statusInfo?.error === 'RateLimit') {
-                    console.warn(`⏳ Polling Rate Limited for task ${taskId}. Waiting 1 minute...`);
                     await this.wait(60000);
                     continue;
                 }
 
-                const status = statusInfo?.status || statusInfo?.Status || statusInfo || 'Unknown';
-                const isCompleted = status === 3 || status === '3' || status === 'Finished' || status === 'Completed';
-                const isFailed = status === 2 || status === '2' || status === 'Failed' || status === 'Stopped';
+                // Normalizing status codes
+                let status = statusInfo?.status ?? statusInfo?.Status ?? statusInfo;
+                if (typeof status === 'object' && status !== null) status = status.status || status.Status;
+                const statusNum = parseInt(status);
+
+                // 2=Failed, 3=Finished, 4=Stopped (depending on endpoint version)
+                const isCompleted = (statusNum === 3 || status === 'Finished' || status === 'Completed' || status === '3');
+                const isFailed = (statusNum === 2 || statusNum === 4 || status === 'Failed' || status === 'Stopped' || status === '2' || status === '4');
 
                 if (isCompleted) {
-                    let totalIngested = 0;
-
-                    if (fullSync) {
-                        console.log(`✅ Task ${taskId} COMPLETED! Initiating FULL data ingestion (Force Refresh)...`);
-                        const allData = await this._fetchAllDataPages(taskId);
-                        if (allData.length > 0) {
-                            const count = await this.processBatchResults(sellerId, allData);
-                            totalIngested = count;
-                            // Optionally mark as exported anyway to keep Octoparse queue clean
-                            await this.markDataAsExported(taskId);
-                        }
-                    } else {
-                        console.log(`✅ Task ${taskId} COMPLETED! Initiating INCREMENTAL ingestion...`);
-                        let hasMore = true;
-                        const pageSize = 1000;
-
-                        while (hasMore) {
-                            const { data, current, total } = await this.fetchNonExportedData(taskId, pageSize);
-                            if (data && data.length > 0) {
-                                console.log(`📦 Processing chunk of ${data.length} new records (Exported so far: ${current}/${total})...`);
-                                const count = await this.processBatchResults(sellerId, data);
-                                totalIngested += count;
-                                await this.markDataAsExported(taskId);
-                                if (data.length < pageSize) hasMore = false;
-                            } else {
-                                hasMore = false;
-                            }
-                            if (totalIngested > 10000) hasMore = false;
-                        }
-                    }
-
-                    if (totalIngested > 0) {
-                        try {
+                    console.log(`✅ [AUTO] Task ${taskId} FINISHED. Starting results ingestion...`);
+                    
+                    try {
+                        // Use our ROBUST multi-path retrieval method
+                        const rawData = await this.retrieveResults(taskId);
+                        
+                        if (rawData && rawData.length > 0) {
+                            console.log(`📥 [AUTO] Fetched ${rawData.length} rows for ingestion.`);
+                            const count = await this.processBatchResults(sellerId, rawData);
+                            
+                            // Update Seller metadata
                             const Seller = require('../models/Seller');
                             await Seller.findByIdAndUpdate(sellerId, { 
                                 lastScraped: new Date(),
-                                scrapeUsed: totalIngested // For now, we update it to the last scrape count or add to it? 
-                                // Let's use it as 'current' scrape volume or incremental add.
-                            }, { new: true });
-                            console.log(`🎉 ${fullSync ? 'Full' : 'Incremental'} Sync Success: ${totalIngested} ASINs updated for seller ${sellerId}. Result persisted to DB.`);
-                        } catch (sdErr) {
-                            console.error(`⚠️ Failed to update sync metadata for seller ${sellerId}:`, sdErr.message);
+                                scrapeUsed: count
+                            });
+                            
+                            console.log(`🎉 [AUTO] Successfully ingested ${count} metrics for seller ${sellerId}.`);
+                            
+                            // Cleanup: Mark as exported to keep Octoparse queue clean
+                            await this.markDataAsExported(taskId).catch(() => {});
+                        } else {
+                            console.warn(`⚠️ [AUTO] Task reported complete but no data found in retrieveResults.`);
                         }
-                    } else {
-                        console.warn(`⚠️ Task ${taskId} completed but no data was ingested.`);
+                    } catch (ingestErr) {
+                        console.error(`❌ [AUTO] Ingestion Error for ${taskId}:`, ingestErr.message);
                     }
                     return; 
                 }
 
                 if (isFailed) {
-                    console.error(`❌ Task ${taskId} FAILED or STOPPED. Automation aborted.`);
+                    console.error(`❌ [AUTO] Task ${taskId} FAILED or STOPPED (Status: ${status}). Automation aborted.`);
                     return; 
                 }
 
-                const currentInterval = attempts < 5 ? FAST_INTERVAL : STANDARD_INTERVAL;
-                const nextCheckMins = Math.round(currentInterval / 60000);
-                console.log(`⏳ [Attempt ${attempts+1}] Task ${taskId} status: ${status}. Next check in ${nextCheckMins}m...`);
-                
+                const currentInterval = attempts < 10 ? FAST_INTERVAL : STANDARD_INTERVAL;
                 await this.wait(currentInterval);
             } catch (err) {
-                console.warn(`⚠️ Polling Error for task ${taskId}:`, err.message);
+                console.warn(`⚠️ [AUTO] Polling Warning for ${taskId}:`, err.message);
                 await this.wait(60000);
             }
-
             attempts++;
         }
 
-        console.warn(`⏰ Automation Timeout: Task ${taskId} did not complete within limit.`);
+        console.warn(`⏰ [AUTO] Max attempts reached for ${taskId}.`);
     }
 
     /**

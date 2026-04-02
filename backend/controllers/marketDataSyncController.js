@@ -475,9 +475,9 @@ exports.setupSellerTask = async (req, res) => {
         // 4. Initial URL Injection (Fetch active ASINs)
         const asins = await Asin.find({ seller: sellerId, status: 'Active' });
         if (asins.length > 0) {
-            const asinCodes = asins.map(a => a.asinCode);
-            await MarketSyncService.updateTaskLoopItems(newTaskId, asinCodes);
-            console.log(`✅ Injected ${asinCodes.length} ASINs into new task: ${newTaskId}`);
+            const asinUrls = asins.map(a => `https://www.amazon.in/dp/${a.asinCode}`);
+            await MarketSyncService.updateTaskUrlsWithFile(newTaskId, asinUrls);
+            console.log(`✅ Injected ${asinUrls.length} ASIN URLs into new task: ${newTaskId} via FILE method.`);
         }
 
         res.json({
@@ -673,9 +673,8 @@ exports.bulkUpdateSellerTasks = async (req, res) => {
                         await MarketSyncService.updateTaskUrlsWithFile(newTaskId, asinUrls);
                         injectStatus = 'Success';
                     } catch (fileErr) {
-                        console.warn(`⚠️ File injection failed for ${seller.name}, using fallback:`, fileErr.message);
-                        await MarketSyncService.updateTaskLoopItems(newTaskId, asins.map(a => a.asinCode));
-                        injectStatus = 'Fallback Success';
+                        console.error(`❌ File injection failed for ${seller.name}:`, fileErr.message);
+                        injectStatus = 'Failed';
                     }
                 }
 
@@ -804,12 +803,8 @@ exports.bulkInjectAsinsToTasks = async (req, res) => {
                 try {
                     success = await MarketSyncService.updateTaskUrlsWithFile(seller.marketSyncTaskId, asinUrls);
                 } catch (fileErr) {
-                    console.warn(`⚠️ Bulk file injection failed for ${seller.name}:`, fileErr.message);
-                    methodUsed = 'Legacy-LoopItems';
-                    success = await MarketSyncService.updateTaskLoopItems(
-                        seller.marketSyncTaskId, 
-                        asins.map(a => a.asinCode)
-                    );
+                    console.error(`❌ Bulk file injection failed for ${seller.name}:`, fileErr.message);
+                    success = false;
                 }
 
                 summary.push({ 
