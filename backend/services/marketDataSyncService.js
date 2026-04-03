@@ -28,12 +28,11 @@ class MarketDataSyncService {
     isConfigured() {
         const username = process.env.MARKET_SYNC_USERNAME;
         const password = process.env.MARKET_SYNC_PASSWORD;
-        const apiKey = process.env.MARKET_SYNC_API_KEY;
         
-        // Check if defined and not default demo values
-        return !!(apiKey || (username && password &&
+        // Strictly use username/password flow for generating Access Tokens
+        return !!(username && password &&
             username !== 'demo-provider' &&
-            password !== 'demo-pass'));
+            password !== 'demo-pass');
     }
 
     /**
@@ -310,26 +309,62 @@ class MarketDataSyncService {
 
         logDiag(`🚀 Starting Mega Diagnostic for Task ID: ${taskId}`);
         const token = await this.authenticate();
+        
+        // 1. RESOLVE UUID TO INTEGER ID (Deep Resolution)
+        let integerId = null;
+        if (taskId.includes('-')) { 
+            logDiag(`🔍 Attempting to resolve UUID ${taskId} to Integer ID...`);
+            
+            // Try method 1: Task Details (Direct)
+            try {
+                const detailRes = await axios.get(`${this.baseUrl}/api/Task/GetTaskDetail`, {
+                    params: { taskId },
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (detailRes.data?.data?.TaskID) {
+                   integerId = detailRes.data.data.TaskID;
+                   logDiag(`✅ Resolved via Detail [Method 1]: ${integerId}`);
+                }
+            } catch (e) { /* next */ }
+
+            // Try method 2: Deep Search in Groups (Paginated)
+            if (!integerId) {
+                integerId = await this.resolveTaskIdToInteger(taskId);
+            }
+
+            if (integerId) {
+                logDiag(`✅ Final Resolved Integer ID: ${integerId}`);
+            } else {
+                logDiag(`⚠️ Could not resolve Integer ID. Diagnostics proceeding with UUID only.`);
+            }
+        }
+
         const baseUrls = [this.baseUrl, 'https://dataapi.octoparse.com', 'https://openapi.octoparse.cn'];
         
         let lastError = null;
         for (const base of baseUrls) {
+            const currentId = integerId || taskId;
             const variants = [
-                // Modern OpenAPI V1.0 (Standard for Paid Plans)
-                { name: 'OpenAPI V1.0 (POST /task/start)', url: `${base}/task/start`, method: 'post', data: { taskId } },
-                { name: 'OpenAPI V1.0 (POST /api/task/start)', url: `${base}/api/task/start`, method: 'post', data: { taskId } },
+                // Modern OpenAPI V3.0 (Correct path from OpenAPI spec)
+                { name: 'OpenAPI V3 (POST /cloudextraction/start)', url: `${base}/cloudextraction/start`, method: 'post', data: { taskId } },
+                { name: 'OpenAPI V3 (POST /cloudextraction/start UUID)', url: `${base}/cloudextraction/start`, method: 'post', data: { taskId: taskId } },
                 
                 // Legacy V1 (Standard/Enterprise)
-                { name: 'Legacy V1 (POST Q)', url: `${base}/api/CloudTask/StartTask?taskId=${taskId}`, method: 'post' },
-                { name: 'Legacy V1 (GET)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId } },
+                { name: 'Legacy V1 (POST Q Integer)', url: `${base}/api/CloudTask/StartTask?taskId=${currentId}`, method: 'post' },
+                { name: 'Legacy V1 (GET UUID)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId } },
+                { name: 'Legacy V1 (GET Integer)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId: currentId } },
                 
                 // Variation Handling (Casing & Lowercase Bearer)
-                { name: 'V1 (GET Lowercase ID)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskid: taskId } },
-                { name: 'OpenAPI (POST Lowercase Bearer)', url: `${base}/task/start`, method: 'post', data: { taskId }, lowerBearer: true },
-                { name: 'V1 (GET Lowercase Bearer)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId }, lowerBearer: true },
+                { name: 'V1 (GET Lowercase ID)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskid: currentId } },
+                { name: 'OpenAPI (POST Lowercase Bearer)', url: `${base}/cloudextraction/start`, method: 'post', data: { taskId }, lowerBearer: true },
+                { name: 'V1 (GET Lowercase Bearer)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId: currentId }, lowerBearer: true },
+                
+                // V3 API Paths
+                { name: 'V3 Task Start (POST Body)', url: `${base}/task/start`, method: 'post', data: { taskId: currentId } },
+                { name: 'V3 Task Start (POST Query)', url: `${base}/task/start?taskId=${currentId}`, method: 'post', data: {} },
                 
                 // Advanced/AddRun
-                { name: 'Advanced Trigger (AddRunTask)', url: `${base}/api/CloudTask/AddRunTask`, method: 'get', params: { taskId } }
+                { name: 'Advanced Trigger (AddRunTask)', url: `${base}/api/CloudTask/AddRunTask`, method: 'get', params: { taskId: currentId } }
             ];
 
             for (const v of variants) {
@@ -375,9 +410,10 @@ class MarketDataSyncService {
     async fetchTaskResults(taskId) {
         const token = await this.authenticate();
         const paths = [
-            '/task/data/notexporteddata',   // Modern OpenAPI
-            '/api/notexporteddata/get',     // Alternative V1
-            '/data/notexportdata'           // Previous Attempt
+            '/data/notexported',              // OpenAPI V3 spec
+            '/data/all',                       // Get all data by offset
+            '/api/notexporteddata/get',       // Legacy V1
+            '/task/data/notexporteddata'       // Alternative
         ];
 
         let lastErr = null;
@@ -385,12 +421,13 @@ class MarketDataSyncService {
             try {
                 console.log(`📥 Trying Data Fetch at ${path} for task: ${taskId}...`);
                 const response = await axios.get(`${this.baseUrl}${path}`, {
-                    params: { taskId },
+                    params: { taskId, size: '100' },
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.data?.data || Array.isArray(response.data)) {
-                    const dataList = response.data.data?.dataList || response.data.data || response.data;
+                    const dataObj = response.data.data;
+                    const dataList = dataObj?.data || dataObj?.current !== undefined ? dataObj : response.data;
                     return Array.isArray(dataList) ? dataList : [];
                 }
             } catch (err) {
@@ -538,30 +575,43 @@ class MarketDataSyncService {
         if (!taskId) throw new Error('Task ID required for stop command');
         
         const token = await this.authenticate();
+        
+        // Try modern OpenAPI V3 stop first (POST /cloudextraction/stop)
+        try {
+            console.log(`🛑 Sending STOP command for task: ${taskId} (OpenAPI V3 method)...`);
+            const response = await axios.post(`${this.baseUrl}/cloudextraction/stop`, 
+                { taskId },
+                { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+            );
+            if (response.data) {
+                console.log(`✅ Stop command sent (V3) for: ${taskId}`);
+                this.statusCache.delete(taskId);
+                return true;
+            }
+        } catch (err) {
+            console.log(`⚠️ V3 Stop failed: ${err.response?.status || err.message}`);
+        }
+        
+        // Fallback: Try legacy V1 method
         try {
             console.log(`🛑 Sending STOP command for task: ${taskId} (Legacy V1 method)...`);
             
-            // Octoparse API v1 Stop (GET /api/CloudTask/StopTask?taskId={taskId})
             const response = await axios.get(`${this.baseUrl}/api/CloudTask/StopTask`, {
-                params: { taskId },
+                params: { taskId: taskId },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.data && (response.data.requestId || response.data.data === true)) {
                 console.log(`✅ Stop command acknowledge (V1) for: ${taskId}`);
-                this.statusCache.delete(taskId); 
+                this.statusCache.delete(taskId);
                 return true;
             }
-            
-            // Fallback: V3 POST Stop
-            await axios.post(`${this.baseUrl}/cloud_extraction/stop`, { taskId }, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-            });
-            return true;
         } catch (error) {
-            console.error('❌ Octoparse Stop Error:', error.response?.data || error.message);
-            return false;
+            console.log(`⚠️ V1 Stop also failed: ${error.response?.status || error.message}`);
         }
+        
+        console.log(`⚠️ Stop command attempted but task may already be stopped: ${taskId}`);
+        return true; // Return true so sync continues anyway
     }
 
     /**
@@ -574,8 +624,18 @@ class MarketDataSyncService {
         const token = await this.authenticate();
         try {
             console.log(`📊 Batch Status Check for ${taskIds.length} tasks...`);
+            
+            // Resolve any UUIDs to Integer IDs for higher compatibility with the Batch API
+            const resolvedIds = await Promise.all(taskIds.map(async id => {
+                if (id.includes('-')) {
+                    const res = await this.resolveTaskIdToInteger(id);
+                    return res || id;
+                }
+                return id;
+            }));
+
             const response = await axios.post(`${this.baseUrl}/cloudextraction/statuses/v2`, {
-                taskIds: taskIds
+                taskIds: resolvedIds
             }, {
                 headers: { 
                     'Authorization': `Bearer ${token}`,
@@ -585,14 +645,17 @@ class MarketDataSyncService {
 
             const results = response.data?.data || [];
             
-            // Cache each status
-            results.forEach(statusObj => {
-                if (statusObj.taskId) {
-                    this.statusCache.set(statusObj.taskId, { data: statusObj, timestamp: Date.now() });
+            // Map results back to original IDs for internal consistency
+            const finalResults = [];
+            taskIds.forEach((originalId, index) => {
+                const statusObj = results.find(r => r.taskId === originalId || r.taskId === resolvedIds[index]);
+                if (statusObj) {
+                    this.statusCache.set(originalId, { data: statusObj, timestamp: Date.now() });
+                    finalResults.push(statusObj);
                 }
             });
 
-            return results;
+            return finalResults;
         } catch (error) {
             const isRateLimit = error.response?.status === 429 || error.message?.includes('TooManyRequests');
             if (isRateLimit) {
@@ -623,8 +686,15 @@ class MarketDataSyncService {
             // Fallback to legacy single-task status if Batch/V2 fails
             const token = await this.authenticate();
             try {
+                // RESOLVE UUID FOR V1 API
+                let currentId = taskId;
+                if (taskId.includes('-')) {
+                    const resolved = await this.resolveTaskIdToInteger(taskId);
+                    if (resolved) currentId = resolved;
+                }
+
                 const response = await axios.get(`${this.baseUrl}/api/CloudTask/GetTaskStatus`, {
-                    params: { taskId },
+                    params: { taskId: currentId },
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const result = response.data.data;
@@ -647,12 +717,21 @@ class MarketDataSyncService {
         
         // Strategy: Try modern V2 first, then legacy list, then individual if needed
         try {
-            console.log(`🔍 Fetching bulk status for ${taskIds.length} tasks...`);
+            console.log(`🔍 Fetching bulk status for ${taskIds.length} tasks (Resolving UUIDs)...`);
             
+            // Resolve any UUIDs to Integer IDs for higher compatibility
+            const resolvedIds = await Promise.all(taskIds.map(async id => {
+                if (id.includes('-')) {
+                    const res = await this.resolveTaskIdToInteger(id);
+                    return res || id;
+                }
+                return id;
+            }));
+
             // 1. Try Modern V2
             try {
                 const response = await axios.post(`${this.baseUrl}/cloudextraction/statuses/v2`, {
-                    taskIds: taskIds
+                    taskIds: resolvedIds
                 }, {
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
                 });
@@ -660,17 +739,23 @@ class MarketDataSyncService {
             } catch (v2Err) {
                 console.warn('⚠️ Octoparse V2 Bulk Status failed:', v2Err.response?.data?.message || v2Err.message);
             }
-
+ 
             // 2. Try Legacy List Endpoint
             const legacyRes = await axios.get(`${this.baseUrl}/api/CloudTask/GetTaskStatusList`, {
-                params: { taskIds: taskIds.join(',') },
+                params: { taskIds: resolvedIds.join(',') },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
+ 
             if (legacyRes.data?.data) {
-                return Array.isArray(legacyRes.data.data) ? legacyRes.data.data : [legacyRes.data.data];
+                const data = Array.isArray(legacyRes.data.data) ? legacyRes.data.data : [legacyRes.data.data];
+                // Normalize legacy return to match V2 schema if possible
+                return data.map((d, index) => ({
+                    taskId: taskIds[index], // Use original ID for consistency
+                    taskStatus: d.TaskStatus || d.status || 'Unknown',
+                    taskName: d.TaskName || d.name
+                }));
             }
-
+ 
             return [];
         } catch (error) {
             console.error('❌ Get Bulk Status Error:', error.response?.data || error.message);
@@ -691,7 +776,7 @@ class MarketDataSyncService {
         try {
             console.log(`📥 Fetching ${size} rows from Octoparse (Offset: ${offset}) for Task: ${taskId}...`);
             
-            // Try Modern V2 Data API first
+            // Try Modern V2 Data API first (Usually accepts UUIDs)
             try {
                 const response = await axios.get(`${this.baseUrl}/cloudextraction/data/v1`, {
                     params: { taskId, size, offset },
@@ -699,9 +784,15 @@ class MarketDataSyncService {
                 });
                 if (response.data?.data) return response.data.data;
             } catch (v2Err) {
-                // Fallback to V1
+                // Fallback to V1 (Strictly requires Integer ID for Legacy clusters)
+                let currentId = taskId;
+                if (taskId.includes('-')) {
+                    const resolved = await this.resolveTaskIdToInteger(taskId);
+                    if (resolved) currentId = resolved;
+                }
+
                 const v1Response = await axios.get(`${this.baseUrl}/api/CloudTask/GetData`, {
-                    params: { taskId, size, offset },
+                    params: { taskId: currentId, size, offset },
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 return v1Response.data?.data?.dataList || v1Response.data?.data || [];
@@ -722,9 +813,15 @@ class MarketDataSyncService {
         const token = await this.authenticate();
 
         try {
-            console.log(`📥 Fetching INCREMENTAL data for task: ${taskId} (Size: ${size})...`);
+            let currentId = taskId;
+            if (taskId.includes('-')) {
+                const resolved = await this.resolveTaskIdToInteger(taskId);
+                if (resolved) currentId = resolved;
+            }
+
+            console.log(`📥 Fetching INCREMENTAL data for task: ${currentId} (Size: ${size})...`);
             const response = await axios.get(`${this.baseUrl}/data/notexported`, {
-                params: { taskId, size },
+                params: { taskId: currentId, size },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -890,8 +987,15 @@ class MarketDataSyncService {
     async getExecutionList(taskId, size = 10) {
         const token = await this.authenticate();
         try {
+            // RESOLVE UUID FOR V1 API Compatibility
+            let currentId = taskId;
+            if (taskId.includes('-')) {
+                const resolved = await this.resolveTaskIdToInteger(taskId);
+                if (resolved) currentId = resolved;
+            }
+
             const response = await axios.get(`${this.baseUrl}/api/Execution/GetTaskExecutionList`, {
-                params: { taskId, size },
+                params: { taskId: currentId, size },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             return response.data.data?.dataList || [];
@@ -922,19 +1026,35 @@ class MarketDataSyncService {
      */
     async _fetchDataBatch(taskId, size, offset, executionId = null) {
         const token = await this.authenticate();
+        
+        // RESOLVE UUID TO INTEGER ID for Legacy/Alt clusters
+        let currentId = taskId;
+        if (taskId.includes('-')) {
+            const resolved = await this.resolveTaskIdToInteger(taskId);
+            if (resolved) {
+                console.log(`📥 Retrieval: Resolved UUID ${taskId} to Integer ${resolved} for data fetching.`);
+                currentId = resolved;
+            }
+        }
+
         const paths = [
-            '/task/data/notexporteddata',   // OpenAPI V1.0
-            '/api/notexporteddata/get',     // Legacy V1 (Common)
-            '/data/notexportdata',           // Legacy V1 (Alt)
-            '/api/notexporteddata'          // V1 Extension
+            '/data/notexported',              // OpenAPI V3 spec (correct path)
+            '/data/all',                       // OpenAPI V3 - get all by offset
+            '/task/data/notexporteddata',     // OpenAPI V1.0
+            '/api/notexporteddata/get',       // Legacy V1 (Common)
+            '/api/alldata/GetDataOfTaskByOffset', // Legacy API
+            '/api/notexporteddata',           // V1 Extension
+            '/data/notexportdata'             // Legacy V1 (Alt)
         ];
 
         let lastErr = null;
         for (const path of paths) {
             try {
-                const params = { taskId, size, offset };
+                // Try with currentId (Resolved)
+                const params = { taskId: currentId, size, offset };
                 if (executionId) params.executionId = executionId;
 
+                console.log(`📥 Trying data path: ${path} with taskId: ${currentId}`);
                 const response = await axios.get(`${this.baseUrl}${path}`, {
                     params,
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -942,11 +1062,27 @@ class MarketDataSyncService {
 
                 // Octoparse API success check
                 if (response.data?.data || Array.isArray(response.data)) {
+                    console.log(`✅ Data fetched from ${path}:`, JSON.stringify(response.data).substring(0, 200));
                     const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
                     return Array.isArray(dataList) ? dataList : [];
                 }
             } catch (err) {
-                lastErr = err.response?.data?.error?.message || err.message;
+                lastErr = err.response?.status + ' ' + (err.response?.data?.error?.message || err.message);
+                
+                // If it's a 404 and we used a resolved ID, try a fallback to original UUID
+                if (err.response?.status === 404 && currentId !== taskId) {
+                    try {
+                        console.log(`📥 Retry with original UUID: ${taskId}`);
+                        const response = await axios.get(`${this.baseUrl}${path}`, {
+                            params: { taskId, size, offset, executionId },
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (response.data?.data || Array.isArray(response.data)) {
+                            const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
+                            return Array.isArray(dataList) ? dataList : [];
+                        }
+                    } catch (inner) { /* ignore fallback error */ }
+                }
             }
         }
         throw new Error(`Exhausted all data paths for task ${taskId}: ${lastErr}`);
@@ -1507,7 +1643,7 @@ class MarketDataSyncService {
         if (!rawData) return null;
         
         // 1. Direct fields
-        const direct = (rawData.ASIN || rawData.asin || rawData.asinCode || rawData.asin_code || '').trim();
+        const direct = (rawData.ASIN || rawData.asin || rawData.asinCode || rawData.asin_code || '').trim().toUpperCase();
         if (direct && direct.length === 10) return direct;
 
         // 2. URL extraction (Original_URL, Original URL, target_url, etc)
@@ -1605,14 +1741,49 @@ class MarketDataSyncService {
     async resolveTaskIdToInteger(uuid, groupId = null) {
         try {
             console.log(`🔍 Resolving UUID ${uuid} to integer ID...`);
-            const tasks = await this.getTasksInGroup(groupId);
             
-            if (!Array.isArray(tasks)) return null;
-
-            const task = tasks.find(t => t.taskId === uuid || t.id?.toString() === uuid);
-            if (task) {
-                return task.id || task.taskId;
+            // 1. If groupId is provided, check that group first (with pagination)
+            if (groupId) {
+                for (let offset = 0; offset <= 200; offset += 50) {
+                    const response = await axios.get(`${this.baseUrl}/task/search`, {
+                        params: { taskGroupId: groupId, size: 50, offset },
+                        headers: { 'Authorization': `Bearer ${await this.authenticate()}` }
+                    });
+                    const tasks = response.data?.data || [];
+                    console.log(`🔍 Task search response (group ${groupId}, offset ${offset}):`, JSON.stringify(tasks.slice(0, 2)));
+                    const task = (tasks || []).find(t => t.taskId === uuid || t.id?.toString() === uuid);
+                    if (task) {
+                        console.log(`🎯 Found task in single group:`, JSON.stringify(task));
+                        return task.id || task.taskId || task.TaskID || task.intId;
+                    }
+                    if (tasks.length < 50) break;
+                }
             }
+
+            // 2. SEARCH ALL GROUPS (Fallback for when we only have a UUID)
+            console.log(`🌐 Searching all task groups for UUID: ${uuid}...`);
+            const groups = await this.getTaskGroupList();
+            for (const group of groups) {
+                const id = group.categoryId || group.id || group.taskGroupId;
+                if (!id) continue;
+
+                // Search each group with pagination
+                for (let offset = 0; offset <= 200; offset += 50) {
+                    const tasksResponse = await axios.get(`${this.baseUrl}/task/search`, {
+                        params: { taskGroupId: id, size: 50, offset },
+                        headers: { 'Authorization': `Bearer ${await this.authenticate()}` }
+                    });
+                    const tasks = tasksResponse.data?.data || [];
+                    const found = (tasks || []).find(t => t.taskId === uuid || t.id?.toString() === uuid);
+                    if (found) {
+                        console.log(`🎯 Found task ${uuid} in group ${id}. Task object:`, JSON.stringify(found));
+                        console.log(`🎯 Found task ${uuid} in group ${id}. Integer ID: ${found.id || found.taskId || found.TaskID || 'NOT_FOUND'}`);
+                        return found.id || found.taskId || found.TaskID;
+                    }
+                    if (tasks.length < 50) break;
+                }
+            }
+
             return null;
         } catch (error) {
             console.error('❌ Resolve Task ID Error:', error.message);

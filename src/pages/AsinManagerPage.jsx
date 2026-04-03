@@ -468,16 +468,25 @@ const AsinManagerPage = () => {
 
   const handleBulkScrape = async () => {
     const totalCount = stats?.total || asins.length;
-    const confirmScrape = window.confirm(`Initiate scraping for all ${totalCount} ASINs? This will be processed in the background.`);
-    if (!confirmScrape) return;
+    
+    // Quick confirmation for global heavy action
+    if (!window.confirm(`Force-sync and refresh all ${totalCount} ASINs? This starts concurrent Octoparse tasks in the background.`)) return;
 
     try {
+      setSyncing(true);
+      
+      // 1. Trigger concurrent background scrapes in Octoparse
       await marketSyncApi.syncAll();
-      alert(`Scraping initiated successfully for all ${totalCount} ASINs.`);
-      loadData(pagination.page);
+      
+      // 2. Refresh current local database data in UI
+      await loadData(pagination.page);
+      
+      alert(`✅ Success: Sync initiated for all ${totalCount} ASINs. Background scrapes are now running concurrently.`);
     } catch (err) {
       console.error('Bulk scrape failed:', err);
-      alert('Failed to start bulk scraping: ' + err.message);
+      alert('❌ Failed to start bulk scraping: ' + err.message);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -671,7 +680,16 @@ const AsinManagerPage = () => {
                 <Table size={12} className="me-1" /> Analytics
               </button>
             </div>
-            <button className="btn btn-primary d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm border-0" onClick={() => setShowAddModal(true)} style={{ fontWeight: '600' }}>
+            <button 
+              className="btn btn-white border border-zinc-200 shadow-sm d-flex align-items-center gap-2 rounded-pill px-4 py-2 transition-all hover-bg-slate" 
+              onClick={handleBulkScrape}
+              disabled={syncing}
+              style={{ fontWeight: '600' }}
+            >
+              <RefreshCw size={18} className={syncing ? 'spin' : ''} />
+              Sync All
+            </button>
+            <button className="btn btn-primary d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm border-0 transition-transform active-scale-95" onClick={() => setShowAddModal(true)} style={{ fontWeight: '600' }}>
               <Plus size={18} /> Add ASIN
             </button>
           </div>

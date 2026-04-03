@@ -385,6 +385,9 @@ exports.createAsins = async (req, res) => {
     const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
     const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
 
+    // Identify sellers in this batch
+    const sellerIds = [...new Set(asins.map(a => a.seller).filter(Boolean))];
+
     // Verify all asins belong to allowed sellers
     for (const a of asins) {
       if (!isAdmin && !allowedSellerIds.includes(a.seller)) {
@@ -392,44 +395,64 @@ exports.createAsins = async (req, res) => {
       }
     }
 
-    // Use bulkWrite to perform upserts, avoiding duplicate key errors
-    const bulkOps = asins.map(a => {
-      const filter = { asinCode: a.asinCode };
-      if (a.seller) {
-        filter.seller = a.seller;
+    // Step 1: Identify duplicates before insertion
+    const existingAsins = await Asin.find({
+      $or: asins.map(a => ({
+        asinCode: a.asinCode,
+        seller: a.seller || { $exists: false }
+      }))
+    }).select('asinCode seller');
+
+    const existingCodes = existingAsins.map(a => `${a.asinCode}-${a.seller ? a.seller.toString() : 'global'}`);
+    const duplicates = [];
+    const newAsins = [];
+
+    for (const a of asins) {
+      const key = `${a.asinCode}-${a.seller ? a.seller.toString() : 'global'}`;
+      if (existingCodes.includes(key)) {
+        duplicates.push(a.asinCode);
       } else {
-        filter.seller = { $exists: false }; // Match global ASINs
+        newAsins.push(a);
       }
-      return {
-        updateOne: {
-          filter: filter,
-          update: { $setOnInsert: a },
-          upsert: true
+    }
+
+    // Step 2: Only proceed with bulkWrite if there are new ASINs
+    let asinsResult = { upsertedCount: 0, matchedCount: 0, upsertedIds: {} };
+    if (newAsins.length > 0) {
+      const bulkOps = newAsins.map(a => {
+        const filter = { asinCode: a.asinCode };
+        if (a.seller) {
+          filter.seller = a.seller;
+        } else {
+          filter.seller = { $exists: false };
         }
-      };
-    });
+        return {
+          updateOne: {
+            filter: filter,
+            update: { $setOnInsert: a },
+            upsert: true
+          }
+        };
+      });
+      asinsResult = await Asin.bulkWrite(bulkOps, { ordered: false });
 
-    const asinsResult = await Asin.bulkWrite(bulkOps, { ordered: false });
-
-    // Update seller counts
-    const sellerIds = [...new Set(asins.map(a => a.seller).filter(Boolean))];
-    for (const sellerId of sellerIds) {
-      await updateSellerAsinCount(sellerId);
-
-      // BACKGROUND: Automate URL Injection & Scrape for newly added/updated ASINs
-      // The service now handles concurrency locking to prevent multiple overlapping syncs for the same seller.
-      if (marketDataSyncService.isConfigured()) {
-        console.log(`🤖 Automated Sync Trigger for seller: ${sellerId}`);
-        marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { triggerScrape: true })
-          .catch(err => console.error(`⚠️ Automation: Failed to sync ASINs for seller ${sellerId}:`, err.message));
+      // Step 3: Post-Update counts and sync
+      for (const sellerId of sellerIds) {
+        await updateSellerAsinCount(sellerId);
+        if (marketDataSyncService.isConfigured()) {
+          console.log(`🤖 Automated Sync Trigger for seller: ${sellerId}`);
+          marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { triggerScrape: true })
+            .catch(err => console.error(`⚠️ Automation: Failed to sync ASINs for seller ${sellerId}:`, err.message));
+        }
       }
     }
 
     res.status(201).json({
       message: 'ASINs processed successfully',
-      insertedCount: asinsResult.upsertedCount,
-      matchedCount: asinsResult.matchedCount,
-      upsertedIds: asinsResult.upsertedIds
+      insertedCount: newAsins.length,
+      duplicates: duplicates,
+      duplicatesCount: duplicates.length,
+      totalCount: asins.length
     });
   } catch (error) {
     console.error('Bulk Insert Error:', error);

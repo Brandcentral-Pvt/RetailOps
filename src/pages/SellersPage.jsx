@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
+import { useToast } from '../contexts/ToastContext';
 
 const SellersPage = () => {
   const [sellers, setSellers] = useState([]);
@@ -53,6 +54,7 @@ const SellersPage = () => {
   const [showEditAsinModal, setShowEditAsinModal] = useState(false);
   const [editingAsin, setEditingAsin] = useState(null);
   const isAdmin = currentUser?.role?.name === 'admin' || currentUser?.role === 'admin';
+  const { addToast } = useToast();
 
   useEffect(() => {
     loadSellers();
@@ -109,7 +111,11 @@ const SellersPage = () => {
       setShowAddModal(false);
       setEditingSeller(null);
     } catch (error) {
-      alert('Failed to save seller: ' + error.message);
+      addToast({
+        title: 'Operation Failed',
+        message: 'Failed to save seller: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -146,7 +152,11 @@ const SellersPage = () => {
         setShowImportModal(false);
       }
     } catch (error) {
-      alert('Failed to import sellers: ' + error.message);
+      addToast({
+        title: 'Import Failed',
+        message: 'Failed to import sellers: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -160,7 +170,11 @@ const SellersPage = () => {
         await loadSellers();
       }
     } catch (error) {
-      alert('Failed to update seller: ' + error.message);
+      addToast({
+        title: 'Status Update Failed',
+        message: 'Failed to update seller: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -170,7 +184,11 @@ const SellersPage = () => {
         await sellerApi.delete(sellerId);
         await loadSellers();
       } catch (error) {
-        alert('Failed to delete seller: ' + error.message);
+        addToast({
+          title: 'Delete Failed',
+          message: 'Failed to delete seller: ' + error.message,
+          type: 'error'
+        });
       }
     }
   };
@@ -194,11 +212,20 @@ const SellersPage = () => {
         seller: selectedSeller._id,
         status: 'Active',
       });
+      addToast({
+        title: 'ASIN Added',
+        message: `Successfully added ${asinData.asinCode} to inventory.`,
+        type: 'success'
+      });
       const asins = await asinApi.getBySeller(selectedSeller._id);
       setSellerAsins(asins);
       await loadSellers();
     } catch (error) {
-      alert('Failed to add ASIN: ' + error.message);
+      addToast({
+        title: 'Add Failed',
+        message: error.message || 'Failed to add ASIN',
+        type: 'error'
+      });
     }
   };
 
@@ -209,7 +236,11 @@ const SellersPage = () => {
       setSellerAsins(asins);
       await loadSellers();
     } catch (error) {
-      alert('Failed to delete ASIN: ' + error.message);
+      addToast({
+        title: 'Delete Failed',
+        message: 'Failed to delete ASIN: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -221,16 +252,28 @@ const SellersPage = () => {
       setSellerAsins(asins);
       await loadSellers();
     } catch (error) {
-      alert('Failed to toggle ASIN status: ' + error.message);
+      addToast({
+        title: 'Status Update Failed',
+        message: 'Failed to toggle ASIN status: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
   const handleSyncAsin = async (asinId) => {
     try {
       await marketSyncApi.syncAsin(asinId);
-      alert('Individual ASIN sync triggered! Data will refresh shortly.');
+      addToast({
+        title: 'Sync Initiated',
+        message: 'Individual ASIN sync triggered successfully!',
+        type: 'success'
+      });
     } catch (error) {
-      alert('Sync failed: ' + error.message);
+      addToast({
+        title: 'Sync Failed',
+        message: error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -241,7 +284,11 @@ const SellersPage = () => {
       setSellerAsins(asins);
       await loadSellers();
     } catch (error) {
-      alert('Failed to update ASIN: ' + error.message);
+      addToast({
+        title: 'Update Failed',
+        message: 'Failed to update ASIN: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -251,10 +298,18 @@ const SellersPage = () => {
       try {
         const response = await marketSyncApi.syncSellerAsins(sellerId, true);
         if (response.success) {
-          alert('Full Sync successfully triggered! Background monitoring started.');
+          addToast({
+            title: 'Full Sync Initiated',
+            message: 'Seller full refresh successfully triggered!',
+            type: 'success'
+          });
         }
       } catch (error) {
-        alert('Full sync failed: ' + error.message);
+        addToast({
+          title: 'Sync Failed',
+          message: error.message,
+          type: 'error'
+        });
       }
       setLoading(false);
     }
@@ -266,11 +321,19 @@ const SellersPage = () => {
       try {
         const response = await marketSyncApi.setupAutoSync(sellerId);
         if (response.success) {
-          alert(`Success! Task ${response.taskId} created and linked.`);
+          addToast({
+            title: 'Auto-Sync Active',
+            message: `Task ${response.taskId} created and linked.`,
+            type: 'success'
+          });
           await loadSellers();
         }
       } catch (error) {
-        alert('Failed to setup auto-sync: ' + error.message);
+        addToast({
+          title: 'Setup Failed',
+          message: error.message,
+          type: 'error'
+        });
       }
       setLoading(false);
     }
@@ -281,24 +344,37 @@ const SellersPage = () => {
       setLoading(true);
       try {
         await marketSyncApi.ingestAllResults();
-        alert('Global ingestion started in the background. Metrics will update shortly.');
+        addToast({
+          title: 'Batch Ingestion',
+          message: 'Global ingestion started in background.',
+          type: 'info'
+        });
       } catch (error) {
-        alert('Failed to start global ingestion: ' + error.message);
+        addToast({
+          title: 'Ingestion Failed',
+          message: error.message,
+          type: 'error'
+        });
       }
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, lastScraped) => {
     const isActive = status === 'Active';
+    // If scraped in last 5 minutes, consider it "Syncing/Active"
+    const isRecentlyActive = lastScraped && (new Date() - new Date(lastScraped) < 5 * 60 * 1000);
+
     return (
-      <span
-        className={`px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1 small fw-bold ${isActive ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}`}
-        style={{ fontSize: '11px' }}
-      >
-        <span className={`rounded-circle ${isActive ? 'bg-success' : 'bg-secondary'}`} style={{ width: '6px', height: '6px' }}></span>
-        {status}
-      </span>
+      <div className="d-flex align-items-center gap-2">
+        <div 
+          className={`rounded-circle shadow-sm ${isActive ? 'bg-success' : 'bg-secondary'} ${isRecentlyActive ? 'pulse-green' : ''}`} 
+          style={{ width: '8px', height: '8px', border: '1px solid white' }}
+        ></div>
+        <span className={`fw-semibold ${isActive ? 'text-success' : 'text-muted'}`} style={{ fontSize: '11px' }}>
+          {status}
+        </span>
+      </div>
     );
   };
 
@@ -316,30 +392,31 @@ const SellersPage = () => {
 
   const getHealthIndicator = (seller) => {
     const usage = (seller.scrapeUsed || 0) / (seller.scrapeLimit || 100);
-    let color = '#22c55e'; // Green
+    let color = '#22c55e'; // Emerald/Green 
     let status = 'Healthy';
 
     if (usage > 0.8) {
-      color = '#ef4444'; // Red
+      color = '#ef4444'; // Red 
       status = 'Risk';
     } else if (usage > 0.5) {
-      color = '#f59e0b'; // Amber
+      color = '#f59e0b'; // Amber 
       status = 'Warning';
     }
 
     return (
       <div className="d-flex align-items-center gap-2">
-        <div style={{ position: 'relative', width: '24px', height: '24px' }}>
+        <div className="d-flex align-items-center justify-content-center" style={{ width: '18px', height: '18px' }}>
           <svg viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
-            <circle cx="18" cy="18" r="16" fill="none" stroke="#f3f4f6" strokeWidth="4" />
+            <circle cx="18" cy="18" r="16" fill="none" stroke="#f1f5f9" strokeWidth="4" />
             <circle
               cx="18" cy="18" r="16" fill="none"
-              stroke={color} strokeWidth="4"
+              stroke={color} strokeWidth="5"
               strokeDasharray={`${Math.min(usage * 100, 100)}, 100`}
+              strokeLinecap="round"
             />
           </svg>
         </div>
-        <span className="smallest fw-bold text-muted text-uppercase" style={{ fontSize: '9px' }}>{status}</span>
+        <span className="fw-bold text-muted text-uppercase" style={{ fontSize: '9px', letterSpacing: '0.02em' }}>{status}</span>
       </div>
     );
   };
@@ -362,15 +439,15 @@ const SellersPage = () => {
           <div className="d-flex gap-2">
             {isAdmin && (
               <>
-                <button 
-                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3" 
+                <button
+                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
                   onClick={() => setShowPoolModal(true)}
                 >
                   <LayoutGrid size={16} className="text-zinc-500" />
                   <span className="fw-bold text-zinc-700">Octoparse Pool ({poolStats.available})</span>
                 </button>
-                <button 
-                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3" 
+                <button
+                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
                   onClick={handleIngestAll}
                   title="Force check all Octoparse tasks for results"
                 >
@@ -524,7 +601,7 @@ const SellersPage = () => {
                 label: 'Status',
                 key: 'status',
                 width: '10%',
-                render: (status) => getStatusBadge(status)
+                render: (status, seller) => getStatusBadge(status, seller.lastScraped)
               }
             ]}
             rows={filteredSellers}
@@ -538,52 +615,74 @@ const SellersPage = () => {
               </div>
             )}
             actions={(seller) => (
-              <>
-                {isAdmin && (
-                  <>
-                    <button 
-                      className="btn btn-icon btn-white border shadow-sm btn-sm text-primary" 
-                      onClick={() => handleSetupAutoSync(seller._id)} 
-                      title="Auto-Setup Sync"
-                      disabled={seller.marketSyncTaskId}
-                    >
-                      <Wand2 size={12} className={seller.marketSyncTaskId ? 'text-muted' : 'text-primary'} />
-                    </button>
-                    <button 
-                      className={`btn btn-icon border shadow-sm btn-sm ${seller.marketSyncTaskId ? 'btn-white text-info' : 'btn-white text-muted opacity-50'}`} 
-                      onClick={() => seller.marketSyncTaskId && handleFullSync(seller._id)} 
-                      title={seller.marketSyncTaskId ? "Force Full Refresh (All ASINs)" : "No task linked"}
-                      disabled={!seller.marketSyncTaskId}
-                    >
-                      <RefreshCw size={12} />
-                    </button>
-                    <button 
-                      className="btn btn-icon btn-white border shadow-sm btn-sm text-primary-emphasis" 
-                      onClick={() => handleEditSeller(seller)} 
-                      title="Edit Store"
-                    >
-                      <Edit3 size={12} />
-                    </button>
-                    <button 
-                      className="btn btn-icon btn-white border shadow-sm btn-sm text-danger" 
-                      onClick={() => handleDeleteSeller(seller._id)} 
-                      title="Delete Store"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </>
-                )}
-                <button className="btn btn-icon btn-white border shadow-sm btn-sm" onClick={() => handleViewAsins(seller)} title="Inventory">
-                  <LayoutGrid size={12} />
+              <div className="d-flex align-items-center gap-2">
+                <button 
+                  className="btn btn-white border shadow-sm p-0 d-flex align-items-center justify-content-center text-secondary rounded-pill" 
+                  onClick={() => handleViewAsins(seller)} 
+                  title="View ASINs"
+                  style={{ width: '32px', height: '32px' }}
+                >
+                  <LayoutGrid size={18} strokeWidth={2} />
                 </button>
                 <button
-                  className={`btn btn-icon border shadow-sm btn-sm ${seller.status === 'Active' ? 'btn-white' : 'btn-soft-success'}`}
+                  className={`btn border shadow-sm p-0 d-flex align-items-center justify-content-center rounded-pill transition-all ${seller.status === 'Active' ? 'btn-white text-secondary' : 'btn-success text-white'}`}
                   onClick={() => handleToggleStatus(seller._id)}
-                  title={seller.status === 'Active' ? 'Pause' : 'Start'}
+                  title={seller.status === 'Active' ? 'Pause Syncing' : 'Resume Syncing'}
+                  style={{ width: '32px', height: '32px' }}
                 >
-                  {seller.status === 'Active' ? <Pause size={12} /> : <Play size={12} />}
+                  {seller.status === 'Active' ? <Pause size={18} strokeWidth={2} /> : <Play size={18} strokeWidth={2} />}
                 </button>
-              </>
+                
+                {/* Secondary Actions Dropdown */}
+                {isAdmin && (
+                  <div className="dropdown position-relative">
+                    <button 
+                      className="btn btn-white border shadow-sm p-0 d-flex align-items-center justify-content-center text-muted rounded-pill"
+                      data-bs-toggle="dropdown"
+                      style={{ width: '32px', height: '32px' }}
+                    >
+                      <MoreHorizontal size={18} strokeWidth={2} />
+                    </button>
+                    <ul className="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2 mt-2" style={{ minWidth: '200px' }}>
+                      <li><h6 className="dropdown-header text-uppercase smallest fw-bold text-muted py-2">Automation</h6></li>
+                      <li>
+                        <button 
+                          className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2" 
+                          onClick={() => handleSetupAutoSync(seller._id)}
+                          disabled={seller.marketSyncTaskId}
+                        >
+                          <Wand2 size={16} strokeWidth={2} className={seller.marketSyncTaskId ? 'text-muted' : 'text-primary'} />
+                          <span className={seller.marketSyncTaskId ? 'text-muted' : 'text-dark'}>Setup Auto-Sync</span>
+                        </button>
+                      </li>
+                      <li>
+                        <button 
+                          className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2 text-info" 
+                          onClick={() => seller.marketSyncTaskId && handleFullSync(seller._id)}
+                          disabled={!seller.marketSyncTaskId}
+                        >
+                          <RefreshCw size={16} strokeWidth={2} />
+                          <span>Force Refresh</span>
+                        </button>
+                      </li>
+                      <li><hr className="dropdown-divider opacity-10 mx-2" /></li>
+                      <li><h6 className="dropdown-header text-uppercase smallest fw-bold text-muted py-2">Management</h6></li>
+                      <li>
+                        <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2" onClick={() => handleEditSeller(seller)}>
+                          <Edit3 size={16} strokeWidth={2} className="text-secondary" />
+                          <span className="text-dark">Edit Details</span>
+                        </button>
+                      </li>
+                      <li>
+                        <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2 text-danger" onClick={() => handleDeleteSeller(seller._id)}>
+                          <Trash2 size={16} strokeWidth={2} />
+                          <span>Delete Store</span>
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
             emptyState={{
               icon: Store,
@@ -740,7 +839,7 @@ const AddSellerModal = ({ onClose, onSave, isAdmin, initialData }) => {
                 </div>
               )}
 
-              <div className="mb-4">
+              {/* <div className="mb-4">
                 <label className="form-label smallest fw-bold text-muted text-uppercase mb-2">Octoparse API Key</label>
                 <input
                   type="password"
@@ -750,7 +849,7 @@ const AddSellerModal = ({ onClose, onSave, isAdmin, initialData }) => {
                   placeholder="Enter API key"
                   style={{ borderRadius: '12px' }}
                 />
-              </div>
+              </div> */}
             </div>
             <div className="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
               <button type="button" className="btn btn-white fw-bold px-4 border border-zinc-200 rounded-pill" onClick={onClose}>Cancel</button>
@@ -837,17 +936,18 @@ HomeEssentials,amazon.com,A2B3C4D5E6F7,oct_xxx456`;
 };
 
 // Seller ASINs Modal Component
-const SellerAsinsModal = ({ 
-  seller, 
-  asins, 
-  onClose, 
-  onAddAsin, 
+const SellerAsinsModal = ({
+  seller,
+  asins,
+  onClose,
+  onAddAsin,
   onDeleteAsin,
   onToggleStatus,
   onUpdateAsin,
   onSyncAsin,
   onRefresh
 }) => {
+  const { addToast } = useToast();
   const [showAddAsinModal, setShowAddAsinModal] = useState(false);
   const [showEditAsinModal, setShowEditAsinModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -871,10 +971,20 @@ const SellerAsinsModal = ({
         const jsonData = JSON.parse(event.target.result);
         setIsSubmitting(true);
         const result = await marketSyncApi.bulkInjectJson(seller._id, jsonData);
-        alert(result.message || 'Success');
+        
+        addToast({
+          title: 'Import Success',
+          message: result.message || 'Data injected successfully',
+          type: 'success'
+        });
+
         if (onRefresh) await onRefresh();
       } catch (error) {
-        alert('Failed to process JSON: ' + error.message);
+        addToast({
+          title: 'Import Failed',
+          message: 'Failed to process JSON: ' + error.message,
+          type: 'error'
+        });
       } finally {
         setIsSubmitting(false);
         e.target.value = ''; // Reset file input
@@ -917,19 +1027,38 @@ const SellerAsinsModal = ({
       }));
 
       // Call the bulk API method
-      await asinApi.createBulk(asinsPayload);
+      const result = await asinApi.createBulk(asinsPayload);
 
       // Refresh list correctly without window reload
       if (onRefresh) {
         await onRefresh();
       }
 
-      alert(`Successfully added ${asinList.length} ASIN(s)`);
+      // Show specific toast for duplicates if any
+      if (result.duplicatesCount > 0) {
+        addToast({
+          title: 'Partial Success',
+          message: `${result.insertedCount} added. ${result.duplicatesCount} skipped as they already exist: ${result.duplicates.join(', ')}`,
+          type: 'warning',
+          duration: 10000 // Show longer for user to read lists
+        });
+      } else {
+        addToast({
+          title: 'Success',
+          message: `Successfully added ${result.insertedCount} ASIN(s) to inventory.`,
+          type: 'success'
+        });
+      }
+      
       setNewAsinsText('');
       setShowAddAsinModal(false);
 
     } catch (error) {
-      alert('Failed to add ASINs: ' + error.message);
+      addToast({
+        title: 'Bulk Add Failed',
+        message: error.message || 'Failed to process ASINs',
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -959,8 +1088,8 @@ const SellerAsinsModal = ({
                   accept=".json"
                   onChange={(e) => handleJsonUpload(e)}
                 />
-                <button 
-                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 px-3 rounded-pill" 
+                <button
+                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 px-3 rounded-pill"
                   onClick={() => document.getElementById('jsonUpload').click()}
                   disabled={isSubmitting}
                 >
@@ -1015,7 +1144,7 @@ const SellerAsinsModal = ({
                           </div>
                         </td>
                         <td>
-                          <button 
+                          <button
                             className={`btn btn-sm p-0 border-0 d-flex align-items-center gap-1 ${asin.status === 'Active' ? 'text-success' : 'text-zinc-400'}`}
                             onClick={() => onToggleStatus(asin._id, asin.status)}
                             title={asin.status === 'Active' ? 'Deactivate' : 'Activate'}
@@ -1129,29 +1258,29 @@ const EditAsinModal = ({ asin, onClose, onSave }) => {
             <div className="modal-body p-4">
               <div className="mb-3">
                 <label className="form-label smallest fw-bold uppercase text-muted">ASIN Code</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={formData.asinCode} 
-                  onChange={e => setFormData({...formData, asinCode: e.target.value})}
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.asinCode}
+                  onChange={e => setFormData({ ...formData, asinCode: e.target.value })}
                   required
                 />
               </div>
               <div className="mb-3">
                 <label className="form-label smallest fw-bold uppercase text-muted">SKU (Internal ID)</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={formData.sku} 
-                  onChange={e => setFormData({...formData, sku: e.target.value})}
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.sku}
+                  onChange={e => setFormData({ ...formData, sku: e.target.value })}
                 />
               </div>
               <div className="mb-3">
                 <label className="form-label smallest fw-bold uppercase text-muted">Operational Status</label>
-                <select 
-                  className="form-select" 
+                <select
+                  className="form-select"
                   value={formData.status}
-                  onChange={e => setFormData({...formData, status: e.target.value})}
+                  onChange={e => setFormData({ ...formData, status: e.target.value })}
                 >
                   <option value="Active">Active (Tracking)</option>
                   <option value="Paused">Paused (Inactive)</option>
@@ -1205,10 +1334,10 @@ const AddBulkAsinModal = ({ seller, onClose, onAdd, isSubmitting, text, setText 
           </div>
           <div className="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
             <button type="button" className="btn btn-white fw-bold rounded-pill px-4 border border-zinc-200" onClick={onClose}>Cancel</button>
-            <button 
-              type="button" 
-              className="btn btn-zinc-900 fw-bold rounded-pill px-4 shadow-sm text-white d-flex align-items-center gap-2" 
-              onClick={onAdd} 
+            <button
+              type="button"
+              className="btn btn-zinc-900 fw-bold rounded-pill px-4 shadow-sm text-white d-flex align-items-center gap-2"
+              onClick={onAdd}
               disabled={isSubmitting || !text.trim()}
               style={{ backgroundColor: '#18181B' }}
             >
@@ -1230,7 +1359,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
     <div className="modal show d-block" style={{ backgroundColor: 'rgba(9, 9, 11, 0.8)', backdropFilter: 'blur(8px)', zIndex: 1100 }}>
       <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div className="modal-content border-0 shadow-2xl overflow-hidden" style={{ borderRadius: '24px', backgroundColor: '#fff' }}>
-          
+
           {/* Header */}
           <div className="px-5 py-4 border-bottom border-zinc-100 d-flex justify-content-between align-items-center bg-white sticky-top">
             <div className="d-flex align-items-center gap-4">
@@ -1250,9 +1379,9 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                   )}
                 </div>
                 <div className="text-muted smallest fw-semibold uppercase tracking-wider d-flex align-items-center gap-2">
-                   <span>{asin.category || 'Uncategorized'}</span>
-                   <span className="opacity-30">•</span>
-                   <span>SKU: {asin.sku || 'N/A'}</span>
+                  <span>{asin.category || 'Uncategorized'}</span>
+                  <span className="opacity-30">•</span>
+                  <span>SKU: {asin.sku || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -1263,21 +1392,21 @@ const AsinDetailsModal = ({ asin, onClose }) => {
 
           <div className="modal-body p-0">
             <div className="row g-0">
-              
+
               {/* Left Column: Visuals & Gallery */}
               <div className="col-lg-5 p-4 border-end border-zinc-100 bg-white">
                 <div className="position-relative mb-4 bg-zinc-50 rounded-4 p-4 border border-zinc-100 overflow-hidden text-center">
-                   <img 
-                     src={asin.mainImageUrl || asin.imageUrl || 'https://via.placeholder.com/400x400?text=No+Image'} 
-                     alt={asin.title}
-                     className="img-fluid rounded-3"
-                     style={{ maxHeight: '350px', objectFit: 'contain' }}
-                   />
-                   <div className="position-absolute top-0 end-0 p-3">
-                      <div className="bg-white/80 backdrop-blur rounded-pill px-3 py-1 border border-zinc-200 shadow-sm smallest fw-bold">
-                        {asin.images?.length || 0} Images
-                      </div>
-                   </div>
+                  <img
+                    src={asin.mainImageUrl || asin.imageUrl || 'https://via.placeholder.com/400x400?text=No+Image'}
+                    alt={asin.title}
+                    className="img-fluid rounded-3"
+                    style={{ maxHeight: '350px', objectFit: 'contain' }}
+                  />
+                  <div className="position-absolute top-0 end-0 p-3">
+                    <div className="bg-white/80 backdrop-blur rounded-pill px-3 py-1 border border-zinc-200 shadow-sm smallest fw-bold">
+                      {asin.images?.length || 0} Images
+                    </div>
+                  </div>
                 </div>
 
                 {/* Gallery Grid */}
@@ -1295,81 +1424,81 @@ const AsinDetailsModal = ({ asin, onClose }) => {
 
                 {/* Rating Summary */}
                 <div className="mt-5 p-4 bg-zinc-900 rounded-4 text-white shadow-lg">
-                   <div className="d-flex align-items-center justify-content-between mb-3">
-                      <div className="smallest fw-bold uppercase opacity-60">Customer Sentiment</div>
-                      <div className="d-flex align-items-center gap-1">
-                         <div className="text-warning"><Zap size={14} fill="currentColor" /></div>
-                         <span className="fw-black">{asin.rating || '0.0'}</span>
-                      </div>
-                   </div>
-                   <div className="h4 fw-bold mb-1">{asin.reviewCount?.toLocaleString() || '0'} Reviews</div>
-                   <div className="smallest opacity-80">Based on global marketplace feedback</div>
+                  <div className="d-flex align-items-center justify-content-between mb-3">
+                    <div className="smallest fw-bold uppercase opacity-60">Customer Sentiment</div>
+                    <div className="d-flex align-items-center gap-1">
+                      <div className="text-warning"><Zap size={14} fill="currentColor" /></div>
+                      <span className="fw-black">{asin.rating || '0.0'}</span>
+                    </div>
+                  </div>
+                  <div className="h4 fw-bold mb-1">{asin.reviewCount?.toLocaleString() || '0'} Reviews</div>
+                  <div className="smallest opacity-80">Based on global marketplace feedback</div>
                 </div>
               </div>
 
               {/* Right Column: Intelligence & Data */}
               <div className="col-lg-7 p-4 bg-zinc-50/30">
-                
+
                 {/* Title Section */}
                 <div className="mb-5">
                   <div className="d-flex align-items-center justify-content-between mb-3">
-                     <label className="smallest fw-bold uppercase text-muted tracking-widest">Product Title</label>
-                     <span className={`badge rounded-pill ${asin.titleLength > 150 ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'} px-2 fw-bold`}>
-                       {asin.titleLength || 0} Chars
-                     </span>
+                    <label className="smallest fw-bold uppercase text-muted tracking-widest">Product Title</label>
+                    <span className={`badge rounded-pill ${asin.titleLength > 150 ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'} px-2 fw-bold`}>
+                      {asin.titleLength || 0} Chars
+                    </span>
                   </div>
                   <h5 className="lh-base text-zinc-900 fw-bold">{asin.title || 'Product title not yet synced.'}</h5>
                 </div>
 
-                 {/* KPI Grid */}
-                 <div className="row g-3 mb-5">
-                    <div className="col-md-4">
-                       <div className="bg-white p-4 rounded-4 shadow-sm border border-zinc-100 h-100">
-                          <div className="smallest fw-bold uppercase text-muted mb-2">Pricing Intel</div>
-                          <div className="d-flex align-items-end gap-2 mb-1">
-                             <div className="h3 fw-black text-zinc-900 mb-0">₹{asin.currentPrice?.toLocaleString() || '0'}</div>
-                             <div className="text-muted text-decoration-line-through mb-1">₹{asin.mrp?.toLocaleString() || '0'}</div>
-                          </div>
-                          <div className="d-flex align-items-center gap-2">
-                            <span className="smallest fw-bold text-success">
-                              {asin.currentPrice && asin.mrp ? Math.round((1 - asin.currentPrice/asin.mrp) * 100) : 0}% Off
-                            </span>
-                            <span className="opacity-20">•</span>
-                            <span className="smallest fw-medium text-muted">{asin.priceType || 'Standard'}</span>
-                          </div>
-                       </div>
+                {/* KPI Grid */}
+                <div className="row g-3 mb-5">
+                  <div className="col-md-4">
+                    <div className="bg-white p-4 rounded-4 shadow-sm border border-zinc-100 h-100">
+                      <div className="smallest fw-bold uppercase text-muted mb-2">Pricing Intel</div>
+                      <div className="d-flex align-items-end gap-2 mb-1">
+                        <div className="h3 fw-black text-zinc-900 mb-0">₹{asin.currentPrice?.toLocaleString() || '0'}</div>
+                        <div className="text-muted text-decoration-line-through mb-1">₹{asin.mrp?.toLocaleString() || '0'}</div>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="smallest fw-bold text-success">
+                          {asin.currentPrice && asin.mrp ? Math.round((1 - asin.currentPrice / asin.mrp) * 100) : 0}% Off
+                        </span>
+                        <span className="opacity-20">•</span>
+                        <span className="smallest fw-medium text-muted">{asin.priceType || 'Standard'}</span>
+                      </div>
                     </div>
-                    <div className="col-md-4">
-                       <div className="bg-white p-4 rounded-4 shadow-sm border border-zinc-100 h-100">
-                          <div className="smallest fw-bold uppercase text-muted mb-2">Core Visibility</div>
-                          <div className="h3 fw-black text-primary mb-0">#{asin.bsr?.toLocaleString() || '---'}</div>
-                          <div className="smallest fw-medium text-muted mt-1">Main Category BSR</div>
-                       </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="bg-white p-4 rounded-4 shadow-sm border border-zinc-100 h-100">
+                      <div className="smallest fw-bold uppercase text-muted mb-2">Core Visibility</div>
+                      <div className="h3 fw-black text-primary mb-0">#{asin.bsr?.toLocaleString() || '---'}</div>
+                      <div className="smallest fw-medium text-muted mt-1">Main Category BSR</div>
                     </div>
-                    <div className="col-md-4">
-                       <div className="bg-white p-4 rounded-4 shadow-sm border border-zinc-100 h-100">
-                          <div className="smallest fw-bold uppercase text-muted mb-2">Stock Inventory</div>
-                          <div className={`h3 fw-black mb-0 ${asin.stockLevel > 10 ? 'text-success' : 'text-danger'}`}>
-                            {asin.stockLevel || 0}
-                          </div>
-                          <div className="smallest fw-medium text-muted mt-1">Units Available</div>
-                       </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="bg-white p-4 rounded-4 shadow-sm border border-zinc-100 h-100">
+                      <div className="smallest fw-bold uppercase text-muted mb-2">Stock Inventory</div>
+                      <div className={`h3 fw-black mb-0 ${asin.stockLevel > 10 ? 'text-success' : 'text-danger'}`}>
+                        {asin.stockLevel || 0}
+                      </div>
+                      <div className="smallest fw-medium text-muted mt-1">Units Available</div>
                     </div>
-                 </div>
+                  </div>
+                </div>
 
                 {/* Sub BSRs */}
                 {asin.subBSRs?.length > 0 && (
-                   <div className="mb-5">
-                      <label className="smallest fw-bold uppercase text-muted tracking-widest mb-3 d-block">Sub-Category Ranks</label>
-                      <div className="d-flex flex-wrap gap-2">
-                         {asin.subBSRs.map((rank, idx) => (
-                           <div key={idx} className="bg-white border border-zinc-200 rounded-pill px-3 py-1 smallest fw-bold shadow-sm d-flex align-items-center gap-2">
-                              <div className="bg-primary rounded-circle" style={{ width: '6px', height: '6px' }}></div>
-                              {rank}
-                           </div>
-                         ))}
-                      </div>
-                   </div>
+                  <div className="mb-5">
+                    <label className="smallest fw-bold uppercase text-muted tracking-widest mb-3 d-block">Sub-Category Ranks</label>
+                    <div className="d-flex flex-wrap gap-2">
+                      {asin.subBSRs.map((rank, idx) => (
+                        <div key={idx} className="bg-white border border-zinc-200 rounded-pill px-3 py-1 smallest fw-bold shadow-sm d-flex align-items-center gap-2">
+                          <div className="bg-primary rounded-circle" style={{ width: '6px', height: '6px' }}></div>
+                          {rank}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 {/* Bullet Points */}
@@ -1384,7 +1513,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                         {asin.bulletPointsList.map((point, idx) => (
                           <li key={idx} className="d-flex gap-3">
                             <div className="flex-shrink-0 mt-1">
-                               <CheckCircle2 size={16} className="text-success" />
+                              <CheckCircle2 size={16} className="text-success" />
                             </div>
                             <span className="smallest fw-medium text-zinc-600 lh-sm">{point}</span>
                           </li>
@@ -1392,8 +1521,8 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                       </ul>
                     ) : (
                       <div className="text-center py-3">
-                         <AlertCircle size={24} className="text-zinc-200 mb-2" />
-                         <div className="smallest text-muted italic">No bullet points extracted yet.</div>
+                        <AlertCircle size={24} className="text-zinc-200 mb-2" />
+                        <div className="smallest text-muted italic">No bullet points extracted yet.</div>
                       </div>
                     )}
                   </div>
@@ -1403,17 +1532,17 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                 <div className="row g-4">
                   <div className="col-md-6">
                     <div className="d-flex align-items-center gap-3">
-                       <div className="p-2 bg-zinc-100 rounded-3"><Store size={18} className="text-zinc-600" /></div>
-                       <div>
-                          <div className="smallest fw-bold text-muted uppercase">Sold By</div>
-                          <div className="fw-bold text-zinc-900">{asin.soldBy || 'Unknown Seller'}</div>
-                       </div>
+                      <div className="p-2 bg-zinc-100 rounded-3"><Store size={18} className="text-zinc-600" /></div>
+                      <div>
+                        <div className="smallest fw-bold text-muted uppercase">Sold By</div>
+                        <div className="fw-bold text-zinc-900">{asin.soldBy || 'Unknown Seller'}</div>
+                      </div>
                     </div>
                   </div>
                   <div className="col-md-6 text-end">
-                     <a href={`https://amazon.in/dp/${asin.asinCode}`} target="_blank" rel="noreferrer" className="btn btn-white btn-sm rounded-pill border border-zinc-200 shadow-sm px-4 fw-bold text-zinc-700">
-                        View on Amazon <ExternalLink size={14} className="ms-1" />
-                     </a>
+                    <a href={`https://amazon.in/dp/${asin.asinCode}`} target="_blank" rel="noreferrer" className="btn btn-white btn-sm rounded-pill border border-zinc-200 shadow-sm px-4 fw-bold text-zinc-700">
+                      View on Amazon <ExternalLink size={14} className="ms-1" />
+                    </a>
                   </div>
                 </div>
 
@@ -1422,9 +1551,9 @@ const AsinDetailsModal = ({ asin, onClose }) => {
           </div>
 
           <div className="modal-footer border-0 p-4 bg-zinc-50/50">
-             <button className="btn btn-zinc-900 rounded-pill px-5 py-2 fw-black shadow-xl" onClick={onClose} style={{ backgroundColor: '#18181B', color: '#fff' }}>
-                Close Pipeline Intel
-             </button>
+            <button className="btn btn-zinc-900 rounded-pill px-5 py-2 fw-black shadow-xl" onClick={onClose} style={{ backgroundColor: '#18181B', color: '#fff' }}>
+              Close Pipeline Intel
+            </button>
           </div>
         </div>
       </div>
@@ -1435,6 +1564,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
 export default SellersPage;
 
 const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
+  const { addToast } = useToast();
   const [taskIdsText, setTaskIdsText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -1446,12 +1576,20 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
     try {
       const response = await marketSyncApi.uploadPoolTasks(ids);
       if (response.success) {
-        alert(response.message);
+        addToast({
+          title: 'Success',
+          message: response.message,
+          type: 'success'
+        });
         setTaskIdsText('');
         onRefresh();
       }
     } catch (error) {
-      alert('Upload failed: ' + error.message);
+      addToast({
+        title: 'Upload Failed',
+        message: error.message,
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1509,9 +1647,9 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
           </div>
           <div className="modal-footer border-0 p-4 pt-0 gap-2">
             <button className="btn btn-white fw-bold px-4 border border-zinc-200 rounded-pill" onClick={onClose}>Close</button>
-            <button 
-              className="btn btn-zinc-900 fw-bold px-4 rounded-pill shadow-sm d-flex align-items-center gap-2" 
-              onClick={handleUpload} 
+            <button
+              className="btn btn-zinc-900 fw-bold px-4 rounded-pill shadow-sm d-flex align-items-center gap-2"
+              onClick={handleUpload}
               disabled={isSubmitting || !taskIdsText.trim()}
               style={{ backgroundColor: '#18181B', color: '#fff' }}
             >

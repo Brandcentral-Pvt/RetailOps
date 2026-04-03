@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, MoreVertical, LayoutGrid, CheckSquare, Square } from 'lucide-react';
+import { ChevronDown, ChevronRight, LayoutGrid, CheckSquare, Square } from 'lucide-react';
 
 const ListView = ({
     columns = [],
@@ -11,6 +11,7 @@ const ListView = ({
     renderCell = null,
     onRowClick = null,
     actions = null,
+    actionWidth = '120px',
     emptyMessage = "No records found"
 }) => {
     const [collapsedGroups, setCollapsedGroups] = useState(new Set());
@@ -70,24 +71,24 @@ const ListView = ({
     };
 
     return (
-        <div className="list-view-container w-100 overflow-hidden" style={{ borderRadius: '12px' }}>
+        <div className="list-view-container w-100" style={{ borderRadius: '12px', overflow: 'visible' }}>
             {/* Header */}
-            <div className="list-view-header d-flex align-items-center bg-white border-bottom px-4 py-2 sticky-top" style={{ zIndex: 10 }}>
+            <div className="list-view-header d-flex align-items-center bg-white border-bottom px-4 py-3 sticky-top" style={{ zIndex: 10 }}>
                 {options.selectable && <div style={{ width: '40px' }} />}
                 {columns.map((col, idx) => (
                     <div
                         key={idx}
-                        className="smallest fw-bold text-muted text-uppercase"
-                        style={{ width: col.width || 'auto', flex: col.width ? 'none' : 1 }}
+                        className="smallest fw-bold text-muted text-uppercase tracking-wider"
+                        style={{ width: col.width || 'auto', flex: col.width ? 'none' : 1, fontSize: '10px' }}
                     >
                         {col.label}
                     </div>
                 ))}
-                {actions && <div style={{ width: '80px' }} />}
+                {actions && <div style={{ width: actionWidth }} />}
             </div>
 
             {/* Content */}
-            <div className="list-view-body bg-white">
+            <div className="list-view-body bg-white" style={{ overflow: 'visible' }}>
                 {groupedRows.length === 0 ? (
                     <div className="p-5 text-center text-muted">
                         <div className="mb-2"><LayoutGrid size={32} className="opacity-25" /></div>
@@ -98,7 +99,7 @@ const ListView = ({
                         <div key={gIdx} className="list-group-section">
                             {group !== null && (
                                 <div
-                                    className="list-group-header d-flex align-items-center px-4 py-2 bg-light bg-opacity-50 cursor-pointer border-bottom"
+                                    className="list-group-header d-flex align-items-center px-4 py-2 bg-slate-50 bg-opacity-50 cursor-pointer border-bottom"
                                     onClick={() => toggleGroup(group)}
                                 >
                                     <div className="me-2 text-muted">
@@ -114,8 +115,8 @@ const ListView = ({
                                     )}
                                     <div className="flex-grow-1">
                                         {renderGroupHeader ? renderGroupHeader({ group, rows: groupRows }) : (
-                                            <span className="text-base font-medium leading-6 text-dark">
-                                                {group} <span className="text-muted small">({groupRows.length})</span>
+                                            <span className="text-sm font-semibold text-slate-900">
+                                                {group} <span className="text-slate-400 font-normal">({groupRows.length})</span>
                                             </span>
                                         )}
                                     </div>
@@ -125,22 +126,25 @@ const ListView = ({
                             {!collapsedGroups.has(group) && groupRows.map((row, rIdx) => (
                                 <div
                                     key={row[rowKey] || rIdx}
-                                    className={`list-row d-flex align-items-center px-4 py-3 border-bottom hover-bg-light transition-all cursor-pointer ${selectedRows.has(row[rowKey]) ? 'bg-primary-subtle bg-opacity-10' : ''}`}
-                                    onClick={() => onRowClick && onRowClick(row)}
+                                    className={`list-row d-flex align-items-center px-4 py-3 border-bottom hover-bg-slate transition-all cursor-pointer ${selectedRows.has(row[rowKey]) ? 'bg-blue-50 bg-opacity-30' : ''}`}
+                                    onClick={(e) => {
+                                        if (e.target.closest('.list-actions')) return;
+                                        onRowClick && onRowClick(row);
+                                    }}
                                 >
                                     {options.selectable && (
                                         <div
                                             className="me-3 text-primary"
                                             onClick={(e) => toggleRowSelection(e, row[rowKey])}
                                         >
-                                            {selectedRows.has(row[rowKey]) ? <CheckSquare size={16} /> : <Square size={16} className="opacity-25" />}
+                                            {selectedRows.has(row[rowKey]) ? <CheckSquare size={16} /> : <Square size={16} className="opacity-20" />}
                                         </div>
                                     )}
 
                                     {columns.map((col, cIdx) => (
                                         <div
                                             key={cIdx}
-                                            className="list-cell overflow-hidden text-truncate"
+                                            className="list-cell overflow-hidden text-truncate pe-3"
                                             style={{ width: col.width || 'auto', flex: col.width ? 'none' : 1 }}
                                         >
                                             {renderCell ? renderCell(row, col) : (
@@ -150,7 +154,7 @@ const ListView = ({
                                     ))}
 
                                     {actions && (
-                                        <div className="list-actions d-flex justify-content-end gap-1" style={{ width: '80px' }} onClick={e => e.stopPropagation()}>
+                                        <div className="list-actions d-flex justify-content-end align-items-center gap-1" style={{ width: actionWidth }}>
                                             {actions(row)}
                                         </div>
                                     )}
@@ -162,10 +166,11 @@ const ListView = ({
             </div>
 
             <style>{`
-                .hover-bg-light:hover { background-color: #f8fafc; }
-                .list-view-container { border: 1px solid #e2e8f0; }
+                .hover-bg-slate:hover { background-color: #f8fafc; }
+                .list-view-container { border: 1px solid #f1f5f9; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
                 .list-row:last-child { border-bottom: none; }
-                .transition-all { transition: all 0.2s ease; }
+                .transition-all { transition: all 0.15s ease-in-out; }
+                .tracking-wider { letter-spacing: 0.05em; }
             `}</style>
         </div>
     );

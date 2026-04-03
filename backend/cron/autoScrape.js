@@ -38,21 +38,21 @@ class AutoScrapeScheduler {
             // Process sequentially to be gentle on resources
             for (const asin of asinsToScrape) {
                 try {
-                    console.log(`🤖 Auto-scraping ASIN: ${asin.asin}`);
-                    const scrapeResult = await DirectScraperService.scrapeProduct(asin.asin);
+                    console.log(`🤖 Auto-scraping ASIN: ${asin.asinCode}`);
+                    const scrapeResult = await DirectScraperService.scrapeAsin(asin.asinCode);
                     
                     if (scrapeResult && typeof scrapeResult === 'object') {
                         // Use MarketDataSyncService to process and store the result (updating weekHistory too)
                         await MarketDataSyncService.updateAsinMetrics(asin._id, scrapeResult);
-                        console.log(`✅ Auto-scrape successful for ASIN: ${asin.asin}`);
+                        console.log(`✅ Auto-scrape successful for ASIN: ${asin.asinCode}`);
                     } else {
-                        console.warn(`⚠️ Auto-scrape failed or returned invalid data for ASIN: ${asin.asin}`);
+                        console.warn(`⚠️ Auto-scrape failed or returned invalid data for ASIN: ${asin.asinCode}`);
                     }
                     
                     // Small delay to prevent rate-limiting between products
                     await new Promise(resolve => setTimeout(resolve, 3000));
                 } catch (scrapeErr) {
-                    console.error(`❌ Error auto-scraping ASIN ${asin.asin}:`, scrapeErr.message);
+                    console.error(`❌ Error auto-scraping ASIN ${asin.asinCode}:`, scrapeErr.message);
                 }
             }
             console.log('🏁 Auto-scrape cycle completed.');

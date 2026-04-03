@@ -270,32 +270,32 @@ exports.syncAllAsins = async (req, res) => {
 
             broadcastProgress('Initializing Bulk Sync Tasks...');
 
-            // Parallel Batch Processor (Process 3 sellers at a time for efficiency)
-            const BATCH_SIZE = 3;
-            for (let i = 0; i < sellerIds.length; i += BATCH_SIZE) {
-                const batch = sellerIds.slice(i, i + BATCH_SIZE);
-                console.log(`🚀 Initiating Sync Batch: ${i / BATCH_SIZE + 1} (${batch.length} sellers)...`);
-                
-                await Promise.all(batch.map(async (sellerId) => {
-                    try {
-                        const result = await MarketSyncService.syncSellerAsinsToOctoparse(sellerId, { 
-                            fullSync: true,
-                            forceReRun: true,
-                            triggerScrape: true
-                        });
-                        if (result) {
-                            console.log(`✅ Bulk Sync: Initialized for seller ${sellerId}`);
-                        }
-                    } catch (err) {
-                        console.error(`❌ Bulk Sync: Failed for seller ${sellerId}:`, err.message);
+            // TRUE PARALLEL: Fire ALL task triggers simultaneously without waiting
+            console.log(`🚀 Starting ALL ${sellerIds.length} Octoparse tasks simultaneously...`);
+            
+            const triggerPromises = sellerIds.map(async (sellerId) => {
+                try {
+                    const result = await MarketSyncService.syncSellerAsinsToOctoparse(sellerId, { 
+                        fullSync: true,
+                        forceReRun: true,
+                        triggerScrape: true
+                    });
+                    if (result) {
+                        console.log(`✅ Task triggered for seller ${sellerId}`);
                     }
-                }));
-
-                // Short pacing delay between batches (rather than between individuals)
-                if (i + BATCH_SIZE < sellerIds.length) {
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    return { sellerId, success: true };
+                } catch (err) {
+                    console.error(`❌ Task trigger failed for seller ${sellerId}:`, err.message);
+                    return { sellerId, success: false, error: err.message };
                 }
-            }
+            });
+
+            // Fire all triggers at once and let them run in background
+            const results = await Promise.all(triggerPromises);
+            
+            const successCount = results.filter(r => r.success).length;
+            console.log(`🎉 All ${sellerIds.length} task triggers fired. ${successCount} successful, ${results.length - successCount} failed.`);
+            broadcastProgress(`All ${sellerIds.length} scrape tasks started.`);
 
             console.log(`🎉 Global sync bulk initialization finished for ${sellerIds.length} sellers.`);
             broadcastProgress('All sync tasks initiated.');

@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const Seller = require('../models/Seller');
 const MarketSyncService = require('./marketDataSyncService');
+const OctoparseAutomationService = require('./octoparseAutomationService');
 const { syncSellerFromKeepaInternal } = require('../controllers/sellerAsinTrackerController');
 
 /**
@@ -25,26 +26,180 @@ class SchedulerService {
             await this.runKeepaSync();
         });
 
-        // 2. Octoparse Nightly Full Sync (Every day at 12 AM)
+        // 2. Enterprise Octoparse Pipeline (Configurable time, default 00:00)
+        const scheduleTime = process.env.AUTOMATION_SCHEDULE_TIME || '00:00';
+        const [scheduleHour, scheduleMinute] = scheduleTime.split(':');
+        const cronExpr = `${scheduleMinute || 0} ${scheduleHour || 0} * * *`;
+        
+        if (process.env.AUTOMATION_ENABLED !== 'false') {
+            this.jobs.enterprisePipeline = cron.schedule(cronExpr, async () => {
+                console.log('🏢 Starting Enterprise Octoparse Automation Pipeline...');
+                await this.runEnterprisePipeline();
+            });
+            console.log(`🏢 Enterprise Pipeline scheduled at ${scheduleTime}`);
+        }
+
+        // 3. Octoparse Nightly Full Sync (Every day at 12 AM)
         this.jobs.triggerOctoparse = cron.schedule('0 0 * * *', async () => {
             console.log('🕒 Starting Nightly Octoparse Market Data Sync...');
             await this.runOctoparseTrigger();
         });
 
-        // 3. Octoparse Data Fetching (Every 4 hours as a fallback for background polling)
+        // 4. Octoparse Daily 1 PM Sync (Requested)
+        this.jobs.daily1PMSync = cron.schedule('0 16 * * *', async () => {
+            console.log('🕒 Starting Daily 1 PM Octoparse Market Data Sync...');
+            await this.runOctoparseTrigger();
+        });
+
+        // 5. Octoparse Data Fetching (Every 4 hours as a fallback for background polling)
         this.jobs.fetchOctoparse = cron.schedule('0 */4 * * *', async () => {
             console.log('🕒 Fetching pending Octoparse Scrape Results (Fallback)...');
             await this.runOctoparseResultFetch();
         });
 
-        console.log('✅ Background tasks scheduled (Keepa: 12h, Octoparse Trigger: Daily 12AM, Octoparse Fetch: 4h)');
+        console.log('✅ Background tasks scheduled');
 
 
         // Optional: Run once on startup after a small delay to ensure DB is ready
         setTimeout(() => {
             console.log('🚀 Running initial Keepa sync on startup...');
             this.runKeepaSync().catch(err => console.error('Startup Keepa sync failed:', err.message));
+            
+            // Check all Octoparse task statuses on startup
+            console.log('🔄 Checking Octoparse tasks on startup...');
+            this.runOctoparseTaskRecovery().catch(err => console.error('Startup Octoparse recovery failed:', err.message));
         }, 30000); // 30 second delay
+    }
+
+    /**
+     * On server restart: Check status of all Octoparse tasks and extract latest data
+     * Runs CONCURRENTLY for all sellers, with self-healing in background
+     */
+    async runOctoparseTaskRecovery() {
+        console.log('🔄 [RECOVERY] Starting Octoparse task status check on startup...');
+        console.log('🔄 [RECOVERY] Self-healing will run in background for each seller...');
+        
+        try {
+            const MarketSyncService = require('./marketDataSyncService');
+            const OctoparseAutomationService = require('./octoparseAutomationService');
+            const sellers = await Seller.find({ 
+                status: 'Active', 
+                marketSyncTaskId: { $exists: true, $ne: '' } 
+            });
+
+            console.log(`🔄 [RECOVERY] Found ${sellers.length} sellers - running CHECK CONCURRENTLY...`);
+
+            // Check all sellers concurrently
+            const checkPromises = sellers.map(async (seller) => {
+                try {
+                    const taskId = seller.marketSyncTaskId;
+                    console.log(`🔄 [RECOVERY] Checking task ${taskId} for seller ${seller.name}...`);
+                    
+                    const status = await MarketSyncService.getStatus(taskId);
+                    
+                    if (!status) {
+                        console.log(`⚠️ [RECOVERY] Could not get status for task ${taskId}`);
+                        return { seller, success: false, reason: 'No status' };
+                    }
+
+                    const taskStatus = status.status?.toLowerCase();
+                    console.log(`🔄 [RECOVERY] Task ${taskId} status: ${taskStatus}, extracted: ${status.currentTotalExtractCount || 0}`);
+
+                    // If task has completed (finished/stopped/idle) with data, fetch and ingest
+                    if (taskStatus === 'finished' || taskStatus === 'stopped' || taskStatus === 'idle') {
+                        if (status.currentTotalExtractCount > 0) {
+                            console.log(`📥 [RECOVERY] Fetching data for completed task ${taskId}...`);
+                            
+                            const rawData = await MarketSyncService.retrieveResults(taskId);
+                            if (rawData && rawData.length > 0) {
+                                const processedCount = await MarketSyncService.processBatchResults(seller._id, rawData);
+                                console.log(`✅ [RECOVERY] Saved ${processedCount} ASINs for seller ${seller.name}`);
+                                
+                                // Start self-healing in background after data save
+                                console.log(`🔧 [RECOVERY] Starting background self-healing for ${seller.name}...`);
+                                OctoparseAutomationService.startSelfHealingBackground(seller._id, taskId);
+                                
+                                return { seller, success: true, count: processedCount, selfHealing: 'started' };
+                            }
+                        } else {
+                            console.log(`⚠️ [RECOVERY] Task ${taskId} completed but no data extracted`);
+                        }
+                    } else if (taskStatus === 'running' || taskStatus === 'extracting') {
+                        console.log(`🔄 [RECOVERY] Task ${taskId} still running, will continue polling...`);
+                    }
+                    
+                    return { seller, success: true, status: taskStatus };
+                } catch (err) {
+                    console.error(`❌ [RECOVERY] Failed to check task for seller ${seller.name}:`, err.message);
+                    return { seller, success: false, error: err.message };
+                }
+            });
+
+            const results = await Promise.all(checkPromises);
+            
+            const successCount = results.filter(r => r.success).length;
+            console.log(`✅ [RECOVERY] Initial check completed: ${successCount}/${sellers.length} sellers`);
+            console.log(`🔧 [RECOVERY] Self-healing processes running in background...`);
+            
+        } catch (error) {
+            console.error('❌ [RECOVERY] Critical error:', error.message);
+        }
+    }
+
+    /**
+     * Enterprise Automation Pipeline - Full Octoparse-only workflow
+     * Runs concurrently for all sellers + concurrent self-healing
+     */
+    async runEnterprisePipeline() {
+        console.log('🏢 [ENTERPRISE] Starting full automation pipeline...');
+        console.log('🏢 [ENTERPRISE] Self-healing will run concurrently in background...');
+        const startTime = Date.now();
+        
+        try {
+            const result = await OctoparseAutomationService.runFullAutomation();
+            
+            console.log('🏢 [ENTERPRISE] Pipeline completed:', {
+                totalSellers: result.totalSellers,
+                successful: result.successful,
+                failed: result.failed,
+                duration: result.duration
+            });
+
+            // Start concurrent self-healing for all sellers in background
+            console.log('🏢 [ENTERPRISE] Starting concurrent self-healing for all sellers...');
+            const sellers = await Seller.find({ status: 'Active', marketSyncTaskId: { $exists: true, $ne: '' } });
+            
+            const healPromises = sellers.map(seller => 
+                OctoparseAutomationService.startSelfHealingBackground(seller._id, seller.marketSyncTaskId)
+            );
+            await Promise.all(healPromises);
+            console.log('🏢 [ENTERPRISE] All self-healing processes started in background');
+
+            // Create notification for admin
+            try {
+                const Notification = require('../models/Notification');
+                const User = require('../models/User');
+                const admins = await User.find({ role: { $exists: true } }).populate('role');
+                const targetAdmins = admins.filter(a => a.role && a.role.name === 'admin');
+
+                for (const admin of targetAdmins) {
+                    await Notification.create({
+                        recipient: admin._id,
+                        type: 'SYSTEM',
+                        referenceModel: 'System',
+                        referenceId: admin._id,
+                        message: `🏢 Enterprise Pipeline: ${result.successful}/${result.totalSellers} sellers synced in ${result.duration}`
+                    });
+                }
+            } catch (notifErr) {
+                console.error('Failed to create notification:', notifErr.message);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('🏢 [ENTERPRISE] Pipeline failed:', error.message);
+            return { success: false, error: error.message };
+        }
     }
 
     /**
@@ -96,19 +251,19 @@ class SchedulerService {
     async runOctoparseTrigger() {
         try {
             // Find active sellers with a configured task
-            const sellers = await Seller.find({ 
-                status: 'Active', 
-                marketSyncTaskId: { $exists: true, $ne: '' } 
+            const sellers = await Seller.find({
+                status: 'Active',
+                marketSyncTaskId: { $exists: true, $ne: '' }
             });
 
             console.log(`[Scheduler] 🚀 Starting Nightly Octoparse Sync for ${sellers.length} sellers...`);
-            
+
             // Process in batches to avoid API rate limits (e.g., 5 at a time)
             const BATCH_SIZE = 5;
             for (let i = 0; i < sellers.length; i += BATCH_SIZE) {
                 const batch = sellers.slice(i, i + BATCH_SIZE);
                 console.log(`[Scheduler] 📦 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}...`);
-                
+
                 await Promise.all(batch.map(async (seller) => {
                     try {
                         console.log(`[Scheduler] 🤖 Launching sync for ${seller.name}...`);
@@ -118,7 +273,7 @@ class SchedulerService {
                         console.error(`[Scheduler] ❌ Failed to trigger Octoparse for seller ${seller.name}:`, err.message);
                     }
                 }));
-                
+
                 // Pause briefly between batches to respect account constraints
                 if (i + BATCH_SIZE < sellers.length) {
                     await new Promise(resolve => setTimeout(resolve, 5000));
