@@ -1038,8 +1038,8 @@ class MarketDataSyncService {
         }
 
         const paths = [
-            '/data/notexported',              // OpenAPI V3 spec (correct path)
-            '/data/all',                       // OpenAPI V3 - get all by offset
+            '/data/all',                       // OpenAPI V3 - get all by offset (PRIMARY - gets ALL data)
+            '/data/notexported',              // OpenAPI V3 spec (only unexported data)
             '/task/data/notexporteddata',     // OpenAPI V1.0
             '/api/notexporteddata/get',       // Legacy V1 (Common)
             '/api/alldata/GetDataOfTaskByOffset', // Legacy API
@@ -1062,8 +1062,29 @@ class MarketDataSyncService {
 
                 // Octoparse API success check
                 if (response.data?.data || Array.isArray(response.data)) {
-                    console.log(`✅ Data fetched from ${path}:`, JSON.stringify(response.data).substring(0, 200));
+                    console.log(`✅ Data fetched from ${path}:`, JSON.stringify(response.data).substring(0, 300));
                     const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
+                    
+                    // DEBUG: Log the structure of response for /data/all path
+                    if (path === '/data/all' && response.data.data) {
+                        console.log(`📋 DEBUG /data/all response structure:`, {
+                            hasTotal: 'total' in response.data.data,
+                            hasRestTotal: 'restTotal' in response.data.data,
+                            hasOffset: 'offset' in response.data.data,
+                            hasData: 'data' in response.data.data,
+                            total: response.data.data.total,
+                            restTotal: response.data.data.restTotal,
+                            offset: response.data.data.offset,
+                            dataLength: response.data.data.data?.length
+                        });
+                        
+                        // For /data/all, the next offset is returned in response
+                        // Store it in a custom property we can access later
+                        if (response.data.data.offset !== undefined) {
+                            return { dataList: Array.isArray(dataList) ? dataList : [], nextOffset: response.data.data.offset };
+                        }
+                    }
+                    
                     return Array.isArray(dataList) ? dataList : [];
                 }
             } catch (err) {
@@ -1079,6 +1100,12 @@ class MarketDataSyncService {
                         });
                         if (response.data?.data || Array.isArray(response.data)) {
                             const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
+                            
+                            // For /data/all fallback, also extract offset
+                            if (path === '/data/all' && response.data.data?.offset !== undefined) {
+                                return { dataList: Array.isArray(dataList) ? dataList : [], nextOffset: response.data.data.offset };
+                            }
+                            
                             return Array.isArray(dataList) ? dataList : [];
                         }
                     } catch (inner) { /* ignore fallback error */ }
@@ -1096,20 +1123,62 @@ class MarketDataSyncService {
         let offset = 0;
         const size = 1000;
         let hasMore = true;
+        const seenUrls = new Set();
+        let useServerOffset = false; // For /data/all which returns next offset from server
 
         try {
             console.log(`📥 Multi-Path Retrieval triggered for Task: ${taskId}`);
             while (hasMore) {
-                const dataList = await this._fetchDataBatch(taskId, size, offset, executionId);
-                allResults = allResults.concat(dataList);
+                const batchResult = await this._fetchDataBatch(taskId, size, offset, executionId);
                 
-                console.log(`📦 Fetched ${dataList.length} items (Total: ${allResults.length})`);
+                // Handle both array return and object return (for /data/all which returns nextOffset)
+                let dataList = batchResult;
+                if (batchResult && typeof batchResult === 'object' && 'dataList' in batchResult) {
+                    dataList = batchResult.dataList;
+                    if (batchResult.nextOffset !== undefined) {
+                        offset = batchResult.nextOffset;
+                        useServerOffset = true;
+                        console.log(`📍 Using server-provided offset: ${offset}`);
+                    }
+                }
+                
+                // Deduplicate: Only add items we haven't seen before (by URL)
+                let newCount = 0;
+                for (const item of dataList) {
+                    const url = item.Original_URL || item.url || '';
+                    if (!seenUrls.has(url)) {
+                        seenUrls.add(url);
+                        allResults.push(item);
+                        newCount++;
+                    }
+                }
+                
+                console.log(`📦 Fetched ${dataList.length} items, added ${newCount} new (Total unique: ${allResults.length})`);
+                
+                // Check for empty data - if ALL items have empty Title/asp, stop early
+                const allEmpty = dataList.every(item => !item.Title && !item.asp && !item.mrp);
+                if (allEmpty && dataList.length > 0) {
+                    console.warn(`⚠️ WARNING: All ${dataList.length} items have empty data fields! Stopping.`);
+                    console.warn(`⚠️ This indicates Octoparse task is NOT extracting product data properly.`);
+                    hasMore = false;
+                    break;
+                }
+                
                 if (dataList.length < size) {
                     hasMore = false;
                 } else {
-                    offset += size;
+                    // If using server offset (from /data/all), don't increment manually
+                    if (!useServerOffset) {
+                        offset += size;
+                    }
                 }
             }
+            
+            // Log sample of what we got
+            if (allResults.length > 0) {
+                console.log(`📊 Sample of retrieved data (first item):`, JSON.stringify(allResults[0], null, 2));
+            }
+            
             return allResults;
         } catch (error) {
             console.error('❌ Retrieve Results Error:', error.message);
@@ -1472,7 +1541,10 @@ class MarketDataSyncService {
      */
     async updateAsinMetricsByCode(asinCode, rawData) {
         try {
-            const asin = await Asin.findOne({ asinCode });
+            // Case-insensitive search to handle both old (uppercase) and new (original case) data
+            const asin = await Asin.findOne({ 
+                asinCode: { $regex: new RegExp(`^${asinCode}$`, 'i') }
+            });
             if (!asin) {
                 console.warn(`[MarketDataSync] ASIN ${asinCode} not found in DB. Skipping update.`);
                 return null;
@@ -1498,24 +1570,57 @@ class MarketDataSyncService {
 
         // Prepare context
         const now = new Date();
-        const start = new Date(now.getFullYear(), 0, 0);
-        const diff = now - start;
-        const weekOfYr = Math.floor(diff / (1000 * 60 * 60 * 24 * 7));
-        const weekStr = `W${weekOfYr}-${now.getFullYear()}`;
-
-        // Fetch all current ASIN documents in one go to handle logic in memory
-        const currentAsins = await Asin.find({ 
-            seller: sellerId,
-            asinCode: { $in: rawResults.map(r => this._extractAsinFromData(r)).filter(Boolean) }
+        
+        // DEBUG: Log first 3 raw results to see what data looks like
+        console.log(`📋 DEBUG: Sample raw data (first 3 items):`);
+        rawResults.slice(0, 3).forEach((r, i) => {
+            console.log(`   Item ${i+1}:`, {
+                Original_URL: r.Original_URL?.substring(0, 50),
+                Title: r.Title?.substring(0, 30),
+                asp: r.asp,
+                mrp: r.mrp
+            });
         });
 
-        const asinMap = new Map(currentAsins.map(a => [a.asinCode, a]));
+        // Fetch all current ASIN documents in one go to handle logic in memory
+        // Use case-insensitive matching with $or + $regex
+        const asinCodesToFind = rawResults.map(r => this._extractAsinFromData(r)).filter(Boolean);
+        console.log(`🔍 DEBUG: Extracted ${asinCodesToFind.length} unique ASINs from raw data`);
+        
+        if (asinCodesToFind.length === 0) {
+            console.error(`❌ CRITICAL: No ASINs could be extracted from the raw data!`);
+            console.error(`❌ Check _extractAsinFromData - it's not finding ASINs from Original_URL`);
+            return 0;
+        }
+        
+        const currentAsins = await Asin.find({
+            seller: sellerId,
+            $or: asinCodesToFind.map(code => ({ asinCode: { $regex: new RegExp(`^${code}$`, 'i') } }))
+        });
+        
+        console.log(`🔍 DEBUG: Found ${currentAsins.length} ASINs in database matching the raw data`);
+
+        // Create lowercase map for case-insensitive lookup
+        const asinMap = new Map(currentAsins.map(a => [a.asinCode.toLowerCase(), a]));
+
+        // DEBUG: List which ASINs were found vs not found
+        const foundAsins = new Set();
+        const notFoundAsins = [];
+        for (const code of asinCodesToFind.slice(0, 10)) {
+            if (asinMap.has(code.toLowerCase())) {
+                foundAsins.add(code);
+            } else {
+                notFoundAsins.push(code);
+            }
+        }
+        console.log(`🔍 DEBUG: First 10 ASINs - Found: ${foundAsins.size}, Not Found: ${notFoundAsins.length}`, { notFound: notFoundAsins });
 
         for (const rawData of rawResults) {
             const code = this._extractAsinFromData(rawData);
             if (!code) continue;
 
-            const asin = asinMap.get(code);
+            // Case-insensitive lookup
+            const asin = asinMap.get(code.toLowerCase());
             if (!asin) continue;
 
             // 1. Core Numeric Metrics
@@ -1602,8 +1707,19 @@ class MarketDataSyncService {
             updatedCount++;
         }
 
+        console.log(`📝 DEBUG: Prepared ${bulkOps.length} bulk update operations`);
+        
         if (bulkOps.length > 0) {
-            await Asin.bulkWrite(bulkOps);
+            try {
+                const result = await Asin.bulkWrite(bulkOps);
+                console.log(`📝 DEBUG: bulkWrite result:`, {
+                    matchedCount: result.matchedCount,
+                    modifiedCount: result.modifiedCount,
+                    upsertedCount: result.upsertedCount
+                });
+            } catch (bulkError) {
+                console.error(`❌ bulkWrite ERROR:`, bulkError.message);
+            }
         }
 
         console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated via bulkWrite.`);
@@ -1642,15 +1758,15 @@ class MarketDataSyncService {
     _extractAsinFromData(rawData) {
         if (!rawData) return null;
         
-        // 1. Direct fields
-        const direct = (rawData.ASIN || rawData.asin || rawData.asinCode || rawData.asin_code || '').trim().toUpperCase();
+        // 1. Direct fields - keep original case as stored in DB
+        const direct = (rawData.ASIN || rawData.asin || rawData.asinCode || rawData.asin_code || '').trim();
         if (direct && direct.length === 10) return direct;
 
-        // 2. URL extraction (Original_URL, Original URL, target_url, etc)
+        // 2. URL extraction (Original_URL, Original URL, target_url, etc) - preserve case
         const urlField = rawData.Original_URL || rawData['Original URL'] || rawData.target_url || rawData.url || '';
         if (urlField && typeof urlField === 'string') {
             const match = urlField.match(/\/dp\/([A-Z0-9]{10})/i) || urlField.match(/\/product\/([A-Z0-9]{10})/i);
-            if (match) return match[1].toUpperCase();
+            if (match) return match[1]; // Keep original case
         }
 
         return null;

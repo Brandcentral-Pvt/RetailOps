@@ -200,9 +200,14 @@ server.listen(PORT, () => {
   const schedulerService = require('./services/schedulerService');
   schedulerService.init();
   
-  // Start ASIN Auto-Scraper
-  const autoScrape = require('./cron/autoScrape');
-  autoScrape.init();
+  // Start ASIN Auto-Scraper (only if Octoparse automation is disabled)
+  if (process.env.AUTOMATION_ENABLED !== 'true') {
+    console.log('🌐 Direct Scraper initialized (Simple mode)');
+    const autoScrape = require('./cron/autoScrape');
+    autoScrape.init();
+  } else {
+    console.log('🤖 Octoparse Automation enabled - Direct scraper disabled');
+  }
   
   console.log('⏰ Recurring task scheduler initialized');
 

@@ -36,9 +36,10 @@ exports.syncAsin = async (req, res) => {
         await asin.save();
 
         const isConfigured = MarketSyncService.isConfigured();
-        let useDirect = !taskId || !isConfigured;
+        const automationEnabled = process.env.AUTOMATION_ENABLED === 'true';
+        let useDirect = (!taskId || !isConfigured) && !automationEnabled;
 
-        console.log(`[SyncAsin] Decision for ${asin.asinCode}: taskId=${taskId}, isConfigured=${isConfigured} => useDirect=${useDirect}`);
+        console.log(`[SyncAsin] Decision for ${asin.asinCode}: taskId=${taskId}, isConfigured=${isConfigured}, automationEnabled=${automationEnabled} => useDirect=${useDirect}`);
 
         if (!useDirect) {
             try {
@@ -150,9 +151,10 @@ exports.syncSellerAsins = async (req, res) => {
         );
 
         const isConfigured = MarketSyncService.isConfigured();
-        let useDirect = !seller.marketSyncTaskId || !isConfigured;
+        const automationEnabled = process.env.AUTOMATION_ENABLED === 'true';
+        let useDirect = (!seller.marketSyncTaskId || !isConfigured) && !automationEnabled;
 
-        console.log(`[SellerSync] Decision for ${seller.name}: taskId=${seller.marketSyncTaskId}, isConfigured=${isConfigured} => useDirect=${useDirect}`);
+        console.log(`[SellerSync] Decision for ${seller.name}: taskId=${seller.marketSyncTaskId}, isConfigured=${isConfigured}, automationEnabled=${automationEnabled} => useDirect=${useDirect}`);
 
         if (!useDirect) {
             try {

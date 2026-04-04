@@ -53,6 +53,7 @@ const asinSchema = new mongoose.Schema({
   },
   reviewCount: { type: Number, default: 0 },
   bulletPoints: { type: Number, default: 0 }, // List count
+  bulletPointsText: [{ type: String }], // Actual bullet point text
   // Enhanced Product Details (from Tracker & Calculator)
   weight: { type: Number }, // in grams
   dimensions: { type: String }, // LxWxH

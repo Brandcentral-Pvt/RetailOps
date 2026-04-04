@@ -91,14 +91,14 @@ const syncSellerFromKeepa = async (seller) => {
 
     // Find which ASINs are already in our DB for this seller
     const existing = await Asin.find({ seller: seller._id }).select('asinCode').lean();
-    const existingCodes = new Set(existing.map(a => a.asinCode.toUpperCase()));
+    const existingCodes = new Set(existing.map(a => a.asinCode)); // Keep original case
 
-    const newCodes = keepaAsins.filter(code => !existingCodes.has(code.toUpperCase()));
+    const newCodes = keepaAsins.filter(code => !existingCodes.has(code)); // Compare with original case
 
     let newAsins = [];
     if (newCodes.length > 0) {
         const docs = newCodes.map(code => ({
-            asinCode: code.toUpperCase(),
+            asinCode: code, // Keep original case as entered
             seller: seller._id,
             status: 'Active',
             scrapeStatus: 'PENDING',

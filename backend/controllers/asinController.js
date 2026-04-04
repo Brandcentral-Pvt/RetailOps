@@ -343,6 +343,7 @@ exports.getAsinStats = async (req, res) => {
 // Create new ASIN
 exports.createAsin = async (req, res) => {
   try {
+    // Keep asinCode as entered (preserve original case)
     const asin = new Asin(req.body);
 
     // Security check
