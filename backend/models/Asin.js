@@ -29,7 +29,8 @@ const asinSchema = new mongoose.Schema({
   brand: { type: String },
   manufacturer: { type: String },
   currentASP: { type: Number, default: 0 },
-  currentPrice: { type: Number, default: 0 }, // Same as currentASP
+  currentPrice: { type: Number, default: 0 }, // Same as currentASP - live price from Octoparse
+  uploadedPrice: { type: Number, default: 0 }, // Price when ASIN was uploaded via CSV
   priceType: { type: String, enum: ['Standard Price', 'Deal Price'], default: 'Standard Price' },
   dealBadge: { type: String, default: 'No deal found' },
   mrp: { type: Number, default: 0 },

@@ -600,6 +600,23 @@ export const asinApi = {
     return res.json();
   },
 
+  importCsv: async (file, sellerId) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('sellerId', sellerId);
+    
+    const res = await fetch(`${API_BASE}/asins/import-csv`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+      body: formData,
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to import CSV');
+    }
+    return res.json();
+  },
+
   update: async (id, data) => {
     const res = await fetch(`${API_BASE}/asins/${id}`, {
       method: 'PUT',

@@ -36,6 +36,7 @@ import {
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import AsinDetailModal from '../components/AsinDetailModal';
+import AsinTrendsModal from '../components/AsinTrendsModal';
 
 // Helper to generate tiered structure for history columns
 const generateHistoryStructure = (history) => {
@@ -58,6 +59,44 @@ const generateHistoryStructure = (history) => {
       label: new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
     }))
   }));
+};
+
+// Helper to generate history structure from sorted date strings (YYYY-MM-DD format)
+const generateHistoryStructureFromDates = (sortedDates) => {
+  if (!sortedDates || sortedDates.length === 0) return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
+
+  const groups = {};
+  sortedDates.forEach(dateStr => {
+    // Handle both YYYY-MM-DD and ISO date formats
+    const date = new Date(dateStr + 'T00:00:00'); // Add time to ensure correct parsing
+    const weekNum = getWeekNumber(date);
+    const weekLabel = `W${weekNum}`;
+    
+    if (!groups[weekLabel]) groups[weekLabel] = [];
+    groups[weekLabel].push({
+      raw: dateStr, // This is YYYY-MM-DD format
+      label: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+    });
+  });
+
+  // Sort weeks chronologically
+  return Object.keys(groups).sort((a, b) => {
+    const weekNumA = parseInt(a.replace('W', ''));
+    const weekNumB = parseInt(b.replace('W', ''));
+    return weekNumA - weekNumB;
+  }).map(week => ({
+    label: week,
+    dates: groups[week].sort((a, b) => new Date(a.raw) - new Date(b.raw))
+  }));
+};
+
+// Helper to get week number from date
+const getWeekNumber = (date) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 };
 
 // Helper function for week history badges
@@ -254,12 +293,46 @@ const AsinManagerPage = () => {
   const socket = useSocket();
   const [selectedAsin, setSelectedAsin] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showTrendsModal, setShowTrendsModal] = useState(false);
+  const [trendsMetric, setTrendsMetric] = useState('price');
   const [sellers, setSellers] = useState([]);
   const [selectedSellerId, setSelectedSellerId] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [showFullPriceHistory, setShowFullPriceHistory] = useState(false);
+  const [showFullBsrHistory, setShowFullBsrHistory] = useState(false);
+  const [showFullRatingHistory, setShowFullRatingHistory] = useState(false);
+
+  // CSV Upload handler
+  const handleCsvUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedSellerId) {
+      alert('Please select a file and seller');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const result = await asinApi.importCsv(file, selectedSellerId);
+      alert(`Imported ${result.inserted} ASINs. ${result.duplicates} duplicates skipped.`);
+      setShowUploadModal(false);
+      loadData();
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleViewAsin = (asin) => {
     setSelectedAsin(asin);
     setShowDetailModal(true);
+  };
+
+  const handleViewTrends = (asin, metric = 'price') => {
+    setSelectedAsin(asin);
+    setTrendsMetric(metric);
+    setShowTrendsModal(true);
   };
 
   const loadData = useCallback(async (page = 1) => {
@@ -316,12 +389,26 @@ const AsinManagerPage = () => {
 
   const kpis = useMemo(() => {
     if (stats) {
+      // Review analysis for display
+      const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
+      const reviewTrend = reviewChange >= 0 ? '↑' : '↓';
+      const reviewColor = reviewChange >= 0 ? '#10b981' : '#ef4444';
+      
+      // Best selling ASIN (lowest BSR)
+      const bestSeller = stats.bestSellingAsins?.[0];
+      
       return [
         { label: 'ALL ASINS', value: stats.total || 0, color: '#6366f1', icon: <Package size={14} /> },
         { label: 'AVG LQS', value: (stats.avgLQS || 0) + '%', color: '#10b981', icon: <Activity size={14} /> },
-        { label: 'BUY BOX', value: (stats.buyBoxRate || 0) + '%', color: '#f59e0b', icon: <Trophy size={14} /> },
+        { label: 'BEST SELLER', value: bestSeller ? `#${bestSeller.bsr?.toLocaleString()}` : '-', sub: bestSeller?.asinCode || '', color: '#f59e0b', icon: <Trophy size={14} /> },
         { label: 'TOTAL REVIEWS', value: (stats.totalReviews || 0).toLocaleString(), color: '#8b5cf6', icon: <Star size={14} /> },
-        { label: 'AVG BSR', value: '#' + (stats.avgBSR || 0).toLocaleString(), color: '#ef4444', icon: <Activity size={14} /> },
+        { 
+          label: 'REVIEWS (7 DAYS)', 
+          value: `${reviewTrend} ${Math.abs(reviewChange)}%`, 
+          color: reviewColor,
+          icon: <TrendingUp size={14} />,
+          sub: `Current: ${stats.reviewAnalysis?.currentWeek || 0} vs Previous: ${stats.reviewAnalysis?.previousWeek || 0}`
+        },
         { label: 'AVG PRICE', value: '₹' + (stats.avgPrice || 0).toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
       ];
     }
@@ -346,18 +433,69 @@ const AsinManagerPage = () => {
 
   const historyStructure = useMemo(() => {
     if (asins.length > 0) {
-      // Find the ASIN with the most history to determine columns
-      const sample = asins.sort((a, b) => (b.weekHistory?.length || 0) - (a.weekHistory?.length || 0))[0];
-      if (sample && sample.weekHistory) {
-        return generateHistoryStructure(sample.weekHistory);
+      // Collect ALL unique dates across ALL ASINs to build complete column structure
+      // Group by date (YYYY-MM-DD only, no time) and keep the latest entry for each date
+      const dateMap = new Map(); // key: YYYY-MM-DD, value: { dateStr, timestamp }
+      const asinsWithHistory = asins.filter(a => a.weekHistory && a.weekHistory.length > 0);
+      
+      if (asinsWithHistory.length > 0) {
+        asinsWithHistory.forEach(asin => {
+          asin.weekHistory.forEach(h => {
+            if (h.date) {
+              // Extract just the date part (YYYY-MM-DD) without time
+              const dateObj = new Date(h.date);
+              const dateKey = dateObj.toISOString().split('T')[0];
+              
+              // Keep only the latest timestamp for each date
+              const existing = dateMap.get(dateKey);
+              if (!existing || new Date(h.date) > new Date(existing.timestamp)) {
+                dateMap.set(dateKey, { dateStr: h.date, timestamp: h.date });
+              }
+            }
+          });
+        });
+        
+        // Sort dates chronologically and build structure
+        const sortedDates = Array.from(dateMap.keys()).sort();
+        return generateHistoryStructureFromDates(sortedDates);
       }
     }
     return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
   }, [asins]);
 
   const totalHistoryCols = useMemo(() => {
+    if (!historyStructure) return 0;
     return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
   }, [historyStructure]);
+
+  const visiblePriceStructure = useMemo(() => {
+    if (!historyStructure) return [];
+    return showFullPriceHistory ? historyStructure : historyStructure.slice(-1);
+  }, [historyStructure, showFullPriceHistory]);
+
+  const visibleBsrStructure = useMemo(() => {
+    if (!historyStructure) return [];
+    return showFullBsrHistory ? historyStructure : historyStructure.slice(-1);
+  }, [historyStructure, showFullBsrHistory]);
+
+  const visibleRatingStructure = useMemo(() => {
+    if (!historyStructure) return [];
+    return showFullRatingHistory ? historyStructure : historyStructure.slice(-1);
+  }, [historyStructure, showFullRatingHistory]);
+
+  const visibleHistoryCols = useMemo(() => {
+    if (!historyStructure) return 0;
+    // Use total columns for all when expanded, visible columns otherwise
+    if (showFullPriceHistory && showFullBsrHistory && showFullRatingHistory) {
+      return totalHistoryCols;
+    }
+    // Return the max of visible columns
+    return Math.max(
+      visiblePriceStructure?.reduce((sum, w) => sum + w.dates.length, 0) || 0,
+      visibleBsrStructure?.reduce((sum, w) => sum + w.dates.length, 0) || 0,
+      visibleRatingStructure?.reduce((sum, w) => sum + w.dates.length, 0) || 0
+    );
+  }, [historyStructure, showFullPriceHistory, showFullBsrHistory, showFullRatingHistory, visiblePriceStructure, visibleBsrStructure, visibleRatingStructure]);
 
   const handleSync = useCallback(async () => {
     if (!newAsin.trim()) {
@@ -689,6 +827,14 @@ const AsinManagerPage = () => {
               <RefreshCw size={18} className={syncing ? 'spin' : ''} />
               Sync All
             </button>
+            <button 
+              className="btn btn-white border border-zinc-200 shadow-sm d-flex align-items-center gap-2 rounded-pill px-4 py-2 transition-all hover-bg-slate" 
+              onClick={() => setShowUploadModal(true)}
+              style={{ fontWeight: '600' }}
+            >
+              <Download size={18} />
+              Upload CSV
+            </button>
             <button className="btn btn-primary d-flex align-items-center gap-2 rounded-pill px-4 py-2 shadow-sm border-0 transition-transform active-scale-95" onClick={() => setShowAddModal(true)} style={{ fontWeight: '600' }}>
               <Plus size={18} /> Add ASIN
             </button>
@@ -753,6 +899,7 @@ const AsinManagerPage = () => {
                 <div className="d-flex flex-column" style={{ lineHeight: '1.1' }}>
                   <span className="text-muted text-uppercase" style={{ fontSize: '9px', fontWeight: '700', letterSpacing: '0.05em' }}>{kpi.label}</span>
                   <span className="fw-bold text-dark" style={{ fontSize: '14px' }}>{kpi.value}</span>
+                  {kpi.sub && <span className="text-muted" style={{ fontSize: '9px' }}>{kpi.sub}</span>}
                 </div>
               </div>
             ))}
@@ -902,17 +1049,55 @@ const AsinManagerPage = () => {
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Category</th>
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', minWidth: '180px' }}>Product</th>
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem' }}>Price</th>
-                      <th colSpan={totalHistoryCols} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid #c7d2fe', fontSize: '12px', textTransform: 'uppercase' }}>Price by Week</th>
+                      <th 
+                        colSpan={showFullPriceHistory ? totalHistoryCols : visibleHistoryCols} 
+                        style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid #c7d2fe', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}
+                        onClick={() => setShowFullPriceHistory(!showFullPriceHistory)}
+                        title="Click to toggle full history"
+                      >
+                        <div className="d-flex align-items-center justify-content-center gap-2">
+                          <span>Price by Week</span>
+                          <button 
+                            className="btn btn-sm btn-link p-0" 
+                            style={{ fontSize: '10px', color: '#3730a3' }}
+                            onClick={(e) => { e.stopPropagation(); setShowFullPriceHistory(!showFullPriceHistory); }}
+                          >
+                            {showFullPriceHistory ? '▼' : '▶'}
+                          </button>
+                        </div>
+                      </th>
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>BSR</th>
-                      <th colSpan={totalHistoryCols} style={{ backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid #bbf7d0', fontSize: '10px', textTransform: 'uppercase' }}>
+                      <th 
+                        colSpan={showFullBsrHistory ? totalHistoryCols : visibleHistoryCols} 
+                        style={{ backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid #bbf7d0', fontSize: '10px', textTransform: 'uppercase', cursor: 'pointer' }}
+                        onClick={() => setShowFullBsrHistory(!showFullBsrHistory)}
+                      >
                         <div className="d-flex align-items-center justify-content-center gap-2">
                           <BarChart2 size={12} /> BSR by Week
+                          <button 
+                            className="btn btn-sm btn-link p-0" 
+                            style={{ fontSize: '10px', color: '#166534' }}
+                            onClick={(e) => { e.stopPropagation(); setShowFullBsrHistory(!showFullBsrHistory); }}
+                          >
+                            {showFullBsrHistory ? '▼' : '▶'}
+                          </button>
                         </div>
                       </th>
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Rating</th>
-                      <th colSpan={totalHistoryCols} style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid #fde68a', fontSize: '10px', textTransform: 'uppercase' }}>
+                      <th 
+                        colSpan={showFullRatingHistory ? totalHistoryCols : visibleHistoryCols} 
+                        style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 700, textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid #fde68a', fontSize: '10px', textTransform: 'uppercase', cursor: 'pointer' }}
+                        onClick={() => setShowFullRatingHistory(!showFullRatingHistory)}
+                      >
                         <div className="d-flex align-items-center justify-content-center gap-2">
                           <Star size={12} /> Rating by Week
+                          <button 
+                            className="btn btn-sm btn-link p-0" 
+                            style={{ fontSize: '10px', color: '#92400e' }}
+                            onClick={(e) => { e.stopPropagation(); setShowFullRatingHistory(!showFullRatingHistory); }}
+                          >
+                            {showFullRatingHistory ? '▼' : '▶'}
+                          </button>
                         </div>
                       </th>
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Reviews</th>
@@ -927,26 +1112,30 @@ const AsinManagerPage = () => {
                       <th rowSpan="3" style={{ verticalAlign: 'middle', backgroundColor: '#f3f4f6', color: '#111827', fontWeight: 600, borderBottom: '2px solid #d1d5db', padding: '0.75rem 0.5rem', textAlign: 'center' }}>Actions</th>
                     </tr>
                     <tr>
-                      {/* Week Group Headers */}
-                      {historyStructure.map(week => (
+                      {/* Week Group Headers for Price */}
+                      {visiblePriceStructure.map(week => (
                         <th key={`week-price-${week.label}`} colSpan={week.dates.length} style={{ backgroundColor: '#ebf0ff', color: '#4338ca', fontWeight: 700, fontSize: '10px', textAlign: 'center', borderBottom: '1px solid #c7d2fe' }}>{week.label}</th>
                       ))}
-                      {historyStructure.map(week => (
+                      {/* Week Group Headers for BSR */}
+                      {visibleBsrStructure.map(week => (
                         <th key={`week-bsr-${week.label}`} colSpan={week.dates.length} style={{ backgroundColor: '#dcfce7', color: '#166534', fontWeight: 700, fontSize: '10px', textAlign: 'center', borderBottom: '1px solid #bbf7d0' }}>{week.label}</th>
                       ))}
-                      {historyStructure.map(week => (
+                      {/* Week Group Headers for Rating */}
+                      {visibleRatingStructure.map(week => (
                         <th key={`week-rating-${week.label}`} colSpan={week.dates.length} style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 700, fontSize: '10px', textAlign: 'center', borderBottom: '1px solid #fde68a' }}>{week.label}</th>
                       ))}
                     </tr>
                     <tr>
-                      {/* Date Sub-headers */}
-                      {historyStructure.map(week => week.dates.map((date, idx) => (
+                      {/* Date Sub-headers for Price */}
+                      {visiblePriceStructure.map(week => week.dates.map((date, idx) => (
                         <th key={`date-price-${week.label}-${idx}`} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: 500, fontSize: '0.65rem', padding: '0.25rem', border: '1px solid #c7d2fe', textAlign: 'center' }}>{date.label}</th>
                       )))}
-                      {historyStructure.map(week => week.dates.map((date, idx) => (
+                      {/* Date Sub-headers for BSR */}
+                      {visibleBsrStructure.map(week => week.dates.map((date, idx) => (
                         <th key={`date-bsr-${week.label}-${idx}`} style={{ backgroundColor: '#dcfce7', color: '#166534', fontWeight: 500, fontSize: '0.65rem', padding: '0.25rem', border: '1px solid #bbf7d0', textAlign: 'center' }}>{date.label}</th>
                       )))}
-                      {historyStructure.map(week => week.dates.map((date, idx) => (
+                      {/* Date Sub-headers for Rating */}
+                      {visibleRatingStructure.map(week => week.dates.map((date, idx) => (
                         <th key={`date-rating-${week.label}-${idx}`} style={{ backgroundColor: '#fffbeb', color: '#92400e', fontWeight: 500, fontSize: '0.65rem', padding: '0.25rem', border: '1px solid #fde68a', textAlign: 'center' }}>{date.label}</th>
                       )))}
                     </tr>
@@ -964,9 +1153,9 @@ const AsinManagerPage = () => {
                               {asin.asinCode}
                             </span>
                             <button 
-                              onClick={() => handleViewAsin(asin)} 
+                              onClick={() => handleViewTrends(asin)} 
                               className="btn btn-link p-0 text-zinc-400 hover:text-primary transition-colors"
-                              title="View History Charts"
+                              title="View Trends"
                             >
                               <Eye size={14} />
                             </button>
@@ -1006,19 +1195,21 @@ const AsinManagerPage = () => {
                         <td style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid #e5e7eb' }}>
                           <div className="d-flex flex-column align-items-center">
                             <span style={{ fontWeight: 600, color: '#059669' }}>
-                              {asin.currentPrice ? `₹${asin.currentPrice.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
+                              {asin.uploadedPrice ? `₹${asin.uploadedPrice.toLocaleString()}` : <span style={{ color: '#9ca3af' }}>-</span>}
                             </span>
-                            {asin.mrp > asin.currentPrice && (
-                              <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.65rem' }}>
-                                <span className="text-muted text-decoration-line-through">₹{asin.mrp.toLocaleString()}</span>
-                                <span className="text-danger fw-bold">-{Math.round(((asin.mrp - asin.currentPrice) / asin.mrp) * 100)}%</span>
-                              </div>
+                            {asin.currentPrice > 0 && asin.currentPrice !== asin.uploadedPrice && (
+                              <span className="text-primary" style={{ fontSize: '0.6rem' }}>Live: ₹{asin.currentPrice.toLocaleString()}</span>
                             )}
                           </div>
                         </td>
                         {/* Price by Week columns */}
-                        {historyStructure.map(week => week.dates.map((date, idx) => {
-                          const wData = asin.weekHistory?.find(w => new Date(w.date).toDateString() === new Date(date.raw).toDateString());
+                        {visiblePriceStructure.map(week => week.dates.map((date, idx) => {
+                          const dateKey = date.raw;
+                          const wData = asin.weekHistory?.find(w => {
+                            const wDate = new Date(w.date);
+                            const wDateKey = wDate.toISOString().split('T')[0];
+                            return wDateKey === dateKey;
+                          });
                           return (
                             <td key={`price-${week.label}-${idx}`} style={{ backgroundColor: '#f5f3ff', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                               {wData && wData.price ? getWeekHistoryBadge(wData.price, 'price') : '-'}
@@ -1042,8 +1233,13 @@ const AsinManagerPage = () => {
                           </div>
                         </td>
                         {/* BSR by Week columns */}
-                        {historyStructure.map(week => week.dates.map((date, idx) => {
-                          const wData = asin.weekHistory?.find(w => new Date(w.date).toDateString() === new Date(date.raw).toDateString());
+                        {visibleBsrStructure.map(week => week.dates.map((date, idx) => {
+                          const dateKey = date.raw;
+                          const wData = asin.weekHistory?.find(w => {
+                            const wDate = new Date(w.date);
+                            const wDateKey = wDate.toISOString().split('T')[0];
+                            return wDateKey === dateKey;
+                          });
                           return (
                             <td key={`bsr-${week.label}-${idx}`} style={{ backgroundColor: '#f0fdf4', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                               {wData && wData.bsr ? (
@@ -1072,8 +1268,13 @@ const AsinManagerPage = () => {
                           ) : <span style={{ color: '#9ca3af', display: 'block', textAlign: 'center' }}>-</span>}
                         </td>
                         {/* Rating by Week columns */}
-                        {historyStructure.map(week => week.dates.map((date, idx) => {
-                          const wData = asin.weekHistory?.find(w => new Date(w.date).toDateString() === new Date(date.raw).toDateString());
+                        {visibleRatingStructure.map(week => week.dates.map((date, idx) => {
+                          const dateKey = date.raw;
+                          const wData = asin.weekHistory?.find(w => {
+                            const wDate = new Date(w.date);
+                            const wDateKey = wDate.toISOString().split('T')[0];
+                            return wDateKey === dateKey;
+                          });
                           return (
                             <td key={`rating-${week.label}-${idx}`} style={{ backgroundColor: '#fffbeb', padding: '0.5rem 0.25rem', border: '1px solid #e5e7eb', textAlign: 'center', verticalAlign: 'middle' }}>
                               {wData && wData.rating ? getWeekHistoryBadge(wData.rating, 'rating') : '-'}
@@ -1282,11 +1483,79 @@ const AsinManagerPage = () => {
             </div>
           </div>
         )}
+
+        {/* CSV Upload Modal */}
+        {showUploadModal && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(17, 24, 39, 0.7)', backdropFilter: 'blur(4px)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '24px' }}>
+                <div className="modal-header border-0 px-4 pt-4 pb-0">
+                  <h5 className="h5 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <div className="p-2 bg-success-subtle text-success rounded-3">
+                      <Download size={20} />
+                    </div>
+                    Upload ASINs from CSV
+                  </h5>
+                  <button type="button" className="btn-close" onClick={() => setShowUploadModal(false)}></button>
+                </div>
+                <div className="modal-body px-4 py-4">
+                  <p className="text-muted small mb-4">Upload a CSV file with columns: ASIN, SKU, Price. The price will be saved as your baseline/initial price.</p>
+                  <div className="mb-4">
+                    <label className="form-label fw-bold text-dark small mb-2 d-flex align-items-center gap-2">
+                      <Store size={14} className="text-primary" /> Select Seller
+                    </label>
+                    <select 
+                      className="form-select border shadow-sm"
+                      style={{ borderRadius: '12px', fontSize: '14px', padding: '10px' }}
+                      value={selectedSellerId}
+                      onChange={(e) => setSelectedSellerId(e.target.value)}
+                    >
+                      <option value="">Select a seller...</option>
+                      {sellers.map(seller => (
+                        <option key={seller._id} value={seller._id}>{seller.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-0">
+                    <label className="form-label fw-bold text-dark small mb-2 d-flex align-items-center gap-2">
+                      <Download size={14} className="text-success" /> CSV File
+                    </label>
+                    <input 
+                      type="file" 
+                      accept=".csv,.txt,.xlsx"
+                      className="form-control border shadow-sm"
+                      style={{ borderRadius: '12px', fontSize: '14px', padding: '10px' }}
+                      onChange={handleCsvUpload}
+                    />
+                    <p className="text-muted smallest mt-2 px-1">CSV format: ASIN, SKU, Price (e.g., B07XYZ123, SKU001, 2499)</p>
+                  </div>
+                </div>
+                <div className="modal-footer border-0 px-4 pb-4 pt-0">
+                  <button type="button" className="btn btn-light fw-bold rounded-pill px-4" onClick={() => setShowUploadModal(false)}>Cancel</button>
+                  <button 
+                    type="button" 
+                    className="btn btn-success fw-bold rounded-pill px-4 shadow-sm" 
+                    onClick={() => document.querySelector('input[type="file"]')?.click()}
+                    disabled={uploading || !selectedSellerId}
+                  >
+                    {uploading ? <><RefreshCw size={16} className="me-2 spin" /> Importing...</> : 'Import ASINs'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <AsinDetailModal 
         asin={selectedAsin} 
         isOpen={showDetailModal} 
         onClose={() => setShowDetailModal(false)} 
+      />
+      <AsinTrendsModal 
+        asin={selectedAsin} 
+        isOpen={showTrendsModal} 
+        onClose={() => setShowTrendsModal(false)}
+        initialMetric={trendsMetric}
       />
     </div>
   );

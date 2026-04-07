@@ -304,8 +304,8 @@ exports.getAsinStats = async (req, res) => {
     const totalAsins = await Asin.countDocuments(filter);
     const activeAsins = await Asin.countDocuments({ ...filter, status: 'Active' });
     const avgBSR = await Asin.aggregate([
-      { $match: { ...filter, currentRank: { $gt: 0 } } },
-      { $group: { _id: null, avgBSR: { $avg: '$currentRank' } } },
+      { $match: { ...filter, bsr: { $gt: 0 } } },
+      { $group: { _id: null, avgBSR: { $avg: '$bsr' } } },
     ]);
 
     const totalReviews = await Asin.aggregate([
@@ -325,6 +325,97 @@ exports.getAsinStats = async (req, res) => {
 
     const buyBoxWins = await Asin.countDocuments({ ...filter, buyBoxWin: true });
 
+    // Get best selling ASINs (lowest BSR)
+    const bestSellingAsins = await Asin.find({ ...filter, bsr: { $gt: 0 }, status: 'Active' })
+      .sort({ bsr: 1 })
+      .limit(5)
+      .select('asinCode bsr title currentPrice')
+      .lean();
+
+    // Review analysis - last 7 days vs current 7 days
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const twentyOneDaysAgo = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000);
+
+    // Current week reviews (last 7 days) - from ratingHistory
+    const currentWeekReviews = await Asin.aggregate([
+      { 
+        $match: { 
+          ...filter,
+          ratingHistory: { $exists: true, $ne: [] }
+        }
+      },
+      { $unwind: '$ratingHistory' },
+      { 
+        $match: { 
+          'ratingHistory.date': { $gte: sevenDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$ratingHistory.reviewCount' }
+        }
+      }
+    ]);
+
+    // Previous week reviews (7-14 days ago)
+    const previousWeekReviews = await Asin.aggregate([
+      { 
+        $match: { 
+          ...filter,
+          ratingHistory: { $exists: true, $ne: [] }
+        }
+      },
+      { $unwind: '$ratingHistory' },
+      { 
+        $match: { 
+          'ratingHistory.date': { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$ratingHistory.reviewCount' }
+        }
+      }
+    ]);
+
+    // Two weeks ago (14-21 days) for comparison
+    const twoWeeksAgoReviews = await Asin.aggregate([
+      { 
+        $match: { 
+          ...filter,
+          ratingHistory: { $exists: true, $ne: [] }
+        }
+      },
+      { $unwind: '$ratingHistory' },
+      { 
+        $match: { 
+          'ratingHistory.date': { $gte: twentyOneDaysAgo, $lt: fourteenDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$ratingHistory.reviewCount' }
+        }
+      }
+    ]);
+
+    const currentWeekTotal = currentWeekReviews[0]?.total || 0;
+    const previousWeekTotal = previousWeekReviews[0]?.total || 0;
+    const twoWeeksTotal = twoWeeksAgoReviews[0]?.total || 0;
+
+    // Calculate change percentages
+    const currentVsPreviousChange = previousWeekTotal > 0 
+      ? (((currentWeekTotal - previousWeekTotal) / previousWeekTotal) * 100).toFixed(1) 
+      : 0;
+    const previousVsTwoWeeksChange = twoWeeksTotal > 0 
+      ? (((previousWeekTotal - twoWeeksTotal) / twoWeeksTotal) * 100).toFixed(1) 
+      : 0;
+
     res.json({
       total: totalAsins,
       active: activeAsins,
@@ -333,7 +424,15 @@ exports.getAsinStats = async (req, res) => {
       avgPrice: avgPrice[0]?.avgPrice?.toFixed(2) || 0,
       avgBSR: avgBSR[0]?.avgBSR?.toFixed(0) || 0,
       totalReviews: totalReviews[0]?.totalReviews || 0,
-      buyBoxRate: totalAsins > 0 ? ((buyBoxWins / totalAsins) * 100).toFixed(0) : 0
+      buyBoxRate: totalAsins > 0 ? ((buyBoxWins / totalAsins) * 100).toFixed(0) : 0,
+      bestSellingAsins,
+      reviewAnalysis: {
+        currentWeek: currentWeekTotal,
+        previousWeek: previousWeekTotal,
+        twoWeeksAgo: twoWeeksTotal,
+        currentVsPreviousChange: parseFloat(currentVsPreviousChange),
+        previousVsTwoWeeksChange: parseFloat(previousVsTwoWeeksChange),
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -674,5 +773,117 @@ async function updateSellerAsinCount(sellerId) {
     console.error('Error updating seller ASIN count:', error);
   }
 }
+
+// Import ASINs from CSV (ASIN, SKU, Price)
+exports.importFromCsv = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const sellerId = req.body.sellerId;
+    if (!sellerId) {
+      return res.status(400).json({ error: 'Seller ID is required' });
+    }
+
+    // Verify seller exists and user has access
+    const seller = await Seller.findById(sellerId);
+    if (!seller) {
+      return res.status(404).json({ error: 'Seller not found' });
+    }
+
+    // Read and parse CSV file
+    const fileContent = fs.readFileSync(req.file.path, 'utf8');
+    const lines = fileContent.split('\n').filter(line => line.trim());
+    
+    // Skip header row
+    const dataLines = lines.slice(1);
+    
+    const asins = [];
+    const errors = [];
+    
+    for (let i = 0; i < dataLines.length; i++) {
+      const line = dataLines[i].trim();
+      if (!line) continue;
+      
+      // Handle both comma and tab delimited
+      const parts = line.includes(',') ? line.split(',') : line.split('\t');
+      
+      if (parts.length < 1) {
+        errors.push(`Row ${i + 2}: Invalid format`);
+        continue;
+      }
+      
+      const asinCode = parts[0]?.trim().toUpperCase();
+      const sku = parts[1]?.trim() || '';
+      const price = parseFloat(parts[2]) || 0;
+      
+      if (!asinCode || asinCode.length < 5) {
+        errors.push(`Row ${i + 2}: Invalid ASIN "${parts[0]}"`);
+        continue;
+      }
+      
+      asins.push({
+        asinCode,
+        sku,
+        uploadedPrice: price,
+        seller: sellerId,
+        status: 'Active',
+        scrapeStatus: 'PENDING'
+      });
+    }
+
+    if (asins.length === 0 && errors.length > 0) {
+      return res.status(400).json({ 
+        error: 'No valid ASINs found', 
+        details: errors.slice(0, 5) 
+      });
+    }
+
+    // Check for duplicates
+    const existingAsins = await Asin.find({
+      asinCode: { $in: asins.map(a => a.asinCode) },
+      seller: sellerId
+    }).select('asinCode');
+
+    const existingCodes = new Set(existingAsins.map(a => a.asinCode));
+    const newAsins = asins.filter(a => !existingCodes.has(a.asinCode));
+    const duplicates = asins.filter(a => existingCodes.has(a.asinCode)).length;
+
+    // Insert new ASINs
+    let inserted = 0;
+    if (newAsins.length > 0) {
+      await Asin.insertMany(newAsins, { ordered: false });
+      inserted = newAsins.length;
+    }
+
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+
+    // Update seller count
+    await updateSellerAsinCount(sellerId);
+
+    // Trigger sync if configured
+    if (marketDataSyncService.isConfigured() && inserted > 0) {
+      marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { triggerScrape: true })
+        .catch(err => console.error('Sync trigger failed:', err.message));
+    }
+
+    res.json({
+      success: true,
+      message: `Imported ${inserted} ASINs from CSV`,
+      inserted,
+      duplicates,
+      errors: errors.slice(0, 10)
+    });
+  } catch (error) {
+    console.error('CSV Import Error:', error);
+    // Clean up file if exists
+    if (req.file && req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    res.status(500).json({ error: error.message || 'Failed to import CSV' });
+  }
+};
 
 module.exports = exports;

@@ -90,9 +90,11 @@ class MarketDataSyncService {
      * @param {string} taskId The task ID to update
      * @param {string[]} urls Array of full URLs to inject
      */
-    async updateTaskUrlsWithFile(taskId, items) {
+    async updateTaskUrlsWithFile(taskId, items, retryCount = 0) {
         if (!taskId) throw new Error('Task ID is required for URL injection');
         if (!items || items.length === 0) return true;
+        
+        const maxRetries = 2;
         
         const token = await this.authenticate();
         
@@ -137,11 +139,14 @@ class MarketDataSyncService {
             const errorData = error.response?.data;
             const provError = errorData?.error || {};
             
-            // RETRY LOGIC for TaskExecuting (400)
-            if (provError.code === 'TaskExecuting' || errorData?.message === 'TaskExecuting') {
-                console.warn(`⏳ Task is still executing. Retrying injection in 10s...`);
-                await this.wait(10000);
-                return this.updateTaskUrlsWithFile(taskId, items); // Single level recursion for retry
+            // RETRY LOGIC for TaskExecuting (400) and FileProcessing errors
+            if ((provError.code === 'TaskExecuting' || 
+                provError.code === 'FileProcessing' || 
+                errorData?.message === 'TaskExecuting' ||
+                errorData?.message === 'FileProcessing') && retryCount < maxRetries) {
+                console.warn(`⏳ Task is in transition state (${provError.code || errorData?.message}). Retrying injection in 15s... (Attempt ${retryCount + 1}/${maxRetries})`);
+                await this.wait(15000);
+                return this.updateTaskUrlsWithFile(taskId, items, retryCount + 1); // Retry with count
             }
 
             console.error('❌ Octoparse File Injection Error:', {
@@ -1276,13 +1281,16 @@ class MarketDataSyncService {
             // 2. Task Stop (Only wait if not a forced manual re-run to save time)
             if (forceReRun) {
                 console.log(`📡 Forcing immediate restart for task ${taskId}...`);
-                await this.stopSync(taskId); 
-                // We don't wait for status confirmation in forced re-run mode to avoid stalls
+                await this.stopSync(taskId);
+                // Wait for task to actually stop before proceeding
+                console.log(`⏳ Waiting for task to stop...`);
+                await this.wait(5000);
             } else {
                 await this.ensureTaskStopped(taskId);
             }
 
-            // 3. Get All Active ASINs for this seller
+            // 3. Get All Active ASINs for this seller from database
+            console.log(`📊 Fetching all active ASINs from database for seller ${sellerId}...`);
             const asins = await Asin.find({ 
                 seller: sellerId, 
                 status: 'Active' 
@@ -1293,6 +1301,9 @@ class MarketDataSyncService {
                 return false;
             }
 
+            console.log(`✅ Found ${asins.length} active ASINs in database`);
+
+            // Create URLs from ASINs
             const asinCodes = asins.map(a => a.asinCode);
             const urls = asinCodes.map(code => `https://www.amazon.in/dp/${code}`);
 
@@ -1303,7 +1314,7 @@ class MarketDataSyncService {
             });
             console.log(`💾 Persisted ${urls.length} URLs to Database for seller: ${sellerId}`);
 
-            console.log(`🔄 Syncing ASINs to task ${taskId} from DB record...`);
+            console.log(`🔄 Syncing ${urls.length} ASINs to task ${taskId}...`);
 
             // 4. Update task URLs (using FILE endpoint only as per user request)
             const seller = await Seller.findById(sellerId).select('marketSyncUrls');
@@ -1321,15 +1332,18 @@ class MarketDataSyncService {
             // 5. Trigger Scrape if requested
             if (triggerScrape) {
                 console.log(`🚀 Automated trigger: Starting scrape for task ${taskId}...`);
-                await this.startCloudExtraction(taskId);
+                const startResult = await this.startCloudExtraction(taskId);
+                console.log(`✅ Cloud extraction started for task ${taskId}:`, startResult);
 
                 // START BACKGROUND AUTOMATION: Poll and Ingest once done
                 // We do NOT await this so the response returns to user immediately
+                console.log(`🔄 Starting background polling for seller ${sellerId}, task ${taskId}...`);
                 this.pollAndAutomate(sellerId, taskId, { fullSync: options.fullSync }).catch(err => {
                     console.error(`❌ Background Automation Critical Error for seller ${sellerId}:`, err.message);
                 });
             }
 
+            console.log(`✅ syncSellerAsinsToOctoparse completed for seller ${sellerId}`);
             return true;
         } catch (error) {
             console.error(`❌ Sync Error for seller ${sellerId}:`, error.message);
@@ -1419,7 +1433,7 @@ class MarketDataSyncService {
             
             // Extract all rank strings (e.g. #476 in Men's Kurtas)
             let subBSRs = [];
-            if (bsrString) {
+            if (bsrString && typeof bsrString === 'string') {
                 // Split by multiple spaces or newlines and clean
                 const parts = bsrString.split(/\s{2,}|\n/).map(p => p.trim()).filter(Boolean);
                 subBSRs = parts.filter(p => p.includes('#') && (p.toLowerCase().includes(' in ') || p.toLowerCase().includes(' ( ')));
@@ -1680,7 +1694,7 @@ class MarketDataSyncService {
             // 6. SubBSRs extraction
             let subBSRs = asin.subBSRs || [];
             const bsrString = rawData.sub_BSR || rawData.BSR || '';
-            if (bsrString) {
+            if (bsrString && typeof bsrString === 'string') {
                 const parts = bsrString.split(/\s{2,}|\n/).map(p => p.trim()).filter(Boolean);
                 subBSRs = parts.filter(p => p.includes('#') && (p.toLowerCase().includes(' in ') || p.toLowerCase().includes(' ( ')));
             }

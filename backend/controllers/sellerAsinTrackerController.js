@@ -5,7 +5,7 @@
 
 const Seller = require('../models/Seller');
 const Asin = require('../models/Asin');
-const { getSellerAsins, getTokenStatus, getDomainId } = require('../services/keepaService');
+const { getSellerAsins, getTokenStatus, getDomainId, isValidSellerId } = require('../services/keepaService');
 const marketDataSyncService = require('../services/marketDataSyncService');
 
 
@@ -80,10 +80,17 @@ exports.getSellerAsins = async (req, res) => {
  * Returns { added, total, newAsins[] }
  */
 const syncSellerFromKeepa = async (seller) => {
-    if (!seller.sellerId) throw new Error('Seller has no Amazon Seller ID (sellerId field)');
+    // Use keepaSellerId if set, otherwise fall back to sellerId
+    const keepaId = seller.keepaSellerId || seller.sellerId;
+    if (!keepaId) throw new Error('Seller has no Amazon Seller ID (keepaSellerId or sellerId field)');
+
+    // Validate seller ID format
+    if (!isValidSellerId(keepaId)) {
+        throw new Error(`Invalid seller ID format: "${keepaId}". Amazon seller IDs must start with 'A' followed by alphanumeric characters (e.g., A1Z2XYZ3). Get your seller ID from Amazon Seller Central > Settings > Account Info > Seller ID.`);
+    }
 
     const marketplace = seller.marketplace || 'amazon.in';
-    const keepaAsins = await getSellerAsins(seller.sellerId, marketplace);
+    const keepaAsins = await getSellerAsins(keepaId, marketplace);
 
     if (keepaAsins.length === 0) {
         return { added: 0, total: 0, newAsins: [] };
@@ -91,14 +98,20 @@ const syncSellerFromKeepa = async (seller) => {
 
     // Find which ASINs are already in our DB for this seller
     const existing = await Asin.find({ seller: seller._id }).select('asinCode').lean();
-    const existingCodes = new Set(existing.map(a => a.asinCode)); // Keep original case
+    const existingCodes = new Set(existing.map(a => a.asinCode.toUpperCase())); // Case-insensitive
 
-    const newCodes = keepaAsins.filter(code => !existingCodes.has(code)); // Compare with original case
+    // If no existing ASINs, add ALL from Keepa
+    if (existing.length === 0) {
+        console.log(`[SellerTracker] No existing ASINs for seller ${seller.name}. Adding all ${keepaAsins.length} from Keepa.`);
+    }
+
+    // Find new ASINs (case-insensitive comparison)
+    const newCodes = keepaAsins.filter(code => !existingCodes.has(code.toUpperCase()));
 
     let newAsins = [];
     if (newCodes.length > 0) {
         const docs = newCodes.map(code => ({
-            asinCode: code, // Keep original case as entered
+            asinCode: code.toUpperCase(), // Normalize to uppercase
             seller: seller._id,
             status: 'Active',
             scrapeStatus: 'PENDING',

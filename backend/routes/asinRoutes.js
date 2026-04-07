@@ -1,7 +1,32 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const asinController = require('../controllers/asinController');
 const { authenticate: protect, requirePermission, checkSellerAccess } = require('../middleware/auth');
+
+// Configure multer for CSV uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `asin-import-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.csv' || ext === '.txt' || ext === '.xlsx') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV, TXT, and XLSX files are allowed'));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // Priority Actions
 router.post('/:id/generate-images', protect, requirePermission('sellers_manage_asins'), asinController.generateImages);
@@ -26,6 +51,7 @@ router.post('/bulk', protect, requirePermission('sellers_manage_asins'), checkSe
 router.post('/bulk-delete', protect, requirePermission('sellers_manage_asins'), asinController.bulkDeleteAsins);
 router.post('/bulk-update', protect, requirePermission('sellers_manage_asins'), asinController.bulkUpdateAsins);
 router.post('/bulk-week-history', protect, requirePermission('sellers_manage_asins'), asinController.bulkUpdateWeekHistory);
+router.post('/import-csv', protect, requirePermission('sellers_manage_asins'), upload.single('file'), asinController.importFromCsv);
 
 router.get('/:id', protect, requirePermission('sellers_view'), asinController.getAsin);
 router.put('/:id', protect, requirePermission('sellers_manage_asins'), asinController.updateAsin);
