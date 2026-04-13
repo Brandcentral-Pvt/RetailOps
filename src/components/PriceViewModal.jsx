@@ -6,12 +6,84 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
   const [dateFilter, setDateFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [showComparison, setShowComparison] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter, customStartDate, customEndDate, searchQuery]);
+
+  // Skeleton effect
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsLoading(true);
+      const timer = setTimeout(() => setIsLoading(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const asinsToProcess = selectedAsin ? [selectedAsin] : (Array.isArray(asins) ? asins : []);
+
+  const getWeekComparison = (item, week, wIdx, weeks) => {
+    if (!showComparison || wIdx <= 0) return null;
+
+    const currentWeekPrices = [];
+    const prevWeekPrices = [];
+
+    week.dates.forEach(d => {
+      const currPrice = item.weekData?.[week.weekKey]?.[d.dateKey];
+      if (currPrice !== undefined) currentWeekPrices.push(currPrice);
+    });
+
+    const prevWeek = weeks[wIdx - 1];
+    prevWeek.dates.forEach(d => {
+      const prevPrice = item.weekData?.[prevWeek.weekKey]?.[d.dateKey];
+      if (prevPrice !== undefined) prevWeekPrices.push(prevPrice);
+    });
+
+    if (currentWeekPrices.length > 0 && prevWeekPrices.length > 0) {
+      const avgCurr = currentWeekPrices.reduce((a, b) => a + b, 0) / currentWeekPrices.length;
+      const avgPrev = prevWeekPrices.reduce((a, b) => a + b, 0) / prevWeekPrices.length;
+      const change = avgCurr - avgPrev;
+      const percent = avgPrev > 0 ? (change / avgPrev) * 100 : 0;
+
+      return { avgCurr, avgPrev, change, percent };
+    }
+    return null;
+  };
+
+  const handleExportCSV = (data, weeks) => {
+    const headers = ['ASIN', 'Title', 'Uploaded Price', 'Live Price'];
+    const dateColumns = [];
+    weeks.forEach(w => w.dates.forEach(d => dateColumns.push(d.dateKey)));
+
+    const csvContent = [
+      [...headers, ...dateColumns].join(','),
+      ...data.map(item => [
+        item.asinCode,
+        `"${item.title.replace(/"/g, '""')}"`,
+        item.uploadedPrice,
+        item.currentPrice,
+        ...dateColumns.map(dKey => {
+          const wKey = Object.keys(item.weekData).find(wk => item.weekData[wk][dKey] !== undefined);
+          return wKey ? item.weekData[wKey][dKey] : '';
+        })
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `price_history_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const getFilteredDates = () => {
     const now = new Date();
@@ -36,9 +108,9 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
     const selectedDate = new Date(value);
     const today = new Date();
     const diffDays = Math.ceil((today - selectedDate) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return;
-    
+
     if (field === 'startDate') {
       setCustomStartDate(value);
       if (customEndDate) {
@@ -78,7 +150,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
     const { startDate, endDate } = getFilteredDates();
 
     const allDates = new Map();
-    
+
     asinsToProcess.forEach(asin => {
       const history = asin.weekHistory || asin.history || [];
       history.forEach(h => {
@@ -93,7 +165,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
     });
 
     const sortedDates = Array.from(allDates.keys()).sort();
-    
+
     const weekMap = new Map();
     sortedDates.forEach(dateKey => {
       const date = new Date(dateKey);
@@ -101,7 +173,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
       const weekKey = `W${weekNum}`;
       const year = date.getFullYear();
       const fullWeekKey = `${year}-${weekKey}`;
-      
+
       if (!weekMap.has(fullWeekKey)) {
         weekMap.set(fullWeekKey, {
           weekKey: fullWeekKey,
@@ -121,36 +193,47 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
       return parseInt(a.shortKey.slice(1)) - parseInt(b.shortKey.slice(1));
     });
 
-    const asinsData = asinsToProcess.map(asin => {
-      const history = asin.weekHistory || asin.history || [];
-      const historyMap = new Map();
-      history.forEach(h => {
-        const dateKey = new Date(h.date || h.week).toISOString().split('T')[0];
-        historyMap.set(dateKey, h.price || h.currentPrice);
-      });
-
-      const weekData = {};
-      weeks.forEach(week => {
-        week.dates.forEach(d => {
-          const price = historyMap.get(d.dateKey);
-          if (price !== undefined) {
-            if (!weekData[week.weekKey]) weekData[week.weekKey] = {};
-            weekData[week.weekKey][d.dateKey] = price;
-          }
+    const asinsData = asinsToProcess
+      .filter(asin => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return asin.asinCode?.toLowerCase().includes(query) ||
+          asin.title?.toLowerCase().includes(query);
+      })
+      .map(asin => {
+        const history = asin.weekHistory || asin.history || [];
+        const historyMap = new Map();
+        history.forEach(h => {
+          // Fix for date/week and price/currentPrice keys
+          const dateVal = h.date || h.week || h.timestamp;
+          if (!dateVal) return;
+          const dateKey = new Date(dateVal).toISOString().split('T')[0];
+          const priceVal = h.price !== undefined ? h.price : (h.currentPrice !== undefined ? h.currentPrice : 0);
+          historyMap.set(dateKey, priceVal);
         });
-      });
 
-      return {
-        asinCode: asin.asinCode,
-        title: asin.title,
-        uploadedPrice: asin.uploadedPrice || 0,
-        currentPrice: asin.currentPrice || 0,
-        weekData
-      };
-    });
+        const weekData = {};
+        weeks.forEach(week => {
+          week.dates.forEach(d => {
+            const price = historyMap.get(d.dateKey);
+            if (price !== undefined) {
+              if (!weekData[week.weekKey]) weekData[week.weekKey] = {};
+              weekData[week.weekKey][d.dateKey] = price;
+            }
+          });
+        });
+
+        return {
+          asinCode: asin.asinCode,
+          title: asin.title || 'Untitled Product',
+          uploadedPrice: asin.uploadedPrice !== undefined ? asin.uploadedPrice : (asin.price || 0),
+          currentPrice: asin.currentPrice !== undefined ? asin.currentPrice : (asin.price || 0),
+          weekData
+        };
+      });
 
     return { weeks, asins: asinsData };
-  }, [asins, selectedAsin, dateFilter, asinsToProcess]);
+  }, [asins, selectedAsin, dateFilter, customStartDate, customEndDate, searchQuery, asinsToProcess]);
 
   function getWeekNumber(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -170,10 +253,10 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const { weeks, asins: asinsData } = processPriceData;
-  
-  console.log('PriceViewModal debug:', { 
-    isOpen, 
-    asinsLength: asins?.length, 
+
+  console.log('PriceViewModal debug:', {
+    isOpen,
+    asinsLength: asins?.length,
     asinsToProcessLength: asinsToProcess.length,
     weeksLength: weeks.length,
     asinsDataLength: asinsData.length
@@ -193,7 +276,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
   };
 
   return createPortal(
-    <div 
+    <div
       className="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center p-2"
       style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -201,18 +284,38 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
       <style>{`
         .price-modal-fade { animation: priceModalFade 0.25s ease-out; }
         @keyframes priceModalFade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .week-toggle { cursor: pointer; user-select: none; }
-        .week-toggle:hover { background-color: #f3f4f6; }
-        .day-cell { font-size: 0.75rem; }
-        .week-header { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-        .day-header { background: #f8fafc; }
+        .week-toggle { cursor: pointer; user-select: none; transition: all 0.2s; }
+        .week-toggle:hover { background-color: #f1f5f9; }
+        .day-cell { font-size: 0.75rem; border-left: 1px solid #e2e8f0; color: #334155; }
+        .week-header { background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .day-header { background: #ffffff; color: #64748b; font-weight: 600; }
+        .sticky-col-1 { position: sticky; left: 0; z-index: 10; background: white; width: 160px; min-width: 160px; border-right: 2px solid #f1f5f9; }
+        .sticky-col-2 { position: sticky; left: 160px; z-index: 10; background: white; width: 100px; min-width: 100px; }
+        .sticky-col-3 { position: sticky; left: 260px; z-index: 10; background: white; width: 100px; min-width: 100px; border-right: 2px solid #f1f5f9; }
+        thead tr:first-child th.sticky-col-1,
+        thead tr:first-child th.sticky-col-2,
+        thead tr:first-child th.sticky-col-3 { z-index: 20; background: #f1f5f9; }
+        .skeleton-row { height: 60px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; }
+        @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        /* Zebra-striping for better row tracking */
+        tbody tr:nth-child(even) td { background-color: #fcfcfd; }
+        tbody tr:nth-child(even) .sticky-col-1, 
+        tbody tr:nth-child(even) .sticky-col-2, 
+        tbody tr:nth-child(even) .sticky-col-3 { background-color: #fcfcfd; }
+        
+        .price-text-stable { color: #1e293b; font-weight: 500; } /* Slate 800 */
+        .price-text-positive { color: #065f46; font-weight: 700; } /* Dark Emerald 800 */
+        .price-text-negative { color: #991b1b; font-weight: 700; } /* Dark Red 800 */
+        .price-text-live { color: #1d4ed8; font-weight: 700; } /* Bold Blue 700 */
+        .comparison-cell { background-color: #fffbeb !important; border-left: 1px solid #fef3c7; }
       `}</style>
-      
-      <div 
+
+      <div
         className="bg-white rounded-3 shadow-lg overflow-hidden"
-        style={{ 
-          width: '100%', 
-          maxWidth: '100vw', 
+        style={{
+          width: '100%',
+          maxWidth: '100vw',
           maxHeight: '95vh',
           animation: 'priceModalFade 0.25s ease-out'
         }}
@@ -227,11 +330,30 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
               <p className="mb-0 text-muted small">Week-over-week price tracking by day</p>
             </div>
           </div>
+          <div className="d-flex align-items-center gap-2 flex-grow-1 mx-4">
+            <div className="input-group input-group-sm" style={{ maxWidth: '300px' }}>
+              <span className="input-group-text bg-white border-end-0"><Filter size={14} className="text-muted" /></span>
+              <input
+                type="text"
+                className="form-control border-start-0"
+                placeholder="Search ASIN or title..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button
+              className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+              onClick={() => handleExportCSV(asinsData, weeks)}
+            >
+              Export CSV
+            </button>
+          </div>
+
           <div className="d-flex align-items-center gap-3">
             <div className="form-check form-switch d-flex align-items-center gap-2">
-              <input 
-                className="form-check-input" 
-                type="checkbox" 
+              <input
+                className="form-check-input"
+                type="checkbox"
                 id="comparisonToggle"
                 checked={showComparison}
                 onChange={(e) => setShowComparison(e.target.checked)}
@@ -241,23 +363,30 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
               </label>
             </div>
             <div className="d-flex align-items-center gap-2">
-              <Filter size={16} className="text-muted" />
-              <select 
-                className="form-select form-select-sm"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                style={{ width: '150px' }}
-              >
-                <option value="all">All Time</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="14days">Last 14 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="custom">Custom Range</option>
-              </select>
+              <div className="position-relative d-flex align-items-center gap-2">
+                <select
+                  className="form-select form-select-sm"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  style={{ width: '150px' }}
+                >
+                  <option value="all">All Time</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="14days">Last 14 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+                {dateFilter === 'custom' && (
+                  <div className="badge bg-light text-dark border p-1" title="Max range is 7 days">
+                    <TrendingUp size={12} className="text-info" />
+                    <span className="ms-1 fw-normal" style={{ fontSize: '0.65rem' }}>Max 7d</span>
+                  </div>
+                )}
+              </div>
               {dateFilter === 'custom' && (
                 <div className="d-flex align-items-center gap-1 ms-2">
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     className="form-control form-control-sm"
                     value={customStartDate}
                     onChange={(e) => handleCustomDateChange('startDate', e.target.value)}
@@ -266,8 +395,8 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                     style={{ width: '130px' }}
                   />
                   <span className="text-muted">to</span>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     className="form-control form-control-sm"
                     value={customEndDate}
                     onChange={(e) => handleCustomDateChange('endDate', e.target.value)}
@@ -275,7 +404,6 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                     max={maxDate}
                     style={{ width: '130px' }}
                   />
-                  <span className="badge bg-info small">Max 7 days</span>
                 </div>
               )}
             </div>
@@ -289,56 +417,75 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
           <table className="table table-bordered table-hover mb-0" style={{ minWidth: '1200px' }}>
             <thead className="position-sticky top-0 bg-white z-index-1">
               <tr>
-                <th rowSpan={2} className="px-3 py-3" style={{ minWidth: '120px', background: '#f8fafc' }}>
+                <th rowSpan={2} className="px-3 py-3 sticky-col-1">
                   ASIN
                 </th>
-                <th rowSpan={2} className="px-3 py-3 text-center" style={{ minWidth: '100px', background: '#f8fafc' }}>
+                <th rowSpan={2} className="px-3 py-3 text-center sticky-col-2">
                   Uploaded Price
                 </th>
-                <th rowSpan={2} className="px-3 py-3 text-center" style={{ minWidth: '100px', background: '#f8fafc' }}>
+                <th rowSpan={2} className="px-3 py-3 text-center sticky-col-3">
                   Live Price
                 </th>
-                {weeks.map(week => (
-                  <React.Fragment key={week.weekKey}>
-                    <th 
-                      colSpan={week.dates.length + (showComparison ? 1 : 0)} 
-                      className="px-2 py-2 text-center week-header week-toggle"
-                      onClick={() => toggleWeek(week.weekKey)}
-                      style={{ minWidth: `${(week.dates.length + (showComparison ? 1 : 0)) * 80}px` }}
-                    >
-                      {week.shortKey} {expandedWeeks[week.weekKey] ? '▼' : '▶'}
-                    </th>
-                  </React.Fragment>
-                ))}
-              </tr>
-              <tr>
-                {weeks.map((week, wIdx) => (
-                  <React.Fragment key={`${week.weekKey}-days`}>
-                    {week.dates.map(d => (
-                      <th 
-                        key={d.dateKey} 
-                        className="px-1 py-1 text-center day-header day-cell"
-                        style={{ minWidth: '70px', fontSize: '0.7rem' }}
+                {weeks.map(week => {
+                  const isExpanded = expandedWeeks[week.weekKey] !== false; // Default to true if undefined
+                  return (
+                    <React.Fragment key={week.weekKey}>
+                      <th
+                        colSpan={isExpanded ? (week.dates.length + (showComparison ? 1 : 0)) : 1}
+                        className="px-2 py-2 text-center week-header week-toggle"
+                        onClick={() => toggleWeek(week.weekKey)}
+                        style={{ minWidth: isExpanded ? `${(week.dates.length + (showComparison ? 1 : 0)) * 80}px` : '100px' }}
                       >
-                        {d.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                      </th>
-                    ))}
-                    {showComparison && wIdx > 0 && (
-                      <th className="px-1 py-1 text-center" style={{ background: '#fef3c7', minWidth: '80px' }}>
                         <div className="d-flex align-items-center justify-content-center gap-1">
-                          <ArrowRight size={10} />
-                          <span style={{ fontSize: '0.65rem' }}>vs W{wIdx}</span>
+                          {week.shortKey} {isExpanded ? '▼' : '▶'}
+                          {!isExpanded && <span className="badge bg-white text-dark small" style={{ fontSize: '0.6rem' }}>Avg</span>}
                         </div>
                       </th>
-                    )}
-                  </React.Fragment>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
+              </tr>
+              <tr>
+                {weeks.map((week, wIdx) => {
+                  const isExpanded = expandedWeeks[week.weekKey] !== false;
+                  if (!isExpanded) return null;
+                  return (
+                    <React.Fragment key={`${week.weekKey}-days`}>
+                      {week.dates.map(d => (
+                        <th
+                          key={d.dateKey}
+                          className="px-1 py-1 text-center day-header day-cell"
+                          style={{ minWidth: '70px', fontSize: '0.7rem' }}
+                        >
+                          {d.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </th>
+                      ))}
+                      {showComparison && wIdx > 0 && (
+                        <th className="px-1 py-1 text-center comparison-cell" style={{ minWidth: '95px' }}>
+                          <div className="d-flex align-items-center justify-content-center gap-1">
+                            <ArrowRight size={10} className="text-amber-600" />
+                            <span className="text-amber-800" style={{ fontSize: '0.65rem', fontWeight: 700 }}>vs W{wIdx}</span>
+                          </div>
+                        </th>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {paginatedAsins.map((item, idx) => (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`}>
+                    <td className="sticky-col-1"><div className="skeleton-row w-100 rounded"></div></td>
+                    <td className="sticky-col-2"><div className="skeleton-row w-100 rounded"></div></td>
+                    <td className="sticky-col-3"><div className="skeleton-row w-100 rounded"></div></td>
+                    <td colSpan={weeks.length * 5}><div className="skeleton-row w-100 rounded"></div></td>
+                  </tr>
+                ))
+              ) : paginatedAsins.map((item, idx) => (
                 <tr key={idx} className="border-bottom">
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 sticky-col-1">
                     <div className="d-flex flex-column">
                       <span className="fw-medium font-monospace" style={{ fontSize: '0.85rem' }}>
                         {item.asinCode}
@@ -348,70 +495,61 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center">
-                    <span className="fw-semibold text-success">₹{item.uploadedPrice.toLocaleString()}</span>
+                  <td className="px-3 py-2 text-center sticky-col-2">
+                    <span className="price-text-stable">₹{item.uploadedPrice.toLocaleString()}</span>
                   </td>
-                  <td className="px-3 py-2 text-center">
-                    <span className="fw-semibold text-primary">₹{item.currentPrice.toLocaleString()}</span>
+                  <td className="px-3 py-2 text-center sticky-col-3">
+                    <span className="price-text-live">₹{item.currentPrice.toLocaleString()}</span>
                   </td>
-                  {weeks.map((week, wIdx) => (
-                    <React.Fragment key={week.weekKey}>
-                      {week.dates.map(d => {
-                        const price = item.weekData?.[week.weekKey]?.[d.dateKey];
-                        return (
-                          <td 
-                            key={`${week.weekKey}-${d.dateKey}`} 
-                            className="px-1 py-2 text-center day-cell"
-                            style={{ backgroundColor: '#f9fafb' }}
-                          >
-                            {price !== undefined ? (
-                              <span className="text-success fw-medium">₹{price.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-muted">-</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {showComparison && wIdx > 0 && (
-                        <td className="px-1 py-2 text-center" style={{ background: '#fef3c7' }}>
-                          {(() => {
-                            const currentWeekPrices = [];
-                            const prevWeekPrices = [];
-                            week.dates.forEach(d => {
-                              const currPrice = item.weekData?.[week.weekKey]?.[d.dateKey];
-                              if (currPrice !== undefined) {
-                                currentWeekPrices.push(currPrice);
-                              }
-                            });
-                            const prevWeek = weeks[wIdx - 1];
-                            prevWeek.dates.forEach(d => {
-                              const prevPrice = item.weekData?.[prevWeek.weekKey]?.[d.dateKey];
-                              if (prevPrice !== undefined) {
-                                prevWeekPrices.push(prevPrice);
-                              }
-                            });
-                            if (currentWeekPrices.length > 0 && prevWeekPrices.length > 0) {
-                              const avgCurr = currentWeekPrices.reduce((a, b) => a + b, 0) / currentWeekPrices.length;
-                              const avgPrev = prevWeekPrices.reduce((a, b) => a + b, 0) / prevWeekPrices.length;
-                              const change = avgCurr - avgPrev;
-                              const percent = avgPrev > 0 ? (change / avgPrev) * 100 : 0;
-                              return (
-                                <div className={`d-flex flex-column align-items-center gap-0`}>
-                                  <span className={`fw-medium ${change >= 0 ? 'text-success' : 'text-danger'}`}>
-                                    {change >= 0 ? '+' : ''}{percent.toFixed(1)}%
-                                  </span>
-                                  <span className="text-muted" style={{ fontSize: '0.6rem' }}>
-                                    {change >= 0 ? '+' : ''}₹{Math.abs(Math.round(change))}
-                                  </span>
-                                </div>
-                              );
-                            }
-                            return <span className="text-muted">-</span>;
-                          })()}
+                  {weeks.map((week, wIdx) => {
+                    const isExpanded = expandedWeeks[week.weekKey] !== false;
+                    const comp = getWeekComparison(item, week, wIdx, weeks);
+
+                    if (!isExpanded) {
+                      const prices = Object.values(item.weekData[week.weekKey] || {});
+                      const avg = prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : null;
+                      return (
+                        <td key={`${week.weekKey}-collapsed`} className="text-center" style={{ backgroundColor: '#f8fafc' }}>
+                          {avg !== null ? <span className="fw-bold text-slate-700">₹{Math.round(avg).toLocaleString()}</span> : '-'}
                         </td>
-                      )}
-                    </React.Fragment>
-                  ))}
+                      );
+                    }
+
+                    return (
+                      <React.Fragment key={week.weekKey}>
+                        {week.dates.map(d => {
+                          const price = item.weekData?.[week.weekKey]?.[d.dateKey];
+                          return (
+                            <td
+                              key={`${week.weekKey}-${d.dateKey}`}
+                              className="px-1 py-2 text-center day-cell"
+                              style={{ backgroundColor: '#f9fafb' }}
+                            >
+                              {price !== undefined ? (
+                                <span className="price-text-positive">₹{price.toLocaleString()}</span>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        {showComparison && wIdx > 0 && (
+                          <td className="px-1 py-2 text-center comparison-cell" style={{ minWidth: '95px' }}>
+                            {comp ? (
+                              <div className={`d-flex flex-column align-items-center gap-0`}>
+                                <span className={`fw-bold small ${comp.change > 0 ? 'price-text-negative' : comp.change < 0 ? 'price-text-positive' : 'text-slate-500'}`}>
+                                  {comp.change > 0 ? '▲' : comp.change < 0 ? '▼' : ''} {Math.abs(comp.percent).toFixed(1)}%
+                                </span>
+                                <span className="text-slate-500 fw-medium" style={{ fontSize: '0.65rem' }}>
+                                  {comp.change > 0 ? '+' : comp.change < 0 ? '-' : ''}₹{Math.abs(Math.round(comp.change))}
+                                </span>
+                              </div>
+                            ) : <span className="text-muted">-</span>}
+                          </td>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tr>
               ))}
               {asinsData.length === 0 && (
@@ -428,7 +566,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
         <div className="px-4 py-3 border-top bg-light d-flex justify-content-between align-items-center">
           <div className="d-flex align-items-center gap-2">
             <span className="text-muted small">Show</span>
-            <select 
+            <select
               className="form-select form-select-sm"
               value={itemsPerPage}
               onChange={(e) => {
@@ -449,7 +587,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
               Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems}
             </span>
             <div className="d-flex align-items-center gap-1">
-              <button 
+              <button
                 className="btn btn-sm btn-outline-secondary"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -477,7 +615,7 @@ const PriceViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                   </button>
                 );
               })}
-              <button 
+              <button
                 className="btn btn-sm btn-outline-secondary"
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}

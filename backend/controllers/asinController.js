@@ -28,7 +28,10 @@ exports.getAsins = async (req, res) => {
     if (status) filter.status = status;
     if (category) filter.category = category;
 
-    const sortOptions = {};
+    const sortOptions = {
+      status: 1, // 'Active' comes before 'Pending'/'Scraping'
+      title: -1  // Non-null titles first
+    };
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     const asins = await Asin.find(filter)
@@ -80,7 +83,8 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     const asins = await Asin.find(filter)
       .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails')
       .populate('seller', 'name marketplace')
-      .sort({ createdAt: -1 });
+      .sort({ status: 1, title: -1, createdAt: -1 });
+
 
     res.json({
       success: true,

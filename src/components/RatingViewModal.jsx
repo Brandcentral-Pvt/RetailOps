@@ -6,11 +6,84 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
   const [dateFilter, setDateFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [expandedWeeks, setExpandedWeeks] = useState({});
+  const [showComparison, setShowComparison] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter, customStartDate, customEndDate, searchQuery]);
+
+  // Skeleton effect
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsLoading(true);
+      const timer = setTimeout(() => setIsLoading(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const asinsToProcess = selectedAsin ? [selectedAsin] : (Array.isArray(asins) ? asins : []);
+
+  const getWeekComparison = (item, week, wIdx, weeks) => {
+    if (!showComparison || wIdx <= 0) return null;
+    
+    const currentWeekRatings = [];
+    const prevWeekRatings = [];
+    
+    week.dates.forEach(d => {
+      const curr = item.weekData?.[week.weekKey]?.[d.dateKey];
+      if (curr && curr.rating !== undefined) currentWeekRatings.push(curr.rating);
+    });
+    
+    const prevWeek = weeks[wIdx - 1];
+    prevWeek.dates.forEach(d => {
+      const prev = item.weekData?.[prevWeek.weekKey]?.[d.dateKey];
+      if (prev && prev.rating !== undefined) prevWeekRatings.push(prev.rating);
+    });
+
+    if (currentWeekRatings.length > 0 && prevWeekRatings.length > 0) {
+      const avgCurr = currentWeekRatings.reduce((a, b) => a + b, 0) / currentWeekRatings.length;
+      const avgPrev = prevWeekRatings.reduce((a, b) => a + b, 0) / prevWeekRatings.length;
+      const change = avgCurr - avgPrev;
+      const percent = avgPrev > 0 ? (change / avgPrev) * 100 : 0;
+      
+      return { avgCurr, avgPrev, change, percent };
+    }
+    return null;
+  };
+
+  const handleExportCSV = (data, weeks) => {
+    const headers = ['ASIN', 'Title', 'Current Rating', 'Review Count'];
+    const dateColumns = [];
+    weeks.forEach(w => w.dates.forEach(d => dateColumns.push(d.dateKey)));
+    
+    const csvContent = [
+      [...headers, ...dateColumns].join(','),
+      ...data.map(item => [
+        item.asinCode,
+        `"${item.title.replace(/"/g, '""')}"`,
+        item.currentRating,
+        item.reviewCount,
+        ...dateColumns.map(dKey => {
+          const wKey = Object.keys(item.weekData).find(wk => item.weekData[wk][dKey] !== undefined);
+          return wKey ? item.weekData[wKey][dKey].rating : '';
+        })
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `rating_history_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const getFilteredDates = () => {
     const now = new Date();
@@ -113,36 +186,45 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
       return parseInt(a.shortKey.slice(1)) - parseInt(b.shortKey.slice(1));
     });
 
-    const asinsData = asinsToProcess.map(asin => {
-      const history = asin.weekHistory || asin.history || [];
-      const historyMap = new Map();
-      history.forEach(h => {
-        const dateKey = new Date(h.date || h.week).toISOString().split('T')[0];
-        historyMap.set(dateKey, { rating: h.rating, reviewCount: h.reviewCount });
-      });
-
-      const weekData = {};
-      weeks.forEach(week => {
-        week.dates.forEach(d => {
-          const data = historyMap.get(d.dateKey);
-          if (data && data.rating !== undefined) {
-            if (!weekData[week.weekKey]) weekData[week.weekKey] = {};
-            weekData[week.weekKey][d.dateKey] = data;
-          }
+    const asinsData = asinsToProcess
+      .filter(asin => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return asin.asinCode?.toLowerCase().includes(query) || 
+               asin.title?.toLowerCase().includes(query);
+      })
+      .map(asin => {
+        const history = asin.weekHistory || asin.history || [];
+        const historyMap = new Map();
+        history.forEach(h => {
+          const dateVal = h.date || h.week || h.timestamp;
+          if (!dateVal) return;
+          const dateKey = new Date(dateVal).toISOString().split('T')[0];
+          historyMap.set(dateKey, { rating: h.rating, reviewCount: h.reviewCount });
         });
-      });
 
-      return {
-        asinCode: asin.asinCode,
-        title: asin.title,
-        currentRating: asin.rating || 0,
-        reviewCount: asin.reviewCount || 0,
-        weekData
-      };
-    });
+        const weekData = {};
+        weeks.forEach(week => {
+          week.dates.forEach(d => {
+            const data = historyMap.get(d.dateKey);
+            if (data && data.rating !== undefined) {
+              if (!weekData[week.weekKey]) weekData[week.weekKey] = {};
+              weekData[week.weekKey][d.dateKey] = data;
+            }
+          });
+        });
+
+        return {
+          asinCode: asin.asinCode,
+          title: asin.title || 'Untitled Product',
+          currentRating: asin.rating || 0,
+          reviewCount: asin.reviewCount || 0,
+          weekData
+        };
+      });
 
     return { weeks, asins: asinsData };
-  }, [asins, selectedAsin, dateFilter]);
+  }, [asins, selectedAsin, dateFilter, customStartDate, customEndDate, searchQuery, asinsToProcess]);
 
   function getWeekNumber(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -184,12 +266,20 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
     >
       <style>{`
         .rating-modal-fade { animation: ratingModalFade 0.25s ease-out; }
-        @keyframes rating-modal-fade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .week-toggle { cursor: pointer; user-select: none; }
+        @keyframes ratingModalFade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .week-toggle { cursor: pointer; user-select: none; transition: all 0.2s; }
         .week-toggle:hover { background-color: #fffbeb; }
-        .day-cell { font-size: 0.75rem; }
+        .day-cell { font-size: 0.75rem; border-left: 1px solid #f1f5f9; }
         .week-header { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
         .day-header { background: #fffaf0; }
+        .sticky-col-1 { position: sticky; left: 0; z-index: 10; background: white; width: 160px; min-width: 160px; }
+        .sticky-col-2 { position: sticky; left: 160px; z-index: 10; background: white; width: 80px; min-width: 80px; }
+        .sticky-col-3 { position: sticky; left: 240px; z-index: 10; background: white; width: 80px; min-width: 80px; }
+        thead tr:first-child th.sticky-col-1,
+        thead tr:first-child th.sticky-col-2,
+        thead tr:first-child th.sticky-col-3 { z-index: 20; background: #f8fafc; }
+        .skeleton-row { height: 60px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; }
+        @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
       
       <div 
@@ -211,21 +301,59 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
               <p className="mb-0 text-muted small">Week-over-week rating tracking by day</p>
             </div>
           </div>
+          <div className="d-flex align-items-center gap-2 flex-grow-1 mx-4">
+            <div className="input-group input-group-sm" style={{ maxWidth: '300px' }}>
+              <span className="input-group-text bg-white border-end-0"><Filter size={14} className="text-muted" /></span>
+              <input 
+                type="text" 
+                className="form-control border-start-0" 
+                placeholder="Search ASIN or title..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button 
+              className="btn btn-sm btn-outline-warning d-flex align-items-center gap-1"
+              onClick={() => handleExportCSV(asinsData, weeks)}
+            >
+              Export CSV
+            </button>
+          </div>
+
           <div className="d-flex align-items-center gap-3">
+            <div className="form-check form-switch d-flex align-items-center gap-2">
+              <input 
+                className="form-check-input" 
+                type="checkbox" 
+                id="comparisonToggle"
+                checked={showComparison}
+                onChange={(e) => setShowComparison(e.target.checked)}
+              />
+              <label className="form-check-label small text-muted" htmlFor="comparisonToggle">
+                Show Comparison
+              </label>
+            </div>
             <div className="d-flex align-items-center gap-2">
-              <Filter size={16} className="text-muted" />
-              <select 
-                className="form-select form-select-sm"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                style={{ width: '150px' }}
-              >
-                <option value="all">All Time</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="14days">Last 14 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="custom">Custom Range</option>
-              </select>
+              <div className="position-relative d-flex align-items-center gap-2">
+                <select 
+                  className="form-select form-select-sm"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  style={{ width: '150px' }}
+                >
+                  <option value="all">All Time</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="14days">Last 14 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+                {dateFilter === 'custom' && (
+                  <div className="badge bg-light text-dark border p-1" title="Max range is 7 days">
+                    <TrendingUp size={12} className="text-info" />
+                    <span className="ms-1 fw-normal" style={{ fontSize: '0.65rem' }}>Max 7d</span>
+                  </div>
+                )}
+              </div>
               {dateFilter === 'custom' && (
                 <div className="d-flex align-items-center gap-1 ms-2">
                   <input 
@@ -247,7 +375,6 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                     max={maxDate}
                     style={{ width: '130px' }}
                   />
-                  <span className="badge bg-info small">Max 7 days</span>
                 </div>
               )}
             </div>
@@ -261,46 +388,74 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
           <table className="table table-bordered table-hover mb-0" style={{ minWidth: '1200px' }}>
             <thead className="position-sticky top-0 bg-white z-index-1">
               <tr>
-                <th rowSpan={2} className="px-3 py-3" style={{ minWidth: '120px', background: '#f8fafc' }}>
+                <th rowSpan={2} className="px-3 py-3 sticky-col-1">
                   ASIN
                 </th>
-                <th rowSpan={2} className="px-3 py-3 text-center" style={{ minWidth: '80px', background: '#f8fafc' }}>
+                <th rowSpan={2} className="px-3 py-3 text-center sticky-col-2">
                   Rating
                 </th>
-                <th rowSpan={2} className="px-3 py-3 text-center" style={{ minWidth: '80px', background: '#f8fafc' }}>
+                <th rowSpan={2} className="px-3 py-3 text-center sticky-col-3">
                   Reviews
                 </th>
-                {weeks.map(week => (
-                  <React.Fragment key={week.weekKey}>
-                    <th 
-                      colSpan={week.dates.length} 
-                      className="px-2 py-2 text-center week-header week-toggle"
-                      onClick={() => toggleWeek(week.weekKey)}
-                      style={{ minWidth: `${week.dates.length * 80}px` }}
-                    >
-                      {week.shortKey} {expandedWeeks[week.weekKey] ? '▼' : '▶'}
-                    </th>
-                  </React.Fragment>
-                ))}
+                {weeks.map(week => {
+                  const isExpanded = expandedWeeks[week.weekKey] !== false;
+                  return (
+                    <React.Fragment key={week.weekKey}>
+                      <th 
+                        colSpan={isExpanded ? (week.dates.length + (showComparison ? 1 : 0)) : 1} 
+                        className="px-2 py-2 text-center week-header week-toggle"
+                        onClick={() => toggleWeek(week.weekKey)}
+                        style={{ minWidth: isExpanded ? `${(week.dates.length + (showComparison ? 1 : 0)) * 80}px` : '100px' }}
+                      >
+                        <div className="d-flex align-items-center justify-content-center gap-1">
+                          {week.shortKey} {isExpanded ? '▼' : '▶'}
+                          {!isExpanded && <span className="badge bg-white text-dark small" style={{fontSize: '0.6rem'}}>Avg</span>}
+                        </div>
+                      </th>
+                    </React.Fragment>
+                  );
+                })}
               </tr>
               <tr>
-                {weeks.map(week => (
-                  week.dates.map(d => (
-                    <th 
-                      key={d.dateKey} 
-                      className="px-1 py-1 text-center day-header day-cell"
-                      style={{ minWidth: '70px', fontSize: '0.7rem' }}
-                    >
-                      {d.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                    </th>
-                  ))
-                ))}
+                {weeks.map((week, wIdx) => {
+                  const isExpanded = expandedWeeks[week.weekKey] !== false;
+                  if (!isExpanded) return null;
+                  return (
+                    <React.Fragment key={`${week.weekKey}-days`}>
+                      {week.dates.map(d => (
+                        <th 
+                          key={d.dateKey} 
+                          className="px-1 py-1 text-center day-header day-cell"
+                          style={{ minWidth: '70px', fontSize: '0.7rem' }}
+                        >
+                          {d.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </th>
+                      ))}
+                      {showComparison && wIdx > 0 && (
+                        <th className="px-1 py-1 text-center" style={{ background: '#fef3c7', minWidth: '90px' }}>
+                          <div className="d-flex align-items-center justify-content-center gap-1">
+                            <span style={{ fontSize: '0.65rem' }}>vs W{wIdx}</span>
+                          </div>
+                        </th>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {paginatedAsins.map((item, idx) => (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`}>
+                    <td className="sticky-col-1"><div className="skeleton-row w-100 rounded"></div></td>
+                    <td className="sticky-col-2"><div className="skeleton-row w-100 rounded"></div></td>
+                    <td className="sticky-col-3"><div className="skeleton-row w-100 rounded"></div></td>
+                    <td colSpan={weeks.length * 5}><div className="skeleton-row w-100 rounded"></div></td>
+                  </tr>
+                ))
+              ) : paginatedAsins.map((item, idx) => (
                 <tr key={idx} className="border-bottom">
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 sticky-col-1">
                     <div className="d-flex flex-column">
                       <span className="fw-medium font-monospace" style={{ fontSize: '0.85rem' }}>
                         {item.asinCode}
@@ -310,36 +465,75 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center">
+                  <td className="px-3 py-2 text-center sticky-col-2">
                     <div className="d-flex align-items-center justify-content-center gap-1">
                       <Star size={12} className="text-warning fill-warning" />
                       <span className="fw-semibold text-warning">{item.currentRating.toFixed(1)}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center">
-                    <span className="text-muted">{item.reviewCount.toLocaleString()}</span>
+                  <td className="px-3 py-2 text-center sticky-col-3">
+                    <span className="text-muted text-center d-block">{item.reviewCount.toLocaleString()}</span>
                   </td>
-                  {weeks.map(week => (
-                    week.dates.map(d => {
-                      const data = item.weekData?.[week.weekKey]?.[d.dateKey];
+                  {weeks.map((week, wIdx) => {
+                    const isExpanded = expandedWeeks[week.weekKey] !== false;
+                    const comp = getWeekComparison(item, week, wIdx, weeks);
+                    
+                    if (!isExpanded) {
+                      const dataArr = Object.values(item.weekData[week.weekKey] || {});
+                      const avg = dataArr.length > 0 ? (dataArr.reduce((a, b) => a + b.rating, 0) / dataArr.length) : null;
                       return (
-                        <td 
-                          key={`${week.weekKey}-${d.dateKey}`} 
-                          className="px-1 py-2 text-center day-cell"
-                          style={{ backgroundColor: '#f9fafb' }}
-                        >
-                          {data && data.rating !== undefined ? (
+                        <td key={`${week.weekKey}-collapsed`} className="text-center bg-light">
+                          {avg !== null ? (
                             <div className="d-flex align-items-center justify-content-center gap-1">
                               <Star size={10} className="text-warning fill-warning" />
-                              <span className="text-warning fw-medium">{data.rating.toFixed(1)}</span>
+                              <span className="fw-bold text-warning">{avg.toFixed(1)}</span>
                             </div>
-                          ) : (
-                            <span className="text-muted">-</span>
-                          )}
+                          ) : '-'}
                         </td>
                       );
-                    })
-                  ))}
+                    }
+
+                    return (
+                      <React.Fragment key={week.weekKey}>
+                        {week.dates.map(d => {
+                          const data = item.weekData?.[week.weekKey]?.[d.dateKey];
+                          return (
+                            <td 
+                              key={`${week.weekKey}-${d.dateKey}`} 
+                              className="px-1 py-2 text-center day-cell"
+                              style={{ backgroundColor: '#f9fafb' }}
+                            >
+                              {data && data.rating !== undefined ? (
+                                <div className="d-flex align-items-center justify-content-center gap-1">
+                                  <Star size={10} className="text-warning fill-warning" />
+                                  <span className="text-warning fw-medium">{data.rating.toFixed(1)}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        {showComparison && wIdx > 0 && (
+                          <td className="px-1 py-2 text-center" style={{ background: '#fef3c7', minWidth: '90px' }}>
+                            {comp ? (
+                              <div className={`d-flex flex-column align-items-center gap-0`}>
+                                <div className="d-flex align-items-center gap-1">
+                                  {comp.change > 0 ? <TrendingUp size={10} className="text-success" /> : <TrendingDown size={10} className="text-danger" />}
+                                  <span className={`fw-bold small ${comp.change >= 0 ? 'text-success' : 'text-danger'}`}>
+                                    {comp.change > 0 ? '+' : ''}{comp.change.toFixed(2)}
+                                  </span>
+                                </div>
+                                <span className="text-muted" style={{ fontSize: '0.65rem' }}>
+                                  {Math.abs(comp.percent).toFixed(1)}% change
+                                </span>
+                              </div>
+                            ) : <span className="text-muted">-</span>}
+                          </td>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tr>
               ))}
               {asinsData.length === 0 && (

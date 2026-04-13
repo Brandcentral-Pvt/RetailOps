@@ -31,7 +31,8 @@ import {
   Sparkles,
   Image,
   Eye,
-  Store
+  Store,
+  ListChecks
 } from 'lucide-react';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
@@ -440,8 +441,21 @@ const AsinManagerPage = () => {
       return [
         { label: 'ALL ASINS', value: stats.total || 0, color: '#6366f1', icon: <Package size={14} /> },
         { label: 'AVG LQS', value: (stats.avgLQS || 0) + '%', color: '#10b981', icon: <Activity size={14} /> },
-        { label: 'BEST SELLER', value: bestSeller ? `#${bestSeller.bsr?.toLocaleString()}` : '-', sub: bestSeller?.asinCode || '', color: '#f59e0b', icon: <Trophy size={14} /> },
-        { label: 'TOTAL REVIEWS', value: (stats.totalReviews || 0).toLocaleString(), color: '#8b5cf6', icon: <Star size={14} /> },
+        { 
+          label: 'BEST SELLER', 
+          value: bestSeller ? `#${bestSeller.bsr?.toLocaleString()}` : '-', 
+          sub: bestSeller?.asinCode || '', 
+          color: '#f59e0b', 
+          icon: <Trophy size={14} />,
+          onClick: () => setShowAllBsrHistory(true)
+        },
+        { 
+          label: 'TOTAL REVIEWS', 
+          value: (stats.totalReviews || 0).toLocaleString(), 
+          color: '#8b5cf6', 
+          icon: <Star size={14} />,
+          onClick: () => setShowAllRatingHistory(true)
+        },
         { 
           label: 'REVIEWS (7 DAYS)', 
           value: `${reviewTrend} ${Math.abs(reviewChange)}%`, 
@@ -449,7 +463,13 @@ const AsinManagerPage = () => {
           icon: <TrendingUp size={14} />,
           sub: `Current: ${stats.reviewAnalysis?.currentWeek || 0} vs Previous: ${stats.reviewAnalysis?.previousWeek || 0}`
         },
-        { label: 'AVG PRICE', value: '₹' + (stats.avgPrice || 0).toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
+        { 
+          label: 'AVG PRICE', 
+          value: '₹' + (stats.avgPrice || 0).toLocaleString(), 
+          color: '#06b6d4', 
+          icon: <IndianRupee size={14} />,
+          onClick: () => setShowAllPriceHistory(true)
+        },
         { label: 'AVG IMAGES', value: stats.avgImages || 0, color: '#ec4899', icon: <Image size={14} /> },
         { label: 'AVG BULLETS', value: stats.avgBullets || 0, color: '#8b5cf6', icon: <ListChecks size={14} /> },
       ];
@@ -466,10 +486,28 @@ const AsinManagerPage = () => {
     return [
       { label: 'ALL ASINS', value: total, color: '#6366f1', icon: <Package size={14} /> },
       { label: 'AVG LQS', value: avgLqs + '%', color: '#10b981', icon: <Activity size={14} /> },
-      { label: 'BUY BOX', value: buyBoxRate + '%', color: '#f59e0b', icon: <Trophy size={14} /> },
-      { label: 'LOW LQS', value: lowLqs, color: '#ef4444', icon: <AlertTriangle size={14} /> },
+      { 
+        label: 'BUY BOX', 
+        value: buyBoxRate + '%', 
+        color: '#f59e0b', 
+        icon: <Trophy size={14} />,
+        onClick: () => setShowAllBsrHistory(true)
+      },
+      { 
+        label: 'LOW LQS', 
+        value: lowLqs, 
+        color: '#ef4444', 
+        icon: <AlertTriangle size={14} />,
+        onClick: () => setShowAllRatingHistory(true)
+      },
       { label: 'DEALS', value: activeDeals, color: '#8b5cf6', icon: <Zap size={14} /> },
-      { label: 'AVG PRICE', value: '₹' + avgPrice.toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
+      { 
+        label: 'AVG PRICE', 
+        value: '₹' + avgPrice.toLocaleString(), 
+        color: '#06b6d4', 
+        icon: <IndianRupee size={14} />,
+        onClick: () => setShowAllPriceHistory(true)
+      },
       { label: 'AVG IMAGES', value: Math.round(asins.reduce((sum, a) => sum + (a.imagesCount || 0), 0) / (asins.length || 1)), color: '#ec4899', icon: <Image size={14} /> },
       { label: 'AVG BULLETS', value: Math.round(asins.reduce((sum, a) => sum + (a.bulletPoints || 0), 0) / (asins.length || 1)), color: '#8b5cf6', icon: <ListChecks size={14} /> },
     ];
@@ -1017,11 +1055,19 @@ const AsinManagerPage = () => {
           flexShrink: 0
         }}>
           {kpis.map((kpi, idx) => (
-            <div key={idx} style={{
-              padding: '10px 16px',
-              borderRight: idx < 7 ? '1px solid #e5e7eb' : 'none',
-              display: 'flex', flexDirection: 'column', gap: 2
-            }}>
+            <div key={idx} 
+              onClick={kpi.onClick}
+              style={{
+                padding: '10px 16px',
+                borderRight: idx < 7 ? '1px solid #e5e7eb' : 'none',
+                display: 'flex', flexDirection: 'column', gap: 2,
+                cursor: kpi.onClick ? 'pointer' : 'default',
+                transition: 'background 0.2s',
+                ':hover': kpi.onClick ? { background: '#f3f4f6' } : {}
+              }}
+              onMouseEnter={(e) => kpi.onClick && (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseLeave={(e) => kpi.onClick && (e.currentTarget.style.background = 'transparent')}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <div style={{ width: 16, height: 16, borderRadius: 4,
                               background: kpi.color + '15', color: kpi.color,
@@ -1174,14 +1220,21 @@ const AsinManagerPage = () => {
                   <th style={{ ...thStyle, width: '100px' }}>SKU</th>
                   <th style={{ ...thStyle, width: '280px' }}>Product</th>
                   <th style={{ ...thStyle, width: '80px', textAlign: 'right' }}>Price</th>
-                  <th colSpan={visibleHistoryCols} style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center' }}>
-                    Price History (Weekly)
+                  <th colSpan={visibleHistoryCols} 
+                      onClick={() => setShowAllPriceHistory(true)}
+                      style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
+                    Price History (Weekly) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
                   <th style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BSR</th>
-                  <th colSpan={visibleHistoryCols} style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center' }}>
-                    BSR History (Weekly)
+                  <th colSpan={visibleHistoryCols} 
+                      onClick={() => setShowAllBsrHistory(true)}
+                      style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
+                    BSR History (Weekly) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
-                  <th style={{ ...thStyle, width: '60px', textAlign: 'center' }}>Rating</th>
+                  <th style={{ ...thStyle, width: '60px', textAlign: 'center', cursor: 'pointer' }}
+                      onClick={() => setShowAllRatingHistory(true)}>
+                    Rating <Eye size={10} />
+                  </th>
                   <th style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BuyBox</th>
                   <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Imgs</th>
                   <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Pts</th>
@@ -1218,29 +1271,36 @@ const AsinManagerPage = () => {
                         </span>
                       </div>
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
+                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#16a34a', cursor: 'pointer' }}
+                        onClick={(e) => handleViewPrice(asin, e)}>
                       ₹{(asin.uploadedPrice || asin.currentPrice || 0).toLocaleString()}
                     </td>
                     {visiblePriceStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw);
                       return (
-                        <td key={`p-${week.label}-${dIdx}`} style={{ ...tdStyle, textAlign: 'center', background: '#f5f3ff33', width: 40 }}>
+                        <td key={`p-${week.label}-${dIdx}`} 
+                            onClick={(e) => handleViewPrice(asin, e)}
+                            style={{ ...tdStyle, textAlign: 'center', background: '#f5f3ff33', width: 40, cursor: 'pointer' }}>
                           {wData?.price ? getWeekHistoryBadge(wData.price, 'price') : '-'}
                         </td>
                       );
                     }))}
-                    <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#2563eb' }}>
+                    <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#2563eb', cursor: 'pointer' }}
+                        onClick={(e) => handleViewBsr(asin, e)}>
                       {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
                     </td>
                     {visibleBsrStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw);
                       return (
-                        <td key={`b-${week.label}-${dIdx}`} style={{ ...tdStyle, textAlign: 'center', background: '#f0fdf433', width: 40 }}>
+                        <td key={`b-${week.label}-${dIdx}`} 
+                            onClick={(e) => handleViewBsr(asin, e)}
+                            style={{ ...tdStyle, textAlign: 'center', background: '#f0fdf433', width: 40, cursor: 'pointer' }}>
                           {wData?.bsr ? getWeekHistoryBadge(wData.bsr, 'number') : '-'}
                         </td>
                       );
                     }))}
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
+                        onClick={(e) => handleViewRating(asin, e)}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                         <Star size={10} className="text-warning fill-warning" />
                         <span style={{ fontWeight: 600 }}>{asin.rating || '-'}</span>

@@ -172,12 +172,13 @@ class OctoparseAutomationService {
     async fetchResults(taskId, size = 1000) {
         const token = await this.authenticate();
 
-        // Try multiple API paths (same as marketDataSyncService)
+        // Priority 1: Fetch NOT EXPORTED data (Ensure we get unique new data)
+        // Priority 2: Fallback to all data if task is old or notexported is empty
         const paths = [
-            '/data/all',
             '/data/notexported',
             '/task/data/notexporteddata',
             '/api/notexporteddata/get',
+            '/data/all',
             '/task/data'
         ];
 
@@ -190,10 +191,19 @@ class OctoparseAutomationService {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                if (response.data?.data) {
-                    const results = response.data.data?.dataList || response.data.data?.data || response.data;
+                if (response.data && (response.data.data || response.data.dataList)) {
+                    let results = response.data.data?.dataList || response.data.data?.data || response.data.data || [];
+                    
+                    // Handle non-standard response wrappers
+                    if (!Array.isArray(results) && typeof results === 'object') {
+                        results = results.dataList || results.data || [];
+                    }
+
                     if (Array.isArray(results) && results.length > 0) {
                         this.log('info', `✅ Fetched ${results.length} results from ${path}`);
+                        
+                        // If we fetched from a "notexported" endpoint, Octoparse marks them as exported automatically.
+                        // We return them for ingestion.
                         return results;
                     }
                 }
@@ -203,7 +213,7 @@ class OctoparseAutomationService {
             }
         }
 
-        this.log('error', `All paths failed for ${taskId}`, { lastError: lastErr });
+        this.log('error', `All paths failed or no new data for ${taskId}`, { lastError: lastErr });
         return [];
     }
 
@@ -1205,10 +1215,14 @@ class OctoparseAutomationService {
 
             // Even if polling didn't complete, try to fetch and save data
             // (task might have been stopped but still have data)
-            this.log('info', `Fetching final results after polling...`);
-            const results = await this.fetchResults(taskId);
-            const savedCount = await this.processResults(sellerId, results);
-            this.log('info', `Final save: ${savedCount} ASINs`);
+            this.log('info', `🧹 [FINAL-SWEEP] Running final sweep for task ${taskId}...`);
+            const finalResults = await this.fetchResults(taskId);
+            if (finalResults.length > 0) {
+                const finalSaved = await this.processResults(sellerId, finalResults);
+                this.log('info', `✅ [FINAL-SWEEP] Saved straggler data: ${finalSaved} ASINs`);
+            } else {
+                this.log('info', `✅ [FINAL-SWEEP] No remaining unexported data found.`);
+            }
 
             // Start self-healing in background - don't block pipeline
             this.log('info', `🔧 Starting background self-healing for seller ${sellerId}`);
