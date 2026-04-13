@@ -1,7 +1,7 @@
 const axios = require('axios');
 const Seller = require('../models/Seller');
 const Asin = require('../models/Asin');
-const { calculateLQS } = require('../utils/lqs');
+const { calculateLQS, calculateCDQ, getGrade } = require('../utils/lqs');
 
 class OctoparseAutomationService {
     constructor() {
@@ -588,8 +588,20 @@ class OctoparseAutomationService {
                 // Detailed metrics for LQS
                 if (asin.title) asin.titleLength = asin.title.length;
 
-                // Calculate LQS score based on all available data
-                asin.lqs = calculateLQS(asin);
+                // Calculate CDQ (Content Data Quality) score
+                const cdq = calculateCDQ(asin);
+                asin.cdq = Math.round(cdq.totalScore);
+                asin.cdqGrade = cdq.grade;
+                asin.cdqComponents = {
+                    structuredAttributes: Math.round(cdq.components.structuredAttributes),
+                    titleQuality: Math.round(cdq.components.titleQuality),
+                    imageQuality: Math.round(cdq.components.imageQuality),
+                    bulletPoints: Math.round(cdq.components.bulletPoints),
+                    aPlusContent: Math.round(cdq.components.aPlusContent),
+                    variationQuality: Math.round(cdq.components.variationQuality)
+                };
+                // Legacy LQS (mapped to CDQ)
+                asin.lqs = asin.cdq;
 
                 // Update Week-on-Week History for dashboard ledger
                 const now = new Date();

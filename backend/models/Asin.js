@@ -86,6 +86,18 @@ const asinSchema = new mongoose.Schema({
     reviewCount: Number,
   },
 
+  // CDQ (Content Data Quality) - New Enhanced Scoring
+  cdq: { type: Number, default: 0 }, // CDQ Score (0-100)
+  cdqGrade: { type: String, enum: ['A', 'B', 'C', 'D'], default: 'D' }, // Letter grade
+  cdqComponents: {
+    structuredAttributes: { type: Number, default: 0 },
+    titleQuality: { type: Number, default: 0 },
+    imageQuality: { type: Number, default: 0 },
+    bulletPoints: { type: Number, default: 0 },
+    aPlusContent: { type: Number, default: 0 },
+    variationQuality: { type: Number, default: 0 }
+  },
+
   // Action Items (Task Management)
   actionItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Action' }],
 

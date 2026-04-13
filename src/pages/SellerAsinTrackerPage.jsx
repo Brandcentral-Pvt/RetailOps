@@ -27,16 +27,26 @@ const Z = {
 const MARKETPLACE_FLAGS = { 'amazon.in': '🇮🇳' };
 
 /* ── Badge Helpers ─────────────────────────────────────── */
-const getLqsBadge = (lqs) => {
-  if (lqs == null) return <span style={{ color: Z[400] }}>—</span>;
-  let colors;
-  if (lqs >= 80) colors = { bg: '#ecfdf5', text: '#059669', border: '#d1fae5' };
-  else if (lqs >= 60) colors = { bg: '#fffbeb', text: '#d97706', border: '#fef3c7' };
-  else colors = { bg: '#fef2f2', text: '#dc2626', border: '#fee2e2' };
+const getGradeColor = (grade) => {
+  const colors = {
+    'A': { bg: '#ecfdf5', text: '#059669', border: '#d1fae5' },
+    'B': { bg: '#eff6ff', text: '#2563eb', border: '#dbeafe' },
+    'C': { bg: '#fffbeb', text: '#d97706', border: '#fef3c7' },
+    'D': { bg: '#fef2f2', text: '#dc2626', border: '#fee2e2' }
+  };
+  return colors[grade] || { bg: Z[100], text: Z[500], border: Z[200] };
+};
+
+const getLqsBadge = (lqs, cdqGrade) => {
+  if (lqs == null && cdqGrade == null) return <span style={{ color: Z[400] }}>—</span>;
+  
+  // Use CDQ grade if available, otherwise fallback to LQS-based grade
+  const grade = cdqGrade || (lqs >= 80 ? 'A' : lqs >= 70 ? 'B' : lqs >= 50 ? 'C' : 'D');
+  const colors = getGradeColor(grade);
 
   return (
     <span style={{ backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, fontWeight: 600, fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', display: 'inline-block' }}>
-      {lqs}
+      {grade} ({lqs || 0})
     </span>
   );
 };
@@ -114,12 +124,19 @@ const SellerAsinPanel = ({ seller, onSync, syncing, refreshKey }) => {
       );
     }
     if (lqsFilter) {
+      // Use CDQ grade for filtering
       if (lqsFilter === 'high') {
-        result = result.filter(a => a.lqs >= 80);
+        result = result.filter(a => (a.cdqGrade || (a.lqs >= 80 ? 'A' : a.lqs >= 70 ? 'B' : a.lqs >= 50 ? 'C' : 'D')) === 'A');
       } else if (lqsFilter === 'medium') {
-        result = result.filter(a => a.lqs >= 60 && a.lqs < 80);
+        result = result.filter(a => {
+          const grade = a.cdqGrade || (a.lqs >= 80 ? 'A' : a.lqs >= 70 ? 'B' : a.lqs >= 50 ? 'C' : 'D');
+          return grade === 'B';
+        });
       } else if (lqsFilter === 'low') {
-        result = result.filter(a => a.lqs != null && a.lqs < 60);
+        result = result.filter(a => {
+          const grade = a.cdqGrade || (a.lqs >= 80 ? 'A' : a.lqs >= 70 ? 'B' : a.lqs >= 50 ? 'C' : 'D');
+          return grade === 'C' || grade === 'D';
+        });
       }
     }
     return result;
@@ -216,10 +233,10 @@ const SellerAsinPanel = ({ seller, onSync, syncing, refreshKey }) => {
                 onChange={e => setLqsFilter(e.target.value)}
                 style={{ border: `1px solid ${Z[200]}`, borderRadius: 20, padding: '6px 12px', fontSize: 13, background: Z.white, color: Z[700], cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
               >
-                <option value="">All LQS</option>
-                <option value="high">High (80+)</option>
-                <option value="medium">Medium (60-79)</option>
-                <option value="low">Low (&lt;60)</option>
+                <option value="">All Quality</option>
+                <option value="high">Grade A (80-100%)</option>
+                <option value="medium">Grade B (70-79%)</option>
+                <option value="low">Grade C/D (&lt;70%)</option>
               </select>
             </div>
             <span style={{ fontSize: 12, color: Z[500], fontWeight: 500 }}>{filtered.length} ASINs found</span>
@@ -241,7 +258,7 @@ const SellerAsinPanel = ({ seller, onSync, syncing, refreshKey }) => {
               <table style={{ width: '100%', fontSize: '0.825rem', borderCollapse: 'collapse', minWidth: 900 }}>
                 <thead>
                   <tr>
-                    {['ASIN Code', 'Product Title', 'LQS', 'Images', 'Desc Len', 'Status', 'Date Added', 'Link'].map(h => (
+                    {['ASIN Code', 'Product Title', 'CDQ', 'Images', 'Desc Len', 'Status', 'Date Added', 'Link'].map(h => (
                       <th key={h} style={{ borderBottom: `1px solid ${Z[200]}`, padding: '12px 16px', background: Z[50], fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, color: Z[500], textAlign: h === 'Product Title' ? 'left' : 'center' }}>
                         {h}
                       </th>
@@ -272,7 +289,7 @@ const SellerAsinPanel = ({ seller, onSync, syncing, refreshKey }) => {
                           </span>
                         </div>
                       </td>
-                      <td style={{ borderBottom: `1px solid ${Z[100]}`, padding: '12px 16px', verticalAlign: 'middle', textAlign: 'center' }}>{getLqsBadge(asin.lqs)}</td>
+                      <td style={{ borderBottom: `1px solid ${Z[100]}`, padding: '12px 16px', verticalAlign: 'middle', textAlign: 'center' }}>{getLqsBadge(asin.lqs, asin.cdqGrade)}</td>
                       <td style={{ borderBottom: `1px solid ${Z[100]}`, padding: '12px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
                         {asin.imagesCount != null ? (
                           <span style={{ background: Z[100], color: Z[700], fontWeight: 600, border: `1px solid ${Z[200]}`, padding: '3px 10px', borderRadius: 6, fontSize: '0.8rem' }}>{asin.imagesCount}</span>
