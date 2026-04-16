@@ -927,7 +927,8 @@ exports.importFromCsv = async (req, res) => {
   }
 };
 
-module.exports = exports;
+
+
 // Get unique brands for filtering
 exports.getAsinBrands = async (req, res) => {
   try {
@@ -956,3 +957,5 @@ exports.getAsinBrands = async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch unique brands: ' + error.message });
   }
 };
+
+module.exports = exports;

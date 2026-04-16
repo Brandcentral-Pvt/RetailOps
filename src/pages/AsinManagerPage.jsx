@@ -300,8 +300,7 @@ const AsinManagerPage = () => {
   const [showAllBsrHistory, setShowAllBsrHistory] = useState(false);
   const [showAllRatingHistory, setShowAllRatingHistory] = useState(false);
   const [allAsins, setAllAsins] = useState([]);
-  const [brands, setBrands] = useState([]);
-  const [selectedBrand, setSelectedBrand] = useState('');
+  const [selectedSeller, setSelectedSeller] = useState('');
 
   // Filter asins based on search query
   const filteredAsins = useMemo(() => {
@@ -362,14 +361,20 @@ const AsinManagerPage = () => {
     setSelectedAsinForRating(asin);
   };
 
-  const loadData = useCallback(async (page = 1, limit = pagination.limit, brand = selectedBrand) => {
+  const loadData = useCallback(async (page = 1, limit = pagination.limit, seller = selectedSeller) => {
     try {
       setLoading(true);
 
       const [asinRes, allAsinsRes, statsRes] = await Promise.all([
-        asinApi.getAll({ page, limit, brand }),
+        asinApi.getAll({ 
+          page, 
+          limit, 
+          seller, 
+          sortBy: 'lastScraped', 
+          sortOrder: 'desc' 
+        }),
         asinApi.getAllWithoutPagination(),
-        asinApi.getStats({ brand })
+        asinApi.getStats({ seller })
       ]);
 
       setAsins(asinRes?.asins || []);
@@ -384,7 +389,7 @@ const AsinManagerPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.limit, selectedBrand]);
+  }, [pagination.limit, selectedSeller]);
 
   const handleChangePage = (event, newPage) => {
     // MUI uses 0-indexed pages, API uses 1-indexed
@@ -412,32 +417,31 @@ const AsinManagerPage = () => {
         }, 3000);
       }
     });
-    return () => socket.off('scrape_progress');
+
+    socket.on('scrape_data_ingested', (data) => {
+      console.log('📬 Data ingested via socket, refreshing table...', data);
+      // Refresh first page to show the most recent data
+      loadData(1);
+    });
+
+    return () => {
+      socket.off('scrape_progress');
+      socket.off('scrape_data_ingested');
+    };
   }, [socket, loadData, pagination.page]);
 
   useEffect(() => {
     const fetchSellers = async () => {
       try {
         const response = await sellerApi.getAll();
-        setSellers(response || []);
+        const sellerList = response?.data?.sellers || response?.data || response?.sellers || [];
+        setSellers(Array.isArray(sellerList) ? sellerList : []);
       } catch (err) {
         console.error('Error fetching sellers:', err);
       }
     };
     
-    const fetchBrands = async () => {
-      try {
-        const response = await asinApi.getBrands();
-        if (response.success) {
-          setBrands(response.data || []);
-        }
-      } catch (err) {
-        console.error('Error fetching brands:', err);
-      }
-    };
-
     fetchSellers();
-    fetchBrands();
   }, []);
 
   const kpis = useMemo(() => {
@@ -990,9 +994,9 @@ const AsinManagerPage = () => {
           </button>
 
           <select 
-            value={selectedBrand}
+            value={selectedSeller}
             onChange={(e) => {
-              setSelectedBrand(e.target.value);
+              setSelectedSeller(e.target.value);
               loadData(1, pagination.limit, e.target.value);
             }}
             style={{ 
@@ -1005,12 +1009,12 @@ const AsinManagerPage = () => {
               cursor: 'pointer', 
               color: '#374151',
               outline: 'none',
-              maxWidth: '150px'
+              maxWidth: '180px'
             }}
           >
-            <option value="">All Brands</option>
-            {brands.map(brand => (
-              <option key={brand} value={brand}>{brand}</option>
+            <option value="">All Sellers</option>
+            {sellers.map(s => (
+              <option key={s._id} value={s._id}>{s.name || s.storeName || s._id}</option>
             ))}
           </select>
 
@@ -1229,31 +1233,53 @@ const AsinManagerPage = () => {
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
-                  <th style={{ ...thStyle, width: '100px', left: 0, zIndex: 21 }}>ASIN</th>
-                  <th style={{ ...thStyle, width: '120px' }}>Owner/BB</th>
-                  <th style={{ ...thStyle, width: '100px' }}>SKU</th>
-                  <th style={{ ...thStyle, width: '280px' }}>Product</th>
-                  <th style={{ ...thStyle, width: '80px', textAlign: 'right' }}>Price</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '100px', left: 0, zIndex: 21 }}>ASIN</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '120px' }}>Owner/BB</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '100px' }}>SKU</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '280px' }}>Product</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'right' }}>Price</th>
                   <th colSpan={visibleHistoryCols} 
                       onClick={() => setShowAllPriceHistory(true)}
                       style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
                     Price Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
-                  <th style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BSR</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BSR</th>
                   <th colSpan={visibleHistoryCols} 
                       onClick={() => setShowAllBsrHistory(true)}
                       style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
                     BSR Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
-                  <th style={{ ...thStyle, width: '60px', textAlign: 'center', cursor: 'pointer' }}
-                      onClick={() => setShowAllRatingHistory(true)}>
-                    Rating Trend <Eye size={10} />
+                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>Rating</th>
+                  <th colSpan={visibleHistoryCols} 
+                      onClick={() => setShowAllRatingHistory(true)}
+                      style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer' }}>
+                    Rating Trend <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
-                  <th style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BuyBox</th>
-                  <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Imgs</th>
-                  <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Pts</th>
-                  <th style={{ ...thStyle, width: '50px', textAlign: 'center' }}>A+</th>
-                  <th style={{ ...thStyle, width: '100px', textAlign: 'center' }}>Actions</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BuyBox</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Imgs</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Pts</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>A+</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center' }}>Actions</th>
+                </tr>
+                <tr>
+                  {/* Price Trend Dates */}
+                  {historyStructure.map(week => week.dates.map((date, idx) => (
+                    <th key={`p-h-${idx}`} style={{ ...thStyle, padding: '2px 4px', fontSize: 9, textAlign: 'center', background: '#eef2ff', color: '#6366f1' }}>
+                      {date.label}
+                    </th>
+                  )))}
+                  {/* BSR Trend Dates */}
+                  {historyStructure.map(week => week.dates.map((date, idx) => (
+                    <th key={`b-h-${idx}`} style={{ ...thStyle, padding: '2px 4px', fontSize: 9, textAlign: 'center', background: '#f0fdf4', color: '#16a34a' }}>
+                      {date.label}
+                    </th>
+                  )))}
+                  {/* Rating Trend Dates */}
+                  {historyStructure.map(week => week.dates.map((date, idx) => (
+                    <th key={`r-h-${idx}`} style={{ ...thStyle, padding: '2px 4px', fontSize: 9, textAlign: 'center', background: '#fffbeb', color: '#b45309' }}>
+                      {date.label}
+                    </th>
+                  )))}
                 </tr>
               </thead>
               <tbody>
@@ -1322,6 +1348,16 @@ const AsinManagerPage = () => {
                         </span>
                       </div>
                     </td>
+                    {historyStructure.map(week => week.dates.map((date, dIdx) => {
+                      const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw);
+                      return (
+                        <td key={`r-${week.label}-${dIdx}`} 
+                            onClick={(e) => handleViewRating(asin, e)}
+                            style={{ ...tdStyle, textAlign: 'center', background: '#fffbeb33', width: 40, cursor: 'pointer' }}>
+                          {wData?.rating ? getWeekHistoryBadge(wData.rating, 'rating') : '-'}
+                        </td>
+                      );
+                    }))}
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin.buyBoxWin, asin.status)}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.imagesCount || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.bulletPoints || 0}</td>

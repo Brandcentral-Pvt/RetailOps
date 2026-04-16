@@ -6,6 +6,7 @@ const Seller = require('../models/Seller');
 const config = require('../config/env');
 const imageGenerationService = require('./imageGenerationService');
 const { JSDOM } = require('jsdom');
+const SocketService = require('./socketService');
 
 /**
  * Discreet service for syncing market data from external provider.
@@ -1560,6 +1561,17 @@ class MarketDataSyncService {
 
             Object.assign(asin, updates);
             await asin.save();
+            
+            // Emit socket event for real-time UI updates
+            const io = SocketService.getIo();
+            if (io) {
+                io.emit('scrape_data_ingested', { 
+                    asinId: asin._id, 
+                    sellerId: asin.seller,
+                    asinCode: asin.asinCode,
+                    timestamp: new Date()
+                });
+            }
 
             return asin;
         } catch (error) {

@@ -319,7 +319,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                   return (
                     <div className="row g-2">
                       {bullets.map((bullet, idx) => (
-                        <div key={idx} className="col-12">
+                        <div key={idx} className="col-md-6 mb-2">
                           <div
                             className="d-flex gap-2 p-2 bg-slate-50 rounded-xl border-start border-3 border-indigo-100"
                             style={{ fontSize: '0.85rem', backgroundColor: '#f8fafc' }}
