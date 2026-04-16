@@ -66,6 +66,8 @@ const NavItem = ({ item, collapsed, active, onClick }) => {
 const Sidebar = () => {
     const { user, logout, hasPermission } = useAuth();
     const { collapsed, toggle, isMobile, isOpen, toggleMobile } = useSidebar();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [asinCount, setAsinCount] = useState('...');
 
     useEffect(() => {

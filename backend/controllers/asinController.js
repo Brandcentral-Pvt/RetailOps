@@ -936,10 +936,12 @@ exports.getAsinBrands = async (req, res) => {
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     
     if (!isGlobalUser) {
-      if (!req.user.assignedSellers || req.user.assignedSellers.length === 0) {
+      if (!req.user || !req.user.assignedSellers || req.user.assignedSellers.length === 0) {
         return res.json({ success: true, data: [] });
       }
-      filter.seller = { $in: req.user.assignedSellers.map(s => s._id || s) };
+      // Ensure we extract IDs safely from assignedSellers which could be objects or IDs
+      const sellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
+      filter.seller = { $in: sellerIds };
     }
 
     const brands = await Asin.distinct('brand', filter);
@@ -950,6 +952,7 @@ exports.getAsinBrands = async (req, res) => {
       data: cleanBrands
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('[getAsinBrands] Error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch unique brands: ' + error.message });
   }
 };

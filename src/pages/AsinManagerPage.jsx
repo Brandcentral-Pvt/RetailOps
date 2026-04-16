@@ -70,29 +70,19 @@ const generateHistoryStructure = (history) => {
 const generateHistoryStructureFromDates = (sortedDates) => {
   if (!sortedDates || sortedDates.length === 0) return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
 
-  const groups = {};
-  sortedDates.forEach(dateStr => {
-    // Handle both YYYY-MM-DD and ISO date formats
-    const date = new Date(dateStr + 'T00:00:00'); // Add time to ensure correct parsing
-    const weekNum = getWeekNumber(date);
-    const weekLabel = `W${weekNum}`;
-    
-    if (!groups[weekLabel]) groups[weekLabel] = [];
-    groups[weekLabel].push({
-      raw: dateStr, // This is YYYY-MM-DD format
-      label: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-    });
-  });
-
-  // Sort weeks chronologically
-  return Object.keys(groups).sort((a, b) => {
-    const weekNumA = parseInt(a.replace('W', ''));
-    const weekNumB = parseInt(b.replace('W', ''));
-    return weekNumA - weekNumB;
-  }).map(week => ({
-    label: week,
-    dates: groups[week].sort((a, b) => new Date(a.raw) - new Date(b.raw))
-  }));
+  // Limit to the last 7 unique days for the "Current Week" view in the table
+  const recentDates = sortedDates.slice(-7);
+  
+  return [{
+    label: 'Current Week',
+    dates: recentDates.map(dateStr => {
+      const date = new Date(dateStr + 'T00:00:00');
+      return {
+        raw: dateStr,
+        label: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+      };
+    })
+  }];
 };
 
 // Helper to get week number from date
@@ -298,15 +288,10 @@ const AsinManagerPage = () => {
   const socket = useSocket();
   const [selectedAsin, setSelectedAsin] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showTrendsModal, setShowTrendsModal] = useState(false);
-  const [trendsMetric, setTrendsMetric] = useState('price');
   const [sellers, setSellers] = useState([]);
   const [selectedSellerId, setSelectedSellerId] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [showFullPriceHistory, setShowFullPriceHistory] = useState(false);
-  const [showFullBsrHistory, setShowFullBsrHistory] = useState(false);
-  const [showFullRatingHistory, setShowFullRatingHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAsinForPrice, setSelectedAsinForPrice] = useState(null);
   const [selectedAsinForBsr, setSelectedAsinForBsr] = useState(null);
@@ -577,34 +562,11 @@ const AsinManagerPage = () => {
     return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
   }, [historyStructure]);
 
-  const visiblePriceStructure = useMemo(() => {
-    if (!historyStructure) return [];
-    return showFullPriceHistory ? historyStructure : historyStructure.slice(-1);
-  }, [historyStructure, showFullPriceHistory]);
-
-  const visibleBsrStructure = useMemo(() => {
-    if (!historyStructure) return [];
-    return showFullBsrHistory ? historyStructure : historyStructure.slice(-1);
-  }, [historyStructure, showFullBsrHistory]);
-
-  const visibleRatingStructure = useMemo(() => {
-    if (!historyStructure) return [];
-    return showFullRatingHistory ? historyStructure : historyStructure.slice(-1);
-  }, [historyStructure, showFullRatingHistory]);
-
   const visibleHistoryCols = useMemo(() => {
     if (!historyStructure) return 0;
-    // Use total columns for all when expanded, visible columns otherwise
-    if (showFullPriceHistory && showFullBsrHistory && showFullRatingHistory) {
-      return totalHistoryCols;
-    }
-    // Return the max of visible columns
-    return Math.max(
-      visiblePriceStructure?.reduce((sum, w) => sum + w.dates.length, 0) || 0,
-      visibleBsrStructure?.reduce((sum, w) => sum + w.dates.length, 0) || 0,
-      visibleRatingStructure?.reduce((sum, w) => sum + w.dates.length, 0) || 0
-    );
-  }, [historyStructure, showFullPriceHistory, showFullBsrHistory, showFullRatingHistory, visiblePriceStructure, visibleBsrStructure, visibleRatingStructure]);
+    // Since we now always show exactly the entries in historyStructure (7 days)
+    return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
+  }, [historyStructure]);
 
   const handleSync = useCallback(async () => {
     if (!newAsin.trim()) {
@@ -1275,17 +1237,17 @@ const AsinManagerPage = () => {
                   <th colSpan={visibleHistoryCols} 
                       onClick={() => setShowAllPriceHistory(true)}
                       style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
-                    Price History (Weekly) <Eye size={10} style={{ marginLeft: 4 }} />
+                    Price Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
                   <th style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BSR</th>
                   <th colSpan={visibleHistoryCols} 
                       onClick={() => setShowAllBsrHistory(true)}
                       style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
-                    BSR History (Weekly) <Eye size={10} style={{ marginLeft: 4 }} />
+                    BSR Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
                   <th style={{ ...thStyle, width: '60px', textAlign: 'center', cursor: 'pointer' }}
                       onClick={() => setShowAllRatingHistory(true)}>
-                    Rating <Eye size={10} />
+                    Rating Trend <Eye size={10} />
                   </th>
                   <th style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BuyBox</th>
                   <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Imgs</th>
@@ -1327,7 +1289,7 @@ const AsinManagerPage = () => {
                         onClick={(e) => handleViewPrice(asin, e)}>
                       ₹{(asin.uploadedPrice || asin.currentPrice || 0).toLocaleString()}
                     </td>
-                    {visiblePriceStructure.map(week => week.dates.map((date, dIdx) => {
+                    {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw);
                       return (
                         <td key={`p-${week.label}-${dIdx}`} 
@@ -1341,7 +1303,7 @@ const AsinManagerPage = () => {
                         onClick={(e) => handleViewBsr(asin, e)}>
                       {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
                     </td>
-                    {visibleBsrStructure.map(week => week.dates.map((date, dIdx) => {
+                    {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw);
                       return (
                         <td key={`b-${week.label}-${dIdx}`} 
@@ -1501,12 +1463,6 @@ const AsinManagerPage = () => {
         asin={selectedAsin} 
         isOpen={showDetailModal} 
         onClose={() => setShowDetailModal(false)} 
-      />
-      <AsinTrendsModal 
-        asin={selectedAsin} 
-        isOpen={showTrendsModal} 
-        onClose={() => setShowTrendsModal(false)}
-        initialMetric={trendsMetric}
       />
       <PriceViewModal 
         asins={!!selectedAsinForPrice ? filteredAsins : allAsins} 

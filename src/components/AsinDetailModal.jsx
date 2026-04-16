@@ -177,6 +177,13 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
         .stat-item:last-child { border-right: none; }
         .stat-label { color: #64748b; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.025em; }
         .stat-value { font-weight: 700; color: #1e293b; font-size: 1rem; }
+        
+        .truncate-lines-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `}</style>
 
       <div
@@ -310,18 +317,19 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                 
                 if (bullets.length > 0) {
                   return (
-                    <div className="d-flex flex-column gap-3">
+                    <div className="row g-2">
                       {bullets.map((bullet, idx) => (
-                        <div
-                          key={idx}
-                          className="d-flex gap-3 p-3 bg-slate-50 rounded-2xl border-start border-4 border-indigo-200"
-                          style={{ fontSize: '0.9rem', backgroundColor: '#f8fafc' }}
-                        >
-                          <div className="d-flex align-items-center justify-content-center flex-shrink-0" 
-                               style={{ width: 24, height: 24, borderRadius: '50%', background: '#6366f1', color: '#fff', fontSize: '10px', fontWeight: 700 }}>
-                            {idx + 1}
+                        <div key={idx} className="col-12">
+                          <div
+                            className="d-flex gap-2 p-2 bg-slate-50 rounded-xl border-start border-3 border-indigo-100"
+                            style={{ fontSize: '0.85rem', backgroundColor: '#f8fafc' }}
+                          >
+                            <div className="d-flex align-items-center justify-content-center flex-shrink-0" 
+                                 style={{ width: 18, height: 18, borderRadius: '50%', background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 700 }}>
+                              {idx + 1}
+                            </div>
+                            <div className="text-slate-600 truncate-lines-2" style={{ lineHeight: '1.4' }}>{bullet}</div>
                           </div>
-                          <div className="text-slate-700 leading-relaxed" style={{ lineHeight: '1.6' }}>{bullet}</div>
                         </div>
                       ))}
                     </div>
