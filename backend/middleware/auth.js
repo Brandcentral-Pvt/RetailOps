@@ -164,8 +164,9 @@ exports.checkSellerAccess = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
-    const isAdmin = req.user.role && req.user.role.name === 'admin';
-    if (isAdmin) {
+    const userRole = req.user.role?.name || req.user.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    if (isGlobalUser) {
       return next();
     }
 
@@ -204,8 +205,11 @@ exports.checkUserHierarchyAccess = async (req, res, next) => {
       return next();
     }
 
-    // 2. Admin access is always allowed
-    if (req.user.role && req.user.role.name === 'admin') {
+    const userRole = req.user.role?.name || req.user.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+
+    // 2. Global access is allowed
+    if (isGlobalUser) {
       return next();
     }
 
@@ -236,3 +240,4 @@ exports.checkUserHierarchyAccess = async (req, res, next) => {
 
 exports.auth = exports.authenticate;
 exports.isAdmin = exports.requireRole('admin');
+exports.isGlobalUser = exports.requireRole('admin', 'operational_manager');

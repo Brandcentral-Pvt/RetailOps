@@ -2,6 +2,8 @@ const AdsPerformance = require("../models/AdsPerformance");
 const Asin = require("../models/Asin");
 const Seller = require("../models/Seller");
 const Action = require("../models/Action");
+const Master = require("../models/Master");
+const MonthlyPerformance = require("../models/MonthlyPerformance");
 
 // Global Unified Search
 exports.globalSearch = async (req, res) => {
@@ -13,24 +15,25 @@ exports.globalSearch = async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
 
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id) : [];
 
     const searchRegex = new RegExp(q, 'i');
 
     // 1. Search ASINs
     const asinQuery = { $or: [{ asinCode: searchRegex }, { title: searchRegex }, { sku: searchRegex }] };
-    if (!isAdmin) asinQuery.seller = { $in: allowedSellerIds };
+    if (!isGlobalUser) asinQuery.seller = { $in: allowedSellerIds };
     const asins = await Asin.find(asinQuery).limit(5).select('asinCode title sku');
 
     // 2. Search Sellers
     const sellerQuery = { $or: [{ name: searchRegex }, { email: searchRegex }] };
-    if (!isAdmin) sellerQuery._id = { $in: allowedSellerIds };
+    if (!isGlobalUser) sellerQuery._id = { $in: allowedSellerIds };
     const sellers = await Seller.find(sellerQuery).limit(5).select('name storeName sellerId');
 
     // 3. Search Actions
     const actionQuery = { $or: [{ title: searchRegex }, { description: searchRegex }] };
-    if (!isAdmin) actionQuery.$or.push({ assignedTo: req.user._id }); 
+    if (!isGlobalUser) actionQuery.$or.push({ assignedTo: req.user._id }); 
     const actions = await Action.find(actionQuery).limit(5).select('title status priority');
 
     res.json({
@@ -100,21 +103,22 @@ exports.getCategories = async (req, res) => {
 
 exports.getMasterWithRevenue = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    
     // DEBUG: Log user info to diagnose assignedSellers issue
     console.log('[DEBUG] User info:', {
       userId: req.user?._id,
-      isAdmin,
+      isGlobalUser,
       hasAssignedSellers: !!req.user?.assignedSellers,
       assignedSellersType: typeof req.user?.assignedSellers,
-      roleName: req.user?.role?.name
+      roleName: userRole
     });
 
-    // FIX: Add null check for assignedSellers
     let allowedSellerIds = [];
-    if (!isAdmin) {
+    if (!isGlobalUser) {
       if (!req.user.assignedSellers) {
-        console.warn('[WARN] Non-admin user has no assignedSellers:', req.user._id);
+        console.warn('[WARN] Non-global user has no assignedSellers:', req.user._id);
         allowedSellerIds = []; // Return empty array - user has no access
       } else {
         allowedSellerIds = req.user.assignedSellers.map(s => s._id);
@@ -132,7 +136,7 @@ exports.getMasterWithRevenue = async (req, res) => {
       },
       { $unwind: "$asinData" },
       {
-        $match: isAdmin ? {} : { "asinData.seller": { $in: allowedSellerIds } }
+        $match: isGlobalUser ? {} : { "asinData.seller": { $in: allowedSellerIds } }
       },
       {
         $lookup: {
@@ -168,8 +172,9 @@ exports.getMasterWithRevenue = async (req, res) => {
 
 exports.getChartData = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id) : [];
 
     const chartData = await MonthlyPerformance.aggregate([
       {
@@ -182,7 +187,7 @@ exports.getChartData = async (req, res) => {
       },
       { $unwind: "$asinData" },
       {
-        $match: isAdmin ? {} : { "asinData.seller": { $in: allowedSellerIds } }
+        $match: isGlobalUser ? {} : { "asinData.seller": { $in: allowedSellerIds } }
       },
       {
         $lookup: {
@@ -197,7 +202,7 @@ exports.getChartData = async (req, res) => {
         $group: {
           _id: {
             size: "$master.size",
-            month: { $dateToString: { format: "%Y-%m", date: "$month" } }
+            month: { $dateToString: { format: "%Y-%m-%d", date: "$month" } }
           },
           totalRevenue: { $sum: "$ordered_revenue" }
         }
@@ -226,8 +231,9 @@ exports.getChartData = async (req, res) => {
 // 1. Revenue by Attribute (Bar)
 exports.getRevenueBySize = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id) : [];
 
     const data = await MonthlyPerformance.aggregate([
       {
@@ -240,7 +246,7 @@ exports.getRevenueBySize = async (req, res) => {
       },
       { $unwind: "$asinData" },
       {
-        $match: isAdmin ? {} : { "asinData.seller": { $in: allowedSellerIds } }
+        $match: isGlobalUser ? {} : { "asinData.seller": { $in: allowedSellerIds } }
       },
       {
         $lookup: {
@@ -269,8 +275,9 @@ exports.getRevenueBySize = async (req, res) => {
 // 3. Size Share (Pie)
 exports.getSizeShare = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id) : [];
 
     const data = await MonthlyPerformance.aggregate([
       {
@@ -283,7 +290,7 @@ exports.getSizeShare = async (req, res) => {
       },
       { $unwind: "$asinData" },
       {
-        $match: isAdmin ? {} : { "asinData.seller": { $in: allowedSellerIds } }
+        $match: isGlobalUser ? {} : { "asinData.seller": { $in: allowedSellerIds } }
       },
       {
         $lookup: {
@@ -313,19 +320,20 @@ exports.getSizeShare = async (req, res) => {
 exports.getAdsReport = async (req, res) => {
   try {
     const { startDate, endDate, reportType = 'daily' } = req.query;
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id.toString()) : [];
 
     // 1. Get allowed ASINs
     let allowedAsinCodes = [];
-    if (!isAdmin) {
+    if (!isGlobalUser) {
       const allowedAsins = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
       allowedAsinCodes = allowedAsins.map(a => a.asinCode);
     }
 
     // 2. Build Query
     const query = {};
-    if (!isAdmin) {
+    if (!isGlobalUser) {
       query.asin = { $in: allowedAsinCodes };
     }
 
@@ -519,8 +527,9 @@ exports.getAdsReport = async (req, res) => {
 // SKU Report API 
 exports.getSkuReport = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id.toString()) : [];
 
     const { startDate, endDate } = req.query;
     let dateFilter = {};
@@ -544,7 +553,7 @@ exports.getSkuReport = async (req, res) => {
       },
       { $unwind: "$asinData" },
       {
-        $match: isAdmin ? {} : { "asinData.seller": { $in: allowedSellerIds } }
+        $match: isGlobalUser ? {} : { "asinData.seller": { $in: allowedSellerIds } }
       },
       {
         $lookup: {
@@ -602,8 +611,9 @@ exports.getSkuReport = async (req, res) => {
 // Parent ASIN Report API
 exports.getParentAsinReport = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id.toString()) : [];
 
     const { startDate, endDate } = req.query;
     let dateFilter = {};
@@ -626,7 +636,7 @@ exports.getParentAsinReport = async (req, res) => {
       },
       { $unwind: "$asinData" },
       {
-        $match: isAdmin ? {} : { "asinData.seller": { $in: allowedSellerIds } }
+        $match: isGlobalUser ? {} : { "asinData.seller": { $in: allowedSellerIds } }
       },
       {
         $lookup: {
@@ -698,11 +708,12 @@ exports.getParentAsinReport = async (req, res) => {
 // Month-wise Report API
 exports.getMonthWiseReport = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const allowedSellerIds = !isGlobalUser ? (req.user.assignedSellers || []).map(s => s._id.toString()) : [];
 
     const query = {};
-    if (!isAdmin) {
+    if (!isGlobalUser) {
       const asinsInAllowedSellers = await Asin.find({ seller: { $in: allowedSellerIds } }).select('asinCode');
       const allowedAsinCodes = asinsInAllowedSellers.map(a => a.asinCode);
       query.asin = { $in: allowedAsinCodes };

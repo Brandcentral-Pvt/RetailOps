@@ -125,7 +125,7 @@ class ObjectiveService {
             .lean();
 
         const userRole = user?.role?.name || user?.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
 
         // Populate Key Results for each Objective
         const populatedObjectives = await Promise.all(objectives.map(async (obj) => {
@@ -137,9 +137,9 @@ class ObjectiveService {
             const populatedKRs = await Promise.all(krs.map(async (kr) => {
                 const actionQuery = { keyResultId: kr._id };
 
-                // Apply data isolation for actions if not admin and not objective owner
+                // Apply data isolation for actions if not global and not objective owner
                 const isOwner = obj.owners && obj.owners.some(oid => oid.toString() === user._id.toString());
-                if (user && !isAdmin && !isOwner) {
+                if (user && !isGlobalUser && !isOwner) {
                     actionQuery.$or = [
                         { assignedTo: user._id },
                         { createdBy: user._id }

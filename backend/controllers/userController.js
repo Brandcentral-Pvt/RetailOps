@@ -26,8 +26,10 @@ exports.getUsers = async (req, res) => {
     const sort = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    const isAdmin = req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    
+    if (!isGlobalUser) {
       const hierarchyService = require('../services/hierarchyService');
       const subordinates = await hierarchyService.getSubordinateIds(req.user._id);
       query.$or = [
@@ -165,7 +167,9 @@ exports.updateUser = async (req, res) => {
     // Role-based hierarchical check
     const currentUserRoleLevel = req.user.role?.level || 0;
     const targetUserRoleLevel = userToUpdate.role?.level || 0;
-    const isAdmin = req.user.role?.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isAdmin = roleName === 'admin';
+    const isOperationalManager = roleName === 'operational_manager';
 
     if (!isAdmin && targetUserRoleLevel >= currentUserRoleLevel && req.user._id.toString() !== req.params.id) {
       return res.status(403).json({ success: false, message: 'You cannot update a user with a higher or equal role level' });
@@ -223,13 +227,12 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Role-based hierarchical check
-    const currentUserRoleLevel = req.user.role?.level || 0;
-    const targetUserRoleLevel = user.role?.level || 0;
-    const isAdmin = req.user.role?.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isAdmin = roleName === 'admin';
 
-    if (!isAdmin && targetUserRoleLevel >= currentUserRoleLevel) {
-      return res.status(403).json({ success: false, message: 'You cannot delete a user with a higher or equal role level' });
+    // ONLY Super Admin can delete users
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only Super Administrators can delete users' });
     }
 
     // Prevent deleting self

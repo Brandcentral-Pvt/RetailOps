@@ -16,10 +16,10 @@ exports.getObjectives = async (req, res) => {
     try {
         const filter = {};
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
 
-        // Refine isolation for non-admins
-        if (!isAdmin) {
+        // Refine isolation for non-global users
+        if (!isGlobalUser) {
             const hierarchyService = require('../services/hierarchyService');
             const subordinateIds = await hierarchyService.getSubordinateIds(req.user._id);
             const teamIds = [req.user._id, ...subordinateIds];
@@ -96,7 +96,8 @@ exports.updateKeyResult = async (req, res) => {
 
         const objective = await Objective.findById(kr.objectiveId);
         const userRole = req.user.role?.name || req.user.role;
-        if (userRole !== 'admin' && objective?.owner.toString() !== req.user._id.toString()) {
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+        if (!isGlobalUser && objective?.owner.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'You do not have permission to update this Key Result' });
         }
 
@@ -121,7 +122,8 @@ exports.updateObjective = async (req, res) => {
         if (!objective) return res.status(404).json({ message: 'Objective not found' });
 
         const userRole = req.user.role?.name || req.user.role;
-        if (userRole !== 'admin' && !objective.owners?.some(o => o.toString() === req.user._id.toString())) {
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+        if (!isGlobalUser && !objective.owners?.some(o => o.toString() === req.user._id.toString())) {
             return res.status(403).json({ message: 'You do not have permission to update this objective' });
         }
 

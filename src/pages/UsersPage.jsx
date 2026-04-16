@@ -525,42 +525,44 @@ const UsersPage = () => {
                     </select>
                   </div>
 
-                  <div className="col-12">
-                    <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">
-                      <Shield size={14} className="text-primary" />
-                      Assigned Sellers (Data Access Control)
-                    </label>
-                    <div className="card shadow-none border-0 bg-light-subtle" style={{ borderRadius: '16px', backgroundColor: '#f9fafb' }}>
-                      <div className="card-body p-3">
-                        <div className="row g-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                          {sellers.map(seller => (
-                            <div key={seller._id} className="col-md-4 col-sm-6">
-                              <div
-                                className={`p-2 rounded-3 border transition-all cursor-pointer d-flex align-items-center gap-2 ${formData.assignedSellers.includes(seller._id) ? 'bg-primary-subtle border-primary-subtle' : 'bg-white border-light'}`}
-                                onClick={() => toggleSeller(seller._id)}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="form-check-input m-0 shadow-none border-0"
-                                  checked={formData.assignedSellers.includes(seller._id)}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    toggleSeller(seller._id);
-                                  }}
-                                  style={{ width: '16px', height: '16px' }}
-                                />
-                                <span className="smallest fw-medium text-truncate" title={seller.name}>{seller.name}</span>
+                  {formData.role && !['admin', 'operational_manager'].includes(roles.find(r => r._id === formData.role)?.name) && (
+                    <div className="col-12 mt-3">
+                      <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">
+                        <Shield size={14} className="text-primary" />
+                        Assigned Sellers (Data Access Control)
+                      </label>
+                      <div className="card shadow-none border-0 bg-light-subtle" style={{ borderRadius: '16px', backgroundColor: '#f9fafb' }}>
+                        <div className="card-body p-3">
+                          <div className="row g-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                            {sellers.map(seller => (
+                              <div key={seller._id} className="col-md-4 col-sm-6">
+                                <div
+                                  className={`p-2 rounded-3 border transition-all cursor-pointer d-flex align-items-center gap-2 ${formData.assignedSellers.includes(seller._id) ? 'bg-primary-subtle border-primary-subtle' : 'bg-white border-light'}`}
+                                  onClick={() => toggleSeller(seller._id)}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="form-check-input m-0 shadow-none border-0"
+                                    checked={formData.assignedSellers.includes(seller._id)}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      toggleSeller(seller._id);
+                                    }}
+                                    style={{ width: '16px', height: '16px' }}
+                                  />
+                                  <span className="smallest fw-medium text-truncate" title={seller.name}>{seller.name}</span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       </div>
+                      <p className="smallest text-muted mt-2 mb-0">
+                        <Info size={12} className="me-1" />
+                        Non-admin users can only see data for their assigned sellers.
+                      </p>
                     </div>
-                    <p className="smallest text-muted mt-2 mb-0">
-                      <Info size={12} className="me-1" />
-                      Non-admin users can only see data for their assigned sellers.
-                    </p>
-                  </div>
+                  )}
 
                   <div className="col-12 mt-3">
                     <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">

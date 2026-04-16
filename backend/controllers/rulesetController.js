@@ -7,8 +7,9 @@ exports.getAllRulesets = async (req, res) => {
     const { type, status, page = 1, limit = 20 } = req.query;
     const filter = {};
 
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin && req.user.assignedSellers) {
+    const userRole = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    if (!isGlobalUser && req.user.assignedSellers) {
       filter.seller = { $in: req.user.assignedSellers.map(s => s._id) };
     }
 

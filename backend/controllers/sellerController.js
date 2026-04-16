@@ -60,8 +60,11 @@ const enrichSellersWithAsinCounts = async (sellers) => {
 // Get all sellers
 exports.getSellers = async (req, res) => {
   try {
-    // If not admin, return only assigned sellers
-    if (req.user && req.user.role && req.user.role.name !== 'admin') {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+
+    // If not global user, return only assigned sellers
+    if (!isGlobalUser) {
       const sellerIds = req.user.assignedSellers.map(s => s._id);
 
       const filter = { _id: { $in: sellerIds } };
@@ -127,11 +130,11 @@ exports.getSellers = async (req, res) => {
 // Get single seller with ASINs
 exports.getSeller = async (req, res) => {
   try {
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === req.params.id);
 
-    if (!isAdmin && !isAssigned) {
+    if (!isGlobalUser && !isAssigned) {
       return res.status(403).json({ error: 'Unauthorized access to seller profile' });
     }
 
@@ -152,7 +155,7 @@ exports.getSeller = async (req, res) => {
 exports.createSeller = async (req, res) => {
   try {
     const userRole = req.user?.role?.name || req.user?.role;
-    const isAdmin = userRole === 'admin';
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
     const isManager = userRole === 'manager' || userRole === 'Brand Manager';
 
     // Extract managerId from body (admin can select a manager)
@@ -174,7 +177,7 @@ exports.createSeller = async (req, res) => {
     if (isManager) {
       // Manager creates: auto-assign to themselves
       assignToManagerId = req.user._id;
-    } else if (isAdmin && managerId) {
+    } else if (isGlobalUser && managerId) {
       // Admin creates with a selected manager
       assignToManagerId = managerId;
     }
@@ -208,11 +211,11 @@ exports.updateSeller = async (req, res) => {
     const { id } = req.params;
     const { managerId, ...updateData } = req.body;
     const userRole = req.user?.role?.name || req.user?.role;
-    const isAdmin = userRole === 'admin';
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
 
     // Security check
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === id);
-    if (!isAdmin && !isAssigned) {
+    if (!isGlobalUser && !isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to update this seller' });
     }
 
@@ -226,8 +229,8 @@ exports.updateSeller = async (req, res) => {
       return res.status(404).json({ error: 'Seller not found' });
     }
 
-    // Handle Manager Re-assignment (Admin only)
-    if (isAdmin && managerId !== undefined) {
+    // Handle Manager Re-assignment (Global users only)
+    if (isGlobalUser && managerId !== undefined) {
       // 1. Remove seller from all existing managers
       await User.updateMany(
         { assignedSellers: id },
@@ -261,14 +264,9 @@ exports.updateSeller = async (req, res) => {
 exports.deleteSeller = async (req, res) => {
   try {
     const userRole = req.user?.role?.name || req.user?.role;
-    const isAdmin = userRole === 'admin';
-    // Manager can delete sellers assigned to them
-    const isAssigned = req.user && (req.user.assignedSellers || []).some(s =>
-      (s._id || s).toString() === req.params.id
-    );
-
-    if (!isAdmin && !isAssigned) {
-      return res.status(403).json({ error: 'Unauthorized to delete this seller' });
+    // ONLY Super Admin can delete sellers
+    if (userRole !== 'admin') {
+      return res.status(403).json({ error: 'Only Super Administrators can delete sellers' });
     }
 
     const seller = await Seller.findById(req.params.id);

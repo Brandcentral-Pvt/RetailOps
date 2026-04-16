@@ -48,6 +48,14 @@ const defaultRoles = [
     color: '#DC2626',
   },
   {
+    name: 'operational_manager',
+    displayName: 'Operational Manager',
+    description: 'High-level operational access across all managers and sellers',
+    isSystem: true,
+    level: 90,
+    color: '#7C3AED',
+  },
+  {
     name: 'manager',
     displayName: 'Manager',
     description: 'Can manage sellers and view all reports',
@@ -106,6 +114,10 @@ Role.seedDefaultRoles = async function (permissionModel) {
     let rolePermissions;
     if (roleData.name === 'admin') {
       rolePermissions = allPermissions.map(p => p._id);
+    } else if (roleData.name === 'operational_manager') {
+      rolePermissions = allPermissions
+        .filter(p => p.action !== 'delete')
+        .map(p => p._id);
     } else if (roleData.name === 'manager') {
       rolePermissions = allPermissions
         .filter(p => ['dashboard', 'reports', 'sellers', 'scraping', 'actions', 'calculator', 'inventory', 'users'].includes(p.category))

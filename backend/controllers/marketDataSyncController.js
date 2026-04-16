@@ -16,11 +16,12 @@ exports.syncAsin = async (req, res) => {
         }
 
         // Security check
-        const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+        const roleName = req.user?.role?.name || req.user?.role;
+        const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
         const sellerIdStr = asin.seller ? (asin.seller._id ? asin.seller._id.toString() : asin.seller.toString()) : null;
         const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === sellerIdStr);
 
-        if (!isAdmin && !isAssigned && sellerIdStr) {
+        if (!isGlobalUser && !isAssigned && sellerIdStr) {
             return res.status(403).json({ success: false, error: 'Unauthorized access to ASIN sync' });
         }
 
@@ -131,10 +132,11 @@ exports.syncSellerAsins = async (req, res) => {
         }
 
         // Security check
-        const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+        const roleName = req.user?.role?.name || req.user?.role;
+        const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
         const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === sellerId);
 
-        if (!isAdmin && !isAssigned) {
+        if (!isGlobalUser && !isAssigned) {
             return res.status(403).json({ success: false, error: 'Unauthorized to trigger sync for this seller' });
         }
 
@@ -224,10 +226,11 @@ exports.syncSellerAsins = async (req, res) => {
 exports.syncAllAsins = async (req, res) => {
     console.log('📨 Entering syncAllAsins handler');
     try {
-        const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+        const roleName = req.user?.role?.name || req.user?.role;
+        const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
         const filter = { status: 'Active' };
 
-        if (!isAdmin) {
+        if (!isGlobalUser) {
             const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
             filter.seller = { $in: allowedSellerIds };
         }
@@ -499,6 +502,12 @@ exports.setupSellerTask = async (req, res) => {
  */
 exports.uploadTaskPool = async (req, res) => {
     try {
+        const userRole = req.user.role?.name || req.user.role;
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+        if (!isGlobalUser) {
+            return res.status(403).json({ success: false, error: 'Unauthorized to upload task pool' });
+        }
+
         const { taskIds } = req.body;
         
         if (!taskIds || !Array.isArray(taskIds)) {
@@ -535,6 +544,12 @@ exports.getPoolStatus = async (req, res) => {
  */
 exports.syncAllSellersResults = async (req, res) => {
     try {
+        const userRole = req.user.role?.name || req.user.role;
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+        if (!isGlobalUser) {
+            return res.status(403).json({ success: false, error: 'Unauthorized to trigger global results ingestion' });
+        }
+
         console.log('🗳️ Global ingestion triggered (Fetch all Octoparse results)...');
         
         // Return immediate response but process in background
@@ -573,10 +588,11 @@ exports.getSyncStatus = async (req, res) => {
  */
 exports.getGlobalSyncTasks = async (req, res) => {
     try {
-        const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+        const roleName = req.user?.role?.name || req.user?.role;
+        const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
         const filter = { marketSyncTaskId: { $exists: true, $ne: '' } };
         
-        if (!isAdmin) {
+        if (!isGlobalUser) {
             const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
             filter._id = { $in: allowedSellerIds };
         }

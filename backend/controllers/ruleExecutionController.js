@@ -8,8 +8,9 @@ const mongoose = require('mongoose');
 
 const getUnreadAlertCount = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const filter = isAdmin ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
+    const userRole = req.user.role?.name || req.user.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const filter = isGlobalUser ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
     filter.acknowledged = false;
 
     const count = await Alert.countDocuments(filter);
@@ -22,8 +23,9 @@ const getUnreadAlertCount = async (req, res) => {
 
 const acknowledgeAllAlerts = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const filter = isAdmin ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
+    const userRole = req.user.role?.name || req.user.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+    const filter = isGlobalUser ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
     filter.acknowledged = false;
 
     const result = await Alert.updateMany(filter, {
@@ -103,9 +105,10 @@ const executeRule = async (req, res) => {
 
 const executeAllRules = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const userRole = req.user.role?.name || req.user.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
     const filter = { active: true };
-    if (!isAdmin) {
+    if (!isGlobalUser) {
       filter.$or = [
         { sellerId: { $in: req.user.assignedSellers.map(s => s._id) } },
         { sellerId: { $exists: false } }

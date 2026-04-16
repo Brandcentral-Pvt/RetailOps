@@ -12,8 +12,10 @@ exports.getAsins = async (req, res) => {
     const filter = {};
 
     // Enforce seller filter for non-admins
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    
+    if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
       if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
@@ -64,8 +66,10 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     const filter = {};
 
     // Enforce seller filter for non-admins
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    
+    if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
       if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
@@ -99,11 +103,11 @@ exports.getAllAsinsWithHistory = async (req, res) => {
 // Get ASINs by seller
 exports.getAsinsBySeller = async (req, res) => {
   try {
-    // Security check: non-admins can only access their own seller data
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === req.params.sellerId);
 
-    if (!isAdmin && !isAssigned) {
+    if (!isGlobalUser && !isAssigned) {
       return res.status(403).json({ error: 'Unauthorized access to seller data' });
     }
 
@@ -127,11 +131,11 @@ exports.getAsin = async (req, res) => {
       return res.status(404).json({ error: 'ASIN not found' });
     }
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === asin.seller._id.toString());
 
-    if (!isAdmin && !isAssigned) {
+    if (!isGlobalUser && !isAssigned) {
       return res.status(403).json({ error: 'Unauthorized access to ASIN details' });
     }
 
@@ -150,11 +154,11 @@ exports.getAsinTrends = async (req, res) => {
       return res.status(404).json({ error: 'ASIN not found' });
     }
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
 
-    if (!isAdmin && !isAssigned) {
+    if (!isGlobalUser && !isAssigned) {
       return res.status(403).json({ error: 'Unauthorized access to ASIN trends' });
     }
 
@@ -188,11 +192,11 @@ exports.updateWeekHistory = async (req, res) => {
       return res.status(404).json({ error: 'ASIN not found' });
     }
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
 
-    if (!isAdmin && !isAssigned) {
+    if (!isGlobalUser && !isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to update this ASIN history' });
     }
 
@@ -223,14 +227,15 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
     const { updates } = req.body; // Array of { asinId, weekData }
 
     const results = [];
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const allowedSellerIds = !isGlobalUser ? req.user.assignedSellers.map(s => s._id.toString()) : [];
 
     for (const update of updates) {
       const asin = await Asin.findById(update.asinId);
       if (asin) {
         // Security check
-        const isAssigned = isAdmin || allowedSellerIds.includes(asin.seller.toString());
+        const isAssigned = isGlobalUser || allowedSellerIds.includes(asin.seller.toString());
 
         if (!isAssigned) {
           results.push({ asinId: update.asinId, success: false, error: 'Unauthorized' });
@@ -260,9 +265,9 @@ exports.getAsinsByLQS = async (req, res) => {
     const { limit = 100 } = req.query;
     const filter = { status: 'Active' };
 
-    // Enforce isolation
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    if (!isGlobalUser) {
       filter.seller = { $in: req.user.assignedSellers.map(s => s._id) };
     }
 
@@ -283,9 +288,9 @@ exports.getAsinStats = async (req, res) => {
     const { seller } = req.query;
     const filter = {};
 
-    // Enforce seller filter for non-admins
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
       if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
@@ -463,9 +468,9 @@ exports.createAsin = async (req, res) => {
     // Keep asinCode as entered (preserve original case)
     const asin = new Asin(req.body);
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const isAssigned = isAdmin || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const isAssigned = isGlobalUser || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
 
     if (!isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to create ASIN for this seller' });
@@ -500,15 +505,16 @@ exports.createAsins = async (req, res) => {
       return res.status(400).json({ error: 'ASINs array required' });
     }
 
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const allowedSellerIds = !isGlobalUser ? req.user.assignedSellers.map(s => s._id.toString()) : [];
 
     // Identify sellers in this batch
     const sellerIds = [...new Set(asins.map(a => a.seller).filter(Boolean))];
 
     // Verify all asins belong to allowed sellers
     for (const a of asins) {
-      if (!isAdmin && !allowedSellerIds.includes(a.seller)) {
+      if (!isGlobalUser && !allowedSellerIds.includes(a.seller)) {
         return res.status(403).json({ error: `Unauthorized to create ASIN for seller ${a.seller}` });
       }
     }
@@ -586,9 +592,9 @@ exports.updateAsin = async (req, res) => {
       return res.status(404).json({ error: 'ASIN not found' });
     }
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const isAssigned = isAdmin || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const isAssigned = isGlobalUser || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
 
     if (!isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to update this ASIN' });
@@ -619,13 +625,14 @@ exports.bulkUpdateAsins = async (req, res) => {
       return res.status(400).json({ error: 'IDs array required' });
     }
 
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const allowedSellerIds = !isGlobalUser ? req.user.assignedSellers.map(s => s._id.toString()) : [];
 
     // Check all IDs belong to allowed sellers
     const asins = await Asin.find({ _id: { $in: ids } });
     for (const asin of asins) {
-      if (!isAdmin && !allowedSellerIds.includes(asin.seller.toString())) {
+      if (!isGlobalUser && !allowedSellerIds.includes(asin.seller.toString())) {
         return res.status(403).json({ error: 'Unauthorized to update some of the selected ASINs' });
       }
     }
@@ -652,12 +659,10 @@ exports.deleteAsin = async (req, res) => {
       return res.status(404).json({ error: 'ASIN not found' });
     }
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const isAssigned = isAdmin || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
-
-    if (!isAssigned) {
-      return res.status(403).json({ error: 'Unauthorized to delete this ASIN' });
+    const roleName = req.user?.role?.name || req.user?.role;
+    // ONLY Super Admin can delete ASINs
+    if (roleName !== 'admin') {
+      return res.status(403).json({ error: 'Only Super Administrators can delete ASINs' });
     }
 
     const sellerId = asin.seller;
@@ -681,14 +686,10 @@ exports.bulkDeleteAsins = async (req, res) => {
       return res.status(400).json({ error: 'IDs array required' });
     }
 
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const allowedSellerIds = !isAdmin ? req.user.assignedSellers.map(s => s._id.toString()) : [];
-
-    const asins = await Asin.find({ _id: { $in: ids } });
-    for (const asin of asins) {
-      if (!isAdmin && !allowedSellerIds.includes(asin.seller.toString())) {
-        return res.status(403).json({ error: 'Unauthorized to delete some of the selected ASINs' });
-      }
+    const roleName = req.user?.role?.name || req.user?.role;
+    // ONLY Super Admin can delete ASINs
+    if (roleName !== 'admin') {
+      return res.status(403).json({ error: 'Only Super Administrators can delete ASINs' });
     }
 
     const sellerIds = [...new Set(asins.map(a => a.seller))];
@@ -712,9 +713,9 @@ exports.searchAsins = async (req, res) => {
     const { q, seller } = req.query;
     const filter = {};
 
-    // Enforce isolation
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    if (!isAdmin) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
       if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
@@ -754,9 +755,9 @@ exports.generateImages = async (req, res) => {
       return res.status(404).json({ error: 'ASIN not found' });
     }
 
-    // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const isAssigned = isAdmin || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const isAssigned = isGlobalUser || req.user.assignedSellers.some(s => s._id.toString() === asin.seller.toString());
 
     if (!isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to generate images for this ASIN' });

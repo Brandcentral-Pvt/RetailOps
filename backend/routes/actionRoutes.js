@@ -64,11 +64,11 @@ router.post('/bulk-create-from-analysis', protect, requireAnyPermission(['action
         console.log('[BULK_CREATE] User:', req.user?._id, req.user?.email, 'Role:', req.user?.role?.name);
 
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
 
-        // Build ASIN filter: admins see all, others see only their assigned sellers
+        // Build ASIN filter: global users see all, others see only their assigned sellers
         const filter = {};
-        if (!isAdmin) {
+        if (!isGlobalUser) {
             const assignedSellerIds = (req.user.assignedSellers || []).map(s => s._id || s);
             if (assignedSellerIds.length === 0) {
                 return res.status(403).json({ success: false, message: 'No sellers assigned to your account.' });
@@ -170,9 +170,10 @@ router.get('/', protect, requireAnyPermission(['actions_view', 'actions_manage']
         const { status, priority, assignedTo, stage } = req.query;
         const filter = {};
 
-        // Enforce data isolation for non-admins
+        // Enforce data isolation for non-global users
         const userRole = req.user.role?.name || req.user.role;
-        if (userRole !== 'admin') {
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+        if (!isGlobalUser) {
             const hierarchyService = require('../services/hierarchyService');
             const subordinateIds = await hierarchyService.getSubordinateIds(req.user._id);
             const teamIds = [req.user._id, ...subordinateIds];
@@ -375,9 +376,10 @@ router.get('/:id', protect, requireAnyPermission(['actions_view', 'actions_manag
             return res.status(404).json({ success: false, message: 'Action not found' });
         }
 
-        // Data isolation: non-admins can only see tasks they are assigned to or created
+        // Data isolation: non-global users can only see tasks they are assigned to or created
         const userRole = req.user.role?.name || req.user.role;
-        if (userRole !== 'admin') {
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
+        if (!isGlobalUser) {
             const isAssigned = action.assignedTo?.toString() === req.user._id.toString() ||
                 (action.assignedTo?._id && action.assignedTo._id.toString() === req.user._id.toString());
             const isCreator = action.createdBy?.toString() === req.user._id.toString() ||
@@ -505,15 +507,13 @@ router.put('/:id', protect, async (req, res) => {
             return res.status(404).json({ success: false, message: 'Action not found' });
         }
 
-        // Check permissions: Admin, Creator, or Assigned User
+        // Check permissions: Global User, Creator, or Assigned User
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
         const isCreator = action.createdBy?.toString() === req.user._id.toString();
         const isAssigned = action.assignedTo?.toString() === req.user._id.toString();
 
-        console.log('[Action Update] Permission check:', { userRole, isAdmin, isCreator, isAssigned, userId: req.user._id.toString(), createdBy: action.createdBy?.toString() });
-
-        if (!isAdmin && !isCreator && !isAssigned) {
+        if (!isGlobalUser && !isCreator && !isAssigned) {
             return res.status(403).json({ success: false, message: 'You do not have permission to update this task' });
         }
 
@@ -569,12 +569,12 @@ router.post('/:id/start', protect, requireAnyPermission(['actions_edit', 'action
         const action = await Action.findById(req.params.id);
         if (!action) return res.status(404).json({ success: false, message: 'Action not found' });
 
-        // Check permissions: Admin or Assigned User
+        // Check permissions: Global User or Assigned User
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
         const isAssigned = action.assignedTo?.toString() === req.user._id.toString();
 
-        if (!isAdmin && !isAssigned) {
+        if (!isGlobalUser && !isAssigned) {
             return res.status(403).json({ success: false, message: 'Only the assigned user or an administrator can start this task' });
         }
 
@@ -611,12 +611,12 @@ router.post('/:id/submit-review', protect, upload.single('audio'), requireAnyPer
         const action = await Action.findById(req.params.id);
         if (!action) return res.status(404).json({ success: false, message: 'Action not found' });
 
-        // Check permissions: Admin or Assigned User
+        // Check permissions: Global User or Assigned User
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
         const isAssigned = action.assignedTo?.toString() === req.user._id.toString();
 
-        if (!isAdmin && !isAssigned) {
+        if (!isGlobalUser && !isAssigned) {
             return res.status(403).json({ success: false, message: 'Only the assigned user or an administrator can submit this task for review' });
         }
 
@@ -672,8 +672,10 @@ router.post('/:id/submit-review', protect, upload.single('audio'), requireAnyPer
     }
 });
 
+const { isGlobalUser } = require('../middleware/auth');
+
 // Review action (Manager only)
-router.post('/:id/review-action', protect, requireRole('admin'), async (req, res) => {
+router.post('/:id/review-action', protect, isGlobalUser, async (req, res) => {
     try {
         const { decision, comments } = req.body;
         const action = await Action.findById(req.params.id);
@@ -737,8 +739,8 @@ router.post('/:id/review-action', protect, requireRole('admin'), async (req, res
     }
 });
 
-// Legacy Delete action (already exists below)
-router.delete('/:id', protect, requireAnyPermission(['actions_delete', 'actions_manage']), async (req, res) => {
+// Delete action (Admins only for deletion)
+router.delete('/:id', protect, requireRole('admin'), async (req, res) => {
     try {
         const action = await Action.findById(req.params.id);
         if (!action) {

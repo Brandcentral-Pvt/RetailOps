@@ -49,8 +49,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDateRange } from '../contexts/DateRangeContext';
 
 const Dashboard = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { user, isGlobalUser, isAdmin } = useAuth();
   const { startDate, endDate, rangeType } = useDateRange();
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -183,56 +182,6 @@ const Dashboard = () => {
     tooltip: { theme: 'light' }
   };
 
-  const areaChartOptions = {
-    chart: {
-      type: 'area',
-      stacked: true,
-      toolbar: { show: false },
-    },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.4,
-        opacityTo: 0.05,
-        stops: [0, 90, 100]
-      }
-    },
-    xaxis: {
-      categories: data.labels && data.labels.length > 0 ? data.labels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-      labels: { style: { colors: '#64748b', fontSize: '10px' } }
-    },
-    yaxis: {
-      labels: {
-        style: { colors: '#64748b', fontSize: '10px' },
-        formatter: (val) => val >= 1000 ? `₹${(val / 1000).toFixed(1)}K` : `₹${val}`
-      }
-    },
-    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'right',
-      fontSize: '11px',
-      fontWeight: 600,
-    },
-    colors: [CHART_COLORS[0], CHART_COLORS[5]], // Ordered: Organic Sales (Blue), Ad Sales (Teal)
-    dataLabels: {
-      enabled: true,
-      style: { fontSize: '9px', fontWeight: 600, colors: ['#1e293b'] },
-      formatter: (val) => val > 0 ? `₹${(val / 1000).toFixed(1)}K` : ''
-    },
-    tooltip: {
-      theme: 'light',
-      y: {
-        formatter: (val) => `₹${val.toLocaleString()}`
-      }
-    }
-  };
-
   const donutChartOptions = {
     chart: { type: 'donut' },
     labels: data.categoryData.map(c => c.name),
@@ -338,7 +287,7 @@ const Dashboard = () => {
             <button className="btn btn-sm btn-secondary" onClick={loadDashboardData}>
               <RefreshCw size={14} className={loading ? 'spin' : ''} />
             </button>
-            {isAdmin && (
+            {isGlobalUser && (
               <>
                 <button
                   onClick={() => window.location.href = '/ads-report'}

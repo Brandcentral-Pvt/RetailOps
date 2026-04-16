@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }) => {
 
     const hasPermission = (permissionName) => {
         if (!user || !user.role) return false;
-        if (user.role.name === 'admin') return true;
+        if (user.role.name === 'admin' || user.role.name === 'operational_manager') return true;
         if (!user.role.permissions) return false;
 
         return user.role.permissions.some(p => p.name === permissionName);
@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }) => {
 
     const hasAnyPermission = (permissionNames) => {
         if (!user || !user.role) return false;
-        if (user.role.name === 'admin') return true;
+        if (user.role.name === 'admin' || user.role.name === 'operational_manager') return true;
         if (!user.role.permissions) return false;
 
         return permissionNames.some(name =>
@@ -158,7 +158,9 @@ export const AuthProvider = ({ children }) => {
         hasPermission,
         hasAnyPermission,
         isAuthenticated: !!user,
-        isAdmin: user?.role?.name === 'admin'
+        isAdmin: user?.role?.name === 'admin',
+        isOperationalManager: user?.role?.name === 'operational_manager',
+        isGlobalUser: user?.role?.name === 'admin' || user?.role?.name === 'operational_manager'
     };
 
     return (

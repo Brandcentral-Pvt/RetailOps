@@ -49,7 +49,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const SellersPage = () => {
-  const { user: currentUser, isAdmin, hasPermission } = useAuth();
+  const { user: currentUser, isAdmin, isGlobalUser, hasPermission } = useAuth();
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -76,10 +76,10 @@ const SellersPage = () => {
 
   useEffect(() => {
     loadSellers();
-    if (isAdmin) {
+    if (isGlobalUser) {
       fetchPoolStats();
     }
-  }, [isAdmin, currentUser]); // Only re-fetch when user identity changes
+  }, [isGlobalUser, currentUser]); // Only re-fetch when user identity changes
 
   // Reset page to 1 on ANY filter change
   useEffect(() => {
@@ -521,7 +521,7 @@ const SellersPage = () => {
             <p className="text-muted small mb-0">Monitor and manage your connected storefronts</p>
           </div>
           <div className="d-flex gap-2">
-            {isAdmin && (
+            {isGlobalUser && (
               <>
                 <button
                   className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
@@ -803,21 +803,21 @@ const SellersPage = () => {
                       <div className="px-3 py-2 border-bottom border-zinc-100 mb-2">
                         <div className="smallest fw-bold text-zinc-500 text-uppercase tracking-widest">Management</div>
                       </div>
+                      {isGlobalUser && (
+                        <li>
+                          <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2" onClick={() => handleEditSeller(seller)}>
+                            <Edit3 size={16} strokeWidth={2} className="text-zinc-600" />
+                            <span className="text-zinc-700 fw-medium">Edit Details</span>
+                          </button>
+                        </li>
+                      )}
                       {isAdmin && (
-                        <>
-                          <li>
-                            <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2" onClick={() => handleEditSeller(seller)}>
-                              <Edit3 size={16} strokeWidth={2} className="text-zinc-600" />
-                              <span className="text-zinc-700 fw-medium">Edit Details</span>
-                            </button>
-                          </li>
-                          <li>
-                            <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2 text-danger" onClick={() => handleDeleteSeller(seller._id)}>
-                              <Trash2 size={16} strokeWidth={2} />
-                              <span className="fw-semibold">Delete Store</span>
-                            </button>
-                          </li>
-                        </>
+                        <li>
+                          <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2 text-danger" onClick={() => handleDeleteSeller(seller._id)}>
+                            <Trash2 size={16} strokeWidth={2} />
+                            <span className="fw-semibold">Delete Store</span>
+                          </button>
+                        </li>
                       )}
                     </ul>
                   </div>
@@ -850,6 +850,7 @@ const SellersPage = () => {
           onClose={() => { setShowAddModal(false); setEditingSeller(null); }}
           onSave={handleAddSeller}
           isAdmin={isAdmin}
+          isGlobalUser={isGlobalUser}
           initialData={editingSeller}
         />
       )}
@@ -873,6 +874,8 @@ const SellersPage = () => {
           onToggleStatus={handleToggleAsinStatus}
           onUpdateAsin={handleUpdateAsin}
           onSyncAsin={handleSyncAsin}
+          isAdmin={isAdmin}
+          isGlobalUser={isGlobalUser}
           onRefresh={() => handleViewAsins(selectedSeller)}
         />
       )}
@@ -889,7 +892,7 @@ const SellersPage = () => {
 };
 
 // Add Seller Modal Component
-const AddSellerModal = ({ onClose, onSave, isAdmin, initialData }) => {
+const AddSellerModal = ({ onClose, onSave, isAdmin, isGlobalUser, initialData }) => {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     marketplace: initialData?.marketplace || 'amazon.in',
@@ -903,7 +906,7 @@ const AddSellerModal = ({ onClose, onSave, isAdmin, initialData }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isGlobalUser) {
       userApi.getManagers()
         .then(data => setManagers(data))
         .catch(() => setManagers([]));
@@ -915,7 +918,7 @@ const AddSellerModal = ({ onClose, onSave, isAdmin, initialData }) => {
     setLoading(true);
     const { managerId, ...rest } = formData;
     const payload = { ...rest };
-    if (isAdmin && managerId) payload.managerId = managerId;
+    if (isGlobalUser && managerId) payload.managerId = managerId;
 
     try {
       await onSave(payload);
@@ -994,7 +997,7 @@ const AddSellerModal = ({ onClose, onSave, isAdmin, initialData }) => {
                 </div>
               </div>
 
-              {isAdmin && (
+              {isGlobalUser && (
                 <div className="mb-4">
                   <div className="d-flex align-items-center gap-2 mb-2">
                     <div className="p-1 bg-zinc-100 rounded text-zinc-500"><Users size={12} /></div>
@@ -1244,6 +1247,8 @@ const SellerAsinsModal = ({
   onToggleStatus,
   onUpdateAsin,
   onSyncAsin,
+  isAdmin,
+  isGlobalUser,
   onRefresh
 }) => {
   const { addToast } = useToast();
@@ -1475,13 +1480,15 @@ const SellerAsinsModal = ({
                             >
                               <Edit3 size={10} />
                             </button>
-                            <button
-                              className="btn btn-icon btn-white border shadow-sm btn-sm text-danger"
-                              onClick={() => onDeleteAsin(asin._id)}
-                              title="Delete"
-                            >
-                              <Trash2 size={10} />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                className="btn btn-icon btn-white border shadow-sm btn-sm text-danger"
+                                onClick={() => onDeleteAsin(asin._id)}
+                                title="Delete"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

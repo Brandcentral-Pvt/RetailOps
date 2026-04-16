@@ -7,7 +7,7 @@ const generateTokens = (userId) => {
   const accessToken = jwt.sign(
     { userId },
     config.jwtSecret,
-    { expiresIn: '15m' }
+    { expiresIn: '1d' }
   );
   const refreshToken = jwt.sign(
     { userId, type: 'refresh' },
@@ -208,8 +208,10 @@ exports.logout = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.userId)
-      .populate('role')
-      .populate('role.permissions');
+      .populate({
+        path: 'role',
+        populate: { path: 'permissions' }
+      });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });

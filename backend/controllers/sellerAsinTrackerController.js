@@ -16,10 +16,10 @@ const octoparseAutomationService = require('../services/octoparseAutomationServi
 exports.getTrackerList = async (req, res) => {
     try {
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
         const filter = {};
 
-        if (!isAdmin) {
+        if (!isGlobalUser) {
             const assignedSellerIds = (req.user.assignedSellers || []).map(s => s._id || s);
             filter._id = { $in: assignedSellerIds };
         }
@@ -54,10 +54,10 @@ exports.getTrackerList = async (req, res) => {
 exports.getSellerAsins = async (req, res) => {
     try {
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
         const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
 
-        if (!isAdmin && !assignedSellerIds.includes(req.params.sellerId)) {
+        if (!isGlobalUser && !assignedSellerIds.includes(req.params.sellerId)) {
             return res.status(403).json({ success: false, message: 'Unauthorized access to this seller tracker' });
         }
 
@@ -178,10 +178,10 @@ const syncSellerFromKeepa = async (seller) => {
 exports.syncSeller = async (req, res) => {
     try {
         const userRole = req.user.role?.name || req.user.role;
-        const isAdmin = userRole === 'admin';
+        const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
         const assignedSellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
 
-        if (!isAdmin && !assignedSellerIds.includes(req.params.sellerId)) {
+        if (!isGlobalUser && !assignedSellerIds.includes(req.params.sellerId)) {
             return res.status(403).json({ success: false, message: 'Unauthorized to sync this seller' });
         }
 

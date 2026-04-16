@@ -14,8 +14,9 @@ exports.executeAllRules = ruleExecutionController.executeAllRules;
 
 exports.getAlerts = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const filter = isAdmin ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const filter = isGlobalUser ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
 
     const alerts = await Alert.find(filter)
       .sort({ createdAt: -1 })
@@ -32,8 +33,9 @@ exports.getAlerts = async (req, res) => {
 
 exports.getAlertRules = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const filter = isAdmin ? {} : { 
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const filter = isGlobalUser ? {} : { 
       $or: [
         { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } },
         { sellerId: { $exists: false } }
@@ -103,10 +105,11 @@ exports.acknowledgeAlert = async (req, res) => {
       return res.status(404).json({ error: 'Alert not found' });
     }
 
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const isAssigned = isAdmin || req.user.assignedSellers.some(s => s._id.toString() === alert.sellerId?.toString());
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const isAssigned = isGlobalUser || req.user.assignedSellers.some(s => s._id.toString() === alert.sellerId?.toString());
 
-    if (!isAssigned && !isAdmin) {
+    if (!isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to acknowledge this alert' });
     }
 
@@ -170,8 +173,9 @@ exports.checkAlerts = async () => {
 // Get all alert rules
 exports.getAlertRules = async (req, res) => {
   try {
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const filter = isAdmin ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const filter = isGlobalUser ? {} : { sellerId: { $in: req.user.assignedSellers.map(s => s._id.toString()) } };
 
     const rules = await AlertRule.find(filter).sort({ createdAt: -1 });
     res.json(rules);
@@ -234,8 +238,9 @@ exports.acknowledgeAlert = async (req, res) => {
     }
 
     // Security check
-    const isAdmin = req.user && req.user.role && req.user.role.name === 'admin';
-    const isAssigned = isAdmin || req.user.assignedSellers.some(s => s._id.toString() === alert.sellerId);
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    const isAssigned = isGlobalUser || req.user.assignedSellers.some(s => s._id.toString() === alert.sellerId);
 
     if (!isAssigned) {
       return res.status(403).json({ error: 'Unauthorized to acknowledge this alert' });

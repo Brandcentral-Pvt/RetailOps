@@ -42,13 +42,13 @@ exports.getDashboardData = async (req, res) => {
     }
 
     const userRole = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : null);
-    const isAdmin = userRole === 'admin';
+    const isGlobalUser = ['admin', 'operational_manager'].includes(userRole);
     const allowedSellerIds = req.user.assignedSellers?.map(s => s._id) || [];
 
     const filter = {};
     const sellerFilter = {};
 
-    if (!isAdmin) {
+    if (!isGlobalUser) {
       filter.seller = { $in: allowedSellerIds };
       sellerFilter._id = { $in: allowedSellerIds };
     }
@@ -69,7 +69,7 @@ exports.getDashboardData = async (req, res) => {
     const portfolioValue = asins.reduce((acc, curr) => acc + (curr.currentPrice || 0), 0);
     console.log(`[Dashboard DEBUG] Portfolio Value: ${portfolioValue}`);
 
-    const alertFilter = isAdmin ? {} : { sellerId: { $in: (allowedSellerIds || []).map(id => id.toString()) } };
+    const alertFilter = isGlobalUser ? {} : { sellerId: { $in: (allowedSellerIds || []).map(id => id.toString()) } };
     const alerts = await Alert.find(alertFilter)
       .sort({ createdAt: -1 })
       .limit(5);
@@ -98,9 +98,9 @@ exports.getDashboardData = async (req, res) => {
       userStats.total += stat.count;
     });
 
-    // If admin, also get team stats
+    // If global user, also get team stats
     let teamStats = null;
-    if (isAdmin) {
+    if (isGlobalUser) {
       const allActions = await Action.aggregate([
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]);
