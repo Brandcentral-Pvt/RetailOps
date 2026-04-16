@@ -566,13 +566,15 @@ export const asinApi = {
     return res.json();
   },
 
-  getBySeller: async (sellerId) => {
-    const res = await fetch(`${API_BASE}/asins/seller/${sellerId}`, {
+  getBySeller: async (sellerId, params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE}/asins/seller/${sellerId}${query ? `?${query}` : ''}`, {
       headers: { ...getAuthHeader() }
     });
     if (!res.ok) throw new Error('Failed to fetch ASINs');
     return res.json();
   },
+
 
   getById: async (id) => {
     const res = await fetch(`${API_BASE}/asins/${id}`, {

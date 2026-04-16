@@ -100,9 +100,13 @@ exports.getAllAsinsWithHistory = async (req, res) => {
   }
 };
 
-// Get ASINs by seller
+// Get ASINs by seller (Paginated for performance)
 exports.getAsinsBySeller = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     const isAssigned = req.user && req.user.assignedSellers.some(s => s._id.toString() === req.params.sellerId);
@@ -111,15 +115,31 @@ exports.getAsinsBySeller = async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized access to seller data' });
     }
 
-    const asins = await Asin.find({ seller: req.params.sellerId })
-      .populate('seller', 'name marketplace')
-      .sort({ createdAt: -1 });
+    const query = { seller: req.params.sellerId };
+    
+    const [asins, total] = await Promise.all([
+      Asin.find(query)
+        .populate('seller', 'name marketplace')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Asin.countDocuments(query)
+    ]);
 
-    res.json(asins);
+    res.json({
+      asins,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Get single ASIN
 exports.getAsin = async (req, res) => {

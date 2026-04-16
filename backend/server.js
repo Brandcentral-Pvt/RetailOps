@@ -218,7 +218,7 @@ server.listen(PORT, () => {
     const { syncAllToCometChat } = require('./services/cometChatService');
     syncAllToCometChat(); // Fire and forget
   } catch (err) {
-    console.error('Initial CometChat sync failed:', err);
+    // console.error('Initial CometChat sync failed:', err);
   }
 });
 

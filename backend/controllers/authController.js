@@ -7,12 +7,12 @@ const generateTokens = (userId) => {
   const accessToken = jwt.sign(
     { userId },
     config.jwtSecret,
-    { expiresIn: '1d' }
+    { expiresIn: '24h' }
   );
   const refreshToken = jwt.sign(
     { userId, type: 'refresh' },
     config.jwtSecret,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
   return { accessToken, refreshToken };
 };
@@ -54,12 +54,15 @@ exports.register = async (req, res) => {
     }
 
     // Create user
-    const user = await User.create({
+    const user = await (await User.create({
       email,
       password,
       firstName,
       lastName,
       role: roleId,
+    })).populate({
+      path: 'role',
+      populate: { path: 'permissions' }
     });
 
     // Validated: Sync to CometChat

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import NumberChart from '../components/common/NumberChart';
+import ProgressBar from '../components/common/ProgressBar';
 import Chart from 'react-apexcharts';
 import { CHART_COLORS, areaChartOptions } from '../utils/chartTheme';
 import {
@@ -90,6 +91,7 @@ const AdsReport = () => {
    const [copiedAsin, setCopiedAsin] = useState(false);
    const fileRef = useRef(null);
    const [reportType] = useState('daily');
+   const [importProgress, setImportProgress] = useState(0);
   const TABLE_PAGE_SIZE = 15;
 
   const chartModes = [
@@ -411,6 +413,11 @@ const efficiencyMetrics = useMemo(() => {
     const file = e.target.files[0];
     if (!file) return;
     setLoading(true);
+    setImportProgress(10);
+    const interval = setInterval(() => {
+      setImportProgress(prev => Math.min(prev + 15, 95));
+    }, 400);
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('reportType', 'daily');
@@ -428,7 +435,9 @@ const efficiencyMetrics = useMemo(() => {
       console.error('Upload failed:', err);
       alert(`❌ Upload failed: ${err.message}\n\nMake sure your CSV has columns like: ASIN, Date, Spend, Sales, Clicks, Impressions, Orders`);
     }
+    clearInterval(interval);
     setLoading(false);
+    setImportProgress(0);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -580,6 +589,11 @@ const efficiencyMetrics = useMemo(() => {
           </div>
         </div>
       </div>
+      {loading && importProgress > 0 && (
+        <div className="mt-n2 mb-4 px-1">
+          <ProgressBar value={importProgress} label="Analyzing Ad Data..." hint color="violet" size="sm" />
+        </div>
+      )}
 
       {/* Primary KPIs */}
       <div className="row g-3 mb-4">

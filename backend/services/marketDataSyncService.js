@@ -1673,16 +1673,8 @@ class MarketDataSyncService {
             }
 
             // 4. Rating & Reviews
-            let rating = 0;
-            let reviewCount = 0;
-            const ratingStr = (rawData.Rating || rawData.rating || '').toString();
-            if (ratingStr) {
-                const rMatch = ratingStr.match(/([\d.]+)\s+out of 5/i);
-                rating = rMatch ? parseFloat(rMatch[1]) : parseFloat(ratingStr.replace(/[^0-9.]/g, '')) || 0;
-                
-                const cMatch = ratingStr.match(/([\d,]+)\s+global ratings/i) || ratingStr.match(/([\d,]+)\s+ratings/i);
-                if (cMatch) reviewCount = parseInt(cMatch[1].replace(/,/g, ''));
-            }
+            const rating = this._cleanRating(rawData.Rating || rawData.rating);
+            const reviewCount = this._cleanReviewCount(rawData.ReviewCount || rawData.rating || rawData.Reviews || '');
 
             // 5. Image & Gallery Data
             const mainImageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || asin.mainImageUrl;
@@ -1794,6 +1786,47 @@ class MarketDataSyncService {
         const cleaned = str.toString().replace(/,/g, '').trim();
         const match = cleaned.match(/#?(\d+)/);
         return match ? parseInt(match[1]) : 0;
+    }
+
+    _cleanRating(str) {
+        if (!str) return 0;
+        const ratingStr = str.toString().trim();
+        
+        // Match standard format "4.4 out of 5" or "4.4 out of 5 stars"
+        const outOfMatch = ratingStr.match(/([0-5](?:[.,]\d+)?)\s*(?:out\s*of\s*5|\/5|(?=\s*stars?))/i);
+        if (outOfMatch) return parseFloat(outOfMatch[1].replace(',', '.')) || 0;
+        
+        // Match fallback "4.4" at the start
+        const startMatch = ratingStr.match(/^([0-5](?:[.,]\d+)?)/);
+        if (startMatch) return parseFloat(startMatch[1].replace(',', '.')) || 0;
+        
+        // If neither matches, try just picking the first number between 0-5
+        const firstMatch = ratingStr.match(/([0-5](?:[.,]\d+)?)/);
+        if (firstMatch) {
+            const val = parseFloat(firstMatch[1].replace(',', '.')) || 0;
+            if (val <= 5) return val;
+        }
+
+        return 0;
+    }
+
+    _cleanReviewCount(str) {
+        if (!str) return 0;
+        const s = str.toString();
+        
+        // Prioritize global ratings count format "173 global ratings"
+        const globalMatch = s.match(/([\d,]+)\s*global\s*ratings?/i);
+        if (globalMatch) return parseInt(globalMatch[1].replace(/,/g, '')) || 0;
+        
+        // Fallback: search for any sequence of numbers (ignoring commas)
+        const digits = s.replace(/[^0-9,]/g, '').match(/[\d,]+/);
+        if (digits) {
+            const count = parseInt(digits[0].replace(/,/g, ''));
+            // Safety: review counts shouldn't be suspiciously large (e.g. ASIN sequences)
+            if (count > 0 && count < 10000000) return count;
+        }
+
+        return 0;
     }
 
     _parseBoolean(val) {

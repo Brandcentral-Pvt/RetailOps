@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import EmptyState from '../components/common/EmptyState';
+import ProgressBar from '../components/common/ProgressBar';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
@@ -141,6 +142,7 @@ const FileManagerPage = () => {
     const [currentAsin, setCurrentAsin] = useState(null); // drilling into ASIN folder
     const [search, setSearch] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [renameFile, setRenameFile] = useState(null);
     const [ctxFile, setCtxFile] = useState(null);
     const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
@@ -187,6 +189,10 @@ const FileManagerPage = () => {
         const selectedFiles = Array.from(e.target.files);
         if (!selectedFiles.length) return;
         setUploading(true);
+        setUploadProgress(10);
+        const interval = setInterval(() => {
+            setUploadProgress(prev => Math.min(prev + 10, 90));
+        }, 300);
         try {
             const form = new FormData();
             selectedFiles.forEach(f => form.append('files', f));
@@ -204,7 +210,9 @@ const FileManagerPage = () => {
         } catch (err) {
             alert('Upload failed: ' + err.message);
         } finally {
+            clearInterval(interval);
             setUploading(false);
+            setUploadProgress(0);
             e.target.value = '';
         }
     };
@@ -285,7 +293,6 @@ const FileManagerPage = () => {
                     File Manager
                 </div>
 
-                {/* Upload button */}
                 <div style={{ padding: '0 1rem 1rem' }}>
                     <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleUpload} />
                     <button onClick={() => fileInputRef.current.click()} disabled={uploading}
@@ -296,10 +303,16 @@ const FileManagerPage = () => {
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                             opacity: uploading ? 0.7 : 1,
-                            transition: 'all 200ms'
+                            transition: 'all 200ms',
+                            marginBottom: uploading ? '0.75rem' : '0'
                         }}>
                         <Upload size={14} /> {uploading ? 'Uploading…' : 'Upload'}
                     </button>
+                    {uploading && (
+                        <div className="px-1">
+                            <ProgressBar value={uploadProgress} label="Syncing..." hint color="primary" size="xs" />
+                        </div>
+                    )}
                 </div>
 
                 {/* Nav */}

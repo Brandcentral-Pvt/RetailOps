@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import TablePagination from '@mui/material/TablePagination';
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
@@ -374,19 +375,19 @@ const AsinManagerPage = () => {
     setSelectedAsinForRating(asin);
   };
 
-  const loadData = useCallback(async (page = 1) => {
+  const loadData = useCallback(async (page = 1, limit = pagination.limit) => {
     try {
       setLoading(true);
 
       const [asinRes, allAsinsRes, statsRes] = await Promise.all([
-        asinApi.getAll({ page, limit: 25 }),
+        asinApi.getAll({ page, limit }),
         asinApi.getAllWithoutPagination(),
         asinApi.getStats()
       ]);
 
       setAsins(asinRes?.asins || []);
       setAllAsins(allAsinsRes?.data || allAsinsRes?.asins || []);
-      setPagination(asinRes?.pagination || { page: 1, limit: 25, total: 0, totalPages: 0 });
+      setPagination(asinRes?.pagination || { page: 1, limit: limit, total: 0, totalPages: 0 });
       setStats(statsRes);
       setError(null);
     } catch (err) {
@@ -396,7 +397,18 @@ const AsinManagerPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pagination.limit]);
+
+  const handleChangePage = (event, newPage) => {
+    // MUI uses 0-indexed pages, API uses 1-indexed
+    loadData(newPage + 1, pagination.limit);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    const newLimit = parseInt(event.target.value, 10);
+    // Reset to first page when limit changes
+    loadData(1, newLimit);
+  };
 
   useEffect(() => {
     loadData();
@@ -1303,7 +1315,9 @@ const AsinManagerPage = () => {
                         onClick={(e) => handleViewRating(asin, e)}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                         <Star size={10} className="text-warning fill-warning" />
-                        <span style={{ fontWeight: 600 }}>{asin.rating || '-'}</span>
+                        <span style={{ fontWeight: 600 }}>
+                          {typeof asin.rating === 'number' ? asin.rating.toFixed(1) : (asin.rating || '-')}
+                        </span>
                       </div>
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin.buyBoxWin, asin.status)}</td>
@@ -1332,34 +1346,31 @@ const AsinManagerPage = () => {
 
           {/* [F] Pagination Footer */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 20px', background: '#f9fafb', borderTop: '1px solid #e5e7eb',
+            background: '#f9fafb', borderTop: '1px solid #e5e7eb',
             flexShrink: 0
           }}>
-            <span style={{ fontSize: 11, color: '#6b7280' }}>
-              Showing <b>{asins.length}</b> of <b>{pagination.total}</b> entries
-            </span>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button disabled={pagination.page === 1} onClick={() => loadData(pagination.page - 1)}
-                style={{ padding: '4px 12px', fontSize: 11, borderRadius: 4, border: '1px solid #e5e7eb',
-                         background: pagination.page === 1 ? '#f3f4f6' : '#fff', cursor: pagination.page === 1 ? 'not-allowed' : 'pointer' }}>
-                Previous
-              </button>
-              {[...Array(pagination.totalPages)].map((_, i) => (
-                <button key={i} onClick={() => loadData(i + 1)}
-                  style={{ width: 24, height: 24, fontSize: 11, borderRadius: 4, border: 'none',
-                           background: pagination.page === i + 1 ? '#2563eb' : 'transparent',
-                           color: pagination.page === i + 1 ? '#fff' : '#374151', cursor: 'pointer' }}>
-                  {i + 1}
-                </button>
-              ))}
-              <button disabled={pagination.page === pagination.totalPages} onClick={() => loadData(pagination.page + 1)}
-                style={{ padding: '4px 12px', fontSize: 11, borderRadius: 4, border: '1px solid #e5e7eb',
-                         background: pagination.page === pagination.totalPages ? '#f3f4f6' : '#fff', 
-                         cursor: pagination.page === pagination.totalPages ? 'not-allowed' : 'pointer' }}>
-                Next
-              </button>
-            </div>
+            <TablePagination
+              component="div"
+              count={pagination.total || 0}
+              page={(pagination.page || 1) - 1}
+              onPageChange={handleChangePage}
+              rowsPerPage={pagination.limit || 25}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[25, 50, 100, 150, 200, 300, 500]}
+              sx={{
+                fontSize: '11px',
+                '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#6b7280',
+                  margin: 0
+                },
+                '.MuiTablePagination-select': {
+                  fontSize: '11px',
+                  fontWeight: 600
+                }
+              }}
+            />
           </div>
         </div>
 

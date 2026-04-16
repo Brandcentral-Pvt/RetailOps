@@ -374,62 +374,60 @@ class OctoparseAutomationService {
             }
 
             // Rating mapping - Octoparse uses "Rating" field
-            const ratingRaw = item.Rating || item.Field7 || item.rating || item.Average_Rating || '';
+            const ratingRaw = (item.Rating || item.Field7 || item.rating || item.Average_Rating || '').toString();
             
-            // Parse rating breakdown from complex Rating string format
-            // Format: "Customer reviews4.4 out of 5 stars4.4 out of 5173 global ratings5 star4 star3 star2 star1 star5 star73%12%7%2%6%..."
-            if (ratingRaw && typeof ratingRaw === 'string' && ratingRaw.includes('%')) {
-                // The percentages appear after the star labels, in order 5,4,3,2,1
-                // Pattern: "5 star73%12%7%2%6%" means 5star=73%, 4star=12%, 3star=7%, 2star=2%, 1star=6%
-                
-                // The percentages after the star labels are in sequence for 5,4,3,2,1 stars
-                // We need to find where the star breakdown starts
+            // 1. Robust Rating Extraction
+            const outOfMatch = ratingRaw.match(/([0-5](?:[.,]\d+)?)\s*(?:out\s*of\s*5|\/5|(?=\s*stars?))/i);
+            const startMatch = ratingRaw.match(/^([0-5](?:[.,]\d+)?)/);
+            const firstMatch = ratingRaw.match(/([0-5](?:[.,]\d+)?)/);
+            
+            let ratingNum = 0;
+            if (outOfMatch) ratingNum = parseFloat(outOfMatch[1].replace(',', '.')) || 0;
+            else if (startMatch) ratingNum = parseFloat(startMatch[1].replace(',', '.')) || 0;
+            else if (firstMatch) {
+                const val = parseFloat(firstMatch[1].replace(',', '.')) || 0;
+                if (val <= 5) ratingNum = val;
+            }
+
+            if (ratingNum > 0) {
+                updateData.rating = ratingNum;
+            }
+
+            // 2. Rating Breakdown (Stay as is but make sure it uses the raw string correctly)
+            if (ratingRaw.includes('%')) {
                 const starLabelsIndex = ratingRaw.indexOf('5 star');
                 if (starLabelsIndex !== -1) {
-                    // Find where percentages start after starLabelsIndex
                     const afterStars = ratingRaw.substring(starLabelsIndex);
                     const percentMatches = afterStars.match(/(\d+)%/g) || [];
-                    
-                    const ratingBreakdown = {};
                     if (percentMatches.length >= 5) {
-                        ratingBreakdown.fiveStar = parseInt(percentMatches[0]) || 0;
-                        ratingBreakdown.fourStar = parseInt(percentMatches[1]) || 0;
-                        ratingBreakdown.threeStar = parseInt(percentMatches[2]) || 0;
-                        ratingBreakdown.twoStar = parseInt(percentMatches[3]) || 0;
-                        ratingBreakdown.oneStar = parseInt(percentMatches[4]) || 0;
-                        
-                        // Only update if we have valid percentages
-                        if (ratingBreakdown.fiveStar > 0 || ratingBreakdown.fourStar > 0 || 
-                            ratingBreakdown.threeStar > 0 || ratingBreakdown.twoStar > 0 || ratingBreakdown.oneStar > 0) {
-                            updateData.ratingBreakdown = ratingBreakdown;
+                        const breakdown = {
+                            fiveStar: parseInt(percentMatches[0]) || 0,
+                            fourStar: parseInt(percentMatches[1]) || 0,
+                            threeStar: parseInt(percentMatches[2]) || 0,
+                            twoStar: parseInt(percentMatches[3]) || 0,
+                            oneStar: parseInt(percentMatches[4]) || 0
+                        };
+                        if (Object.values(breakdown).some(v => v > 0)) {
+                            updateData.ratingBreakdown = breakdown;
                         }
                     }
                 }
-                
-                // Extract overall rating number from the beginning
-                const ratingNumMatch = ratingRaw.match(/([\d.]+)\s*(?:out\s*of)?\s*5/);
-                if (ratingNumMatch) {
-                    const ratingNum = parseFloat(ratingNumMatch[1]);
-                    if (ratingNum >= 0 && ratingNum <= 5) {
-                        updateData.rating = ratingNum;
-                    }
-                }
-                
-                // Extract review count from Rating string - format: "4.4 out of 5173 global ratings"
-                const reviewCountMatch = ratingRaw.match(/(\d[\d,]*)\s*global\s*ratings?/i);
-                if (reviewCountMatch) {
-                    const reviewCountStr = reviewCountMatch[1].replace(/,/g, '');
-                    const reviewCountNum = parseInt(reviewCountStr);
-                    if (reviewCountNum > 0 && reviewCountNum < 10000000) {
-                        updateData.reviewCount = reviewCountNum;
-                    }
-                }
-            } else if (ratingRaw) {
-                // Simple rating number
-                const ratingNum = parseFloat(ratingRaw);
-                if (ratingNum >= 0 && ratingNum <= 5) {
-                    updateData.rating = ratingNum;
-                }
+            }
+            
+            // 3. Review Count Extraction
+            const reviewCountMatch = ratingRaw.match(/([\d,]+)\s*global\s*ratings?/i);
+            const reviewsField = item.Reviews || item.reviews || item.ReviewCount || item.Reviews_Count || item.Total_Reviews || item.totalReviews || '';
+            
+            let reviewCount = 0;
+            if (reviewCountMatch) {
+                reviewCount = parseInt(reviewCountMatch[1].replace(/,/g, '')) || 0;
+            } else if (reviewsField) {
+                const digitMatch = reviewsField.toString().replace(/[^0-9,]/g, '').match(/[\d,]+/);
+                if (digitMatch) reviewCount = parseInt(digitMatch[0].replace(/,/g, '')) || 0;
+            }
+
+            if (reviewCount > 0 && reviewCount < 10000000) {
+                updateData.reviewCount = reviewCount;
             }
 
             // Reviews - parse from Rating field or dedicated field

@@ -27,7 +27,7 @@ const syncUserToCometChat = async (user) => {
             tags: ['gms-user']
         };
 
-        console.log(`💬 Syncing User to CometChat: ${name} (${uid})`);
+        // console.log(`💬 Syncing User to CometChat: ${name} (${uid})`);
 
         const response = await fetch(COMETCHAT_API_URL, {
             method: 'POST',
@@ -42,12 +42,12 @@ const syncUserToCometChat = async (user) => {
         const data = await response.json();
 
         if (response.ok) {
-            console.log(`✅ CometChat User Created: ${uid}`);
+            // console.log(`✅ CometChat User Created: ${uid}`);
             user.cometChatUid = uid;
             await user.save();
             return { success: true, data };
         } else if (data.error?.code === 'ERR_UID_ALREADY_EXISTS') {
-            console.log(`ℹ️ CometChat User already exists, updating tags: ${uid}`);
+            // console.log(`ℹ️ CometChat User already exists, updating tags: ${uid}`);
             // Update to ensure tags are set
             await fetch(`${COMETCHAT_API_URL}/${uid}`, {
                 method: 'PUT',
@@ -66,11 +66,11 @@ const syncUserToCometChat = async (user) => {
             await user.save();
             return { success: true, message: 'User updated' };
         } else {
-            console.error(`❌ CometChat User Creation Failed:`, data);
+            // console.error(`❌ CometChat User Creation Failed:`, data);
             return { success: false, error: data };
         }
     } catch (error) {
-        console.error('❌ CometChat Sync Error:', error);
+        // console.error('❌ CometChat Sync Error:', error);
         return { success: false, error: error.message };
     }
 };
@@ -89,7 +89,7 @@ const syncSellerToCometChat = async (seller) => {
             tags: ['gms-user']
         };
 
-        console.log(`💬 Syncing Seller to CometChat: ${name} (${uid})`);
+        // console.log(`💬 Syncing Seller to CometChat: ${name} (${uid})`);
 
         const response = await fetch(COMETCHAT_API_URL, {
             method: 'POST',
@@ -104,12 +104,12 @@ const syncSellerToCometChat = async (seller) => {
         const data = await response.json();
 
         if (response.ok) {
-            console.log(`✅ CometChat Seller Created: ${uid}`);
+            // console.log(`✅ CometChat Seller Created: ${uid}`);
             seller.cometChatUid = uid;
             await seller.save();
             return { success: true, data };
         } else if (data.error?.code === 'ERR_UID_ALREADY_EXISTS') {
-            console.log(`ℹ️ CometChat Seller already exists, updating tags: ${uid}`);
+            // console.log(`ℹ️ CometChat Seller already exists, updating tags: ${uid}`);
             await fetch(`${COMETCHAT_API_URL}/${uid}`, {
                 method: 'PUT',
                 headers: {
@@ -127,11 +127,11 @@ const syncSellerToCometChat = async (seller) => {
             await seller.save();
             return { success: true, message: 'Seller updated' };
         } else {
-            console.error(`❌ CometChat Seller Creation Failed:`, data);
+            // console.error(`❌ CometChat Seller Creation Failed:`, data);
             return { success: false, error: data };
         }
     } catch (error) {
-        console.error('❌ CometChat Sync Error:', error);
+        // console.error('❌ CometChat Sync Error:', error);
         // Don't modify return here so we don't break the caller if they don't await/check
         return { success: false, error: error.message };
     }
@@ -139,35 +139,35 @@ const syncSellerToCometChat = async (seller) => {
 
 const syncAllToCometChat = async () => {
     try {
-        console.log('🚀 Starting Background CometChat Sync...');
+        // console.log('🚀 Starting Background CometChat Sync...');
         const User = require('../models/User');
         const Seller = require('../models/Seller');
 
         // Sync Users
         const users = await User.find({});
-        console.log(`📊 Syncing ${users.length} users...`);
+        // console.log(`📊 Syncing ${users.length} users...`);
         for (const user of users) {
             await syncUserToCometChat(user);
         }
 
         // Sync Sellers
         const sellers = await Seller.find({});
-        console.log(`📊 Syncing ${sellers.length} sellers...`);
+        // console.log(`📊 Syncing ${sellers.length} sellers...`);
         for (const seller of sellers) {
             await syncSellerToCometChat(seller);
         }
 
-        console.log('✅ Background CometChat Sync Completed');
+        // console.log('✅ Background CometChat Sync Completed');
         return { success: true };
     } catch (error) {
-        console.error('❌ Background CometChat Sync Failed:', error);
+        // console.error('❌ Background CometChat Sync Failed:', error);
         return { success: false, error: error.message };
     }
 };
 
 const deleteFromCometChat = async (uid) => {
     try {
-        console.log(`💬 Deleting from CometChat: ${uid}`);
+        // console.log(`💬 Deleting from CometChat: ${uid}`);
 
         const response = await fetch(`${COMETCHAT_API_URL}/${uid}`, {
             method: 'DELETE',
@@ -181,17 +181,17 @@ const deleteFromCometChat = async (uid) => {
         const data = await response.json();
 
         if (response.ok) {
-            console.log(`✅ CometChat Entity Deleted: ${uid}`);
+            // console.log(`✅ CometChat Entity Deleted: ${uid}`);
             return { success: true, data };
         } else if (data.error?.code === 'ERR_UID_NOT_FOUND') {
-            console.log(`ℹ️ CometChat Entity not found, already deleted: ${uid}`);
+            // console.log(`ℹ️ CometChat Entity not found, already deleted: ${uid}`);
             return { success: true, message: 'Entity not found' };
         } else {
-            console.error(`❌ CometChat Deletion Failed:`, data);
+            // console.error(`❌ CometChat Deletion Failed:`, data);
             return { success: false, error: data };
         }
     } catch (error) {
-        console.error('❌ CometChat Deletion Error:', error);
+        // console.error('❌ CometChat Deletion Error:', error);
         return { success: false, error: error.message };
     }
 };

@@ -525,8 +525,13 @@ const UsersPage = () => {
                     </select>
                   </div>
 
-                  {formData.role && !['admin', 'operational_manager'].includes(roles.find(r => r._id === formData.role)?.name) && (
-                    <div className="col-12 mt-3">
+                  {(() => {
+                    const selectedRoleObj = roles.find(r => r._id === formData.role);
+                    const isGlobalRole = selectedRoleObj && ['admin', 'operational_manager'].includes(selectedRoleObj.name);
+                    
+                    if (formData.role && !isGlobalRole) {
+                      return (
+                        <div className="col-12 mt-3">
                       <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">
                         <Shield size={14} className="text-primary" />
                         Assigned Sellers (Data Access Control)
@@ -561,8 +566,11 @@ const UsersPage = () => {
                         <Info size={12} className="me-1" />
                         Non-admin users can only see data for their assigned sellers.
                       </p>
-                    </div>
-                  )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   <div className="col-12 mt-3">
                     <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">

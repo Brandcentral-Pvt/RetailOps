@@ -21,7 +21,6 @@ export const AuthProvider = ({ children }) => {
             const token = localStorage.getItem('authToken');
             if (token) {
                 try {
-                    // Verify token and get user data
                     const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/me`, {
                         headers: {
                             'Authorization': `Bearer ${token}`
@@ -30,25 +29,25 @@ export const AuthProvider = ({ children }) => {
 
                     if (response.ok) {
                         const result = await response.json();
-                        // Backend returns {success: true, data: user}
                         if (result.success && result.data) {
                             setUser(result.data);
                             localStorage.setItem('user', JSON.stringify(result.data));
                         } else {
-                            localStorage.removeItem('authToken');
-                            localStorage.removeItem('user');
+                            throw new Error('Invalid user data');
                         }
                     } else {
-                        // Token invalid, clear it
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('user');
+                        throw new Error('Session expired');
                     }
                 } catch (err) {
-                    console.error('Auth initialization error:', err);
+                    console.warn('Auth initialization warning:', err.message);
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('user');
+                    setUser(null);
                 }
+            } else {
+                setUser(null);
             }
+            // Ensure loading is only set to false AFTER we've attempted re-hydration
             setLoading(false);
         };
 
@@ -72,10 +71,7 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(result.message || 'Login failed');
             }
 
-            // Backend returns {success: true, data: {user, accessToken, refreshToken}}
             const { user, accessToken } = result.data;
-
-            // Store token and user data
             localStorage.setItem('authToken', accessToken);
             localStorage.setItem('user', JSON.stringify(user));
             setUser(user);
@@ -103,10 +99,7 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(result.message || 'Registration failed');
             }
 
-            // Backend returns {success: true, data: {user, accessToken, refreshToken}}
             const { user, accessToken } = result.data;
-
-            // Auto-login after registration
             localStorage.setItem('authToken', accessToken);
             localStorage.setItem('user', JSON.stringify(user));
             setUser(user);
@@ -131,20 +124,26 @@ export const AuthProvider = ({ children }) => {
 
     const hasPermission = (permissionName) => {
         if (!user || !user.role) return false;
-        if (user.role.name === 'admin' || user.role.name === 'operational_manager') return true;
-        if (!user.role.permissions) return false;
+        
+        // Super Admin always has full access
+        if (user.role.name === 'admin') return true;
 
+        // Operational Manager has global access EXCEPT delete
+        if (user.role.name === 'operational_manager') {
+            if (permissionName.toLowerCase().includes('delete')) return false;
+            return true;
+        }
+
+        // Standard dynamic permission check
+        if (!user.role.permissions) return false;
         return user.role.permissions.some(p => p.name === permissionName);
     };
 
     const hasAnyPermission = (permissionNames) => {
         if (!user || !user.role) return false;
-        if (user.role.name === 'admin' || user.role.name === 'operational_manager') return true;
-        if (!user.role.permissions) return false;
-
-        return permissionNames.some(name =>
-            user.role.permissions.some(p => p.name === name)
-        );
+        if (user.role.name === 'admin') return true;
+        
+        return permissionNames.some(name => hasPermission(name));
     };
 
     const value = {

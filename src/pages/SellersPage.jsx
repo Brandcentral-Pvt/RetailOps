@@ -72,7 +72,10 @@ const SellersPage = () => {
   const [editingSeller, setEditingSeller] = useState(null);
   const [showEditAsinModal, setShowEditAsinModal] = useState(false);
   const [editingAsin, setEditingAsin] = useState(null);
+  const [asinPagination, setAsinPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
+  const [loadingAsins, setLoadingAsins] = useState(false);
   const { addToast } = useToast();
+
 
   useEffect(() => {
     loadSellers();
@@ -218,7 +221,6 @@ const SellersPage = () => {
   };
 
   const handleImportSellers = async (sellers) => {
-    setLoading(true);
     try {
       const response = await sellerApi.import(sellers);
       if (response.success) {
@@ -229,6 +231,7 @@ const SellersPage = () => {
         });
         await loadSellers();
         setShowImportModal(false);
+        return true;
       }
     } catch (error) {
       addToast({
@@ -236,8 +239,8 @@ const SellersPage = () => {
         message: error.message || 'Check your CSV format and try again.',
         type: 'error'
       });
+      return false;
     }
-    setLoading(false);
   };
 
   const handleToggleStatus = async (sellerId) => {
@@ -273,17 +276,32 @@ const SellersPage = () => {
     }
   };
 
-  const handleViewAsins = async (seller) => {
+  const handleViewAsins = async (seller, page = 1) => {
     setSelectedSeller(seller);
     setShowAsinModal(true);
+    setLoadingAsins(true);
     try {
-      const asins = await asinApi.getBySeller(seller._id);
-      setSellerAsins(asins);
+      const result = await asinApi.getBySeller(seller._id, { page, limit: 50 });
+      if (page === 1) {
+        setSellerAsins(result.asins || []);
+      } else {
+        setSellerAsins(prev => [...prev, ...(result.asins || [])]);
+      }
+      setAsinPagination(result.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
     } catch (error) {
       console.error('Failed to load ASINs:', error);
-      setSellerAsins([]);
+      if (page === 1) setSellerAsins([]);
+    } finally {
+      setLoadingAsins(false);
     }
   };
+
+  const handleLoadMoreAsins = () => {
+    if (asinPagination.page < asinPagination.totalPages && !loadingAsins) {
+      handleViewAsins(selectedSeller, asinPagination.page + 1);
+    }
+  };
+
 
   const handleAddAsin = async (asinData) => {
     try {
@@ -297,8 +315,10 @@ const SellersPage = () => {
         message: `Successfully added ${asinData.asinCode} to inventory.`,
         type: 'success'
       });
-      const asins = await asinApi.getBySeller(selectedSeller._id);
-      setSellerAsins(asins);
+      const result = await asinApi.getBySeller(selectedSeller._id, { page: 1, limit: 50 });
+      setSellerAsins(result.asins);
+      setAsinPagination(result.pagination);
+
       await loadSellers();
     } catch (error) {
       addToast({
@@ -312,8 +332,10 @@ const SellersPage = () => {
   const handleDeleteAsin = async (asinId) => {
     try {
       await asinApi.delete(asinId);
-      const asins = await asinApi.getBySeller(selectedSeller._id);
-      setSellerAsins(asins);
+      const result = await asinApi.getBySeller(selectedSeller._id, { page: 1, limit: 50 });
+      setSellerAsins(result.asins);
+      setAsinPagination(result.pagination);
+
       await loadSellers();
     } catch (error) {
       addToast({
@@ -328,8 +350,10 @@ const SellersPage = () => {
     try {
       const newStatus = currentStatus === 'Active' ? 'Paused' : 'Active';
       await asinApi.update(asinId, { status: newStatus });
-      const asins = await asinApi.getBySeller(selectedSeller._id);
-      setSellerAsins(asins);
+      const result = await asinApi.getBySeller(selectedSeller._id, { page: 1, limit: 50 });
+      setSellerAsins(result.asins);
+      setAsinPagination(result.pagination);
+
       await loadSellers();
     } catch (error) {
       addToast({
@@ -360,8 +384,10 @@ const SellersPage = () => {
   const handleUpdateAsin = async (asinId, data) => {
     try {
       await asinApi.update(asinId, data);
-      const asins = await asinApi.getBySeller(selectedSeller._id);
-      setSellerAsins(asins);
+      const result = await asinApi.getBySeller(selectedSeller._id, { page: 1, limit: 50 });
+      setSellerAsins(result.asins);
+      setAsinPagination(result.pagination);
+
       await loadSellers();
     } catch (error) {
       addToast({
@@ -530,14 +556,15 @@ const SellersPage = () => {
                   <LayoutGrid size={16} className="text-zinc-500" />
                   <span className="fw-bold text-zinc-700">Octoparse Pool ({poolStats.available})</span>
                 </button>
-                <button
-                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
-                  onClick={handleIngestAll}
-                  title="Force check all Octoparse tasks for results"
-                >
-                  <RefreshCw size={16} className="text-primary" />
-                  <span className="fw-bold text-zinc-700">Fetch Latest Data</span>
-                </button>
+                  <button
+                    className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
+                    onClick={handleIngestAll}
+                    disabled={loading}
+                    title="Force check all Octoparse tasks for results"
+                  >
+                    <RefreshCw size={16} className={`text-primary ${loading ? 'spin' : ''}`} />
+                    <span className="fw-bold text-zinc-700">{loading ? 'Fetching...' : 'Fetch Latest Data'}</span>
+                  </button>
               </>
             )}
             <button className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3" onClick={() => setShowImportModal(true)}>
@@ -877,7 +904,11 @@ const SellersPage = () => {
           isAdmin={isAdmin}
           isGlobalUser={isGlobalUser}
           onRefresh={() => handleViewAsins(selectedSeller)}
+          pagination={asinPagination}
+          onLoadMore={handleLoadMoreAsins}
+          loading={loadingAsins}
         />
+
       )}
       {/* Task Pool Management Modal */}
       {showPoolModal && (
@@ -1078,6 +1109,8 @@ const AddSellerModal = ({ onClose, onSave, isAdmin, isGlobalUser, initialData })
 // Import Seller Modal Component
 const ImportSellerModal = ({ onClose, onImport }) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [fileStats, setFileStats] = useState(null);
   const [managers, setManagers] = useState([]);
   const { addToast } = useToast();
@@ -1151,9 +1184,26 @@ const ImportSellerModal = ({ onClose, onImport }) => {
     reader.readAsText(file);
   };
 
-  const handleImportComplete = () => {
+  const handleImportComplete = async () => {
     if (fileStats?.data) {
-      onImport(fileStats.data);
+      setIsImporting(true);
+      // Simulate progress for better UX
+      const interval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      try {
+        const success = await onImport(fileStats.data);
+        if (success) {
+          setProgress(100);
+          addToast({ title: 'Import Successful', message: `Added ${fileStats.count} stores to your ecosystem.`, type: 'success' });
+          // Auto-close after 1.5s to show completion
+          setTimeout(onClose, 1500);
+        }
+      } finally {
+        clearInterval(interval);
+        setIsImporting(false);
+      }
     }
   };
 
@@ -1200,15 +1250,25 @@ const ImportSellerModal = ({ onClose, onImport }) => {
                 <div className="smallest text-zinc-400">or drag and drop your file here</div>
               </div>
             ) : (
-              <div className="p-4 bg-zinc-900 rounded-4 text-white d-flex align-items-center justify-content-between shadow-lg">
-                <div className="d-flex align-items-center gap-3">
-                  <div className="p-2 bg-zinc-800 rounded-3"><FileCheck size={20} className="text-success" /></div>
-                  <div>
-                    <div className="fw-bold smallest">{fileStats.name}</div>
-                    <div className="smallest opacity-60">{fileStats.count} accounts ready for import</div>
+              <div className="p-4 bg-zinc-900 rounded-4 text-white d-flex flex-column gap-3 shadow-lg">
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="p-2 bg-zinc-800 rounded-3"><FileCheck size={20} className="text-success" /></div>
+                    <div>
+                      <div className="fw-bold smallest">{fileStats.name}</div>
+                      <div className="smallest opacity-60">{fileStats.count} accounts ready for import</div>
+                    </div>
                   </div>
+                  {!isImporting && (
+                    <button className="btn btn-sm btn-zinc-800 text-white border-0 px-3 rounded-pill smallest fw-bold" onClick={() => setFileStats(null)}>Change</button>
+                  )}
                 </div>
-                <button className="btn btn-sm btn-zinc-800 text-white border-0 px-3 rounded-pill smallest fw-bold" onClick={() => setFileStats(null)}>Change</button>
+                
+                {isImporting && (
+                  <div className="pt-2">
+                    <ProgressBar value={progress} label="Importing Stores..." hint color="success" size="sm" />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1224,11 +1284,11 @@ const ImportSellerModal = ({ onClose, onImport }) => {
             <button type="button" className="btn-prism shadow-none border-0 text-zinc-500" onClick={onClose}>Dismiss</button>
             <button
               className="btn-prism btn-prism-primary"
-              disabled={!fileStats || isUploading}
+              disabled={!fileStats || isUploading || isImporting}
               onClick={handleImportComplete}
             >
-              {isUploading ? <RefreshCw size={16} className="spin" /> : <ChevronRight size={16} />}
-              <span>Begin Import</span>
+              {(isUploading || isImporting) ? <RefreshCw size={16} className="spin" /> : <ChevronRight size={16} />}
+              <span>{isImporting ? 'Processing...' : 'Begin Import'}</span>
             </button>
           </div>
         </div>
@@ -1237,7 +1297,7 @@ const ImportSellerModal = ({ onClose, onImport }) => {
   );
 };
 
-// Seller ASINs Modal Component
+// Seller ASINs Modal // Seller ASINs Modal Component
 const SellerAsinsModal = ({
   seller,
   asins,
@@ -1249,7 +1309,10 @@ const SellerAsinsModal = ({
   onSyncAsin,
   isAdmin,
   isGlobalUser,
-  onRefresh
+  onRefresh,
+  pagination = { page: 1, limit: 50, total: 0, totalPages: 0 },
+  onLoadMore,
+  loading
 }) => {
   const { addToast } = useToast();
   const [showAddAsinModal, setShowAddAsinModal] = useState(false);
@@ -1259,21 +1322,29 @@ const SellerAsinsModal = ({
   const [detailedAsin, setDetailedAsin] = useState(null);
   const [newAsinsText, setNewAsinsText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
 
   const handleJsonUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (file.type !== "application/json" && !file.name.endsWith('.json')) {
-      alert("Please upload a valid JSON file.");
+      addToast({ title: 'Invalid File', message: 'Please upload a valid JSON file.', type: 'error' });
       return;
     }
 
     const reader = new FileReader();
     reader.onload = async (event) => {
+      let pInterval;
       try {
         const jsonData = JSON.parse(event.target.result);
         setIsSubmitting(true);
+        setSubmitProgress(10);
+        
+        pInterval = setInterval(() => {
+          setSubmitProgress(prev => Math.min(prev + 5, 95));
+        }, 300);
+
         const result = await marketSyncApi.bulkInjectJson(seller._id, jsonData);
 
         addToast({
@@ -1282,6 +1353,7 @@ const SellerAsinsModal = ({
           type: 'success'
         });
 
+        setSubmitProgress(100);
         if (onRefresh) await onRefresh();
       } catch (error) {
         addToast({
@@ -1290,8 +1362,10 @@ const SellerAsinsModal = ({
           type: 'error'
         });
       } finally {
+        if (pInterval) clearInterval(pInterval);
         setIsSubmitting(false);
-        e.target.value = ''; // Reset file input
+        setSubmitProgress(0);
+        e.target.value = ''; 
       }
     };
     reader.readAsText(file);
@@ -1310,53 +1384,45 @@ const SellerAsinsModal = ({
   const handleBulkAddAsins = async () => {
     if (!newAsinsText.trim()) return;
 
+    let sInterval;
     setIsSubmitting(true);
+    setSubmitProgress(10);
+
     try {
-      // Parse input (comma or newline separated), strip whitespace, filter empty, ensure 10 chars (basic validation)
-      const asinList = newAsinsText
-        .split(/[,\s]+/)
-        .map(a => a.trim().toUpperCase())
-        .filter(a => a.length > 0);
-
-      if (asinList.length === 0) {
-        alert('No valid ASINs found.');
-        setIsSubmitting(false);
-        return;
-      }
-
+      const asinList = newAsinsText.split(/[,\s\n]+/).map(a => a.trim().toUpperCase()).filter(a => a.length > 0);
       const asinsPayload = asinList.map(code => ({
         asinCode: code,
         seller: seller._id,
         status: 'Active'
       }));
 
-      // Call the bulk API method
+      setSubmitProgress(20);
+      sInterval = setInterval(() => {
+        setSubmitProgress(prev => Math.min(prev + 10, 90));
+      }, 500);
+
       const result = await asinApi.createBulk(asinsPayload);
+      setSubmitProgress(100);
 
-      // Refresh list correctly without window reload
-      if (onRefresh) {
-        await onRefresh();
-      }
+      if (onRefresh) await onRefresh();
 
-      // Show specific toast for duplicates if any
       if (result.duplicatesCount > 0) {
         addToast({
           title: 'Partial Success',
-          message: `${result.insertedCount} added. ${result.duplicatesCount} skipped as they already exist: ${result.duplicates.join(', ')}`,
+          message: `${result.insertedCount} added. ${result.duplicatesCount} skipped.`,
           type: 'warning',
-          duration: 10000 // Show longer for user to read lists
+          duration: 10000
         });
       } else {
         addToast({
           title: 'Success',
-          message: `Successfully added ${result.insertedCount} ASIN(s) to inventory.`,
+          message: `Successfully added ${result.insertedCount} ASIN(s).`,
           type: 'success'
         });
       }
 
       setNewAsinsText('');
       setShowAddAsinModal(false);
-
     } catch (error) {
       addToast({
         title: 'Bulk Add Failed',
@@ -1364,142 +1430,167 @@ const SellerAsinsModal = ({
         type: 'error'
       });
     } finally {
+      if (sInterval) clearInterval(sInterval);
       setIsSubmitting(false);
+      setSubmitProgress(0);
     }
   };
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header border-0 px-4 pt-4 pb-0">
-            <h5 className="h5 fw-bold mb-0 text-zinc-900 d-flex align-items-center gap-2">
-              <div className="p-2 bg-zinc-100 text-zinc-900 rounded-3 border border-zinc-200">
-                <Package size={20} />
+    <div className="modal show d-block" style={{ backgroundColor: 'rgba(9, 9, 11, 0.6)', backdropFilter: 'blur(12px)', zIndex: 1060 }}>
+      <div className="modal-dialog modal-xl modal-dialog-centered">
+        <div className="modal-content border-0 shadow-2xl rounded-4 overflow-hidden" style={{ background: '#fff', maxHeight: '90vh' }}>
+          <div className="modal-header border-0 px-4 pt-4 pb-0 d-flex align-items-center justify-content-between">
+            <h5 className="modal-title d-flex align-items-center gap-2 text-zinc-900 fw-bold" style={{ fontSize: '15px' }}>
+              <div className="p-1.5 bg-zinc-900 text-white rounded-2 shadow-sm">
+                <Package size={18} strokeWidth={2.5} />
               </div>
-              ASIN Inventory - {seller.name}
+              ASIN Inventory — {seller.name}
             </h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
+            <button type="button" className="btn-white-icon border-0 shadow-none" onClick={onClose}>
+              <X size={18} />
+            </button>
           </div>
-          <div className="modal-body">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <span className="text-zinc-400 smallest fw-bold uppercase">{asins.length} ASINs Cataloged</span>
-              <div className="d-flex gap-2">
-                <input
-                  type="file"
-                  id="jsonUpload"
-                  hidden
-                  accept=".json"
-                  onChange={(e) => handleJsonUpload(e)}
-                />
-                <button
-                  className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 px-3 rounded-pill"
-                  onClick={() => document.getElementById('jsonUpload').click()}
-                  disabled={isSubmitting}
-                >
-                  <FileJson size={16} className="text-primary" />
-                  <span className="fw-bold text-zinc-700">Sync JSON Results</span>
-                </button>
-                <button className="btn btn-zinc-900 btn-sm shadow-sm border-0 d-flex align-items-center gap-2 px-3 rounded-pill" onClick={() => setShowAddAsinModal(true)} style={{ backgroundColor: '#18181B', color: '#fff' }}>
-                  <Plus size={16} />
-                  <span className="fw-bold">Add ASIN(s)</span>
-                </button>
+
+          <div className="modal-body p-0 d-flex flex-column" style={{ overflow: 'hidden' }}>
+            {isSubmitting && (
+              <div className="px-4 py-2 bg-zinc-50 border-bottom border-zinc-100">
+                <ProgressBar value={submitProgress} label="Processing operation..." size="xs" color="primary" />
+              </div>
+            )}
+            
+            <div className="px-1 py-4 flex-grow-1 overflow-auto">
+              <div className="px-3">
+                <div className="d-flex justify-content-between align-items-center mb-4 px-1">
+                  <div className="d-flex align-items-center gap-3">
+                    <span className="text-zinc-400 smallest fw-bold uppercase tracking-wider">{pagination.total} ASINs Cataloged</span>
+                    {loading && <div className="spinner-border spinner-border-sm text-zinc-300" role="status"></div>}
+                  </div>
+                  <div className="d-flex gap-2">
+                    <input type="file" id="jsonUpload" hidden accept=".json" onChange={handleJsonUpload} />
+                    <button
+                      className="btn btn-white btn-sm border-zinc-200 shadow-sm d-flex align-items-center gap-2 px-3 rounded-3"
+                      onClick={() => document.getElementById('jsonUpload').click()}
+                      disabled={isSubmitting}
+                      style={{ height: '34px', fontSize: '12px' }}
+                    >
+                      <FileJson size={14} className="text-zinc-600" />
+                      <span className="fw-bold">Bulk JSON Sync</span>
+                    </button>
+                    <button 
+                      className="btn btn-zinc-900 btn-sm shadow-sm d-flex align-items-center gap-2 px-3 rounded-3" 
+                      onClick={() => setShowAddAsinModal(true)}
+                      style={{ height: '34px', fontSize: '12px', background: '#18181B', color: '#fff' }}
+                    >
+                      <Plus size={14} />
+                      <span className="fw-bold">Add ASIN(s)</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="table data-table mb-0 align-middle">
+                    <thead className="sticky-top bg-white" style={{ zIndex: 10, top: '-1px' }}>
+                      <tr className="border-bottom border-zinc-100">
+                        <th className="py-3 text-zinc-500 smallest fw-bold uppercase text-start">Identifier</th>
+                        <th className="py-3 text-zinc-500 smallest fw-bold uppercase text-start">Identity & Specs</th>
+                        <th className="py-3 text-zinc-500 smallest fw-bold uppercase text-start">Commercials</th>
+                        <th className="py-3 text-zinc-500 smallest fw-bold uppercase text-start">Inventory</th>
+                        <th className="py-3 text-zinc-500 smallest fw-bold uppercase text-start">Status</th>
+                        <th className="py-3 text-zinc-500 smallest fw-bold uppercase text-end">Control</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {asins.length === 0 && !loading ? (
+                        <tr>
+                          <td colSpan="6" className="text-center py-5">
+                            <div className="d-flex flex-column align-items-center opacity-40">
+                              <Database size={40} className="mb-2 text-zinc-300" />
+                              <span className="fw-medium text-zinc-400">No ASINs tracked for this store yet</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        <>
+                          {asins.map(asin => (
+                            <tr key={asin._id} className="border-bottom border-zinc-50 hover-bg-zinc-50 transition-colors">
+                              <td className="py-3 fw-bold text-zinc-900 font-monospace smallest">{asin.asinCode}</td>
+                              <td className="py-3">
+                                <div className="d-flex flex-column gap-0.5">
+                                  <span className="fw-bold text-zinc-800 tracking-tight" style={{ fontSize: '11px' }}>{asin.sku || 'N/A'}</span>
+                                  <span className="text-zinc-400 truncate opacity-80" style={{ maxWidth: '220px', fontSize: '10px' }}>{asin.title || 'Loading title...'}</span>
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <div className="d-flex flex-column gap-0.5">
+                                  <span className="fw-black text-zinc-900" style={{ fontSize: '11px' }}>₹{asin.currentPrice?.toLocaleString() || '0'}</span>
+                                  <span className="text-zinc-400 smallest fw-medium opacity-80">Rank: #{asin.bsr || 'N/A'}</span>
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <div className={`d-inline-flex px-1.5 py-0.5 rounded-1 fw-bold smallest ${asin.stockLevel > 20 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}>
+                                  {asin.stockLevel || 0}
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <button
+                                  className={`btn btn-sm p-0 border-0 d-flex align-items-center gap-1.5 ${asin.status === 'Active' ? 'text-success' : 'text-zinc-400'}`}
+                                  onClick={() => onToggleStatus(asin._id, asin.status)}
+                                >
+                                  {asin.status === 'Active' ? <CheckCircle2 size={15} /> : <PauseCircle size={15} />}
+                                  <span className="fw-bold uppercase tracking-widest" style={{ fontSize: '9px' }}>{asin.status}</span>
+                                </button>
+                              </td>
+                              <td className="py-3">
+                                <div className="d-flex gap-1 justify-content-end">
+                                  <button onClick={() => handleViewDetails(asin)} className="btn-white-icon smaller border-zinc-200" title="Details">
+                                    <Eye size={13} />
+                                  </button>
+                                  <button onClick={() => onSyncAsin(asin._id)} className="btn-white-icon smaller border-zinc-200" title="Sync">
+                                    <RefreshCw size={13} />
+                                  </button>
+                                  <button onClick={() => handleEditAsin(asin)} className="btn-white-icon smaller border-zinc-200" title="Modify">
+                                    <Edit3 size={13} />
+                                  </button>
+                                  {isAdmin && (
+                                    <button onClick={() => onDeleteAsin(asin._id)} className="btn-white-icon smaller border-zinc-200 text-danger" title="Delete">
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {pagination.page < pagination.totalPages && (
+                  <div className="py-4 d-flex justify-content-center">
+                    <button 
+                      className="btn btn-white border-zinc-200 px-4 rounded-pill fw-bold smallest text-zinc-600 shadow-sm"
+                      onClick={onLoadMore}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="spinner-border spinner-border-sm" role="status"></span>
+                          <span>Fetching More Data...</span>
+                        </div>
+                      ) : (
+                        <span>Load More Results ({pagination.total - asins.length} remaining)</span>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="table-responsive">
-              <table className="table data-table mb-0">
-                <thead>
-                  <tr>
-                    <th>ASIN Code</th>
-                    <th>SKU / Title</th>
-                    <th>Price / Rank</th>
-                    <th>Stock</th>
-                    <th>Status</th>
-                    <th className="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {asins.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="text-center text-muted py-4">
-                        <i className="bi bi-inbox d-block mb-2" style={{ fontSize: '24px' }}></i>
-                        No ASINs added yet. Click "Add ASIN(s)" to add one or more.
-                      </td>
-                    </tr>
-                  ) : (
-                    asins.map(asin => (
-                      <tr key={asin._id}>
-                        <td className="fw-bold text-dark smallest">{asin.asinCode}</td>
-                        <td>
-                          <div className="d-flex flex-column">
-                            <span className="fw-medium text-primary smallest" style={{ fontSize: '10px' }}>{asin.sku || 'No SKU'}</span>
-                            <span className="text-muted smallest truncate" style={{ maxWidth: '180px', fontSize: '10px' }}>{asin.title || 'No Title'}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="d-flex flex-column">
-                            <span className="fw-bold smallest">₹{asin.currentPrice?.toFixed(2) || '0.00'}</span>
-                            <span className="text-muted smallest" style={{ fontSize: '9px' }}>Rank: #{asin.bsr || asin.currentRank || 'N/A'}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className={`smallest fw-bold ${asin.stockLevel > 10 ? 'text-success' : 'text-danger'}`}>
-                            {asin.stockLevel || 0}
-                          </div>
-                        </td>
-                        <td>
-                          <button
-                            className={`btn btn-sm p-0 border-0 d-flex align-items-center gap-1 ${asin.status === 'Active' ? 'text-success' : 'text-zinc-400'}`}
-                            onClick={() => onToggleStatus(asin._id, asin.status)}
-                            title={asin.status === 'Active' ? 'Deactivate' : 'Activate'}
-                          >
-                            {asin.status === 'Active' ? <CheckCircle2 size={16} /> : <PauseCircle size={16} />}
-                            <span className="fw-bold" style={{ fontSize: '10px' }}>{asin.status}</span>
-                          </button>
-                        </td>
-                        <td>
-                          <div className="d-flex gap-1 justify-content-end">
-                            <button
-                              className="btn btn-icon btn-white border shadow-sm btn-sm"
-                              onClick={() => handleViewDetails(asin)}
-                              title="View Details"
-                            >
-                              <Eye size={10} />
-                            </button>
-                            <button
-                              className="btn btn-icon btn-white border shadow-sm btn-sm"
-                              onClick={() => onSyncAsin(asin._id)}
-                              title="Sync Data"
-                            >
-                              <RefreshCw size={10} />
-                            </button>
-                            <button
-                              className="btn btn-icon btn-white border shadow-sm btn-sm"
-                              onClick={() => handleEditAsin(asin)}
-                              title="Edit"
-                            >
-                              <Edit3 size={10} />
-                            </button>
-                            {isAdmin && (
-                              <button
-                                className="btn btn-icon btn-white border shadow-sm btn-sm text-danger"
-                                onClick={() => onDeleteAsin(asin._id)}
-                                title="Delete"
-                              >
-                                <Trash2 size={10} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
-          <div className="modal-footer border-0 px-4 pb-4 pt-0">
-            <button className="btn btn-white fw-bold px-4 border border-zinc-200 rounded-pill" onClick={onClose}>Close</button>
+
+          <div className="modal-footer border-0 px-4 py-3 bg-zinc-50/50">
+            <button className="btn btn-white fw-bold px-4 border-zinc-200 rounded-pill shadow-sm" onClick={onClose} style={{ fontSize: '12px' }}>Close</button>
           </div>
         </div>
       </div>
@@ -1544,7 +1635,7 @@ const EditAsinModal = ({ asin, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     asinCode: asin.asinCode,
     sku: asin.sku || '',
-    status: asin.status
+    status: asin.status || 'Active'
   });
 
   const handleSubmit = (e) => {
@@ -1553,49 +1644,56 @@ const EditAsinModal = ({ asin, onClose, onSave }) => {
   };
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 1070 }}>
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content rounded-4 shadow-lg border-0">
+    <div className="modal show d-block" style={{ backgroundColor: 'rgba(9, 9, 11, 0.7)', backdropFilter: 'blur(4px)', zIndex: 1080 }}>
+      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '440px' }}>
+        <div className="modal-content rounded-4 shadow-2xl border-0 overflow-hidden">
           <form onSubmit={handleSubmit}>
-            <div className="modal-header border-0 p-4 pb-0">
-              <h5 className="fw-bold mb-0">Edit Product: {asin.asinCode}</h5>
-              <button type="button" className="btn-close" onClick={onClose}></button>
+            <div className="modal-header border-0 px-4 pt-4 pb-0">
+              <h5 className="h5 fw-bold mb-0 text-zinc-900 d-flex align-items-center gap-2">
+                <div className="p-2 bg-zinc-100 text-zinc-900 rounded-3 border border-zinc-200">
+                  <Edit3 size={20} />
+                </div>
+                Edit Product Data
+              </h5>
+              <button type="button" className="btn-white-icon border-0 shadow-none" onClick={onClose}>
+                <X size={18} />
+              </button>
             </div>
             <div className="modal-body p-4">
-              <div className="mb-3">
-                <label className="form-label smallest fw-bold uppercase text-muted">ASIN Code</label>
+              <div className="mb-4">
+                <label className="form-label smallest fw-bold text-zinc-500 uppercase tracking-widest mb-2">ASIN Identifier</label>
                 <input
                   type="text"
-                  className="form-control"
+                  className="form-control border-zinc-200 shadow-sm rounded-3 fw-bold font-monospace bg-zinc-50"
                   value={formData.asinCode}
-                  onChange={e => setFormData({ ...formData, asinCode: e.target.value })}
-                  required
+                  disabled
                 />
               </div>
-              <div className="mb-3">
-                <label className="form-label smallest fw-bold uppercase text-muted">SKU (Internal ID)</label>
+              <div className="mb-4">
+                <label className="form-label smallest fw-bold text-zinc-500 uppercase tracking-widest mb-2">Internal SKU / Label</label>
                 <input
                   type="text"
-                  className="form-control"
+                  className="form-control border-zinc-200 shadow-sm rounded-3"
                   value={formData.sku}
                   onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                  placeholder="Enter store specific SKU"
                 />
               </div>
-              <div className="mb-3">
-                <label className="form-label smallest fw-bold uppercase text-muted">Operational Status</label>
+              <div className="mb-0">
+                <label className="form-label smallest fw-bold text-zinc-500 uppercase tracking-widest mb-2">Catalog Status</label>
                 <select
-                  className="form-select"
+                  className="form-select border-zinc-200 shadow-sm rounded-3"
                   value={formData.status}
                   onChange={e => setFormData({ ...formData, status: e.target.value })}
                 >
-                  <option value="Active">Active (Tracking)</option>
-                  <option value="Paused">Paused (Inactive)</option>
+                  <option value="Active">Active Tracking</option>
+                  <option value="Paused">Paused / Inactive</option>
                 </select>
               </div>
             </div>
             <div className="modal-footer border-0 p-4 pt-0 gap-2">
-              <button type="button" className="btn btn-white rounded-pill px-4" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-zinc-900 rounded-pill px-4 text-white">Save Changes</button>
+              <button type="button" className="btn btn-white fw-bold px-4 border-zinc-200 rounded-pill" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn btn-zinc-900 fw-bold px-4 rounded-pill text-white" style={{ background: '#18181B' }}>Commit Changes</button>
             </div>
           </form>
         </div>
@@ -1734,7 +1832,9 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                     <div className="smallest fw-bold uppercase opacity-60">Customer Sentiment</div>
                     <div className="d-flex align-items-center gap-1">
                       <div className="text-warning"><Zap size={14} fill="currentColor" /></div>
-                      <span className="fw-black">{asin.rating || '0.0'}</span>
+                      <span className="fw-black">
+                        {typeof asin.rating === 'number' ? asin.rating.toFixed(1) : (asin.rating || '0.0')}
+                      </span>
                     </div>
                   </div>
                   <div className="h4 fw-bold mb-1">{asin.reviewCount?.toLocaleString() || '0'} Reviews</div>
