@@ -34,9 +34,6 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-  preview: {
-    allowedHosts: ['retailops.work.gd', 'www.retailops.work.gd'],
-  },
+  }
 })
 
