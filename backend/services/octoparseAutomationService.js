@@ -13,6 +13,14 @@ class OctoparseAutomationService {
         this.pollInterval = parseInt(process.env.OCTOPARSE_POLL_INTERVAL) || 60000; // 1 minute
         this.concurrentPollers = new Map();
         this.syncLocks = new Map();
+        
+        // Token caching - avoid repeated auth calls
+        this._token = null;
+        this._tokenExpiry = 0;
+        this._authPromise = null; // Prevent concurrent auth requests
+        
+        // Retry tracking for data gaps
+        this._lastRunData = new Map(); // Store last run's data per seller for comparison
     }
 
     isConfigured() {
@@ -23,8 +31,15 @@ class OctoparseAutomationService {
 
     async authenticate() {
         const now = Date.now();
-        if (this.token && this.tokenExpiry > now + 5 * 60 * 1000) {
-            return this.token;
+        
+        // Use cached token if valid (with 5 minute buffer)
+        if (this._token && this._tokenExpiry > now + 5 * 60 * 1000) {
+            return this._token;
+        }
+
+        // Prevent concurrent auth requests
+        if (this._authPromise) {
+            return this._authPromise;
         }
 
         const username = process.env.MARKET_SYNC_USERNAME;
@@ -34,23 +49,31 @@ class OctoparseAutomationService {
             throw new Error('MARKET_SYNC_USERNAME or MARKET_SYNC_PASSWORD not configured');
         }
 
-        const response = await axios.post(`${this.baseUrl}/token`, {
-            username,
-            password,
-            grant_type: 'password'
-        }, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        this._authPromise = (async () => {
+            try {
+                const response = await axios.post(`${this.baseUrl}/token`, {
+                    username,
+                    password,
+                    grant_type: 'password'
+                }, {
+                    headers: { 'Content-Type': 'application/json' }
+                });
 
-        this.token = response.data.access_token || response.data.data?.access_token;
-        this.tokenExpiry = now + ((response.data.expires_in || 3600) * 1000);
+                this._token = response.data.access_token || response.data.data?.access_token;
+                this._tokenExpiry = now + ((response.data.expires_in || 3600) * 1000);
 
-        if (!this.token) {
-            throw new Error('Authentication failed: No access token returned');
-        }
+                if (!this._token) {
+                    throw new Error('Authentication failed: No access token returned');
+                }
 
-        console.log(`[OctoparseAuth] ✅ Token secured (expires in ${Math.round((response.data.expires_in || 3600) / 60)}m)`);
-        return this.token;
+                console.log(`[OctoparseAuth] ✅ Token secured (expires in ${Math.round((response.data.expires_in || 3600) / 60)}m)`);
+                return this._token;
+            } finally {
+                this._authPromise = null;
+            }
+        })();
+
+        return this._authPromise;
     }
 
     log(level, message, data = {}) {
@@ -1162,6 +1185,144 @@ class OctoparseAutomationService {
         }
     }
 
+    /**
+     * Snapshot current critical data before extraction
+     * Used to compare and detect missing data after extraction
+     */
+    snapshotCriticalData(sellerId) {
+        return Asin.find({ seller: sellerId, status: 'Active' })
+            .select('asinCode currentPrice bsr rating title')
+            .lean()
+            .then(asins => {
+                const snapshot = new Map();
+                for (const asin of asins) {
+                    snapshot.set(asin.asinCode.toUpperCase(), {
+                        currentPrice: asin.currentPrice,
+                        bsr: asin.bsr,
+                        rating: asin.rating,
+                        title: asin.title
+                    });
+                }
+                return snapshot;
+            });
+    }
+
+    /**
+     * Identify ASINs where critical data was present yesterday but missing today
+     * Returns ASINs that need retry (up to 3 retries)
+     */
+    async identifyMissingDataGaps(sellerId, currentResults, previousSnapshot) {
+        if (!previousSnapshot || previousSnapshot.size === 0) {
+            return [];
+        }
+
+        const resultMap = new Map();
+        for (const item of currentResults) {
+            const asinCode = this.parseAsinFromData(item);
+            if (asinCode) {
+                const title = item.Title || item.Field1 || item.title || '';
+                const price = item.asp || item.Field2 || item.Price || item.Current_Price || 0;
+                const bsr = item.BSR || item.Field9 || item.bsr || 0;
+                const rating = item.Rating || item.Field7 || item.rating || 0;
+                
+                resultMap.set(asinCode.toUpperCase(), {
+                    title: title.toString().trim(),
+                    currentPrice: parseFloat(price) || 0,
+                    bsr: parseInt(bsr) || 0,
+                    rating: parseFloat(rating) || 0
+                });
+            }
+        }
+
+        const missingGaps = [];
+        for (const [asinCode, prevData] of previousSnapshot) {
+            // Skip if yesterday had no data anyway
+            if (!prevData.currentPrice && !prevData.bsr && !prevData.title) {
+                continue;
+            }
+
+            const currentData = resultMap.get(asinCode);
+            const hasPrevPrice = prevData.currentPrice > 0;
+            const hasPrevBsr = prevData.bsr > 0;
+            const hasPrevTitle = prevData.title && prevData.title.length > 5;
+
+            // Check if critical data that was present yesterday is missing today
+            if (hasPrevPrice && (!currentData || !currentData.currentPrice)) {
+                missingGaps.push({ asinCode, reason: 'PRICE_MISSING', hadData: 'price' });
+            }
+            if (hasPrevBsr && (!currentData || !currentData.bsr)) {
+                missingGaps.push({ asinCode, reason: 'BSR_MISSING', hadData: 'bsr' });
+            }
+            if (hasPrevTitle && (!currentData || !currentData.title || currentData.title.length < 5)) {
+                missingGaps.push({ asinCode, reason: 'TITLE_MISSING', hadData: 'title' });
+            }
+        }
+
+        // Deduplicate - if ASIN has multiple missing fields, count as one gap
+        const uniqueGaps = new Map();
+        for (const gap of missingGaps) {
+            if (!uniqueGaps.has(gap.asinCode)) {
+                uniqueGaps.set(gap.asinCode, gap);
+            }
+        }
+
+        const gapsArray = Array.from(uniqueGaps.values());
+        this.log('info', `📊 Found ${gapsArray.length} ASINs with missing data that was present yesterday`);
+        
+        return gapsArray;
+    }
+
+    /**
+     * Retry extraction for ASINs with missing data (max 3 retries with exponential backoff)
+     */
+    async retryMissingData(sellerId, taskId, gapAsins, maxRetries = 3) {
+        if (!gapAsins || gapAsins.length === 0) {
+            return { success: true, retried: 0 };
+        }
+
+        this.log('info', `🔄 Starting retry logic for ${gapAsins.length} ASINs (max ${maxRetries} retries)`);
+
+        const gapAsinCodes = gapAsins.map(g => g.asinCode);
+        let retryCount = 0;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            this.log('info', `📥 Retry attempt ${attempt}/${maxRetries} for ${gapAsinCodes.length} ASINs...`);
+
+            // Stop task if running
+            await this.stopTask(taskId);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Inject only gap ASINs
+            const gapUrls = gapAsinCodes.map(asin => `https://www.amazon.in/dp/${asin}`);
+            await this.injectUrls(taskId, gapUrls);
+
+            // Start extraction
+            const lotNo = await this.startTask(taskId);
+
+            // Poll for completion (shorter interval for retries)
+            this.log('info', `⏳ Polling for retry extraction...`);
+            await this.startConcurrentPolling(sellerId, taskId, lotNo);
+
+            // Fetch results
+            const results = await this.fetchResults(taskId);
+            
+            // Process results
+            const saved = await this.processResults(sellerId, results);
+            retryCount += saved;
+
+            this.log('info', `💾 Saved ${saved} ASINs from retry attempt ${attempt}`);
+
+            // Exponential backoff: 30s, 60s, 120s
+            const backoffMs = 30000 * Math.pow(2, attempt - 1);
+            if (attempt < maxRetries) {
+                this.log('info', `⏳ Waiting ${backoffMs/1000}s before next retry...`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+            }
+        }
+
+        return { success: true, retried: retryCount, attempts: maxRetries };
+    }
+
     async executePipeline(sellerId) {
         const startTime = Date.now();
         const executionId = `exec_${sellerId}_${Date.now()}`;
@@ -1179,6 +1340,9 @@ class OctoparseAutomationService {
                 this.log('warn', `No active ASINs for seller ${sellerId}`);
                 return { success: true, asinsProcessed: 0, executionId };
             }
+
+            // Snapshot data BEFORE extraction for comparison later
+            const preExtractionSnapshot = await this.snapshotCriticalData(sellerId);
 
             const taskId = await this.ensureTaskForSeller(sellerId);
 
@@ -1222,6 +1386,18 @@ class OctoparseAutomationService {
                 this.log('info', `✅ [FINAL-SWEEP] No remaining unexported data found.`);
             }
 
+            // Identify gaps where yesterday's data is missing today
+            this.log('info', `🔍 Checking for missing data gaps...`);
+            const missingGaps = await this.identifyMissingDataGaps(sellerId, finalResults, preExtractionSnapshot);
+
+            // Retry if there are missing data gaps (up to 3 retries)
+            let retryResult = null;
+            if (missingGaps.length > 0) {
+                this.log('info', `⚠️ Found ${missingGaps.length} ASINs with previously-present data now missing`);
+                retryResult = await this.retryMissingData(sellerId, taskId, missingGaps, 3);
+                this.log('info', `🔄 Retry complete: ${retryResult.retried} ASINs recovered`);
+            }
+
             // Start self-healing in background - don't block pipeline
             this.log('info', `🔧 Starting background self-healing for seller ${sellerId}`);
             const healResult = this.startSelfHealingBackground(sellerId, taskId);
@@ -1231,6 +1407,8 @@ class OctoparseAutomationService {
                 executionId,
                 duration: `${Math.round(duration / 1000)}s`,
                 success: true,
+                dataGapsFound: missingGaps.length,
+                retryResult,
                 selfHealing: 'started in background'
             });
 
@@ -1239,6 +1417,8 @@ class OctoparseAutomationService {
                 asinsProcessed: asins.length,
                 executionId,
                 duration: `${Math.round(duration / 1000)}s`,
+                dataGapsFound: missingGaps.length,
+                retryResult,
                 selfHealing: healResult
             };
 

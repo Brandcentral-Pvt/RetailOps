@@ -42,7 +42,8 @@ exports.getAsins = async (req, res) => {
       .populate('seller', 'name marketplace')
       .sort(sortOptions)
       .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean(); // Fast performance
 
     const total = await Asin.countDocuments(filter);
 
@@ -89,8 +90,8 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     const asins = await Asin.find(filter)
       .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails')
       .populate('seller', 'name marketplace')
-      .sort({ status: 1, title: -1, createdAt: -1 });
-
+      .sort({ status: 1, title: -1, createdAt: -1 })
+      .lean(); // Use lean for faster performance
 
     res.json({
       success: true,

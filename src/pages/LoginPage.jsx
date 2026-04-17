@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/Auth.css';
+import { 
+    Mail, 
+    Lock, 
+    Eye, 
+    EyeOff, 
+    Shield, 
+    BarChart3, 
+    ShieldCheck,
+    CheckCircle 
+} from 'lucide-react';
 
 const LoginPage = () => {
     const navigate = useNavigate();
@@ -13,6 +23,7 @@ const LoginPage = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -27,7 +38,7 @@ const LoginPage = () => {
         setError('');
         setLoading(true);
 
-        const result = await login(formData.email, formData.password);
+        const result = await login(formData.email.trim(), formData.password);
 
         if (result.success) {
             navigate('/');
@@ -42,14 +53,11 @@ const LoginPage = () => {
         <div className="auth-container">
             {/* Left Panel - Branding & Features */}
             <div className="auth-left-panel">
-                <div className="auth-background">
-                    <div className="auth-gradient"></div>
-                </div>
-
                 <div className="auth-left-content">
                     <div className="auth-branding-logo">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                            <rect width="40" height="40" rx="10" fill="#2563EB"/>
+                            <path d="M12 20L20 12M20 12L28 20M20 12V28M12 20L20 28M28 20L20 28M20 28V12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                         <span>RetailOps</span>
                     </div>
@@ -60,9 +68,7 @@ const LoginPage = () => {
                         <div className="feature-list">
                             <div className="feature-item">
                                 <div className="feature-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                                    </svg>
+                                    <BarChart3 size={20} />
                                 </div>
                                 <div className="feature-text">
                                     <h3>Real-time Analytics</h3>
@@ -71,9 +77,7 @@ const LoginPage = () => {
                             </div>
                             <div className="feature-item">
                                 <div className="feature-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    </svg>
+                                    <ShieldCheck size={20} />
                                 </div>
                                 <div className="feature-text">
                                     <h3>Secure Platform</h3>
@@ -84,7 +88,7 @@ const LoginPage = () => {
                     </div>
 
                     <div className="auth-left-footer">
-                        &copy; 2024 Global Management System. All rights reserved.
+                        &copy; 2024 RetailOps. All rights reserved.
                     </div>
                 </div>
             </div>
@@ -99,8 +103,10 @@ const LoginPage = () => {
 
                     {error && (
                         <div className="auth-error">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor" />
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
                             </svg>
                             {error}
                         </div>
@@ -109,30 +115,44 @@ const LoginPage = () => {
                     <form onSubmit={handleSubmit} className="auth-form">
                         <div className="form-group">
                             <label htmlFor="email">Email Address</label>
-                            <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                placeholder="name@company.com"
-                                required
-                                autoComplete="email"
-                            />
+                            <div className="input-wrapper">
+                                <Mail />
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    placeholder="admin@company.com"
+                                    required
+                                    autoComplete="email"
+                                />
+                            </div>
                         </div>
 
                         <div className="form-group">
                             <label htmlFor="password">Password</label>
-                            <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                placeholder="••••••••"
-                                required
-                                autoComplete="current-password"
-                            />
+                            <div className="input-wrapper password-input">
+                                <Lock />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    id="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    placeholder="Enter your password"
+                                    required
+                                    autoComplete="current-password"
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="form-options">
@@ -155,24 +175,20 @@ const LoginPage = () => {
                                     Signing in...
                                 </>
                             ) : (
-                                'Sign In'
+                                'Sign in to dashboard'
                             )}
                         </button>
                     </form>
 
-                    <div className="auth-footer">
-                        <p>Don't have an account? <Link to="/register">Sign up</Link></p>
+                    {/* Trust Signal */}
+                    <div className="trust-signal">
+                        <Shield size={14} />
+                        <span>Secured by 256-bit SSL encryption</span>
                     </div>
 
-                    {/* <div className="demo-credentials">
-                        <p className="demo-title">Demo Accounts:</p>
-                        <div className="demo-account">
-                            <strong>Admin:</strong> admin@gms.com / admin123
-                        </div>
-                        <div className="demo-account">
-                            <strong>Manager:</strong> sarah.johnson@gms.com / password123
-                        </div>
-                    </div> */}
+                    <div className="auth-footer">
+                        <p>Don't have an account? <Link to="/register">Create an account</Link></p>
+                    </div>
                 </div>
             </div>
         </div>

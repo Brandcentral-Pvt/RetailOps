@@ -365,7 +365,8 @@ const AsinManagerPage = () => {
     try {
       setLoading(true);
 
-      const [asinRes, allAsinsRes, statsRes] = await Promise.all([
+      // Only fetch paginated data and stats - NOT all data (optimization)
+      const [asinRes, statsRes] = await Promise.all([
         asinApi.getAll({ 
           page, 
           limit, 
@@ -373,12 +374,10 @@ const AsinManagerPage = () => {
           sortBy: 'lastScraped', 
           sortOrder: 'desc' 
         }),
-        asinApi.getAllWithoutPagination(),
         asinApi.getStats({ seller })
       ]);
 
       setAsins(asinRes?.asins || []);
-      setAllAsins(allAsinsRes?.data || allAsinsRes?.asins || []);
       setPagination(asinRes?.pagination || { page: 1, limit: limit, total: 0, totalPages: 0 });
       setStats(statsRes);
       setError(null);
@@ -390,6 +389,17 @@ const AsinManagerPage = () => {
       setLoading(false);
     }
   }, [pagination.limit, selectedSeller]);
+
+  // Lazy load all ASINs only when modal is opened
+  const loadAllAsinsForModal = useCallback(async () => {
+    if (allAsins.length > 0) return; // Already loaded
+    try {
+      const res = await asinApi.getAllWithoutPagination();
+      setAllAsins(res?.data || res?.asins || []);
+    } catch (err) {
+      console.error('Error loading all ASINs:', err);
+    }
+  }, [allAsins.length]);
 
   const handleChangePage = (event, newPage) => {
     // MUI uses 0-indexed pages, API uses 1-indexed
@@ -463,14 +473,14 @@ const AsinManagerPage = () => {
           sub: bestSeller?.asinCode || '', 
           color: '#f59e0b', 
           icon: <Trophy size={14} />,
-          onClick: () => setShowAllBsrHistory(true)
+          onClick: async () => { await loadAllAsinsForModal(); setShowAllBsrHistory(true); }
         },
         { 
           label: 'TOTAL REVIEWS', 
           value: (stats.totalReviews || 0).toLocaleString(), 
           color: '#8b5cf6', 
           icon: <Star size={14} />,
-          onClick: () => setShowAllRatingHistory(true)
+          onClick: async () => { await loadAllAsinsForModal(); setShowAllRatingHistory(true); }
         },
         { 
           label: 'REVIEWS (7 DAYS)', 
@@ -484,7 +494,7 @@ const AsinManagerPage = () => {
           value: '₹' + (stats.avgPrice || 0).toLocaleString(), 
           color: '#06b6d4', 
           icon: <IndianRupee size={14} />,
-          onClick: () => setShowAllPriceHistory(true)
+          onClick: async () => { await loadAllAsinsForModal(); setShowAllPriceHistory(true); }
         },
         { label: 'AVG IMAGES', value: stats.avgImages || 0, color: '#ec4899', icon: <Image size={14} /> },
         { label: 'AVG BULLETS', value: stats.avgBullets || 0, color: '#8b5cf6', icon: <ListChecks size={14} /> },
@@ -507,14 +517,14 @@ const AsinManagerPage = () => {
         value: buyBoxRate + '%', 
         color: '#f59e0b', 
         icon: <Trophy size={14} />,
-        onClick: () => setShowAllBsrHistory(true)
+        onClick: async () => { await loadAllAsinsForModal(); setShowAllBsrHistory(true); }
       },
       { 
         label: 'LOW LQS', 
         value: lowLqs, 
         color: '#ef4444', 
         icon: <AlertTriangle size={14} />,
-        onClick: () => setShowAllRatingHistory(true)
+        onClick: async () => { await loadAllAsinsForModal(); setShowAllRatingHistory(true); }
       },
       { label: 'DEALS', value: activeDeals, color: '#8b5cf6', icon: <Zap size={14} /> },
       { 
@@ -522,7 +532,7 @@ const AsinManagerPage = () => {
         value: '₹' + avgPrice.toLocaleString(), 
         color: '#06b6d4', 
         icon: <IndianRupee size={14} />,
-        onClick: () => setShowAllPriceHistory(true)
+        onClick: async () => { await loadAllAsinsForModal(); setShowAllPriceHistory(true); }
       },
       { label: 'AVG IMAGES', value: Math.round(asins.reduce((sum, a) => sum + (a.imagesCount || 0), 0) / (asins.length || 1)), color: '#ec4899', icon: <Image size={14} /> },
       { label: 'AVG BULLETS', value: Math.round(asins.reduce((sum, a) => sum + (a.bulletPoints || 0), 0) / (asins.length || 1)), color: '#8b5cf6', icon: <ListChecks size={14} /> },

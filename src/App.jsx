@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
@@ -9,43 +9,70 @@ import Header from './components/Header';
 import Sidebar from './components/common/Sidebar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import Dashboard from './pages/Dashboard';
-import SkuReport from './pages/SkuReport';
-import ParentAsinReport from './pages/ParentAsinReport';
-import MonthWiseReport from './pages/MonthWiseReport';
-import AdsReport from './pages/AdsReport';
-import UploadExport from './pages/UploadExport';
-import AlertsPage from './pages/AlertsPage';
-import AlertRulesPage from './pages/AlertRulesPage';
-import RuleSetsPage from './pages/RuleSetsPage';
-import RulesetBuilderPage from './pages/RulesetBuilderPage';
-import ProfitLossPage from './pages/ProfitLossPage';
-import InventoryPage from './pages/InventoryPage';
-import AsinManagerPage from './pages/AsinManagerPage';
-import ActionsPage from './pages/ActionsPage.jsx';
-import SellerAsinTrackerPage from './pages/SellerAsinTrackerPage';
-import SettingsPage from './pages/SettingsPage';
-import UsersPage from './pages/UsersPage';
-import ScrapeTasksPage from './pages/ScrapeTasksPage';
-import SellersPage from './pages/SellersPage';
-import ActivityLog from './pages/ActivityLog';
-import GoalAchievementReport from './pages/GoalAchievementReport';
-import RevenueCalculatorPage from './pages/RevenueCalculatorPage';
-import TemplateManagerPage from './pages/TemplateManagerPage';
-import TasksOperationsPage from './pages/TasksOperationsPage';
-import ProfilePage from './pages/ProfilePage';
-import ChatContainer from './components/chat/ChatContainer';
-import Unauthorized from './pages/Unauthorized';
-import RolesPage from './pages/RolesPage';
-import ApiKeysPage from './pages/ApiKeysPage';
-import FileManagerPage from './pages/FileManagerPage';
-import TeamManagementPage from './pages/TeamManagementPage';
 import { SocketProvider } from './contexts/SocketContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext';
 import OnboardingWizard from './components/onboarding/OnboardingWizard';
 import GlobalNotificationListener from './components/GlobalNotificationListener';
 import './App.css';
+
+// Lazy load pages for better performance
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const SkuReport = lazy(() => import('./pages/SkuReport'));
+const ParentAsinReport = lazy(() => import('./pages/ParentAsinReport'));
+const MonthWiseReport = lazy(() => import('./pages/MonthWiseReport'));
+const AdsReport = lazy(() => import('./pages/AdsReport'));
+const UploadExport = lazy(() => import('./pages/UploadExport'));
+const AlertsPage = lazy(() => import('./pages/AlertsPage'));
+const AlertRulesPage = lazy(() => import('./pages/AlertRulesPage'));
+const RuleSetsPage = lazy(() => import('./pages/RuleSetsPage'));
+const RulesetBuilderPage = lazy(() => import('./pages/RulesetBuilderPage'));
+const ProfitLossPage = lazy(() => import('./pages/ProfitLossPage'));
+const InventoryPage = lazy(() => import('./pages/InventoryPage'));
+const AsinManagerPage = lazy(() => import('./pages/AsinManagerPage'));
+const ActionsPage = lazy(() => import('./pages/ActionsPage.jsx'));
+const SellerAsinTrackerPage = lazy(() => import('./pages/SellerAsinTrackerPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const ScrapeTasksPage = lazy(() => import('./pages/ScrapeTasksPage'));
+const SellersPage = lazy(() => import('./pages/SellersPage'));
+const ActivityLog = lazy(() => import('./pages/ActivityLog'));
+const GoalAchievementReport = lazy(() => import('./pages/GoalAchievementReport'));
+const RevenueCalculatorPage = lazy(() => import('./pages/RevenueCalculatorPage'));
+const TemplateManagerPage = lazy(() => import('./pages/TemplateManagerPage'));
+const TasksOperationsPage = lazy(() => import('./pages/TasksOperationsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ChatContainer = lazy(() => import('./components/chat/ChatContainer'));
+const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const RolesPage = lazy(() => import('./pages/RolesPage'));
+const ApiKeysPage = lazy(() => import('./pages/ApiKeysPage'));
+const FileManagerPage = lazy(() => import('./pages/FileManagerPage'));
+const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
+
+// Simple loading fallback
+const PageLoader = () => (
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    height: '100vh',
+    background: '#f9fafb'
+  }}>
+    <div style={{
+      width: 40,
+      height: 40,
+      border: '3px solid #e5e7eb',
+      borderTopColor: '#6366f1',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite'
+    }} />
+    <style>{`
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
 
 // Layout wrapper — flex row: Sidebar takes its own width, content fills the rest
 function AppLayout({ children }) {
@@ -87,6 +114,7 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <AppLayout>
+                <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
@@ -124,6 +152,7 @@ function AppRoutes() {
                   <Route path="/chat" element={<ChatContainer />} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                 </Routes>
+                </Suspense>
               </AppLayout>
             </ProtectedRoute>
           }
