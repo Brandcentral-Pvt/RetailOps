@@ -29,7 +29,8 @@ app.use(cors({
     'http://127.0.0.1:5173',
     'https://retailops.vercel.app',
     'https://retail-ops.onrender.com',
-    /\.onrender\.com$/,
+    'https://retailops.work.gd',
+    /\.work\.gd$/,
     process.env.FRONTEND_URL,
     /\.vercel\.app$/
   ].filter(Boolean),
