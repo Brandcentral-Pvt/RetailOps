@@ -88,55 +88,64 @@ class SchedulerService {
                 marketSyncTaskId: { $exists: true, $ne: '' } 
             });
 
-            console.log(`🔄 [RECOVERY] Found ${sellers.length} sellers - running CHECK CONCURRENTLY...`);
-
-            // Check all sellers concurrently
-            const checkPromises = sellers.map(async (seller) => {
-                try {
-                    const taskId = seller.marketSyncTaskId;
-                    console.log(`🔄 [RECOVERY] Checking task ${taskId} for seller ${seller.name}...`);
-                    
-                    const status = await MarketSyncService.getStatus(taskId);
-                    
-                    if (!status) {
-                        console.log(`⚠️ [RECOVERY] Could not get status for task ${taskId}`);
-                        return { seller, success: false, reason: 'No status' };
-                    }
-
-                    const taskStatus = status.status?.toLowerCase();
-                    console.log(`🔄 [RECOVERY] Task ${taskId} status: ${taskStatus}, extracted: ${status.currentTotalExtractCount || 0}`);
-
-                    // If task has completed (finished/stopped/idle) with data, fetch and ingest
-                    if (taskStatus === 'finished' || taskStatus === 'stopped' || taskStatus === 'idle') {
-                        if (status.currentTotalExtractCount > 0) {
-                            console.log(`📥 [RECOVERY] Fetching data for completed task ${taskId}...`);
-                            
-                            const rawData = await MarketSyncService.retrieveResults(taskId);
-                            if (rawData && rawData.length > 0) {
-                                const processedCount = await MarketSyncService.processBatchResults(seller._id, rawData);
-                                console.log(`✅ [RECOVERY] Saved ${processedCount} ASINs for seller ${seller.name}`);
-                                
-                                // Start self-healing in background after data save
-                                console.log(`🔧 [RECOVERY] Starting background self-healing for ${seller.name}...`);
-                                OctoparseAutomationService.startSelfHealingBackground(seller._id, taskId);
-                                
-                                return { seller, success: true, count: processedCount, selfHealing: 'started' };
-                            }
-                        } else {
-                            console.log(`⚠️ [RECOVERY] Task ${taskId} completed but no data extracted`);
-                        }
-                    } else if (taskStatus === 'running' || taskStatus === 'extracting') {
-                        console.log(`🔄 [RECOVERY] Task ${taskId} still running, will continue polling...`);
-                    }
-                    
-                    return { seller, success: true, status: taskStatus };
-                } catch (err) {
-                    console.error(`❌ [RECOVERY] Failed to check task for seller ${seller.name}:`, err.message);
-                    return { seller, success: false, error: err.message };
+            console.log(`🔄 [RECOVERY] Found ${sellers.length} sellers - running with concurrency limit...`);
+            
+            const CONCURRENCY_LIMIT = 3;
+            const results = [];
+            
+            for (let i = 0; i < sellers.length; i += CONCURRENCY_LIMIT) {
+                const batch = sellers.slice(i, i + CONCURRENCY_LIMIT);
+                
+                if (global.gc) {
+                    try { global.gc(); } catch(e) {}
                 }
-            });
+                
+                const batchResults = await Promise.all(batch.map(async (seller) => {
+                    try {
+                        const taskId = seller.marketSyncTaskId;
+                        console.log(`🔄 [RECOVERY] Checking task ${taskId} for seller ${seller.name}...`);
+                        
+                        const status = await MarketSyncService.getStatus(taskId);
+                    
+                        if (!status) {
+                            console.log(`⚠️ [RECOVERY] Could not get status for task ${taskId}`);
+                            return { seller, success: false, reason: 'No status' };
+                        }
 
-            const results = await Promise.all(checkPromises);
+                        const taskStatus = status.status?.toLowerCase();
+                        console.log(`🔄 [RECOVERY] Task ${taskId} status: ${taskStatus}, extracted: ${status.currentTotalExtractCount || 0}`);
+
+                        if (taskStatus === 'finished' || taskStatus === 'stopped' || taskStatus === 'idle') {
+                            if (status.currentTotalExtractCount > 0) {
+                                console.log(`📥 [RECOVERY] Fetching data for completed task ${taskId}...`);
+                                
+                                const rawData = await MarketSyncService.retrieveResults(taskId);
+                                if (rawData && rawData.length > 0) {
+                                    const processedCount = await MarketSyncService.processBatchResults(seller._id, rawData);
+                                    console.log(`✅ [RECOVERY] Saved ${processedCount} ASINs for seller ${seller.name}`);
+                                    
+                                    console.log(`🔧 [RECOVERY] Starting background self-healing for ${seller.name}...`);
+                                    OctoparseAutomationService.startSelfHealingBackground(seller._id, taskId);
+                                    
+                                    return { seller, success: true, count: processedCount, selfHealing: 'started' };
+                                }
+                            } else {
+                                console.log(`⚠️ [RECOVERY] Task ${taskId} completed but no data extracted`);
+                            }
+                        } else if (taskStatus === 'running' || taskStatus === 'extracting') {
+                            console.log(`🔄 [RECOVERY] Task ${taskId} still running, will continue polling...`);
+                        }
+                        
+                        return { seller, success: true, status: taskStatus };
+                    } catch (err) {
+                        console.error(`❌ [RECOVERY] Failed to check task for seller ${seller.name}:`, err.message);
+                        return { seller, success: false, error: err.message };
+                    }
+                }));
+                
+                results.push(...batchResults);
+                await new Promise(r => setTimeout(r, 500));
+            }
             
             const successCount = results.filter(r => r.success).length;
             console.log(`✅ [RECOVERY] Initial check completed: ${successCount}/${sellers.length} sellers`);
@@ -166,14 +175,19 @@ class SchedulerService {
                 duration: result.duration
             });
 
-            // Start concurrent self-healing for all sellers in background
-            console.log('🏢 [ENTERPRISE] Starting concurrent self-healing for all sellers...');
+            // Start batched self-healing for all sellers in background
+            console.log('🏢 [ENTERPRISE] Starting batched self-healing for all sellers...');
             const sellers = await Seller.find({ status: 'Active', marketSyncTaskId: { $exists: true, $ne: '' } });
             
-            const healPromises = sellers.map(seller => 
-                OctoparseAutomationService.startSelfHealingBackground(seller._id, seller.marketSyncTaskId)
-            );
-            await Promise.all(healPromises);
+            const BATCH_SIZE = 5;
+            for (let i = 0; i < sellers.length; i += BATCH_SIZE) {
+                const batch = sellers.slice(i, i + BATCH_SIZE);
+                const healPromises = batch.map(seller => 
+                    OctoparseAutomationService.startSelfHealingBackground(seller._id, seller.marketSyncTaskId)
+                );
+                await Promise.all(healPromises);
+                await new Promise(r => setTimeout(r, 1000));
+            }
             console.log('🏢 [ENTERPRISE] All self-healing processes started in background');
 
             // Create notification for admin
