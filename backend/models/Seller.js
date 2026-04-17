@@ -33,6 +33,7 @@ const sellerSchema = new mongoose.Schema({
   keepaDomainId: { type: Number },          // Keepa domain: 10=IN, 1=US, 3=UK, 4=DE
   lastKeepaSync: { type: Date },            // Last successful Keepa sync
   keepaAsinCount: { type: Number, default: 0 }, // Total ASINs found on Keepa
+  healingAttempts: { type: Number, default: 0 }, // Counter for self-healing attempts
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
