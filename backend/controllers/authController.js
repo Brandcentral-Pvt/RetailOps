@@ -17,6 +17,15 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
+const getResolvedUserResponse = async (user) => {
+  const permissions = await user.getPermissions();
+  const userData = user.toJSON ? user.toJSON() : user;
+  return {
+    ...userData,
+    permissions: permissions.map(p => p.name)
+  };
+};
+
 exports.register = async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
@@ -79,10 +88,12 @@ exports.register = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
+    const resolvedUser = await getResolvedUserResponse(user);
+
     res.status(201).json({
       success: true,
       data: {
-        user,
+        user: resolvedUser,
         accessToken,
         refreshToken,
       },
@@ -141,10 +152,12 @@ exports.login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
+    const resolvedUser = await getResolvedUserResponse(user);
+
     res.json({
       success: true,
       data: {
-        user,
+        user: resolvedUser,
         accessToken,
         refreshToken,
       },
@@ -220,7 +233,8 @@ exports.getMe = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    res.json({ success: true, data: user });
+    const resolvedUser = await getResolvedUserResponse(user);
+    res.json({ success: true, data: resolvedUser });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to get user info' });
   }

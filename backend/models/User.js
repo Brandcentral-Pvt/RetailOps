@@ -110,6 +110,14 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  extraPermissions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Permission',
+  }],
+  excludedPermissions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Permission',
+  }],
   currentTeam: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Team',
@@ -164,16 +172,38 @@ userSchema.methods.incLoginAttempts = async function () {
   return this.updateOne(updates);
 };
 
-// Method to get permissions
+// Method to get permissions (role + extra)
 userSchema.methods.getPermissions = async function () {
-  if (!this.role) return [];
+  const permissions = [];
+  
+  // Get role permissions
+  if (this.role) {
+    const Role = mongoose.model('Role');
+    const role = await Role.findById(this.role).populate('permissions');
+    if (role && role.isActive && role.permissions) {
+      permissions.push(...role.permissions);
+    }
+  }
+  
+  // Get extra permissions
+  if (this.extraPermissions && this.extraPermissions.length > 0) {
+    const Permission = mongoose.model('Permission');
+    const extraPerms = await Permission.find({ 
+      _id: { $in: this.extraPermissions },
+      isActive: true 
+    });
+    if (extraPerms) {
+      permissions.push(...extraPerms);
+    }
+  }
 
-  const Role = mongoose.model('Role');
-  const role = await Role.findById(this.role).populate('permissions');
-
-  if (!role || !role.isActive) return [];
-
-  return role.permissions || [];
+  // Filter out excluded permissions
+  if (this.excludedPermissions && this.excludedPermissions.length > 0) {
+    const excludedIds = this.excludedPermissions.map(id => id.toString());
+    permissions = permissions.filter(p => !excludedIds.includes(p._id.toString()));
+  }
+  
+  return permissions;
 };
 
 // Method to check if user has permission

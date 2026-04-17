@@ -135,6 +135,8 @@ exports.createUser = async (req, res) => {
       role: roleId,
       assignedSellers: assignedSellers || [],
       supervisors: req.body.supervisors || [],
+      extraPermissions: req.body.extraPermissions || [],
+      excludedPermissions: req.body.excludedPermissions || [],
       createdBy: req.user._id,
     });
 
@@ -183,6 +185,14 @@ exports.updateUser = async (req, res) => {
 
     if (req.body.supervisors) {
       updateData.supervisors = req.body.supervisors;
+    }
+
+    if (req.body.extraPermissions) {
+      updateData.extraPermissions = req.body.extraPermissions;
+    }
+
+    if (req.body.excludedPermissions) {
+      updateData.excludedPermissions = req.body.excludedPermissions;
     }
 
     if (roleId) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { userApi, roleApi, sellerApi } from '../services/api';
 import {
@@ -48,7 +48,16 @@ const UsersPage = () => {
     isActive: true,
     assignedSellers: [],
     supervisors: [],
+    extraPermissions: [],
+    excludedPermissions: [],
   });
+
+  const [allPermissions, setAllPermissions] = useState([]);
+
+  const rolePermissionIds = useMemo(() => {
+    const selectedRole = roles.find(r => r._id === formData.role);
+    return selectedRole?.permissions?.map(p => p._id || p) || [];
+  }, [formData.role, roles]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -75,9 +84,18 @@ const UsersPage = () => {
 
   const loadRoles = useCallback(async () => {
     try {
-      const response = await roleApi.getAll();
-      if (response.success) {
-        setRoles(response.data.roles);
+      const [rolesRes, permsRes] = await Promise.all([
+        roleApi.getAll(),
+        roleApi.getPermissions()
+      ]);
+      if (rolesRes.success) {
+        setRoles(rolesRes.data.roles);
+      }
+      if (permsRes.success) {
+        // Flatten all permissions into a single array
+        const grouped = permsRes.data.groupedPermissions || {};
+        const flatPerms = Object.values(grouped).flat();
+        setAllPermissions(flatPerms);
       }
     } catch (error) {
       console.error('Failed to load roles:', error);
@@ -123,6 +141,8 @@ const UsersPage = () => {
         isActive: user.isActive,
         assignedSellers: user.assignedSellers?.map(s => s._id || s) || [],
         supervisors: user.supervisors?.map(s => s._id || s) || [],
+        extraPermissions: user.extraPermissions?.map(p => p._id || p) || [],
+        excludedPermissions: user.excludedPermissions?.map(p => p._id || p) || [],
       });
     } else {
       setEditingUser(null);
@@ -136,6 +156,8 @@ const UsersPage = () => {
         isActive: true,
         assignedSellers: [],
         supervisors: [],
+        extraPermissions: [],
+        excludedPermissions: [],
       });
     }
     setShowModal(true);
@@ -148,6 +170,32 @@ const UsersPage = () => {
         ? prev.assignedSellers.filter(id => id !== sellerId)
         : [...prev.assignedSellers, sellerId]
     }));
+  };
+
+  const togglePermission = (permId) => {
+    const isInherited = rolePermissionIds.includes(permId);
+    
+    setFormData(prev => {
+      if (isInherited) {
+        // Toggle exclusion for role-level permissions
+        const isExcluded = prev.excludedPermissions.includes(permId);
+        return {
+          ...prev,
+          excludedPermissions: isExcluded
+            ? prev.excludedPermissions.filter(id => id !== permId)
+            : [...prev.excludedPermissions, permId]
+        };
+      } else {
+        // Toggle inclusion for extra permissions
+        const isExtra = prev.extraPermissions.includes(permId);
+        return {
+          ...prev,
+          extraPermissions: isExtra
+            ? prev.extraPermissions.filter(id => id !== permId)
+            : [...prev.extraPermissions, permId]
+        };
+      }
+    });
   };
 
   const handleSaveUser = async () => {
@@ -612,17 +660,78 @@ const UsersPage = () => {
                     </div>
                   </div>
                   <div className="col-12 mt-3">
-                    <div className="form-check form-switch d-flex align-items-center gap-2 ps-0">
-                      <label className="form-check-label smallest fw-bold text-muted text-uppercase order-0" htmlFor="isActive">Account Active</label>
-                      <input
-                        type="checkbox"
-                        className="form-check-input ms-auto shadow-none"
-                        id="isActive"
-                        style={{ width: '40px', height: '20px', cursor: 'pointer' }}
-                        checked={formData.isActive}
-                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                      />
+                    <label className="form-label smallest fw-bold text-muted text-uppercase mb-3 d-flex align-items-center gap-2">
+                      <Shield size={14} className="text-primary" />
+                      Extra Permissions (Beyond Role)
+                    </label>
+                    <div className="card shadow-none border-0 bg-light-subtle" style={{ borderRadius: '16px', backgroundColor: '#f9fafb' }}>
+                      <div className="card-body p-3">
+                        <div className="row g-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                          {allPermissions.map(perm => {
+                            const isInherited = rolePermissionIds.includes(perm._id);
+                            const isExcluded = formData.excludedPermissions.includes(perm._id);
+                            const isExtra = formData.extraPermissions.includes(perm._id);
+                            const isActive = (isInherited && !isExcluded) || isExtra;
+                            
+                            return (
+                              <div key={perm._id} className="col-md-4 col-sm-6">
+                                <div
+                                  className={`p-2 rounded-3 border transition-all d-flex align-items-center gap-2 cursor-pointer ${
+                                    isActive ? 'bg-primary-subtle border-primary-subtle' : 'bg-white border-light'
+                                  } ${isExcluded ? 'bg-danger-subtle border-danger-subtle opacity-75' : ''}`}
+                                  onClick={() => togglePermission(perm._id)}
+                                  title={isInherited ? (isExcluded ? 'Inherited but Excluded' : 'Granted by role') : 'Extra Permission'}
+                                >
+                                  <div className="position-relative d-flex align-items-center justify-content-center">
+                                    <input
+                                      type="checkbox"
+                                      className="form-check-input m-0 shadow-none border-0"
+                                      checked={isActive}
+                                      readOnly
+                                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                    />
+                                    {isInherited && !isExcluded && (
+                                      <Shield size={8} className="text-primary position-absolute" style={{ pointerEvents: 'none' }} />
+                                    )}
+                                    {isExcluded && (
+                                      <XCircle size={10} className="text-danger position-absolute" style={{ pointerEvents: 'none' }} />
+                                    )}
+                                  </div>
+                                  <div className="d-flex flex-column overflow-hidden">
+                                    <span className={`smallest fw-medium text-truncate ${isExcluded ? 'text-decoration-line-through text-danger' : ''}`}>
+                                      {perm.displayName}
+                                    </span>
+                                    {isInherited && (
+                                      <span className={`${isExcluded ? 'text-danger' : 'text-primary'} fw-bold`} style={{ fontSize: '8px', marginTop: '-2px', letterSpacing: '0.02em' }}>
+                                        {isExcluded ? 'EXCLUDED' : 'ROLE LEVEL'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {allPermissions.length === 0 && (
+                          <div className="smallest text-muted py-2 text-center">No extra permissions available.</div>
+                        )}
+                      </div>
                     </div>
+                    <p className="smallest text-muted mt-2 mb-0">
+                      <Info size={12} className="me-1" />
+                      These permissions are added on top of the role permissions.
+                    </p>
+                  </div>
+                  <div className="col-12 mt-3">
+                    <label className="form-check-label smallest fw-bold text-muted text-uppercase order-0" htmlFor="isActive">Account Active</label>
+                    <input
+                      type="checkbox"
+                      className="form-check-input ms-auto shadow-none"
+                      id="isActive"
+                      style={{ width: '40px', height: '20px', cursor: 'pointer' }}
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    />
                   </div>
                 </div>
               </div>

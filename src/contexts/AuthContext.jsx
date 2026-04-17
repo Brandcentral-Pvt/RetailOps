@@ -127,19 +127,25 @@ export const AuthProvider = ({ children }) => {
     };
 
     const hasPermission = (permissionName) => {
-        if (!user || !user.role) return false;
+        if (!user) return false;
         
-        // Super Admin always has full access
-        if (user.role.name === 'admin') return true;
+        // 1. Super Admin always has full access
+        if (user.role?.name === 'admin' || user.role === 'admin') return true;
 
-        // Operational Manager has global access EXCEPT delete
-        if (user.role.name === 'operational_manager') {
+        // 2. Operational Manager has global access EXCEPT delete
+        if (user.role?.name === 'operational_manager' || user.role === 'operational_manager') {
             if (permissionName.toLowerCase().includes('delete')) return false;
             return true;
         }
 
-        // Standard dynamic permission check
-        if (!user.role.permissions) return false;
+        // 3. Resolved Dynamic Permissions (Role + Extra - Excluded)
+        // This is provided by the backend as a flat list of names
+        if (user.permissions && Array.isArray(user.permissions)) {
+            return user.permissions.includes(permissionName);
+        }
+
+        // 4. Fallback to Role-only permissions (if resolved list is missing)
+        if (!user.role?.permissions) return false;
         return user.role.permissions.some(p => p.name === permissionName);
     };
 

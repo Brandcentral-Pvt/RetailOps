@@ -1260,7 +1260,8 @@ const AsinManagerPage = () => {
                       style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
                     BSR Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>Rating</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>Rating</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>Count</th>
                   <th colSpan={visibleHistoryCols} 
                       onClick={() => setShowAllRatingHistory(true)}
                       style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer' }}>
@@ -1360,6 +1361,9 @@ const AsinManagerPage = () => {
                           {typeof asin.rating === 'number' ? asin.rating.toFixed(1) : (asin.rating || '-')}
                         </span>
                       </div>
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'center', color: '#6b7280', fontWeight: 500 }}>
+                      {(asin.reviewCount || 0).toLocaleString()}
                     </td>
                     {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw)

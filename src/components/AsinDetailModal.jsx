@@ -1,9 +1,30 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Package, IndianRupee, Star, Award, Store, Activity, BarChart3, TrendingUp, TrendingDown, Eye, ExternalLink, Calendar, ListChecks, Image } from 'lucide-react';
+import { X, Package, IndianRupee, Star, Award, Store, Activity, BarChart3, TrendingUp, TrendingDown, Eye, ExternalLink, Calendar, ListChecks, Image, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import Chart from 'react-apexcharts';
 import { subDays, startOfDay, endOfDay, format } from 'date-fns';
 import AdvancedDateRangePicker from '../contexts/DateRangeContext';
+
+// Helper to get last valid data from history fallback
+const getLastValidData = (asin, field, defaultValue = 0) => {
+  // First check current field
+  if (asin[field] && asin[field] > 0) {
+    return { value: asin[field], source: 'current' };
+  }
+  
+  // Fallback to most recent history with valid data
+  const history = asin.history || asin.weekHistory || [];
+  if (history.length > 0) {
+    const sorted = [...history].sort((a, b) => new Date(b.date || b.week) - new Date(a.date || a.week));
+    for (const h of sorted) {
+      if (h[field] && h[field] > 0) {
+        return { value: h[field], source: 'history', date: h.date || h.week };
+      }
+    }
+  }
+  
+  return { value: defaultValue, source: 'none' };
+};
 
 const AsinDetailModal = ({ asin, isOpen, onClose }) => {
   const [isClosing, setIsClosing] = useState(false);
@@ -32,6 +53,59 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
   }, [isOpen]);
 
   // All hooks above this line - called unconditionally every render
+  
+  // Compute current values with history fallback
+  const { currentData, bsrData, ratingData, ratingBreakdownData } = useMemo(() => {
+    if (!asin) return { currentData: {}, bsrData: {}, ratingData: {}, ratingBreakdownData: {} };
+    
+    const priceInfo = getLastValidData(asin, 'currentPrice') || getLastValidData(asin, 'price');
+    const bsrInfo = getLastValidData(asin, 'bsr');
+    const ratingInfo = getLastValidData(asin, 'rating');
+    
+    // Get rating breakdown from current or history
+    let breakdownData = asin.ratingBreakdown;
+    let breakdownDate = null;
+    if (!breakdownData) {
+      const history = asin.history || asin.weekHistory || [];
+      if (history.length > 0) {
+        const sorted = [...history].sort((a, b) => new Date(b.date || b.week) - new Date(a.date || a.week));
+        for (const h of sorted) {
+          if (h.ratingBreakdown) {
+            breakdownData = h.ratingBreakdown;
+            breakdownDate = h.date || h.week;
+            break;
+          }
+        }
+      }
+    }
+    
+    return {
+      currentData: { value: priceInfo.value, source: priceInfo.source, date: priceInfo.date },
+      bsrData: { value: bsrInfo.value, source: bsrInfo.source, date: bsrInfo.date },
+      ratingData: { value: ratingInfo.value, source: ratingInfo.source, date: ratingInfo.date },
+      ratingBreakdownData: { data: breakdownData, date: breakdownDate }
+    };
+  }, [asin]);
+
+  // Helper to display data source badge
+  const SourceBadge = ({ source, date }) => {
+    if (source === 'current') return null;
+    if (source === 'history') {
+      return (
+        <span className="badge ms-2 px-2 py-1" style={{ 
+          backgroundColor: '#fef3c7', 
+          color: '#b45309', 
+          fontSize: '10px',
+          fontWeight: 500 
+        }}>
+          <AlertCircle size={10} className="me-1" />
+          From {date ? new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'history'}
+        </span>
+      );
+    }
+    return null;
+  };
+
   const history = useMemo(() => {
     if (!asin) return [];
 
@@ -294,10 +368,29 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
 
               {/* Stats Row */}
               <div className="d-flex bg-slate-50 rounded-2xl border overflow-hidden">
-                <div className="stat-item flex-fill"><div className="stat-label">Price</div><div className="stat-value text-indigo-600">₹{asin.currentPrice?.toLocaleString() || 0}</div></div>
+                <div className="stat-item flex-fill">
+                  <div className="stat-label">Price</div>
+                  <div className="stat-value text-indigo-600 d-flex align-items-center">
+                    ₹{currentData.value?.toLocaleString() || 0}
+                    <SourceBadge source={currentData.source} date={currentData.date} />
+                  </div>
+                </div>
                 <div className="stat-item flex-fill"><div className="stat-label">Buy Box</div><div className="stat-value"><Store size={16} className="text-slate-400 me-2" /><span className="truncate">{asin.soldBy || 'Amazon.in'}</span></div></div>
-                <div className="stat-item flex-fill"><div className="stat-label">Main BSR</div><div className="stat-value text-emerald-600">#{asin.bsr?.toLocaleString() || '-'}</div></div>
-                <div className="stat-item flex-fill"><div className="stat-label">Rating</div><div className="stat-value"><Star size={16} className="text-amber-400 fill-amber-400 me-1" />{asin.rating || 0}</div></div>
+                <div className="stat-item flex-fill">
+                  <div className="stat-label">Main BSR</div>
+                  <div className="stat-value text-emerald-600 d-flex align-items-center">
+                    #{bsrData.value?.toLocaleString() || '-'}
+                    <SourceBadge source={bsrData.source} date={bsrData.date} />
+                  </div>
+                </div>
+                <div className="stat-item flex-fill">
+                  <div className="stat-label">Rating</div>
+                  <div className="stat-value d-flex align-items-center">
+                    <Star size={16} className="text-amber-400 fill-amber-400 me-1" />
+                    {ratingData.value?.toFixed(1) || 0}
+                    <SourceBadge source={ratingData.source} date={ratingData.date} />
+                  </div>
+                </div>
                 <div className="stat-item flex-fill"><div className="stat-label">Reviews</div><div className="stat-value">{asin.reviewCount?.toLocaleString() || 0}</div></div>
               </div>
             </div>
@@ -353,11 +446,14 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
               })()}
             </div>
 
-            {/* Rating Breakdown - Always show */}
+            {/* Rating Breakdown - Uses fallback from history if current missing */}
             <div className="bg-white border p-4 rounded-3xl shadow-sm">
               <div className="d-flex align-items-center gap-2 mb-3">
                 <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Star size={20} /></div>
                 <h6 className="mb-0 fw-bold text-slate-800">RATING BREAKDOWN</h6>
+                {ratingBreakdownData.date && (
+                  <SourceBadge source="history" date={ratingBreakdownData.date} />
+                )}
               </div>
               <div className="row g-3">
                 {[
@@ -367,7 +463,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                   { stars: 2, key: 'twoStar', color: '#f97316' },
                   { stars: 1, key: 'oneStar', color: '#ef4444' }
                 ].map(({ stars, key, color }) => {
-                  const percentage = asin.ratingBreakdown?.[key] || 0;
+                  const percentage = ratingBreakdownData.data?.[key] || asin.ratingBreakdown?.[key] || 0;
                   return (
                     <div key={stars} className="col-md-6 col-lg-4">
                       <div className="d-flex align-items-center gap-2">
@@ -380,7 +476,12 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                             />
                           </div>
                         </div>
-                        <span className="text-slate-600 fw-medium" style={{ minWidth: '45px', textAlign: 'right' }}>{percentage}%</span>
+                        <div className="d-flex flex-column align-items-end" style={{ minWidth: '65px' }}>
+                          <span className="text-slate-600 fw-bold" style={{ fontSize: '0.85rem' }}>{percentage}%</span>
+                          <span className="text-slate-400" style={{ fontSize: '0.7rem' }}>
+                            ({Math.round((percentage / 100) * (asin.reviewCount || 0)).toLocaleString()})
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
