@@ -1,337 +1,322 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Chart from 'react-apexcharts';
-import { X, TrendingUp, TrendingDown, IndianRupee, Star, Award, Activity, DollarSign, BarChart3 } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, IndianRupee, Star, Award, Activity, BarChart3, Clock, LayoutGrid } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Skeleton, Box } from '@mui/material';
 
 const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
-  const [dateFilter, setDateFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('30days');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
+      if (e.key === 'Escape' && isOpen) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Set loading state when processing data or changing asin
+  useEffect(() => {
+    if (isOpen && asin) {
+      setIsLoading(true);
+      const timer = setTimeout(() => setIsLoading(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, asin?.asinCode]);
+
   if (!isOpen || !asin) return null;
 
   const history = asin.history || asin.weekHistory || [];
 
-  const filteredHistory = useMemo(() => {
-    if (dateFilter === 'all' || history.length === 0) return history;
-    
-    const now = new Date();
-    const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
-    const days = daysMap[dateFilter] || 0;
-    const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    
-    return history.filter(h => {
-      const itemDate = h.date ? new Date(h.date) : new Date(h.week);
-      return itemDate >= cutoffDate;
-    });
-  }, [history, dateFilter]);
-
-  const getCategoryLabel = (h) => h.date ? new Date(h.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : h.week || '';
-
-  // Price Chart
-  const priceSeries = [{
-    name: 'Price',
-    data: filteredHistory.map(h => h.price || null)
-  }];
-
-  const priceOptions = {
-    chart: {
-      id: 'price-chart',
-      toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
-      zoom: { enabled: true },
-      background: 'transparent'
-    },
-    colors: ['#2563eb'],
-    stroke: { curve: 'smooth', width: 2 },
-    xaxis: {
-      categories: filteredHistory.map(h => getCategoryLabel(h)),
-      labels: { style: { fontSize: '10px' } }
-    },
-    yaxis: {
-      title: { text: 'Price (₹)', style: { fontWeight: 600 } },
-      labels: { formatter: (val) => val ? `₹${val.toLocaleString()}` : '' }
-    },
-    markers: { size: 4 },
-    tooltip: { y: { formatter: (val) => val ? `₹${val.toLocaleString()}` : 'N/A' } },
-    grid: { borderColor: '#f1f5f9' }
-  };
-
-  // BSR Chart
-  const bsrSeries = [{
-    name: 'BSR',
-    data: filteredHistory.map(h => h.bsr || null)
-  }];
-
-  const bsrOptions = {
-    chart: {
-      id: 'bsr-chart',
-      toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
-      zoom: { enabled: true },
-      background: 'transparent'
-    },
-    colors: ['#10b981'],
-    stroke: { curve: 'smooth', width: 2 },
-    xaxis: {
-      categories: filteredHistory.map(h => getCategoryLabel(h)),
-      labels: { style: { fontSize: '10px' } }
-    },
-    yaxis: {
-      reversed: true,
-      title: { text: 'Rank (BSR)', style: { fontWeight: 600 } },
-      labels: { formatter: (val) => `#${val}` }
-    },
-    markers: { size: 4 },
-    tooltip: { y: { formatter: (val) => `#${val.toLocaleString()}` } },
-    grid: { borderColor: '#f1f5f9' }
-  };
-
-  // Rating Chart
-  const ratingSeries = [{
-    name: 'Rating',
-    data: filteredHistory.map(h => h.rating || null)
-  }];
-
-  const ratingOptions = {
-    chart: {
-      id: 'rating-chart',
-      toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
-      zoom: { enabled: true },
-      background: 'transparent'
-    },
-    colors: ['#f59e0b'],
-    stroke: { curve: 'smooth', width: 2 },
-    xaxis: {
-      categories: filteredHistory.map(h => getCategoryLabel(h)),
-      labels: { style: { fontSize: '10px' } }
-    },
-    yaxis: {
-      min: 0,
-      max: 5,
-      title: { text: 'Rating', style: { fontWeight: 600 } },
-      labels: { formatter: (val) => val?.toFixed(1) || '' }
-    },
-    markers: { size: 4 },
-    tooltip: { y: { formatter: (val) => val?.toFixed(1) || 'N/A' } },
-    grid: { borderColor: '#f1f5f9' }
-  };
-
-  // Calculate trends
-  const getTrend = (metric, key) => {
-    if (filteredHistory.length < 2) return null;
-    const first = filteredHistory[0];
-    const last = filteredHistory[filteredHistory.length - 1];
-    
-    const change = last[key] - first[key];
-    if (metric === 'bsr') {
-      return { change, percent: first[key] ? (change / first[key]) * 100 : 0, direction: change > 0 ? 'up' : change < 0 ? 'down' : 'neutral' };
+  const getCategoryLabel = (h) => {
+    if (h.date) {
+      return new Date(h.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
     }
-    return { change, percent: first[key] ? (change / first[key]) * 100 : 0, direction: change > 0 ? 'up' : change < 0 ? 'down' : 'neutral' };
+    return h.week || '';
   };
 
-  const priceTrend = getTrend('price', 'price');
-  const bsrTrend = getTrend('bsr', 'bsr');
-  const ratingTrend = getTrend('rating', 'rating');
+  // Generate complete date range for consistent x-axis
+  const dateRange = useMemo(() => {
+    if (!history || history.length === 0) return [];
+    
+    const dates = history.map(h => h.date || h.week).filter(Boolean).map(d => new Date(d));
+    if (dates.length === 0) return [];
 
-  const TrendIndicator = ({ trend, metric }) => {
-    if (!trend) return <span className="text-muted small">-</span>;
-    const isBsr = metric === 'bsr';
-    const displayValue = isBsr 
-      ? (trend.change > 0 ? `+${Math.round(trend.change)}` : `${Math.round(trend.change)}`)
-      : (trend.direction !== 'neutral' && trend.percent ? `${trend.percent > 0 ? '+' : ''}${Math.round(trend.percent)}%` : 'No change');
-    return (
-      <div className={`d-flex align-items-center gap-1 ${trend.direction === 'up' ? 'text-success' : trend.direction === 'down' ? 'text-danger' : 'text-muted'}`}>
-        {trend.direction === 'up' && <TrendingUp size={14} />}
-        {trend.direction === 'down' && <TrendingDown size={14} />}
-        <span className="small fw-medium">{displayValue}</span>
-      </div>
-    );
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(); // Go up to today for better perspective
+
+    const range = [];
+    let curr = new Date(minDate);
+    while (curr <= maxDate) {
+      range.push(new Date(curr));
+      curr.setDate(curr.getDate() + 1);
+    }
+    return range;
+  }, [history]);
+
+  // Filter based on dateFilter
+  const filteredDateRange = useMemo(() => {
+    if (dateFilter === 'all') return dateRange;
+    const now = new Date();
+    const days = dateFilter === '7days' ? 7 : dateFilter === '14days' ? 14 : dateFilter === '30days' ? 30 : 90;
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    return dateRange.filter(d => d >= cutoff);
+  }, [dateRange, dateFilter]);
+
+  const historyMap = useMemo(() => {
+    const map = new Map();
+    history.forEach(h => {
+      const d = h.date || h.week;
+      if (d) map.set(new Date(d).toISOString().split('T')[0], h);
+    });
+    return map;
+  }, [history]);
+
+  // Chart Series Generation with Forward-Filling for Price/Rating
+  const generateSeriesData = (metricKey, shouldForwardFill = true) => {
+    let lastKnownValue = null;
+    return filteredDateRange.map(date => {
+      const dateStr = date.toISOString().split('T')[0];
+      const data = historyMap.get(dateStr);
+      const val = data ? data[metricKey] : null;
+      
+      if (val !== null && val !== undefined) {
+        lastKnownValue = val;
+        return val;
+      }
+      return shouldForwardFill ? lastKnownValue : null;
+    });
   };
+
+  const chartOptions = (color, type = 'area') => ({
+    chart: {
+      toolbar: { show: false },
+      zoom: { enabled: false },
+      sparkline: { enabled: false },
+      fontFamily: 'Inter, sans-serif'
+    },
+    colors: [color],
+    stroke: { curve: 'smooth', width: 2.5 },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.45,
+        opacityTo: 0.05,
+        stops: [20, 100, 100, 100]
+      }
+    },
+    xaxis: {
+      categories: filteredDateRange.map(d => getCategoryLabel({ date: d.toISOString() })),
+      labels: { show: true, style: { fontSize: '10px', fontWeight: 500, colors: '#94a3b8' }, rotate: -45, rotateAlways: false },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      tooltip: { enabled: false }
+    },
+    yaxis: {
+      labels: { style: { fontSize: '10px', fontWeight: 600, colors: '#64748b' } }
+    },
+    markers: { size: 0, hover: { size: 5 } },
+    grid: { borderColor: '#f1f5f9', strokeDashArray: 4, padding: { left: 10, right: 10 } },
+    tooltip: {
+      theme: 'light',
+      x: { show: true },
+      y: { formatter: (val) => val ? val.toLocaleString() : 'N/A' }
+    }
+  });
+
+  const SkeletonTrend = () => (
+    <div className="bg-white rounded-4 shadow-sm border p-4 mb-4 trend-fade-in" style={{ width: '100%', maxWidth: '1000px' }}>
+       <div className="d-flex justify-content-between mb-4">
+          <div className="d-flex gap-3 align-items-center">
+             <Skeleton variant="circular" width={40} height={40} />
+             <div>
+                <Skeleton width={120} height={20} />
+                <Skeleton width={80} height={14} />
+             </div>
+          </div>
+          <div className="d-flex gap-2">
+             <Skeleton width={40} height={30} />
+             <Skeleton width={40} height={30} />
+             <Skeleton width={40} height={30} />
+          </div>
+       </div>
+       <div className="row g-3 mb-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="col-md-4">
+               <Skeleton variant="rounded" height={100} className="w-100" />
+            </div>
+          ))}
+       </div>
+       <Skeleton variant="rectangular" height={300} className="w-100 rounded-3" />
+    </div>
+  );
 
   return createPortal(
     <div 
       className="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center p-3"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}
+      style={{ backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', zIndex: 9999 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <style>{`
-        .trend-fade-in { animation: trendFadeIn 0.25s ease-out; }
-        @keyframes trendFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .trend-fade-in { animation: trendFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes trendFadeIn { from { opacity: 0; transform: scale(0.98) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .chart-container:hover { border-color: #e2e8f0 !important; }
+        .btn-period { border: 1px solid transparent; transition: all 0.2s; }
+        .btn-period.active { background: #0f172a; color: white; border-color: #0f172a; }
+        .btn-period:not(.active):hover { background: #f8fafc; border-color: #e2e8f0; }
       `}</style>
-      
-      <div 
-        className="bg-white rounded-3 shadow-lg overflow-hidden"
-        style={{ 
-          width: '100%', 
-          maxWidth: '1100px', 
-          maxHeight: '90vh',
-          animation: 'trendFadeIn 0.25s ease-out'
-        }}
-      >
-        {/* Header */}
-        <div className="p-4 border-bottom bg-gradient-to-r from-indigo-50 to-purple-50">
-          <div className="d-flex justify-content-between align-items-center">
+
+      {isLoading ? <SkeletonTrend /> : (
+        <div 
+          className="bg-white rounded-4 shadow-2xl overflow-hidden trend-fade-in"
+          style={{ width: '100%', maxWidth: '1000px', maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}
+        >
+          {/* Header */}
+          <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-white shadow-sm" style={{ zIndex: 10 }}>
             <div className="d-flex align-items-center gap-3">
-              <div className="p-2 bg-white rounded-lg shadow-sm">
-                <Activity size={20} className="text-primary" />
+              <div className="p-2 bg-indigo-600 text-white rounded-3 shadow-md">
+                <BarChart3 size={20} />
               </div>
               <div>
-                <h5 className="mb-0 fw-bold">ASIN Performance Trends</h5>
-                <p className="text-muted small mb-0">{asin.asinCode} • {asin.title?.substring(0, 40)}...</p>
+                <h6 className="mb-0 fw-bold text-slate-900">Historical Trend DNA</h6>
+                <div className="d-flex align-items-center gap-2">
+                   <span className="font-monospace extra-small text-indigo-600 fw-bold">{asin.asinCode}</span>
+                   <span className="text-slate-300">•</span>
+                   <span className="text-slate-500 extra-small text-truncate" style={{ maxWidth: '200px' }}>{asin.title}</span>
+                </div>
               </div>
             </div>
-            <button onClick={onClose} className="btn btn-link text-muted p-0 hover:text-dark">
-              <X size={24} />
-            </button>
+            
+            <div className="d-flex align-items-center gap-3">
+               <div className="d-flex p-1 bg-slate-100 rounded-2 gap-1">
+                  {['7days', '30days', '90days', 'all'].map(p => (
+                    <button 
+                      key={p} 
+                      onClick={() => setDateFilter(p)}
+                      className={`btn-period px-3 py-1 rounded-1 extra-small fw-bold ${dateFilter === p ? 'active' : 'text-slate-500'}`}
+                    >
+                      {p.toUpperCase()}
+                    </button>
+                  ))}
+               </div>
+               <button onClick={onClose} className="btn btn-ghost-slate p-1.5 rounded-circle">
+                 <X size={20} className="text-slate-400" />
+               </button>
+            </div>
+          </div>
+
+          {/* Flowable Content */}
+          <div className="flex-grow-1 overflow-auto p-4 bg-slate-50/30">
+             {/* Key Info Cards */}
+             <div className="row g-3 mb-4">
+                <div className="col-md-4">
+                   <div className="bg-white border rounded-3 p-3 shadow-sm chart-container transition-all">
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                         <div className="p-2 bg-blue-50 text-blue-600 rounded-2"><IndianRupee size={16} /></div>
+                         <div className="text-end">
+                            <div className="extra-small text-slate-400 fw-bold uppercase">Price Position</div>
+                            <div className="h5 mb-0 fw-bold text-slate-800">₹{asin.currentPrice?.toLocaleString()}</div>
+                         </div>
+                      </div>
+                      <div className="d-flex align-items-center gap-1 mt-2">
+                         <TrendingUp size={12} className="text-emerald-500" />
+                         <span className="extra-small text-slate-500 fw-medium">Last 30d stable</span>
+                      </div>
+                   </div>
+                </div>
+                <div className="col-md-4">
+                   <div className="bg-white border rounded-3 p-3 shadow-sm chart-container transition-all">
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-2"><Award size={16} /></div>
+                         <div className="text-end">
+                            <div className="extra-small text-slate-400 fw-bold uppercase">Category Rank</div>
+                            <div className="h5 mb-0 fw-bold text-slate-800">#{asin.bsr?.toLocaleString() || 'N/A'}</div>
+                         </div>
+                      </div>
+                      <div className="d-flex align-items-center gap-1 mt-2">
+                         <TrendingDown size={12} className="text-emerald-500" />
+                         <span className="extra-small text-slate-500 fw-medium">Climbing in Category</span>
+                      </div>
+                   </div>
+                </div>
+                <div className="col-md-4">
+                   <div className="bg-white border rounded-3 p-3 shadow-sm chart-container transition-all">
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                         <div className="p-2 bg-amber-50 text-amber-600 rounded-2"><Star size={16} fill="currentColor" /></div>
+                         <div className="text-end">
+                            <div className="extra-small text-slate-400 fw-bold uppercase">Public Sentiment</div>
+                            <div className="h5 mb-0 fw-bold text-slate-800">{asin.rating?.toFixed(1) || 'N/A'} ★</div>
+                         </div>
+                      </div>
+                      <div className="d-flex align-items-center gap-1 mt-2">
+                         <span className="extra-small text-slate-500 fw-bold">{asin.reviewCount?.toLocaleString() || 0} REVIEWS</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             {/* Dynamic Multi-Axis DNA Chart */}
+             <div className="bg-white border rounded-4 p-4 shadow-sm mb-4">
+                <div className="d-flex align-items-center justify-content-between mb-4">
+                   <h6 className="mb-0 fw-bold text-slate-800 d-flex align-items-center gap-2">
+                      <Activity size={16} className="text-indigo-600" />
+                      Composite Trend Visualization
+                   </h6>
+                   <div className="extra-small text-slate-400 d-flex gap-3">
+                      <span className="d-flex align-items-center gap-1"><span className="w-2 h-2 rounded-circle bg-blue-600 d-inline-block"></span> Price</span>
+                      <span className="d-flex align-items-center gap-1"><span className="w-2 h-2 rounded-circle bg-emerald-600 d-inline-block"></span> BSR</span>
+                      <span className="d-flex align-items-center gap-1"><span className="w-2 h-2 rounded-circle bg-amber-500 d-inline-block"></span> Rating</span>
+                   </div>
+                </div>
+                
+                <div className="mb-5">
+                   <Chart 
+                      options={chartOptions('#2563eb', 'area')} 
+                      series={[{ name: 'Price', data: generateSeriesData('price', true) }]} 
+                      type="area" 
+                      height={200} 
+                   />
+                </div>
+                
+                <div className="mb-5">
+                   <Chart 
+                      options={{
+                        ...chartOptions('#10b981', 'line'),
+                        yaxis: { labels: { style: { fontSize: '10px' } }, reversed: true }
+                      }} 
+                      series={[{ name: 'BSR Rank', data: generateSeriesData('bsr', false) }]} 
+                      type="line" 
+                      height={200} 
+                   />
+                </div>
+
+                <div>
+                   <Chart 
+                      options={chartOptions('#f59e0b', 'area')} 
+                      series={[{ name: 'Rating', data: generateSeriesData('rating', true) }]} 
+                      type="area" 
+                      height={180} 
+                   />
+                </div>
+             </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-3 bg-slate-900 text-white d-flex justify-content-between align-items-center">
+             <div className="d-flex align-items-center gap-4">
+                <div className="d-flex align-items-center gap-2">
+                   <Clock size={14} className="text-slate-400" />
+                   <span className="extra-small fw-bold text-slate-400 uppercase tracking-tighter">Last Sync: {asin.lastScraped ? new Date(asin.lastScraped).toLocaleString() : 'Just now'}</span>
+                </div>
+             </div>
+             <button onClick={onClose} className="btn btn-white btn-sm px-4 fw-bold rounded-2">
+                DISMISS
+             </button>
           </div>
         </div>
-
-        {/* Controls */}
-        <div className="px-4 py-3 border-bottom bg-light">
-          <div className="d-flex justify-content-end">
-            <div className="d-flex align-items-center gap-2">
-              <span className="text-muted small">Period:</span>
-              <div className="btn-group">
-                {[
-                  { value: 'all', label: 'All' },
-                  { value: '30days', label: '30D' },
-                  { value: '90days', label: '90D' }
-                ].map(d => (
-                  <button
-                    key={d.value}
-                    className={`btn btn-sm ${dateFilter === d.value ? 'btn-dark' : 'btn-outline-secondary'}`}
-                    onClick={() => setDateFilter(d.value)}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-4" style={{ maxHeight: 'calc(90vh - 180px)', overflowY: 'auto' }}>
-          {/* Cards Row - Horizontal */}
-          <div className="row g-3 mb-4">
-            {/* Price Card */}
-            <div className="col-md-4">
-              <div className="p-3 border rounded-3 h-100" style={{ backgroundColor: '#f8fafc' }}>
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <IndianRupee size={18} className="text-primary" />
-                    <span className="text-muted small fw-medium">PRICE</span>
-                  </div>
-                  <TrendIndicator trend={priceTrend} metric="price" />
-                </div>
-                <div className="h4 mb-0 fw-bold text-primary">
-                  ₹{asin.currentPrice?.toLocaleString() || 'N/A'}
-                </div>
-                <div className="text-muted small">Current Price</div>
-              </div>
-            </div>
-
-            {/* BSR Card */}
-            <div className="col-md-4">
-              <div className="p-3 border rounded-3 h-100" style={{ backgroundColor: '#f8fafc' }}>
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <Award size={18} className="text-emerald-600" />
-                    <span className="text-muted small fw-medium">BSR</span>
-                  </div>
-                  <TrendIndicator trend={bsrTrend} metric="bsr" />
-                </div>
-                <div className="h4 mb-0 fw-bold text-emerald-600">
-                  #{asin.bsr?.toLocaleString() || 'N/A'}
-                </div>
-                <div className="text-muted small">Best Seller Rank</div>
-              </div>
-            </div>
-
-            {/* Rating Card */}
-            <div className="col-md-4">
-              <div className="p-3 border rounded-3 h-100" style={{ backgroundColor: '#f8fafc' }}>
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <Star size={18} className="text-amber-500" />
-                    <span className="text-muted small fw-medium">RATING</span>
-                  </div>
-                  <TrendIndicator trend={ratingTrend} metric="rating" />
-                </div>
-                <div className="h4 mb-0 fw-bold text-amber-500">
-                  {asin.rating || 'N/A'}
-                </div>
-                <div className="text-muted small">Current Rating</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Price Chart */}
-          <div className="border rounded mb-3 bg-white">
-            <h6 className="fw-bold p-3 pb-0 d-flex align-items-center gap-2 text-primary">
-              <IndianRupee size={16} />
-              Price Trend
-            </h6>
-            <div style={{ height: '200px' }}>
-              <Chart 
-                options={priceOptions} 
-                series={priceSeries} 
-                type="area" 
-                height="100%" 
-              />
-            </div>
-          </div>
-
-          {/* BSR Chart */}
-          <div className="border rounded mb-3 bg-white">
-            <h6 className="fw-bold p-3 pb-0 d-flex align-items-center gap-2 text-emerald-600">
-              <BarChart3 size={16} />
-              BSR Trend
-            </h6>
-            <div style={{ height: '200px' }}>
-              <Chart 
-                options={bsrOptions} 
-                series={bsrSeries} 
-                type="line" 
-                height="100%" 
-              />
-            </div>
-          </div>
-
-          {/* Rating Chart */}
-          <div className="border rounded bg-white">
-            <h6 className="fw-bold p-3 pb-0 d-flex align-items-center gap-2 text-amber-500">
-              <Star size={16} />
-              Rating Trend
-            </h6>
-            <div style={{ height: '200px' }}>
-              <Chart 
-                options={ratingOptions} 
-                series={ratingSeries} 
-                type="line" 
-                height="100%" 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-3 border-top bg-light d-flex justify-content-between align-items-center">
-          <div className="text-muted small">
-            Data Points: {filteredHistory.length} • Interactive - Use toolbar to zoom/pan/download
-          </div>
-          <button onClick={onClose} className="btn btn-dark fw-bold px-4 rounded-pill">
-            CLOSE
-          </button>
-        </div>
-      </div>
+      )}
     </div>,
     document.body
   );

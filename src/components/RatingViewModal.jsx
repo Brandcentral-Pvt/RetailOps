@@ -1,88 +1,97 @@
-import React, { useState, useMemo } from 'react';
-import { X, TrendingUp, TrendingDown, Filter, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { X, TrendingUp, TrendingDown, Filter, ArrowRight, Star, ChevronLeft, ChevronRight, Calendar, ArrowUpDown, Search, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import api, { asinApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
-  const [dateFilter, setDateFilter] = useState('all');
+const RatingViewModal = ({ selectedAsin, isOpen, onClose }) => {
+  const { isAdmin, user } = useAuth();
+  const [dateFilter, setDateFilter] = useState('30days');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [sellers, setSellers] = useState([]);
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [showComparison, setShowComparison] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Infinite Scroll State
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  
+  const [selectedBrand, setSelectedBrand] = useState('all');
+  const [sortField, setSortField] = useState('asinCode');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [globalMinDate, setGlobalMinDate] = useState(null);
+  
+  const scrollContainerRef = useRef(null);
 
-  // Reset page when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [dateFilter, customStartDate, customEndDate, searchQuery]);
-
-  // Skeleton effect
-  React.useEffect(() => {
-    if (isOpen) {
-      setIsLoading(true);
-      const timer = setTimeout(() => setIsLoading(false), 300);
-      return () => clearTimeout(timer);
+  const fetchSellers = useCallback(async () => {
+    try {
+      const res = await api.get('/sellers');
+      const sellerList = res?.data?.sellers || res?.data || [];
+      setSellers(Array.isArray(sellerList) ? sellerList : []);
+    } catch (err) {
+      console.error('Error fetching sellers:', err);
     }
-  }, [isOpen]);
+  }, []);
 
-  const asinsToProcess = selectedAsin ? [selectedAsin] : (Array.isArray(asins) ? asins : []);
+  useEffect(() => {
+    if (isOpen) fetchSellers();
+  }, [isOpen, fetchSellers]);
 
-  const getWeekComparison = (item, week, wIdx, weeks) => {
-    if (!showComparison || wIdx <= 0) return null;
+  const loadData = useCallback(async (pageNum = 1, append = false) => {
+    if (!isOpen) return;
     
-    const currentWeekRatings = [];
-    const prevWeekRatings = [];
-    
-    week.dates.forEach(d => {
-      const curr = item.weekData?.[week.weekKey]?.[d.dateKey];
-      if (curr && curr.rating !== undefined) currentWeekRatings.push(curr.rating);
-    });
-    
-    const prevWeek = weeks[wIdx - 1];
-    prevWeek.dates.forEach(d => {
-      const prev = item.weekData?.[prevWeek.weekKey]?.[d.dateKey];
-      if (prev && prev.rating !== undefined) prevWeekRatings.push(prev.rating);
-    });
+    try {
+      if (pageNum === 1) setIsLoading(true);
+      else setIsFetchingMore(true);
 
-    if (currentWeekRatings.length > 0 && prevWeekRatings.length > 0) {
-      const avgCurr = currentWeekRatings.reduce((a, b) => a + b, 0) / currentWeekRatings.length;
-      const avgPrev = prevWeekRatings.reduce((a, b) => a + b, 0) / prevWeekRatings.length;
-      const change = avgCurr - avgPrev;
-      const percent = avgPrev > 0 ? (change / avgPrev) * 100 : 0;
+      const params = {
+        page: pageNum,
+        limit: 50,
+        seller: selectedBrand === 'all' ? undefined : selectedBrand,
+        search: searchQuery || undefined,
+        sortBy: sortField.startsWith('day-') ? 'lastScraped' : sortField,
+        sortOrder: sortOrder
+      };
+
+      const res = await asinApi.getAll(params);
+      const newAsins = res?.asins || [];
       
-      return { avgCurr, avgPrev, change, percent };
+      if (res?.minDate) setGlobalMinDate(new Date(res.minDate));
+      
+      setItems(prev => append ? [...prev, ...newAsins] : newAsins);
+      setTotalCount(res?.pagination?.total || 0);
+      setHasMore(newAsins.length === 50);
+      setPage(pageNum);
+      
+    } catch (err) {
+      console.error('Error loading ASINs for Rating modal:', err);
+    } finally {
+      setIsLoading(false);
+      setIsFetchingMore(false);
     }
-    return null;
-  };
+  }, [isOpen, selectedBrand, searchQuery, sortField, sortOrder]);
 
-  const handleExportCSV = (data, weeks) => {
-    const headers = ['ASIN', 'Title', 'Current Rating', 'Review Count'];
-    const dateColumns = [];
-    weeks.forEach(w => w.dates.forEach(d => dateColumns.push(d.dateKey)));
-    
-    const csvContent = [
-      [...headers, ...dateColumns].join(','),
-      ...data.map(item => [
-        item.asinCode,
-        `"${item.title.replace(/"/g, '""')}"`,
-        item.currentRating,
-        item.reviewCount,
-        ...dateColumns.map(dKey => {
-          const wKey = Object.keys(item.weekData).find(wk => item.weekData[wk][dKey] !== undefined);
-          return wKey ? item.weekData[wKey][dKey].rating : '';
-        })
-      ].join(','))
-    ].join('\n');
+  useEffect(() => {
+    if (isOpen) {
+      loadData(1, false);
+    } else {
+      setItems([]);
+      setPage(1);
+      setHasMore(true);
+    }
+  }, [isOpen, selectedBrand, searchQuery, sortField, sortOrder, loadData]);
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `rating_history_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop <= clientHeight + 100 && hasMore && !isFetchingMore && !isLoading) {
+      loadData(page + 1, true);
+    }
   };
 
   const getFilteredDates = () => {
@@ -99,132 +108,69 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
       startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     } else if (dateFilter === '30days') {
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else {
+      // All time - use global min date if available, otherwise fallback to 90 days
+      startDate = globalMinDate || new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    }
+
+    // Clamp to the absolute minimum date in the database to avoid showing empty leading columns
+    if (globalMinDate && startDate < globalMinDate) {
+      startDate = new Date(globalMinDate);
     }
 
     return { startDate, endDate };
   };
 
-  const handleCustomDateChange = (field, value) => {
-    const selectedDate = new Date(value);
-    const today = new Date();
-    const diffDays = Math.ceil((today - selectedDate) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return;
-    
-    if (field === 'startDate') {
-      setCustomStartDate(value);
-      if (customEndDate) {
-        const endDate = new Date(customEndDate);
-        const daysDiff = Math.ceil((endDate - selectedDate) / (1000 * 60 * 60 * 24));
-        if (daysDiff > 7) {
-          const maxStartDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-          setCustomStartDate(maxStartDate.toISOString().split('T')[0]);
-        }
-      }
-    } else {
-      setCustomEndDate(value);
-      if (customStartDate) {
-        const startDate = new Date(customStartDate);
-        const daysDiff = Math.ceil((selectedDate - startDate) / (1000 * 60 * 60 * 24));
-        if (daysDiff > 7) {
-          const minEndDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-          setCustomEndDate(minEndDate.toISOString().split('T')[0]);
-        }
-      }
-    }
-  };
-
-  const maxDate = new Date().toISOString().split('T')[0];
-  const minDate = new Date(new Date().getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-  const processRatingData = useMemo(() => {
-    if (!asinsToProcess || asinsToProcess.length === 0) return { weeks: [], asins: [] };
-
+  // Generate Data-Driven Columns based on actual database entries
+  const dateColumns = useMemo(() => {
     const { startDate, endDate } = getFilteredDates();
-
-    const allDates = new Map();
     
-    asinsToProcess.forEach(asin => {
-      const history = asin.weekHistory || asin.history || [];
+    // Collect all unique dates from all loaded items' histories
+    const uniqueDateStrs = new Set();
+    items.forEach(asin => {
+      const history = asin.history || asin.weekHistory || [];
       history.forEach(h => {
-        const date = new Date(h.date || h.week);
-        if (startDate && date < startDate) return;
-        if (endDate && date > endDate) return;
-        const dateKey = date.toISOString().split('T')[0];
-        if (!allDates.has(dateKey)) {
-          allDates.set(dateKey, date);
+        const d = h.date || h.week;
+        if (d) {
+          try {
+            uniqueDateStrs.add(new Date(d).toISOString().split('T')[0]);
+          } catch (e) { /* ignore malformed dates */ }
         }
       });
     });
 
-    const sortedDates = Array.from(allDates.keys()).sort();
-    
+    // Handle case where we have no history yet - show at least today
+    if (uniqueDateStrs.size === 0) {
+      uniqueDateStrs.add(new Date().toISOString().split('T')[0]);
+    }
+
+    // Filter and Sort the dates based on requested range
+    const sortedDates = Array.from(uniqueDateStrs)
+      .map(ds => new Date(ds))
+      .filter(d => d >= startDate && d <= endDate)
+      .sort((a, b) => b - a); // Newest first
+
+    // Group into weeks for headers
     const weekMap = new Map();
-    sortedDates.forEach(dateKey => {
-      const date = new Date(dateKey);
+    sortedDates.forEach(date => {
+      const dateKey = date.toISOString().split('T')[0];
       const weekNum = getWeekNumber(date);
-      const weekKey = `W${weekNum}`;
       const year = date.getFullYear();
-      const fullWeekKey = `${year}-${weekKey}`;
-      
-      if (!weekMap.has(fullWeekKey)) {
-        weekMap.set(fullWeekKey, {
-          weekKey: fullWeekKey,
-          shortKey: weekKey,
+      const weekKey = `${year}-W${weekNum}`;
+
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, {
+          weekKey,
+          shortKey: `W${weekNum}`,
           year,
           dates: []
         });
       }
-      weekMap.get(fullWeekKey).dates.push({
-        dateKey,
-        date
-      });
+      weekMap.get(weekKey).dates.push({ dateKey, date });
     });
 
-    const weeks = Array.from(weekMap.values()).sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return parseInt(a.shortKey.slice(1)) - parseInt(b.shortKey.slice(1));
-    });
-
-    const asinsData = asinsToProcess
-      .filter(asin => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return asin.asinCode?.toLowerCase().includes(query) || 
-               asin.title?.toLowerCase().includes(query);
-      })
-      .map(asin => {
-        const history = asin.weekHistory || asin.history || [];
-        const historyMap = new Map();
-        history.forEach(h => {
-          const dateVal = h.date || h.week || h.timestamp;
-          if (!dateVal) return;
-          const dateKey = new Date(dateVal).toISOString().split('T')[0];
-          historyMap.set(dateKey, { rating: h.rating, reviewCount: h.reviewCount });
-        });
-
-        const weekData = {};
-        weeks.forEach(week => {
-          week.dates.forEach(d => {
-            const data = historyMap.get(d.dateKey);
-            if (data && data.rating !== undefined) {
-              if (!weekData[week.weekKey]) weekData[week.weekKey] = {};
-              weekData[week.weekKey][d.dateKey] = data;
-            }
-          });
-        });
-
-        return {
-          asinCode: asin.asinCode,
-          title: asin.title || 'Untitled Product',
-          currentRating: asin.rating || 0,
-          reviewCount: asin.reviewCount || 0,
-          weekData
-        };
-      });
-
-    return { weeks, asins: asinsData };
-  }, [asins, selectedAsin, dateFilter, customStartDate, customEndDate, searchQuery, asinsToProcess]);
+    return Array.from(weekMap.values());
+  }, [items, dateFilter, customStartDate, customEndDate, globalMinDate]);
 
   function getWeekNumber(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -234,6 +180,69 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   }
 
+  const processedItems = useMemo(() => {
+    return items.map(asin => {
+      const history = asin.history || asin.weekHistory || [];
+      const historyMap = new Map();
+      
+      const sortedHistory = [...history].sort((a, b) => new Date(a.date || a.week) - new Date(b.date || b.week));
+      let lastRating = asin.rating || 0;
+      let lastReviews = asin.reviewCount || asin.reviews || 0;
+      
+      if (sortedHistory.length > 0) {
+        const latest = sortedHistory[sortedHistory.length - 1];
+        lastRating = latest.rating || lastRating;
+        lastReviews = latest.reviewCount || latest.reviews || lastReviews;
+      }
+
+      sortedHistory.forEach(h => {
+        const dateVal = h.date || h.week || h.timestamp;
+        if (!dateVal) return;
+        const dateKey = new Date(dateVal).toISOString().split('T')[0];
+        if (h.rating) historyMap.set(dateKey, { rating: h.rating, reviews: h.reviewCount || h.reviews || lastReviews });
+      });
+
+      const weekData = {};
+      dateColumns.forEach(week => {
+        weekData[week.weekKey] = {};
+        week.dates.forEach(d => {
+          weekData[week.weekKey][d.dateKey] = historyMap.get(d.dateKey) || null;
+        });
+      });
+
+      return {
+        ...asin,
+        id: asin._id || asin.id,
+        processedWeekData: weekData,
+        sellerName: sellers.find(s => s._id === asin.sellerId)?.name || 'Unknown'
+      };
+    });
+  }, [items, dateColumns, sellers]);
+
+  const displayItems = useMemo(() => {
+    if (!sortField.startsWith('day-')) return processedItems;
+    
+    const dayKey = sortField.replace('day-', '');
+    return [...processedItems].sort((a, b) => {
+      let valA = 0; 
+      let valB = 0;
+      
+      Object.values(a.processedWeekData).forEach(w => { if (w[dayKey]) valA = w[dayKey].rating; });
+      Object.values(b.processedWeekData).forEach(w => { if (w[dayKey]) valB = w[dayKey].rating; });
+
+      return sortOrder === 'asc' ? valA - valB : valB - valA;
+    });
+  }, [processedItems, sortField, sortOrder]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+  };
+
   const toggleWeek = (weekKey) => {
     setExpandedWeeks(prev => ({
       ...prev,
@@ -241,201 +250,218 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
     }));
   };
 
-  if (!isOpen) return null;
+  const handleExportCSV = (data, weeks) => {
+    const headers = ['#', 'ASIN', 'Title', 'Brand', 'Live Rating', 'Live Reviews'];
+    const dateHeaders = [];
+    weeks.forEach(w => w.dates.forEach(d => dateHeaders.push(d.dateKey)));
 
-  const { weeks, asins: asinsData } = processRatingData;
+    const csvRows = [
+      [...headers, ...dateHeaders].join(','),
+      ...data.map((item, idx) => [
+        idx + 1,
+        item.asinCode,
+        `"${item.title.replace(/"/g, '""')}"`,
+        `"${item.sellerName}"`,
+        item.rating || 0,
+        item.reviewCount || 0,
+        ...dateHeaders.map(dKey => {
+            let p = null;
+            Object.values(item.processedWeekData).forEach(w => { if(w[dKey]) p = w[dKey].rating; });
+            return p || '';
+        })
+      ].join(','))
+    ];
 
-  // Pagination
-  const totalItems = asinsData.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedAsins = asinsData.slice(startIndex, endIndex);
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `rating_history_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
+  if (!isOpen) return null;
+
   return createPortal(
-    <div 
+    <div
       className="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center p-2"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <style>{`
-        .rating-modal-fade { animation: ratingModalFade 0.25s ease-out; }
-        @keyframes ratingModalFade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .week-toggle { cursor: pointer; user-select: none; transition: all 0.2s; }
-        .week-toggle:hover { background-color: #fffbeb; }
-        .day-cell { font-size: 0.75rem; border-left: 1px solid #f1f5f9; }
-        .week-header { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
-        .day-header { background: #fffaf0; }
-        .sticky-col-1 { position: sticky; left: 0; z-index: 10; background: white; width: 160px; min-width: 160px; }
-        .sticky-col-2 { position: sticky; left: 160px; z-index: 10; background: white; width: 80px; min-width: 80px; }
-        .sticky-col-3 { position: sticky; left: 240px; z-index: 10; background: white; width: 80px; min-width: 80px; }
+        .rating-modal-fade { animation: ratingModalFade 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes ratingModalFade { from { opacity: 0; transform: scale(0.98) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .week-toggle { cursor: pointer; user-select: none; transition: all 0.2s; position: relative; }
+        .week-toggle:hover { background-color: #fffbeb !important; }
+        .day-cell { font-size: 0.75rem; border-left: 1.5px solid #f1f5f9; color: #475569; }
+        .week-header { background: #fffbeb; border-bottom: 2px solid #fef3c7; font-weight: 700; color: #92400e; }
+        .day-header { background: #ffffff; color: #64748b; font-weight: 600; cursor: pointer; }
+        .day-header:hover { background: #fffbeb; color: #92400e; }
+        
+        .sticky-col-idx { position: sticky; left: 0; z-index: 11; background: white; width: 40px; min-width: 40px; text-align: center; border-right: 1px solid #f1f5f9; }
+        .sticky-col-1 { position: sticky; left: 40px; z-index: 10; background: white; width: 140px; min-width: 140px; border-right: 2px solid #f1f5f9; }
+        .sticky-col-2 { position: sticky; left: 180px; z-index: 10; background: white; width: 90px; min-width: 90px; }
+        .sticky-col-3 { position: sticky; left: 270px; z-index: 10; background: white; width: 90px; min-width: 90px; border-right: 2px solid #f1f5f9; }
+        
+        thead th { position: sticky; top: 0; z-index: 5; background: #fffbeb; }
+        thead tr:first-child th.sticky-col-idx,
         thead tr:first-child th.sticky-col-1,
         thead tr:first-child th.sticky-col-2,
-        thead tr:first-child th.sticky-col-3 { z-index: 20; background: #f8fafc; }
-        .skeleton-row { height: 60px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; }
+        thead tr:first-child th.sticky-col-3 { z-index: 21; background: #fffbeb; }
+        
+        .skeleton-row { height: 20px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; border-radius: 4px; }
         @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        tbody tr:hover td { background-color: #fffbeb !important; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
-      
-      <div 
-        className="bg-white rounded-3 shadow-lg overflow-hidden"
-        style={{ 
-          width: '100%', 
-          maxWidth: '100vw', 
-          maxHeight: '95vh',
-          animation: 'rating-modal-fade 0.25s ease-out'
+
+      <div
+        className="bg-white rounded-4 shadow-2xl overflow-hidden rating-modal-fade"
+        style={{
+          width: '98vw',
+          height: '95vh',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        <div className="p-4 border-bottom bg-gradient-to-r from-amber-50 to-orange-50 d-flex justify-content-between align-items-center">
+        {/* Header */}
+        <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-white">
           <div className="d-flex align-items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <Star size={24} className="text-amber-600" />
+            <div className="p-2.5 bg-amber-500 text-white rounded-3 shadow-sm">
+              <Star size={22} fill="currentColor" />
             </div>
             <div>
-              <h4 className="mb-0 fw-bold text-slate-800">Rating History - Day Wise</h4>
-              <p className="mb-0 text-muted small">Week-over-week rating tracking by day</p>
+              <h5 className="mb-0 fw-bold text-slate-900">Rating Analysis Matrix</h5>
+              <div className="d-flex align-items-center gap-2">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {totalCount} total units
+                </span>
+                {/* <span className="text-slate-400 small">•</span>
+                <span className="text-slate-500 small">Infinite Scroll Enabled</span> */}
+              </div>
             </div>
           </div>
-          <div className="d-flex align-items-center gap-2 flex-grow-1 mx-4">
-            <div className="input-group input-group-sm" style={{ maxWidth: '300px' }}>
-              <span className="input-group-text bg-white border-end-0"><Filter size={14} className="text-muted" /></span>
-              <input 
-                type="text" 
-                className="form-control border-start-0" 
-                placeholder="Search ASIN or title..." 
+
+          <div className="d-flex align-items-center gap-3">
+            <div className="d-flex gap-2 bg-slate-100 p-1 rounded-3">
+              {['7days', '14days', '30days', 'all'].map(period => (
+                <button
+                  key={period}
+                  onClick={() => setDateFilter(period)}
+                  className={`px-3 py-1.5 rounded-2 border-0 small fw-semibold transition-all ${
+                    dateFilter === period ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {period === '7days' ? '1W' : period === '14days' ? '2W' : period === '30days' ? '1M' : 'ALL'}
+                </button>
+              ))}
+            </div>
+
+            <div className="vr mx-1 my-2 text-slate-300"></div>
+
+            <div className="input-group input-group-sm" style={{ width: '220px' }}>
+              <span className="input-group-text bg-transparent border-end-0 text-slate-400">
+                <Search size={14} />
+              </span>
+              <input
+                type="text"
+                className="form-control border-start-0 ps-0 text-slate-600"
+                placeholder="Search ASIN or SKU..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button 
-              className="btn btn-sm btn-outline-warning d-flex align-items-center gap-1"
-              onClick={() => handleExportCSV(asinsData, weeks)}
+
+            <select
+              className="form-select form-select-sm text-slate-600 fw-medium"
+              style={{ width: '150px' }}
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
             >
+              <option value="all">Everywhere</option>
+              {sellers.map(s => <option key={s._id} value={s._id}>{s.name.substring(0, 15)}...</option>)}
+            </select>
+
+            <button
+              className="btn btn-sm btn-outline-slate-200 text-slate-600 d-flex align-items-center gap-2 px-3"
+              onClick={() => handleExportCSV(processedItems, dateColumns)}
+            >
+              <ArrowRight size={14} className="rotate-90" />
               Export CSV
             </button>
-          </div>
 
-          <div className="d-flex align-items-center gap-3">
-            <div className="form-check form-switch d-flex align-items-center gap-2">
-              <input 
-                className="form-check-input" 
-                type="checkbox" 
-                id="comparisonToggle"
-                checked={showComparison}
-                onChange={(e) => setShowComparison(e.target.checked)}
-              />
-              <label className="form-check-label small text-muted" htmlFor="comparisonToggle">
-                Show Comparison
-              </label>
-            </div>
-            <div className="d-flex align-items-center gap-2">
-              <div className="position-relative d-flex align-items-center gap-2">
-                <select 
-                  className="form-select form-select-sm"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  style={{ width: '150px' }}
-                >
-                  <option value="all">All Time</option>
-                  <option value="7days">Last 7 Days</option>
-                  <option value="14days">Last 14 Days</option>
-                  <option value="30days">Last 30 Days</option>
-                  <option value="custom">Custom Range</option>
-                </select>
-                {dateFilter === 'custom' && (
-                  <div className="badge bg-light text-dark border p-1" title="Max range is 7 days">
-                    <TrendingUp size={12} className="text-info" />
-                    <span className="ms-1 fw-normal" style={{ fontSize: '0.65rem' }}>Max 7d</span>
-                  </div>
-                )}
-              </div>
-              {dateFilter === 'custom' && (
-                <div className="d-flex align-items-center gap-1 ms-2">
-                  <input 
-                    type="date" 
-                    className="form-control form-control-sm"
-                    value={customStartDate}
-                    onChange={(e) => handleCustomDateChange('startDate', e.target.value)}
-                    min={minDate}
-                    max={maxDate}
-                    style={{ width: '130px' }}
-                  />
-                  <span className="text-muted">to</span>
-                  <input 
-                    type="date" 
-                    className="form-control form-control-sm"
-                    value={customEndDate}
-                    onChange={(e) => handleCustomDateChange('endDate', e.target.value)}
-                    min={customStartDate || minDate}
-                    max={maxDate}
-                    style={{ width: '130px' }}
-                  />
-                </div>
-              )}
-            </div>
-            <button onClick={onClose} className="btn btn-light rounded-circle p-2">
-              <X size={20} />
+            <button onClick={onClose} className="btn btn-ghost-slate rounded-circle p-1.5 hover:bg-slate-100">
+              <X size={22} className="text-slate-500" />
             </button>
           </div>
         </div>
 
-        <div className="overflow-auto" style={{ maxHeight: 'calc(95vh - 80px)' }}>
-          <table className="table table-bordered table-hover mb-0" style={{ minWidth: '1200px' }}>
-            <thead className="position-sticky top-0 bg-white z-index-1">
+        {/* Matrix Table */}
+        <div 
+          className="overflow-auto flex-grow-1 position-relative" 
+          onScroll={handleScroll}
+          ref={scrollContainerRef}
+        >
+          <table className="table table-borderless mb-0 w-100" style={{ minWidth: '1500px', tableLayout: 'fixed' }}>
+            <thead>
               <tr>
-                <th rowSpan={2} className="px-3 py-3 sticky-col-1">
-                  ASIN
+                <th rowSpan={2} className="sticky-col-idx py-3">#</th>
+                <th rowSpan={2} className="sticky-col-1 py-3" onClick={() => handleSort('asinCode')} style={{ cursor: 'pointer' }}>
+                  <div className="d-flex align-items-center justify-content-between px-2">
+                    IDENTIFIER {sortField === 'asinCode' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </div>
                 </th>
-                <th rowSpan={2} className="px-3 py-3 text-center sticky-col-2">
-                  Rating
+                <th rowSpan={2} className="sticky-col-2 py-3 text-center" onClick={() => handleSort('rating')} style={{ cursor: 'pointer' }}>
+                   RATING {sortField === 'rating' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th rowSpan={2} className="px-3 py-3 text-center sticky-col-3">
-                  Reviews
+                <th rowSpan={2} className="sticky-col-3 py-3 text-center" onClick={() => handleSort('reviewCount')} style={{ cursor: 'pointer' }}>
+                   REVIEWS {sortField === 'reviewCount' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                {weeks.map(week => {
+                {dateColumns.map(week => {
                   const isExpanded = expandedWeeks[week.weekKey] !== false;
                   return (
-                    <React.Fragment key={week.weekKey}>
-                      <th 
-                        colSpan={isExpanded ? (week.dates.length + (showComparison ? 1 : 0)) : 1} 
-                        className="px-2 py-2 text-center week-header week-toggle"
-                        onClick={() => toggleWeek(week.weekKey)}
-                        style={{ minWidth: isExpanded ? `${(week.dates.length + (showComparison ? 1 : 0)) * 80}px` : '100px' }}
-                      >
-                        <div className="d-flex align-items-center justify-content-center gap-1">
-                          {week.shortKey} {isExpanded ? '▼' : '▶'}
-                          {!isExpanded && <span className="badge bg-white text-dark small" style={{fontSize: '0.6rem'}}>Avg</span>}
-                        </div>
-                      </th>
-                    </React.Fragment>
+                    <th
+                      key={week.weekKey}
+                      colSpan={isExpanded ? (week.dates.length + (showComparison ? 1 : 0)) : 1}
+                      className="week-header text-center py-2 px-3 border-bottom border-start border-amber-100 week-toggle"
+                      onClick={() => toggleWeek(week.weekKey)}
+                    >
+                      <div className="d-flex align-items-center justify-content-center gap-2">
+                         <span className="text-amber-700/40 fw-medium small">{week.year}</span>
+                         <span>{week.shortKey}</span>
+                         <span className="text-amber-300">{isExpanded ? '▼' : '▶'}</span>
+                      </div>
+                    </th>
                   );
                 })}
               </tr>
               <tr>
-                {weeks.map((week, wIdx) => {
+                {dateColumns.map((week, wIdx) => {
                   const isExpanded = expandedWeeks[week.weekKey] !== false;
                   if (!isExpanded) return null;
                   return (
                     <React.Fragment key={`${week.weekKey}-days`}>
                       {week.dates.map(d => (
-                        <th 
-                          key={d.dateKey} 
-                          className="px-1 py-1 text-center day-header day-cell"
-                          style={{ minWidth: '70px', fontSize: '0.7rem' }}
+                        <th
+                          key={d.dateKey}
+                          className="day-header text-center py-2 border-start border-slate-100"
+                          onClick={() => handleSort(`day-${d.dateKey}`)}
                         >
-                          {d.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          <div className="small">{d.date.toLocaleDateString('en-IN', { day: '2-digit' })}</div>
+                          <div style={{ fontSize: '0.6rem', color: '#94a3b8', textTransform: 'uppercase' }}>
+                            {d.date.toLocaleDateString('en-IN', { month: 'short' })}
+                          </div>
                         </th>
                       ))}
-                      {showComparison && wIdx > 0 && (
-                        <th className="px-1 py-1 text-center" style={{ background: '#fef3c7', minWidth: '90px' }}>
-                          <div className="d-flex align-items-center justify-content-center gap-1">
-                            <span style={{ fontSize: '0.65rem' }}>vs W{wIdx}</span>
-                          </div>
+                      {showComparison && wIdx < dateColumns.length - 1 && (
+                        <th className="text-center py-2 bg-amber-50 text-amber-700" style={{ fontSize: '0.65rem', fontWeight: 700 }}>
+                          DIFF
                         </th>
                       )}
                     </React.Fragment>
@@ -443,174 +469,109 @@ const RatingViewModal = ({ asins, selectedAsin, isOpen, onClose }) => {
                 })}
               </tr>
             </thead>
-            <tbody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+            <tbody style={{ backgroundColor: '#fff' }}>
+              {isLoading && items.length === 0 ? (
+                Array.from({ length: 15 }).map((_, i) => (
                   <tr key={`skeleton-${i}`}>
-                    <td className="sticky-col-1"><div className="skeleton-row w-100 rounded"></div></td>
-                    <td className="sticky-col-2"><div className="skeleton-row w-100 rounded"></div></td>
-                    <td className="sticky-col-3"><div className="skeleton-row w-100 rounded"></div></td>
-                    <td colSpan={weeks.length * 5}><div className="skeleton-row w-100 rounded"></div></td>
+                    <td className="sticky-col-idx"><div className="skeleton-row mx-auto" style={{ width: '20px' }}></div></td>
+                    <td className="sticky-col-1"><div className="skeleton-row w-75"></div></td>
+                    <td className="sticky-col-2"><div className="skeleton-row w-50 mx-auto"></div></td>
+                    <td className="sticky-col-3"><div className="skeleton-row w-50 mx-auto"></div></td>
+                    <td colSpan={100}><div className="skeleton-row w-100"></div></td>
                   </tr>
                 ))
-              ) : paginatedAsins.map((item, idx) => (
-                <tr key={idx} className="border-bottom">
-                  <td className="px-3 py-2 sticky-col-1">
-                    <div className="d-flex flex-column">
-                      <span className="fw-medium font-monospace" style={{ fontSize: '0.85rem' }}>
-                        {item.asinCode}
-                      </span>
-                      <span className="text-muted text-truncate" style={{ maxWidth: '120px', fontSize: '0.7rem' }}>
-                        {item.title}
-                      </span>
-                    </div>
+              ) : displayItems.map((item, idx) => (
+                <tr key={item.id} className="border-bottom border-slate-50">
+                  <td className="sticky-col-idx text-slate-400 small fw-medium">{idx + 1}</td>
+                  <td className="sticky-col-1 px-3 py-2">
+                     <div className="d-flex flex-column" style={{ maxWidth: '120px' }}>
+                        <span className="fw-bold text-slate-800 font-monospace small">{item.asinCode}</span>
+                        <span className="text-slate-400 text-truncate" style={{ fontSize: '0.65rem' }}>{item.title}</span>
+                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center sticky-col-2">
-                    <div className="d-flex align-items-center justify-content-center gap-1">
-                      <Star size={12} className="text-warning fill-warning" />
-                      <span className="fw-semibold text-warning">{item.currentRating.toFixed(1)}</span>
-                    </div>
+                  <td className="sticky-col-2 text-center text-amber-600 fw-bold small">
+                     <div className="d-flex align-items-center justify-content-center gap-1">
+                        <Star size={10} fill="currentColor" />
+                        <span>{item.rating?.toFixed(1)}</span>
+                     </div>
                   </td>
-                  <td className="px-3 py-2 text-center sticky-col-3">
-                    <span className="text-muted text-center d-block">{item.reviewCount.toLocaleString()}</span>
-                  </td>
-                  {weeks.map((week, wIdx) => {
+                  <td className="sticky-col-3 text-center text-slate-600 fw-medium small">{item.reviewCount?.toLocaleString()}</td>
+                  {dateColumns.map((week, wIdx) => {
                     const isExpanded = expandedWeeks[week.weekKey] !== false;
-                    const comp = getWeekComparison(item, week, wIdx, weeks);
                     
                     if (!isExpanded) {
-                      const dataArr = Object.values(item.weekData[week.weekKey] || {});
-                      const avg = dataArr.length > 0 ? (dataArr.reduce((a, b) => a + b.rating, 0) / dataArr.length) : null;
+                      const data = Object.values(item.processedWeekData[week.weekKey] || {}).filter(v => v !== null);
+                      const avg = data.length > 0 ? (data.reduce((a, b) => a + b.rating, 0) / data.length) : null;
                       return (
-                        <td key={`${week.weekKey}-collapsed`} className="text-center bg-light">
-                          {avg !== null ? (
-                            <div className="d-flex align-items-center justify-content-center gap-1">
-                              <Star size={10} className="text-warning fill-warning" />
-                              <span className="fw-bold text-warning">{avg.toFixed(1)}</span>
-                            </div>
-                          ) : '-'}
+                        <td key={`${week.weekKey}-col`} className="text-center py-2 border-start border-slate-100 bg-amber-50/10">
+                           {avg ? (
+                             <div className="d-flex align-items-center justify-content-center gap-1 text-amber-700 fw-semibold extra-small">
+                               <Star size={8} fill="currentColor" />
+                               <span>{avg.toFixed(1)}</span>
+                             </div>
+                           ) : <span className="text-slate-300">-</span>}
                         </td>
                       );
                     }
 
                     return (
                       <React.Fragment key={week.weekKey}>
-                        {week.dates.map(d => {
-                          const data = item.weekData?.[week.weekKey]?.[d.dateKey];
-                          return (
-                            <td 
-                              key={`${week.weekKey}-${d.dateKey}`} 
-                              className="px-1 py-2 text-center day-cell"
-                              style={{ backgroundColor: '#f9fafb' }}
-                            >
-                              {data && data.rating !== undefined ? (
-                                <div className="d-flex align-items-center justify-content-center gap-1">
-                                  <Star size={10} className="text-warning fill-warning" />
-                                  <span className="text-warning fw-medium">{data.rating.toFixed(1)}</span>
-                                </div>
-                              ) : (
-                                <span className="text-muted">-</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                        {showComparison && wIdx > 0 && (
-                          <td className="px-1 py-2 text-center" style={{ background: '#fef3c7', minWidth: '90px' }}>
-                            {comp ? (
-                              <div className={`d-flex flex-column align-items-center gap-0`}>
-                                <div className="d-flex align-items-center gap-1">
-                                  {comp.change > 0 ? <TrendingUp size={10} className="text-success" /> : <TrendingDown size={10} className="text-danger" />}
-                                  <span className={`fw-bold small ${comp.change >= 0 ? 'text-success' : 'text-danger'}`}>
-                                    {comp.change > 0 ? '+' : ''}{comp.change.toFixed(2)}
-                                  </span>
-                                </div>
-                                <span className="text-muted" style={{ fontSize: '0.65rem' }}>
-                                  {Math.abs(comp.percent).toFixed(1)}% change
-                                </span>
-                              </div>
-                            ) : <span className="text-muted">-</span>}
-                          </td>
-                        )}
+                         {week.dates.map(d => {
+                            const data = item.processedWeekData[week.weekKey][d.dateKey];
+                            return (
+                               <td key={d.dateKey} className="text-center day-cell py-2">
+                                  {data ? (
+                                    <div className="d-flex flex-column align-items-center">
+                                       <span className="fw-medium text-slate-700">{data.rating.toFixed(1)}</span>
+                                       <span className="text-slate-400" style={{ fontSize: '0.55rem' }}>{data.reviews}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-300">-</span>
+                                  )}
+                               </td>
+                            );
+                         })}
+                         {showComparison && wIdx < dateColumns.length - 1 && (
+                           <td className="text-center bg-amber-50/10 border-start border-slate-100">
+                             <span className="text-slate-300 small">-</span>
+                           </td>
+                         )}
                       </React.Fragment>
                     );
                   })}
                 </tr>
               ))}
-              {asinsData.length === 0 && (
-                <tr>
-                  <td colSpan={3 + weeks.reduce((sum, w) => sum + w.dates.length, 0)} className="text-center py-5 text-muted">
-                    No rating data available
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+          
+          {(isFetchingMore || hasMore) && (
+            <div className="p-4 d-flex justify-content-center align-items-center gap-3">
+              <Loader2 className="animate-spin text-amber-600" size={24} />
+              <span className="text-slate-500 fw-medium">Loading more review analytics...</span>
+            </div>
+          )}
         </div>
 
-        <div className="px-4 py-3 border-top bg-light d-flex justify-content-between align-items-center">
-          <div className="d-flex align-items-center gap-2">
-            <span className="text-muted small">Show</span>
-            <select 
-              className="form-select form-select-sm"
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              style={{ width: '70px' }}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span className="text-muted small">entries</span>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <span className="text-muted small">
-              Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems}
-            </span>
-            <div className="d-flex align-items-center gap-1">
-              <button 
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <button
-                    key={i}
-                    className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-outline-secondary'}`}
-                    onClick={() => handlePageChange(pageNum)}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button 
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-          <button onClick={onClose} className="btn btn-dark fw-medium px-4">
-            Close
-          </button>
+        {/* Footer info */}
+        <div className="px-4 py-2 bg-slate-50 border-top d-flex justify-content-between align-items-center">
+           <div className="d-flex gap-4">
+              <div className="d-flex align-items-center gap-2">
+                 <div className="p-1.5 bg-amber-100 rounded-circle text-amber-700 small fw-bold">4.5+</div>
+                 <span className="small text-slate-600">Healthy Rating</span>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                 <div className="p-1.5 bg-red-100 rounded-circle text-red-700 small fw-bold">&lt;3.5</div>
+                 <span className="small text-slate-600">Critical Attention</span>
+              </div>
+           </div>
+           
+           <div className="text-slate-400 small">
+              Sentiment: Star Rating & Review Velocity • BuildRO v2.4
+           </div>
+           
+           <button onClick={onClose} className="btn btn-dark btn-sm px-4 py-1.5 rounded-2 fw-bold">
+              Dismiss Modal
+           </button>
         </div>
       </div>
     </div>,

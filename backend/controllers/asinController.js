@@ -4,6 +4,7 @@ const imageGenerationService = require('../services/imageGenerationService');
 const path = require('path');
 const fs = require('fs');
 const marketDataSyncService = require('../services/marketDataSyncService');
+const mongoose = require('mongoose');
 
 // Get all ASINs
 exports.getAsins = async (req, res) => {
@@ -18,12 +19,12 @@ exports.getAsins = async (req, res) => {
     if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
-      if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
+      if (seller && mongoose.Types.ObjectId.isValid(seller) && allowedSellerIds.some(id => id.toString() === seller)) {
         filter.seller = seller;
       } else {
         filter.seller = { $in: allowedSellerIds };
       }
-    } else if (seller) {
+    } else if (seller && mongoose.Types.ObjectId.isValid(seller)) {
       filter.seller = seller;
     }
 
@@ -47,8 +48,20 @@ exports.getAsins = async (req, res) => {
 
     const total = await Asin.countDocuments(filter);
 
+    // Dynamic Min Date for trends (only on first page for performance)
+    let minDate = null;
+    if (page == 1) {
+      const minDateAgg = await Asin.aggregate([
+        { $match: filter },
+        { $unwind: "$history" },
+        { $group: { _id: null, minDate: { $min: "$history.date" } } }
+      ]);
+      minDate = minDateAgg[0]?.minDate;
+    }
+
     res.json({
       asins,
+      minDate,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -74,12 +87,12 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
-      if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
+      if (seller && mongoose.Types.ObjectId.isValid(seller) && allowedSellerIds.some(id => id.toString() === seller)) {
         filter.seller = seller;
       } else {
         filter.seller = { $in: allowedSellerIds };
       }
-    } else if (seller) {
+    } else if (seller && mongoose.Types.ObjectId.isValid(seller)) {
       filter.seller = seller;
     }
 

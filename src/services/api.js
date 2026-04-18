@@ -541,7 +541,11 @@ export const sellerApi = {
 // ASIN API
 export const asinApi = {
   getAll: async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    // Filter out null or undefined values to prevent "undefined" string literals in URL
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== null && v !== undefined)
+    );
+    const query = new URLSearchParams(cleanParams).toString();
     const res = await fetch(`${API_BASE}/asins?${query}`, {
       headers: { ...getAuthHeader() }
     });

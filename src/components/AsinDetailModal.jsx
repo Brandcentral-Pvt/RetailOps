@@ -143,10 +143,46 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     tooltip: { theme: 'light' }
   };
 
-  // Price History Chart Config
+  // Price History Chart Config - Forward fill with last valid price
+  const processedPriceHistory = useMemo(() => {
+    if (!asin || !history) return [];
+    let lastValidPrice = null;
+    
+    // Find baseline: last valid price before the first filtered date
+    if (history.length > 0) {
+      const fullHistory = asin.history || asin.weekHistory || [];
+      const firstDate = new Date(history[0].date || history[0].week);
+      const beforeHistory = fullHistory
+        .filter(h => new Date(h.date || h.week) < firstDate)
+        .sort((a, b) => new Date(b.date || b.week) - new Date(a.date || a.week));
+      
+      if (beforeHistory.length > 0) {
+        for (const h of beforeHistory) {
+          const p = h.price || h.currentPrice;
+          if (p && p > 0) {
+            lastValidPrice = p;
+            break;
+          }
+        }
+      }
+      
+      // If still null, use current data as a coarse fallback only if it's the only data we have
+      if (lastValidPrice === null) lastValidPrice = currentData.value;
+    }
+
+    return history.map(h => {
+      const price = h.price || h.currentPrice;
+      if (price && price > 0) {
+        lastValidPrice = price;
+        return price;
+      }
+      return lastValidPrice;
+    });
+  }, [history, asin, currentData]);
+
   const priceSeries = [{
     name: 'Price (₹)',
-    data: history.map(h => h.price || h.currentPrice)
+    data: processedPriceHistory
   }];
 
   const priceOptions = {
@@ -173,10 +209,41 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     markers: { size: 4, strokeWidth: 2, strokeColors: '#fff', colors: ['#6366f1'] }
   };
 
-  // BSR Trend Chart Config
+  // BSR Trend Chart Config - Forward fill with last valid BSR
+  const processedBsrHistory = useMemo(() => {
+    if (!asin || !history) return [];
+    let lastValidBsr = null;
+    
+    if (history.length > 0) {
+      const fullHistory = asin.history || asin.weekHistory || [];
+      const firstDate = new Date(history[0].date || history[0].week);
+      const beforeHistory = fullHistory
+        .filter(h => new Date(h.date || h.week) < firstDate)
+        .sort((a, b) => new Date(b.date || b.week) - new Date(a.date || a.week));
+      
+      if (beforeHistory.length > 0) {
+        for (const h of beforeHistory) {
+          if (h.bsr && h.bsr > 0) {
+            lastValidBsr = h.bsr;
+            break;
+          }
+        }
+      }
+      if (lastValidBsr === null) lastValidBsr = bsrData.value;
+    }
+
+    return history.map(h => {
+      if (h.bsr && h.bsr > 0) {
+        lastValidBsr = h.bsr;
+        return h.bsr;
+      }
+      return lastValidBsr;
+    });
+  }, [history, asin, bsrData]);
+
   const bsrSeries = [{
     name: 'Main BSR',
-    data: history.map(h => h.bsr)
+    data: processedBsrHistory
   }];
 
   const bsrOptions = {
@@ -197,29 +264,155 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     markers: { size: 4, strokeWidth: 2, strokeColors: '#fff', colors: ['#10b981'] }
   };
 
-  // Rating History Chart Config
-  const ratingSeries = [{
-    name: 'Rating',
-    data: history.map(h => h.rating)
-  }];
+  // Rating History Chart Config - Forward fill with last valid rating and star breakdown
+  const { ratingSeries, hasBreakdownHistory } = useMemo(() => {
+    if (!asin || !history) return { ratingSeries: [], hasBreakdownHistory: false };
+    let lastValidRating = null;
+    let lastValidBreakdown = { fiveStar: null, fourStar: null, threeStar: null, twoStar: null, oneStar: null };
+    
+    const fullHistory = asin.history || asin.weekHistory || [];
+    const firstDate = history.length > 0 ? new Date(history[0].date || history[0].week) : null;
+    
+    // Baselines
+    if (firstDate) {
+      const beforeHistory = fullHistory
+        .filter(h => new Date(h.date || h.week) < firstDate)
+        .sort((a, b) => new Date(b.date || b.week) - new Date(a.date || a.week));
+      
+      if (beforeHistory.length > 0) {
+        for (const h of beforeHistory) {
+          if (lastValidRating === null && h.rating && h.rating > 0) lastValidRating = h.rating;
+          if (h.ratingBreakdown) {
+            Object.keys(lastValidBreakdown).forEach(key => {
+              if (lastValidBreakdown[key] === null && h.ratingBreakdown[key] !== undefined) {
+                lastValidBreakdown[key] = h.ratingBreakdown[key];
+              }
+            });
+          }
+          if (lastValidRating !== null && Object.values(lastValidBreakdown).every(v => v !== null)) break;
+        }
+      }
+    }
+    
+    // Fallback baselines from current data
+    if (lastValidRating === null) lastValidRating = ratingData.value;
+    Object.keys(lastValidBreakdown).forEach(key => {
+      if (lastValidBreakdown[key] === null) lastValidBreakdown[key] = ratingBreakdownData.data?.[key] || 0;
+    });
+
+    const avgSeries = [];
+    const breakdownSeries = {
+      fiveStar: [], fourStar: [], threeStar: [], twoStar: [], oneStar: []
+    };
+
+    let foundAnyBreakdown = false;
+
+    history.forEach(h => {
+      // Average Rating
+      if (h.rating && h.rating > 0) lastValidRating = h.rating;
+      avgSeries.push(lastValidRating);
+
+      // Star Breakdown
+      if (h.ratingBreakdown) {
+        foundAnyBreakdown = true;
+        Object.keys(breakdownSeries).forEach(key => {
+          if (h.ratingBreakdown[key] !== undefined) {
+            lastValidBreakdown[key] = h.ratingBreakdown[key];
+          }
+          breakdownSeries[key].push(lastValidBreakdown[key]);
+        });
+      } else {
+        Object.keys(breakdownSeries).forEach(key => {
+          breakdownSeries[key].push(lastValidBreakdown[key]);
+        });
+      }
+    });
+
+    const series = [{
+      name: 'Avg Rating',
+      type: 'line',
+      data: avgSeries
+    }];
+
+    if (foundAnyBreakdown) {
+      series.push(
+        { name: '5★ %', type: 'line', data: breakdownSeries.fiveStar },
+        { name: '4★ %', type: 'line', data: breakdownSeries.fourStar },
+        { name: '3★ %', type: 'line', data: breakdownSeries.threeStar },
+        { name: '2★ %', type: 'line', data: breakdownSeries.twoStar },
+        { name: '1★ %', type: 'line', data: breakdownSeries.oneStar }
+      );
+    }
+
+    return { ratingSeries: series, hasBreakdownHistory: foundAnyBreakdown };
+  }, [history, asin, ratingData, ratingBreakdownData]);
 
   const ratingOptions = {
     ...commonOptions,
-    chart: { ...commonOptions.chart, type: 'line', height: 250 },
-    dataLabels: {
-      enabled: history.length <= 15,
-      formatter: (val) => val ? `${Number(val).toFixed(1)}` : '',
-      offsetY: -10,
-      style: { fontSize: '10px', colors: ['#f59e0b'] },
-      background: { enabled: true, borderWidth: 0, borderRadius: 4, padding: 4, opacity: 0.9 }
+    chart: { 
+      ...commonOptions.chart, 
+      type: 'line', 
+      height: 300,
+      fontFamily: 'Inter, sans-serif'
     },
-    stroke: { curve: 'straight', width: 3, colors: ['#f59e0b'] },
-    yaxis: {
+    colors: hasBreakdownHistory 
+      ? ['#f59e0b', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444']
+      : ['#f59e0b'],
+    stroke: {
+      width: hasBreakdownHistory ? [4, 2, 2, 2, 2, 2] : [3],
+      curve: 'smooth',
+      dashArray: hasBreakdownHistory ? [0, 0, 0, 0, 0, 0] : [0]
+    },
+    dataLabels: {
+      enabled: history.length <= 10,
+      formatter: (val, opts) => {
+        if (opts.seriesIndex === 0) return val?.toFixed(1);
+        return `${val}%`;
+      },
+      style: { fontSize: '9px', fontWeight: 600 }
+    },
+    yaxis: hasBreakdownHistory ? [
+      {
+        seriesName: 'Avg Rating',
+        min: 0, max: 5, tickAmount: 5,
+        title: { text: 'Rating (0-5)', style: { color: '#f59e0b', fontWeight: 600 } },
+        labels: { style: { colors: '#f59e0b', fontWeight: 500 }, formatter: (v) => v?.toFixed(1) }
+      },
+      {
+        opposite: true,
+        min: 0, max: 100, tickAmount: 5,
+        title: { text: 'Breakdown (%)', style: { color: '#64748b', fontWeight: 600 } },
+        labels: { style: { colors: '#64748b', fontWeight: 500 }, formatter: (v) => `${v}%` }
+      }
+    ] : {
       min: 0, max: 5, tickAmount: 5,
       labels: { style: { fontSize: '10px', colors: '#64748b' }, formatter: (val) => val?.toFixed(1) || '' }
     },
-    markers: { size: 4, strokeWidth: 2, strokeColors: '#fff', colors: ['#f59e0b'] },
-    colors: ['#f59e0b']
+    legend: {
+      show: hasBreakdownHistory,
+      position: 'bottom',
+      horizontalAlign: 'center',
+      fontSize: '11px',
+      fontWeight: 500,
+      markers: { radius: 12 },
+      itemMargin: { horizontal: 10, vertical: 5 }
+    },
+    tooltip: {
+      shared: true,
+      intersect: false,
+      y: {
+        formatter: (val, opts) => {
+          if (opts.seriesIndex === 0) return `${val?.toFixed(2)} ★`;
+          return `${val}%`;
+        }
+      }
+    },
+    markers: {
+      size: hasBreakdownHistory ? [4, 0, 0, 0, 0, 0] : [4],
+      strokeWidth: 2,
+      strokeColors: '#fff',
+      hover: { sizeOffset: 2 }
+    }
   };
 
   if (!isOpen || !asin) return null;

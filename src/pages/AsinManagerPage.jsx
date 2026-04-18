@@ -72,7 +72,7 @@ const generateHistoryStructureFromDates = (sortedDates) => {
 
   // Limit to the last 7 unique days for the "Current Week" view in the table
   const recentDates = sortedDates.slice(-7);
-  
+
   return [{
     label: 'Current Week',
     dates: recentDates.map(dateStr => {
@@ -367,12 +367,12 @@ const AsinManagerPage = () => {
 
       // Only fetch paginated data and stats - NOT all data (optimization)
       const [asinRes, statsRes] = await Promise.all([
-        asinApi.getAll({ 
-          page, 
-          limit, 
-          seller, 
-          sortBy: 'lastScraped', 
-          sortOrder: 'desc' 
+        asinApi.getAll({
+          page,
+          limit,
+          seller,
+          sortBy: 'lastScraped',
+          sortOrder: 'desc'
         }),
         asinApi.getStats({ seller })
       ]);
@@ -390,16 +390,7 @@ const AsinManagerPage = () => {
     }
   }, [pagination.limit, selectedSeller]);
 
-  // Lazy load all ASINs only when modal is opened
-  const loadAllAsinsForModal = useCallback(async () => {
-    if (allAsins.length > 0) return; // Already loaded
-    try {
-      const res = await asinApi.getAllWithoutPagination();
-      setAllAsins(res?.data || res?.asins || []);
-    } catch (err) {
-      console.error('Error loading all ASINs:', err);
-    }
-  }, [allAsins.length]);
+
 
   const handleChangePage = (event, newPage) => {
     // MUI uses 0-indexed pages, API uses 1-indexed
@@ -450,7 +441,7 @@ const AsinManagerPage = () => {
         console.error('Error fetching sellers:', err);
       }
     };
-    
+
     fetchSellers();
   }, []);
 
@@ -460,41 +451,41 @@ const AsinManagerPage = () => {
       const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
       const reviewTrend = reviewChange >= 0 ? '↑' : '↓';
       const reviewColor = reviewChange >= 0 ? '#10b981' : '#ef4444';
-      
+
       // Best selling ASIN (lowest BSR)
       const bestSeller = stats.bestSellingAsins?.[0];
-      
+
       return [
         { label: 'ALL ASINS', value: stats.total || 0, color: '#6366f1', icon: <Package size={14} /> },
         { label: 'AVG LQS', value: (stats.avgLQS || 0) + '%', color: '#10b981', icon: <Activity size={14} /> },
-        { 
-          label: 'BEST SELLER', 
-          value: bestSeller ? `#${bestSeller.bsr?.toLocaleString()}` : '-', 
-          sub: bestSeller?.asinCode || '', 
-          color: '#f59e0b', 
+        {
+          label: 'BEST SELLER',
+          value: bestSeller ? `#${bestSeller.bsr?.toLocaleString()}` : '-',
+          sub: bestSeller?.asinCode || '',
+          color: '#f59e0b',
           icon: <Trophy size={14} />,
-          onClick: async () => { await loadAllAsinsForModal(); setShowAllBsrHistory(true); }
+          onClick: () => { setShowAllBsrHistory(true); }
         },
-        { 
-          label: 'TOTAL REVIEWS', 
-          value: (stats.totalReviews || 0).toLocaleString(), 
-          color: '#8b5cf6', 
+        {
+          label: 'TOTAL REVIEWS',
+          value: (stats.totalReviews || 0).toLocaleString(),
+          color: '#8b5cf6',
           icon: <Star size={14} />,
-          onClick: async () => { await loadAllAsinsForModal(); setShowAllRatingHistory(true); }
+          onClick: () => { setShowAllRatingHistory(true); }
         },
-        { 
-          label: 'REVIEWS (7 DAYS)', 
-          value: `${reviewTrend} ${Math.abs(reviewChange)}%`, 
+        {
+          label: 'REVIEWS (7 DAYS)',
+          value: `${reviewTrend} ${Math.abs(reviewChange)}%`,
           color: reviewColor,
           icon: <TrendingUp size={14} />,
           sub: `Current: ${stats.reviewAnalysis?.currentWeek || 0} vs Previous: ${stats.reviewAnalysis?.previousWeek || 0}`
         },
-        { 
-          label: 'AVG PRICE', 
-          value: '₹' + (stats.avgPrice || 0).toLocaleString(), 
-          color: '#06b6d4', 
+        {
+          label: 'AVG PRICE',
+          value: '₹' + (stats.avgPrice || 0).toLocaleString(),
+          color: '#06b6d4',
           icon: <IndianRupee size={14} />,
-          onClick: async () => { await loadAllAsinsForModal(); setShowAllPriceHistory(true); }
+          onClick: () => { setShowAllPriceHistory(true); }
         },
         { label: 'AVG IMAGES', value: stats.avgImages || 0, color: '#ec4899', icon: <Image size={14} /> },
         { label: 'AVG BULLETS', value: stats.avgBullets || 0, color: '#8b5cf6', icon: <ListChecks size={14} /> },
@@ -512,27 +503,27 @@ const AsinManagerPage = () => {
     return [
       { label: 'ALL ASINS', value: total, color: '#6366f1', icon: <Package size={14} /> },
       { label: 'AVG LQS', value: avgLqs + '%', color: '#10b981', icon: <Activity size={14} /> },
-      { 
-        label: 'BUY BOX', 
-        value: buyBoxRate + '%', 
-        color: '#f59e0b', 
+      {
+        label: 'BUY BOX',
+        value: buyBoxRate + '%',
+        color: '#f59e0b',
         icon: <Trophy size={14} />,
-        onClick: async () => { await loadAllAsinsForModal(); setShowAllBsrHistory(true); }
+        onClick: () => { setShowAllBsrHistory(true); }
       },
-      { 
-        label: 'LOW LQS', 
-        value: lowLqs, 
-        color: '#ef4444', 
+      {
+        label: 'LOW LQS',
+        value: lowLqs,
+        color: '#ef4444',
         icon: <AlertTriangle size={14} />,
-        onClick: async () => { await loadAllAsinsForModal(); setShowAllRatingHistory(true); }
+        onClick: () => { setShowAllRatingHistory(true); }
       },
       { label: 'DEALS', value: activeDeals, color: '#8b5cf6', icon: <Zap size={14} /> },
-      { 
-        label: 'AVG PRICE', 
-        value: '₹' + avgPrice.toLocaleString(), 
-        color: '#06b6d4', 
+      {
+        label: 'AVG PRICE',
+        value: '₹' + avgPrice.toLocaleString(),
+        color: '#06b6d4',
         icon: <IndianRupee size={14} />,
-        onClick: async () => { await loadAllAsinsForModal(); setShowAllPriceHistory(true); }
+        onClick: () => { setShowAllPriceHistory(true); }
       },
       { label: 'AVG IMAGES', value: Math.round(asins.reduce((sum, a) => sum + (a.imagesCount || 0), 0) / (asins.length || 1)), color: '#ec4899', icon: <Image size={14} /> },
       { label: 'AVG BULLETS', value: Math.round(asins.reduce((sum, a) => sum + (a.bulletPoints || 0), 0) / (asins.length || 1)), color: '#8b5cf6', icon: <ListChecks size={14} /> },
@@ -542,21 +533,21 @@ const AsinManagerPage = () => {
   const historyStructure = useMemo(() => {
     if (asins.length > 0) {
       const dateMap = new Map();
-      
+
       const asinsWithHistory = asins.filter(a => (a.weekHistory && a.weekHistory.length > 0) || (a.history && a.history.length > 0));
-      
+
       if (asinsWithHistory.length > 0) {
         asinsWithHistory.forEach(asin => {
           const allHistory = [
             ...(asin.weekHistory || []),
             ...(asin.history || [])
           ];
-          
+
           allHistory.forEach(h => {
             if (h.date) {
               const dateObj = new Date(h.date);
               const dateKey = dateObj.toISOString().split('T')[0];
-              
+
               const existing = dateMap.get(dateKey);
               if (!existing || new Date(h.date) > new Date(existing.timestamp)) {
                 dateMap.set(dateKey, { dateStr: h.date, timestamp: h.date });
@@ -564,7 +555,7 @@ const AsinManagerPage = () => {
             }
           });
         });
-        
+
         const sortedDates = Array.from(dateMap.keys()).sort();
         return generateHistoryStructureFromDates(sortedDates);
       }
@@ -667,10 +658,10 @@ const AsinManagerPage = () => {
   const handleGenerateAiImages = async (asinId, asinCode) => {
     try {
       if (!window.confirm(`Generate AI lifestyle images for ASIN ${asinCode}? This uses Nvidia NIM (SD3 Medium).`)) return;
-      
+
       setScrapingIds(prev => new Set(prev).add(asinId));
       const res = await asinApi.generateImages(asinId);
-      
+
       if (res.success) {
         alert(`✅ AI Image Generated!\nView it at: ${res.imageUrl}`);
         // Refresh ASIN data to show updated action status if needed
@@ -692,19 +683,19 @@ const AsinManagerPage = () => {
 
   const handleBulkScrape = async () => {
     const totalCount = stats?.total || asins.length;
-    
+
     // Quick confirmation for global heavy action
     if (!window.confirm(`Force-sync and refresh all ${totalCount} ASINs? This starts concurrent Octoparse tasks in the background.`)) return;
 
     try {
       setSyncing(true);
-      
+
       // 1. Trigger concurrent background scrapes in Octoparse
       await marketSyncApi.syncAll();
-      
+
       // 2. Refresh current local database data in UI
       await loadData(pagination.page);
-      
+
       alert(`✅ Success: Sync initiated for all ${totalCount} ASINs. Background scrapes are now running concurrently.`);
     } catch (err) {
       console.error('Bulk scrape failed:', err);
@@ -957,8 +948,10 @@ const AsinManagerPage = () => {
         gap: 12
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: '#eff6ff', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 6, background: '#eff6ff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+          }}>
             <Scan size={14} color="#2563eb" />
           </div>
           <div>
@@ -973,51 +966,61 @@ const AsinManagerPage = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 20, padding: 2, gap: 0 }}>
-            <button style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 18,
-                             background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}>
+            <button style={{
+              fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 18,
+              background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer'
+            }}>
               <TrendingUp size={10} style={{ marginRight: 4 }} />Performance
             </button>
-            <button style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 18,
-                             background: 'transparent', color: '#6b7280', border: 'none', cursor: 'pointer' }}>
+            <button style={{
+              fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 18,
+              background: 'transparent', color: '#6b7280', border: 'none', cursor: 'pointer'
+            }}>
               <Table size={10} style={{ marginRight: 4 }} />Analytics
             </button>
           </div>
 
           <button onClick={handleBulkScrape} disabled={syncing}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
-                     fontSize: 11, fontWeight: 600, borderRadius: 20, border: '1px solid #d1d5db',
-                     background: '#fff', cursor: 'pointer', color: '#374151' }}>
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+              fontSize: 11, fontWeight: 600, borderRadius: 20, border: '1px solid #d1d5db',
+              background: '#fff', cursor: 'pointer', color: '#374151'
+            }}>
             <RefreshCw size={12} className={syncing ? 'spin' : ''} /> Sync All
           </button>
 
           <button onClick={() => setShowUploadModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
-                     fontSize: 11, fontWeight: 600, borderRadius: 20, border: '1px solid #d1d5db',
-                     background: '#fff', cursor: 'pointer', color: '#374151' }}>
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+              fontSize: 11, fontWeight: 600, borderRadius: 20, border: '1px solid #d1d5db',
+              background: '#fff', cursor: 'pointer', color: '#374151'
+            }}>
             <Download size={12} /> Upload CSV
           </button>
 
           <button onClick={() => setShowAddModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px',
-                     fontSize: 11, fontWeight: 700, borderRadius: 20, border: 'none',
-                     background: '#2563eb', color: '#fff', cursor: 'pointer' }}>
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 14px',
+              fontSize: 11, fontWeight: 700, borderRadius: 20, border: 'none',
+              background: '#2563eb', color: '#fff', cursor: 'pointer'
+            }}>
             <Plus size={12} /> Add ASIN
           </button>
 
-          <select 
+          <select
             value={selectedSeller}
             onChange={(e) => {
               setSelectedSeller(e.target.value);
               loadData(1, pagination.limit, e.target.value);
             }}
-            style={{ 
-              padding: '5px 12px', 
-              fontSize: 11, 
-              fontWeight: 600, 
-              borderRadius: 20, 
+            style={{
+              padding: '5px 12px',
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 20,
               border: '1px solid #d1d5db',
-              background: '#fff', 
-              cursor: 'pointer', 
+              background: '#fff',
+              cursor: 'pointer',
               color: '#374151',
               outline: 'none',
               maxWidth: '180px'
@@ -1029,14 +1032,18 @@ const AsinManagerPage = () => {
             ))}
           </select>
 
-          <div style={{ display: 'flex', alignItems: 'center', background: '#f9fafb',
-                        border: '1px solid #e5e7eb', borderRadius: 20, padding: '4px 12px',
-                        gap: 6, width: 240 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', background: '#f9fafb',
+            border: '1px solid #e5e7eb', borderRadius: 20, padding: '4px 12px',
+            gap: 6, width: 240
+          }}>
             <Search size={12} color="#9ca3af" />
             <input type="text" placeholder="Search ASIN, SKU or Product..."
               value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ border: 'none', background: 'transparent', fontSize: 11,
-                       color: '#374151', outline: 'none', width: '100%' }} />
+              style={{
+                border: 'none', background: 'transparent', fontSize: 11,
+                color: '#374151', outline: 'none', width: '100%'
+              }} />
           </div>
         </div>
       </div>
@@ -1069,7 +1076,7 @@ const AsinManagerPage = () => {
             <span style={{ fontWeight: 600, color: '#1d4ed8' }}>Live Sync</span>
             <span style={{ color: '#3b82f6' }}>{scrapeProgress.processed}/{scrapeProgress.total} ASINs</span>
             <div style={{ flex: 1 }}>
-              <ProgressBar value={(scrapeProgress.processed/scrapeProgress.total)*100} color="primary" size="xs" />
+              <ProgressBar value={(scrapeProgress.processed / scrapeProgress.total) * 100} color="primary" size="xs" />
             </div>
             <span style={{ color: '#6b7280' }}>{scrapeProgress.status}</span>
           </div>
@@ -1084,7 +1091,7 @@ const AsinManagerPage = () => {
           flexShrink: 0
         }}>
           {kpis.map((kpi, idx) => (
-            <div key={idx} 
+            <div key={idx}
               onClick={kpi.onClick}
               style={{
                 padding: '10px 16px',
@@ -1098,13 +1105,17 @@ const AsinManagerPage = () => {
               onMouseLeave={(e) => kpi.onClick && (e.currentTarget.style.background = 'transparent')}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 16, height: 16, borderRadius: 4,
-                              background: kpi.color + '15', color: kpi.color,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  width: 16, height: 16, borderRadius: 4,
+                  background: kpi.color + '15', color: kpi.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
                   {kpi.icon}
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af',
-                               textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: '#9ca3af',
+                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                }}>
                   {kpi.label}
                 </span>
               </div>
@@ -1225,15 +1236,19 @@ const AsinManagerPage = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button onClick={handleBulkCreateActions} disabled={asins.length === 0}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
-                         fontSize: 10, fontWeight: 600, borderRadius: 4, border: '1px solid #e5e7eb',
-                         background: '#fff', cursor: 'pointer' }}>
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
+                  fontSize: 10, fontWeight: 600, borderRadius: 4, border: '1px solid #e5e7eb',
+                  background: '#fff', cursor: 'pointer'
+                }}>
                 <Zap size={10} color="#f59e0b" /> Bulk Action
               </button>
-              <button 
-                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
-                         fontSize: 10, fontWeight: 600, borderRadius: 4, border: '1px solid #e5e7eb',
-                         background: '#fff', cursor: 'pointer' }}>
+              <button
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
+                  fontSize: 10, fontWeight: 600, borderRadius: 4, border: '1px solid #e5e7eb',
+                  background: '#fff', cursor: 'pointer'
+                }}>
                 <Download size={10} color="#2563eb" /> Export
               </button>
             </div>
@@ -1241,7 +1256,7 @@ const AsinManagerPage = () => {
 
           {/* Scrollable Table Container */}
           <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
+            <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
                   <th rowSpan={2} style={{ ...thStyle, width: '100px', left: 0, zIndex: 21 }}>ASIN</th>
@@ -1249,22 +1264,22 @@ const AsinManagerPage = () => {
                   <th rowSpan={2} style={{ ...thStyle, width: '100px' }}>SKU</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '280px' }}>Product</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'right' }}>Price</th>
-                  <th colSpan={visibleHistoryCols} 
-                      onClick={() => setShowAllPriceHistory(true)}
-                      style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
+                  <th colSpan={visibleHistoryCols}
+                    onClick={async () => { setShowAllPriceHistory(true); }}
+                    style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
                     Price Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
                   <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BSR</th>
-                  <th colSpan={visibleHistoryCols} 
-                      onClick={() => setShowAllBsrHistory(true)}
-                      style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
+                  <th colSpan={visibleHistoryCols}
+                    onClick={async () => { setShowAllBsrHistory(true); }}
+                    style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
                     BSR Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
                   <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>Rating</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>Count</th>
-                  <th colSpan={visibleHistoryCols} 
-                      onClick={() => setShowAllRatingHistory(true)}
-                      style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer' }}>
+                  <th colSpan={visibleHistoryCols}
+                    onClick={async () => { setShowAllRatingHistory(true); }}
+                    style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer' }}>
                     Rating Trend <Eye size={10} style={{ marginLeft: 4 }} />
                   </th>
                   <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BuyBox</th>
@@ -1299,8 +1314,18 @@ const AsinManagerPage = () => {
                   <tr key={asin._id || idx} className="table-row-hover" style={{
                     background: idx % 2 === 0 ? '#fff' : '#f9fafb'
                   }}>
-                    <td style={{ ...tdStyle, fontWeight: 600, color: '#2563eb', cursor: 'pointer' }} 
-                        onClick={() => handleViewAsin(asin)}>
+                    <td style={{
+                      ...tdStyle,
+                      fontWeight: 600,
+                      color: '#2563eb',
+                      cursor: 'pointer',
+                      position: 'sticky',
+                      left: 0,
+                      background: idx % 2 === 0 ? '#fff' : '#f9fafb',
+                      zIndex: 5,
+                      borderRight: '2px solid #e5e7eb'
+                    }}
+                      onClick={() => handleViewAsin(asin)}>
                       {asin.asinCode}
                     </td>
                     <td style={tdStyle}>
@@ -1315,46 +1340,46 @@ const AsinManagerPage = () => {
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <img src={asin.imageUrl} alt="" style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover' }} />
-                        <span style={{ 
+                        <span style={{
                           whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden',
-                          fontSize: 11, cursor: 'pointer' 
+                          fontSize: 11, cursor: 'pointer'
                         }} onClick={() => handleViewAsin(asin)} title={asin.title}>
                           {asin.title}
                         </span>
                       </div>
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#16a34a', cursor: 'pointer' }}
-                        onClick={(e) => handleViewPrice(asin, e)}>
+                      onClick={(e) => handleViewPrice(asin, e)}>
                       ₹{(asin.uploadedPrice || asin.currentPrice || 0).toLocaleString()}
                     </td>
                     {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw)
                         || asin.history?.find(h => new Date(h.date).toISOString().split('T')[0] === date.raw);
                       return (
-                        <td key={`p-${week.label}-${dIdx}`} 
-                            onClick={(e) => handleViewPrice(asin, e)}
-                            style={{ ...tdStyle, textAlign: 'center', background: '#f5f3ff33', width: 40, cursor: 'pointer' }}>
+                        <td key={`p-${week.label}-${dIdx}`}
+                          onClick={(e) => handleViewPrice(asin, e)}
+                          style={{ ...tdStyle, textAlign: 'center', background: '#f5f3ff33', width: 40, cursor: 'pointer' }}>
                           {wData?.price ? getWeekHistoryBadge(wData.price, 'price') : '-'}
                         </td>
                       );
                     }))}
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#2563eb', cursor: 'pointer' }}
-                        onClick={(e) => handleViewBsr(asin, e)}>
+                      onClick={(e) => handleViewBsr(asin, e)}>
                       {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
                     </td>
                     {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw)
                         || asin.history?.find(h => new Date(h.date).toISOString().split('T')[0] === date.raw);
                       return (
-                        <td key={`b-${week.label}-${dIdx}`} 
-                            onClick={(e) => handleViewBsr(asin, e)}
-                            style={{ ...tdStyle, textAlign: 'center', background: '#f0fdf433', width: 40, cursor: 'pointer' }}>
+                        <td key={`b-${week.label}-${dIdx}`}
+                          onClick={(e) => handleViewBsr(asin, e)}
+                          style={{ ...tdStyle, textAlign: 'center', background: '#f0fdf433', width: 40, cursor: 'pointer' }}>
                           {wData?.bsr ? getWeekHistoryBadge(wData.bsr, 'number') : '-'}
                         </td>
                       );
                     }))}
                     <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
-                        onClick={(e) => handleViewRating(asin, e)}>
+                      onClick={(e) => handleViewRating(asin, e)}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                         <Star size={10} className="text-warning fill-warning" />
                         <span style={{ fontWeight: 600 }}>
@@ -1369,9 +1394,9 @@ const AsinManagerPage = () => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw)
                         || asin.history?.find(h => new Date(h.date).toISOString().split('T')[0] === date.raw);
                       return (
-                        <td key={`r-${week.label}-${dIdx}`} 
-                            onClick={(e) => handleViewRating(asin, e)}
-                            style={{ ...tdStyle, textAlign: 'center', background: '#fffbeb33', width: 40, cursor: 'pointer' }}>
+                        <td key={`r-${week.label}-${dIdx}`}
+                          onClick={(e) => handleViewRating(asin, e)}
+                          style={{ ...tdStyle, textAlign: 'center', background: '#fffbeb33', width: 40, cursor: 'pointer' }}>
                           {wData?.rating ? getWeekHistoryBadge(wData.rating, 'rating') : '-'}
                         </td>
                       );
@@ -1383,13 +1408,17 @@ const AsinManagerPage = () => {
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                         <button onClick={() => handleIndividualScrape(asin._id)} disabled={scrapingIds.has(asin._id)}
-                          style={{ padding: '2px 8px', fontSize: 10, fontWeight: 600, borderRadius: 10, 
-                                   border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
+                          style={{
+                            padding: '2px 8px', fontSize: 10, fontWeight: 600, borderRadius: 10,
+                            border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer'
+                          }}>
                           {scrapingIds.has(asin._id) ? <RefreshCw size={10} className="spin" /> : 'Sync'}
                         </button>
                         <button onClick={() => handleCreateTasks(asin._id, asin.asinCode)}
-                          style={{ padding: '2px 8px', fontSize: 10, fontWeight: 600, borderRadius: 10, 
-                                   border: 'none', background: '#eff6ff', color: '#2563eb', cursor: 'pointer' }}>
+                          style={{
+                            padding: '2px 8px', fontSize: 10, fontWeight: 600, borderRadius: 10,
+                            border: 'none', background: '#eff6ff', color: '#2563eb', cursor: 'pointer'
+                          }}>
                           Task
                         </button>
                       </div>
@@ -1513,28 +1542,25 @@ const AsinManagerPage = () => {
       </div>
 
       {/* [N] Secondary Modals */}
-      <AsinDetailModal 
-        asin={selectedAsin} 
-        isOpen={showDetailModal} 
-        onClose={() => setShowDetailModal(false)} 
+      <AsinDetailModal
+        asin={selectedAsin}
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
       />
-      <PriceViewModal 
-        asins={!!selectedAsinForPrice ? filteredAsins : allAsins} 
+      <PriceViewModal
         selectedAsin={selectedAsinForPrice}
-        isOpen={!!selectedAsinForPrice || showAllPriceHistory} 
-        onClose={() => { setSelectedAsinForPrice(null); setShowAllPriceHistory(false); }} 
+        isOpen={!!selectedAsinForPrice || showAllPriceHistory}
+        onClose={() => { setSelectedAsinForPrice(null); setShowAllPriceHistory(false); }}
       />
-      <BSRViewModal 
-        asins={!!selectedAsinForBsr ? filteredAsins : allAsins} 
+      <BSRViewModal
         selectedAsin={selectedAsinForBsr}
-        isOpen={!!selectedAsinForBsr || showAllBsrHistory} 
-        onClose={() => { setSelectedAsinForBsr(null); setShowAllBsrHistory(false); }} 
+        isOpen={!!selectedAsinForBsr || showAllBsrHistory}
+        onClose={() => { setSelectedAsinForBsr(null); setShowAllBsrHistory(false); }}
       />
-      <RatingViewModal 
-        asins={!!selectedAsinForRating ? filteredAsins : allAsins} 
+      <RatingViewModal
         selectedAsin={selectedAsinForRating}
-        isOpen={!!selectedAsinForRating || showAllRatingHistory} 
-        onClose={() => { setSelectedAsinForRating(null); setShowAllRatingHistory(false); }} 
+        isOpen={!!selectedAsinForRating || showAllRatingHistory}
+        onClose={() => { setSelectedAsinForRating(null); setShowAllRatingHistory(false); }}
       />
     </div>
   );
