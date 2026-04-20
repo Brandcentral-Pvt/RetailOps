@@ -122,23 +122,30 @@ exports.getDashboardData = async (req, res) => {
     const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 
     // Clean up "null" or "undefined" strings from frontend
-    const cleanStart = (startQuery === 'null' || startQuery === 'undefined') ? null : startQuery;
-    const cleanEnd = (endQuery === 'null' || endQuery === 'undefined') ? null : endQuery;
+    let cleanStart = (startQuery === 'null' || startQuery === 'undefined') ? null : startQuery;
+    let cleanEnd = (endQuery === 'null' || endQuery === 'undefined') ? null : endQuery;
 
     if (cleanStart && cleanEnd) {
+      try {
         startDate = new Date(cleanStart);
         endDate = new Date(cleanEnd);
 
         if (isValidDate(startDate) && isValidDate(endDate)) {
-            days = Math.max(1, Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
-            console.log(`[Dashboard DEBUG] Using custom range: ${startDate.toISOString()} to ${endDate.toISOString()} (${days} days)`);
+          days = Math.max(1, Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
+          console.log(`[Dashboard DEBUG] Using custom range: ${startDate.toISOString()} to ${endDate.toISOString()} (${days} days)`);
         } else {
-            console.log('[Dashboard DEBUG] Invalid custom range provided, falling back to period');
-            cleanStart = null; // force fallback
+          console.log('[Dashboard DEBUG] Invalid custom range provided, falling back to period');
+          startDate = null; // Clear so fallback triggers correctly
+          endDate = null;
         }
+      } catch (e) {
+        console.error('[Dashboard DEBUG] Date parsing exception:', e);
+        startDate = null;
+        endDate = null;
+      }
     }
 
-    if (!startDate || !endDate) {
+    if (!startDate || !endDate || !isValidDate(startDate) || !isValidDate(endDate)) {
         days = Math.min(parsePeriod(period), 365);
         endDate = new Date();
         startDate = new Date();

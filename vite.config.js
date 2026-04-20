@@ -16,15 +16,30 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1000, // Adjust limit as needed
     rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@mui/material', '@mui/icons-material', 'bootstrap'],
-          chat: ['@cometchat/chat-uikit-react', '@cometchat/chat-sdk-javascript', '@cometchat/calls-sdk-javascript'],
-          charts: ['apexcharts', 'react-apexcharts', 'chart.js', 'react-chartjs-2'],
-          utils: ['date-fns', 'axios', 'socket.io-client', 'lucide-react'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor_core';
+            }
+            if (id.includes('@mui') || id.includes('@emotion') || id.includes('bootstrap')) {
+              return 'vendor_ui';
+            }
+            if (id.includes('apexcharts') || id.includes('chart.js') || id.includes('recharts') || id.includes('@mui/x-charts')) {
+              return 'vendor_charts';
+            }
+            if (id.includes('cometchat')) {
+              return 'vendor_chat';
+            }
+            if (id.includes('lucide-react') || id.includes('tabler-icons') || id.includes('react-icons') ||
+                id.includes('date-fns') || id.includes('axios') || id.includes('socket.io-client')) {
+              return 'vendor_common';
+            }
+            if (id.includes('xlsx')) {
+              return 'vendor_xlsx';
+            }
+            return 'vendor_misc';
+          }
         },
-      },
     },
   },
   server: {

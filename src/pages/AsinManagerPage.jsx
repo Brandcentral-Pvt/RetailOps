@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import TablePagination from '@mui/material/TablePagination';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
+const TablePagination = lazy(() => import('@mui/material/TablePagination'));
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
@@ -41,13 +41,14 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useRefresh } from '../contexts/RefreshContext';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
-import AsinDetailModal from '../components/AsinDetailModal';
-import AsinTrendsModal from '../components/AsinTrendsModal';
-import PriceViewModal from '../components/PriceViewModal';
-import BSRViewModal from '../components/BSRViewModal';
-import RatingViewModal from '../components/RatingViewModal';
+const AsinDetailModal = lazy(() => import('../components/AsinDetailModal'));
+const AsinTrendsModal = lazy(() => import('../components/AsinTrendsModal'));
+const PriceViewModal = lazy(() => import('../components/PriceViewModal'));
+const BSRViewModal = lazy(() => import('../components/BSRViewModal'));
+const RatingViewModal = lazy(() => import('../components/RatingViewModal'));
 
 // Helper to generate tiered structure for history columns
 const generateHistoryStructure = (history) => {
@@ -297,6 +298,7 @@ const AsinManagerPage = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [sellers, setSellers] = useState([]);
   const [selectedSellerId, setSelectedSellerId] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -308,18 +310,57 @@ const AsinManagerPage = () => {
   const [showAllRatingHistory, setShowAllRatingHistory] = useState(false);
   const [allAsins, setAllAsins] = useState([]);
   const [selectedSeller, setSelectedSeller] = useState('');
+  const [repairStatus, setRepairStatus] = useState(null);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: '',
+    category: '',
+    brand: '',
+    scrapeStatus: '',
+    buyBoxWin: '',
+    hasAplus: '',
+    minPrice: '',
+    maxPrice: '',
+    minBSR: '',
+    maxBSR: '',
+    minLQS: '',
+    maxLQS: ''
+  });
+  const [filterOptions, setFilterOptions] = useState({
+    categories: [],
+    brands: [],
+    scrapeStatuses: [],
+    statuses: []
+  });
 
-  // Filter asins based on search query
-  const filteredAsins = useMemo(() => {
-    if (!searchQuery.trim()) return asins;
-    const query = searchQuery.toLowerCase().trim();
-    return asins.filter(asin => {
-      const asinCode = asin.asinCode?.toLowerCase() || '';
-      const title = asin.title?.toLowerCase() || '';
-      const sku = asin.sku?.toLowerCase() || '';
-      return asinCode.includes(query) || title.includes(query) || sku.includes(query);
-    });
-  }, [asins, searchQuery]);
+  // Search and Filter Debounce logic
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Don't trigger if it's the initial load (which is handled by other effects)
+      // but do trigger if searching/filtering changes
+      if (searchQuery !== undefined) {
+        setSelectedIds(new Set()); // Reset selection on filter change
+        loadData(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, filters]);
+
+  // Removed client-side filteredAsins useMemo as we now use server-side search
+  const filteredAsins = asins;
+
+  // Fetch filter options once
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const res = await asinApi.getFilters();
+        if (res.success) setFilterOptions(res.data);
+      } catch (err) {
+        console.error('Error fetching filter options:', err);
+      }
+    };
+    fetchFilters();
+  }, []);
 
   // CSV Upload handler
   const handleCsvUpload = async (e) => {
@@ -347,6 +388,31 @@ const AsinManagerPage = () => {
     setShowDetailModal(true);
   };
 
+  const handleToggleSelectRow = useCallback((id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === filteredAsins.length && filteredAsins.length > 0) {
+        return new Set();
+      }
+      return new Set(filteredAsins.map(a => a._id));
+    });
+  }, [filteredAsins]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
   const handleViewTrends = (asin, metric = 'price') => {
     setSelectedAsin(asin);
     setTrendsMetric(metric);
@@ -373,16 +439,17 @@ const AsinManagerPage = () => {
       setLoading(true);
 
       // Only fetch paginated data and stats - NOT all data (optimization)
-      const [asinRes, statsRes] = await Promise.all([
-        asinApi.getAll({
-          page,
-          limit,
-          seller,
-          sortBy: 'lastScraped',
-          sortOrder: 'desc'
-        }),
-        asinApi.getStats({ seller })
-      ]);
+      const asinRes = await asinApi.getAll({
+        page,
+        limit,
+        seller,
+        search: searchQuery,
+        ...filters,
+        sortBy: 'lastScraped',
+        sortOrder: 'desc'
+      });
+
+      const statsRes = await asinApi.getStats({ seller });
 
       setAsins(asinRes?.asins || []);
       setPagination(asinRes?.pagination || { page: 1, limit: limit, total: 0, totalPages: 0 });
@@ -391,11 +458,11 @@ const AsinManagerPage = () => {
     } catch (err) {
       console.error('Error fetching ASINs:', err);
       setError(err.message);
-      setAsins(demoAsins);
+      setAsins([]);
     } finally {
       setLoading(false);
     }
-  }, [pagination.limit, selectedSeller]);
+  }, [pagination.limit, selectedSeller, searchQuery, filters]);
 
 
 
@@ -410,9 +477,11 @@ const AsinManagerPage = () => {
     loadData(1, newLimit);
   };
 
+  const { refreshCount } = useRefresh();
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, refreshCount]);
 
   useEffect(() => {
     if (!socket) return;
@@ -428,13 +497,26 @@ const AsinManagerPage = () => {
 
     socket.on('scrape_data_ingested', (data) => {
       console.log('📬 Data ingested via socket, refreshing table...', data);
-      // Refresh first page to show the most recent data
       loadData(1);
+    });
+
+    socket.on('repair_job_progress', (data) => {
+      console.log('🛠️ Repair progress:', data);
+      setRepairStatus({ running: true, ...data });
+    });
+
+    socket.on('repair_job_finished', (data) => {
+      console.log('✅ Repair finished:', data);
+      setRepairStatus(null);
+      alert(`Data repair completed! Processed: ${data.processed}, Failed: ${data.failed}`);
+      loadData();
     });
 
     return () => {
       socket.off('scrape_progress');
       socket.off('scrape_data_ingested');
+      socket.off('repair_job_progress');
+      socket.off('repair_job_finished');
     };
   }, [socket, loadData, pagination.page]);
 
@@ -499,42 +581,21 @@ const AsinManagerPage = () => {
       ];
     }
 
-    const total = asins.length;
+    // Fallback KPIs when stats are not available
+    const total = asins?.length || 0;
     const avgLqs = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.lqs || 0), 0) / total) : 0;
-    const buyBoxWins = asins.filter(a => a.buyBoxWin).length;
-    const buyBoxRate = total > 0 ? Math.round((buyBoxWins / total) * 100) : 0;
-    const lowLqs = asins.filter(a => (a.lqs || 0) < 70).length;
-    const activeDeals = asins.filter(a => a.dealDetails && a.dealDetails !== 'None').length;
     const avgPrice = total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / total) : 0;
 
-    // return [
-    //   { label: 'ALL ASINS', value: total, color: '#6366f1', icon: <Package size={14} /> },
-    //   { label: 'AVG LQS', value: avgLqs + '%', color: '#10b981', icon: <Activity size={14} /> },
-    //   {
-    //     label: 'BUY BOX',
-    //     value: buyBoxRate + '%',
-    //     color: '#f59e0b',
-    //     icon: <Trophy size={14} />,
-    //     onClick: () => { setShowAllBsrHistory(true); }
-    //   },
-    //   {
-    //     label: 'LOW LQS',
-    //     value: lowLqs,
-    //     color: '#ef4444',
-    //     icon: <AlertTriangle size={14} />,
-    //     onClick: () => { setShowAllRatingHistory(true); }
-    //   },
-    //   { label: 'DEALS', value: activeDeals, color: '#8b5cf6', icon: <Zap size={14} /> },
-    //   {
-    //     label: 'AVG PRICE',
-    //     value: '₹' + avgPrice.toLocaleString(),
-    //     color: '#06b6d4',
-    //     icon: <IndianRupee size={14} />,
-    //     onClick: () => { setShowAllPriceHistory(true); }
-    //   },
-    //   { label: 'AVG IMAGES', value: Math.round(asins.reduce((sum, a) => sum + (a.imagesCount || 0), 0) / (asins.length || 1)), color: '#ec4899', icon: <Image size={14} /> },
-    //   { label: 'AVG BULLETS', value: Math.round(asins.reduce((sum, a) => sum + (a.bulletPoints || 0), 0) / (asins.length || 1)), color: '#8b5cf6', icon: <ListChecks size={14} /> },
-    // ];
+    return [
+      { label: 'ALL ASINS', value: total, color: '#6366f1', icon: <Package size={14} /> },
+      { label: 'AVG LQS', value: avgLqs + '%', color: '#10b981', icon: <Activity size={14} /> },
+      { label: 'AVG PRICE', value: '₹' + avgPrice.toLocaleString(), color: '#06b6d4', icon: <IndianRupee size={14} /> },
+      { label: 'SYNC POOL', value: asins.filter(a => a.scrapeStatus === 'Pending').length, color: '#f59e0b', icon: <RefreshCw size={14} /> },
+      { label: 'SCRAPING', value: asins.filter(a => a.scrapeStatus === 'Scraping').length, color: '#3b82f6', icon: <Activity size={14} /> },
+      { label: 'ALERTS', value: asins.filter(a => (a.lqs || 0) < 70).length, color: '#ef4444', icon: <AlertTriangle size={14} /> },
+      { label: 'AVG IMAGES', value: total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.imagesCount || 0), 0) / total) : 0, color: '#ec4899', icon: <Image size={14} /> },
+      { label: 'AVG BULLETS', value: total > 0 ? Math.round(asins.reduce((sum, a) => sum + (a.bulletPoints || 0), 0) / total) : 0, color: '#8b5cf6', icon: <ListChecks size={14} /> },
+    ];
   }, [asins, stats]);
 
   const historyStructure = useMemo(() => {
@@ -626,6 +687,23 @@ const AsinManagerPage = () => {
       setSyncing(false);
     }
   }, [newAsin, loadData, selectedSellerId]);
+
+  const handleRepairData = async () => {
+    const sellerToRepair = selectedSeller || selectedSellerId;
+    if (!sellerToRepair) return alert('Please select a seller first.');
+
+    try {
+      setSyncing(true);
+      const res = await asinApi.repairIncomplete(sellerToRepair);
+      setRepairStatus({ running: true, total: res.total, processed: 0, failed: 0, percentage: 0 });
+      alert(`🛠️ Repair job started for ${res.total} incomplete ASINs.`);
+    } catch (err) {
+      alert('❌ Repair failed: ' + err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
 
   const handleIndividualScrape = async (asinId) => {
     try {
@@ -744,16 +822,31 @@ const AsinManagerPage = () => {
     );
   };
 
-  const getBuyBoxBadge = (buyBoxWin, status) => {
+  const getBuyBoxBadge = (asin) => {
+    const { buyBoxWin, status, soldBy } = asin;
     if (status === 'Scraping') return <span style={{ color: '#9ca3af' }}>-</span>;
-    const bgColor = buyBoxWin ? '#059669' : '#6b7280';
+
+    if (buyBoxWin) {
+      return (
+        <span
+          className="badge"
+          style={{ backgroundColor: '#059669', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+        >
+          Won
+        </span>
+      );
+    }
+
     return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {buyBoxWin ? 'Won' : 'Lost'}
-      </span>
+      <div className="d-flex flex-column align-items-center">
+        <span
+          className="badge mb-1"
+          style={{ backgroundColor: '#ef4444', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+        >
+          Lost
+        </span>
+        <span className="smallest text-zinc-500 fw-bold" style={{ fontSize: '9px', lineHeight: 1 }}>{soldBy || 'N/A'}</span>
+      </div>
     );
   };
 
@@ -853,28 +946,20 @@ const AsinManagerPage = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f9fafb' }}>
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
-          <LoadingIndicator type="line-simple" size="md" />
+          <LoadingIndicator type="line-simple" size="sm" />
         </div>
-        <div className="page-header" style={{ padding: '1.5rem 2rem', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div className="page-header" style={{ padding: '0.75rem 1.5rem', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+          <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h1 className="page-title mb-1">ASIN Manager</h1>
-              <p className="text-muted small mb-0">Operational Inventory tracking & Listing Quality Metrics</p>
+              <h1 className="h6 mb-0 fw-bold">ASIN Manager</h1>
             </div>
           </div>
         </div>
         <div className="page-content py-5 d-flex flex-column align-items-center justify-content-center" style={{ flex: 1 }}>
-          {error ? (
-            <div className="alert alert-warning border-0 shadow-sm rounded-4 mx-4" role="alert">
-              <AlertTriangle className="me-2" size={18} />
-              {error} - Showing demo data
-            </div>
-          ) : (
-            <div className="d-flex flex-column justify-content-center align-items-center">
-              <RefreshCw className="text-primary spin mb-3" size={40} />
-              <p className="text-muted fw-500">Synchronizing Operation Data...</p>
-            </div>
-          )}
+          <div className="d-flex flex-column justify-content-center align-items-center">
+            <RefreshCw className="text-primary spin mb-3" size={32} />
+            <p className="text-muted smallest fw-500">Synchronizing Operation Data...</p>
+          </div>
         </div>
       </div>
     );
@@ -910,37 +995,41 @@ const AsinManagerPage = () => {
   }
 
   const thStyle = {
-    fontSize: '0.68rem',
+    fontSize: '0.66rem',
     fontWeight: 700,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: '#6b7280',
-    padding: '6px 8px',
-    background: '#f3f4f6',
+    letterSpacing: '0.05em',
+    color: '#71717a', // zinc-500
+    padding: '4px 8px',
+    background: '#fafafa',
     position: 'sticky',
     top: 0,
     zIndex: 10,
     whiteSpace: 'nowrap',
-    border: '1px solid #e5e7eb'
+    border: '0.5px solid #f1f1f1'
   };
 
   const tdStyle = {
-    padding: '5px 8px',
-    fontSize: '0.75rem',
-    borderBottom: '1px solid #f3f4f6',
+    padding: '4px 8px',
+    fontSize: '0.68rem',
+    borderBottom: '0.5px solid #f1f5f9',
     verticalAlign: 'middle',
-    color: '#374151',
-    height: '38px',
-    borderLeft: '1px solid #f3f4f6',
-    borderRight: '1px solid #f3f4f6'
+    color: '#27272a', // zinc-800
+    height: '28px',
+    borderLeft: '0.5px solid #f1f5f9',
+    borderRight: '0.5px solid #f1f5f9',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   };
 
   const actionBtnStyle = {
-    padding: '2px 8px',
-    fontSize: '10px',
-    fontWeight: '600',
-    height: '24px',
-    borderRadius: '12px'
+    padding: '1px 6px',
+    fontSize: '9px',
+    fontWeight: '700',
+    height: '18px',
+    borderRadius: '4px',
+    border: '1px solid #e4e4e7'
   };
 
   return (
@@ -951,27 +1040,104 @@ const AsinManagerPage = () => {
         </div>
       )}
 
-      <div className="page-header" style={{ padding: '1.5rem 2rem', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
-          <div>
-            <h1 className="page-title mb-1">ASIN Manager</h1>
-            <p className="text-muted small mb-0">Operational Inventory tracking & Listing Quality Metrics</p>
+      <div className="page-header" style={{ padding: '0.5rem 1.25rem', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+        <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex align-items-center gap-3">
+            <h1 className="h6 mb-0 fw-bold text-zinc-900 d-flex align-items-center gap-2">
+              <Package size={16} className="text-zinc-400" />
+              ASIN Manager
+            </h1>
+            <div className="vr mx-1" style={{ height: '16px', color: '#e5e7eb' }} />
+            <span className="smallest text-muted fw-medium d-none d-md-inline">Operational Metrics</span>
           </div>
-          <div className="d-flex gap-2">
-            <div className="position-relative">
-              <Search className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" size={14} />
+
+          <div className="d-flex align-items-center gap-2">
+            <button
+              className="btn btn-white btn-xs border border-zinc-200 d-flex align-items-center gap-2 rounded-2 px-3 py-1"
+              onClick={handleBulkScrape}
+              disabled={syncing}
+              style={{ fontSize: '10.5px' }}
+            >
+              <RefreshCw size={12} className={`text-zinc-500 ${syncing ? 'spin' : ''}`} />
+              <span className="fw-bold text-zinc-700">Sync All</span>
+            </button>
+            <button
+              className={`btn btn-xs border border-zinc-200 d-flex align-items-center gap-2 rounded-2 px-3 py-1 ${repairStatus ? 'bg-amber-50 border-amber-200 text-amber-700' : 'btn-white text-zinc-700'}`}
+              onClick={handleRepairData}
+              disabled={syncing || (repairStatus && repairStatus.running)}
+              style={{ fontSize: '10.5px' }}
+            >
+              <Zap size={12} className={repairStatus ? 'text-amber-500 spin' : 'text-zinc-500'} />
+              <span className="fw-bold">{repairStatus ? `Repairing (${repairStatus.percentage}%)` : 'Repair Data'}</span>
+            </button>
+            <button
+              className="btn btn-zinc-900 btn-xs border-0 d-flex align-items-center gap-2 px-3 py-1 rounded-2 shadow-sm"
+              onClick={() => setShowAddModal(true)}
+              style={{ backgroundColor: '#18181B', color: '#fff', fontSize: '10.5px' }}
+            >
+              <Plus size={12} />
+              <span className="fw-bold">Add ASIN</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Compressed KPI Strip */}
+        <div className="mt-2" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(8, 1fr)',
+          background: '#f8fafc',
+          borderRadius: '8px',
+          border: '1px solid #f1f5f9',
+          overflow: 'hidden'
+        }}>
+          {kpis.map((kpi, idx) => (
+            <div key={idx}
+              onClick={kpi.onClick}
+              className="p-2 transition-all d-flex align-items-center gap-3"
+              style={{
+                borderRight: idx < 7 ? '1px solid #f1f5f9' : 'none',
+                cursor: kpi.onClick ? 'pointer' : 'default',
+                background: kpi.onClick ? '#fff' : 'transparent'
+              }}
+            >
+              <div className="d-flex align-items-center justify-content-center rounded-2" style={{
+                width: '18px', height: '18px', flexShrink: 0,
+                background: kpi.color + '10', color: kpi.color
+              }}>
+                {React.cloneElement(kpi.icon, { size: 10 })}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div className="smallest text-zinc-400 fw-bold text-uppercase tracking-wider lh-1 mb-1" style={{ fontSize: '8px' }}>
+                  {kpi.label}
+                </div>
+                <div className="d-flex align-items-baseline gap-2">
+                  <span className="fw-bold text-zinc-900" style={{ fontSize: '11px' }}>
+                    {kpi.value}
+                  </span>
+                  {kpi.sub && !kpi.sub.includes('vs') && <span className="smallest text-zinc-400 font-monospace" style={{ fontSize: '8px' }}>{kpi.sub}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Toolbar: Filters & Progress */}
+        <div className="mt-2 d-flex align-items-center justify-content-between gap-3">
+          <div className="d-flex align-items-center gap-2 flex-grow-1">
+            <div className="position-relative" style={{ width: '220px' }}>
+              <Search className="position-absolute top-50 start-0 translate-middle-y ms-2 text-zinc-400" size={13} />
               <input
                 type="text"
-                className="form-control form-control-sm ps-5 bg-white border border-zinc-200 shadow-none rounded-3 smallest"
-                placeholder="Search ASIN, SKU or Product..."
-                style={{ width: '280px', height: '36px' }}
+                className="form-control form-control-xs ps-4 bg-white border border-zinc-200 shadow-none rounded-2 smallest fw-medium"
+                placeholder="Search ASIN, SKU..."
+                style={{ height: '28px', fontSize: '11px' }}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <select
-              className="form-select form-select-sm border-zinc-200 rounded-3 smallest fw-semibold text-zinc-600 shadow-none"
-              style={{ width: '180px', height: '36px' }}
+              className="form-select form-select-xs border-zinc-200 rounded-2 smallest fw-bold text-zinc-600 shadow-none"
+              style={{ width: '140px', height: '28px', fontSize: '11px', padding: '0 8px' }}
               value={selectedSeller}
               onChange={(e) => {
                 setSelectedSeller(e.target.value);
@@ -983,102 +1149,195 @@ const AsinManagerPage = () => {
                 <option key={s._id} value={s._id}>{s.name || s.storeName || s._id}</option>
               ))}
             </select>
+
+            {/* Scrape Progress integrated into toolbar */}
+            {scrapeProgress && (
+              <div className="bg-blue-50 border border-blue-100 rounded-2 px-2 py-0 d-flex align-items-center gap-2 flex-grow-1" style={{ height: '28px' }}>
+                <RefreshCw size={11} className="text-blue-600 spin" />
+                <span className="fw-bold text-blue-700 font-monospace" style={{ fontSize: '10px' }}>{scrapeProgress.processed}/{scrapeProgress.total}</span>
+                <div style={{ flex: 1, maxWidth: '100px' }}>
+                  <div style={{ height: '4px', background: '#dbeafe', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      background: '#2563eb',
+                      width: `${(scrapeProgress.processed / scrapeProgress.total) * 100}%`,
+                      transition: 'width 0.4s ease'
+                    }} />
+                  </div>
+                </div>
+                <span className="text-blue-600 fw-medium" style={{ fontSize: '9px' }}>{scrapeProgress.status}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            <span className="smallest text-muted fw-medium border-end pe-2">Page {pagination.page}/{pagination.totalPages}</span>
             <button
-              className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
-              onClick={handleBulkScrape}
-              disabled={syncing}
-            >
-              <RefreshCw size={16} className={`text-zinc-500 ${syncing ? 'spin' : ''}`} />
-              <span className="fw-bold text-zinc-700">Sync All</span>
-            </button>
-            <button
-              className="btn btn-white btn-sm shadow-sm border border-zinc-200 d-flex align-items-center gap-2 rounded-pill px-3"
+              className="btn btn-white btn-xs border border-zinc-200 rounded-2 p-1"
               onClick={() => setShowUploadModal(true)}
+              title="Upload CSV"
             >
-              <FileUp size={16} className="text-zinc-500" />
-              <span className="fw-bold text-zinc-700">Upload CSV</span>
-            </button>
-            <button
-              className="btn btn-zinc-900 btn-sm shadow-sm border-0 d-flex align-items-center gap-2 px-4 rounded-pill"
-              onClick={() => setShowAddModal(true)}
-              style={{ backgroundColor: '#18181B', color: '#fff' }}
-            >
-              <Plus size={16} />
-              <span className="fw-bold">Add ASIN</span>
+              <FileUp size={14} className="text-zinc-500" />
             </button>
           </div>
         </div>
+
+        {/* Repair Progress simplified */}
+        {repairStatus && (
+          <div className="mt-2 py-1 px-3 bg-amber-50 border border-amber-100 rounded-2 d-flex align-items-center gap-3">
+            <div className="spin text-amber-500"><Zap size={12} /></div>
+            <span className="smallest text-amber-900 fw-bold text-uppercase tracking-wider" style={{ fontSize: '9px' }}>Data Repair</span>
+            <div className="flex-grow-1" style={{ height: '4px', background: '#fef3c7', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: '#f59e0b', width: `${repairStatus.percentage}%`, transition: 'width 0.4s ease' }} />
+            </div>
+            <span className="smallest text-amber-600 fw-bold" style={{ fontSize: '9px' }}>{repairStatus.processed}/{repairStatus.total}</span>
+          </div>
+        )}
       </div>
 
-      <div className="page-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '1.5rem 2rem' }}>
-
-
-
-        {/* [H] Error Banner */}
+      <div className="page-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0.75rem 1.25rem' }}>
+        {/* Alerts & Errors row */}
         {error && (
-          <div className="alert alert-warning border-0 shadow-sm rounded-3 py-2 px-3 mb-3 d-flex align-items-center gap-2 smallest" role="alert">
-            <AlertTriangle size={14} className="text-warning" />
-            <span className="fw-medium">{error} — Showing cached data</span>
+          <div className="alert alert-warning border-0 shadow-sm rounded-2 py-1 px-2 mb-2 d-flex align-items-center gap-2 smallest" role="alert">
+            <AlertTriangle size={12} className="text-warning" />
+            <span className="fw-medium">{error}</span>
           </div>
         )}
-
-        {/* [G] Scrape Progress Banner */}
-        {scrapeProgress && (
-          <div className="bg-blue-50 border border-blue-100 rounded-3 py-2 px-3 mb-3 d-flex align-items-center gap-3 flex-shrink-0">
-            <RefreshCw size={14} className="text-blue-600 spin" />
-            <span className="fw-bold text-blue-700 smallest">Live Sync</span>
-            <span className="text-blue-600 smallest font-monospace">{scrapeProgress.processed}/{scrapeProgress.total} ASINs</span>
-            <div className="flex-grow-1">
-              <ProgressBar value={(scrapeProgress.processed / scrapeProgress.total) * 100} color="primary" size="xs" />
-            </div>
-            <span className="text-muted smallest fw-medium">{scrapeProgress.status}</span>
-          </div>
-        )}
-
-        {/* [C] KPI Strip */}
-        <div className="bg-white border border-zinc-200 rounded-4 shadow-sm mb-4 flex-shrink-0" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          overflow: 'hidden'
-        }}>
-          {kpis.map((kpi, idx) => (
-            <div key={idx}
-              onClick={kpi.onClick}
-              className="p-3 transition-all"
-              style={{
-                borderRight: idx < 7 ? '1px solid #f1f5f9' : 'none',
-                display: 'flex', flexDirection: 'column', gap: 4,
-                cursor: kpi.onClick ? 'pointer' : 'default',
-                background: kpi.onClick ? '#fdfdfd' : '#fff'
-              }}
-              onMouseEnter={(e) => kpi.onClick && (e.currentTarget.style.background = '#f8fafc')}
-              onMouseLeave={(e) => kpi.onClick && (e.currentTarget.style.background = kpi.onClick ? '#fdfdfd' : '#fff')}
-            >
-              <div className="d-flex align-items-center gap-2">
-                <div className="d-flex align-items-center justify-content-center rounded-2" style={{
-                  width: '24px', height: '24px',
-                  background: kpi.color + '15', color: kpi.color
-                }}>
-                  {kpi.icon}
-                </div>
-                <span className="smallest fw-bold text-zinc-400 text-uppercase tracking-wider">
-                  {kpi.label}
-                </span>
-              </div>
-              <div className="d-flex align-items-baseline gap-2 mt-1">
-                <span className="h5 mb-0 fw-bold text-zinc-900" style={{ letterSpacing: '-0.02em' }}>
-                  {kpi.value}
-                </span>
-                {kpi.sub && <span className="smallest text-zinc-400 fw-medium">{kpi.sub}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
 
 
 
         {/* [E] High-Density Table Area */}
-        <div className="bg-white border border-zinc-200 rounded-4 shadow-sm overflow-hidden flex-grow-1 d-flex flex-column">
+        <div className="bg-white border border-zinc-200 rounded-4 shadow-sm overflow-hidden flex-grow-1 d-flex flex-column position-relative">
+
+          {/* [Filter Sidebar/Drawer Overlay] */}
+          {filterPanelOpen && (
+            <div
+              className="position-absolute top-0 end-0 h-100 bg-white border-start shadow-lg"
+              style={{ width: '280px', zIndex: 100, overflowY: 'auto', animation: 'slideIn 0.2s ease-out' }}
+            >
+              <div className="p-3 border-bottom d-flex align-items-center justify-content-between bg-zinc-50">
+                <span className="fw-bold smallest text-zinc-500 uppercase tracking-wider">Advanced Filters</span>
+                <button className="btn btn-ghost btn-xs p-1" onClick={() => setFilterPanelOpen(false)}>
+                  <X size={14} className="text-zinc-400" />
+                </button>
+              </div>
+
+              <div className="p-3 d-flex flex-column gap-4">
+                {/* 1. Status & Scrape Status */}
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">LISTING STATUS</label>
+                  <select
+                    className="form-select form-select-sm smallest"
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                  >
+                    <option value="">All Statuses</option>
+                    {filterOptions.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">SCRAPE STATUS</label>
+                  <select
+                    className="form-select form-select-sm smallest"
+                    value={filters.scrapeStatus}
+                    onChange={(e) => setFilters({ ...filters, scrapeStatus: e.target.value })}
+                  >
+                    <option value="">All Scrape Statuses</option>
+                    {filterOptions.scrapeStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                {/* 2. Brand & Category */}
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">BRAND</label>
+                  <select
+                    className="form-select form-select-sm smallest"
+                    value={filters.brand}
+                    onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
+                  >
+                    <option value="">All Brands</option>
+                    {filterOptions.brands.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">CATEGORY</label>
+                  <select
+                    className="form-select form-select-sm smallest"
+                    value={filters.category}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                  >
+                    <option value="">All Categories</option>
+                    {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                {/* 3. Numeric Ranges */}
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">PRICE RANGE (₹)</label>
+                  <div className="d-flex gap-2">
+                    <input type="number" placeholder="Min" className="form-control form-control-sm smallest"
+                      value={filters.minPrice} onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })} />
+                    <input type="number" placeholder="Max" className="form-control form-control-sm smallest"
+                      value={filters.maxPrice} onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">BSR RANGE</label>
+                  <div className="d-flex gap-2">
+                    <input type="number" placeholder="Min" className="form-control form-control-sm smallest"
+                      value={filters.minBSR} onChange={(e) => setFilters({ ...filters, minBSR: e.target.value })} />
+                    <input type="number" placeholder="Max" className="form-control form-control-sm smallest"
+                      value={filters.maxBSR} onChange={(e) => setFilters({ ...filters, maxBSR: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="d-flex flex-column gap-2">
+                  <label className="smallest fw-bold text-zinc-500">LQS RANGE (%)</label>
+                  <div className="d-flex gap-2">
+                    <input type="number" placeholder="Min" className="form-control form-control-sm smallest"
+                      value={filters.minLQS} onChange={(e) => setFilters({ ...filters, minLQS: e.target.value })} />
+                    <input type="number" placeholder="Max" className="form-control form-control-sm smallest"
+                      value={filters.maxLQS} onChange={(e) => setFilters({ ...filters, maxLQS: e.target.value })} />
+                  </div>
+                </div>
+
+                {/* 4. Booleans */}
+                <div className="d-flex flex-column gap-2 mt-2 pt-2 border-top">
+                  <div className="form-check form-switch d-flex justify-content-between align-items-center">
+                    <label className="smallest fw-bold text-zinc-600 mb-0">BuyBox Winner</label>
+                    <input className="form-check-input" type="checkbox" role="switch"
+                      checked={filters.buyBoxWin === 'true'}
+                      onChange={(e) => setFilters({ ...filters, buyBoxWin: e.target.checked ? 'true' : '' })} />
+                  </div>
+                  <div className="form-check form-switch d-flex justify-content-between align-items-center mt-2">
+                    <label className="smallest fw-bold text-zinc-600 mb-0">Has A+ Content</label>
+                    <input className="form-check-input" type="checkbox" role="switch"
+                      checked={filters.hasAplus === 'true'}
+                      onChange={(e) => setFilters({ ...filters, hasAplus: e.target.checked ? 'true' : '' })} />
+                  </div>
+                </div>
+
+                {/* Reset Action */}
+                <button
+                  className="btn btn-zinc-outline mt-3 fw-bold smallest"
+                  onClick={() => {
+                    setFilters({
+                      status: '', category: '', brand: '', scrapeStatus: '',
+                      buyBoxWin: '', hasAplus: '',
+                      minPrice: '', maxPrice: '', minBSR: '', maxBSR: '', minLQS: '', maxLQS: ''
+                    });
+                    setSearchQuery('');
+                  }}
+                >
+                  RESET ALL FILTERS
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Table Toolbar */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1086,21 +1345,59 @@ const AsinManagerPage = () => {
             flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
-                INVENTORY & PERFORMANCE LEDGER
-                <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 10, background: '#eff6ff', color: '#2563eb', fontSize: 10 }}>
-                  {pagination.total} ASINs
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#18181b', letterSpacing: '0.02em' }}>
+                INVENTORY MASTER LEDGER
+                <span style={{ marginLeft: 8, padding: '1px 6px', borderRadius: 2, background: '#f4f4f5', color: '#71717a', fontSize: 9 }}>
+                  {pagination.total} ENTRIES
                 </span>
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="d-flex align-items-center gap-2">
+              <button
+                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                className={`btn btn-xs d-flex align-items-center gap-1 fw-bold rounded-2 px-2 py-1 border transition-all ${filterPanelOpen ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-700 border-zinc-200 hover-bg-zinc-50'}`}
+                style={{ fontSize: '10px', height: '24px' }}
+              >
+                <ListChecks size={12} />
+                FILTERS {Object.values(filters).filter(v => v !== '').length > 0 && `(${Object.values(filters).filter(v => v !== '').length})`}
+              </button>
+
+
+              {selectedIds.size > 0 && (
+                <div className="d-flex align-items-center gap-2 pe-3 me-2 border-end border-zinc-200">
+                  <span className="smallest fw-bold text-zinc-900 bg-zinc-100 px-2 py-1 rounded-2">
+                    {selectedIds.size} SELECTED
+                  </span>
+                  <button
+                    className="btn btn-white btn-xs border border-zinc-200 d-flex align-items-center gap-2 rounded-2 px-2 py-1"
+                    onClick={() => {
+                      // Example: Trigger sync for each selected ID or pass to a bulk handler
+                      alert(`Syncing ${selectedIds.size} selected items...`);
+                      // In real case: syncBulk(Array.from(selectedIds))
+                    }}
+                    style={{ fontSize: '10px' }}
+                  >
+                    <RefreshCw size={10} className="text-blue-600" />
+                    <span className="fw-bold">Sync Selected</span>
+                  </button>
+                  <button
+                    className="btn btn-ghost-danger btn-xs d-flex align-items-center gap-1 rounded-2 px-2 py-1"
+                    onClick={clearSelection}
+                    style={{ fontSize: '10px' }}
+                  >
+                    <X size={10} />
+                    <span className="fw-bold">Clear</span>
+                  </button>
+                </div>
+              )}
+
               <button onClick={handleBulkCreateActions} disabled={asins.length === 0}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
-                  fontSize: 10, fontWeight: 600, borderRadius: 4, border: '1px solid #e5e7eb',
-                  background: '#fff', cursor: 'pointer'
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px',
+                  fontSize: 9, fontWeight: 700, borderRadius: 4, border: '1px solid #e4e4e7',
+                  background: '#fff', cursor: 'pointer', color: '#27272a'
                 }}>
-                <Zap size={10} color="#f59e0b" /> Bulk Action
+                <Zap size={9} color="#f59e0b" fill="#f59e0b" /> Optimization
               </button>
               <button
                 style={{
@@ -1118,34 +1415,42 @@ const AsinManagerPage = () => {
             <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
-                  <th rowSpan={2} style={{ ...thStyle, width: '100px', left: 0, zIndex: 21 }}>ASIN</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '120px' }}>Owner/BB</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '100px' }}>SKU</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '280px' }}>Product</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'right' }}>Price</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '40px', left: 0, zIndex: 22, background: '#fafafa', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredAsins.length && filteredAsins.length > 0}
+                      onChange={handleToggleSelectAll}
+                      style={{ cursor: 'pointer', width: '14px', height: '14px' }}
+                    />
+                  </th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '90px', left: '40px', zIndex: 21, background: '#fff', borderRight: '1px solid #f1f1f1' }}>ASIN ID</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '110px' }}>SELLER / BRAND</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '90px' }}>SKU</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '220px' }}>PRODUCT TITLE</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'right' }}>PRICE</th>
                   <th colSpan={visibleHistoryCols}
                     onClick={async () => { setShowAllPriceHistory(true); }}
                     style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
-                    Price Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
+                    Price Trend (7 Days) <Eye size={10} />
                   </th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BSR</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>BSR</th>
                   <th colSpan={visibleHistoryCols}
                     onClick={async () => { setShowAllBsrHistory(true); }}
-                    style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer' }}>
-                    BSR Trend (7 Days) <Eye size={10} style={{ marginLeft: 4 }} />
+                    style={{ ...thStyle, background: '#f0fdf4', color: '#166534', textAlign: 'center', cursor: 'pointer', borderBottom: '1px solid #dcfce7' }}>
+                    BSR TREND (7D)
                   </th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>Rating</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>Count</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '45px', textAlign: 'center' }}>RT</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center' }}>CNT</th>
                   <th colSpan={visibleHistoryCols}
                     onClick={async () => { setShowAllRatingHistory(true); }}
-                    style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer' }}>
-                    Rating Trend <Eye size={10} style={{ marginLeft: 4 }} />
+                    style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer', borderBottom: '1px solid #fef3c7' }}>
+                    RATING
                   </th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>BuyBox</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Imgs</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>Pts</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>A+</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center' }}>Actions</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>BUYBOX</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>I</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>B</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>A+</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center' }}>ACTIONS</th>
                 </tr>
                 <tr>
                   {/* Price Trend Dates */}
@@ -1175,11 +1480,28 @@ const AsinManagerPage = () => {
                   }}>
                     <td style={{
                       ...tdStyle,
+                      width: '40px',
+                      position: 'sticky',
+                      left: 0,
+                      background: idx % 2 === 0 ? '#fff' : '#f9fafb',
+                      zIndex: 6,
+                      textAlign: 'center',
+                      padding: 0
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(asin._id)}
+                        onChange={() => handleToggleSelectRow(asin._id)}
+                        style={{ cursor: 'pointer', verticalAlign: 'middle', width: '13px', height: '13px' }}
+                      />
+                    </td>
+                    <td style={{
+                      ...tdStyle,
                       fontWeight: 600,
                       color: '#2563eb',
                       cursor: 'pointer',
                       position: 'sticky',
-                      left: 0,
+                      left: '40px',
                       background: idx % 2 === 0 ? '#fff' : '#f9fafb',
                       zIndex: 5,
                       borderRight: '2px solid #e5e7eb'
@@ -1260,25 +1582,24 @@ const AsinManagerPage = () => {
                         </td>
                       );
                     }))}
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin.buyBoxWin, asin.status)}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin)}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.imagesCount || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.bulletPoints || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getAplusBadge(asin.hasAplus, asin.status)}</td>
                     <td style={tdStyle}>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: '100%', alignItems: 'center' }}>
                         <button onClick={() => handleIndividualScrape(asin._id)} disabled={scrapingIds.has(asin._id)}
-                          style={{
-                            padding: '2px 8px', fontSize: 10, fontWeight: 600, borderRadius: 10,
-                            border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer'
-                          }}>
-                          {scrapingIds.has(asin._id) ? <RefreshCw size={10} className="spin" /> : 'Sync'}
+                          className="btn btn-white btn-xs p-1 d-flex align-items-center justify-content-center"
+                          style={{ width: '20px', height: '20px', border: '1px solid #e4e4e7', borderRadius: '4px' }}
+                          title="Sync Data"
+                        >
+                          <RefreshCw size={10} className={scrapingIds.has(asin._id) ? 'spin' : 'text-zinc-500'} />
                         </button>
                         <button onClick={() => handleCreateTasks(asin._id, asin.asinCode)}
-                          style={{
-                            padding: '2px 8px', fontSize: 10, fontWeight: 600, borderRadius: 10,
-                            border: 'none', background: '#eff6ff', color: '#2563eb', cursor: 'pointer'
-                          }}>
-                          Task
+                          className="btn btn-xs d-flex align-items-center justify-content-center fw-bold"
+                          style={{ height: '20px', padding: '0 6px', fontSize: '8.5px', background: '#f4f4f5', color: '#18181b', border: '1px solid #e4e4e7', borderRadius: '4px' }}
+                        >
+                          ACTION
                         </button>
                       </div>
                     </td>
@@ -1293,28 +1614,30 @@ const AsinManagerPage = () => {
             background: '#f9fafb', borderTop: '1px solid #e5e7eb',
             flexShrink: 0
           }}>
-            <TablePagination
-              component="div"
-              count={pagination.total || 0}
-              page={(pagination.page || 1) - 1}
-              onPageChange={handleChangePage}
-              rowsPerPage={pagination.limit || 25}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[25, 50, 100, 150, 200, 300, 500]}
-              sx={{
-                fontSize: '11px',
-                '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+            <Suspense fallback={<div className="h-10 w-full animate-pulse bg-zinc-100" />}>
+              <TablePagination
+                component="div"
+                count={pagination.total || 0}
+                page={(pagination.page || 1) - 1}
+                onPageChange={handleChangePage}
+                rowsPerPage={pagination.limit || 25}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[25, 50, 100, 150, 200, 300, 500]}
+                sx={{
                   fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#6b7280',
-                  margin: 0
-                },
-                '.MuiTablePagination-select': {
-                  fontSize: '11px',
-                  fontWeight: 600
-                }
-              }}
-            />
+                  '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#6b7280',
+                    margin: 0
+                  },
+                  '.MuiTablePagination-select': {
+                    fontSize: '11px',
+                    fontWeight: 600
+                  }
+                }}
+              />
+            </Suspense>
           </div>
         </div>
 
@@ -1400,27 +1723,29 @@ const AsinManagerPage = () => {
         )}
       </div>
 
-      {/* [N] Secondary Modals */}
-      <AsinDetailModal
-        asin={selectedAsin}
-        isOpen={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-      />
-      <PriceViewModal
-        selectedAsin={selectedAsinForPrice}
-        isOpen={!!selectedAsinForPrice || showAllPriceHistory}
-        onClose={() => { setSelectedAsinForPrice(null); setShowAllPriceHistory(false); }}
-      />
-      <BSRViewModal
-        selectedAsin={selectedAsinForBsr}
-        isOpen={!!selectedAsinForBsr || showAllBsrHistory}
-        onClose={() => { setSelectedAsinForBsr(null); setShowAllBsrHistory(false); }}
-      />
-      <RatingViewModal
-        selectedAsin={selectedAsinForRating}
-        isOpen={!!selectedAsinForRating || showAllRatingHistory}
-        onClose={() => { setSelectedAsinForRating(null); setShowAllRatingHistory(false); }}
-      />
+      {/* [N] Secondary Modals - Lazy Loaded */}
+      <Suspense fallback={null}>
+        <AsinDetailModal
+          asin={selectedAsin}
+          isOpen={showDetailModal}
+          onClose={() => setShowDetailModal(false)}
+        />
+        <PriceViewModal
+          selectedAsin={selectedAsinForPrice}
+          isOpen={!!selectedAsinForPrice || showAllPriceHistory}
+          onClose={() => { setSelectedAsinForPrice(null); setShowAllPriceHistory(false); }}
+        />
+        <BSRViewModal
+          selectedAsin={selectedAsinForBsr}
+          isOpen={!!selectedAsinForBsr || showAllBsrHistory}
+          onClose={() => { setSelectedAsinForBsr(null); setShowAllBsrHistory(false); }}
+        />
+        <RatingViewModal
+          selectedAsin={selectedAsinForRating}
+          isOpen={!!selectedAsinForRating || showAllRatingHistory}
+          onClose={() => { setSelectedAsinForRating(null); setShowAllRatingHistory(false); }}
+        />
+      </Suspense>
     </div>
   );
 };

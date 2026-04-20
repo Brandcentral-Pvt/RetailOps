@@ -34,6 +34,7 @@ router.post('/:id/generate-images', protect, requirePermission('sellers_manage_a
 // Search and stats
 router.get('/search', protect, requirePermission('sellers_view'), asinController.searchAsins);
 router.get('/stats', protect, requirePermission('sellers_view'), asinController.getAsinStats);
+router.get('/filters', protect, requirePermission('sellers_view'), asinController.getAsinFilterOptions);
 router.get('/brands', protect, requirePermission('sellers_view'), asinController.getAsinBrands);
 router.get('/lqs-top', protect, requirePermission('sellers_view'), asinController.getAsinsByLQS);
 
@@ -41,6 +42,9 @@ router.get('/lqs-top', protect, requirePermission('sellers_view'), asinControlle
 router.get('/', protect, requirePermission('sellers_view'), asinController.getAsins);
 router.get('/all', protect, requirePermission('sellers_view'), asinController.getAllAsinsWithHistory);
 router.get('/seller/:sellerId', protect, requirePermission('sellers_view'), checkSellerAccess, asinController.getAsinsBySeller);
+router.get('/repair-status/:sellerId', protect, requirePermission('sellers_view'), checkSellerAccess, asinController.getRepairJobStatus);
+router.post('/repair/:sellerId', protect, requirePermission('sellers_manage_asins'), checkSellerAccess, asinController.repairIncompleteAsins);
+
 
 // Trends and week history
 router.get('/:id/trends', protect, requirePermission('sellers_view'), asinController.getAsinTrends);

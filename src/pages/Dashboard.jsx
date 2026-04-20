@@ -1,9 +1,9 @@
 // Dashboard - RetailOps Command Center
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import NumberChart from '../components/common/NumberChart';
-import Chart from 'react-apexcharts';
+const Chart = lazy(() => import('react-apexcharts'));
 import Box from '@mui/material/Box';
-import { BarChart } from '@mui/x-charts/BarChart';
+const BarChart = lazy(() => import('@mui/x-charts/BarChart').then(module => ({ default: module.BarChart })));
 import { CHART_COLORS, mergeApexOptions, areaChartOptions } from '../utils/chartTheme';
 import {
   LayoutDashboard,
@@ -47,10 +47,12 @@ import { format } from 'date-fns';
 import ErrorState from '../components/common/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
 import { useDateRange } from '../contexts/DateRangeContext';
+import { useRefresh } from '../contexts/RefreshContext';
 
 const Dashboard = () => {
   const { user, isGlobalUser, isAdmin } = useAuth();
   const { startDate, endDate, rangeType } = useDateRange();
+  const { refreshCount } = useRefresh();
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(0);
@@ -112,7 +114,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-  }, [loadDashboardData]);
+  }, [loadDashboardData, refreshCount]);
 
   useEffect(() => {
     if (refreshInterval > 0) {
@@ -331,32 +333,34 @@ const Dashboard = () => {
             extra={<span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 rounded-pill smallest">ADS SPEND VS REVENUE</span>}
           >
             <Box sx={{ width: '100%', height: 300, mt: 2 }}>
-              {data.adsPerformanceSeries.length > 0 ? (
-                <BarChart
-                  series={data.adsPerformanceSeries.map(s => ({
-                    data: s.data,
-                    label: s.name,
-                    id: s.name.replace(/\s+/g, '').toLowerCase() + 'Id',
-                    valueFormatter: (val) => `₹${val.toLocaleString()}`
-                  }))}
-                  xAxis={[{
-                    data: data.labels,
-                    scaleType: 'band',
-                    tickLabelStyle: { fontSize: 9, fill: '#94a3b8' }
-                  }]}
-                  yAxis={[{
-                    valueFormatter: (val) => val >= 1000 ? `₹${(val / 1000).toFixed(1)}K` : `₹${val}`,
-                    tickLabelStyle: { fontSize: 9, fill: '#94a3b8' }
-                  }]}
-                  height={300}
-                  margin={{ top: 20, bottom: 40, left: 60, right: 20 }}
-                  colors={['#06b6d4', '#f59e0b']} // Ad Sales (Teal), Ad Spend (Orange)
-                />
-              ) : (
-                <div className="d-flex align-items-center justify-content-center h-100 text-muted smallest">
-                  No ads performance data available for this period.
-                </div>
-              )}
+              <Suspense fallback={<div className="d-flex align-items-center justify-content-center h-100"><SkeletonChart height={300} /></div>}>
+                {data.adsPerformanceSeries.length > 0 ? (
+                  <BarChart
+                    series={data.adsPerformanceSeries.map(s => ({
+                      data: s.data,
+                      label: s.name,
+                      id: s.name.replace(/\s+/g, '').toLowerCase() + 'Id',
+                      valueFormatter: (val) => `₹${val.toLocaleString()}`
+                    }))}
+                    xAxis={[{
+                      data: data.labels,
+                      scaleType: 'band',
+                      tickLabelStyle: { fontSize: 9, fill: '#94a3b8' }
+                    }]}
+                    yAxis={[{
+                      valueFormatter: (val) => val >= 1000 ? `₹${(val / 1000).toFixed(1)}K` : `₹${val}`,
+                      tickLabelStyle: { fontSize: 9, fill: '#94a3b8' }
+                    }]}
+                    height={300}
+                    margin={{ top: 20, bottom: 40, left: 60, right: 20 }}
+                    colors={['#06b6d4', '#f59e0b']} // Ad Sales (Teal), Ad Spend (Orange)
+                  />
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center h-100 text-muted smallest">
+                    No ads performance data available for this period.
+                  </div>
+                )}
+              </Suspense>
             </Box>
           </Card>
         </div>
@@ -365,11 +369,13 @@ const Dashboard = () => {
         <div className="col-lg-4">
           <Card title="Portfolio Mix" icon={PieChart}>
             <div className="d-flex align-items-center justify-content-center h-100">
-              {data.categoryData.length > 0 ? (
-                <Chart options={donutChartOptions} series={data.categoryData.map(c => c.data[0])} type="donut" width="100%" height={300} />
-              ) : (
-                <div className="text-muted smallest">No category data</div>
-              )}
+              <Suspense fallback={<SkeletonChart height={300} />}>
+                {data.categoryData.length > 0 ? (
+                  <Chart options={donutChartOptions} series={data.categoryData.map(c => c.data[0])} type="donut" width="100%" height={300} />
+                ) : (
+                  <div className="text-muted smallest">No category data</div>
+                )}
+              </Suspense>
             </div>
           </Card>
         </div>
@@ -380,7 +386,9 @@ const Dashboard = () => {
         <div className="col-12">
           <Card title="Monthly Performance Breakdown" icon={BarChart2} extra={<span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill smallest">STACKED PERFORMANCE</span>}>
             <div style={{ minHeight: '300px' }}>
-              <Chart options={stackedBarOptions} series={data.stackedBarSeries} type="bar" height={300} />
+              <Suspense fallback={<SkeletonChart height={300} />}>
+                <Chart options={stackedBarOptions} series={data.stackedBarSeries} type="bar" height={300} />
+              </Suspense>
             </div>
           </Card>
         </div>

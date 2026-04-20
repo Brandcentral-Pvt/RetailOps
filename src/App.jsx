@@ -7,13 +7,15 @@ import { DateRangeProvider } from './contexts/DateRangeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
 import Sidebar from './components/common/Sidebar';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 import { SocketProvider } from './contexts/SocketContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext';
-import OnboardingWizard from './components/onboarding/OnboardingWizard';
-import GlobalNotificationListener from './components/GlobalNotificationListener';
+import { RefreshProvider } from './contexts/RefreshContext';
+const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard'));
+const GlobalNotificationListener = lazy(() => import('./components/GlobalNotificationListener'));
+import CometChatInitializer from './components/chat/CometChatInitializer';
 import './App.css';
 
 // Lazy load pages for better performance
@@ -101,8 +103,9 @@ function AppRoutes() {
   if (loading || onboardingLoading) return null;
 
   return (
-    <>
+    <Suspense fallback={<PageLoader />}>
       {showWizard && <OnboardingWizard />}
+      <GlobalNotificationListener />
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
@@ -158,7 +161,7 @@ function AppRoutes() {
           }
         />
       </Routes>
-    </>
+    </Suspense>
   );
 }
 
@@ -166,22 +169,26 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <SidebarProvider>
-          <DateRangeProvider>
-            <PageTitleProvider>
-              <ToastProvider>
-                <OnboardingProvider>
-                  <GlobalNotificationListener />
-                  <AppRoutes />
-                </OnboardingProvider>
-              </ToastProvider>
-            </PageTitleProvider>
-          </DateRangeProvider>
-        </SidebarProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <CometChatInitializer>
+      <RefreshProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <SidebarProvider>
+              <DateRangeProvider>
+                <PageTitleProvider>
+                  <ToastProvider>
+                    <OnboardingProvider>
+                      <GlobalNotificationListener />
+                      <AppRoutes />
+                    </OnboardingProvider>
+                  </ToastProvider>
+                </PageTitleProvider>
+              </DateRangeProvider>
+            </SidebarProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </RefreshProvider>
+    </CometChatInitializer>
   );
 }
 

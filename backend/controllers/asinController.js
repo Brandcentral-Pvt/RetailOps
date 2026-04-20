@@ -9,17 +9,25 @@ const mongoose = require('mongoose');
 // Get all ASINs
 exports.getAsins = async (req, res) => {
   try {
-    const { seller, status, category, page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const { 
+      seller, status, category, brand, search, 
+      minPrice, maxPrice, minBSR, maxBSR, minLQS, maxLQS,
+      scrapeStatus, buyBoxWin, hasAplus,
+      page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'desc' 
+    } = req.query;
     const filter = {};
 
-    // Enforce seller filter for non-admins
+    // [1] User Scope / Seller Filtering
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
     
     if (!isGlobalUser) {
-      const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
+      if (!req.user || !req.user.assignedSellers) {
+        return res.json({ asins: [], pagination: { page: 1, limit: parseInt(limit), total: 0 } });
+      }
+      const allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
 
-      if (seller && mongoose.Types.ObjectId.isValid(seller) && allowedSellerIds.some(id => id.toString() === seller)) {
+      if (seller && mongoose.Types.ObjectId.isValid(seller) && allowedSellerIds.includes(seller)) {
         filter.seller = seller;
       } else {
         filter.seller = { $in: allowedSellerIds };
@@ -28,14 +36,50 @@ exports.getAsins = async (req, res) => {
       filter.seller = seller;
     }
 
+    // [2] Advanced Searching (Global)
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { asinCode: searchRegex },
+        { title: searchRegex },
+        { sku: searchRegex }
+      ];
+    }
+
+    // [3] Exact Match Filters
     if (status) filter.status = status;
     if (category) filter.category = category;
-    if (req.query.brand) filter.brand = req.query.brand;
+    if (brand) filter.brand = brand;
+    if (scrapeStatus) filter.scrapeStatus = scrapeStatus;
+    
+    if (buyBoxWin !== undefined && buyBoxWin !== '') {
+      filter.buyBoxWin = buyBoxWin === 'true' || buyBoxWin === true;
+    }
+    if (hasAplus !== undefined && hasAplus !== '') {
+      filter.hasAplus = hasAplus === 'true' || hasAplus === true;
+    }
 
-    const sortOptions = {
-      status: 1, // 'Active' comes before 'Pending'/'Scraping'
-      title: -1  // Non-null titles first
-    };
+    // [4] Numeric Range Filters
+    if (minPrice || maxPrice) {
+      filter.currentPrice = {};
+      if (minPrice) filter.currentPrice.$gte = parseFloat(minPrice);
+      if (maxPrice) filter.currentPrice.$lte = parseFloat(maxPrice);
+    }
+    if (minBSR || maxBSR) {
+      filter.bsr = {};
+      if (minBSR) filter.bsr.$gte = parseInt(minBSR);
+      if (maxBSR) filter.bsr.$lte = parseInt(maxBSR);
+    }
+    if (minLQS || maxLQS) {
+      filter.lqs = {};
+      if (minLQS) filter.lqs.$gte = parseInt(minLQS);
+      if (maxLQS) filter.lqs.$lte = parseInt(maxLQS);
+    }
+
+    const sortOptions = {}; // Initializing properly
+    if (sortBy === 'status') {
+      sortOptions.status = 1; // 'Active' first
+    }
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     const asins = await Asin.find(filter)
@@ -326,16 +370,17 @@ exports.getAsinStats = async (req, res) => {
 
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
-    if (!isGlobalUser) {
-      const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
-      if (seller && allowedSellerIds.some(id => id.toString() === seller)) {
-        filter.seller = seller;
+    if (!isGlobalUser) {
+      const allowedSellerIds = req.user.assignedSellers.map(s => s._id.toString());
+
+      if (seller && mongoose.Types.ObjectId.isValid(seller) && allowedSellerIds.includes(seller.toString())) {
+        filter.seller = new mongoose.Types.ObjectId(seller);
       } else {
-        filter.seller = { $in: allowedSellerIds };
+        filter.seller = { $in: allowedSellerIds.map(id => new mongoose.Types.ObjectId(id)) };
       }
-    } else if (seller) {
-      filter.seller = seller;
+    } else if (seller && mongoose.Types.ObjectId.isValid(seller)) {
+      filter.seller = new mongoose.Types.ObjectId(seller);
     }
 
     const stats = await Asin.aggregate([
@@ -972,4 +1017,72 @@ exports.getAsinBrands = async (req, res) => {
   }
 };
 
+// Trigger direct repair job for a seller's incomplete ASINs
+exports.repairIncompleteAsins = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const userId = req.user._id;
+
+    const scraperRunner = require('../services/scraperRunner');
+    const result = await scraperRunner.startRepairJob(sellerId, userId);
+
+    res.json({
+      success: true,
+      message: 'Repair job started successfully',
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Get current status of a repair job
+exports.getRepairJobStatus = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const scraperRunner = require('../services/scraperRunner');
+    const status = await scraperRunner.getJobStatus(sellerId);
+
+    res.json({
+      success: true,
+      status: status
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Get unique filter options for the user's scope
+exports.getAsinFilterOptions = async (req, res) => {
+  try {
+    const filter = {};
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
+    
+    if (!isGlobalUser) {
+      const allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
+      filter.seller = { $in: allowedSellerIds };
+    }
+
+    // Get unique categories and brands concurrently
+    const [categories, brands] = await Promise.all([
+      Asin.distinct('category', filter),
+      Asin.distinct('brand', filter),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        categories: categories.filter(Boolean).sort(),
+        brands: brands.filter(Boolean).sort(),
+        scrapeStatuses: ['PENDING', 'SCRAPING', 'COMPLETED', 'FAILED'],
+        statuses: ['Active', 'Pending', 'Scraping', 'Error', 'Paused']
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = exports;
+

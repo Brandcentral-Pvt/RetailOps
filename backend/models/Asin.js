@@ -152,6 +152,8 @@ asinSchema.index({ seller: 1, status: 1 });
 asinSchema.index({ category: 1 });
 asinSchema.index({ lqs: -1 });
 asinSchema.index({ bsr: 1 });
+asinSchema.index({ brand: 1 });
+asinSchema.index({ currentPrice: 1 });
 
 // Method to update week history (Allow multiple entries per week if dates are different)
 asinSchema.methods.updateWeekHistory = function (weekData) {

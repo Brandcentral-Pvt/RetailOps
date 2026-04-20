@@ -541,15 +541,27 @@ export const sellerApi = {
 // ASIN API
 export const asinApi = {
   getAll: async (params = {}) => {
-    // Filter out null or undefined values to prevent "undefined" string literals in URL
-    const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== null && v !== undefined)
-    );
+    // Filter out null, undefined, or empty strings to keep URL clean
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        acc[key] = val;
+      }
+      return acc;
+    }, {});
+    
     const query = new URLSearchParams(cleanParams).toString();
-    const res = await fetch(`${API_BASE}/asins?${query}`, {
+    const res = await fetch(`${API_BASE}/asins${query ? `?${query}` : ''}`, {
       headers: { ...getAuthHeader() }
     });
     if (!res.ok) throw new Error('Failed to fetch ASINs');
+    return res.json();
+  },
+
+  getFilters: async () => {
+    const res = await fetch(`${API_BASE}/asins/filters`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch filter options');
     return res.json();
   },
 
@@ -667,6 +679,26 @@ export const asinApi = {
       const error = await res.json();
       throw new Error(error.error || 'Failed to generate AI images');
     }
+    return res.json();
+  },
+
+  repairIncomplete: async (sellerId) => {
+    const res = await fetch(`${API_BASE}/asins/repair/${sellerId}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to trigger data repair');
+    }
+    return res.json();
+  },
+
+  getRepairStatus: async (sellerId) => {
+    const res = await fetch(`${API_BASE}/asins/repair-status/${sellerId}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch repair status');
     return res.json();
   },
 };

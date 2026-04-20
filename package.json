@@ -20,6 +20,7 @@
     "@mui/material": "^7.2.0",
     "@mui/x-charts": "^8.28.0",
     "@mui/x-data-grid": "^8.9.1",
+    "@syncfusion/ej2-react-dropdowns": "^33.1.49",
     "@tabler/icons-react": "^3.37.1",
     "@tanstack/react-query": "^5.95.2",
     "@untitledui/icons": "^0.0.21",

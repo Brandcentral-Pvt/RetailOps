@@ -9,6 +9,13 @@ const { JSDOM } = require('jsdom');
 const SocketService = require('./socketService');
 const { MemorySafeProcessor, clearArray } = require('../utils/memorySafe');
 
+const OWN_SELLERS = [
+    'Cocoblu Retail',
+    'Clicktech Retail Private Ltd',
+    'RetailEZ Pvt Ltd',
+    'ETrade Pvt Ltd'
+];
+
 // Initialize memory-safe processor
 const memProcessor = new MemorySafeProcessor({
     batchSize: 50,
@@ -1522,6 +1529,7 @@ class MarketDataSyncService {
                 mainImageUrl: mainImageUrl || asin.mainImageUrl,
                 imageUrl: mainImageUrl || asin.imageUrl, // Compatibility
                 soldBy,
+                buyBoxWin: OWN_SELLERS.some(s => s.toLowerCase() === soldBy.trim().toLowerCase()),
                 buyBoxSellerId: soldBy || asin.buyBoxSellerId,
                 bulletPoints,
                 bulletPointsText,
@@ -1721,6 +1729,7 @@ class MarketDataSyncService {
                         bulletPointsText: bulletPointsText,
                         stockLevel: this._cleanStock(rawData.stock || rawData.inventory || 0),
                         soldBy: soldBy,
+                        buyBoxWin: OWN_SELLERS.some(s => s.toLowerCase() === soldBy.trim().toLowerCase()),
                         lastScraped: now,
                         scrapeStatus: 'COMPLETED',
                         status: 'Active'

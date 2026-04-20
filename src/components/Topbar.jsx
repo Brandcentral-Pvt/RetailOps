@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../contexts/SocketContext';
+import { useRefresh } from '../contexts/RefreshContext';
 import api from '../services/api';
 import HeaderNavigation from './HeaderNavigation';
 import { DropdownButton } from './DropdownButton';
 import { Dropdown } from './base/dropdown/dropdown';
-import { Bell as BellIcon, Search, Menu, User, Check, X, MessageSquare, Info } from 'lucide-react';
+import { Bell as BellIcon, Search, Menu, User, Check, X, MessageSquare, Info, RefreshCw } from 'lucide-react';
 
 const Topbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();
+  const { triggerRefresh, isRefreshing } = useRefresh();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -175,6 +177,16 @@ const Topbar = ({ toggleSidebar }) => {
             placeholder="Search..."
           />
         </div>
+
+        {/* Refresh Button */}
+        <button 
+          className="btn btn-link link-dark p-1" 
+          onClick={triggerRefresh}
+          title="Refresh data"
+          disabled={isRefreshing}
+        >
+          <RefreshCw size={20} className={isRefreshing ? 'spin' : ''} />
+        </button>
 
         {/* Notifications */}
         <Dropdown.Root>

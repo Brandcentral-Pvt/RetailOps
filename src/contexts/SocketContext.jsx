@@ -29,8 +29,12 @@ export const SocketProvider = ({ children }) => {
             console.log('[DEBUG] Socket URL:', socketUrl);
 
             const newSocket = io(socketUrl, {
-                transports: ['websocket'],
-                autoConnect: true
+                transports: ['polling', 'websocket'],
+                autoConnect: true,
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: Infinity
             });
             setSocket(newSocket);
 
