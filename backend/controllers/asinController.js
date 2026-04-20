@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const marketDataSyncService = require('../services/marketDataSyncService');
 const mongoose = require('mongoose');
+const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 
 // Get all ASINs
 exports.getAsins = async (req, res) => {
@@ -103,8 +104,16 @@ exports.getAsins = async (req, res) => {
       minDate = minDateAgg[0]?.minDate;
     }
 
+    const processedAsins = asins.map(a => {
+      const win = isBuyBoxWinner(a.soldBy);
+      if (a.soldBy && a.soldBy.toLowerCase().includes('cocoblu')) {
+        console.log(`[BuyBox Trace] ASIN: ${a.asinCode} | SoldBy: "${a.soldBy}" | Win: ${win}`);
+      }
+      return { ...a, buyBoxWin: win };
+    });
+
     res.json({
-      asins,
+      asins: processedAsins,
       minDate,
       pagination: {
         page: parseInt(page),
@@ -152,7 +161,7 @@ exports.getAllAsinsWithHistory = async (req, res) => {
 
     res.json({
       success: true,
-      data: asins,
+      data: asins.map(a => ({ ...a, buyBoxWin: isBuyBoxWinner(a.soldBy) })),
       count: asins.length,
     });
   } catch (error) {
@@ -187,7 +196,7 @@ exports.getAsinsBySeller = async (req, res) => {
     ]);
 
     res.json({
-      asins,
+      asins: asins.map(a => ({ ...a.toObject ? a.toObject() : a, buyBoxWin: isBuyBoxWinner(a.soldBy) })),
       pagination: {
         total,
         page,
@@ -219,7 +228,8 @@ exports.getAsin = async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized access to ASIN details' });
     }
 
-    res.json(asin);
+    const asinObj = asin.toObject ? asin.toObject() : asin;
+    res.json({ ...asinObj, buyBoxWin: isBuyBoxWinner(asin.soldBy) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -356,7 +366,7 @@ exports.getAsinsByLQS = async (req, res) => {
       .sort({ lqs: -1 })
       .limit(parseInt(limit));
 
-    res.json(asins);
+    res.json(asins.map(a => ({ ...a.toObject ? a.toObject() : a, buyBoxWin: isBuyBoxWinner(a.soldBy) })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -691,7 +701,8 @@ exports.updateAsin = async (req, res) => {
       await updateSellerAsinCount(asin.seller);
     }
 
-    res.json(updatedAsin);
+    const asinObj = updatedAsin.toObject ? updatedAsin.toObject() : updatedAsin;
+    res.json({ ...asinObj, buyBoxWin: isBuyBoxWinner(updatedAsin.soldBy) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -821,7 +832,7 @@ exports.searchAsins = async (req, res) => {
       .populate('seller', 'name')
       .limit(50);
 
-    res.json(asins);
+    res.json(asins.map(a => ({ ...a.toObject ? a.toObject() : a, buyBoxWin: isBuyBoxWinner(a.soldBy) })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

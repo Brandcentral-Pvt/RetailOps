@@ -8,13 +8,8 @@ const imageGenerationService = require('./imageGenerationService');
 const { JSDOM } = require('jsdom');
 const SocketService = require('./socketService');
 const { MemorySafeProcessor, clearArray } = require('../utils/memorySafe');
+const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 
-const OWN_SELLERS = [
-    'Cocoblu Retail',
-    'Clicktech Retail Private Ltd',
-    'RetailEZ Pvt Ltd',
-    'ETrade Pvt Ltd'
-];
 
 // Initialize memory-safe processor
 const memProcessor = new MemorySafeProcessor({
@@ -1529,7 +1524,7 @@ class MarketDataSyncService {
                 mainImageUrl: mainImageUrl || asin.mainImageUrl,
                 imageUrl: mainImageUrl || asin.imageUrl, // Compatibility
                 soldBy,
-                buyBoxWin: OWN_SELLERS.some(s => s.toLowerCase() === soldBy.trim().toLowerCase()),
+                buyBoxWin: isBuyBoxWinner(soldBy),
                 buyBoxSellerId: soldBy || asin.buyBoxSellerId,
                 bulletPoints,
                 bulletPointsText,
@@ -1729,7 +1724,7 @@ class MarketDataSyncService {
                         bulletPointsText: bulletPointsText,
                         stockLevel: this._cleanStock(rawData.stock || rawData.inventory || 0),
                         soldBy: soldBy,
-                        buyBoxWin: OWN_SELLERS.some(s => s.toLowerCase() === soldBy.trim().toLowerCase()),
+                        buyBoxWin: isBuyBoxWinner(soldBy),
                         lastScraped: now,
                         scrapeStatus: 'COMPLETED',
                         status: 'Active'
@@ -1807,18 +1802,26 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
 
     _cleanReviewCount(str) {
         if (!str) return 0;
-        const s = str.toString();
+        const s = str.toString().trim();
         
-        // Prioritize global ratings count format "173 global ratings"
-        const globalMatch = s.match(/([\d,]+)\s*global\s*ratings?/i);
+        // Priority 1: "123 global ratings/reviews"
+        const globalMatch = s.match(/([\d,]+)\s*(?:global\s*ratings?|reviews?)/i);
         if (globalMatch) return parseInt(globalMatch[1].replace(/,/g, '')) || 0;
+
+        // Priority 2: Numbers in parentheses (e.g. "(22)")
+        const parenMatch = s.match(/\(([\d,]+)\)/);
+        if (parenMatch) return parseInt(parenMatch[1].replace(/,/g, '')) || 0;
         
-        // Fallback: search for any sequence of numbers (ignoring commas)
-        const digits = s.replace(/[^0-9,]/g, '').match(/[\d,]+/);
-        if (digits) {
-            const count = parseInt(digits[0].replace(/,/g, ''));
-            // Safety: review counts shouldn't be suspiciously large (e.g. ASIN sequences)
-            if (count > 0 && count < 10000000) return count;
+        // Fallback: If still not found, try to clean the string of "X out of 5" noise
+        const noiseFree = s
+            .replace(/[0-5](?:\.[0-9])?\s+out\s+of\s+5\s+stars?/i, '')
+            .replace(/[0-5]\s*stars?/i, '');
+        
+        const fallbackMatch = noiseFree.match(/[\d,]+/);
+        if (fallbackMatch) {
+            const val = parseInt(fallbackMatch[0].replace(/,/g, ''));
+            // Safety: review counts shouldn't be suspiciously large
+            if (val > 0 && val < 10000000) return val;
         }
 
         return 0;

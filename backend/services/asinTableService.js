@@ -1,6 +1,7 @@
 const Asin = require('../models/Asin');
 const AdsPerformance = require('../models/AdsPerformance');
 const RevenueSummary = require('../models/RevenueSummary');
+const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 
 /**
  * ASIN Table Service - High-Performance Data Orchestration
@@ -28,7 +29,7 @@ class AsinTableService {
 
     // 2. Fetch Master Data
     const asins = await Asin.find(query)
-      .select('asinCode sku title imageUrl currentPrice bsr subBSRs rating reviewCount lqs buyBoxWin hasAplus imagesCount descLength status weekHistory')
+      .select('asinCode sku title imageUrl currentPrice bsr subBSRs rating reviewCount lqs buyBoxWin hasAplus imagesCount descLength status weekHistory soldBy')
       .lean();
 
     // 3. Transform for UI
@@ -54,7 +55,7 @@ class AsinTableService {
         rating: asin.rating || 0,
         reviewCount: asin.reviewCount || 0,
         lqs: asin.lqs || 0,
-        buyBoxWin: asin.buyBoxWin || false,
+        buyBoxWin: isBuyBoxWinner(asin.soldBy),
         hasAPlus: asin.hasAplus || false,
         imagesCount: asin.imagesCount || 0,
         descLength: asin.descLength || 0,

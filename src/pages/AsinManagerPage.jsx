@@ -6,6 +6,7 @@ import EmptyState from '../components/common/EmptyState';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi, sellerApi } from '../services/api';
+import InfiniteScrollSelect from '../components/common/InfiniteScrollSelect';
 import { useSocket } from '../contexts/SocketContext';
 import { calculateLQS } from '../utils/lqs';
 import {
@@ -520,18 +521,20 @@ const AsinManagerPage = () => {
     };
   }, [socket, loadData, pagination.page]);
 
-  useEffect(() => {
-    const fetchSellers = async () => {
+  const fetchSellerDropdownData = useCallback(async (page = 1, search = '') => {
       try {
-        const response = await sellerApi.getAll();
-        const sellerList = response?.data?.sellers || response?.data || response?.sellers || [];
-        setSellers(Array.isArray(sellerList) ? sellerList : []);
+          const response = await sellerApi.getAll({ page, limit: 20, search });
+          if (response.success) {
+              return {
+                  data: response.data.sellers || [],
+                  hasMore: response.data.pagination.page < response.data.pagination.totalPages
+              };
+          }
+          return { data: [], hasMore: false };
       } catch (err) {
-        console.error('Error fetching sellers:', err);
+          console.error('Error fetching sellers for dropdown:', err);
+          return { data: [], hasMore: false };
       }
-    };
-
-    fetchSellers();
   }, []);
 
   const kpis = useMemo(() => {
@@ -1135,20 +1138,17 @@ const AsinManagerPage = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <select
-              className="form-select form-select-xs border-zinc-200 rounded-2 smallest fw-bold text-zinc-600 shadow-none"
-              style={{ width: '140px', height: '28px', fontSize: '11px', padding: '0 8px' }}
-              value={selectedSeller}
-              onChange={(e) => {
-                setSelectedSeller(e.target.value);
-                loadData(1, pagination.limit, e.target.value);
-              }}
-            >
-              <option value="">All Sellers</option>
-              {sellers.map(s => (
-                <option key={s._id} value={s._id}>{s.name || s.storeName || s._id}</option>
-              ))}
-            </select>
+            <div style={{ width: '160px' }}>
+              <InfiniteScrollSelect 
+                fetchData={fetchSellerDropdownData}
+                value={selectedSeller}
+                onSelect={(val) => {
+                  setSelectedSeller(val);
+                  loadData(1, pagination.limit, val);
+                }}
+                placeholder="All Sellers"
+              />
+            </div>
 
             {/* Scrape Progress integrated into toolbar */}
             {scrapeProgress && (
@@ -1660,12 +1660,12 @@ const AsinManagerPage = () => {
                     style={{ width: '100%', padding: 12, borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12, height: 80 }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6 }}>ASSOCIATE WITH SELLER</label>
-                  <select value={selectedSellerId} onChange={(e) => setSelectedSellerId(e.target.value)}
-                    style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12 }}>
-                    <option value="">Select Seller...</option>
-                    {sellers.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                  </select>
+                  <InfiniteScrollSelect 
+                    fetchData={fetchSellerDropdownData}
+                    value={selectedSellerId}
+                    onSelect={setSelectedSellerId}
+                    placeholder="Select Seller..."
+                  />
                 </div>
               </div>
               <div style={{ padding: '12px 20px', background: '#f9fafb', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -1694,12 +1694,12 @@ const AsinManagerPage = () => {
               </div>
               <div style={{ padding: 20 }}>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6 }}>SELECT SELLER</label>
-                  <select value={selectedSellerId} onChange={(e) => setSelectedSellerId(e.target.value)}
-                    style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12 }}>
-                    <option value="">Select Seller...</option>
-                    {sellers.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                  </select>
+                  <InfiniteScrollSelect 
+                    fetchData={fetchSellerDropdownData}
+                    value={selectedSellerId}
+                    onSelect={setSelectedSellerId}
+                    placeholder="Select Seller..."
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6 }}>CSV FILE</label>

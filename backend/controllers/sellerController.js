@@ -63,12 +63,28 @@ exports.getSellers = async (req, res) => {
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
 
+    const { status, marketplace, search, page = 1, limit = 200 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
     // If not global user, return only assigned sellers
     if (!isGlobalUser) {
       const sellerIds = req.user.assignedSellers.map(s => s._id);
-
       const filter = { _id: { $in: sellerIds } };
-      const sellers = await Seller.find(filter).sort({ createdAt: -1 });
+      
+      if (search) {
+        filter.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { sellerId: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      const total = await Seller.countDocuments(filter);
+      const sellers = await Seller.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum);
+
       const enrichedWithManagers = await enrichSellersWithManagers(sellers);
       const fullyEnriched = await enrichSellersWithAsinCounts(enrichedWithManagers);
 
@@ -77,21 +93,19 @@ exports.getSellers = async (req, res) => {
         data: {
           sellers: fullyEnriched,
           pagination: {
-            page: 1,
-            limit: fullyEnriched.length,
-            total: fullyEnriched.length,
-            totalPages: 1
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
           }
         }
       });
     }
-
-    const { status, marketplace, search, page = 1, limit = 50 } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
     if (marketplace) filter.marketplace = marketplace;
-    
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -274,16 +288,61 @@ exports.deleteSeller = async (req, res) => {
       return res.status(404).json({ error: 'Seller not found' });
     }
 
-    // Delete all ASINs for this seller
+    // 1. Find all ASINs for this seller to clean up related data
+    const asins = await Asin.find({ seller: seller._id });
+    const asinCodes = asins.map(a => a.asinCode);
+    const asinIds = asins.map(a => a._id);
+
+    // 2. Cascade delete related data across multiple models
+    // Import models dynamically to avoid potential circular dependencies
+    const AdsPerformance = require('../models/AdsPerformance');
+    const Order = require('../models/Order');
+    const RevenueSummary = require('../models/RevenueSummary');
+    const RealTimeAlert = require('../models/RealTimeAlert');
+    const { AsinItem } = require('../models/RevenueCalculatorModel');
+    const Action = require('../models/Action');
+    const { Alert, AlertRule } = require('../models/AlertModel');
+
+    // Delete by ASIN string/code
+    if (asinCodes.length > 0) {
+      await AdsPerformance.deleteMany({ asin: { $in: asinCodes } });
+      await Order.deleteMany({ asin: { $in: asinCodes } });
+      await RevenueSummary.deleteMany({ asin: { $in: asinCodes } });
+      await RealTimeAlert.deleteMany({ asin: { $in: asinCodes } });
+      await AsinItem.deleteMany({ asin: { $in: asinCodes } });
+    }
+
+    // Delete by Seller ID or ASIN ObjectIDs
+    await Action.deleteMany({ 
+      $or: [
+        { sellerId: seller._id },
+        { asins: { $in: asinIds } },
+        { resolvedAsins: { $in: asinCodes } }
+      ]
+    });
+
+    await Alert.deleteMany({ sellerId: seller._id });
+    await AlertRule.deleteMany({ sellerId: seller._id });
+
+    // Unassign Octoparse Tasks
+    const OctoTask = require('../models/OctoTask');
+    await OctoTask.updateMany(
+      { sellerId: seller._id },
+      { isAssigned: false, sellerId: null }
+    );
+
+    // 3. Delete all ASINs for this seller
     await Asin.deleteMany({ seller: seller._id });
 
-    // Remove seller from any manager's assignedSellers
+    // 4. Remove seller from any manager's assignedSellers
     await User.updateMany(
       { assignedSellers: seller._id },
       { $pull: { assignedSellers: seller._id } }
     );
 
     const uid = `seller_${require('../services/cometChatService').sanitizeUid(seller.sellerId)}`;
+    
+    // 5. Delete the seller itself
     await seller.deleteOne();
 
     // Sync to CometChat on deletion
@@ -293,7 +352,8 @@ exports.deleteSeller = async (req, res) => {
     } catch (chatError) {
       console.error('CometChat Deletion Error:', chatError);
     }
-    res.json({ message: 'Seller deleted successfully' });
+    
+    res.json({ message: 'Seller and all associated data deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

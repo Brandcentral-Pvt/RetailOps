@@ -224,9 +224,6 @@ class OctoparseAutomationService {
 
                     if (Array.isArray(results) && results.length > 0) {
                         this.log('info', `✅ Fetched ${results.length} results from ${path}`);
-                        
-                        // If we fetched from a "notexported" endpoint, Octoparse marks them as exported automatically.
-                        // We return them for ingestion.
                         return results;
                     }
                 }
@@ -236,8 +233,52 @@ class OctoparseAutomationService {
             }
         }
 
-        this.log('error', `All paths failed or no new data for ${taskId}`, { lastError: lastErr });
+        this.log('error', `All paths failed or no data for ${taskId}`, { lastError: lastErr });
         return [];
+    }
+
+    /**
+     * Fetch ALL results from Octoparse by iterating through until all data is retrieved.
+     * Uses /data/all which is the most reliable for historical sync.
+     */
+    async fetchAllResults(taskId, batchSize = 1000) {
+        const token = await this.authenticate();
+        let allResults = [];
+        let offset = 0;
+        let hasMore = true;
+
+        this.log('info', `🚀 Deep Fetch started for task ${taskId}`);
+
+        while (hasMore) {
+            try {
+                const response = await axios.get(`${this.baseUrl}/data/all`, {
+                    params: { taskId, size: batchSize, offset },
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = response.data?.data || {};
+                const results = data.dataList || data.data || [];
+
+                if (Array.isArray(results) && results.length > 0) {
+                    allResults = allResults.concat(results);
+                    this.log('info', `📥 Fetched ${results.length} items (Total: ${allResults.length})`);
+                    
+                    if (results.length < batchSize) {
+                        hasMore = false;
+                    } else {
+                        offset += batchSize;
+                    }
+                } else {
+                    hasMore = false;
+                }
+            } catch (err) {
+                this.log('error', `Deep fetch failed at offset ${offset}: ${err.message}`);
+                hasMore = false;
+            }
+        }
+
+        this.log('info', `✅ Deep Fetch complete! Total items: ${allResults.length}`);
+        return allResults;
     }
 
     async stopTask(taskId) {
@@ -437,29 +478,67 @@ class OctoparseAutomationService {
                 }
             }
             
-            // 3. Review Count Extraction
-            const reviewCountMatch = ratingRaw.match(/([\d,]+)\s*global\s*ratings?/i);
-            const reviewsField = item.Reviews || item.reviews || item.ReviewCount || item.Reviews_Count || item.Total_Reviews || item.totalReviews || '';
+            // 3. Review Count Extraction - ROBUST LOGIC
+            const reviewsField = (
+                item.reviews_count || item.Review_Count || item.review_count || 
+                item.Count || item.count || item.RatingCount || item.Rating_Count ||
+                item.Reviews || item.reviews || item.ReviewCount || item.Reviews_Count || 
+                item.Total_Reviews || item.totalReviews || ''
+            ).toString().trim();
+            const ratingStr = (item.Rating || item.Field7 || item.rating || '').toString().trim();
             
+            // Search for matches in dedicated field first, then rating string
+            const searchTargets = [reviewsField, ratingStr];
             let reviewCount = 0;
-            if (reviewCountMatch) {
-                reviewCount = parseInt(reviewCountMatch[1].replace(/,/g, '')) || 0;
-            } else if (reviewsField) {
-                const digitMatch = reviewsField.toString().replace(/[^0-9,]/g, '').match(/[\d,]+/);
-                if (digitMatch) reviewCount = parseInt(digitMatch[0].replace(/,/g, '')) || 0;
+
+            for (const target of searchTargets) {
+                if (!target) continue;
+
+                // Priority 0: Specific fix for "out of 5[Count] global ratings" concatenation bug
+                // This happens when Octoparse fails to put a space after the rating
+                const concatMatch = target.match(/out\s*of\s*5(\d+)\s*(?:global\s*ratings?|reviews?)/i);
+                if (concatMatch) {
+                    reviewCount = parseInt(concatMatch[1]) || 0;
+                    if (reviewCount > 0) break;
+                }
+
+                // Priority 1: "123 global ratings/reviews"
+                const globalMatch = target.match(/([\d,]+)\s*(?:global\s*ratings?|reviews?)/i);
+                if (globalMatch) {
+                    reviewCount = parseInt(globalMatch[1].replace(/,/g, '')) || 0;
+                    if (reviewCount > 0) break;
+                }
+
+                // Priority 2: Numbers in parentheses (e.g. "(22)")
+                const parenMatch = target.match(/\(([\d,]+)\)/);
+                if (parenMatch) {
+                    reviewCount = parseInt(parenMatch[1].replace(/,/g, '')) || 0;
+                    if (reviewCount > 0) break;
+                }
+
+                // Priority 3: Pure numbers (common in dedicated fields)
+                const pureNumMatch = target.match(/^[\d,]+$/);
+                if (pureNumMatch) {
+                    reviewCount = parseInt(target.replace(/,/g, '')) || 0;
+                    if (reviewCount > 0) break;
+                }
             }
 
+            // Fallback: If still not found, try to clean the string of "X out of 5" noise
+            if (reviewCount === 0) {
+                const noiseFree = searchTargets.join(' ')
+                    .replace(/[0-5](?:\.[0-9])?\s+out\s+of\s+5\s+stars?/i, '')
+                    .replace(/[0-5]\s*stars?/i, '');
+                
+                const fallbackMatch = noiseFree.match(/[\d,]+/);
+                if (fallbackMatch) {
+                    reviewCount = parseInt(fallbackMatch[0].replace(/,/g, '')) || 0;
+                }
+            }
+
+            // Only update if value is valid and not suspiciously large (protect against ASIN leaks)
             if (reviewCount > 0 && reviewCount < 10000000) {
                 updateData.reviewCount = reviewCount;
-            }
-
-            // Reviews - parse from Rating field or dedicated field
-            const reviews = item.Reviews || item.reviews || item.ReviewCount || item.Reviews_Count || item.Total_Reviews || item.totalReviews || '';
-            if (reviews) {
-                const reviewsNum = parseInt(reviews);
-                if (reviewsNum >= 0 && reviewsNum < 1000000) { // Reasonable review count
-                    updateData.reviewCount = reviewsNum;
-                }
             }
 
             // BSR mapping - handle both BSR and sub_BSR fields
