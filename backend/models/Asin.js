@@ -5,12 +5,18 @@ const weekHistorySchema = new mongoose.Schema({
   date: { type: Date, required: true },
   price: { type: Number, default: 0 },
   bsr: { type: Number, default: 0 },
+  hasAplus: { type: Boolean, default: false },
+  aplusAbsentSince: { type: Date, default: null },
+  aplusPresentSince: { type: Date, default: null },
+  availabilityStatus: { type: String, default: 'Available' },
+  subBsr: { type: String, default: '' },
+  stockLevel: { type: Number, default: 0 },
+  buyBoxWin: { type: Boolean, default: false },
   rating: { type: Number, default: 0 },
   reviews: { type: Number, default: 0 },
   lqs: { type: Number, default: 0 },
   imageCount: { type: Number, default: 0 },
   descLength: { type: Number, default: 0 },
-  hasAplus: { type: Boolean, default: false },
   // New metrics for detailed tracking
   titleLength: { type: Number, default: 0 },
   bulletPoints: { type: Number, default: 0 },
@@ -42,6 +48,7 @@ const asinSchema = new mongoose.Schema({
   imagesCount: { type: Number, default: 0 },
   bsr: { type: Number, default: 0 }, // Main BSR
   subBSRs: [{ type: String }],
+  subBsr: { type: String, default: '' },
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
   stockLevel: { type: Number, default: 0, index: true },
@@ -58,6 +65,11 @@ const asinSchema = new mongoose.Schema({
   lqs: { type: Number, default: 0 }, // Listing Quality Score
   buyBoxWin: { type: Boolean, default: false }, // Buy Box winner status
   hasAplus: { type: Boolean, default: false }, // A+ content presence
+  aplusAbsentSince: { type: Date }, // Tracking duration of absence
+  aplusPresentSince: { type: Date },
+  // Availability Status
+  availabilityStatus: { type: String, default: 'Available' }, // Available or Currently Unavailable
+  
   // Enhanced Product Details (from Tracker & Calculator)
   weight: { type: Number }, // in grams
   dimensions: { type: String }, // LxWxH

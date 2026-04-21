@@ -13,7 +13,9 @@ const ListView = ({
     actions = null,
     actionWidth = '120px',
     emptyMessage = "No records found",
-    pagination = null // { page, limit, total, onPageChange, onLimitChange }
+    pagination = null, // { page, limit, total, onPageChange, onLimitChange }
+    loading = false,
+    skeleton = null
 }) => {
     const [collapsedGroups, setCollapsedGroups] = useState(new Set());
     const [selectedRows, setSelectedRows] = useState(new Set());
@@ -145,7 +147,19 @@ const ListView = ({
 
             {/* Content */}
             <div className="list-view-body bg-white" style={{ overflow: 'visible' }}>
-                {(rows.length === 0) ? (
+                {loading ? (
+                    skeleton ? skeleton : (
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <div key={`skeleton-${i}`} className="list-row d-flex align-items-center px-4 py-3 border-bottom pulse">
+                                {columns.map((col, cIdx) => (
+                                    <div key={cIdx} style={{ width: col.width || 'auto', flex: col.width ? 'none' : 1 }} className="pe-3">
+                                        <div className="skeleton-line" style={{ height: '14px', width: '80%', borderRadius: '4px', background: '#f1f5f9' }}></div>
+                                    </div>
+                                ))}
+                            </div>
+                        ))
+                    )
+                ) : (rows.length === 0) ? (
                     <div className="p-5 text-center text-muted">
                         <div className="mb-2"><LayoutGrid size={32} className="opacity-25" /></div>
                         <div className="small fw-bold">{emptyMessage}</div>
@@ -286,6 +300,15 @@ const ListView = ({
                 
                 .form-select.smallest {
                     font-size: 11px;
+                }
+                
+                @keyframes pulse {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                    100% { opacity: 1; }
+                }
+                .pulse {
+                    animation: pulse 1.5s ease-in-out infinite;
                 }
             `}</style>
         </div>

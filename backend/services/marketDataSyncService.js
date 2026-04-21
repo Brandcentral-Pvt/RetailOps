@@ -1424,14 +1424,13 @@ class MarketDataSyncService {
             const title = (rawData.Title || rawData.title || rawData.Field1 || asin.title || '').trim();
             const titleLength = title.length;
 
-            // 3. Category (Parse HTML for last breadcrumb)
             let category = (rawData.category || rawData.Field4 || asin.category || '').trim();
             if (category.includes('<li')) {
                 try {
                     const dom = new JSDOM(category);
-                    const liTags = dom.window.document.querySelectorAll('li');
+                    const liTags = Array.from(dom.window.document.querySelectorAll('li'));
                     if (liTags.length > 0) {
-                        category = liTags[liTags.length - 1].textContent.trim().replace(/^›\s*/, '').replace(/\s*›$/, '').trim();
+                        category = liTags.map(li => li.textContent.trim().replace(/^›\s*/, '').replace(/\s*›$/, '').trim()).filter(Boolean).join(' › ');
                     }
                 } catch (e) {
                     console.warn('Category HTML parsing failed, using raw string');
@@ -1439,13 +1438,15 @@ class MarketDataSyncService {
             }
 
             // 4. BSR Parsing (Main BSR: #XXXX in Cat, Sub BSR: #XXXX in SubCat)
-            const bsrString = rawData.Field9 || rawData.sub_BSR || rawData.BSR || rawData.bsr || '';
+            const bsrString = rawData.BSR || rawData.Field9 || rawData.bsr || '';
             const bsr = this._cleanBsr(bsrString);
             
-            // Extract all rank strings (e.g. #476 in Men's Kurtas)
+            // Octoparse new explicitly extracted SUB_BSR field
+            const subBsr = rawData.sub_BSR || '';
+
+            // Extract all rank strings (e.g. #476 in Men's Kurtas) fallback
             let subBSRs = [];
             if (bsrString && typeof bsrString === 'string') {
-                // Split by multiple spaces or newlines and clean
                 const parts = bsrString.split(/\s{2,}|\n/).map(p => p.trim()).filter(Boolean);
                 subBSRs = parts.filter(p => p.includes('#') && (p.toLowerCase().includes(' in ') || p.toLowerCase().includes(' ( ')));
             }
@@ -1470,17 +1471,42 @@ class MarketDataSyncService {
 
             // 6. Rating & Reviews
             let rating = 0;
-            let reviewCount = 0;
             const ratingStr = rawData.Rating || rawData.Field7 || '';
             if (ratingStr) {
                 const rMatch = ratingStr.match(/([\d.]+)\s+out of 5/i);
                 if (rMatch) rating = parseFloat(rMatch[1]);
-                
-                const cMatch = ratingStr.match(/([\d,]+)\s+global ratings/i) || ratingStr.match(/([\d,]+)\s+ratings/i);
-                if (cMatch) reviewCount = parseInt(cMatch[1].replace(/,/g, ''));
-            } else if (rawData.Rating_Count) {
-                reviewCount = parseInt(rawData.Rating_Count.toString().replace(/,/g, '')) || 0;
             }
+            
+            // Clean review count carefully
+            let reviewCount = this._cleanReviewCount(rawData.review_count || rawData.Review_Count || rawData.Rating_Count || ratingStr);
+            
+            // Calculate rating breakdown absolute values from percentages via robust Regex mapping
+            let p5 = 0, p4 = 0, p3 = 0, p2 = 0, p1 = 0;
+            if (ratingStr) {
+                // Extracts the first continuous 5 percentages out of the html histogram string
+                const percMatch = ratingStr.match(/(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%/);
+                if (percMatch) {
+                    p5 = parseFloat(percMatch[1]);
+                    p4 = parseFloat(percMatch[2]);
+                    p3 = parseFloat(percMatch[3]);
+                    p2 = parseFloat(percMatch[4]);
+                    p1 = parseFloat(percMatch[5]);
+                } else {
+                    p5 = parseFloat(rawData['5_star'] || rawData.five_star || 0);
+                    p4 = parseFloat(rawData['4_star'] || rawData.four_star || 0);
+                    p3 = parseFloat(rawData['3_star'] || rawData.three_star || 0);
+                    p2 = parseFloat(rawData['2_star'] || rawData.two_star || 0);
+                    p1 = parseFloat(rawData['1_star'] || rawData.one_star || 0);
+                }
+            }
+
+            const ratingBreakdown = {
+                fiveStar: Math.round((p5 / 100) * reviewCount) || asin.ratingBreakdown?.fiveStar || 0,
+                fourStar: Math.round((p4 / 100) * reviewCount) || asin.ratingBreakdown?.fourStar || 0,
+                threeStar: Math.round((p3 / 100) * reviewCount) || asin.ratingBreakdown?.threeStar || 0,
+                twoStar: Math.round((p2 / 100) * reviewCount) || asin.ratingBreakdown?.twoStar || 0,
+                oneStar: Math.round((p1 / 100) * reviewCount) || asin.ratingBreakdown?.oneStar || 0,
+            };
 
             // 7. Bullet Points
             let bulletPointsText = [
@@ -1498,9 +1524,28 @@ class MarketDataSyncService {
             }
             const bulletPoints = bulletPointsText.length || parseInt(rawData.bulletPoints || rawData.bullet_points_count || 0);
 
-            // 8. Stock Level & A+ Content
+            // 8. Stock Level, A+ Content & Availability
             const stockLevel = this._cleanStock(rawData.stock_level || rawData.Field10 || rawData.stock || 0);
-            const hasAplus = this._parseBoolean(rawData.has_aplus || rawData.A_plus || rawData.Field15 || false);
+            
+            // Robust A+ Content detection (Octoparse may extract the actual HTML/JS content)
+            const rawAplus = rawData.has_aplus || rawData.A_plus || rawData.Field15 || '';
+            const hasAplus = (typeof rawAplus === 'string' && rawAplus.trim().length > 20) 
+                              ? true 
+                              : this._parseBoolean(rawAplus || false);
+            
+            // Parse custom user fields (availability is unavilable typo in octoparse)
+            const availabilityStatus = rawData.unavilable || rawData.status || rawData.availabilityStatus || rawData.availability || asin.availabilityStatus || 'Available';
+            
+            // Map A+ presence/absence logic using database tracked timestamps
+            let aplusAbsentSince = asin.aplusAbsentSince;
+            let aplusPresentSince = asin.aplusPresentSince;
+            if (hasAplus) {
+                aplusPresentSince = aplusPresentSince || new Date();
+                aplusAbsentSince = null; // reset absent timer
+            } else {
+                aplusAbsentSince = aplusAbsentSince || new Date();
+                aplusPresentSince = null; // reset present timer
+            }
 
             // 9. Sold By
             const soldBy = rawData.sold_by || rawData.Field11 || asin.soldBy || '';
@@ -1516,6 +1561,7 @@ class MarketDataSyncService {
                 priceType,
                 dealBadge,
                 bsr,
+                subBsr,
                 subBSRs,
                 rating: rating > 0 ? rating : asin.rating,
                 reviewCount: reviewCount > 0 ? reviewCount : asin.reviewCount,
@@ -1530,6 +1576,10 @@ class MarketDataSyncService {
                 bulletPointsText,
                 stockLevel,
                 hasAplus,
+                aplusAbsentSince,
+                aplusPresentSince,
+                availabilityStatus,
+                ratingBreakdown,
                 lastScraped: new Date(),
                 scrapeStatus: 'COMPLETED',
                 status: 'Active',
@@ -1674,14 +1724,44 @@ class MarketDataSyncService {
                 const bsr = this._cleanBsr(rawData.sub_BSR || rawData.Field9 || rawData.BSR || rawData.bsr);
                 const title = (rawData.Title || rawData.title || asin.title || '').trim();
                 const soldBy = (rawData.sold_by || rawData.Field11 || asin.soldBy || '').trim();
-                const hasAplus = this._parseBoolean(rawData.A_plus || rawData.has_aplus || false);
+                
+                const rawAplusBulk = rawData.A_plus || rawData.has_aplus || '';
+                const hasAplus = (typeof rawAplusBulk === 'string' && rawAplusBulk.trim().length > 20)
+                                 ? true
+                                 : this._parseBoolean(rawAplusBulk || false);
+                                 
+                const availabilityStatus = rawData.status || rawData.availabilityStatus || rawData.availability || asin.availabilityStatus || 'Available';
+                
+                let aplusAbsentSince = asin.aplusAbsentSince;
+                let aplusPresentSince = asin.aplusPresentSince;
+                if (hasAplus) {
+                    aplusPresentSince = aplusPresentSince || now;
+                    aplusAbsentSince = null;
+                } else {
+                    aplusAbsentSince = aplusAbsentSince || now;
+                    aplusPresentSince = null;
+                }
+                
                 let category = (rawData.category || asin.category || '').trim();
                 if (category.includes('<li')) {
-                    const liMatch = category.match(/<li[^>]*>(?:<span[^>]*>)?(?:<a[^>]*>)?([^<]+)(?:<\/a>)?(?:<\/span>)?<\/li>$/i);
-                    if (liMatch) category = liMatch[1].trim().replace(/^›\s*/, '').replace(/\s*›$/, '').trim();
+                    const matches = category.match(/<li[^>]*>([\s\S]*?)<\/li>/gi);
+                    if (matches) {
+                        category = matches.map(m => m.replace(/<[^>]+>/g, '').replace(/^›\s*/, '').replace(/\s*›$/, '').trim()).filter(Boolean).join(' › ');
+                    }
                 }
                 const rating = this._cleanRating(rawData.Rating || rawData.rating);
-                const reviewCount = this._cleanReviewCount(rawData.ReviewCount || rawData.rating || rawData.Reviews || '');
+                // Important: parse string correctly to drop "out of 5" before evaluating numbers
+                const parsedReviewStr = rawData.Review_Count || rawData.ReviewCount || rawData.rating || rawData.Reviews || '';
+                const reviewCount = this._cleanReviewCount(parsedReviewStr) || asin.reviewCount;
+                
+                const ratingBreakdown = {
+                    fiveStar: Math.round((parseFloat(rawData['5_star'] || rawData.five_star || 0) / 100) * reviewCount) || asin.ratingBreakdown?.fiveStar || 0,
+                    fourStar: Math.round((parseFloat(rawData['4_star'] || rawData.four_star || 0) / 100) * reviewCount) || asin.ratingBreakdown?.fourStar || 0,
+                    threeStar: Math.round((parseFloat(rawData['3_star'] || rawData.three_star || 0) / 100) * reviewCount) || asin.ratingBreakdown?.threeStar || 0,
+                    twoStar: Math.round((parseFloat(rawData['2_star'] || rawData.two_star || 0) / 100) * reviewCount) || asin.ratingBreakdown?.twoStar || 0,
+                    oneStar: Math.round((parseFloat(rawData['1_star'] || rawData.one_star || 0) / 100) * reviewCount) || asin.ratingBreakdown?.oneStar || 0,
+                };
+
                 const mainImageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || asin.mainImageUrl;
                 let imagesCount = asin.imagesCount || 0;
                 if (rawData.image_count?.includes('<li')) {
@@ -1703,6 +1783,7 @@ class MarketDataSyncService {
                     }
                 }
                 const bulletCount = bulletPointsText.length || parseInt(rawData.bulletPoints || rawData.bullet_points_count || 0);
+                const dealBadge = (rawData.deal_badge && rawData.deal_badge !== 'null' && rawData.deal_badge !== '') ? rawData.deal_badge.trim() : asin.dealBadge || 'No deal found';
                 
                 const updateData = {
                     $set: {
@@ -1720,6 +1801,11 @@ class MarketDataSyncService {
                         imageUrl: mainImageUrl || asin.mainImageUrl,
                         imagesCount: imagesCount,
                         hasAplus: hasAplus,
+                        aplusAbsentSince: aplusAbsentSince,
+                        aplusPresentSince: aplusPresentSince,
+                        availabilityStatus: availabilityStatus,
+                        ratingBreakdown: ratingBreakdown,
+                        dealBadge: dealBadge,
                         bulletPoints: bulletCount,
                         bulletPointsText: bulletPointsText,
                         stockLevel: this._cleanStock(rawData.stock || rawData.inventory || 0),

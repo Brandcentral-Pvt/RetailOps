@@ -40,7 +40,7 @@ import DataTable from '../components/DataTable';
 import api, { seedApi } from '../services/api';
 import Card from '../components/common/Card';
 import PageHeader from '../components/common/PageHeader';
-import { SkeletonKpiCard } from '../components/common/Skeleton';
+import { SkeletonKpiCard, SkeletonChart } from '../components/common/Skeleton';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { format } from 'date-fns';
@@ -244,12 +244,12 @@ const Dashboard = () => {
           ))}
         </div>
         {/* Chart Skeletons */}
-        <div className="row g-3 mb-3">
+        <div className="row g-2 mb-2">
           <div className="col-lg-8">
-            {/* <SkeletonChart height={280} /> */}
+            {/* <SkeletonChart height={240} /> */}
           </div>
           <div className="col-lg-4">
-            {/* <SkeletonChart height={280} /> */}
+            {/* <SkeletonChart height={240} /> */}
           </div>
         </div>
       </div>
@@ -309,7 +309,7 @@ const Dashboard = () => {
       />
 
       {/* Standardized Metric Grid */}
-      <div className="row g-3 mb-4">
+      <div className="row g-2 mb-2">
         {data.kpis.map((kpi, idx) => (
           <div key={idx} className="col-md-3 col-6">
             <NumberChart
@@ -324,7 +324,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <div className="row g-3 mb-3">
+      <div className="row g-2 mb-2">
         {/* Main Area Chart */}
         <div className="col-lg-8">
           <Card
@@ -332,8 +332,8 @@ const Dashboard = () => {
             icon={TrendingUp}
             extra={<span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 rounded-pill smallest">ADS SPEND VS REVENUE</span>}
           >
-            <Box sx={{ width: '100%', height: 300, mt: 2 }}>
-              <Suspense fallback={<div className="d-flex align-items-center justify-content-center h-100"><SkeletonChart height={300} /></div>}>
+            <Box sx={{ width: '100%', height: data.adsPerformanceSeries.length > 0 ? 240 : 120, mt: 2 }}>
+              <Suspense fallback={<div className="d-flex align-items-center justify-content-center h-100"><SkeletonChart height={240} /></div>}>
                 {data.adsPerformanceSeries.length > 0 ? (
                   <BarChart
                     series={data.adsPerformanceSeries.map(s => ({
@@ -351,13 +351,15 @@ const Dashboard = () => {
                       valueFormatter: (val) => val >= 1000 ? `₹${(val / 1000).toFixed(1)}K` : `₹${val}`,
                       tickLabelStyle: { fontSize: 9, fill: '#94a3b8' }
                     }]}
-                    height={300}
+                    height={240}
                     margin={{ top: 20, bottom: 40, left: 60, right: 20 }}
                     colors={['#06b6d4', '#f59e0b']} // Ad Sales (Teal), Ad Spend (Orange)
                   />
                 ) : (
-                  <div className="d-flex align-items-center justify-content-center h-100 text-muted smallest">
-                    No ads performance data available for this period.
+                  <div className="d-flex flex-column align-items-center justify-content-center h-100 p-3 rounded" style={{ backgroundColor: 'var(--color-surface-2)', border: '1px dashed var(--color-border)' }}>
+                    <TrendingUp size={24} className="text-muted mb-2 opacity-50" />
+                    <span className="text-muted fw-bold" style={{ fontSize: '11px' }}>AWAITING PIPELINE DATA</span>
+                    <span className="text-muted text-center mt-1" style={{ fontSize: '9px', maxWidth: '200px' }}>To view daily ad performance, ensure the ad data pipeline has synchronized at least one report.</span>
                   </div>
                 )}
               </Suspense>
@@ -368,12 +370,15 @@ const Dashboard = () => {
         {/* Portfolio Distribution (Donut) */}
         <div className="col-lg-4">
           <Card title="Portfolio Mix" icon={PieChart}>
-            <div className="d-flex align-items-center justify-content-center h-100">
-              <Suspense fallback={<SkeletonChart height={300} />}>
+            <div className={`d-flex align-items-center justify-content-center ${data.categoryData.length > 0 ? 'h-100' : ''}`} style={{ minHeight: data.categoryData.length > 0 ? '240px' : '120px' }}>
+              <Suspense fallback={<SkeletonChart height={240} />}>
                 {data.categoryData.length > 0 ? (
-                  <Chart options={donutChartOptions} series={data.categoryData.map(c => c.data[0])} type="donut" width="100%" height={300} />
+                  <Chart options={donutChartOptions} series={data.categoryData.map(c => c.data[0])} type="donut" width="100%" height={240} />
                 ) : (
-                  <div className="text-muted smallest">No category data</div>
+                  <div className="d-flex flex-column align-items-center justify-content-center w-100 h-100 p-3 rounded" style={{ backgroundColor: 'var(--color-surface-2)', border: '1px dashed var(--color-border)' }}>
+                     <PieChart size={24} className="text-muted mb-2 opacity-50" />
+                     <span className="text-muted fw-bold" style={{ fontSize: '11px' }}>NO CATEGORY MIX</span>
+                  </div>
                 )}
               </Suspense>
             </div>
@@ -382,19 +387,26 @@ const Dashboard = () => {
       </div>
 
       {/* Stacked Bar Chart Row */}
-      <div className="row g-3 mb-3">
+      <div className="row g-2 mb-2">
         <div className="col-12">
           <Card title="Monthly Performance Breakdown" icon={BarChart2} extra={<span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill smallest">STACKED PERFORMANCE</span>}>
-            <div style={{ minHeight: '300px' }}>
-              <Suspense fallback={<SkeletonChart height={300} />}>
-                <Chart options={stackedBarOptions} series={data.stackedBarSeries} type="bar" height={300} />
+            <div style={{ minHeight: data.stackedBarSeries.some(s => s.data.some(d => d > 0)) ? '240px' : '120px' }}>
+              <Suspense fallback={<SkeletonChart height={240} />}>
+                {data.stackedBarSeries.some(s => s.data.some(d => d > 0)) ? (
+                    <Chart options={stackedBarOptions} series={data.stackedBarSeries} type="bar" height={240} />
+                ) : (
+                    <div className="d-flex flex-column align-items-center justify-content-center w-100 h-100 p-3 rounded" style={{ height: '120px', backgroundColor: 'var(--color-surface-2)', border: '1px dashed var(--color-border)' }}>
+                        <BarChart2 size={24} className="text-muted mb-2 opacity-50" />
+                        <span className="text-muted fw-bold" style={{ fontSize: '11px' }}>INSUFFICIENT PERFORMANCE DATA</span>
+                    </div>
+                )}
               </Suspense>
             </div>
           </Card>
         </div>
       </div>
 
-      <div className="row g-3 mb-3">
+      <div className="row g-2 mb-2">
         {/* Quick Access Column - 3-column grid of action cards */}
         <div className="col-lg-3">
           <div style={{
@@ -593,7 +605,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="row g-3">
+      <div className="row g-2 mb-2">
         {/* Alerts / Activity */}
         <div className="col-lg-4">
           <Card
@@ -652,7 +664,7 @@ const Dashboard = () => {
 
         {/* Dynamic Intelligence Hubs */}
         <div className="col-lg-8">
-          <div className="row g-3">
+          <div className="row g-2">
             {/* Ads Intelligence Hub */}
             <div className="col-md-6">
               <Card title="Advertising Stats" icon={Target}>
@@ -713,6 +725,57 @@ const Dashboard = () => {
               </Card>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="row g-2">
+        <div className="col-12">
+          <Card title="Top ASIN / SKU Intelligence" icon={FileBarChart} extra={<span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 rounded-pill smallest">TOP PERFORMERS</span>}>
+            <div className="table-responsive">
+              <table className="table table-hover table-sm mb-0 align-middle">
+                <thead className="table-light">
+                  <tr>
+                    <th className="text-muted" style={{ fontSize: '10px', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>RANK</th>
+                    <th className="text-muted" style={{ fontSize: '10px', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>PRODUCT</th>
+                    <th className="text-muted" style={{ fontSize: '10px', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>CATEGORY</th>
+                    <th className="text-muted text-end" style={{ fontSize: '10px', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>UNIT SALES</th>
+                    <th className="text-muted text-end" style={{ fontSize: '10px', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>REVENUE</th>
+                    <th className="text-muted text-end" style={{ fontSize: '10px', fontWeight: 600, borderBottom: '1px solid var(--color-border)' }}>ACOS</th>
+                  </tr>
+                </thead>
+                <tbody style={{ borderTop: 'none' }}>
+                  {data.topProducts?.length > 0 ? data.topProducts.map((p, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-surface-2)' }}>
+                      <td style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)' }}>#{p.rank || idx + 1}</td>
+                      <td>
+                        <div className="d-flex flex-column">
+                          <span className="fw-bold text-truncate" style={{ fontSize: '12px', maxWidth: '300px', color: 'var(--color-text-primary)' }}>{p.title}</span>
+                          <span className="text-muted font-monospace" style={{ fontSize: '10px' }}>{p.sku} | {p.asin}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge bg-secondary-subtle text-secondary" style={{ fontSize: '9px', textTransform: 'uppercase' }}>
+                          {p.category}
+                        </span>
+                      </td>
+                      <td className="text-end fw-bold" style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{p.units?.toLocaleString()}</td>
+                      <td className="text-end fw-bold text-success" style={{ fontSize: '12px' }}>₹{p.revenue?.toLocaleString()}</td>
+                      <td className="text-end fw-bold" style={{ fontSize: '12px', color: p.acos && p.acos !== '0.0%' ? '#f59e0b' : 'var(--color-text-muted)' }}>{p.acos}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-4">
+                        <div className="d-flex flex-column align-items-center justify-content-center">
+                          <Package size={24} className="text-muted mb-2 opacity-50" />
+                          <span className="text-muted fw-bold" style={{ fontSize: '11px' }}>NO PRODUCT DATA</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

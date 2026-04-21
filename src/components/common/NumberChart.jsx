@@ -20,8 +20,8 @@ const NumberChart = ({
     const DeltaIcon = deltaConfig.icon;
 
     return (
-        <div className="glass-card hover-lift p-3 h-100" style={{ borderRadius: '16px' }}>
-            <div className="d-flex justify-content-between align-items-start mb-2">
+        <div className="glass-card hover-lift p-2 px-3 h-100" style={{ borderRadius: '16px' }}>
+            <div className="d-flex justify-content-between align-items-start mb-1">
                 <div
                     className="d-flex align-items-center justify-content-center"
                     style={{

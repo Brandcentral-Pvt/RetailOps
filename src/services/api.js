@@ -210,18 +210,6 @@ export const marketSyncApi = {
     return res.json();
   },
 
-  syncAsin: async (asinId) => {
-    const res = await fetch(`${API_BASE}/market-sync/sync/${asinId}`, {
-      method: 'POST',
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Failed to sync ASIN');
-    }
-    return res.json();
-  },
-
   getPoolStatus: async () => {
     const res = await fetch(`${API_BASE}/market-sync/pool-status`, {
       headers: { ...getAuthHeader() },
@@ -470,7 +458,15 @@ export const roleApi = {
 // Seller API
 export const sellerApi = {
   getAll: async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    // Filter out null, undefined, or empty strings to keep URL clean
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        acc[key] = val;
+      }
+      return acc;
+    }, {});
+
+    const query = new URLSearchParams(cleanParams).toString();
     const res = await fetch(`${API_BASE}/sellers?${query}`, {
       headers: { ...getAuthHeader() },
     });
@@ -647,6 +643,19 @@ export const asinApi = {
     if (!res.ok) {
       const error = await res.json();
       throw new Error(error.error || 'Failed to import CSV');
+    }
+    return res.json();
+  },
+
+  bulkDelete: async (ids) => {
+    const res = await fetch(`${API_BASE}/asins/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to bulk delete ASINs');
     }
     return res.json();
   },

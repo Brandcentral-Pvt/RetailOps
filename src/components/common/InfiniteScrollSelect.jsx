@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, ChevronDown, Check, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, Check, Loader2, X } from 'lucide-react';
 
 /**
  * InfiniteScrollSelect - A premium custom dropdown with lazy loading and search.
@@ -134,6 +134,12 @@ const InfiniteScrollSelect = ({
         setIsOpen(false);
     };
 
+    const handleClear = (e) => {
+        e.stopPropagation(); // prevent opening dropdown
+        onSelect('');
+        setSelectedLabel('');
+    };
+
     return (
         <div ref={dropdownRef} className="infinite-select-container" style={{ position: 'relative', width: '100%' }}>
             {/* Display / Trigger */}
@@ -141,10 +147,21 @@ const InfiniteScrollSelect = ({
                 className={`infinite-select-trigger ${isOpen ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
                 onClick={handleToggle}
             >
-                <span className={`selected-value ${!selectedLabel ? 'placeholder' : ''}`}>
+                <span className={`selected-value ${!selectedLabel ? 'select-placeholder' : ''}`}>
                     {selectedLabel || placeholder}
                 </span>
-                <ChevronDown size={14} className={`chevron ${isOpen ? 'rotate' : ''}`} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {selectedLabel && (
+                        <div 
+                            onClick={handleClear} 
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px', cursor: 'pointer', borderRadius: '50%' }}
+                            className="clear-icon-wrapper"
+                        >
+                            <X size={12} className="clear-icon" />
+                        </div>
+                    )}
+                    <ChevronDown size={14} className={`chevron ${isOpen ? 'rotate' : ''}`} />
+                </div>
             </div>
 
             {/* Dropdown Content */}
@@ -232,7 +249,7 @@ const InfiniteScrollSelect = ({
                     text-overflow: ellipsis;
                     white-space: nowrap;
                 }
-                .selected-value.placeholder {
+                .selected-value.select-placeholder {
                     color: #71717a;
                     font-weight: 400;
                 }
@@ -242,6 +259,13 @@ const InfiniteScrollSelect = ({
                 }
                 .chevron.rotate {
                     transform: rotate(180deg);
+                }
+                .clear-icon {
+                    color: #a1a1aa;
+                    transition: color 0.1s;
+                }
+                .clear-icon-wrapper:hover .clear-icon {
+                    color: #ef4444;
                 }
                 .infinite-select-dropdown {
                     position: absolute;

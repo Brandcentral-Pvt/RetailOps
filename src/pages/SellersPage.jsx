@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import DataTable from '../components/DataTable';
 import ListView from '../components/common/ListView';
 import ProgressBar from '../components/common/ProgressBar';
@@ -78,17 +79,21 @@ const SellersPage = () => {
   const [loadingAsins, setLoadingAsins] = useState(false);
   const { addToast } = useToast();
 
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   useEffect(() => {
     loadSellers();
+  }, [page, limit, activeTab, marketplaceFilter, statusFilter, debouncedSearchQuery]);
+
+  useEffect(() => {
     if (isGlobalUser) {
       fetchPoolStats();
     }
-  }, [isGlobalUser, currentUser]);
+  }, [isGlobalUser]);
 
   useEffect(() => {
     setPage(1);
-  }, [activeTab, marketplaceFilter, statusFilter, searchQuery]);
+  }, [activeTab, marketplaceFilter, statusFilter, debouncedSearchQuery]);
 
   const fetchPoolStats = useCallback(async () => {
     try {
@@ -104,71 +109,49 @@ const SellersPage = () => {
   const loadSellers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await sellerApi.getAll({ limit: 10000 });
+      const response = await sellerApi.getAll({
+        page,
+        limit,
+        status: statusFilter !== 'all' ? statusFilter : activeTab !== 'all' ? activeTab : undefined,
+        marketplace: marketplaceFilter !== 'all' ? marketplaceFilter : undefined,
+        search: debouncedSearchQuery || undefined
+      });
+
       let extractedSellers = [];
+      let total = 0;
+
       if (response) {
         if (response.success && response.data) {
           extractedSellers = response.data.sellers || (Array.isArray(response.data) ? response.data : []);
+          // Support both backend formats (paginated and legacy)
+          total = response.data.pagination?.total || response.data.total || extractedSellers.length;
         } else if (response.sellers && Array.isArray(response.sellers)) {
           extractedSellers = response.sellers;
+          total = response.total || extractedSellers.length;
         } else if (Array.isArray(response)) {
           extractedSellers = response;
+          total = response.length;
         } else if (response.data && Array.isArray(response.data)) {
           extractedSellers = response.data;
+          total = extractedSellers.length;
         }
       }
       setSellers(extractedSellers);
+      setTotalItems(total);
     } catch (error) {
       addToast('Network error: Could not connect to data service', 'error');
       setSellers([]);
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [page, limit, activeTab, marketplaceFilter, statusFilter, debouncedSearchQuery, addToast]);
 
-  const { filteredSellers, paginatedSellers, totalResults } = useMemo(() => {
-    if (!Array.isArray(sellers)) {
-      return { filteredSellers: [], paginatedSellers: [], totalResults: 0 };
-    }
-
-    let filtered = [...sellers];
-
-    if (activeTab !== 'all') {
-      const target = activeTab.toLowerCase();
-      filtered = filtered.filter(s =>
-        s.status?.toLowerCase() === target
-      );
-    }
-
-    if (marketplaceFilter !== 'all') {
-      filtered = filtered.filter(s => s.marketplace === marketplaceFilter);
-    }
-
-    if (statusFilter !== 'all') {
-      const target = statusFilter.toLowerCase();
-      filtered = filtered.filter(s =>
-        s.status?.toLowerCase() === target
-      );
-    }
-
-    if (searchQuery) {
-      const search = searchQuery.toLowerCase();
-      filtered = filtered.filter(seller =>
-        (seller.name || '').toLowerCase().includes(search) ||
-        (seller.sellerId || '').toLowerCase().includes(search)
-      );
-    }
-
-    const count = filtered.length;
-    const startIndex = (page - 1) * limit;
-    const paginated = filtered.slice(startIndex, startIndex + limit);
-
+  const { paginatedSellers, totalResults } = useMemo(() => {
     return {
-      filteredSellers: filtered,
-      paginatedSellers: paginated,
-      totalResults: count
+      paginatedSellers: sellers || [],
+      totalResults: totalItems || 0
     };
-  }, [sellers, searchQuery, page, limit, activeTab, marketplaceFilter, statusFilter]);
+  }, [sellers, totalItems]);
 
 
   const handleAddSeller = useCallback(async (sellerData) => {
@@ -417,7 +400,7 @@ const SellersPage = () => {
     }
   }, [addToast]);
 
-  const getStatusBadge = (status, lastScraped) => {
+  const getStatusBadge = useCallback((status, lastScraped) => {
     const isActive = status === 'Active';
     const isRecentlyActive = lastScraped && (new Date() - new Date(lastScraped) < 5 * 60 * 1000);
 
@@ -432,9 +415,9 @@ const SellersPage = () => {
         </span>
       </div>
     );
-  };
+  }, []);
 
-  const getMarketplaceBadge = (marketplace) => {
+  const getMarketplaceBadge = useCallback((marketplace) => {
     const isIN = marketplace === 'amazon.in';
     const isCOM = marketplace === 'amazon.com';
     return (
@@ -448,7 +431,201 @@ const SellersPage = () => {
         {marketplace}
       </span>
     );
-  };
+  }, []);
+
+  // Memoized Actions for ListView
+  const renderActions = useCallback((seller) => (
+    <div className="d-flex align-items-center gap-1">
+      <button
+        className="btn-white-icon"
+        onClick={() => handleEditSeller(seller)}
+        title="Edit Seller Details"
+      >
+        <Edit3 size={16} />
+      </button>
+      <button
+        className="btn-white-icon"
+        onClick={() => handleViewAsins(seller)}
+        title="Manage ASINs"
+      >
+        <Package size={16} />
+      </button>
+      <button
+        className="btn-white-icon"
+        onClick={() => handleFullSync(seller._id)}
+        title="Sync Global Data"
+      >
+        <RefreshCw size={16} />
+      </button>
+      <button
+        className={seller.status === 'Active' ? 'btn-white-icon' : 'btn-white-icon btn-success-icon bg-success border-success text-white'}
+        onClick={() => handleToggleStatus(seller._id)}
+        title={seller.status === 'Active' ? 'Pause Store' : 'Resume Store'}
+        style={seller.status !== 'Active' ? { background: 'var(--green)', border: 'none', color: '#fff' } : {}}
+      >
+        {seller.status === 'Active' ? <Pause size={16} /> : <Play size={16} />}
+      </button>
+
+      {hasPermission('sellers_delete') && (
+        <button
+          className="btn-white-icon text-danger border-danger-subtle hover-bg-danger-subtle"
+          onClick={() => handleDeleteSeller(seller._id)}
+          title="Delete Seller & ASINs"
+          style={{ color: '#ef4444' }}
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
+
+      <div className="dropdown">
+        <button
+          className="btn-white-icon border-0 bg-transparent text-zinc-400 hover-text-zinc-900"
+          type="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
+          <MoreHorizontal size={18} />
+        </button>
+        <ul className="dropdown-menu dropdown-menu-end border-0 shadow-xl rounded-4 p-2 bg-white" style={{ minWidth: '180px', zIndex: 1060 }}>
+          <div className="px-3 py-2 border-bottom border-zinc-100 mb-2">
+            <div className="smallest fw-bold text-zinc-500 text-uppercase tracking-widest">Management</div>
+          </div>
+          {isGlobalUser && (
+            <li>
+              <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2" onClick={() => handleEditSeller(seller)}>
+                <Edit3 size={16} strokeWidth={2} className="text-zinc-600" />
+                <span className="text-zinc-700 fw-medium">Edit Details</span>
+              </button>
+            </li>
+          )}
+          {hasPermission('sellers_delete') && (
+            <li>
+              <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2 text-danger" onClick={() => handleDeleteSeller(seller._id)}>
+                <Trash2 size={16} strokeWidth={2} />
+                <span className="fw-semibold">Delete Store</span>
+              </button>
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
+  ), [handleEditSeller, handleViewAsins, handleFullSync, handleToggleStatus, handleDeleteSeller, hasPermission, isGlobalUser]);
+
+  const listViewColumns = useMemo(() => [
+    {
+      label: 'Store Details',
+      key: 'name',
+      width: '30%',
+      render: (_, seller) => (
+        <div className="d-flex align-items-center gap-3 py-1">
+          <div
+            className="seller-avatar d-flex align-items-center justify-content-center fw-bold shadow-sm"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #0145f2, #0138cc)',
+              color: '#fff',
+              fontSize: '11px',
+              letterSpacing: '0.05em'
+            }}
+          >
+            {seller.name?.slice(0, 3).toUpperCase() || 'SEL'}
+          </div>
+          <div>
+            <div className="fw-bold text-zinc-900" style={{ fontSize: '13px' }}>{seller.name}</div>
+            <div className="text-zinc-500 d-flex align-items-center gap-1" style={{ fontSize: '11px', marginTop: '2px' }}>
+              <span className="font-monospace opacity-75">{seller.sellerId}</span>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      label: 'Account Manager',
+      key: 'managers',
+      width: '18%',
+      render: (managers) => (
+        <div className="d-flex flex-column gap-1">
+          {managers?.length > 0 ? (
+            managers.map((m) => (
+              <div key={m._id} className="d-flex align-items-center gap-2">
+                <div
+                  className="rounded-circle border border-white shadow-sm d-flex align-items-center justify-content-center bg-zinc-100 text-zinc-900 fw-bold"
+                  style={{ width: '22px', height: '22px', flexShrink: 0, fontSize: '9px' }}
+                >
+                  {m.firstName?.charAt(0)}{m.lastName?.charAt(0)}
+                </div>
+                <span className="text-zinc-700 fw-medium" style={{ fontSize: '11px' }}>
+                  {m.firstName} {m.lastName}
+                </span>
+              </div>
+            ))
+          ) : (
+            <span className="text-zinc-400 smallest italic opacity-50">Unassigned</span>
+          )}
+        </div>
+      )
+    },
+    {
+      label: 'Inventory',
+      key: 'totalAsins',
+      width: '12%',
+      render: (total, seller) => (
+        <div className="d-flex align-items-center justify-content-between group pe-2">
+          <div className="d-flex align-items-center gap-2 cursor-pointer" onClick={() => handleViewAsins(seller)}>
+            <Package size={14} className="text-zinc-500 group-hover:text-primary transition-colors" />
+            <div>
+              <div className="fw-bold text-zinc-900" style={{ fontSize: '12px' }}>{total || 0}</div>
+              <div className="text-zinc-500 smallest" style={{ fontSize: '10px' }}>{seller.activeAsins || 0} Live</div>
+            </div>
+          </div>
+          <button 
+            className="btn-white-icon smaller border border-zinc-200 opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:bg-zinc-50"
+            onClick={(e) => { e.stopPropagation(); handleViewAsins(seller); }}
+            title="Add ASINs to this Store"
+          >
+            <Plus size={11} className="text-zinc-600" />
+          </button>
+        </div>
+      )
+    },
+    {
+      label: 'Quota Usage',
+      key: 'scrapeUsed',
+      width: '10%',
+      render: (used, seller) => {
+        const limit = seller.scrapeLimit || 100;
+        const ratio = used / limit;
+        return (
+          <div className="d-flex flex-column gap-1 pe-2">
+            <ProgressBar
+              value={ratio * 100}
+              color={ratio > 0.8 ? 'danger' : ratio > 0.5 ? 'warning' : 'primary'}
+              size="xs"
+            />
+            <div className="text-zinc-500 d-flex align-items-center gap-1 mt-1" style={{ fontSize: '10px' }}>
+              <Clock size={10} />
+              <span>{seller.lastScraped ? new Date(seller.lastScraped).toLocaleDateString() : 'Never'}</span>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      label: 'Status',
+      key: 'status',
+      width: '10%',
+      render: (status, seller) => getStatusBadge(status, seller.lastScraped)
+    }
+  ], [handleViewAsins, getStatusBadge]);
+
+  const renderGroupHeader = useCallback(({ group, rows }) => (
+    <div className="d-flex align-items-center gap-2">
+      {getMarketplaceBadge(group)}
+      <span className="text-muted smallest fw-bold">{rows.length} STORES</span>
+    </div>
+  ), [getMarketplaceBadge]);
 
   if (loading && sellers.length === 0) { return <PageLoader message="Loading Sellers..." />; }
 
@@ -527,14 +704,14 @@ const SellersPage = () => {
 
           <div className="d-flex align-items-center justify-content-between p-3 border-bottom border-zinc-100 flex-wrap gap-3">
             <div className="nav-pills-container bg-zinc-100 p-1 rounded-pill d-inline-flex border border-zinc-200">
-              {['all', 'active', 'paused'].map(tab => (
+              {['all', 'Active', 'Paused'].map(tab => (
                 <button
                   key={tab}
                   className={`btn btn-sm px-4 rounded-pill border-0 transition-all fw-bold smallest ${activeTab === tab ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500'}`}
                   style={activeTab === tab ? { backgroundColor: '#18181B' } : {}}
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === 'all' ? 'All' : tab}
                 </button>
               ))}
             </div>
@@ -570,225 +747,41 @@ const SellersPage = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
+                <option value="Active">Active</option>
+                <option value="Paused">Paused</option>
               </select>
             </div>
           </div>
         </div>
 
         <div className="card-body p-0 min-h-400 position-relative">
-          {loading ? (
-            <div className="d-flex flex-column align-items-center justify-content-center py-5 gap-3" style={{ minHeight: '300px' }}>
-              <ProgressBar indeterminate />
-              <div className="smallest fw-bold text-zinc-400 text-uppercase tracking-widest mt-2">Loading Storefronts...</div>
-            </div>
-          ) : (
-            <ListView
-              columns={[
-                {
-                  label: 'Store Details',
-                  key: 'name',
-                  width: '30%',
-                  render: (_, seller) => (
-                    <div className="d-flex align-items-center gap-3 py-1">
-                      <div
-                        className="seller-avatar d-flex align-items-center justify-content-center fw-bold shadow-sm"
-                        style={{
-                          width: '42px',
-                          height: '42px',
-                          borderRadius: '12px',
-                          background: 'linear-gradient(135deg, #0145f2, #0138cc)',
-                          color: '#fff',
-                          fontSize: '11px',
-                          letterSpacing: '0.05em'
-                        }}
-                      >
-                        {seller.name.slice(0, 3).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="fw-bold text-zinc-900" style={{ fontSize: '13px' }}>{seller.name}</div>
-                        <div className="text-zinc-500 d-flex align-items-center gap-1" style={{ fontSize: '11px', marginTop: '2px' }}>
-                          <span className="font-monospace opacity-75">{seller.sellerId}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                },
-                {
-                  label: 'Account Manager',
-                  key: 'managers',
-                  width: '18%',
-                  render: (managers) => (
-                    <div className="d-flex flex-column gap-1">
-                      {managers?.length > 0 ? (
-                        managers.map((m) => (
-                          <div key={m._id} className="d-flex align-items-center gap-2">
-                            <div
-                              className="rounded-circle border border-white shadow-sm d-flex align-items-center justify-content-center bg-zinc-100 text-zinc-900 fw-bold"
-                              style={{ width: '22px', height: '22px', flexShrink: 0, fontSize: '9px' }}
-                            >
-                              {m.firstName.charAt(0)}{m.lastName.charAt(0)}
-                            </div>
-                            <span className="text-zinc-700 fw-medium" style={{ fontSize: '11px' }}>
-                              {m.firstName} {m.lastName}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <span className="text-zinc-400 smallest italic opacity-50">Unassigned</span>
-                      )}
-                    </div>
-                  )
-                },
-                {
-                  label: 'Inventory',
-                  key: 'totalAsins',
-                  width: '10%',
-                  render: (total, seller) => (
-                    <div className="d-flex align-items-center gap-2 cursor-pointer group" onClick={() => handleViewAsins(seller)}>
-                      <Package size={14} className="text-zinc-500 group-hover:text-primary transition-colors" />
-                      <div>
-                        <div className="fw-bold text-zinc-900" style={{ fontSize: '12px' }}>{total || 0}</div>
-                        <div className="text-zinc-500 smallest" style={{ fontSize: '10px' }}>{seller.activeAsins || 0} Live</div>
-                      </div>
-                    </div>
-                  )
-                },
-                {
-                  label: 'Quota Usage',
-                  key: 'scrapeUsed',
-                  width: '10%',
-                  render: (used, seller) => {
-                    const limit = seller.scrapeLimit || 100;
-                    const ratio = used / limit;
-                    return (
-                      <div className="d-flex flex-column gap-1 pe-2">
-                        <ProgressBar
-                          value={ratio * 100}
-                          color={ratio > 0.8 ? 'danger' : ratio > 0.5 ? 'warning' : 'primary'}
-                          size="xs"
-                        />
-                        <div className="text-zinc-500 d-flex align-items-center gap-1 mt-1" style={{ fontSize: '10px' }}>
-                          <Clock size={10} />
-                          <span>{seller.lastScraped ? new Date(seller.lastScraped).toLocaleDateString() : 'Never'}</span>
-                        </div>
-                      </div>
-                    );
-                  }
-                },
-                {
-                  label: 'Status',
-                  key: 'status',
-                  width: '10%',
-                  render: (status, seller) => getStatusBadge(status, seller.lastScraped)
-                }
-              ]}
-              rows={paginatedSellers}
-              groupBy="marketplace"
-              rowKey="_id"
-              options={{ selectable: true }}
-              renderGroupHeader={({ group, rows }) => (
-                <div className="d-flex align-items-center gap-2">
-                  {getMarketplaceBadge(group)}
-                  <span className="text-muted smallest fw-bold">{rows.length} STORES</span>
-                </div>
-              )}
-              actions={(seller) => (
-                <div className="d-flex align-items-center gap-1">
-                  <button
-                    className="btn-white-icon"
-                    onClick={() => handleEditSeller(seller)}
-                    title="Edit Seller Details"
-                  >
-                    <Edit3 size={16} />
-                  </button>
-                  <button
-                    className="btn-white-icon"
-                    onClick={() => handleViewAsins(seller)}
-                    title="Manage ASINs"
-                  >
-                    <Package size={16} />
-                  </button>
-                  <button
-                    className="btn-white-icon"
-                    onClick={() => handleFullSync(seller._id)}
-                    title="Sync Global Data"
-                  >
-                    <RefreshCw size={16} />
-                  </button>
-                  <button
-                    className={seller.status === 'Active' ? 'btn-white-icon' : 'btn-white-icon btn-success-icon bg-success border-success text-white'}
-                    onClick={() => handleToggleStatus(seller._id)}
-                    title={seller.status === 'Active' ? 'Pause Store' : 'Resume Store'}
-                    style={seller.status !== 'Active' ? { background: 'var(--green)', border: 'none', color: '#fff' } : {}}
-                  >
-                    {seller.status === 'Active' ? <Pause size={16} /> : <Play size={16} />}
-                  </button>
-
-                  {hasPermission('sellers_delete') && (
-                    <button
-                      className="btn-white-icon text-danger border-danger-subtle hover-bg-danger-subtle"
-                      onClick={() => handleDeleteSeller(seller._id)}
-                      title="Delete Seller & ASINs"
-                      style={{ color: '#ef4444' }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-
-                  <div className="dropdown">
-                    <button
-                      className="btn-white-icon border-0 bg-transparent text-zinc-400 hover-text-zinc-900"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
-                    <ul className="dropdown-menu dropdown-menu-end border-0 shadow-xl rounded-4 p-2 bg-white" style={{ minWidth: '180px', zIndex: 1060 }}>
-                      <div className="px-3 py-2 border-bottom border-zinc-100 mb-2">
-                        <div className="smallest fw-bold text-zinc-500 text-uppercase tracking-widest">Management</div>
-                      </div>
-                      {isGlobalUser && (
-                        <li>
-                          <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2" onClick={() => handleEditSeller(seller)}>
-                            <Edit3 size={16} strokeWidth={2} className="text-zinc-600" />
-                            <span className="text-zinc-700 fw-medium">Edit Details</span>
-                          </button>
-                        </li>
-                      )}
-                      {hasPermission('sellers_delete') && (
-                        <li>
-                          <button className="dropdown-item rounded-3 d-flex align-items-center gap-3 py-2 text-danger" onClick={() => handleDeleteSeller(seller._id)}>
-                            <Trash2 size={16} strokeWidth={2} />
-                            <span className="fw-semibold">Delete Store</span>
-                          </button>
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              )}
-              pagination={{
-                page,
-                limit,
-                total: totalResults,
-                onPageChange: setPage,
-                onLimitChange: (newLimit) => {
-                  setLimit(newLimit);
-                  setPage(1);
-                }
-              }}
-              actionWidth="100px"
-              emptyState={{
-                icon: Store,
-                title: 'No sellers yet',
-                description: 'Add your first Amazon seller account to start tracking performance.',
-                action: { label: 'Add Seller', onClick: () => setShowAddModal(true) }
-              }}
-            />
-          )}
+          <ListView
+            columns={listViewColumns}
+            rows={paginatedSellers}
+            loading={loading}
+            groupBy="marketplace"
+            rowKey="_id"
+            options={{ selectable: true }}
+            renderGroupHeader={renderGroupHeader}
+            actions={renderActions}
+            pagination={{
+              page,
+              limit,
+              total: totalResults,
+              onPageChange: setPage,
+              onLimitChange: (newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }
+            }}
+            actionWidth="100px"
+            emptyState={{
+              icon: Store,
+              title: 'No sellers yet',
+              description: 'Add your first Amazon seller account to start tracking performance.',
+              action: { label: 'Add Seller', onClick: () => setShowAddModal(true) }
+            }}
+          />
         </div>
       </div>
 

@@ -5,23 +5,24 @@ const path = require('path');
 const fs = require('fs');
 const marketDataSyncService = require('../services/marketDataSyncService');
 const mongoose = require('mongoose');
+const XLSX = require('xlsx');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 
 // Get all ASINs
 exports.getAsins = async (req, res) => {
   try {
-    const { 
-      seller, status, category, brand, search, 
+    const {
+      seller, status, category, brand, search,
       minPrice, maxPrice, minBSR, maxBSR, minLQS, maxLQS,
       scrapeStatus, buyBoxWin, hasAplus,
-      page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'desc' 
+      page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'desc'
     } = req.query;
     const filter = {};
 
     // [1] User Scope / Seller Filtering
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
-    
+
     if (!isGlobalUser) {
       if (!req.user || !req.user.assignedSellers) {
         return res.json({ asins: [], pagination: { page: 1, limit: parseInt(limit), total: 0 } });
@@ -52,7 +53,7 @@ exports.getAsins = async (req, res) => {
     if (category) filter.category = category;
     if (brand) filter.brand = brand;
     if (scrapeStatus) filter.scrapeStatus = scrapeStatus;
-    
+
     if (buyBoxWin !== undefined && buyBoxWin !== '') {
       filter.buyBoxWin = buyBoxWin === 'true' || buyBoxWin === true;
     }
@@ -84,7 +85,7 @@ exports.getAsins = async (req, res) => {
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     const asins = await Asin.find(filter)
-      .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails')
+      .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs subBsr rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails availabilityStatus aplusAbsentSince aplusPresentSince')
       .populate('seller', 'name marketplace')
       .sort(sortOptions)
       .skip((page - 1) * limit)
@@ -136,7 +137,7 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     // Enforce seller filter for non-admins
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
-    
+
     if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => s._id);
 
@@ -154,7 +155,7 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     if (req.query.brand) filter.brand = req.query.brand;
 
     const asins = await Asin.find(filter)
-      .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails')
+      .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs subBsr rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails availabilityStatus aplusAbsentSince aplusPresentSince')
       .populate('seller', 'name marketplace')
       .sort({ status: 1, title: -1, createdAt: -1 })
       .lean(); // Use lean for faster performance
@@ -185,7 +186,7 @@ exports.getAsinsBySeller = async (req, res) => {
     }
 
     const query = { seller: req.params.sellerId };
-    
+
     const [asins, total] = await Promise.all([
       Asin.find(query)
         .populate('seller', 'name marketplace')
@@ -442,15 +443,15 @@ exports.getAsinStats = async (req, res) => {
 
     // Current week reviews (last 7 days) - from ratingHistory
     const currentWeekReviews = await Asin.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           ...filter,
           ratingHistory: { $exists: true, $ne: [] }
         }
       },
       { $unwind: '$ratingHistory' },
-      { 
-        $match: { 
+      {
+        $match: {
           'ratingHistory.date': { $gte: sevenDaysAgo }
         }
       },
@@ -464,15 +465,15 @@ exports.getAsinStats = async (req, res) => {
 
     // Previous week reviews (7-14 days ago)
     const previousWeekReviews = await Asin.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           ...filter,
           ratingHistory: { $exists: true, $ne: [] }
         }
       },
       { $unwind: '$ratingHistory' },
-      { 
-        $match: { 
+      {
+        $match: {
           'ratingHistory.date': { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }
         }
       },
@@ -486,15 +487,15 @@ exports.getAsinStats = async (req, res) => {
 
     // Two weeks ago (14-21 days) for comparison
     const twoWeeksAgoReviews = await Asin.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           ...filter,
           ratingHistory: { $exists: true, $ne: [] }
         }
       },
       { $unwind: '$ratingHistory' },
-      { 
-        $match: { 
+      {
+        $match: {
           'ratingHistory.date': { $gte: twentyOneDaysAgo, $lt: fourteenDaysAgo }
         }
       },
@@ -511,11 +512,11 @@ exports.getAsinStats = async (req, res) => {
     const twoWeeksTotal = twoWeeksAgoReviews[0]?.total || 0;
 
     // Calculate change percentages
-    const currentVsPreviousChange = previousWeekTotal > 0 
-      ? (((currentWeekTotal - previousWeekTotal) / previousWeekTotal) * 100).toFixed(1) 
+    const currentVsPreviousChange = previousWeekTotal > 0
+      ? (((currentWeekTotal - previousWeekTotal) / previousWeekTotal) * 100).toFixed(1)
       : 0;
-    const previousVsTwoWeeksChange = twoWeeksTotal > 0 
-      ? (((previousWeekTotal - twoWeeksTotal) / twoWeeksTotal) * 100).toFixed(1) 
+    const previousVsTwoWeeksChange = twoWeeksTotal > 0
+      ? (((previousWeekTotal - twoWeeksTotal) / twoWeeksTotal) * 100).toFixed(1)
       : 0;
 
     const avgImages = await Asin.aggregate([
@@ -784,13 +785,19 @@ exports.bulkDeleteAsins = async (req, res) => {
       return res.status(403).json({ error: 'Only Super Administrators can delete ASINs' });
     }
 
-    const sellerIds = [...new Set(asins.map(a => a.seller))];
+    const asinsToDelete = await Asin.find({ _id: { $in: ids } }).select('seller');
+    const sellerIds = [...new Set(asinsToDelete.map(a => a.seller.toString()))];
 
     await Asin.deleteMany({ _id: { $in: ids } });
 
     // Update seller counts
     for (const sellerId of sellerIds) {
-      await updateSellerAsinCount(sellerId);
+      const seller = await Seller.findById(sellerId);
+      if (seller) {
+        const count = await Asin.countDocuments({ seller: sellerId, status: 'Active' });
+        seller.asinCount = count;
+        await seller.save();
+      }
     }
 
     res.json({ message: 'ASINs deleted successfully', deletedCount: ids.length });
@@ -856,7 +863,7 @@ exports.generateImages = async (req, res) => {
     }
 
     const imageUrl = await imageGenerationService.triggerAiImageTask(asin._id);
-    
+
     res.json({
       success: true,
       message: 'AI image generated successfully',
@@ -885,115 +892,152 @@ async function updateSellerAsinCount(sellerId) {
   }
 }
 
-// Import ASINs from CSV (ASIN, SKU, Price)
+// Import ASINs from CSV/Excel (ASIN, SKU)
 exports.importFromCsv = async (req, res) => {
   try {
+    const { sellerId } = req.body;
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const sellerId = req.body.sellerId;
-    if (!sellerId) {
-      return res.status(400).json({ error: 'Seller ID is required' });
+    // [1] Load workbook
+    const workbook = XLSX.readFile(req.file.path);
+
+    // Find the first sheet that actually has data
+    let worksheet = null;
+    let data = [];
+
+    for (const name of workbook.SheetNames) {
+      const sheet = workbook.Sheets[name];
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      if (jsonData && jsonData.length > 0) {
+        worksheet = sheet;
+        data = jsonData;
+        break;
+      }
     }
 
-    // Verify seller exists and user has access
-    const seller = await Seller.findById(sellerId);
-    if (!seller) {
-      return res.status(404).json({ error: 'Seller not found' });
+    if (!data || data.length === 0) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'The file appears to be empty or has no valid headers.' });
     }
 
-    // Read and parse CSV file
-    const fileContent = fs.readFileSync(req.file.path, 'utf8');
-    const lines = fileContent.split('\n').filter(line => line.trim());
-    
-    // Skip header row
-    const dataLines = lines.slice(1);
-    
-    const asins = [];
+    // Helper to find a value by flexible key matching
+    const getValue = (row, possibleKeys) => {
+      const rowKeys = Object.keys(row);
+      const rowKeysClean = rowKeys.map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+      for (const targetKey of possibleKeys) {
+        const cleanTarget = targetKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const index = rowKeysClean.indexOf(cleanTarget);
+        if (index !== -1) return row[rowKeys[index]];
+      }
+      return undefined;
+    };
+
     const errors = [];
-    
-    for (let i = 0; i < dataLines.length; i++) {
-      const line = dataLines[i].trim();
-      if (!line) continue;
-      
-      // Handle both comma and tab delimited
-      const parts = line.includes(',') ? line.split(',') : line.split('\t');
-      
-      if (parts.length < 1) {
-        errors.push(`Row ${i + 2}: Invalid format`);
-        continue;
-      }
-      
-      const asinCode = parts[0]?.trim().toUpperCase();
-      const sku = parts[1]?.trim() || '';
-      const price = parseFloat(parts[2]) || 0;
-      
-      if (!asinCode || asinCode.length < 5) {
-        errors.push(`Row ${i + 2}: Invalid ASIN "${parts[0]}"`);
-        continue;
-      }
-      
-      asins.push({
-        asinCode,
-        sku,
-        uploadedPrice: price,
-        seller: sellerId,
-        status: 'Active',
-        scrapeStatus: 'PENDING'
-      });
-    }
+    const bulkOps = [];
+    let updatedCount = 0;
+    let insertedCount = 0;
 
-    if (asins.length === 0 && errors.length > 0) {
-      return res.status(400).json({ 
-        error: 'No valid ASINs found', 
-        details: errors.slice(0, 5) 
-      });
-    }
+    // [2] Pre-process: Collect all unique identifiers (flexible matching) to fetch existing records in one go
+    const identifiers = [...new Set(data
+      .map(row => {
+        const rawId = getValue(row, ['Identifier', 'ASIN']);
+        return (rawId || '').toString().trim().toUpperCase();
+      })
+      .filter(id => id.length >= 5)
+    )];
 
-    // Check for duplicates
+    // Fetch existing ASINs for this seller and these identifiers in a single query
     const existingAsins = await Asin.find({
-      asinCode: { $in: asins.map(a => a.asinCode) },
-      seller: sellerId
+      seller: sellerId,
+      asinCode: { $in: identifiers }
     }).select('asinCode');
 
     const existingCodes = new Set(existingAsins.map(a => a.asinCode));
-    const newAsins = asins.filter(a => !existingCodes.has(a.asinCode));
-    const duplicates = asins.filter(a => existingCodes.has(a.asinCode)).length;
 
-    // Insert new ASINs
-    let inserted = 0;
-    if (newAsins.length > 0) {
-      await Asin.insertMany(newAsins, { ordered: false });
-      inserted = newAsins.length;
+    // [3] Process rows and build bulk operations
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+
+      // Flexible header matching
+      const rawIdentifier = getValue(row, ['Identifier', 'ASIN']);
+      const identifier = (rawIdentifier || '').toString().trim().toUpperCase();
+
+      const rawSku = getValue(row, ['SKU']);
+      const sku = (rawSku || '').toString().trim();
+
+      if (!identifier || identifier.length < 5) {
+        if (Object.values(row).some(v => v !== "")) {
+          errors.push(`Row ${i + 2}: Missing Identifier (ASIN)`);
+        }
+        continue;
+      }
+
+      if (existingCodes.has(identifier)) {
+        // Prepare update operation
+        bulkOps.push({
+          updateOne: {
+            filter: { asinCode: identifier, seller: sellerId },
+            update: { $set: { sku: sku } }
+          }
+        });
+        updatedCount++;
+      } else {
+        // Prepare insert operation
+        bulkOps.push({
+          insertOne: {
+            document: {
+              asinCode: identifier,
+              sku: sku,
+              seller: sellerId,
+              status: 'Active',
+              scrapeStatus: 'PENDING'
+            }
+          }
+        });
+        insertedCount++;
+      }
     }
 
-    // Clean up uploaded file
-    fs.unlinkSync(req.file.path);
+    // [4] Execute Bulk Operations (maximum performance)
+    if (bulkOps.length > 0) {
+      await Asin.bulkWrite(bulkOps, { ordered: false });
+    }
 
-    // Update seller count
-    await updateSellerAsinCount(sellerId);
+    // [5] Finalization
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
-    // Trigger sync if configured
-    if (marketDataSyncService.isConfigured() && inserted > 0) {
+    const seller = await Seller.findById(sellerId);
+    if (seller) {
+      const count = await Asin.countDocuments({ seller: sellerId, status: 'Active' });
+      seller.asinCount = count;
+      await seller.save();
+    }
+
+    if (marketDataSyncService.isConfigured() && (insertedCount > 0 || updatedCount > 0)) {
       marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { triggerScrape: true })
-        .catch(err => console.error('Sync trigger failed:', err.message));
+        .catch(err => console.error('[import] Sync trigger failed:', err.message));
     }
 
     res.json({
       success: true,
-      message: `Imported ${inserted} ASINs from CSV`,
-      inserted,
-      duplicates,
-      errors: errors.slice(0, 10)
+      message: `Successfully processed ${data.length} rows.`,
+      details: {
+        inserted: insertedCount,
+        updated: updatedCount,
+        ignored: errors.length,
+        sampleErrors: errors.slice(0, 5)
+      }
     });
+
   } catch (error) {
-    console.error('CSV Import Error:', error);
-    // Clean up file if exists
+    console.error('[import] General Error:', error);
     if (req.file && req.file.path) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      try { if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); } catch (e) { }
     }
-    res.status(500).json({ error: error.message || 'Failed to import CSV' });
+    res.status(500).json({ error: error.message || 'Server error during file processing' });
   }
 };
 
@@ -1005,7 +1049,7 @@ exports.getAsinBrands = async (req, res) => {
     const filter = {};
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
-    
+
     if (!isGlobalUser) {
       if (!req.user || !req.user.assignedSellers || req.user.assignedSellers.length === 0) {
         return res.json({ success: true, data: [] });
@@ -1069,7 +1113,7 @@ exports.getAsinFilterOptions = async (req, res) => {
     const filter = {};
     const roleName = req.user?.role?.name || req.user?.role;
     const isGlobalUser = ['admin', 'operational_manager'].includes(roleName);
-    
+
     if (!isGlobalUser) {
       const allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
       filter.seller = { $in: allowedSellerIds };

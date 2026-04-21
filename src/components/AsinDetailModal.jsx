@@ -468,8 +468,18 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
             <div>
               <div className="d-flex align-items-center gap-2">
                 <h4 className="mb-0 fw-bold text-slate-900">{asin.asinCode}</h4>
-                {(asin.category || asin.status) && (
-                  <span className="badge border rounded-pill px-3 py-2"
+                {(asin.category) && (
+                  <div className="d-flex flex-wrap gap-1 align-items-center mt-2" style={{ fontSize: '11px', color: '#64748b' }}>
+                    {asin.category.split('›').map((node, i, arr) => (
+                      <React.Fragment key={i}>
+                        <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 600 }}>{node.trim()}</span>
+                        {i < arr.length - 1 && <span>›</span>}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+                {asin.status && !asin.category && (
+                  <span className="badge border rounded-pill px-3 py-2 mt-2"
                     style={{
                       backgroundColor: '#f8f9fa',
                       color: '#374151',
@@ -478,7 +488,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                       border: '1px solid #e5e7eb'
                     }}
                   >
-                    {asin.category || asin.status}
+                    {asin.status}
                   </span>
                 )}
               </div>

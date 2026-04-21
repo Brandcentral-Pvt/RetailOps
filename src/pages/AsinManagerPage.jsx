@@ -327,6 +327,22 @@ const AsinManagerPage = () => {
     minLQS: '',
     maxLQS: ''
   });
+  
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: '',
+    category: '',
+    brand: '',
+    scrapeStatus: '',
+    buyBoxWin: '',
+    hasAplus: '',
+    minPrice: '',
+    maxPrice: '',
+    minBSR: '',
+    maxBSR: '',
+    minLQS: '',
+    maxLQS: ''
+  });
   const [filterOptions, setFilterOptions] = useState({
     categories: [],
     brands: [],
@@ -334,18 +350,17 @@ const AsinManagerPage = () => {
     statuses: []
   });
 
-  // Search and Filter Debounce logic
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Don't trigger if it's the initial load (which is handled by other effects)
-      // but do trigger if searching/filtering changes
-      if (searchQuery !== undefined) {
-        setSelectedIds(new Set()); // Reset selection on filter change
-        loadData(1);
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery, filters]);
+  // Explicit Apply Handlers
+  const handleApplySearch = () => {
+    setSelectedIds(new Set()); // Reset selection on new search
+    setAppliedSearchQuery(searchQuery);
+  };
+
+  const handleApplyFilters = () => {
+    setSelectedIds(new Set()); // Reset selection on new filter
+    setAppliedFilters(filters);
+    setFilterPanelOpen(false); // Close drawer automatically on apply
+  };
 
   // Removed client-side filteredAsins useMemo as we now use server-side search
   const filteredAsins = asins;
@@ -444,8 +459,8 @@ const AsinManagerPage = () => {
         page,
         limit,
         seller,
-        search: searchQuery,
-        ...filters,
+        search: appliedSearchQuery,
+        ...appliedFilters,
         sortBy: 'lastScraped',
         sortOrder: 'desc'
       });
@@ -463,7 +478,7 @@ const AsinManagerPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.limit, selectedSeller, searchQuery, filters]);
+  }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters]);
 
 
 
@@ -968,34 +983,6 @@ const AsinManagerPage = () => {
     );
   }
 
-  if (asins.length === 0) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f9fafb' }}>
-        <div className="page-header" style={{ padding: '1.5rem 2rem', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-              <h1 className="page-title mb-1">ASIN Manager</h1>
-              <p className="text-muted small mb-0">Operational Inventory tracking & Listing Quality Metrics</p>
-            </div>
-            <div className="d-flex gap-2">
-              <button className="btn btn-zinc-900 btn-sm shadow-sm border-0 d-flex align-items-center gap-2 px-4 rounded-pill" onClick={() => setShowAddModal(true)} style={{ backgroundColor: '#18181B', color: '#fff' }}>
-                <Plus size={16} />
-                <span className="fw-bold">Add ASIN</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="page-content" style={{ flex: 1 }}>
-          <EmptyState
-            icon={Package}
-            title="No ASINs tracked"
-            description="Add ASINs to start monitoring listings, LQS scores, and performance metrics."
-            action={{ label: 'Add ASINs', onClick: () => setShowAddModal(true) }}
-          />
-        </div>
-      </div>
-    );
-  }
 
   const thStyle = {
     fontSize: '0.66rem',
@@ -1127,16 +1114,24 @@ const AsinManagerPage = () => {
         {/* Toolbar: Filters & Progress */}
         <div className="mt-2 d-flex align-items-center justify-content-between gap-3">
           <div className="d-flex align-items-center gap-2 flex-grow-1">
-            <div className="position-relative" style={{ width: '220px' }}>
+            <div className="position-relative d-flex" style={{ width: '240px' }}>
               <Search className="position-absolute top-50 start-0 translate-middle-y ms-2 text-zinc-400" size={13} />
               <input
                 type="text"
-                className="form-control form-control-xs ps-4 bg-white border border-zinc-200 shadow-none rounded-2 smallest fw-medium"
+                className="form-control form-control-xs ps-4 bg-white border border-zinc-200 shadow-none rounded-start-2 rounded-end-0 smallest fw-medium"
                 placeholder="Search ASIN, SKU..."
                 style={{ height: '28px', fontSize: '11px' }}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleApplySearch(); }}
               />
+              <button 
+                className="btn btn-dark pb-0 pt-0 px-3 rounded-start-0 rounded-end-2 smallest fw-bold"
+                style={{ height: '28px', fontSize: '11px' }}
+                onClick={handleApplySearch}
+              >
+                Find
+              </button>
             </div>
             <div style={{ width: '160px' }}>
               <InfiniteScrollSelect 
@@ -1320,20 +1315,33 @@ const AsinManagerPage = () => {
                   </div>
                 </div>
 
-                {/* Reset Action */}
-                <button
-                  className="btn btn-zinc-outline mt-3 fw-bold smallest"
-                  onClick={() => {
-                    setFilters({
-                      status: '', category: '', brand: '', scrapeStatus: '',
-                      buyBoxWin: '', hasAplus: '',
-                      minPrice: '', maxPrice: '', minBSR: '', maxBSR: '', minLQS: '', maxLQS: ''
-                    });
-                    setSearchQuery('');
-                  }}
-                >
-                  RESET ALL FILTERS
-                </button>
+                {/* Actions */}
+                <div className="d-flex flex-column gap-2 mt-3">
+                  <button
+                    className="btn btn-dark fw-bold smallest w-100"
+                    onClick={handleApplyFilters}
+                  >
+                    APPLY FILTERS
+                  </button>
+                  <button
+                    className="btn btn-zinc-outline fw-bold smallest w-100"
+                    onClick={() => {
+                      const resetState = {
+                        status: '', category: '', brand: '', scrapeStatus: '',
+                        buyBoxWin: '', hasAplus: '',
+                        minPrice: '', maxPrice: '', minBSR: '', maxBSR: '', minLQS: '', maxLQS: ''
+                      };
+                      setFilters(resetState);
+                      setAppliedFilters(resetState);
+                      setSearchQuery('');
+                      setAppliedSearchQuery('');
+                      setSelectedSeller(''); // clear seller selection
+                      setFilterPanelOpen(false); // Close panel on reset
+                    }}
+                  >
+                    RESET ALL FILTERS
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1446,10 +1454,13 @@ const AsinManagerPage = () => {
                     style={{ ...thStyle, background: '#fffbeb', color: '#92400e', textAlign: 'center', cursor: 'pointer', borderBottom: '1px solid #fef3c7' }}>
                     RATING
                   </th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>STATUS</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center' }}>DEAL</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>BUYBOX</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>I</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>B</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>A+</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', color: '#b91c1c' }}>A+ DAYS</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center' }}>ACTIONS</th>
                 </tr>
                 <tr>
@@ -1474,7 +1485,19 @@ const AsinManagerPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredAsins.map((asin, idx) => (
+                {filteredAsins.length === 0 ? (
+                  <tr>
+                    <td colSpan={24} style={{ padding: '60px 0', background: '#fff' }}>
+                      <EmptyState
+                        icon={Package}
+                        title="No ASINs Found"
+                        description="There are no ASINs matching the current filters or seller selection."
+                        action={{ label: 'Add ASINs', onClick: () => setShowAddModal(true) }}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                filteredAsins.map((asin, idx) => (
                   <tr key={asin._id || idx} className="table-row-hover" style={{
                     background: idx % 2 === 0 ? '#fff' : '#f9fafb'
                   }}>
@@ -1544,9 +1567,16 @@ const AsinManagerPage = () => {
                         </td>
                       );
                     }))}
-                    <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#2563eb', cursor: 'pointer' }}
+                    <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
                       onClick={(e) => handleViewBsr(asin, e)}>
-                      {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
+                      <div style={{ fontWeight: 600, color: '#2563eb' }}>
+                        {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
+                      </div>
+                      {asin.subBsr && (
+                        <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80px', margin: '2px auto 0' }} title={asin.subBsr}>
+                          {asin.subBsr}
+                        </div>
+                      )}
                     </td>
                     {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw)
@@ -1582,10 +1612,38 @@ const AsinManagerPage = () => {
                         </td>
                       );
                     }))}
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <span 
+                        className="badge" 
+                        style={{ 
+                          backgroundColor: (asin.availabilityStatus || 'Available').toLowerCase().includes('unavailable') ? '#dc2626' : '#059669',
+                          color: '#fff', 
+                          fontWeight: 600, 
+                          fontSize: '0.75rem', 
+                          whiteSpace: 'nowrap', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          maxWidth: '75px', 
+                          display: 'inline-block', 
+                          verticalAlign: 'middle' 
+                        }}
+                        title={asin.availabilityStatus || 'Available'}
+                      >
+                        {asin.availabilityStatus || 'Available'}
+                      </span>
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'center', fontSize: '9px', fontWeight: 600, color: asin.dealBadge !== 'No deal found' ? '#dc2626' : '#9ca3af' }}>
+                      {asin.dealBadge || '-'}
+                    </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin)}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.imagesCount || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.bulletPoints || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getAplusBadge(asin.hasAplus, asin.status)}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, color: '#dc2626' }}>
+                      {asin.aplusAbsentSince && !asin.hasAplus 
+                        ? Math.floor((Date.now() - new Date(asin.aplusAbsentSince)) / (1000 * 60 * 60 * 24)) 
+                        : '-'}
+                    </td>
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', gap: 3, justifyContent: 'center', height: '100%', alignItems: 'center' }}>
                         <button onClick={() => handleIndividualScrape(asin._id)} disabled={scrapingIds.has(asin._id)}
@@ -1604,7 +1662,7 @@ const AsinManagerPage = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
