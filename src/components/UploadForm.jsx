@@ -23,7 +23,21 @@ const UploadForm = () => {
     setIsFetchingSellers(true);
     try {
       const response = await sellerApi.getAll();
-      setSellers(response.data || []);
+      let extractedSellers = [];
+      
+      if (response) {
+        if (response.success && response.data) {
+          extractedSellers = response.data.sellers || (Array.isArray(response.data) ? response.data : []);
+        } else if (response.sellers && Array.isArray(response.sellers)) {
+          extractedSellers = response.sellers;
+        } else if (Array.isArray(response)) {
+          extractedSellers = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          extractedSellers = response.data;
+        }
+      }
+      
+      setSellers(extractedSellers);
     } catch (err) {
       console.error('Failed to fetch sellers:', err);
       setErrors(['Failed to load sellers. Please try again.']);
@@ -208,7 +222,22 @@ const UploadForm = () => {
       {/* Seller Selection (Octoparse only) */}
       {uploadType === 'octoparse' && (
         <div className="form-group pb-3">
-          <label className="form-label">🏪 Select Seller</label>
+          <label className="form-label d-flex justify-content-between align-items-center">
+            <span>🏪 Select Seller</span>
+            {selectedSeller && (
+              <button 
+                className="btn btn-link p-0 text-primary smallest fw-bold border-0" 
+                style={{ fontSize: '10px', textDecoration: 'none' }}
+                onClick={() => {
+                   // This assumes we have a way to trigger the Global ASIN Add
+                   // For now, let's just make it clear they can add ASINs
+                   window.location.href = '/inventory?add=true&sellerId=' + selectedSeller;
+                }}
+              >
+                + ADD ASINS TO THIS SELLER
+              </button>
+            )}
+          </label>
           <select 
             className={`form-select ${errors.some(e => e.includes('seller')) ? 'is-invalid' : ''}`}
             value={selectedSeller}

@@ -68,16 +68,17 @@ const SellersPage = () => {
   const [marketplaceFilter, setMarketplaceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
-  const [totalItems, setTotalItems] = useState(0);
+   const [page, setPage] = useState(1);
+   const [limit, setLimit] = useState(50);
+   const [totalItems, setTotalItems] = useState(0);
 
-  const [showPoolModal, setShowPoolModal] = useState(false);
-  const [poolStats, setPoolStats] = useState({ total: 0, assigned: 0, available: 0 });
-  const [editingSeller, setEditingSeller] = useState(null);
-  const [asinPagination, setAsinPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
-  const [loadingAsins, setLoadingAsins] = useState(false);
-  const { addToast } = useToast();
+   const [showPoolModal, setShowPoolModal] = useState(false);
+   const [poolStats, setPoolStats] = useState({ total: 0, assigned: 0, available: 0 });
+   const [editingSeller, setEditingSeller] = useState(null);
+   const [asinPagination, setAsinPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
+   const [loadingAsins, setLoadingAsins] = useState(false);
+   const [selectedSellerIds, setSelectedSellerIds] = useState([]);
+   const { addToast } = useToast();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
@@ -356,28 +357,87 @@ const SellersPage = () => {
     }
   }, [selectedSeller, loadSellers, addToast]);
 
-  const handleFullSync = useCallback(async (sellerId) => {
-    if (window.confirm('⚠️ Full Refresh: This will re-inject ALL ASINs and perform a complete re-scrape. This counts toward your daily limit. Continue?')) {
-      setLoading(true);
-      try {
-        const response = await marketSyncApi.syncSellerAsins(sellerId, true);
-        if (response.success) {
-          addToast({
-            title: 'Full Sync Initiated',
-            message: 'Seller full refresh successfully triggered!',
-            type: 'success'
-          });
-        }
-      } catch (error) {
-        addToast({
-          title: 'Sync Failed',
-          message: error.message,
-          type: 'error'
-        });
-      }
-      setLoading(false);
-    }
-  }, [addToast]);
+   const handleFullSync = useCallback(async (sellerId) => {
+     if (window.confirm('⚠️ Full Refresh: This will re-inject ALL ASINs and perform a complete re-scrape. This counts toward your daily limit. Continue?')) {
+       setLoading(true);
+       try {
+         const response = await marketSyncApi.syncSellerAsins(sellerId, true);
+         if (response.success) {
+           addToast({
+             title: 'Full Sync Initiated',
+             message: 'Seller full refresh successfully triggered!',
+             type: 'success'
+           });
+         }
+       } catch (error) {
+         addToast({
+           title: 'Sync Failed',
+           message: error.message,
+           type: 'error'
+         });
+       }
+       setLoading(false);
+     }
+   }, [addToast]);
+
+   const handleSyncSeller = useCallback(async (sellerId) => {
+     setLoading(true);
+     try {
+       const response = await marketSyncApi.syncSellerAsins(sellerId, false);
+       if (response.success) {
+         addToast({
+           title: 'Sync Initiated',
+           message: 'Seller ASIN data sync triggered successfully!',
+           type: 'success'
+         });
+       }
+     } catch (error) {
+       addToast({
+         title: 'Sync Failed',
+         message: error.message,
+         type: 'error'
+       });
+     }
+     setLoading(false);
+   }, [addToast]);
+
+   const handleBulkSync = useCallback(async () => {
+     if (selectedSellerIds.length === 0) return;
+     if (!window.confirm(`Sync ${selectedSellerIds.length} seller(s) with Octoparse? This will trigger scraping for all ASINs under these sellers.`)) return;
+     
+     setLoading(true);
+     let successCount = 0;
+     let errorCount = 0;
+     
+     try {
+       // Sync all selected sellers concurrently
+       await Promise.all(
+         selectedSellerIds.map(async (sellerId) => {
+           try {
+             await marketSyncApi.syncSellerAsins(sellerId, false);
+             successCount++;
+           } catch (err) {
+             errorCount++;
+             console.error(`Sync failed for seller ${sellerId}:`, err.message);
+           }
+         })
+       );
+       
+       addToast({
+         title: 'Bulk Sync Complete',
+         message: `Successfully synced ${successCount} seller(s). ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+         type: errorCount > 0 ? 'warning' : 'success'
+       });
+       setSelectedSellerIds([]);
+     } catch (error) {
+       addToast({
+         title: 'Bulk Sync Failed',
+         message: error.message,
+         type: 'error'
+       });
+     }
+     setLoading(false);
+   }, [selectedSellerIds, addToast]);
 
   const handleIngestAll = useCallback(async () => {
     if (window.confirm('This will immediately check all Octoparse tasks for new results and ingest them into MongoDB. Continue?')) {
@@ -433,49 +493,49 @@ const SellersPage = () => {
     );
   }, []);
 
-  // Memoized Actions for ListView
-  const renderActions = useCallback((seller) => (
-    <div className="d-flex align-items-center gap-1">
-      <button
-        className="btn-white-icon"
-        onClick={() => handleEditSeller(seller)}
-        title="Edit Seller Details"
-      >
-        <Edit3 size={16} />
-      </button>
-      <button
-        className="btn-white-icon"
-        onClick={() => handleViewAsins(seller)}
-        title="Manage ASINs"
-      >
-        <Package size={16} />
-      </button>
-      <button
-        className="btn-white-icon"
-        onClick={() => handleFullSync(seller._id)}
-        title="Sync Global Data"
-      >
-        <RefreshCw size={16} />
-      </button>
-      <button
-        className={seller.status === 'Active' ? 'btn-white-icon' : 'btn-white-icon btn-success-icon bg-success border-success text-white'}
-        onClick={() => handleToggleStatus(seller._id)}
-        title={seller.status === 'Active' ? 'Pause Store' : 'Resume Store'}
-        style={seller.status !== 'Active' ? { background: 'var(--green)', border: 'none', color: '#fff' } : {}}
-      >
-        {seller.status === 'Active' ? <Pause size={16} /> : <Play size={16} />}
-      </button>
+   // Memoized Actions for ListView
+   const renderActions = useCallback((seller) => (
+     <div className="d-flex align-items-center gap-1">
+       <button
+         className="btn-white-icon"
+         onClick={() => handleEditSeller(seller)}
+         title="Edit Seller Details"
+       >
+         <Edit3 size={16} />
+       </button>
+       <button
+         className="btn-white-icon"
+         onClick={() => handleViewAsins(seller)}
+         title="Manage ASINs"
+       >
+         <Package size={16} />
+       </button>
+       <button
+         className="btn-white-icon"
+         onClick={() => handleSyncSeller(seller._id)}
+         title="Sync to Octoparse (Scrape ASINs)"
+       >
+         <RefreshCw size={16} />
+       </button>
+       <button
+         className={seller.status === 'Active' ? 'btn-white-icon' : 'btn-white-icon btn-success-icon bg-success border-success text-white'}
+         onClick={() => handleToggleStatus(seller._id)}
+         title={seller.status === 'Active' ? 'Pause Store' : 'Resume Store'}
+         style={seller.status !== 'Active' ? { background: 'var(--green)', border: 'none', color: '#fff' } : {}}
+       >
+         {seller.status === 'Active' ? <Pause size={16} /> : <Play size={16} />}
+       </button>
 
-      {hasPermission('sellers_delete') && (
-        <button
-          className="btn-white-icon text-danger border-danger-subtle hover-bg-danger-subtle"
-          onClick={() => handleDeleteSeller(seller._id)}
-          title="Delete Seller & ASINs"
-          style={{ color: '#ef4444' }}
-        >
-          <Trash2 size={16} />
-        </button>
-      )}
+       {hasPermission('sellers_delete') && (
+         <button
+           className="btn-white-icon text-danger border-danger-subtle hover-bg-danger-subtle"
+           onClick={() => handleDeleteSeller(seller._id)}
+           title="Delete Seller & ASINs"
+           style={{ color: '#ef4444' }}
+         >
+           <Trash2 size={16} />
+         </button>
+       )}
 
       <div className="dropdown">
         <button
@@ -509,7 +569,7 @@ const SellersPage = () => {
         </ul>
       </div>
     </div>
-  ), [handleEditSeller, handleViewAsins, handleFullSync, handleToggleStatus, handleDeleteSeller, hasPermission, isGlobalUser]);
+   ), [handleEditSeller, handleViewAsins, handleSyncSeller, handleToggleStatus, handleDeleteSeller, hasPermission, isGlobalUser]);
 
   const listViewColumns = useMemo(() => [
     {
@@ -570,23 +630,41 @@ const SellersPage = () => {
     {
       label: 'Inventory',
       key: 'totalAsins',
-      width: '12%',
+      width: '15%',
       render: (total, seller) => (
         <div className="d-flex align-items-center justify-content-between group pe-2">
           <div className="d-flex align-items-center gap-2 cursor-pointer" onClick={() => handleViewAsins(seller)}>
-            <Package size={14} className="text-zinc-500 group-hover:text-primary transition-colors" />
+            <div 
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-surface-2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-text-secondary)'
+              }}
+              className="group-hover:bg-primary-50 group-hover:text-primary transition-colors"
+            >
+              <Package size={16} />
+            </div>
             <div>
               <div className="fw-bold text-zinc-900" style={{ fontSize: '12px' }}>{total || 0}</div>
               <div className="text-zinc-500 smallest" style={{ fontSize: '10px' }}>{seller.activeAsins || 0} Live</div>
             </div>
           </div>
-          <button 
-            className="btn-white-icon smaller border border-zinc-200 opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:bg-zinc-50"
-            onClick={(e) => { e.stopPropagation(); handleViewAsins(seller); }}
-            title="Add ASINs to this Store"
-          >
-            <Plus size={11} className="text-zinc-600" />
-          </button>
+          <div className="d-flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+            <button 
+              className="btn btn-xs btn-white border border-zinc-200 shadow-sm d-flex align-items-center gap-1 hover:bg-zinc-50"
+              onClick={(e) => { e.stopPropagation(); setShowAsinModal(true); setSelectedSeller(seller); }}
+              title="Quick Add ASIN"
+              style={{ fontSize: '10px', height: '26px' }}
+            >
+              <Plus size={12} className="text-zinc-600" />
+              <span className="fw-bold">ADD</span>
+            </button>
+          </div>
         </div>
       )
     },

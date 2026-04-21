@@ -196,9 +196,9 @@ const AsinTrackerPage = () => {
   const kpis = [
     { title: 'Total ASINs', value: asins.length.toString(), icon: 'bi-box', trend: 5, trendType: 'positive' },
     { title: 'Avg LQS Score', value: Math.round(asins.reduce((sum, a) => sum + (a.lqs || 0), 0) / asins.length || 0), icon: 'bi-graph-up', trend: 3, trendType: 'positive' },
-    { title: 'Buy Box Win Rate', value: Math.round((asins.filter(a => a.buyBox).length / asins.length) * 100 || 0) + '%', icon: 'bi-trophy', trend: 2, trendType: 'positive' },
+    { title: 'Buy Box Win Rate', value: Math.round((asins.filter(a => a.buyBoxWin).length / asins.length) * 100 || 0) + '%', icon: 'bi-trophy', trend: 2, trendType: 'positive' },
     { title: 'A+ Content', value: asins.filter(a => a.hasAplus).length.toString(), icon: 'bi-file-text', trend: 1, trendType: 'neutral' },
-    { title: 'Avg Price', value: '₹' + Math.round(asins.reduce((sum, a) => sum + (a.price || 0), 0) / asins.length || 0).toLocaleString(), icon: 'bi-currency-rupee', trend: 0, trendType: 'neutral' },
+    { title: 'Avg Price', value: '₹' + Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / asins.length || 0).toLocaleString(), icon: 'bi-currency-rupee', trend: 0, trendType: 'neutral' },
     { title: 'Avg BSR', value: Math.round(asins.reduce((sum, a) => sum + (a.bsr || 0), 0) / asins.length || 0).toLocaleString(), icon: 'bi-bar-chart', trend: 0, trendType: 'neutral' },
   ];
 
@@ -348,11 +348,11 @@ const AsinTrackerPage = () => {
                 <div className="card-header">
                   <h6 className="mb-0"><i className="bi bi-currency-rupee me-2"></i>Price Summary</h6>
                 </div>
-                <div className="card-body">
-                  <p className="mb-2"><strong>Average Price:</strong> ₹{Math.round(asins.reduce((sum, a) => sum + (a.price || 0), 0) / asins.length).toLocaleString()}</p>
-                  <p className="mb-2"><strong>Highest Price:</strong> ₹{Math.max(...asins.map(a => a.price || 0)).toLocaleString()}</p>
-                  <p className="mb-0"><strong>Lowest Price:</strong> ₹{Math.min(...asins.map(a => a.price || 0)).toLocaleString()}</p>
-                </div>
+                 <div className="card-body">
+                   <p className="mb-2"><strong>Average Price:</strong> ₹{Math.round(asins.reduce((sum, a) => sum + (a.currentPrice || 0), 0) / asins.length).toLocaleString()}</p>
+                   <p className="mb-2"><strong>Highest Price:</strong> ₹{Math.max(...asins.map(a => a.currentPrice || 0)).toLocaleString()}</p>
+                   <p className="mb-0"><strong>Lowest Price:</strong> ₹{Math.min(...asins.map(a => a.currentPrice || 0)).toLocaleString()}</p>
+                 </div>
               </div>
             </div>
             <div className="col-lg-6">
@@ -378,25 +378,26 @@ const AsinTrackerPage = () => {
           onToggle={() => setShowTable(!showTable)}
           badge={asins.length}
         >
-          <DataTable
-            data={asins}
-            columns={['asin', 'sku', 'title', 'price', 'bsr', 'rating', 'reviews', 'lqs', 'hasAplus', 'descLength', 'imageCount', 'priceTrend', 'bsrTrend']}
-            searchable={true}
-            sortable={true}
-            pagination={true}
-            pageSize={10}
-            customRenderers={{
-              price: (asin) => <span className="fw-medium">{asin.price ? `₹${asin.price.toLocaleString()}` : '-'}</span>,
-              bsr: (asin) => <span>{asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}</span>,
-              rating: (asin) => asin.rating ? getRatingStars(asin.rating) : '-',
-              reviews: (asin) => asin.reviews ? asin.reviews.toLocaleString() : '-',
-              lqs: (asin) => asin.lqs ? getLqsBadge(asin.lqs) : '-',
-              buyBox: (asin) => typeof asin.buyBox !== 'undefined' ? getBuyBoxBadge(asin.buyBox) : '-',
-              hasAplus: (asin) => typeof asin.hasAplus !== 'undefined' ? getAplusBadge(asin.hasAplus) : '-',
-              descLength: (asin) => <span className="text-muted">{asin.descLength ? `${asin.descLength.toLocaleString()} chars` : '-'}</span>,
-              imageCount: (asin) => <span>{asin.imageCount || '-'}</span>,
-              priceTrend: (asin) => getPriceTrend(asin.history),
-              bsrTrend: (asin) => getBsrTrend(asin.history),
+           <DataTable
+             data={asins}
+             columns={['asin', 'sku', 'title', 'price', 'mrp', 'bsr', 'rating', 'reviews', 'lqs', 'hasAplus', 'descLength', 'imageCount', 'priceTrend', 'bsrTrend']}
+             searchable={true}
+             sortable={true}
+             pagination={true}
+             pageSize={10}
+             customRenderers={{
+                 price: (asin) => <span className="fw-medium">{asin.currentPrice ? `₹${asin.currentPrice.toLocaleString()}` : '-'}</span>,
+                 mrp: (asin) => <span className="text-muted">{asin.mrp ? `₹${asin.mrp.toLocaleString()}` : '-'}</span>,
+                 bsr: (asin) => <span>{asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}</span>,
+                rating: (asin) => asin.rating ? getRatingStars(asin.rating) : '-',
+                reviews: (asin) => asin.reviewCount ? asin.reviewCount.toLocaleString() : '-',
+                lqs: (asin) => asin.lqs ? getLqsBadge(asin.lqs) : '-',
+                buyBox: (asin) => typeof asin.buyBoxWin !== 'undefined' ? getBuyBoxBadge(asin.buyBoxWin) : '-',
+                hasAplus: (asin) => typeof asin.hasAplus !== 'undefined' ? getAplusBadge(asin.hasAplus) : '-',
+                descLength: (asin) => <span className="text-muted">{asin.descLength ? `${asin.descLength.toLocaleString()} chars` : '-'}</span>,
+                imageCount: (asin) => <span>{asin.imageCount || '-'}</span>,
+                priceTrend: (asin) => getPriceTrend(asin.history),
+                bsrTrend: (asin) => getBsrTrend(asin.history),
             }}
             actions={[
               { label: 'View', icon: 'bi-eye', className: 'btn-sm', onClick: handleViewDetails },
@@ -419,33 +420,33 @@ const AsinTrackerPage = () => {
                     {/* Product Info */}
                     <div className="col-md-8">
                       <h6 className="fw-semibold">{selectedAsin.title}</h6>
-                      <p className="text-muted mb-3">
-                        <span className="badge bg-secondary me-2">{selectedAsin.category}</span>
-                        <span className="badge bg-info me-2">SKU: {selectedAsin.sku}</span>
-                        {getBuyBoxBadge(selectedAsin.buyBox)}
-                      </p>
+                       <p className="text-muted mb-3">
+                         <span className="badge bg-secondary me-2">{selectedAsin.category}</span>
+                         <span className="badge bg-info me-2">SKU: {selectedAsin.sku}</span>
+                         {getBuyBoxBadge(selectedAsin.buyBoxWin)}
+                       </p>
 
-                      <div className="row mb-3">
-                        <div className="col-sm-6">
-                          <small className="text-muted">Current Price</small>
-                          <div className="fw-bold fs-5">₹{selectedAsin.price?.toLocaleString()}</div>
-                        </div>
-                        <div className="col-sm-6">
-                          <small className="text-muted">Best Seller Rank</small>
-                          <div className="fw-bold fs-5">#{selectedAsin.bsr?.toLocaleString()}</div>
-                        </div>
-                      </div>
+                       <div className="row mb-3">
+                         <div className="col-sm-6">
+                           <small className="text-muted">Current Price</small>
+                           <div className="fw-bold fs-5">₹{selectedAsin.currentPrice?.toLocaleString()}</div>
+                         </div>
+                         <div className="col-sm-6">
+                           <small className="text-muted">Best Seller Rank</small>
+                           <div className="fw-bold fs-5">#{selectedAsin.bsr?.toLocaleString()}</div>
+                         </div>
+                       </div>
 
-                      <div className="row mb-3">
-                        <div className="col-sm-6">
-                          <small className="text-muted">Rating</small>
-                          <div>{getRatingStars(selectedAsin.rating)}</div>
-                        </div>
-                        <div className="col-sm-6">
-                          <small className="text-muted">Reviews</small>
-                          <div className="fw-bold">{selectedAsin.reviews?.toLocaleString()}</div>
-                        </div>
-                      </div>
+                       <div className="row mb-3">
+                         <div className="col-sm-6">
+                           <small className="text-muted">Rating</small>
+                           <div>{getRatingStars(selectedAsin.rating)}</div>
+                         </div>
+                         <div className="col-sm-6">
+                           <small className="text-muted">Reviews</small>
+                           <div className="fw-bold">{selectedAsin.reviewCount?.toLocaleString()}</div>
+                         </div>
+                       </div>
 
                       <div className="mb-3">
                         <small className="text-muted">LQS Score</small>
@@ -472,10 +473,10 @@ const AsinTrackerPage = () => {
                             <small className="text-muted">Image Count</small>
                             <div className="fw-medium">{selectedAsin.imageCount} images</div>
                           </div>
-                          <div className="mb-3">
-                            <small className="text-muted">Buy Box Status</small>
-                            <div className="mt-1">{getBuyBoxBadge(selectedAsin.buyBox)}</div>
-                          </div>
+                           <div className="mb-3">
+                             <small className="text-muted">Buy Box Status</small>
+                             <div className="mt-1">{getBuyBoxBadge(selectedAsin.buyBoxWin)}</div>
+                           </div>
                         </div>
                       </div>
                     </div>

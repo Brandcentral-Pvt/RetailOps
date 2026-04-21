@@ -85,7 +85,7 @@ exports.getAsins = async (req, res) => {
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     const asins = await Asin.find(filter)
-      .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs subBsr rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy secondAsp soldBySec aspDifference history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails availabilityStatus aplusAbsentSince aplusPresentSince')
+      .select('asinCode title sku currentPrice mrp uploadedPrice bsr subBSRs subBsr rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy secondAsp soldBySec aspDifference history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails availabilityStatus aplusAbsentSince aplusPresentSince')
       .populate('seller', 'name marketplace')
       .sort(sortOptions)
       .skip((page - 1) * limit)
@@ -106,11 +106,23 @@ exports.getAsins = async (req, res) => {
     }
 
     const processedAsins = asins.map(a => {
-      const win = isBuyBoxWinner(a.soldBy);
-      if (a.soldBy && a.soldBy.toLowerCase().includes('cocoblu')) {
-        console.log(`[BuyBox Trace] ASIN: ${a.asinCode} | SoldBy: "${a.soldBy}" | Win: ${win}`);
-      }
-      return { ...a, buyBoxWin: win };
+        // Map weekHistory to history field expected by frontend UI
+        const history = (a.weekHistory || [])
+            .slice(-8) // Last 8 entries to match asinTableService
+            .map(h => ({
+                week: h.week,
+                date: h.date ? h.date.toISOString().split('T')[0] : '',
+                price: h.price || 0,
+                bsr: h.bsr || 0,
+                rating: h.rating || 0,
+                reviews: h.reviews || 0
+            }));
+
+        const win = isBuyBoxWinner(a.soldBy);
+        if (a.soldBy && a.soldBy.toLowerCase().includes('cocoblu')) {
+            console.log(`[BuyBox Trace] ASIN: ${a.asinCode} | SoldBy: "${a.soldBy}" | Win: ${win}`);
+        }
+        return { ...a, history, buyBoxWin: win };
     });
 
     res.json({
@@ -154,17 +166,33 @@ exports.getAllAsinsWithHistory = async (req, res) => {
     if (category) filter.category = category;
     if (req.query.brand) filter.brand = req.query.brand;
 
-    const asins = await Asin.find(filter)
-      .select('asinCode title sku currentPrice uploadedPrice bsr subBSRs subBsr rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy secondAsp soldBySec aspDifference history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails availabilityStatus aplusAbsentSince aplusPresentSince')
-      .populate('seller', 'name marketplace')
-      .sort({ status: 1, title: -1, createdAt: -1 })
-      .lean(); // Use lean for faster performance
+     const asins = await Asin.find(filter)
+       .select('asinCode title sku currentPrice mrp uploadedPrice bsr subBSRs subBsr rating reviewCount ratingBreakdown bulletPointsText bulletPoints imageUrl status category soldBy secondAsp soldBySec aspDifference history weekHistory lqs buyBoxWin hasAplus imagesCount descLength lastScraped scrapeStatus dealDetails availabilityStatus aplusAbsentSince aplusPresentSince')
+       .populate('seller', 'name marketplace')
+       .sort({ status: 1, title: -1, createdAt: -1 })
+       .lean(); // Use lean for faster performance
 
-    res.json({
-      success: true,
-      data: asins.map(a => ({ ...a, buyBoxWin: isBuyBoxWinner(a.soldBy) })),
-      count: asins.length,
-    });
+     // Map weekHistory to history field for frontend compatibility
+     const processedAsins = asins.map(a => {
+         const history = (a.weekHistory || [])
+             .slice(-8)
+             .map(h => ({
+                 week: h.week,
+                 date: h.date ? h.date.toISOString().split('T')[0] : '',
+                 price: h.price || 0,
+                 bsr: h.bsr || 0,
+                 rating: h.rating || 0,
+                 reviews: h.reviews || 0
+             }));
+
+         return { ...a, history, buyBoxWin: isBuyBoxWinner(a.soldBy) };
+     });
+
+     res.json({
+       success: true,
+       data: processedAsins,
+       count: asins.length,
+     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

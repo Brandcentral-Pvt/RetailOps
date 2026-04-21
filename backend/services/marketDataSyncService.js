@@ -1438,11 +1438,9 @@ class MarketDataSyncService {
             }
 
             // 4. BSR Parsing (Main BSR: #XXXX in Cat, Sub BSR: #XXXX in SubCat)
-            const bsrString = rawData.BSR || rawData.Field9 || rawData.bsr || '';
-            const bsr = this._cleanBsr(bsrString);
-            
-            // Octoparse new explicitly extracted SUB_BSR field
-            const subBsr = rawData.sub_BSR || '';
+             const bsrString = rawData.BSR || rawData.Field9 || rawData.bsr || rawData.alt_bsr || '';
+             const bsr = this._cleanBsr(bsrString);
+             const subBsr = this._cleanBsr(rawData.sub_BSR || rawData.alt_sub_bsr || '');
 
             // Extract all rank strings (e.g. #476 in Men's Kurtas) fallback
             let subBSRs = [];
@@ -1498,12 +1496,13 @@ class MarketDataSyncService {
                 }
             }
 
+            // Rating breakdown percentages – store raw percentages (0-100), NOT review counts
             const ratingBreakdown = {
-                fiveStar: Math.round((p5 / 100) * reviewCount) || asin.ratingBreakdown?.fiveStar || 0,
-                fourStar: Math.round((p4 / 100) * reviewCount) || asin.ratingBreakdown?.fourStar || 0,
-                threeStar: Math.round((p3 / 100) * reviewCount) || asin.ratingBreakdown?.threeStar || 0,
-                twoStar: Math.round((p2 / 100) * reviewCount) || asin.ratingBreakdown?.twoStar || 0,
-                oneStar: Math.round((p1 / 100) * reviewCount) || asin.ratingBreakdown?.oneStar || 0,
+                fiveStar: p5 || asin.ratingBreakdown?.fiveStar || 0,
+                fourStar: p4 || asin.ratingBreakdown?.fourStar || 0,
+                threeStar: p3 || asin.ratingBreakdown?.threeStar || 0,
+                twoStar: p2 || asin.ratingBreakdown?.twoStar || 0,
+                oneStar: p1 || asin.ratingBreakdown?.oneStar || 0
             };
 
             // 7. Bullet Points
@@ -1545,8 +1544,10 @@ class MarketDataSyncService {
                 aplusPresentSince = null; // reset present timer
             }
 
-            // 9. Sold By
+            // 9. Sold By & Second Buy Box
             const soldBy = rawData.sold_by || rawData.Field11 || asin.soldBy || '';
+            const secondAsp = this._cleanPrice(rawData.second_asp || '') || asin.secondAsp;
+            const soldBySec = (rawData.Sold_by_sec || asin.soldBySec || '').trim();
 
             const updates = {
                 title,
@@ -1721,7 +1722,7 @@ class MarketDataSyncService {
                 
                 const price = this._cleanPrice(rawData.asp || rawData.price || rawData.Field2 || rawData.currentPrice);
                 const mrp = this._cleanPrice(rawData.mrp || rawData.listPrice || rawData.Field3);
-                const bsr = this._cleanBsr(rawData.sub_BSR || rawData.Field9 || rawData.BSR || rawData.bsr);
+                const bsr = this._cleanBsr(rawData.sub_BSR || rawData.Field9 || rawData.BSR || rawData.bsr || rawData.alt_bsr || '');
                 const title = (rawData.Title || rawData.title || asin.title || '').trim();
                 const soldBy = (rawData.sold_by || rawData.Field11 || asin.soldBy || '').trim();
                 const secondAsp = this._cleanPrice(rawData.second_asp || '') || asin.secondAsp;
@@ -1770,11 +1771,11 @@ class MarketDataSyncService {
                 };
 
                 const ratingBreakdown = {
-                    fiveStar: Math.round((percentages['5'] / 100) * reviewCount) || asin.ratingBreakdown?.fiveStar || 0,
-                    fourStar: Math.round((percentages['4'] / 100) * reviewCount) || asin.ratingBreakdown?.fourStar || 0,
-                    threeStar: Math.round((percentages['3'] / 100) * reviewCount) || asin.ratingBreakdown?.threeStar || 0,
-                    twoStar: Math.round((percentages['2'] / 100) * reviewCount) || asin.ratingBreakdown?.twoStar || 0,
-                    oneStar: Math.round((percentages['1'] / 100) * reviewCount) || asin.ratingBreakdown?.oneStar || 0,
+                    fiveStar: percentages['5'] || asin.ratingBreakdown?.fiveStar || 0,
+                    fourStar: percentages['4'] || asin.ratingBreakdown?.fourStar || 0,
+                    threeStar: percentages['3'] || asin.ratingBreakdown?.threeStar || 0,
+                    twoStar: percentages['2'] || asin.ratingBreakdown?.twoStar || 0,
+                    oneStar: percentages['1'] || asin.ratingBreakdown?.oneStar || 0
                 };
 
                 const mainImageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || asin.mainImageUrl;
@@ -1783,7 +1784,7 @@ class MarketDataSyncService {
                     imagesCount = (rawData.image_count.match(/<li/g) || []).length;
                 }
                 let subBSRs = asin.subBSRs || [];
-                const bsrString = rawData.sub_BSR || rawData.BSR || '';
+                const bsrString = rawData.sub_BSR || rawData.alt_sub_bsr || rawData.BSR || rawData.alt_bsr || '';
                 if (bsrString && typeof bsrString === 'string') {
                     const parts = bsrString.split(/\s{2,}|\n/).map(p => p.trim()).filter(Boolean);
                     subBSRs = parts.filter(p => p.includes('#') && (p.toLowerCase().includes(' in ') || p.toLowerCase().includes(' ( ')));
@@ -1801,10 +1802,47 @@ class MarketDataSyncService {
                 const rawDeal = rawData.deal_badge || rawData.dealBadge || rawData.deal || '';
                 const dealBadge = this._cleanDealBadge(rawDeal) || asin.dealBadge || 'No deal found';
                 
+                // Calculate current week string for history
+                const startOfYr = new Date(now.getFullYear(), 0, 0);
+                const diffOfYr = now - startOfYr;
+                const weekOfYr = Math.floor(diffOfYr / (1000 * 60 * 60 * 24 * 7));
+                const weekStr = `W${weekOfYr}-${now.getFullYear()}`;
+
+                // Prepare Week-on-Week History data
+                const weekData = {
+                    week: weekStr,
+                    date: now,
+                    price: price > 0 ? price : asin.currentPrice,
+                    bsr: bsr > 0 ? bsr : asin.bsr,
+                    rating: rating > 0 ? rating : asin.rating,
+                    reviews: reviewCount > 0 ? reviewCount : asin.reviewCount,
+                    imageCount: imagesCount,
+                    titleLength: title.length || (asin.title ? asin.title.length : 0),
+                    bulletPoints: bulletCount,
+                    subBSRs: subBSRs,
+                    hasAplus: hasAplus,
+                    stockLevel: this._cleanStock(rawData.stock || rawData.inventory || 0)
+                };
+
+                // Update weekHistory in memory to avoid duplicates on the same date
+                const todayStr = now.toDateString();
+                const existingIndex = (asin.weekHistory || []).findIndex(w => new Date(w.date).toDateString() === todayStr);
+                
+                let updatedWeekHistory = Array.isArray(asin.weekHistory) ? [...asin.weekHistory] : [];
+                if (existingIndex >= 0) {
+                    updatedWeekHistory[existingIndex] = { ...updatedWeekHistory[existingIndex], ...weekData };
+                } else {
+                    updatedWeekHistory.push(weekData);
+                }
+                
+                // Sort and Slice as per model logic
+                updatedWeekHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
+                if (updatedWeekHistory.length > 24) updatedWeekHistory = updatedWeekHistory.slice(-24);
+
                 const updateData = {
                     $set: {
                         title: title || asin.title,
-                        titleLength: title.length || asin.titleLength,
+                        titleLength: title.length || (asin.title ? asin.title.length : 0),
                         currentPrice: price > 0 ? price : asin.currentPrice,
                         currentASP: price > 0 ? price : asin.currentASP,
                         mrp: mrp > 0 ? mrp : asin.mrp,
@@ -1829,6 +1867,7 @@ class MarketDataSyncService {
                         secondAsp: secondAsp,
                         soldBySec: soldBySec,
                         buyBoxWin: isBuyBoxWinner(soldBy),
+                        weekHistory: updatedWeekHistory,
                         lastScraped: now,
                         scrapeStatus: 'COMPLETED',
                         status: 'Active'

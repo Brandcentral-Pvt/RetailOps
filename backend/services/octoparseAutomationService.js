@@ -439,12 +439,12 @@ class OctoparseAutomationService {
 
             // Rating mapping - Octoparse uses "Rating" field
             const ratingRaw = (item.Rating || item.Field7 || item.rating || item.Average_Rating || '').toString();
-            
+
             // 1. Robust Rating Extraction
             const outOfMatch = ratingRaw.match(/([0-5](?:[.,]\d+)?)\s*(?:out\s*of\s*5|\/5|(?=\s*stars?))/i);
             const startMatch = ratingRaw.match(/^([0-5](?:[.,]\d+)?)/);
             const firstMatch = ratingRaw.match(/([0-5](?:[.,]\d+)?)/);
-            
+
             let ratingNum = 0;
             if (outOfMatch) ratingNum = parseFloat(outOfMatch[1].replace(',', '.')) || 0;
             else if (startMatch) ratingNum = parseFloat(startMatch[1].replace(',', '.')) || 0;
@@ -457,27 +457,32 @@ class OctoparseAutomationService {
                 updateData.rating = ratingNum;
             }
 
-            // 2. Rating Breakdown (Stay as is but make sure it uses the raw string correctly)
-            if (ratingRaw.includes('%')) {
-                const starLabelsIndex = ratingRaw.indexOf('5 star');
-                if (starLabelsIndex !== -1) {
-                    const afterStars = ratingRaw.substring(starLabelsIndex);
-                    const percentMatches = afterStars.match(/(\d+)%/g) || [];
-                    if (percentMatches.length >= 5) {
-                        const breakdown = {
-                            fiveStar: parseInt(percentMatches[0]) || 0,
-                            fourStar: parseInt(percentMatches[1]) || 0,
-                            threeStar: parseInt(percentMatches[2]) || 0,
-                            twoStar: parseInt(percentMatches[3]) || 0,
-                            oneStar: parseInt(percentMatches[4]) || 0
-                        };
-                        if (Object.values(breakdown).some(v => v > 0)) {
-                            updateData.ratingBreakdown = breakdown;
-                        }
+            // 2. Rating Breakdown - USE STAR PERCENTAGE FIELDS DIRECTLY (no extra processing)
+            // Support multiple field naming conventions: five_star, 5_star, Field12, etc.
+            const starPercentFields = {
+                fiveStar: item.five_star || item['5_star'] || item.Field12 || '',
+                fourStar: item.four_star || item['4_star'] || item.Field13 || '',
+                threeStar: item.three_star || item['3_star'] || item.Field14 || '',
+                twoStar: item.two_star || item['2_star'] || item.Field15 || '',
+                oneStar: item.one_star || item['1_star'] || item.Field16 || ''
+            };
+
+            const ratingBreakdown = {};
+            let hasBreakdown = false;
+            for (const [key, val] of Object.entries(starPercentFields)) {
+                if (val && val.toString().trim()) {
+                    // Extract numeric percentage (handle "53%" or "53")
+                    const numeric = parseInt(val.toString().replace(/[^0-9]/g, '')) || 0;
+                    if (numeric > 0) {
+                        ratingBreakdown[key] = numeric;
+                        hasBreakdown = true;
                     }
                 }
             }
-            
+            if (hasBreakdown) {
+                updateData.ratingBreakdown = ratingBreakdown;
+            }
+
             // 3. Review Count Extraction - ROBUST LOGIC
             const reviewsField = (
                 item.reviews_count || item.Review_Count || item.review_count || 
@@ -541,39 +546,32 @@ class OctoparseAutomationService {
                 updateData.reviewCount = reviewCount;
             }
 
-            // BSR mapping - handle both BSR and sub_BSR fields
+            // BSR mapping - handle BSR, sub_BSR, alt_bsr, and alt_sub_bsr fields
             let bsrValue = 0;
-            const bsrRaw = item.BSR || item.Field9 || item.bsr || item.Best_Seller_Rank || item.bsrRank || '';
-            const subBsrRaw = item.sub_BSR || '';
+            // Try multiple possible field names for main BSR
+            const bsrRaw = item.BSR || item.Field9 || item.bsr || item.Best_Seller_Rank || item.bsrRank || item.alt_bsr || '';
+            // Try multiple possible field names for sub BSR
+            const subBsrRaw = item.sub_BSR || item.alt_sub_bsr || '';
 
             // Try main BSR first
             if (bsrRaw) {
-                const cleanBsr = bsrRaw.toString().replace(/[,]/g, '');
-                const parsed = parseInt(cleanBsr);
-                if (!isNaN(parsed) && parsed > 0) {
-                    bsrValue = parsed;
-                }
+                bsrValue = this.extractBsrFromString(bsrRaw);
             }
 
-            // If no main BSR, try sub_BSR
+            // If no main BSR found, try sub_BSR
             if (bsrValue === 0 && subBsrRaw) {
-                const cleanSubBsr = subBsrRaw.toString().replace(/[,]/g, '');
-                const parsed = parseInt(cleanSubBsr);
-                if (!isNaN(parsed) && parsed > 0) {
-                    bsrValue = parsed;
-                }
+                bsrValue = this.extractBsrFromString(subBsrRaw);
             }
 
             if (bsrValue > 0) {
                 updateData.bsr = bsrValue;
             }
 
-            // Store sub-BSR ranks separately if available
+            // Store sub-BSR ranks separately (use alt_sub_bsr too)
             const subBsrs = [];
             if (subBsrRaw && subBsrRaw !== bsrRaw) {
-                const cleanSubBsr = subBsrRaw.toString().replace(/[,]/g, '');
-                const parsed = parseInt(cleanSubBsr);
-                if (!isNaN(parsed) && parsed > 0) {
+                const parsed = this.extractBsrFromString(subBsrRaw);
+                if (parsed > 0) {
                     subBsrs.push(parsed.toString());
                 }
             }
@@ -663,23 +661,23 @@ class OctoparseAutomationService {
                 updateData.scrapeStatus = 'COMPLETED';
                 updateData.status = 'Active';
 
-                // Map Rating Breakdown if available (expecting fields like five_star, etc. as "75%")
-                // Only use these if ratingBreakdown wasn't already successfully parsed from the Rating string
+                // Map Rating Breakdown if available (expecting fields like five_star/5_star/Field12 containing "53%")
+                // Only use these if ratingBreakdown wasn't already successfully parsed earlier
                 if (!updateData.ratingBreakdown) {
                     const starFields = {
-                        fiveStar: item.five_star || item.Field12 || '',
-                        fourStar: item.four_star || item.Field13 || '',
-                        threeStar: item.three_star || item.Field14 || '',
-                        twoStar: item.two_star || item.Field15 || '',
-                        oneStar: item.one_star || item.Field16 || ''
+                        fiveStar: item.five_star || item['5_star'] || item.Field12 || '',
+                        fourStar: item.four_star || item['4_star'] || item.Field13 || '',
+                        threeStar: item.three_star || item['3_star'] || item.Field14 || '',
+                        twoStar: item.two_star || item['2_star'] || item.Field15 || '',
+                        oneStar: item.one_star || item['1_star'] || item.Field16 || ''
                     };
 
                     const ratingBreakdown = {};
                     let hasBreakdown = false;
                     for (const [key, val] of Object.entries(starFields)) {
-                        if (val) {
-                            const numeric = parseInt(val.toString().replace(/[^0-9]/g, ''));
-                            if (!isNaN(numeric)) {
+                        if (val && val.toString().trim()) {
+                            const numeric = parseInt(val.toString().replace(/[^0-9]/g, '')) || 0;
+                            if (!isNaN(numeric) && numeric > 0) {
                                 ratingBreakdown[key] = numeric;
                                 hasBreakdown = true;
                             }
@@ -867,6 +865,22 @@ class OctoparseAutomationService {
         }
 
         return null;
+    }
+
+    /**
+     * Extract numeric BSR from formatted string like "#1,556 in Home & Kitchen"
+     */
+    extractBsrFromString(str) {
+        if (!str) return 0;
+        const s = str.toString().trim();
+        // Match "#1234" or "1,234" format at start of string
+        const match = s.match(/^#?([\d,]+)/);
+        if (match) {
+            const clean = match[1].replace(/[,]/g, '');
+            const parsed = parseInt(clean);
+            return !isNaN(parsed) ? parsed : 0;
+        }
+        return 0;
     }
 
     isDataComplete(item) {

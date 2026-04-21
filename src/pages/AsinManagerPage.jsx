@@ -1461,6 +1461,7 @@ const AsinManagerPage = () => {
                   <th rowSpan={2} style={{ ...thStyle, width: '90px' }}>SKU</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '220px' }}>PRODUCT TITLE</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'right' }}>PRICE</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'right', color: '#6b7280' }}>MRP</th>
                   <th colSpan={visibleHistoryCols}
                     onClick={async () => { setShowAllPriceHistory(true); }}
                     style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', cursor: 'pointer' }}>
@@ -1482,6 +1483,7 @@ const AsinManagerPage = () => {
                   <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>STATUS</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center' }}>DEAL</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>BUYBOX</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center' }}>SEC BB</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>I</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>B</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '40px', textAlign: 'center' }}>A+</th>
@@ -1580,6 +1582,9 @@ const AsinManagerPage = () => {
                     <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#16a34a', cursor: 'pointer' }}
                       onClick={(e) => handleViewPrice(asin, e)}>
                       ₹{(asin.uploadedPrice || asin.currentPrice || 0).toLocaleString()}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#6b7280', fontSize: '10.5px' }}>
+                      ₹{(asin.mrp || 0).toLocaleString()}
                     </td>
                     {historyStructure.map(week => week.dates.map((date, dIdx) => {
                       const wData = asin.weekHistory?.find(w => new Date(w.date).toISOString().split('T')[0] === date.raw)
@@ -1684,6 +1689,16 @@ const AsinManagerPage = () => {
                       )}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin)}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      {asin.secondAsp > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: '#4b5563', fontSize: '10.5px' }}>₹{asin.secondAsp.toLocaleString()}</span>
+                          <span style={{ fontSize: '8.5px', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600, maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={asin.soldBySec}>
+                            {asin.soldBySec || '-'}
+                          </span>
+                        </div>
+                      ) : <span style={{ color: '#9ca3af' }}>-</span>}
+                    </td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.imagesCount || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.bulletPoints || 0}</td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{getAplusBadge(asin.hasAplus, asin.status)}</td>

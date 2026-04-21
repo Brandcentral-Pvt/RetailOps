@@ -28,9 +28,9 @@ class AsinTableService {
     }
 
     // 2. Fetch Master Data
-    const asins = await Asin.find(query)
-      .select('asinCode sku title imageUrl currentPrice bsr subBSRs rating reviewCount lqs buyBoxWin hasAplus imagesCount descLength status weekHistory soldBy')
-      .lean();
+     const asins = await Asin.find(query)
+       .select('asinCode sku title imageUrl currentPrice mrp bsr subBSRs rating reviewCount lqs buyBoxWin hasAplus imagesCount descLength status weekHistory soldBy')
+       .lean();
 
     // 3. Transform for UI
     const transformed = asins.map(asin => {
@@ -44,32 +44,33 @@ class AsinTableService {
           rating: h.rating || 0
         }));
 
-      // Map to UI-expected schema
-      return {
-        asinCode: asin.asinCode,
-        sku: asin.sku || 'N/A',
-        title: asin.title,
-        imageUrl: asin.imageUrl,
-        currentPrice: asin.currentPrice || 0,
-        currentRank: asin.bsr || 0, // Mapping bsr to currentRank
-        rating: asin.rating || 0,
-        reviewCount: asin.reviewCount || 0,
-        lqs: asin.lqs || 0,
-        buyBoxWin: isBuyBoxWinner(asin.soldBy),
-        hasAPlus: asin.hasAplus || false,
-        imagesCount: asin.imagesCount || 0,
-        descLength: asin.descLength || 0,
-        status: asin.status || 'Active',
-        subBSRs: asin.subBSRs || [],
-        weekHistory: history,
-        
-        // Computed Fields (Example: Price Variance)
-        computedFields: {
-          isHighlyRated: asin.rating >= 4.5,
-          needsImageAudit: (asin.imagesCount || 0) < 7,
-          bsrTrend: this._calculateTrend(history, 'bsr')
-        }
-      };
+       // Map to UI-expected schema
+       return {
+         asinCode: asin.asinCode,
+         sku: asin.sku || 'N/A',
+         title: asin.title,
+         imageUrl: asin.imageUrl,
+         currentPrice: asin.currentPrice || 0,
+         mrp: asin.mrp || 0,
+         currentRank: asin.bsr || 0, // Mapping bsr to currentRank
+         rating: asin.rating || 0,
+         reviewCount: asin.reviewCount || 0,
+         lqs: asin.lqs || 0,
+         buyBoxWin: isBuyBoxWinner(asin.soldBy),
+         hasAPlus: asin.hasAplus || false,
+         imagesCount: asin.imagesCount || 0,
+         descLength: asin.descLength || 0,
+         status: asin.status || 'Active',
+         subBSRs: asin.subBSRs || [],
+         weekHistory: history,
+         
+         // Computed Fields (Example: Price Variance)
+         computedFields: {
+           isHighlyRated: asin.rating >= 4.5,
+           needsImageAudit: (asin.imagesCount || 0) < 7,
+           bsrTrend: this._calculateTrend(history, 'bsr')
+         }
+       };
     });
 
     return transformed;

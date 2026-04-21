@@ -569,21 +569,27 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Stats Row */}
-              <div className="d-flex bg-slate-50 rounded-2xl border overflow-hidden">
-                <div className="stat-item flex-fill">
-                  <div className="stat-label">Price</div>
-                  <div className="stat-value text-indigo-600 d-flex align-items-center">
-                    ₹{currentData.value?.toLocaleString() || 0}
-                    <SourceBadge source={currentData.source} date={currentData.date} />
-                  </div>
-                </div>
-                <div className="stat-item flex-fill"><div className="stat-label">Buy Box</div><div className="stat-value"><Store size={16} className="text-slate-400 me-2" /><span className="truncate">{asin.soldBy || 'Amazon.in'}</span></div></div>
-                <div className="stat-item flex-fill">
-                  <div className="stat-label">Main BSR</div>
-                  <div className="stat-value text-emerald-600 d-flex align-items-center">
-                    #{bsrData.value?.toLocaleString() || '-'}
-                    <SourceBadge source={bsrData.source} date={bsrData.date} />
+               {/* Stats Row */}
+               <div className="d-flex bg-slate-50 rounded-2xl border overflow-hidden">
+                 <div className="stat-item flex-fill">
+                   <div className="stat-label">Price</div>
+                   <div className="stat-value text-indigo-600 d-flex align-items-center">
+                     ₹{currentData.value?.toLocaleString() || 0}
+                     <SourceBadge source={currentData.source} date={currentData.date} />
+                   </div>
+                 </div>
+                 <div className="stat-item flex-fill">
+                   <div className="stat-label">MRP</div>
+                   <div className="stat-value text-muted">
+                     {asin.mrp ? `₹${asin.mrp.toLocaleString()}` : '-'}
+                   </div>
+                 </div>
+                 <div className="stat-item flex-fill"><div className="stat-label">Buy Box</div><div className="stat-value"><Store size={16} className="text-slate-400 me-2" /><span className="truncate">{asin.soldBy || 'Amazon.in'}</span></div></div>
+                 <div className="stat-item flex-fill">
+                   <div className="stat-label">Main BSR</div>
+                   <div className="stat-value text-emerald-600 d-flex align-items-center">
+                     #{bsrData.value?.toLocaleString() || '-'}
+                     <SourceBadge source={bsrData.source} date={bsrData.date} />
                   </div>
                 </div>
                 <div className="stat-item flex-fill">
