@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Package, IndianRupee, Star, Award, Store, Activity, BarChart3, TrendingUp, TrendingDown, Eye, ExternalLink, Calendar, ListChecks, Image, AlertCircle } from 'lucide-react';
+import { X, Package, IndianRupee, Star, Award, Store, Activity, BarChart3, TrendingUp, TrendingDown, Eye, ExternalLink, Calendar, ListChecks, Image, AlertCircle, Trophy } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import Chart from 'react-apexcharts';
 import { subDays, startOfDay, endOfDay, format } from 'date-fns';
 import AdvancedDateRangePicker from '../contexts/DateRangeContext';
+import Popover from './common/Popover';
 
 // Helper to get last valid data from history fallback
 const getLastValidData = (asin, field, defaultValue = 0) => {
@@ -584,7 +585,47 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                      {asin.mrp ? `₹${asin.mrp.toLocaleString()}` : '-'}
                    </div>
                  </div>
-                 <div className="stat-item flex-fill"><div className="stat-label">Buy Box</div><div className="stat-value"><Store size={16} className="text-slate-400 me-2" /><span className="truncate">{asin.soldBy || 'Amazon.in'}</span></div></div>
+                  <div className="stat-item flex-fill">
+                    <div className="stat-label">Buy Box</div>
+                    <div className="stat-value">
+                      <Popover
+                        trigger="click"
+                        placement="bottom"
+                        content={
+                          <div style={{ minWidth: '220px' }}>
+                            <div className="text-uppercase smallest fw-bold mb-3 pb-2 border-bottom" style={{ color: '#64748b', letterSpacing: '0.05em' }}>
+                              Seller Hierarchy
+                            </div>
+                            <div className="d-flex flex-column gap-2">
+                              {(asin.allOffers && asin.allOffers.length > 0 ? asin.allOffers : [
+                                { seller: asin.soldBy, price: currentData.value, isBuyBoxWinner: true },
+                                { seller: asin.soldBySec, price: asin.secondAsp, isBuyBoxWinner: false }
+                              ].filter(o => o.seller || o.price > 0)).map((offer, idx) => (
+                                <div key={idx} className="p-2 rounded-xl d-flex justify-content-between align-items-center hover:bg-slate-50" style={{ transition: 'background 0.2s' }}>
+                                  <div className="d-flex flex-column">
+                                    <span className="fw-bold small text-slate-800 d-flex align-items-center">
+                                      {offer.seller || 'Unknown'}
+                                      {offer.isBuyBoxWinner && <Trophy size={11} className="ms-1 text-amber-500" />}
+                                    </span>
+                                    <span className="smallest text-slate-400">{offer.isBuyBoxWinner ? 'Buy Box Winner' : 'Secondary Offer'}</span>
+                                  </div>
+                                  <span className="fw-bold text-indigo-600">₹{offer.price?.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        }
+                      >
+                        <div className="d-flex align-items-center cursor-pointer">
+                          <Store size={16} className="text-slate-400 me-2" />
+                          <span className="truncate" style={{ maxWidth: '120px' }}>{asin.soldBy || 'Amazon.in'}</span>
+                          {asin.allOffers && asin.allOffers.length > 1 && (
+                            <span className="badge bg-slate-100 text-slate-500 ms-2" style={{ fontSize: '10px' }}>+{asin.allOffers.length - 1}</span>
+                          )}
+                        </div>
+                      </Popover>
+                    </div>
+                  </div>
                  <div className="stat-item flex-fill">
                    <div className="stat-label">Main BSR</div>
                    <div className="stat-value text-emerald-600 d-flex align-items-center">

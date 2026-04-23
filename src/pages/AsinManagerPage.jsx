@@ -53,6 +53,7 @@ const AsinTrendsModal = lazy(() => import('../components/AsinTrendsModal'));
 const PriceViewModal = lazy(() => import('../components/PriceViewModal'));
 const BSRViewModal = lazy(() => import('../components/BSRViewModal'));
 const RatingViewModal = lazy(() => import('../components/RatingViewModal'));
+import Popover from '../components/common/Popover';
 
 // Helper to generate tiered structure for history columns
 const generateHistoryStructure = (history) => {
@@ -1562,8 +1563,7 @@ const AsinManagerPage = () => {
                   </th>
                   <th rowSpan={2} style={{ ...thStyle, width: '70px', textAlign: 'center' }}>STATUS</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center' }}>DEAL</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center' }}>BUYBOX</th>
-                  <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center' }}>SEC BB</th>
+                  <th rowSpan={2} style={{ ...thStyle, width: '150px', textAlign: 'left' }}>BUY BOX DETAILS</th>
                   <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>I</th>
                   <th colSpan={visibleHistoryCols}
                     style={{ ...thStyle, background: '#fdf2f8', color: '#be185d', textAlign: 'center', cursor: 'pointer', borderBottom: '1px solid #fbcfe8' }}>
@@ -1847,16 +1847,61 @@ const AsinManagerPage = () => {
                         <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>
                       )}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>{getBuyBoxBadge(asin)}</td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      {asin.secondAsp > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, color: '#4b5563', fontSize: '10.5px' }}>₹{asin.secondAsp.toLocaleString()}</span>
-                          <span style={{ fontSize: '8.5px', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600, maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={asin.soldBySec}>
-                            {asin.soldBySec || '-'}
-                          </span>
+                    <td style={{ ...tdStyle, width: '150px', whiteSpace: 'normal', height: 'auto', padding: '4px' }}>
+                      <Popover
+                        trigger="click"
+                        placement="left"
+                        content={
+                          <div style={{ minWidth: '220px' }}>
+                            <div className="text-uppercase smallest fw-bold mb-3 pb-2 border-bottom" style={{ color: '#64748b', letterSpacing: '0.05em' }}>
+                              Seller Hierarchy
+                            </div>
+                            <div className="d-flex flex-column gap-2">
+                              {(asin.allOffers && asin.allOffers.length > 0 ? asin.allOffers : [
+                                { seller: asin.soldBy, price: asin.currentPrice, isBuyBoxWinner: asin.buyBoxWin },
+                                { seller: asin.soldBySec, price: asin.secondAsp, isBuyBoxWinner: false }
+                              ].filter(o => o.seller || o.price > 0)).map((offer, idx) => (
+                                <div key={idx} className="p-2 rounded-xl d-flex justify-content-between align-items-center hover:bg-slate-50" style={{ transition: 'background 0.2s' }}>
+                                  <div className="d-flex flex-column">
+                                    <span className="fw-bold small text-slate-800 d-flex align-items-center">
+                                      {offer.seller || 'Unknown'}
+                                      {offer.isBuyBoxWinner && <Trophy size={11} className="ms-1 text-amber-500" />}
+                                    </span>
+                                    <span className="smallest text-slate-400">{offer.isBuyBoxWinner ? 'Buy Box Winner' : 'Secondary Offer'}</span>
+                                  </div>
+                                  <span className="fw-bold text-indigo-600">₹{offer.price?.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        }
+                      >
+                        <div className="cursor-pointer d-flex flex-column gap-1">
+                          {(() => {
+                            const offers = (asin.allOffers && asin.allOffers.length > 0 ? asin.allOffers : [
+                              { seller: asin.soldBy, price: asin.currentPrice, isBuyBoxWinner: asin.buyBoxWin },
+                              { seller: asin.soldBySec, price: asin.secondAsp, isBuyBoxWinner: false }
+                            ].filter(o => o.seller || o.price > 0));
+
+                            if (offers.length === 0) return <span style={{ color: '#9ca3af' }}>-</span>;
+
+                            return offers.slice(0, 3).map((offer, oIdx) => (
+                              <div key={oIdx} className="d-flex align-items-center justify-content-between" style={{ fontSize: '9px', lineHeight: '1.2' }}>
+                                <div className="d-flex align-items-center gap-1 overflow-hidden" style={{ maxWidth: '100px' }}>
+                                  {offer.isBuyBoxWinner && <Trophy size={8} className="text-amber-500" />}
+                                  <span className="truncate fw-bold text-zinc-700" title={offer.seller}>{offer.seller || 'Unknown'}</span>
+                                </div>
+                                <span className="fw-bold text-indigo-600">₹{offer.price?.toLocaleString()}</span>
+                              </div>
+                            ));
+                          })()}
+                          {asin.allOffers && asin.allOffers.length > 3 && (
+                            <div className="text-center smallest text-zinc-400 fw-bold" style={{ fontSize: '8px' }}>
+                              +{asin.allOffers.length - 3} MORE SELLERS
+                            </div>
+                          )}
                         </div>
-                      ) : <span style={{ color: '#9ca3af' }}>-</span>}
+                      </Popover>
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.imagesCount || 0}</td>
                     {historyStructure.map(week => week.dates.map((date, dIdx) => {

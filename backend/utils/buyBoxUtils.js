@@ -31,42 +31,32 @@ const OWN_SELLERS = [
  * @param {string} soldBy - The seller name found on Amazon
  * @returns {boolean} - true if the seller is authorized (Won), false otherwise (Lost)
  */
-function isBuyBoxWinner(soldBy) {
-    if (!soldBy) return false;
+function isBuyBoxWinner(sellerName, configuredSellers = null) {
+    if (!sellerName) return false;
     
-    // Normalize: lowercase, remove non-alphanumeric characters, and trim
-    const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-    const normalizedSoldBy = normalize(soldBy);
+    // Get configured sellers from env or database
+    const trustedSellers = configuredSellers || (process.env.TRUSTED_SELLER_NAMES || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     
-    if (!normalizedSoldBy) return false;
-
-    const result = OWN_SELLERS.some(s => {
-        const authorized = normalize(s);
-        if (!authorized) return false;
-        
-        // Check if authorized name is in soldBy or vice versa
-        // (to handle cases like "Cocoblu" matching "Cocoblu Retail" and "Cocoblu Retail" matching "Cocoblu")
-        return normalizedSoldBy.includes(authorized) || authorized.includes(normalizedSoldBy);
-    });
-
-    // 🚀 Super-permissive fallback for reporting clarity
-    const permissiveMatch = normalizedSoldBy.includes('cocoblu') || 
-                            normalizedSoldBy.includes('clicktech') || 
-                            normalizedSoldBy.includes('retailez') ||
-                            normalizedSoldBy.includes('appario');
-
-    if (!result && permissiveMatch) {
-        console.log(`[BuyBox Trace] Permissive Match Triggered | String: "${soldBy}"`);
-        return true;
+    const sellerLower = sellerName.toLowerCase();
+    
+    // Check if seller is in trusted list
+    const isTrusted = trustedSellers.some(trusted => 
+        sellerLower.includes(trusted.toLowerCase()) || 
+        trusted.toLowerCase().includes(sellerLower)
+    );
+    
+    // Fallback to OWN_SELLERS if no trusted sellers configured
+    if (trustedSellers.length === 0) {
+        const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const normalizedSoldBy = normalize(sellerName);
+        const result = OWN_SELLERS.some(s => {
+            const authorized = normalize(s);
+            return normalizedSoldBy.includes(authorized) || authorized.includes(normalizedSoldBy);
+        });
+        return result;
     }
-
-    if (!result && normalizedSoldBy.includes('cocoblu')) {
-        console.log(`[BuyBox Debug] Authorized: NO | String: "${soldBy}" | Normalized: "${normalizedSoldBy}"`);
-    } else if (result) {
-        console.log(`[BuyBox Debug] Authorized: YES | String: "${soldBy}"`);
-    }
-
-    return result || permissiveMatch;
+    
+    return isTrusted;
 }
 
 module.exports = {

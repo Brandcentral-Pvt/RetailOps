@@ -44,6 +44,11 @@ const asinSchema = new mongoose.Schema({
   soldBy: { type: String, default: '' },
   secondAsp: { type: Number, default: 0 },
   soldBySec: { type: String, default: '' },
+  allOffers: [{
+    seller: String,
+    price: Number,
+    isBuyBoxWinner: { type: Boolean, default: false }
+  }],
   aspDifference: { type: Number, default: 0 },
   imageUrl: { type: String }, // Backwards compatibility
   mainImageUrl: { type: String }, // Modern mapping

@@ -40,7 +40,7 @@ class MarketDataSyncService {
     isConfigured() {
         const username = process.env.MARKET_SYNC_USERNAME;
         const password = process.env.MARKET_SYNC_PASSWORD;
-        
+
         // Strictly use username/password flow for generating Access Tokens
         return !!(username && password &&
             username !== 'demo-provider' &&
@@ -105,11 +105,11 @@ class MarketDataSyncService {
     async updateTaskUrlsWithFile(taskId, items, retryCount = 0) {
         if (!taskId) throw new Error('Task ID is required for URL injection');
         if (!items || items.length === 0) return true;
-        
+
         const maxRetries = 2;
-        
+
         const token = await this.authenticate();
-        
+
         // 1. Normalize and clean input (strictly one URL per line, no duplicates)
         // Correctly formats ASINs to full Amazon.in URLs if they aren't already
         const uniqueUrls = [...new Set(items.map(item => {
@@ -119,23 +119,23 @@ class MarketDataSyncService {
             if (t.length === 10) return `https://www.amazon.in/dp/${t}`;
             return t;
         }).filter(Boolean))];
-        
+
         try {
             console.log(`📂 Injecting ${uniqueUrls.length} items via Octoparse FILE method for task: ${taskId}`);
-            
+
             // 2. Create FormData and Blob (Standard Multipart approach)
             // Note: Uses Node.js 18+ global FormData and Blob compatibility
             const formData = new FormData();
             formData.append('taskId', taskId);
-            
+
             // Standard Octoparse URL file format: one URL per line
             const blob = new Blob([uniqueUrls.join('\n')], { type: 'text/plain' });
-            
+
             // Field mapping: 'taskId' (string) and 'file' (File)
             formData.append('file', blob, 'sync_urls.txt');
 
             const response = await axios.post(`${this.baseUrl}/task/urls:file`, formData, {
-                headers: { 
+                headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
@@ -145,15 +145,15 @@ class MarketDataSyncService {
                 console.log(`✅ File-based injection successful for task: ${taskId}`);
                 return true;
             }
-            
+
             throw new Error(`Unexpected provider response: ${JSON.stringify(response.data)}`);
         } catch (error) {
             const errorData = error.response?.data;
             const provError = errorData?.error || {};
-            
+
             // RETRY LOGIC for TaskExecuting (400) and FileProcessing errors
-            if ((provError.code === 'TaskExecuting' || 
-                provError.code === 'FileProcessing' || 
+            if ((provError.code === 'TaskExecuting' ||
+                provError.code === 'FileProcessing' ||
                 errorData?.message === 'TaskExecuting' ||
                 errorData?.message === 'FileProcessing') && retryCount < maxRetries) {
                 console.warn(`⏳ Task is in transition state (${provError.code || errorData?.message}). Retrying injection in 15s... (Attempt ${retryCount + 1}/${maxRetries})`);
@@ -173,7 +173,7 @@ class MarketDataSyncService {
             } else if (provError.code === 'InvalidTaskId') {
                 console.error('⚠️ The provided Task ID is not recognized by the provider.');
             }
-            
+
             throw error;
         }
     }
@@ -190,7 +190,7 @@ class MarketDataSyncService {
                 console.warn(`⚠️ triggerSync called for unknown task ${taskId}. Falling back to standard cloud start.`);
                 return await this.startCloudExtraction(taskId);
             }
-            
+
             console.log(`🔄 Redirecting legacy triggerSync for seller ${seller.name} to robust sync-all...`);
             const success = await this.syncSellerAsinsToOctoparse(seller._id, { triggerScrape: true });
             return { success, taskId };
@@ -219,12 +219,12 @@ class MarketDataSyncService {
                 const groups = await this.getTaskGroupList();
 
                 if (Array.isArray(groups)) {
-                    const group = groups.find(g => 
-                        (g.categoryName && g.categoryName === groupName) || 
+                    const group = groups.find(g =>
+                        (g.categoryName && g.categoryName === groupName) ||
                         (g.name && g.name === groupName) ||
                         (g.taskGroupName && g.taskGroupName === groupName)
                     );
-                    
+
                     if (group) {
                         groupId = group.categoryId || group.id || group.taskGroupId;
                         console.log(`✅ Found Group ID: ${groupId} for "${groupName}"`);
@@ -239,7 +239,7 @@ class MarketDataSyncService {
             }
 
             console.log(`📋 Duplicating Octoparse Master Template: ${masterTaskId} ... (Group: ${groupId || 'Root'})`);
-            
+
             // Resolve UUID to Integer ID (Required for some body-based Octoparse v2 endpoints)
             let masterTaskIntId = masterTaskId;
             try {
@@ -254,28 +254,28 @@ class MarketDataSyncService {
 
             // 1. Prioritize Modern /task/copy with JSON body as per documentation
             const endpoints = [
-                { 
-                    url: `${this.baseUrl}/task/copy`, 
-                    method: 'POST', 
-                    body: { 
-                        taskId: masterTaskIntId, 
+                {
+                    url: `${this.baseUrl}/task/copy`,
+                    method: 'POST',
+                    body: {
+                        taskId: masterTaskIntId,
                         taskGroupId: parseInt(groupId) || 0,
-                        taskName: taskName 
-                    } 
+                        taskName: taskName
+                    }
                 },
-                { 
-                    url: `${this.baseUrl}/task/copy?taskId=${masterTaskIntId}&taskGroupId=${groupId || 0}&taskName=${encodeURIComponent(taskName)}`, 
-                    method: 'POST', 
-                    body: {} 
+                {
+                    url: `${this.baseUrl}/task/copy?taskId=${masterTaskIntId}&taskGroupId=${groupId || 0}&taskName=${encodeURIComponent(taskName)}`,
+                    method: 'POST',
+                    body: {}
                 },
-                { 
-                    url: `${this.baseUrl}/task/duplicate`, 
-                    method: 'POST', 
-                    body: { 
-                        taskId: masterTaskIntId, 
-                        taskGroupId: parseInt(groupId) || 0, 
-                        taskName: taskName 
-                    } 
+                {
+                    url: `${this.baseUrl}/task/duplicate`,
+                    method: 'POST',
+                    body: {
+                        taskId: masterTaskIntId,
+                        taskGroupId: parseInt(groupId) || 0,
+                        taskName: taskName
+                    }
                 }
             ];
 
@@ -295,7 +295,7 @@ class MarketDataSyncService {
                         console.log(`✅ Successfully created new task: ${taskName} (ID: ${newTaskId})`);
                         return newTaskId;
                     }
-                    
+
                     if (response.data.error || response.data.message?.includes('failed')) {
                         console.warn(`⚠️ Endpoint ${ep.url} failed: ${response.data.message || response.data.error}`);
                     }
@@ -314,7 +314,7 @@ class MarketDataSyncService {
 
     async startCloudExtraction(taskId) {
         if (!taskId) throw new Error('Task ID is required for cloud extraction');
-        
+
         const fs = require('fs');
         const path = require('path');
         const diagLogPath = path.join(process.cwd(), 'octoparse_sync_diagnostics.log');
@@ -326,12 +326,12 @@ class MarketDataSyncService {
 
         logDiag(`🚀 Starting Mega Diagnostic for Task ID: ${taskId}`);
         const token = await this.authenticate();
-        
+
         // 1. RESOLVE UUID TO INTEGER ID (Deep Resolution)
         let integerId = null;
-        if (taskId.includes('-')) { 
+        if (taskId.includes('-')) {
             logDiag(`🔍 Attempting to resolve UUID ${taskId} to Integer ID...`);
-            
+
             // Try method 1: Task Details (Direct)
             try {
                 const detailRes = await axios.get(`${this.baseUrl}/api/Task/GetTaskDetail`, {
@@ -339,8 +339,8 @@ class MarketDataSyncService {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (detailRes.data?.data?.TaskID) {
-                   integerId = detailRes.data.data.TaskID;
-                   logDiag(`✅ Resolved via Detail [Method 1]: ${integerId}`);
+                    integerId = detailRes.data.data.TaskID;
+                    logDiag(`✅ Resolved via Detail [Method 1]: ${integerId}`);
                 }
             } catch (e) { /* next */ }
 
@@ -357,7 +357,7 @@ class MarketDataSyncService {
         }
 
         const baseUrls = [this.baseUrl, 'https://dataapi.octoparse.com', 'https://openapi.octoparse.cn'];
-        
+
         let lastError = null;
         for (const base of baseUrls) {
             const currentId = integerId || taskId;
@@ -365,21 +365,21 @@ class MarketDataSyncService {
                 // Modern OpenAPI V3.0 (Correct path from OpenAPI spec)
                 { name: 'OpenAPI V3 (POST /cloudextraction/start)', url: `${base}/cloudextraction/start`, method: 'post', data: { taskId } },
                 { name: 'OpenAPI V3 (POST /cloudextraction/start UUID)', url: `${base}/cloudextraction/start`, method: 'post', data: { taskId: taskId } },
-                
+
                 // Legacy V1 (Standard/Enterprise)
                 { name: 'Legacy V1 (POST Q Integer)', url: `${base}/api/CloudTask/StartTask?taskId=${currentId}`, method: 'post' },
                 { name: 'Legacy V1 (GET UUID)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId } },
                 { name: 'Legacy V1 (GET Integer)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId: currentId } },
-                
+
                 // Variation Handling (Casing & Lowercase Bearer)
                 { name: 'V1 (GET Lowercase ID)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskid: currentId } },
                 { name: 'OpenAPI (POST Lowercase Bearer)', url: `${base}/cloudextraction/start`, method: 'post', data: { taskId }, lowerBearer: true },
                 { name: 'V1 (GET Lowercase Bearer)', url: `${base}/api/CloudTask/StartTask`, method: 'get', params: { taskId: currentId }, lowerBearer: true },
-                
+
                 // V3 API Paths
                 { name: 'V3 Task Start (POST Body)', url: `${base}/task/start`, method: 'post', data: { taskId: currentId } },
                 { name: 'V3 Task Start (POST Query)', url: `${base}/task/start?taskId=${currentId}`, method: 'post', data: {} },
-                
+
                 // Advanced/AddRun
                 { name: 'Advanced Trigger (AddRunTask)', url: `${base}/api/CloudTask/AddRunTask`, method: 'get', params: { taskId: currentId } }
             ];
@@ -392,9 +392,9 @@ class MarketDataSyncService {
                         method: v.method,
                         data: v.data,
                         params: v.params,
-                        headers: { 
+                        headers: {
                             'Authorization': v.lowerBearer ? `bearer ${token}` : `Bearer ${token}`,
-                            'Content-Type': 'application/json' 
+                            'Content-Type': 'application/json'
                         },
                         timeout: 8000
                     });
@@ -406,7 +406,7 @@ class MarketDataSyncService {
                         logDiag(`✅ SUCCESS via ${v.name}! Response: ${JSON.stringify(data)}`);
                         return data.data || data;
                     }
-                    
+
                     logDiag(`⚠️ Server rejected ${v.name}: ${JSON.stringify(data)}`);
                     lastError = data;
                 } catch (err) {
@@ -460,14 +460,14 @@ class MarketDataSyncService {
      */
     async processAndMapResults(sellerId, results) {
         if (!results || !Array.isArray(results) || results.length === 0) return { count: 0 };
-        
+
         let updatedCount = 0;
 
         for (const item of results) {
             try {
                 // Determine ASIN Code
                 let asinCode = (item.ASIN || item.asin || item.asinCode || '').trim();
-                
+
                 // Fallback: Extract from URL if code is missing
                 if (!asinCode && item.Original_URL) {
                     const match = item.Original_URL.match(/\/dp\/(B[A-Z0-9]{9})/);
@@ -497,7 +497,7 @@ class MarketDataSyncService {
         const token = await this.authenticate();
         try {
             console.log('🔍 Fetching Octoparse Task Group List...');
-            
+
             // 1. Try Modern endpoint first (from Python snippet)
             try {
                 const res = await axios.get(`${this.baseUrl}/taskGroup`, {
@@ -590,13 +590,13 @@ class MarketDataSyncService {
      */
     async stopSync(taskId) {
         if (!taskId) throw new Error('Task ID required for stop command');
-        
+
         const token = await this.authenticate();
-        
+
         // Try modern OpenAPI V3 stop first (POST /cloudextraction/stop)
         try {
             console.log(`🛑 Sending STOP command for task: ${taskId} (OpenAPI V3 method)...`);
-            const response = await axios.post(`${this.baseUrl}/cloudextraction/stop`, 
+            const response = await axios.post(`${this.baseUrl}/cloudextraction/stop`,
                 { taskId },
                 { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
             );
@@ -608,11 +608,11 @@ class MarketDataSyncService {
         } catch (err) {
             console.log(`⚠️ V3 Stop failed: ${err.response?.status || err.message}`);
         }
-        
+
         // Fallback: Try legacy V1 method
         try {
             console.log(`🛑 Sending STOP command for task: ${taskId} (Legacy V1 method)...`);
-            
+
             const response = await axios.get(`${this.baseUrl}/api/CloudTask/StopTask`, {
                 params: { taskId: taskId },
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -626,7 +626,7 @@ class MarketDataSyncService {
         } catch (error) {
             console.log(`⚠️ V1 Stop also failed: ${error.response?.status || error.message}`);
         }
-        
+
         console.log(`⚠️ Stop command attempted but task may already be stopped: ${taskId}`);
         return true; // Return true so sync continues anyway
     }
@@ -637,11 +637,11 @@ class MarketDataSyncService {
      */
     async getStatuses(taskIds) {
         if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) return [];
-        
+
         const token = await this.authenticate();
         try {
             console.log(`📊 Batch Status Check for ${taskIds.length} tasks...`);
-            
+
             // Resolve any UUIDs to Integer IDs for higher compatibility with the Batch API
             const resolvedIds = await Promise.all(taskIds.map(async id => {
                 if (id.includes('-')) {
@@ -654,14 +654,14 @@ class MarketDataSyncService {
             const response = await axios.post(`${this.baseUrl}/cloudextraction/statuses/v2`, {
                 taskIds: resolvedIds
             }, {
-                headers: { 
+                headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
 
             const results = response.data?.data || [];
-            
+
             // Map results back to original IDs for internal consistency
             const finalResults = [];
             taskIds.forEach((originalId, index) => {
@@ -731,11 +731,11 @@ class MarketDataSyncService {
     async getBulkStatuses(taskIds) {
         if (!taskIds || taskIds.length === 0) return [];
         const token = await this.authenticate();
-        
+
         // Strategy: Try modern V2 first, then legacy list, then individual if needed
         try {
             console.log(`🔍 Fetching bulk status for ${taskIds.length} tasks (Resolving UUIDs)...`);
-            
+
             // Resolve any UUIDs to Integer IDs for higher compatibility
             const resolvedIds = await Promise.all(taskIds.map(async id => {
                 if (id.includes('-')) {
@@ -756,13 +756,13 @@ class MarketDataSyncService {
             } catch (v2Err) {
                 console.warn('⚠️ Octoparse V2 Bulk Status failed:', v2Err.response?.data?.message || v2Err.message);
             }
- 
+
             // 2. Try Legacy List Endpoint
             const legacyRes = await axios.get(`${this.baseUrl}/api/CloudTask/GetTaskStatusList`, {
                 params: { taskIds: resolvedIds.join(',') },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
- 
+
             if (legacyRes.data?.data) {
                 const data = Array.isArray(legacyRes.data.data) ? legacyRes.data.data : [legacyRes.data.data];
                 // Normalize legacy return to match V2 schema if possible
@@ -772,7 +772,7 @@ class MarketDataSyncService {
                     taskName: d.TaskName || d.name
                 }));
             }
- 
+
             return [];
         } catch (error) {
             console.error('❌ Get Bulk Status Error:', error.response?.data || error.message);
@@ -792,7 +792,7 @@ class MarketDataSyncService {
 
         try {
             console.log(`📥 Fetching ${size} rows from Octoparse (Offset: ${offset}) for Task: ${taskId}...`);
-            
+
             // Try Modern V2 Data API first (Usually accepts UUIDs)
             try {
                 const response = await axios.get(`${this.baseUrl}/cloudextraction/data/v1`, {
@@ -867,7 +867,7 @@ class MarketDataSyncService {
             await axios.post(`${this.baseUrl}/data/markexported`, {
                 taskId: taskId
             }, {
-                headers: { 
+                headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
@@ -914,17 +914,17 @@ class MarketDataSyncService {
     async pollAndAutomate(sellerId, taskId, options = {}) {
         const fullSync = options.fullSync || false;
         console.log(`🕵️ [AUTO] Monitoring Seller: ${sellerId}, Task: ${taskId}... (Mode: ${fullSync ? 'FULL' : 'INC'})`);
-        
+
         let attempts = 0;
         const maxAttempts = 100; // Increased to handle longer tasks
         const startTime = Date.now();
         const FOUR_HOURS = 4 * 60 * 60 * 1000;
-        
+
         const FAST_INTERVAL = 60000;      // 1 min
         const STANDARD_INTERVAL = 300000; // 5 mins
         const INITIAL_WAIT = 30000;      // 30 secs
 
-        await this.wait(INITIAL_WAIT); 
+        await this.wait(INITIAL_WAIT);
 
         while (attempts < maxAttempts) {
             // Stuck detection: Don't poll forever
@@ -935,7 +935,7 @@ class MarketDataSyncService {
 
             try {
                 const statusInfo = await this.getStatus(taskId);
-                
+
                 if (statusInfo?.error === 'RateLimit') {
                     await this.wait(60000);
                     continue;
@@ -952,38 +952,38 @@ class MarketDataSyncService {
 
                 if (isCompleted) {
                     console.log(`✅ [AUTO] Task ${taskId} FINISHED. Starting results ingestion...`);
-                    
+
                     try {
                         // Use our ROBUST multi-path retrieval method
                         const rawData = await this.retrieveResults(taskId);
-                        
+
                         if (rawData && rawData.length > 0) {
                             console.log(`📥 [AUTO] Fetched ${rawData.length} rows for ingestion.`);
                             const count = await this.processBatchResults(sellerId, rawData);
-                            
+
                             // Update Seller metadata
                             const Seller = require('../models/Seller');
-                            await Seller.findByIdAndUpdate(sellerId, { 
+                            await Seller.findByIdAndUpdate(sellerId, {
                                 lastScraped: new Date(),
                                 scrapeUsed: count
                             });
-                            
+
                             console.log(`🎉 [AUTO] Successfully ingested ${count} metrics for seller ${sellerId}.`);
-                            
+
                             // Cleanup: Mark as exported to keep Octoparse queue clean
-                            await this.markDataAsExported(taskId).catch(() => {});
+                            await this.markDataAsExported(taskId).catch(() => { });
                         } else {
                             console.warn(`⚠️ [AUTO] Task reported complete but no data found in retrieveResults.`);
                         }
                     } catch (ingestErr) {
                         console.error(`❌ [AUTO] Ingestion Error for ${taskId}:`, ingestErr.message);
                     }
-                    return; 
+                    return;
                 }
 
                 if (isFailed) {
                     console.error(`❌ [AUTO] Task ${taskId} FAILED or STOPPED (Status: ${status}). Automation aborted.`);
-                    return; 
+                    return;
                 }
 
                 const currentInterval = attempts < 10 ? FAST_INTERVAL : STANDARD_INTERVAL;
@@ -1043,7 +1043,7 @@ class MarketDataSyncService {
      */
     async _fetchDataBatch(taskId, size, offset, executionId = null) {
         const token = await this.authenticate();
-        
+
         // RESOLVE UUID TO INTEGER ID for Legacy/Alt clusters
         let currentId = taskId;
         if (taskId.includes('-')) {
@@ -1081,7 +1081,7 @@ class MarketDataSyncService {
                 if (response.data?.data || Array.isArray(response.data)) {
                     console.log(`✅ Data fetched from ${path}:`, JSON.stringify(response.data).substring(0, 300));
                     const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
-                    
+
                     // DEBUG: Log the structure of response for /data/all path
                     if (path === '/data/all' && response.data.data) {
                         console.log(`📋 DEBUG /data/all response structure:`, {
@@ -1094,14 +1094,14 @@ class MarketDataSyncService {
                             offset: response.data.data.offset,
                             dataLength: response.data.data.data?.length
                         });
-                        
+
                         // For /data/all, the next offset is returned in response
                         // Store it in a custom property we can access later
                         if (response.data.data.offset !== undefined) {
                             return { dataList: Array.isArray(dataList) ? dataList : [], nextOffset: response.data.data.offset };
                         }
                     }
-                    
+
                     // Also check for /data/notexported response structure
                     if (path === '/data/notexported' && response.data.data) {
                         console.log(`📋 DEBUG /data/notexported response structure:`, {
@@ -1113,7 +1113,7 @@ class MarketDataSyncService {
                             dataLength: response.data.data.data?.length
                         });
                     }
-                    
+
                     return Array.isArray(dataList) ? dataList : [];
                 } else {
                     // Response doesn't have expected structure
@@ -1122,7 +1122,7 @@ class MarketDataSyncService {
             } catch (err) {
                 lastErr = err.response?.status + ' ' + (err.response?.data?.error?.message || err.message);
                 console.log(`❌ Path ${path} failed: ${err.response?.status} - ${err.message}`);
-                
+
                 // If it's a 404 and we used a resolved ID, try a fallback to original UUID
                 if (err.response?.status === 404 && currentId !== taskId) {
                     try {
@@ -1133,15 +1133,15 @@ class MarketDataSyncService {
                         });
                         if (response.data?.data || Array.isArray(response.data)) {
                             const dataList = response.data.data?.dataList || response.data.data?.data || response.data;
-                            
+
                             // For /data/all fallback, also extract offset
                             if (path === '/data/all' && response.data.data?.offset !== undefined) {
                                 return { dataList: Array.isArray(dataList) ? dataList : [], nextOffset: response.data.data.offset };
                             }
-                            
+
                             return Array.isArray(dataList) ? dataList : [];
                         }
-                    } catch (inner) { 
+                    } catch (inner) {
                         console.log(`❌ Fallback also failed: ${inner.message}`);
                     }
                 }
@@ -1165,7 +1165,7 @@ class MarketDataSyncService {
             console.log(`📥 Multi-Path Retrieval triggered for Task: ${taskId}`);
             while (hasMore) {
                 const batchResult = await this._fetchDataBatch(taskId, size, offset, executionId);
-                
+
                 // Handle both array return and object return (for /data/all which returns nextOffset)
                 let dataList = batchResult;
                 if (batchResult && typeof batchResult === 'object' && 'dataList' in batchResult) {
@@ -1176,7 +1176,7 @@ class MarketDataSyncService {
                         console.log(`📍 Using server-provided offset: ${offset}`);
                     }
                 }
-                
+
                 // Deduplicate: Only add items we haven't seen before (by URL)
                 let newCount = 0;
                 for (const item of dataList) {
@@ -1187,9 +1187,9 @@ class MarketDataSyncService {
                         newCount++;
                     }
                 }
-                
+
                 console.log(`📦 Fetched ${dataList.length} items, added ${newCount} new (Total unique: ${allResults.length})`);
-                
+
                 // Check for empty data - if ALL items have empty Title/asp, stop early
                 const allEmpty = dataList.every(item => !item.Title && !item.asp && !item.mrp);
                 if (allEmpty && dataList.length > 0) {
@@ -1198,7 +1198,7 @@ class MarketDataSyncService {
                     hasMore = false;
                     break;
                 }
-                
+
                 if (dataList.length < size) {
                     hasMore = false;
                 } else {
@@ -1208,12 +1208,12 @@ class MarketDataSyncService {
                     }
                 }
             }
-            
+
             // Log sample of what we got
             if (allResults.length > 0) {
                 console.log(`📊 Sample of retrieved data (first item):`, JSON.stringify(allResults[0], null, 2));
             }
-            
+
             return allResults;
         } catch (error) {
             console.error('❌ Retrieve Results Error:', error.message);
@@ -1272,7 +1272,7 @@ class MarketDataSyncService {
         // DEFAULT TO TRUE: We always want to start the scrape unless explicitly told not to
         const triggerScrape = options.triggerScrape !== undefined ? options.triggerScrape : true;
         const forceReRun = options.forceReRun || false;
-        
+
         console.log(`🏁 [START] Seller Sync Logic triggered for: ${sellerId}`);
 
         // CONCURRENCY LOCK: Prevent overlapping syncs for the same seller
@@ -1303,9 +1303,9 @@ class MarketDataSyncService {
 
             // 3. Get All Active ASINs for this seller from database
             console.log(`📊 Fetching all active ASINs from database for seller ${sellerId}...`);
-            const asins = await Asin.find({ 
-                seller: sellerId, 
-                status: 'Active' 
+            const asins = await Asin.find({
+                seller: sellerId,
+                status: 'Active'
             }).select('asinCode');
 
             if (asins.length === 0) {
@@ -1320,7 +1320,7 @@ class MarketDataSyncService {
             const urls = asinCodes.map(code => `https://www.amazon.in/dp/${code}`);
 
             // 3. PERSIST URLs to Database for record-keeping and formal injection
-            await Seller.findByIdAndUpdate(sellerId, { 
+            await Seller.findByIdAndUpdate(sellerId, {
                 marketSyncUrls: urls,
                 totalAsins: asins.length // Update metadata while we are here
             });
@@ -1375,14 +1375,14 @@ class MarketDataSyncService {
 
         while (isRunning && attempts < maxAttempts) {
             const statusInfo = await this.getStatus(taskId);
-            
+
             // Octoparse statuses can be: 0=Idle, 1=Running, 2=Waiting, 3=Stopped/Finished, 4=Failed
             let status = statusInfo?.status ?? statusInfo?.Status ?? statusInfo;
             if (typeof status === 'object' && status !== null) status = status.status || status.Status;
 
             // Normalize status to number if possible
             const statusNum = parseInt(status);
-            
+
             // 0, 3, 4 are "Not Running"
             isRunning = (statusNum === 1 || statusNum === 2 || status === 'Executing' || status === 'Running' || status === 'Waiting');
 
@@ -1414,11 +1414,11 @@ class MarketDataSyncService {
             if (!asin) throw new Error('ASIN not found');
 
             // --- Robust Advanced Mapping (Octoparse Specialized) ---
-            
+
             // 1. Price & Deal Logic
-            const price = this._cleanPrice(rawData.asp || rawData.price || rawData.currentPrice || rawData.Field2);
-            const mrp = this._cleanPrice(rawData.mrp || rawData.listPrice || rawData.Field3);
-            const dealBadge = (rawData.deal_badge && rawData.deal_badge !== 'null' && rawData.deal_badge !== '') ? rawData.deal_badge.trim() : 'No deal found';
+            const price = this._cleanPrice(this._getFromRaw(rawData, ['asp', 'price', 'currentPrice', 'Field2']));
+            const mrp = this._cleanPrice(this._getFromRaw(rawData, ['mrp', 'listPrice', 'Field3']));
+            const dealBadge = this._cleanDealBadge(this._getFromRaw(rawData, ['deal_badge', 'dealBadge', 'deal', 'Field14'], 'No deal found'));
             const priceType = dealBadge !== 'No deal found' ? 'Deal Price' : 'Standard Price';
 
             // 2. Title & Character Count
@@ -1438,124 +1438,100 @@ class MarketDataSyncService {
                 }
             }
 
-            // 4. BSR Parsing (Main BSR: #XXXX in Cat, Sub BSR: #XXXX in SubCat)
-             const bsrString = rawData.BSR || rawData.Field9 || rawData.bsr || rawData.alt_bsr || '';
-             const bsr = this._cleanBsr(bsrString);
-             const subBsr = this._cleanBsr(rawData.sub_BSR || rawData.alt_sub_bsr || '');
-
-            // Extract all rank strings (e.g. #476 in Men's Kurtas) fallback
-            let subBSRs = [];
-            if (bsrString && typeof bsrString === 'string') {
-                const parts = bsrString.split(/\s{2,}|\n/).map(p => p.trim()).filter(Boolean);
-                subBSRs = parts.filter(p => p.includes('#') && (p.toLowerCase().includes(' in ') || p.toLowerCase().includes(' ( ')));
-            }
+            // 4. BSR Parsing
+            const bsrData = this._parseBSR(rawData);
+            const bsr = bsrData.main;
+            const subBsr = bsrData.subBsrString || bsrData.sub;
+            const subBSRs = bsrData.allRanks;
 
             // 5. Image Processing (Gallery extraction + Video Detection)
-            let imageCount = 0;
-            let videoCount = 0;
-            let images = [];
-            const imgHtml = rawData.image_count || rawData.Field6 || '';
-            if (imgHtml && typeof imgHtml === 'string' && imgHtml.includes('<li')) {
-                try {
-                    const imgDom = new JSDOM(imgHtml);
-                    const liTags = imgDom.window.document.querySelectorAll('li');
-                    imageCount = liTags.length;
-                    
-                    // Check for video thumbnails (usually have class 'videoThumbnail')
-                    const videoTags = Array.from(imgDom.window.document.querySelectorAll('.videoThumbnail, .video-thumbnail, video'));
-                    videoCount = videoTags.length;
-                    
-                    images = Array.from(imgDom.window.document.querySelectorAll('img')).map(img => img.src).filter(Boolean);
-                } catch (e) {
-                    console.warn('Image HTML parsing failed');
-                }
-            } else {
-                imageCount = parseInt(rawData.imageCount || rawData.imagesCount || rawData.Field6 || 0);
-                videoCount = parseInt(rawData.videoCount || rawData.video_count || 0);
-            }
-            const mainImageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || rawData.Field5 || asin.imageUrl;
+            const mediaData = this._countImagesAndVideos(rawData);
+            const imagesCount = mediaData.imagesCount;
+            const videoCount = mediaData.videoCount;
+            const images = mediaData.images || [];
+            const mainImageUrl = this._getFromRaw(rawData, ['Main_Image', 'mainImage', 'imageUrl', 'Field5'], asin.mainImageUrl);
 
             // 6. Rating & Reviews
-            // Strictly use avg_rating field – no other parsing methods
             let rating = parseFloat(rawData.avg_rating);
             if (isNaN(rating)) rating = 0;
 
-            // Clean review count (keep existing logic, as it doesn't affect rating value)
-            let reviewCount = this._cleanReviewCount(rawData.review_count || rawData.Review_Count || rawData.Rating_Count || rawData.rating || '');
+            let reviewCount = this._cleanReviewCount(this._getFromRaw(rawData, ['review_count', 'Review_Count', 'Rating_Count', 'rating', 'RT'], ''));
 
-            // Rating breakdown percentages – keep as is
-            let p5 = 0, p4 = 0, p3 = 0, p2 = 0, p1 = 0;
-            const ratingStr = rawData.Rating || rawData.Field7 || '';
-            if (ratingStr) {
-                // Extracts the first continuous 5 percentages out of the html histogram string
-                const percMatch = ratingStr.match(/(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%/);
-                if (percMatch) {
-                    p5 = parseFloat(percMatch[1]);
-                    p4 = parseFloat(percMatch[2]);
-                    p3 = parseFloat(percMatch[3]);
-                    p2 = parseFloat(percMatch[4]);
-                    p1 = parseFloat(percMatch[5]);
-                } else {
-                    p5 = parseFloat(rawData['5_star'] || rawData.five_star || 0);
-                    p4 = parseFloat(rawData['4_star'] || rawData.four_star || 0);
-                    p3 = parseFloat(rawData['3_star'] || rawData.three_star || 0);
-                    p2 = parseFloat(rawData['2_star'] || rawData.two_star || 0);
-                    p1 = parseFloat(rawData['1_star'] || rawData.one_star || 0);
-                }
+            const ratingBreakdown = this._parseRatingBreakdown(rawData.Rating || rawData.Field7 || rawData.Rating_breakdown || '');
+
+            // Ensure we don't lose data if breakdown is empty but we had it before
+            const hasBreakdown = Object.values(ratingBreakdown).some(v => v > 0);
+            if (!hasBreakdown && asin.ratingBreakdown) {
+                Object.assign(ratingBreakdown, asin.ratingBreakdown);
             }
-
-            // Rating breakdown percentages – store raw percentages (0-100), NOT review counts
-            const ratingBreakdown = {
-                fiveStar: p5 || asin.ratingBreakdown?.fiveStar || 0,
-                fourStar: p4 || asin.ratingBreakdown?.fourStar || 0,
-                threeStar: p3 || asin.ratingBreakdown?.threeStar || 0,
-                twoStar: p2 || asin.ratingBreakdown?.twoStar || 0,
-                oneStar: p1 || asin.ratingBreakdown?.oneStar || 0
-            };
 
             // 7. Bullet Points
-            let bulletPointsText = [
-                rawData.bp_1, rawData.bp_2, rawData.bp_3, rawData.bp_4, rawData.bp_5, rawData.bullet_points_1
-            ].map(p => p?.trim()).filter(Boolean);
-
-            // Fallback: Parse bullet_points HTML if plain list is empty
-            if (bulletPointsText.length === 0 && rawData.bullet_points?.includes('<li')) {
-                try {
-                    const bpDom = new JSDOM(rawData.bullet_points);
-                    bulletPointsText = Array.from(bpDom.window.document.querySelectorAll('li')).map(li => li.textContent.trim()).filter(Boolean);
-                } catch (e) {
-                    console.warn('Bullet point HTML parsing failed');
-                }
-            }
+            const bulletPointsText = this._parseBulletPoints(rawData.bullet_points || rawData.Field8 || rawData);
             const bulletPoints = bulletPointsText.length || parseInt(rawData.bulletPoints || rawData.bullet_points_count || 0);
 
             // 8. Stock Level, A+ Content & Availability
-            const stockLevel = this._cleanStock(rawData.stock_level || rawData.Field10 || rawData.stock || 0);
-            
-            // Robust A+ Content detection (Octoparse may extract the actual HTML/JS content)
-            const rawAplus = rawData.has_aplus || rawData.A_plus || rawData.Field15 || '';
-            const hasAplus = (typeof rawAplus === 'string' && rawAplus.trim().length > 20) 
-                              ? true 
-                              : this._parseBoolean(rawAplus || false);
-            
-            // Parse custom user fields (availability is unavilable typo in octoparse)
+            const stockLevel = this._cleanStock(this._getFromRaw(rawData, ['stock_level', 'Field10', 'stock', 'inventory'], 0));
+            const hasAplus = this._detectAplusContent(rawData);
             const availabilityStatus = rawData.unavilable || rawData.status || rawData.availabilityStatus || rawData.availability || asin.availabilityStatus || 'Available';
-            
-            // Map A+ presence/absence logic using database tracked timestamps
             let aplusAbsentSince = asin.aplusAbsentSince;
             let aplusPresentSince = asin.aplusPresentSince;
             if (hasAplus) {
                 aplusPresentSince = aplusPresentSince || new Date();
-                aplusAbsentSince = null; // reset absent timer
+                aplusAbsentSince = null;
             } else {
                 aplusAbsentSince = aplusAbsentSince || new Date();
-                aplusPresentSince = null; // reset present timer
+                aplusPresentSince = null;
             }
 
             // 9. Sold By & Second Buy Box
-            const soldBy = rawData.sold_by || rawData.Field11 || asin.soldBy || '';
-            const secondAsp = this._cleanPrice(rawData.second_asp || '') || asin.secondAsp;
-            const soldBySec = (rawData.Sold_by_sec || asin.soldBySec || '').trim();
+            const soldBy = this._extractSellerFromRaw(rawData) || asin.soldBy || '';
+            const buyBoxWin = this._isBuyBoxWinner(soldBy);
+
+            let secondAsp = asin.secondAsp;
+            let soldBySec = asin.soldBySec;
+            let allOffers = [];
+
+            // Add primary buy box as the first offer
+            if (soldBy) {
+                allOffers.push({
+                    seller: soldBy,
+                    price: price || asin.currentPrice || 0,
+                    isBuyBoxWinner: true
+                });
+            }
+
+            const secondBuyboxData = this._parseSecondaryBuybox(rawData.second_buybox || rawData.Alt_buyBox || rawData.Field25 || '');
+            if (secondBuyboxData.offers.length > 0) {
+                // Find first non-primary seller for legacy secondAsp/soldBySec fields
+                const alternateOffer = secondBuyboxData.offers.find(o => o.seller !== soldBy) || secondBuyboxData.offers[0];
+                if (alternateOffer) {
+                    secondAsp = alternateOffer.price || secondAsp;
+                    soldBySec = alternateOffer.seller || soldBySec;
+                }
+
+                // Add all secondary offers to allOffers
+                secondBuyboxData.offers.forEach(offer => {
+                    // Avoid duplicating the primary offer if it was already added
+                    if (offer.seller !== soldBy || allOffers.length === 0) {
+                        allOffers.push({
+                            seller: offer.seller,
+                            price: offer.price,
+                            isBuyBoxWinner: false
+                        });
+                    }
+                });
+            } else {
+                secondAsp = this._cleanPrice(rawData.second_asp || '') || secondAsp;
+                soldBySec = (rawData.Sold_by_sec || soldBySec || '').trim();
+
+                if (soldBySec && soldBySec !== soldBy) {
+                    allOffers.push({
+                        seller: soldBySec,
+                        price: secondAsp,
+                        isBuyBoxWinner: false
+                    });
+                }
+            }
 
             const updates = {
                 title,
@@ -1572,15 +1548,16 @@ class MarketDataSyncService {
                 subBSRs,
                 rating: rating > 0 ? rating : asin.rating,
                 reviewCount: reviewCount > 0 ? reviewCount : asin.reviewCount,
-                imagesCount: imageCount > 0 ? imageCount : asin.imagesCount,
+                imagesCount: imagesCount > 0 ? imagesCount : asin.imagesCount,
                 videoCount: videoCount >= 0 ? videoCount : asin.videoCount,
                 images,
                 mainImageUrl: mainImageUrl || asin.mainImageUrl,
-                imageUrl: mainImageUrl || asin.imageUrl, // Compatibility
+                imageUrl: mainImageUrl || asin.imageUrl,
                 soldBy,
                 secondAsp,
                 soldBySec,
-                buyBoxWin: isBuyBoxWinner(soldBy),
+                allOffers,
+                buyBoxWin,
                 buyBoxSellerId: soldBy || asin.buyBoxSellerId,
                 bulletPoints,
                 bulletPointsText,
@@ -1590,7 +1567,7 @@ class MarketDataSyncService {
                 aplusPresentSince,
                 availabilityStatus,
                 ratingBreakdown,
-                rawOctoparseData: rawData, // Preserve complete original data
+                rawOctoparseData: rawData,
                 lastScraped: new Date(),
                 scrapeStatus: 'COMPLETED',
                 status: 'Active',
@@ -1636,12 +1613,12 @@ class MarketDataSyncService {
 
             Object.assign(asin, updates);
             await asin.save();
-            
+
             // Emit socket event for real-time UI updates
             const io = SocketService.getIo();
             if (io) {
-                io.emit('scrape_data_ingested', { 
-                    asinId: asin._id, 
+                io.emit('scrape_data_ingested', {
+                    asinId: asin._id,
                     sellerId: asin.seller,
                     asinCode: asin.asinCode,
                     timestamp: new Date()
@@ -1670,7 +1647,7 @@ class MarketDataSyncService {
     async updateAsinMetricsByCode(asinCode, rawData) {
         try {
             // Case-insensitive search to handle both old (uppercase) and new (original case) data
-            const asin = await Asin.findOne({ 
+            const asin = await Asin.findOne({
                 asinCode: { $regex: new RegExp(`^${asinCode}$`, 'i') }
             });
             if (!asin) {
@@ -1684,37 +1661,37 @@ class MarketDataSyncService {
         }
     }
 
-/**
-     * Memory-safe streaming bulk processing with pagination
-     * Handles 10,000+ results without heap errors
-     */
+    /**
+         * Memory-safe streaming bulk processing with pagination
+         * Handles 10,000+ results without heap errors
+         */
     async processBatchResults(sellerId, rawResults) {
         if (!rawResults || rawResults.length === 0) return 0;
-        
+
         console.log(`🚀 Memory-safe bulk processing ${rawResults.length} results for seller ${sellerId}...`);
         console.log(`📊 Memory: ${memProcessor.getMemoryStats().heapUsed}`);
-        
+
         let updatedCount = 0;
         const now = new Date();
-        
+
         // Process in smaller chunks to avoid memory issues
         const CHUNK_SIZE = 200;
         const ASIN_BATCH = 50;
-        
+
         for (let chunkStart = 0; chunkStart < rawResults.length; chunkStart += CHUNK_SIZE) {
             // Check memory before chunk
             if (memProcessor.isMemoryCritical()) {
                 console.log(`🧹 Memory critical - cleaning up...`);
                 await memProcessor.cleanup();
             }
-            
+
             const chunk = rawResults.slice(chunkStart, chunkStart + CHUNK_SIZE);
-            console.log(`📦 Processing chunk ${Math.floor(chunkStart/CHUNK_SIZE) + 1} (${chunk.length} items)...`);
-            
+            console.log(`📦 Processing chunk ${Math.floor(chunkStart / CHUNK_SIZE) + 1} (${chunk.length} items)...`);
+
             // Extract ASIN codes for this chunk
             const asinCodesToFind = chunk.map(r => this._extractAsinFromData(r)).filter(Boolean);
             if (asinCodesToFind.length === 0) continue;
-            
+
             // Fetch ASINs for this chunk only (paginated)
             let currentAsins = [];
             for (let i = 0; i < asinCodesToFind.length; i += ASIN_BATCH) {
@@ -1724,40 +1701,59 @@ class MarketDataSyncService {
                     $or: codeBatch.map(code => ({ asinCode: { $regex: new RegExp(`^${code}$`, 'i') } }))
                 }).lean();
                 currentAsins.push(...docs);
-                
+
                 if (memProcessor.isMemoryCritical()) {
                     await memProcessor.cleanup();
                 }
             }
-            
+
             // Create map for lookups
             const asinMap = new Map(currentAsins.map(a => [a.asinCode.toLowerCase(), a]));
-            
+
             // Build bulk ops for this chunk
             const bulkOps = [];
             for (const rawData of chunk) {
                 const code = this._extractAsinFromData(rawData);
                 if (!code) continue;
-                
+
                 const asin = asinMap.get(code.toLowerCase());
                 if (!asin) continue;
-                
-                const price = this._cleanPrice(rawData.asp || rawData.price || rawData.Field2 || rawData.currentPrice);
-                const mrp = this._cleanPrice(rawData.mrp || rawData.listPrice || rawData.Field3);
-                const bsr = this._cleanBsr(rawData.sub_BSR || rawData.Field9 || rawData.BSR || rawData.bsr || rawData.alt_bsr || '');
+
+                const price = this._cleanPrice(this._getFromRaw(rawData, ['asp', 'price', 'Field2', 'currentPrice']));
+                const mrp = this._cleanPrice(this._getFromRaw(rawData, ['mrp', 'listPrice', 'Field3']));
+
+                // Use new BSR helper
+                const bsrData = this._parseBSR(rawData);
+                const bsr = bsrData.main;
+                const subBsr = bsrData.subBsrString || bsrData.sub;
+                const subBSRs = bsrData.allRanks;
+
                 const title = (rawData.Title || rawData.title || asin.title || '').trim();
-                const soldBy = (rawData.sold_by || rawData.Field11 || asin.soldBy || '').trim();
-                const secondAsp = this._cleanPrice(rawData.second_asp || '') || asin.secondAsp;
-                const soldBySec = (rawData.Sold_by_sec || asin.soldBySec || '').trim();
-                
-                const rawAplusBulk = rawData.A_plus || rawData.has_aplus || '';
-                const hasAplus = (typeof rawAplusBulk === 'string' && rawAplusBulk.trim().length > 20)
-                                 ? true
-                                 : this._parseBoolean(rawAplusBulk || false);
-                                 
+
+                // Use new seller helpers
+                const soldBy = this._extractSellerFromRaw(rawData) || asin.soldBy || '';
+                const buyBoxWin = this._isBuyBoxWinner(soldBy);
+
+                let secondAsp = asin.secondAsp;
+                let soldBySec = asin.soldBySec;
+                const secondBuyboxData = this._parseSecondaryBuybox(rawData.second_buybox || rawData.Alt_buyBox || rawData.Field25 || '');
+                if (secondBuyboxData.offers.length > 0) {
+                    const alternateOffer = secondBuyboxData.offers.find(o => o.seller !== soldBy) || secondBuyboxData.offers[0];
+                    if (alternateOffer) {
+                        secondAsp = alternateOffer.price || secondAsp;
+                        soldBySec = alternateOffer.seller || soldBySec;
+                    }
+                } else {
+                    secondAsp = this._cleanPrice(rawData.second_asp || '') || secondAsp;
+                    soldBySec = (rawData.Sold_by_sec || asin.soldBySec || '').trim();
+                }
+
+                // Use new A+ helper
+                const hasAplus = this._detectAplusContent(rawData);
+
                 const availabilityStatus = rawData.status || rawData.availabilityStatus || rawData.availability || rawData.In_Stock || asin.availabilityStatus || 'Available';
-                const mainImageUrl = rawData.Main_Image || rawData.mainImage || rawData.imageUrl || rawData.Field5 || asin.mainImageUrl || asin.imageUrl;
-                
+                const mainImageUrl = this._getFromRaw(rawData, ['Main_Image', 'mainImage', 'imageUrl', 'Field5'], asin.mainImageUrl || asin.imageUrl);
+
                 let aplusAbsentSince = asin.aplusAbsentSince;
                 let aplusPresentSince = asin.aplusPresentSince;
                 if (hasAplus) {
@@ -1767,72 +1763,33 @@ class MarketDataSyncService {
                     aplusAbsentSince = aplusAbsentSince || now;
                     aplusPresentSince = null;
                 }
-                
-                let category = (rawData.category || asin.category || '').trim();
-                if (category.includes('<li')) {
-                    const matches = category.match(/<li[^>]*>([\s\S]*?)<\/li>/gi);
-                    if (matches) {
-                        category = matches.map(m => m.replace(/<[^>]+>/g, '').replace(/^›\s*/, '').replace(/\s*›$/, '').trim()).filter(Boolean).join(' › ');
-                    }
-                }
+
+                let category = this._parseCategory(rawData.category || asin.category || '');
                 // Strictly use avg_rating field – no other parsing methods
                 let rating = parseFloat(rawData.avg_rating);
                 if (isNaN(rating)) rating = 0;
-                
-                // Priority: check review_count (lowercase), then Review_Count, then ReviewCount, then fallback to noise-cleaning rating string
-                const parsedReviewStr = rawData.review_count || rawData.Review_Count || rawData.ReviewCount || rawData.rating || rawData.Reviews || rawData.RT || '';
+
+                // Use _getFromRaw for reviews
+                const parsedReviewStr = this._getFromRaw(rawData, ['review_count', 'Review_Count', 'ReviewCount', 'rating', 'Reviews', 'RT'], '');
                 const reviewCount = this._cleanReviewCount(parsedReviewStr) || asin.reviewCount;
-                
-                // Extract breakdown independently if ratingData is gone
-                const breakdownStr = rawData.Rating || rawData.RT || rawData.rating || '';
-                const percentages = this._extractBreakdown(breakdownStr) || {
-                    '5': parseFloat(rawData['5_star'] || rawData.five_star || 0),
-                    '4': parseFloat(rawData['4_star'] || rawData.four_star || 0),
-                    '3': parseFloat(rawData['3_star'] || rawData.three_star || 0),
-                    '2': parseFloat(rawData['2_star'] || rawData.two_star || 0),
-                    '1': parseFloat(rawData['1_star'] || rawData.one_star || 0)
-                };
 
-                const ratingBreakdown = {
-                    fiveStar: percentages['5'] || asin.ratingBreakdown?.fiveStar || 0,
-                    fourStar: percentages['4'] || asin.ratingBreakdown?.fourStar || 0,
-                    threeStar: percentages['3'] || asin.ratingBreakdown?.threeStar || 0,
-                    twoStar: percentages['2'] || asin.ratingBreakdown?.twoStar || 0,
-                    oneStar: percentages['1'] || asin.ratingBreakdown?.oneStar || 0
-                };
+                const ratingBreakdown = this._parseRatingBreakdown(rawData.Rating || rawData.RT || rawData.rating || rawData.Rating_breakdown || '');
+                // Ensure we don't lose data if breakdown is empty but we had it before
+                const hasBatchBreakdown = Object.values(ratingBreakdown).some(v => v > 0);
+                if (!hasBatchBreakdown && asin.ratingBreakdown) {
+                    Object.assign(ratingBreakdown, asin.ratingBreakdown);
+                }
 
-                let imagesCount = asin.imagesCount || 0;
-                let videoCount = 0;
-                if (rawData.image_count?.includes('<li')) {
-                    const liMatches = rawData.image_count.match(/<li[^>]*>[\s\S]*?<\/li>/gi) || [];
-                    imagesCount = liMatches.length;
-                    
-                    // Video detection - look for video indicators in the li HTML
-                    for (const li of liMatches) {
-                        if (li.toLowerCase().includes('video') || li.toLowerCase().includes('vjs') || li.match(/<div[^>]*video[^>]*>/i)) {
-                            videoCount++;
-                        }
-                    }
-                }
-                let subBSRs = asin.subBSRs || [];
-                const bsrString = rawData.sub_BSR || rawData.alt_sub_bsr || rawData.BSR || rawData.alt_bsr || '';
-                if (bsrString && typeof bsrString === 'string') {
-                    const parts = bsrString.split(/\s{2,}|\n/).map(p => p.trim()).filter(Boolean);
-                    subBSRs = parts.filter(p => p.includes('#') && (p.toLowerCase().includes(' in ') || p.toLowerCase().includes(' ( ')));
-                }
-                let bulletPointsText = [
-                    rawData.bp_1, rawData.bp_2, rawData.bp_3, rawData.bp_4, rawData.bp_5, rawData.bullet_points_1, rawData.bullet_points
-                ].map(p => p?.trim()).filter(Boolean);
-                if (bulletPointsText.length <= 1 && rawData.bullet_points?.includes('<li')) {
-                    const matches = rawData.bullet_points.match(/<li[^>]*>(?:<span[^>]*>)?([^<]+)(?:<\/span>)?<\/li>/gi);
-                    if (matches) {
-                        bulletPointsText = matches.map(m => m.replace(/[^>]+>/g, '').trim()).filter(Boolean);
-                    }
-                }
+                // Use new Image/Video helper
+                const mediaData = this._countImagesAndVideos(rawData);
+                const imagesCount = mediaData.imagesCount || asin.imagesCount || 0;
+                const videoCount = mediaData.videoCount;
+
+                const bulletPointsText = this._parseBulletPoints(rawData.bullet_points || rawData.Field8 || rawData);
                 const bulletCount = bulletPointsText.length || parseInt(rawData.bulletPoints || rawData.bullet_points_count || 0);
                 const rawDeal = rawData.deal_badge || rawData.dealBadge || rawData.deal || '';
                 const dealBadge = this._cleanDealBadge(rawDeal) || asin.dealBadge || 'No deal found';
-                
+
                 // Calculate current week string for history
                 const startOfYr = new Date(now.getFullYear(), 0, 0);
                 const diffOfYr = now - startOfYr;
@@ -1853,20 +1810,20 @@ class MarketDataSyncService {
                     bulletPoints: bulletCount,
                     subBSRs: subBSRs,
                     hasAplus: hasAplus,
-                    stockLevel: this._cleanStock(rawData.stock || rawData.inventory || 0)
+                    stockLevel: this._cleanStock(this._getFromRaw(rawData, ['stock', 'inventory', 'stock_level'], 0))
                 };
 
                 // Update weekHistory in memory to avoid duplicates on the same date
                 const todayStr = now.toDateString();
                 const existingIndex = (asin.weekHistory || []).findIndex(w => new Date(w.date).toDateString() === todayStr);
-                
+
                 let updatedWeekHistory = Array.isArray(asin.weekHistory) ? [...asin.weekHistory] : [];
                 if (existingIndex >= 0) {
                     updatedWeekHistory[existingIndex] = { ...updatedWeekHistory[existingIndex], ...weekData };
                 } else {
                     updatedWeekHistory.push(weekData);
                 }
-                
+
                 // Sort and Slice as per model logic
                 updatedWeekHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
                 if (updatedWeekHistory.length > 24) updatedWeekHistory = updatedWeekHistory.slice(-24);
@@ -1879,6 +1836,7 @@ class MarketDataSyncService {
                         currentASP: price > 0 ? price : asin.currentASP,
                         mrp: mrp > 0 ? mrp : asin.mrp,
                         bsr: bsr > 0 ? bsr : asin.bsr,
+                        subBsr: subBsr || asin.subBsr,
                         subBSRs: subBSRs,
                         rating: rating > 0 ? rating : asin.rating,
                         reviewCount: reviewCount > 0 ? reviewCount : asin.reviewCount,
@@ -1896,11 +1854,12 @@ class MarketDataSyncService {
                         bulletPoints: bulletCount,
                         bulletPointsText: bulletPointsText,
                         rawOctoparseData: rawData,
-                        stockLevel: this._cleanStock(rawData.stock || rawData.inventory || 0),
+                        stockLevel: this._cleanStock(this._getFromRaw(rawData, ['stock', 'inventory', 'stock_level'], 0)),
                         soldBy: soldBy,
+                        buyBoxWin: buyBoxWin,
+                        buyBoxSellerId: soldBy || asin.buyBoxSellerId,
                         secondAsp: secondAsp,
                         soldBySec: soldBySec,
-                        buyBoxWin: isBuyBoxWinner(soldBy),
                         weekHistory: updatedWeekHistory,
                         lastScraped: now,
                         scrapeStatus: 'COMPLETED',
@@ -1910,19 +1869,19 @@ class MarketDataSyncService {
                             const tStr = now.toISOString().split('T')[0];
                             const idx = hList.findIndex(h => new Date(h.date).toISOString().split('T')[0] === tStr);
                             const entry = { date: now, price, bsr, rating, reviewCount, imageCount: imagesCount, videoCount };
-                            
+
                             if (idx >= 0) hList[idx] = { ...hList[idx], ...entry };
                             else hList.push(entry);
-                            
+
                             return hList.slice(-30);
                         })()
                     }
                 };
-                
+
                 bulkOps.push({ updateOne: { filter: { _id: asin._id }, update: updateData } });
                 updatedCount++;
             }
-            
+
             // Execute bulk write for chunk
             if (bulkOps.length > 0) {
                 try {
@@ -1935,33 +1894,301 @@ class MarketDataSyncService {
                     console.error(`❌ bulkWrite chunk error:`, bulkError.message);
                 }
             }
-            
-            // Clear references for GC
+            // Clear references for memory
+            currentAsins = null;
             asinMap.clear();
-            clearArray(bulkOps);
-            
-            console.log(`📊 Memory after chunk: ${memProcessor.getMemoryStats().heapUsed}`);
         }
 
-console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
+        console.log(`✅ Bulk processing complete. Updated ${updatedCount} ASINs.`);
         return updatedCount;
     }
 
-    // Helper cleaners extracted from updateAsinMetrics for stateless reuse
+    // ==================== HELPER METHODS FOR DATA MAPPING ====================
+
+    /**
+     * Get value from raw data with fallback chain
+     */
+    _getFromRaw(rawData, fieldNames, defaultValue = null) {
+        if (!rawData) return defaultValue;
+
+        for (const field of fieldNames) {
+            const value = rawData[field];
+            if (value !== undefined && value !== null && value !== '') {
+                if (typeof value === 'string' && value.trim() === '') continue;
+                return value;
+            }
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Parse BSR (Best Sellers Rank) from Octoparse data
+     * Handles both alt_bsr and sub_BSR fields correctly
+     */
+    _parseBSR(rawData) {
+        // Priority: alt_bsr (main rank), BSR, then fallback
+        const bsrField = this._getFromRaw(rawData, ['alt_bsr', 'BSR', 'bsr', 'Field9'], '');
+        const subBsrField = this._getFromRaw(rawData, ['alt_sub_bsr', 'sub_BSR', 'Field10'], '');
+
+        let main = 0;
+        let sub = 0;
+        let subBsrString = '';
+        let allRanks = [];
+
+        // Parse main BSR from alt_bsr (e.g., "#1,341 in Home & Kitchen (See Top 100...)")
+        if (bsrField && typeof bsrField === 'string' && bsrField.trim()) {
+            // Extract the main rank number
+            const mainMatch = bsrField.match(/#([\d,]+)\s+in\s+([^#(]+)/);
+            if (mainMatch) {
+                main = parseInt(mainMatch[1].replace(/,/g, ''));
+                allRanks.push(mainMatch[0].trim());
+            }
+
+            // Extract all rank entries (for subBSRs array)
+            const allMatches = bsrField.match(/#[\d,]+[\s\S]+?(?=#|$)/g);
+            if (allMatches && allMatches.length > 0) {
+                allRanks = allMatches.map(m => m.trim().replace(/\s+/g, ' ')).filter(Boolean);
+            }
+        }
+
+        // Parse sub BSR from alt_sub_bsr (e.g., "#44 in Jars & Containers")
+        if (subBsrField && typeof subBsrField === 'string' && subBsrField.trim()) {
+            const subMatch = subBsrField.match(/#([\d,]+)\s+in\s+(.+)/);
+            if (subMatch) {
+                sub = parseInt(subMatch[1].replace(/,/g, ''));
+                subBsrString = subBsrField.trim();
+                if (!allRanks.includes(subBsrString)) {
+                    allRanks.push(subBsrString);
+                }
+            } else {
+                // Just a number without category
+                const numMatch = subBsrField.match(/#([\d,]+)/);
+                if (numMatch) {
+                    sub = parseInt(numMatch[1].replace(/,/g, ''));
+                    subBsrString = subBsrField.trim();
+                }
+            }
+        }
+
+        return { main, sub, subBsrString, allRanks };
+    }
+
+    /**
+     * Count images and videos from Octoparse image_count HTML
+     * Properly detects videoThumbnail class and videoCount span
+     */
+    _countImagesAndVideos(rawData) {
+        let imagesCount = 0;
+        let videoCount = 0;
+        let images = [];
+
+        const imgHtml = this._getFromRaw(rawData, ['image_count', 'Field6', 'images_html'], '');
+
+        if (imgHtml && typeof imgHtml === 'string' && imgHtml.length > 0) {
+            try {
+                // Count image thumbnails (li elements with imageThumbnail class)
+                const imageLiMatches = imgHtml.match(/<li[^>]*class="[^"]*imageThumbnail[^"]*"[^>]*>/gi) || [];
+                imagesCount = imageLiMatches.length;
+
+                // Count video thumbnails specifically
+                const videoLiMatches = imgHtml.match(/<li[^>]*class="[^"]*videoThumbnail[^"]*"[^>]*>/gi) || [];
+
+                // Check for video count span (e.g., '<span id="videoCount"...>2 VIDEOS</span>')
+                const videoCountSpan = imgHtml.match(/<span[^>]*id="videoCount"[^>]*>(\d+)\s*VIDEOS?<\/span>/i);
+                if (videoCountSpan) {
+                    videoCount = parseInt(videoCountSpan[1]) || 0;
+                } else {
+                    videoCount = videoLiMatches.length;
+                }
+
+                // Extract image URLs from img tags
+                const imgSrcMatches = imgHtml.match(/src="([^"]+\.jpg[^"]*)"/gi);
+                if (imgSrcMatches) {
+                    images = imgSrcMatches.map(src => src.replace(/src="/g, '').replace(/"/g, ''));
+                }
+
+                // If no images found via counting, count all li elements
+                if (imagesCount === 0) {
+                    const allLiMatches = imgHtml.match(/<li[^>]*>/gi) || [];
+                    imagesCount = allLiMatches.length - videoLiMatches.length;
+                }
+
+            } catch (e) {
+                console.warn('Image count parsing failed:', e.message);
+            }
+        } else {
+            // Fallback to numeric fields
+            imagesCount = parseInt(this._getFromRaw(rawData, ['imageCount', 'imagesCount', 'Field6'], 0));
+            videoCount = parseInt(this._getFromRaw(rawData, ['videoCount', 'video_count', 'videos'], 0));
+        }
+
+        // Ensure we have at least main image counted
+        if (imagesCount === 0) {
+            const mainImage = this._getFromRaw(rawData, ['Main_Image', 'mainImage', 'imageUrl', 'Field5'], '');
+            if (mainImage) imagesCount = 1;
+        }
+
+        return { imagesCount, videoCount, images };
+    }
+
+    /**
+     * Detect A+ Content presence from Octoparse data
+     */
+    _detectAplusContent(rawData) {
+        // Priority 1: Explicit boolean/flag fields
+        const explicitFlags = ['has_aplus', 'A_plus', 'aplus', 'hasAplus', 'isAplus'];
+        for (const flag of explicitFlags) {
+            const val = rawData[flag];
+            if (typeof val === 'boolean') return val;
+            if (typeof val === 'string') {
+                const lower = val.toLowerCase();
+                if (lower === 'true' || lower === 'yes' || lower === '1') return true;
+                if (lower === 'false' || lower === 'no' || lower === '0') return false;
+            }
+        }
+
+        // Priority 2: Check A_plus field for A+ markers
+        const aplusContent = this._getFromRaw(rawData, ['A_plus', 'aplus_content', 'product_description'], '');
+        if (aplusContent && typeof aplusContent === 'string') {
+            const aplusMarkers = [
+                'aplus-v2', 'aplus-standard', 'aplus-module', 'launchpad-module',
+                'apm-', 'aplus-content-wrapper', 'productDescription_feature_div'
+            ];
+
+            for (const marker of aplusMarkers) {
+                if (aplusContent.toLowerCase().includes(marker.toLowerCase())) {
+                    return true;
+                }
+            }
+
+            // If content has significant length and HTML structure
+            if (aplusContent.length > 300 && (aplusContent.includes('<div') || aplusContent.includes('<img'))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract seller name from raw data
+     */
+    _extractSellerFromRaw(rawData) {
+        // Try direct fields first
+        const sellerFields = ['sold_by', 'Sold_by', 'seller', 'Seller', 'merchant', 'Merchant', 'Field11'];
+        for (const field of sellerFields) {
+            const value = rawData[field];
+            if (value && typeof value === 'string' && value.trim().length > 0) {
+                return value.trim();
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Check if seller is a buy box winner (trusted seller)
+     */
+    _isBuyBoxWinner(sellerName) {
+        if (!sellerName) return false;
+
+        // Get trusted sellers from environment
+        const trustedSellersStr = process.env.TRUSTED_SELLER_NAMES || 'Amazon,RetailEZ Pvt Ltd,Cloudtail,Appario';
+        const trustedSellers = trustedSellersStr.split(',').map(s => s.trim().toLowerCase());
+
+        const sellerLower = sellerName.toLowerCase();
+        return trustedSellers.some(trusted => sellerLower.includes(trusted));
+    }
+
+    /**
+     * Parse category from HTML breadcrumb
+     */
+    _parseCategory(categoryHtml) {
+        if (!categoryHtml || typeof categoryHtml !== 'string') return '';
+
+        try {
+            const dom = new JSDOM(categoryHtml);
+            const liTags = Array.from(dom.window.document.querySelectorAll('li'));
+            if (liTags.length > 0) {
+                return liTags.map(li => li.textContent.trim()
+                    .replace(/^›\s*/, '')
+                    .replace(/\s*›$/, '')
+                    .trim()
+                ).filter(Boolean).join(' › ');
+            }
+        } catch (e) {
+            // Fall through to regex
+        }
+
+        // Regex fallback - remove HTML tags
+        const textContent = categoryHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        return textContent;
+    }
+
+    /**
+     * Parse rating breakdown from HTML or string
+     */
+    _parseRatingBreakdown(ratingStr) {
+        const breakdown = { fiveStar: 0, fourStar: 0, threeStar: 0, twoStar: 0, oneStar: 0 };
+
+        if (!ratingStr) return breakdown;
+
+        const s = ratingStr.toString();
+
+        // Extract percentages from the pattern (e.g., "53%23%12%5%7%")
+        const percMatch = s.match(/(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%/);
+        if (percMatch) {
+            breakdown.fiveStar = parseFloat(percMatch[1]);
+            breakdown.fourStar = parseFloat(percMatch[2]);
+            breakdown.threeStar = parseFloat(percMatch[3]);
+            breakdown.twoStar = parseFloat(percMatch[4]);
+            breakdown.oneStar = parseFloat(percMatch[5]);
+        }
+
+        return breakdown;
+    }
+
+    /**
+     * Parse bullet points from HTML
+     */
+    _parseBulletPoints(bulletHtml) {
+        if (!bulletHtml || typeof bulletHtml !== 'string') return [];
+
+        const bulletPoints = [];
+
+        try {
+            const dom = new JSDOM(bulletHtml);
+            const liTags = dom.window.document.querySelectorAll('li');
+            for (const li of liTags) {
+                const text = li.textContent.trim();
+                if (text) bulletPoints.push(text);
+            }
+        } catch (e) {
+            // Regex fallback
+            const matches = bulletHtml.match(/<li[^>]*>(?:<span[^>]*>)?([^<]+)(?:<\/span>)?<\/li>/gi);
+            if (matches) {
+                for (const match of matches) {
+                    const text = match.replace(/<[^>]+>/g, '').trim();
+                    if (text) bulletPoints.push(text);
+                }
+            }
+        }
+
+        return bulletPoints;
+    }
+
+    /**
+     * Clean price from various formats
+     */
     _cleanPrice(str) {
         if (!str) return 0;
-        const cleaned = str.toString().replace(/₹|,/g, '').trim();
-        const match = cleaned.match(/\d+(\.\d+)?/);
-        return match ? parseFloat(match[0]) : 0;
+        const cleaned = str.toString().replace(/[₹$€£,]/g, '').trim();
+        const match = cleaned.match(/(\d+(?:\.\d+)?)/);
+        return match ? parseFloat(match[1]) : 0;
     }
 
-    _cleanStock(val) {
-        if (!val) return 0;
-        if (typeof val === 'number') return val;
-        const cleaned = val.toString().replace(/[^0-9]/g, '').trim();
-        return parseInt(cleaned) || 0;
-    }
-
+    /**
+     * Clean BSR number from string
+     */
     _cleanBsr(str) {
         if (!str) return 0;
         const cleaned = str.toString().replace(/,/g, '').trim();
@@ -1970,129 +2197,136 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
     }
 
     /**
-     * @deprecated Strictly use avg_rating field from JSON instead.
+     * Clean review count from various formats
      */
-    _cleanRating(str) {
-        if (!str) return { value: 0, percentages: null };
-        const s = str.toString().trim();
-        
-        // Always try to extract percentages for the breakdown, regardless of primary rating format
-        const percentages = this._extractBreakdown(s);
-        
-        // Priority 1: "X.X out of 5" (Amazon's standard format)
-        const outOfMatch = s.match(/([0-5](?:[.,]\d+)?)\s*out\s*of\s*5/i);
-        if (outOfMatch) {
-            const val = parseFloat(outOfMatch[1].replace(',', '.'));
-            return { value: isNaN(val) ? 0 : val, percentages };
-        }
-
-        // Priority 2: Use weighted average from messy percentage stack
-        if (percentages) {
-            // Weighted average calculation
-            const weighted = (5 * percentages['5'] + 4 * percentages['4'] + 3 * percentages['3'] + 2 * percentages['2'] + 1 * percentages['1']) / 100;
-            return { value: Math.round(weighted * 10) / 10, percentages };
-        }
-
-        // Priority 3: Leading number (Amazon's messy format usually starts with "5 star" or "4.5 star")
-        const specificMatch = s.match(/^([0-4](?:[.,]\d+)?)\s*star/i);
-        if (specificMatch) return { value: parseFloat(specificMatch[1].replace(',', '.')), percentages };
-
-        // Fallback: Match any number like 4.4, 4,4, 4 anywhere in the string
-        const matches = s.match(/([0-5](?:[.,]\d+)?)/);
-        if (!matches) return { value: 0, percentages };
-
-        let rating = parseFloat(matches[1].replace(',', '.'));
-        if (isNaN(rating)) return { value: 0, percentages };
-        rating = Math.min(5, Math.max(0, rating));
-        return { value: Math.round(rating * 10) / 10, percentages };
-    }
-
-    _extractBreakdown(str) {
-        if (!str) return null;
-        // Look for multiple percentages, often found in Amazon's messy feedback strings
-        // order is always 5, 4, 3, 2, 1 star
-        const matches = str.match(/(\d+)%/g);
-        if (matches && matches.length >= 5) {
-            // If there's more than 5, we look for the cluster that sums closest to 100
-            // but usually the first 5 in the rating section are the ones.
-            return {
-                '5': parseFloat(matches[0]) || 0,
-                '4': parseFloat(matches[1]) || 0,
-                '3': parseFloat(matches[2]) || 0,
-                '2': parseFloat(matches[3]) || 0,
-                '1': parseFloat(matches[4]) || 0
-            };
-        }
-        return null;
-    }
-
     _cleanReviewCount(str) {
         if (!str) return 0;
         let s = str.toString().trim();
-        
-        // Remove common Amazon rating noise that often smashes into the review count
-        // e.g. "53.8 out of 5424 global ratings" -> "424 global ratings"
+
+        // Remove common Amazon rating noise
         s = s.replace(/out\s+of\s+[0-5](?:\.[0-9])?/gi, '');
         s = s.replace(/[0-5]\s*stars?/gi, '');
-        
-        // Priority 1: Parenthesized numbers with commas (e.g. "(2,441)")
+
+        // Parenthesized numbers with commas (e.g., "(2,441)")
         const parenMatch = s.match(/\(([\d,]+)\)/);
         if (parenMatch) {
             const val = parseInt(parenMatch[1].replace(/,/g, ''));
             if (val > 0) return val;
         }
 
-        // Priority 2: "123 global ratings/reviews"
-        const globalMatch = s.match(/([\d,]+)\s*(?:global\s*ratings?|reviews?)/i);
-        if (globalMatch) return parseInt(globalMatch[1].replace(/,/g, '')) || 0;
-
-        // Priority 3: Decimal numbers in parentheses (e.g. "(2.5K)")
-        const kMatch = s.match(/\(([\d.]+)\s*k\)/i);
-        if (kMatch) return Math.round(parseFloat(kMatch[1]) * 1000);
-
-        // Priority 4: Look for any number > 10 that isn't a percentage
-        const allNumericMatches = s.match(/\b[\d,]+\b(?!\s*%)/g);
-        if (allNumericMatches) {
-            for (const m of allNumericMatches) {
-                const val = parseInt(m.replace(/,/g, ''));
-                if (val > 10 && val < 50000000) return val;
-                if (val > 0 && !s.toLowerCase().includes('star')) return val;
-            }
-        }
-        
-        // Fallback: If still not found, try to clean the string of "X out of 5" noise
-        const noiseFree = s
-            .replace(/[0-5](?:\.[0-9])?\s+out\s+of\s+5\s+stars?/i, '')
-            .replace(/[0-5]\s*stars?/i, '');
-        
-        const fallbackMatch = noiseFree.match(/[\d,]+/);
-        if (fallbackMatch) {
-            const val = parseInt(fallbackMatch[0].replace(/,/g, ''));
+        // Direct number with commas
+        const numMatch = s.match(/([\d,]+)/);
+        if (numMatch) {
+            const val = parseInt(numMatch[1].replace(/,/g, ''));
             if (val > 0 && val < 10000000) return val;
         }
 
         return 0;
     }
 
+    /**
+     * Clean deal badge text
+     */
     _cleanDealBadge(str) {
-        if (!str || str === 'null' || str === '') return '';
+        if (!str || str === 'null' || str === '') return 'No deal found';
         const s = str.toString().toLowerCase();
-        
-        // Amazon specific deals
+
         if (s.includes('limited time deal')) return 'Limited Time Deal';
         if (s.includes('deal of the day')) return 'Deal of the Day';
         if (s.includes('lightning deal')) return 'Lightning Deal';
         if (s.includes('prime deal')) return 'Prime Deal';
-        if (s.includes('great indian festival')) return 'GIF Deal';
         if (s.includes('coupon')) return 'Coupon Available';
-        
-        // Extract first significant words if it's some other badge but not the messy duration text
-        const cleaned = str.trim()
-            .replace(/\s+/g, ' ')
-            .split(/NO_OF/)[0] // Stop at Octoparse placeholders
-            .trim();
-            
-        return cleaned.length > 30 ? cleaned.substring(0, 27) + '...' : cleaned;
+
+        const cleaned = str.trim().replace(/\s+/g, ' ').split(/NO_OF/)[0].trim();
+        return cleaned.length > 30 ? cleaned.substring(0, 27) + '...' : (cleaned || 'No deal found');
+    }
+
+    /**
+     * Clean stock level
+     */
+    _cleanStock(val) {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        const cleaned = val.toString().replace(/[^0-9]/g, '').trim();
+        return parseInt(cleaned) || 0;
+    }
+
+    _parseSecondaryBuybox(htmlContent) {
+        if (!htmlContent || typeof htmlContent !== 'string' || htmlContent.length < 50) {
+            return { offers: [], hasMultipleSellers: false };
+        }
+
+        const offers = [];
+        try {
+            const dom = new JSDOM(htmlContent);
+            const doc = dom.window.document;
+
+            const offerContainers = doc.querySelectorAll('.aod-offer, .a-fixed-left-grid, [id^="aod-offer"]');
+
+            for (const container of offerContainers) {
+                const offer = {};
+
+                const sellerLink = container.querySelector('a[href*="seller="], [aria-label*="Seller"], #aod-offer-shipsFrom-soldBy');
+                if (sellerLink) {
+                    offer.seller = sellerLink.textContent.trim().replace(/^Sold by\s*/i, '');
+                }
+
+                const priceWhole = container.querySelector('.a-price-whole');
+                const priceFraction = container.querySelector('.a-price-fraction');
+                if (priceWhole) {
+                    const whole = priceWhole.textContent.replace(/,/g, '');
+                    const fraction = priceFraction ? priceFraction.textContent : '00';
+                    offer.price = parseFloat(`${whole}.${fraction}`);
+                }
+
+                if (offer.seller || offer.price) offers.push(offer);
+            }
+
+            if (offers.length === 0) {
+                // Regex fallback
+                const sellers = htmlContent.match(/Sold by\s*<\/span>\s*<[^>]+>\s*<a[^>]*>([^<]+)</gi);
+                const prices = htmlContent.match(/₹\s*([\d,]+)\.(\d{2})/g);
+
+                for (let i = 0; i < Math.max(sellers?.length || 0, prices?.length || 0); i++) {
+                    const offer = {};
+                    if (sellers && sellers[i]) {
+                        const m = sellers[i].match(/>([^<]+)</);
+                        if (m) offer.seller = m[1].trim();
+                    }
+                    if (prices && prices[i]) {
+                        offer.price = parseFloat(prices[i].replace(/[₹,\s]/g, ''));
+                    }
+                    if (offer.seller || offer.price) offers.push(offer);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to parse secondary buybox HTML:', e.message);
+        }
+
+        return {
+            offers,
+            hasMultipleSellers: offers.length > 1,
+            alternateSeller: offers.length > 0 ? offers[0].seller : null,
+            alternatePrice: offers.length > 0 ? offers[0].price : null
+        };
+    }
+
+    _extractSellerFromBuyboxHtml(htmlContent) {
+        if (!htmlContent || typeof htmlContent !== 'string') return null;
+
+        // Pattern 1: Sold by section with link text
+        const soldByMatch = htmlContent.match(/Sold by\s*<\/span>\s*<[^>]+>\s*<a[^>]*>([^<]+)</i);
+        if (soldByMatch) return soldByMatch[1].trim();
+
+        // Pattern 2: aria-label with seller info
+        const ariaMatch = htmlContent.match(/aria-label="[^"]*Seller[^"]*:\s*([^"]+)/i);
+        if (ariaMatch) return ariaMatch[1].trim();
+
+        // Pattern 3: Direct seller name in text
+        const textMatch = htmlContent.match(/sold by\s*[:;]?\s*([^<>{}\n]+)/i);
+        if (textMatch) return textMatch[1].trim();
+
+        return null;
     }
 
     _parseBoolean(val) {
@@ -2104,20 +2338,21 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
 
     _extractAsinFromData(rawData) {
         if (!rawData) return null;
-        
-        // 1. Direct fields - keep original case as stored in DB
-        const direct = (rawData.ASIN || rawData.asin || rawData.asinCode || rawData.asin_code || '').trim();
+
+        // Direct fields
+        const direct = this._getFromRaw(rawData, ['ASIN', 'asin', 'asinCode', 'asin_code'], '');
         if (direct && direct.length === 10) return direct;
 
-        // 2. URL extraction (Original_URL, Original URL, target_url, etc) - preserve case
-        const urlField = rawData.Original_URL || rawData['Original URL'] || rawData.target_url || rawData.url || '';
+        // URL extraction
+        const urlField = this._getFromRaw(rawData, ['Original_URL', 'Original URL', 'target_url', 'url'], '');
         if (urlField && typeof urlField === 'string') {
             const match = urlField.match(/\/dp\/([A-Z0-9]{10})/i) || urlField.match(/\/product\/([A-Z0-9]{10})/i);
-            if (match) return match[1]; // Keep original case
+            if (match) return match[1];
         }
 
         return null;
     }
+
     /**
      * Finds and assigns an available task ID from the pool to a seller.
      */
@@ -2125,8 +2360,8 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
         try {
             const availableTask = await OctoTask.findOneAndUpdate(
                 { isAssigned: false },
-                { 
-                    isAssigned: true, 
+                {
+                    isAssigned: true,
                     sellerId: sellerId,
                     lastAssignedAt: new Date()
                 },
@@ -2139,8 +2374,8 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
             }
 
             // Sync with Seller model
-            await Seller.findByIdAndUpdate(sellerId, { 
-                marketSyncTaskId: availableTask.taskId 
+            await Seller.findByIdAndUpdate(sellerId, {
+                marketSyncTaskId: availableTask.taskId
             });
 
             console.log(`✅ Assigned Pool Task ${availableTask.taskId} to seller: ${sellerId}`);
@@ -2204,7 +2439,7 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
     async resolveTaskIdToInteger(uuid, groupId = null) {
         try {
             console.log(`🔍 Resolving UUID ${uuid} to integer ID...`);
-            
+
             // 1. If groupId is provided, check that group first (with pagination)
             if (groupId) {
                 for (let offset = 0; offset <= 200; offset += 50) {
@@ -2253,6 +2488,7 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
             return null;
         }
     }
+
     /**
      * Process manually uploaded Octoparse JSON data.
      * This is a wrapper around processBatchResults for manual file uploads.
@@ -2263,14 +2499,14 @@ console.log(`✅ Bulk Sync Finished: ${updatedCount} ASINs updated`);
         }
 
         console.log(`📂 Manual Octoparse JSON Sync started for seller ${sellerId} with ${jsonData.length} records.`);
-        
+
         try {
             // Re-use the robust batch processing logic
             const updatedCount = await this.processBatchResults(sellerId, jsonData);
-            
+
             // Log completion
             console.log(`✅ Manual Octoparse JSON Sync completed. Updated ${updatedCount} ASINs.`);
-            
+
             return {
                 message: `Successfully processed ${jsonData.length} records and updated ${updatedCount} ASINs.`,
                 updatedCount,
