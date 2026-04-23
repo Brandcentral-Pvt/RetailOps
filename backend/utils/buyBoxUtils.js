@@ -21,7 +21,8 @@ const OWN_SELLERS = [
     'ETrade Pvt Ltd',
     'ETrade Private Limited',
     'Appario Retail',
-    'Appario'
+    'Appario',
+    'ETrade Online'
 ];
 
 /**
@@ -33,18 +34,18 @@ const OWN_SELLERS = [
  */
 function isBuyBoxWinner(sellerName, configuredSellers = null) {
     if (!sellerName) return false;
-    
+
     // Get configured sellers from env or database
     const trustedSellers = configuredSellers || (process.env.TRUSTED_SELLER_NAMES || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-    
+
     const sellerLower = sellerName.toLowerCase();
-    
+
     // Check if seller is in trusted list
-    const isTrusted = trustedSellers.some(trusted => 
-        sellerLower.includes(trusted.toLowerCase()) || 
+    const isTrusted = trustedSellers.some(trusted =>
+        sellerLower.includes(trusted.toLowerCase()) ||
         trusted.toLowerCase().includes(sellerLower)
     );
-    
+
     // Fallback to OWN_SELLERS if no trusted sellers configured
     if (trustedSellers.length === 0) {
         const normalize = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
@@ -55,7 +56,7 @@ function isBuyBoxWinner(sellerName, configuredSellers = null) {
         });
         return result;
     }
-    
+
     return isTrusted;
 }
 
