@@ -15,7 +15,7 @@ const ExportButton = ({ data, fileName = 'export', format = 'excel', className =
     try {
       const formatParam = format === 'excel' ? 'xlsx' : 'csv';
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/export/${formatParam}`,
+        `${import.meta.env.VITE_API_URL || '/api'}/export/${formatParam}`,
         { data },
         {
           responseType: 'blob',

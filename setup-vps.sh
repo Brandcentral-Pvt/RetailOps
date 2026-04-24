@@ -49,7 +49,7 @@ MONGO_URI=mongodb://localhost:27017/retailops
 JWT_SECRET=your-super-secret-key-change-this
 
 # Frontend URL
-FRONTEND_URL=http://data.brandcentral.in
+FRONTEND_URL=https://data.brandcentral.in
 
 # Server
 PORT=3001

@@ -27,13 +27,7 @@ app.use(cors({
     'http://localhost:5175',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
-    'https://retailops.vercel.app',
-    'https://retail-ops.onrender.com',
-    'https://data.brandcentral.in',
-    'http://data.brandcentral.in',
-    /\.brandcentral\.in$/,
     process.env.FRONTEND_URL,
-    /\.vercel\.app$/
   ].filter(Boolean),
   credentials: true
 }));
@@ -189,11 +183,7 @@ const io = new Server(server, {
       'http://localhost:5175',
       'http://localhost:3000',
       'http://127.0.0.1:5173',
-      'https://data.brandcentral.in',
-      'http://data.brandcentral.in',
-      'https://retailops.vercel.app', // Production Frontend
       process.env.FRONTEND_URL,
-      /\.vercel\.app$/,
       /\.brandcentral\.in$/
     ].filter(Boolean),
     credentials: true

@@ -74,4 +74,4 @@ EOF
 
 echo -e "${GREEN}✅ Deploy completed successfully!${NC}"
 echo ""
-echo "Backend: http://$VPS_HOST:3001"
+echo "Backend: https://$VPS_HOST:3001"

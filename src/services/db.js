@@ -1,7 +1,7 @@
 // Database service for Revenue Calculator
 // Calls the backend API for all operations
 
-const API_BASE = (typeof import.meta !== 'undefined' && (import.meta).env?.VITE_API_URL) || 'http://localhost:3001/api';
+const API_BASE = (typeof import.meta !== 'undefined' && (import.meta).env?.VITE_API_URL) || '/api';
 
 /**
  * Initialize database connection

@@ -25,7 +25,7 @@ export const SocketProvider = ({ children }) => {
                 envUrl: import.meta.env.VITE_API_URL
             });
 
-            const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace('/api', '');
+            const socketUrl = (import.meta.env.VITE_API_URL || window.location.origin + '/api').replace('/api', '');
             console.log('[DEBUG] Socket URL:', socketUrl);
 
             const newSocket = io(socketUrl, {

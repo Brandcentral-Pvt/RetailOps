@@ -199,7 +199,7 @@ const FileManagerPage = () => {
             // Use raw fetch — api.post forces JSON which breaks multipart
             const token = localStorage.getItem('authToken');
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/files/upload`,
+                `${import.meta.env.VITE_API_URL || '/api'}/files/upload`,
                 { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form }
             );
             if (!res.ok) {
