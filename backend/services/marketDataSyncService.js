@@ -11,6 +11,38 @@ const nvidiaAiService = require('./nvidiaAiService');
 const { MemorySafeProcessor, clearArray } = require('../utils/memorySafe');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 
+// Amazon India Top-Level Categories for BSR classification
+const AMAZON_TOP_LEVEL_CATEGORIES = [
+    'Clothing & Accessories',
+    'Electronics',
+    'Home & Kitchen',
+    'Beauty',
+    'Health & Personal Care',
+    'Grocery & Gourmet Foods',
+    'Toys & Games',
+    'Baby Products',
+    'Watches',
+    'Shoes & Handbags',
+    'Jewellery',
+    'Sports, Fitness & Outdoors',
+    'Books',
+    'Kindle Store',
+    'Video Games',
+    'Software',
+    'Office Products',
+    'Pet Supplies',
+    'Car & Motorbike',
+    'Industrial & Scientific',
+    'Home Improvement',
+    'Garden & Outdoors',
+    'Musical Instruments',
+    'Bags, Wallets and Luggage',
+    'Computers & Accessories',
+    'All Electronics',
+    'Clothing, Shoes & Jewelry',
+    'Health, Household & Personal Care'
+];
+
 
 // Initialize memory-safe processor
 const memProcessor = new MemorySafeProcessor({
@@ -1425,18 +1457,8 @@ class MarketDataSyncService {
             const title = (rawData.Title || rawData.title || rawData.Field1 || asin.title || '').trim();
             const titleLength = title.length;
 
-            let category = (rawData.category || rawData.Field4 || asin.category || '').trim();
-            if (category.includes('<li')) {
-                try {
-                    const dom = new JSDOM(category);
-                    const liTags = Array.from(dom.window.document.querySelectorAll('li'));
-                    if (liTags.length > 0) {
-                        category = liTags.map(li => li.textContent.trim().replace(/^›\s*/, '').replace(/\s*›$/, '').trim()).filter(Boolean).join(' › ');
-                    }
-                } catch (e) {
-                    console.warn('Category HTML parsing failed, using raw string');
-                }
-            }
+            // 3. Category Breadcrumbs
+            const category = this._parseCategory(rawData) || asin.category || '';
 
             // 4. BSR Parsing
             const bsrData = this._parseBSR(rawData);
@@ -1764,7 +1786,7 @@ class MarketDataSyncService {
                     aplusPresentSince = null;
                 }
 
-                let category = this._parseCategory(rawData.category || asin.category || '');
+                let category = this._parseCategory(rawData) || asin.category || '';
                 // Strictly use avg_rating field – no other parsing methods
                 let rating = parseFloat(rawData.avg_rating);
                 if (isNaN(rating)) rating = 0;
@@ -1923,98 +1945,155 @@ class MarketDataSyncService {
     }
 
     /**
-     * Parse BSR (Best Sellers Rank) from Octoparse data
-     * Handles both alt_bsr and sub_BSR fields correctly
+     * Parse Product Category from Octoparse data
+     * Robustly handles HTML breadcrumbs and cleans up noise
      */
-    _parseBSR(rawData) {
-        if (!rawData) return { main: 0, sub: 0, subBsrString: '', allRanks: [] };
+    _parseCategory(rawData) {
+        if (!rawData) return '';
+        
+        const catFields = ['category', 'Category', 'breadcrumbs', 'Breadcrumb', 'Field4'];
+        let rawCat = '';
 
-        const mainFields = ['alt_bsr', 'BSR', 'bsr', 'Field9'];
-        const subFields = ['alt_sub_bsr', 'sub_BSR', 'Field10', 'alt_bsr', 'BSR'];
-
-        let main = 0;
-        let sub = 0;
-        let subBsrString = '';
-        let allRanks = [];
-
-        // Helper to extract rank from a string
-        const extractRank = (str) => {
-            if (!str || typeof str !== 'string') return null;
-            const s = str.trim();
-            if (!s) return null;
-
-            const match = s.match(/#([\d,]+)\s+in\s+([^#(]+)/);
-            if (match) {
-                return {
-                    rank: parseInt(match[1].replace(/,/g, '')),
-                    full: match[0].trim(),
-                    category: match[2].trim()
-                };
-            }
-            const numMatch = s.match(/#([\d,]+)/);
-            if (numMatch) {
-                return {
-                    rank: parseInt(numMatch[1].replace(/,/g, '')),
-                    full: s,
-                    category: ''
-                };
-            }
-            return null;
-        };
-
-        // 1. Try to find main rank
-        for (const field of mainFields) {
-            const val = rawData[field];
-            const res = extractRank(val);
-            if (res) {
-                main = res.rank;
-                if (!allRanks.includes(res.full)) allRanks.push(res.full);
+        for (const field of catFields) {
+            if (rawData[field]) {
+                rawCat = rawData[field];
                 break;
             }
         }
 
-        // 2. Try to find sub ranks
-        for (const field of subFields) {
-            const val = rawData[field];
-            if (!val || typeof val !== 'string') continue;
+        if (!rawCat || typeof rawCat !== 'string') return '';
 
-            // Split by '#' to handle cases where multiple ranks are in one field
-            const parts = val.split(/(?=#)/g);
-            for (const part of parts) {
-                const res = extractRank(part);
-                if (res) {
-                    if (!allRanks.includes(res.full)) allRanks.push(res.full);
-                    if (sub === 0 && res.rank !== main) {
-                        sub = res.rank;
-                        subBsrString = res.full;
-                    }
-                }
-            }
-        }
-
-        // 3. Fallback: If main is 0 but we have ranks, use the first rank as main
-        if (main === 0 && allRanks.length > 0) {
-            const firstRes = extractRank(allRanks[0]);
-            if (firstRes) {
-                main = firstRes.rank;
-                // If sub was the same as main, clear sub or pick next
-                if (sub === main) {
-                    const nextRank = allRanks.find(r => {
-                        const res = extractRank(r);
-                        return res && res.rank !== main;
+        // If it's HTML breadcrumbs (e.g. from <li> tags)
+        if (rawCat.includes('<li') || rawCat.includes('<a')) {
+            try {
+                // Use regex for speed and simplicity if JSDOM is heavy, 
+                // but we have JSDOM required so let's use it for precision if needed.
+                // However, regex is often enough for this specific structure.
+                const parts = [];
+                // Match content inside <a> tags first
+                const aMatches = rawCat.match(/<a[^>]*>([^<]+)<\/a>/g);
+                if (aMatches) {
+                    aMatches.forEach(m => {
+                        const text = m.replace(/<[^>]+>/g, '').trim();
+                        if (text && text !== '›') parts.push(text);
                     });
-                    if (nextRank) {
-                        const nextRes = extractRank(nextRank);
-                        sub = nextRes.rank;
-                        subBsrString = nextRes.full;
-                    } else {
-                        sub = 0;
-                        subBsrString = '';
-                    }
+                } else {
+                    // Fallback: extract text from <li> or general tags
+                    const textParts = rawCat.replace(/<[^>]+>/g, '|').split('|')
+                        .map(p => p.trim())
+                        .filter(p => p && p !== '›');
+                    parts.push(...textParts);
                 }
+                
+                if (parts.length > 0) {
+                    // Unescape HTML entities (basic)
+                    return parts.join(' › ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ');
+                }
+            } catch (e) {
+                console.warn('Category HTML parsing failed:', e.message);
             }
         }
 
+        // Standard cleanup for text-only categories
+        return rawCat
+            .replace(/\s+/g, ' ')
+            .replace(/\s*>\s*/g, ' › ')
+            .replace(/\s*›\s*/g, ' › ')
+            .trim();
+    }
+
+    /**
+     * Parse BSR (Best Sellers Rank) from Octoparse data
+     * Handles both main and sub ranks intelligently using category classification
+     */
+    _parseBSR(rawData) {
+        if (!rawData) return { main: 0, sub: 0, subBsrString: '', allRanks: [] };
+
+        let main = 0;
+        let sub = 0;
+        let subBsrString = '';
+        const allRanks = [];
+
+        const mainFields = ['alt_bsr', 'BSR', 'bsr', 'Best_Sellers_Rank', 'rank', 'Field9'];
+        const subFields = ['alt_sub_bsr', 'sub_BSR', 'sub_bsr', 'Category_Rank', 'Field10'];
+
+        // Helper to extract rank and category from a string
+        const extractRankInfo = (s) => {
+            if (!s || typeof s !== 'string') return [];
+            
+            // Clean string: remove newlines and extra spaces
+            const cleanStr = s.replace(/\s+/g, ' ').trim();
+            
+            // Extract all rank matches: #123,456 in Category Name
+            const matches = [];
+            // This regex captures the rank number and the category following "in"
+            // It stops at another "#", a newline, or common Amazon "See Top 100" suffixes
+            const rankRegex = /#([\d,]+)\s+in\s+([^#\n]+?)(?=\s*(?:\(|#|Best Sellers Rank|$))/gi;
+            let m;
+            
+            while ((m = rankRegex.exec(cleanStr)) !== null) {
+                const rankValue = parseInt(m[1].replace(/,/g, ''));
+                const categoryName = m[2].trim().replace(/\s*\(See Top 100 in.*\)\s*/i, '').trim();
+                
+                matches.push({
+                    rank: rankValue,
+                    category: categoryName,
+                    full: `#${m[1]} in ${categoryName}`
+                });
+            }
+
+            // Fallback for simple "#123" without category if no complex ranks found
+            if (matches.length === 0) {
+                const simpleMatch = cleanStr.match(/#([\d,]+)/);
+                if (simpleMatch) {
+                    matches.push({
+                        rank: parseInt(simpleMatch[1].replace(/,/g, '')),
+                        category: '',
+                        full: simpleMatch[0]
+                    });
+                }
+            }
+            
+            return matches;
+        };
+
+        // 1. Gather all unique ranks found across all potential fields
+        const allFoundRanks = [];
+        [...mainFields, ...subFields].forEach(field => {
+            const val = rawData[field];
+            if (val) {
+                const extracted = extractRankInfo(val);
+                extracted.forEach(item => {
+                    if (!allFoundRanks.some(r => r.rank === item.rank && r.category === item.category)) {
+                        allFoundRanks.push(item);
+                    }
+                });
+            }
+        });
+
+        // 2. Classify ranks into Main and Sub
+        allFoundRanks.forEach(item => {
+            if (!allRanks.includes(item.full)) allRanks.push(item.full);
+
+            // Check if this is a top-level category rank
+            const isTopLevel = AMAZON_TOP_LEVEL_CATEGORIES.some(cat => 
+                item.category.toLowerCase().trim() === cat.toLowerCase().trim() ||
+                item.category.toLowerCase().startsWith(cat.toLowerCase() + ' ')
+            );
+
+            if (isTopLevel) {
+                // If multiple top-levels exist, the first one found (usually from mainFields) wins
+                if (main === 0) main = item.rank;
+            } else {
+                // If it's not top-level, it's a sub-rank
+                if (sub === 0) {
+                    sub = item.rank;
+                    subBsrString = item.full;
+                }
+            }
+        });
+
+        // No fallback logic here: If main is 0, it stays 0 unless a top-level category match was found.
         return { main, sub, subBsrString, allRanks };
     }
 

@@ -51,7 +51,7 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: ['retailops.work.gd', 'www.retailops.work.gd'],
+    allowedHosts: ['data.brandcentral.in', 'www.data.brandcentral.in'],
   },
 })
 

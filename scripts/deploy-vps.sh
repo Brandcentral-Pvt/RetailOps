@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Config
-VPS_HOST="${VPS_HOST:-retailops.work.gd}"
+VPS_HOST="${VPS_HOST:-data.brandcentral.in}"
 VPS_USER="${VPS_USER:-root}"
 RETAIL_OPS_DIR="/path/to/retail-ops"
 
