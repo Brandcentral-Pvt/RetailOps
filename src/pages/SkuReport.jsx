@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import {
   IndianRupee, Package, Percent, Activity, TrendingUp,

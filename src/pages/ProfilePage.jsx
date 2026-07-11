@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -191,7 +192,7 @@ const ProfilePage = () => {
 
     const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-    if (loading && !user) return <PageLoader message="Loading profile..." />;
+    if (loading && !user) return <Spinner />;
 
     const roleDisplay = user?.role?.DisplayName || user?.role?.displayName || user?.role?.name || 'Member';
     const isOwnProfile = currentUser?._id === user?._id || currentUser?.id === user?._id || currentUser?._id === user?.Id;

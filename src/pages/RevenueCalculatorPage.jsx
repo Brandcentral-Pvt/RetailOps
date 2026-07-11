@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useRef } from 'react';
 import DataTable from '../components/DataTable';
 import KPICard from '../components/KPICard';
@@ -396,7 +397,7 @@ const RevenueCalculatorPage = () => {
     }
   };
 
-  if (loading && asins.length === 0) { return <PageLoader message="Loading Revenue Calculator..." />; }
+  if (loading && asins.length === 0) { return <Spinner />; }
 
   return (
     <>

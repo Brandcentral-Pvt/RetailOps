@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import NumberChart from '../components/common/NumberChart';
 import ProgressBar from '../components/common/ProgressBar';
@@ -596,7 +597,7 @@ const efficiencyMetrics = useMemo(() => {
   // ─── Render ─────────────────────────────────────────────
   // Loading state for initial data load
   if (loading && data.length === 0) {
-    return <PageLoader message="Loading Ads Report..." />;
+    return <Spinner />;
   }
 
    return (
