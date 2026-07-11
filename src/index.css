@@ -2,6 +2,7 @@
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
 @import "tailwindcss";
 @import './styles/tokens.css';
+@import './styles/antd-overrides.css';
 
 /* ==========================================================================
    GMS Dashboard - Global Styles & Typography
@@ -2021,6 +2022,14 @@ a:hover {
    Global Table & Form Styles → moved to styles/antd-overrides.css
    ========================================================================== */
 
+/* Table Card Wrapper */
+.table-card {
+  border-radius: var(--bc-radius-xl);
+  border: 1px solid var(--bc-border-default);
+  overflow: hidden;
+  background: var(--bc-white);
+}
+
 /* ==========================================================================
    Modal Styles
    ========================================================================== */
@@ -2998,25 +3007,4 @@ a:hover {
   border-bottom: 0.5px solid var(--bc-slate-100);
 }
 
-/* ==========================================================================
-   Ant Design Input Box Styling Overrides & Alignment Fixes
-   ========================================================================== */
-.ant-input-affix-wrapper {
-  display: inline-flex !important;
-  align-items: center !important;
-}
-
-.ant-input-affix-wrapper > input.ant-input {
-  height: 100% !important;
-  line-height: normal !important;
-}
-
-.ant-input-affix-wrapper .ant-input-prefix,
-.ant-input-affix-wrapper .ant-input-suffix {
-  display: inline-flex !important;
-  align-items: center !important;
-}
-
-.ant-input {
-  line-height: normal !important;
-}
+/* Ant Design Input Alignment Fixes → moved to styles/antd-overrides.css */
