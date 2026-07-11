@@ -2,7 +2,7 @@ import React from 'react';
 import { Progress, Tag, Typography, Badge } from 'antd';
 import { 
   RefreshCw, Image, FileText, CheckCircle, 
-  Clock, Zap, ArrowRight 
+  Clock, Zap, ArrowRight, Sparkles 
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -74,7 +74,7 @@ const LiveOperations = ({
     { icon: RefreshCw, title: 'Marketplace Sync', count: marketplaceSync, status: marketplaceSync > 0 ? 'running' : 'completed', color: '#4F46E5', onClick: () => onNavigate('/live-sync-tracker') },
     { icon: FileText, title: 'Listing Pipeline', count: listingPipeline, status: listingPipeline > 0 ? 'running' : 'completed', color: '#1976D2', onClick: () => onNavigate('/scrape-tasks') },
     { icon: CheckCircle, title: 'Publishing Queue', count: publishingQueue, status: publishingQueue > 0 ? 'queued' : 'completed', color: '#2E7D32', onClick: () => onNavigate('/scheduled-runs') },
-    { icon: require('lucide-react').Sparkles, title: 'AI Image Generation', count: aiImageGen, status: aiImageGen > 0 ? 'running' : 'completed', color: '#9C27B0', onClick: () => onNavigate('/pems/tasks') },
+    { icon: Sparkles, title: 'AI Image Generation', count: aiImageGen, status: aiImageGen > 0 ? 'running' : 'completed', color: '#9C27B0', onClick: () => onNavigate('/pems/tasks') },
     { icon: FileText, title: 'Content Generation', count: contentGen, status: contentGen > 0 ? 'queued' : 'completed', color: '#ED6C02', onClick: () => onNavigate('/pems/templates') },
     { icon: CheckCircle, title: 'Validation Queue', count: validationQueue, status: validationQueue > 0 ? 'queued' : 'completed', color: '#2E7D32', onClick: () => onNavigate('/pems/reviews') },
   ];
