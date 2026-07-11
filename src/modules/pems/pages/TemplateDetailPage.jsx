@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Descriptions, Tag, Typography, Space, Spin, Button, Progress, Statistic, Timeline, Tabs, Empty, Badge, Divider, Table } from 'antd';
 import { ArrowLeftOutlined, EditOutlined, CopyOutlined, CheckCircleOutlined, ClockCircleOutlined, TrophyOutlined, AimOutlined, BarChartOutlined, OrderedListOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons';
@@ -31,7 +32,7 @@ export default function TemplateDetailPage() {
     load();
   }, [id]);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
+  if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spinner /></div>;
   if (!template) return <Empty description="Template not found" />;
 
   const subTasks = template.SubTaskDefinitions || [];

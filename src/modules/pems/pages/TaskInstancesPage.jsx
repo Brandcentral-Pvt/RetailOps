@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress, Modal, Segmented, Checkbox, Empty, App, Spin, Drawer, Row, Col } from 'antd';
 import {
@@ -253,14 +254,14 @@ export default function TaskInstancesPage() {
 
                 {/* Mobile cards for small screens */}
                 <div style={{ display: 'none' }} className="pems-mobile-only">
-                  {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div> :
+                  {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
                     instances.length === 0 ? <Empty description="No tasks found" style={{ padding: 40 }} /> :
                     instances.map(t => <MobileTaskCard key={t.Id} task={t} onView={openWorkspace} />)}
                 </div>
 
                 {/* Desktop list */}
                 {loading ? (
-                  <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+                  <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
                 ) : instances.length === 0 ? (
                   <Empty description={
                     <Space direction="vertical" size={4}>

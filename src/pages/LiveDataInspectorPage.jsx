@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Table, Tag, Typography, Space, Spin, Button, Checkbox, Input, Empty, Select, message, Divider } from 'antd';
 import { ReloadOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, TableOutlined } from '@ant-design/icons';

@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Table, Tag, Progress, Typography, Space, Segmented, Spin, Button, Tabs, Statistic, Empty, Tooltip } from 'antd';
 import {
@@ -306,7 +307,7 @@ export default function PemsAnalyticsPage() {
       {/* Analytics Tabs */}
       <Card size="small" style={{ borderRadius: 8 }} styles={{ body: { padding: '4px 0' } }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+          <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
         ) : (
           <Tabs
             activeKey={activeTab}
