@@ -186,6 +186,33 @@ export const authApi = {
     return res.json();
   },
 
+  forgotPassword: async (email) => {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return res.json();
+  },
+
+  validateResetToken: async (token) => {
+    const res = await fetch(`${API_BASE}/auth/validate-reset-token?token=${token}`);
+    return res.json();
+  },
+
+  resetPassword: async (token, newPassword) => {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to reset password');
+    }
+    return res.json();
+  },
+
   refreshToken: async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) throw new Error('No refresh token');

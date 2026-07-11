@@ -193,6 +193,9 @@ const LoginPage = () => {
         <Form.Item name="password" rules={[{ required: true, message: 'Password required' }]}>
           <Input.Password prefix={<LockOutlined style={{ color: '#71717a' }} />} placeholder="Password" />
         </Form.Item>
+        <div style={{ textAlign: 'right', marginTop: -8, marginBottom: 16 }}>
+          <a href="/forgot-password" style={{ fontSize: 12, color: '#71717a' }}>Forgot password?</a>
+        </div>
         <Form.Item style={{ marginBottom: 0 }}>
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button type="primary" htmlType="submit" loading={loading} block size="large" style={{ height: 44, fontWeight: 600, fontSize: 14, borderRadius: 10, background: '#18181b', borderColor: '#18181b' }}>

@@ -640,3 +640,79 @@ exports.resendOtp = async (req, res) => {
     res.status(429).json({ success: false, message: error.message || 'Failed to resend code' });
   }
 };
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const passwordResetService = require('../services/passwordResetService');
+    const emailService = require('../services/emailService');
+    const passwordResetTemplate = require('../emails/templates/auth/passwordReset');
+
+    const result = await passwordResetService.generateResetToken(email);
+    
+    if (result.success) {
+      const resetUrl = `${config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in'}/reset-password?token=${result.token}`;
+      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      
+      const html = passwordResetTemplate({
+        userName: result.user.firstName,
+        resetUrl,
+        expiresInMinutes: 60,
+        ipAddress
+      });
+
+      await emailService.send({
+        to: result.user.email,
+        subject: 'Reset Your RetailOps Password',
+        html
+      });
+    }
+
+    res.json({ success: true, message: 'If an account exists with this email, a reset link has been sent.' });
+  } catch (error) {
+    console.error('[AUTH] Forgot password error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to process request' });
+  }
+};
+
+exports.validateResetToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ success: false, message: 'Token is required' });
+
+    const passwordResetService = require('../services/passwordResetService');
+    const result = await passwordResetService.validateResetToken(token);
+
+    if (!result.valid) {
+      return res.status(400).json({ success: false, valid: false, message: result.message });
+    }
+
+    res.json({ success: true, valid: true, email: result.email, firstName: result.firstName });
+  } catch (error) {
+    console.error('[AUTH] Validate reset token error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to validate token' });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Token and new password are required' });
+
+    if (newPassword.length < 8) return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+
+    const passwordResetService = require('../services/passwordResetService');
+    const result = await passwordResetService.resetPassword(token, newPassword);
+
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    res.json({ success: true, message: 'Password reset successfully. You can now login with your new password.' });
+  } catch (error) {
+    console.error('[AUTH] Reset password error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
+  }
+};
