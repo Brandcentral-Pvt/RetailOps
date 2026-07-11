@@ -884,11 +884,10 @@ const SellersPage = () => {
             <Package size={14} color="#94A3B8" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-            <Text strong style={{ fontSize: 11.5 }}>{total || 0} Total</Text>
-            <div style={{ fontSize: 9, color: '#2E7D32', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#2E7D32', display: 'inline-block' }} />
-              {seller.activeAsins || 0} Active
-            </div>
+            <Text strong style={{ fontSize: 11.5 }}>{total || 0} ASINs</Text>
+            <Text style={{ fontSize: 9, color: '#94A3B8' }}>
+              Click to manage
+            </Text>
           </div>
         </Button>
       )
