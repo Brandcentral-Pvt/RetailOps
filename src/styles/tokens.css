@@ -1,196 +1,599 @@
-/* ==========================================================================
-   RetailOps Design Token Foundation
-   ========================================================================== */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BrandCentral Design System — Token Foundation v3.0
+   Enterprise SaaS Operations Platform
+   Single source of truth for ALL CSS variables
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ==========================================================================
-   COLOR TOKENS
-   ========================================================================== */
-
-/* Brand Colors (RetailOps Primary: #1976D2) */
+/* ────────────────────────────────────────────────────────────
+   1. PRIMITIVE COLORS (raw palette — never use directly)
+   ──────────────────────────────────────────────────────────── */
 :root {
-    --color-brand-50: #E3F2FD;
-    --color-brand-100: #BBDEFB;
-    --color-brand-200: #90CAF9;
-    --color-brand-300: #64B5F6;
-    --color-brand-400: #42A5F5;
-    --color-brand-500: #1976D2;
-    --color-brand-600: #1565C0;
-    --color-brand-700: #0D47A1;
-    --color-brand-800: #0A3A8A;
-    --color-brand-900: #072D6E;
+  /* Blue (Brand Primary) */
+  --bc-blue-50:    #eff6ff;
+  --bc-blue-100:   #dbeafe;
+  --bc-blue-200:   #bfdbfe;
+  --bc-blue-300:   #93c5fd;
+  --bc-blue-400:   #60a5fa;
+  --bc-blue-500:   #3b82f6;
+  --bc-blue-600:   #2563eb;
+  --bc-blue-700:   #1d4ed8;
+  --bc-blue-800:   #1e40af;
+  --bc-blue-900:   #1e3a5f;
 
-    /* Neutral Colors — RetailOps Slate */
-    --color-neutral-50: #F8FAFC;
-    --color-neutral-100: #F1F5F9;
-    --color-neutral-200: #E2E8F0;
-    --color-neutral-300: #CBD5E1;
-    --color-neutral-400: #94A3B8;
-    --color-neutral-500: #64748B;
-    --color-neutral-600: #475569;
-    --color-neutral-700: #334155;
-    --color-neutral-800: #1E293B;
-    --color-neutral-900: #0F172A;
+  /* RetailOps Brand (Material Blue #1976D2) */
+  --bc-ro-50:      #E3F2FD;
+  --bc-ro-100:     #BBDEFB;
+  --bc-ro-200:     #90CAF9;
+  --bc-ro-300:     #64B5F6;
+  --bc-ro-400:     #42A5F5;
+  --bc-ro-500:     #1976D2;
+  --bc-ro-600:     #1565C0;
+  --bc-ro-700:     #0D47A1;
+  --bc-ro-800:     #0A3A8A;
+  --bc-ro-900:     #072D6E;
 
-    /* Semantic Colors - Success */
-    --color-success-50: #E8F5E9;
-    --color-success-500: #4CAF50;
-    --color-success-700: #2E7D32;
+  /* Slate (Neutrals) */
+  --bc-slate-50:   #f8fafc;
+  --bc-slate-100:  #f1f5f9;
+  --bc-slate-200:  #e2e8f0;
+  --bc-slate-300:  #cbd5e1;
+  --bc-slate-400:  #94a3b8;
+  --bc-slate-500:  #64748b;
+  --bc-slate-600:  #475569;
+  --bc-slate-700:  #334155;
+  --bc-slate-800:  #1e293b;
+  --bc-slate-900:  #0f172a;
 
-    /* Semantic Colors - Warning */
-    --color-warning-50: #FFF3E0;
-    --color-warning-500: #FF9800;
-    --color-warning-700: #ED6C02;
+  /* Green (Success) */
+  --bc-green-50:   #f0fdf4;
+  --bc-green-100:  #dcfce7;
+  --bc-green-200:  #bbf7d0;
+  --bc-green-500:  #22c55e;
+  --bc-green-600:  #16a34a;
+  --bc-green-700:  #15803d;
+  --bc-green-800:  #166534;
 
-    /* Semantic Colors - Danger */
-    --color-danger-50: #FFEBEE;
-    --color-danger-500: #D32F2F;
-    --color-danger-700: #C62828;
+  /* Red (Danger) */
+  --bc-red-50:     #fef2f2;
+  --bc-red-100:    #fee2e2;
+  --bc-red-200:    #fecaca;
+  --bc-red-500:    #ef4444;
+  --bc-red-600:    #dc2626;
+  --bc-red-700:    #b91c1c;
+  --bc-red-800:    #991b1b;
 
-    /* Surface Colors */
-    --color-surface-0: #ffffff;
-    --color-surface-1: #f4f5f7;
-    --color-surface-2: #d9e6e9;
+  /* Amber (Warning) */
+  --bc-amber-50:   #fffbeb;
+  --bc-amber-100:  #fef3c7;
+  --bc-amber-200:  #fde68a;
+  --bc-amber-500:  #f59e0b;
+  --bc-amber-600:  #d97706;
+  --bc-amber-700:  #b45309;
+  --bc-amber-800:  #92400e;
 
-    /* Border Colors */
-    --color-border: #cbd0d4;
-    --color-border-strong: #8c8e8f;
+  /* Violet */
+  --bc-violet-50:  #f5f3ff;
+  --bc-violet-100: #ede9fe;
+  --bc-violet-500: #8b5cf6;
+  --bc-violet-600: #7c3aed;
+  --bc-violet-700: #6d28d9;
 
-    /* Text Colors */
-    --color-text-primary: #121b1e;
-    --color-text-secondary: #545657;
-    --color-text-muted: #8c8e8f;
+  /* Indigo */
+  --bc-indigo-50:  #eef2ff;
+  --bc-indigo-100: #e0e7ff;
+  --bc-indigo-500: #6366f1;
+  --bc-indigo-600: #4f46e5;
+  --bc-indigo-700: #4338ca;
+
+  /* Cyan (Info) */
+  --bc-cyan-50:    #ecfeff;
+  --bc-cyan-100:   #cffafe;
+  --bc-cyan-500:   #06b6d4;
+  --bc-cyan-600:   #0891b2;
+
+  /* Pink */
+  --bc-pink-50:    #fdf2f8;
+  --bc-pink-500:   #ec4899;
+
+  --bc-white:      #ffffff;
 }
 
-/* ==========================================================================
-   TYPOGRAPHY TOKENS
-   ========================================================================== */
-
+/* ────────────────────────────────────────────────────────────
+   2. SEMANTIC COLORS (purpose-based — use these)
+   ──────────────────────────────────────────────────────────── */
 :root {
-    /* Font Families */
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-mono: "Courier New", Courier, monospace;
+  /* Brand / Primary */
+  --bc-primary-50:    var(--bc-ro-50);
+  --bc-primary-100:   var(--bc-ro-100);
+  --bc-primary-200:   var(--bc-ro-200);
+  --bc-primary-500:   var(--bc-ro-500);
+  --bc-primary-600:   var(--bc-ro-600);
+  --bc-primary-700:   var(--bc-ro-700);
 
-    /* Font Sizes */
-    --text-xs: 0.6875rem;
-    /* 11px */
-    --text-sm: 0.875rem;
-    /* 14px */
-    --text-base: 1rem;
-    /* 16px */
-    --text-lg: 1.125rem;
-    /* 18px */
-    --text-xl: 1.25rem;
-    /* 20px */
-    --text-2xl: 1.5rem;
-    /* 24px */
-    --text-3xl: 1.875rem;
-    /* 30px */
+  /* Surface (backgrounds) */
+  --bc-surface-page:      var(--bc-slate-50);
+  --bc-surface-card:      var(--bc-white);
+  --bc-surface-subtle:    var(--bc-slate-100);
+  --bc-surface-muted:     var(--bc-slate-50);
+  --bc-surface-elevated:  var(--bc-white);
+  --bc-surface-hover:     var(--bc-slate-50);
 
-    /* Font Weights */
-    --font-normal: 400;
-    --font-medium: 500;
-    --font-semibold: 600;
-    --font-bold: 700;
-    --font-extrabold: 800;
+  /* Text */
+  --bc-text-heading:   var(--bc-slate-900);
+  --bc-text-body:      var(--bc-slate-700);
+  --bc-text-secondary: var(--bc-slate-500);
+  --bc-text-muted:     var(--bc-slate-400);
+  --bc-text-disabled:  var(--bc-slate-300);
+  --bc-text-inverse:   var(--bc-white);
+  --bc-text-brand:     var(--bc-primary-600);
 
-    /* Line Heights */
-    --leading-tight: 1.25;
-    --leading-snug: 1.375;
-    --leading-normal: 1.5;
-    --leading-relaxed: 1.625;
+  /* Border */
+  --bc-border-subtle:   var(--bc-slate-200);
+  --bc-border-default:  var(--bc-slate-200);
+  --bc-border-strong:   var(--bc-slate-300);
+  --bc-border-brand:    var(--bc-primary-200);
+  --bc-border-focus:    var(--bc-primary-500);
+
+  /* Status */
+  --bc-status-success:      var(--bc-green-500);
+  --bc-status-success-bg:   var(--bc-green-50);
+  --bc-status-success-text: var(--bc-green-700);
+  --bc-status-danger:       var(--bc-red-500);
+  --bc-status-danger-bg:    var(--bc-red-50);
+  --bc-status-danger-text:  var(--bc-red-700);
+  --bc-status-warning:      var(--bc-amber-500);
+  --bc-status-warning-bg:   var(--bc-amber-50);
+  --bc-status-warning-text: var(--bc-amber-700);
+  --bc-status-info:         var(--bc-cyan-500);
+  --bc-status-info-bg:      var(--bc-cyan-50);
+  --bc-status-info-text:    var(--bc-cyan-600);
 }
 
-/* ==========================================================================
-   SPACING TOKENS
-   ========================================================================== */
-
+/* ────────────────────────────────────────────────────────────
+   3. MODULE ACCENT COLORS
+   ──────────────────────────────────────────────────────────── */
 :root {
-    --space-1: 0.25rem;
-    /* 4px */
-    --space-2: 0.5rem;
-    /* 8px */
-    --space-3: 0.75rem;
-    /* 12px */
-    --space-4: 1rem;
-    /* 16px */
-    --space-5: 1.25rem;
-    /* 20px */
-    --space-6: 1.5rem;
-    /* 24px */
-    --space-7: 1.75rem;
-    /* 28px */
-    --space-8: 2rem;
-    /* 32px */
-    --space-9: 2.25rem;
-    /* 36px */
-    --space-10: 2.5rem;
-    /* 40px */
-    --space-11: 2.75rem;
-    /* 44px */
-    --space-12: 3rem;
-    /* 48px */
-    --space-14: 3.5rem;
-    /* 56px */
-    --space-16: 4rem;
-    /* 64px */
+  --bc-accent-dashboard:   var(--bc-blue-500);
+  --bc-accent-asin:        var(--bc-indigo-500);
+  --bc-accent-listing:     #0891b2;
+  --bc-accent-mte:         var(--bc-violet-500);
+  --bc-accent-image:       #d946ef;
+  --bc-accent-content:     #0ea5e9;
+  --bc-accent-pems:        var(--bc-violet-600);
+  --bc-accent-dispute:     #f97316;
+  --bc-accent-oos:         var(--bc-red-500);
+  --bc-accent-gms:         var(--bc-green-600);
+  --bc-accent-inventory:   #ea580c;
+  --bc-accent-targets:     var(--bc-green-500);
+  --bc-accent-reports:     var(--bc-blue-600);
+  --bc-accent-automation:  var(--bc-amber-500);
+  --bc-accent-ai:          var(--bc-violet-500);
+  --bc-accent-settings:    var(--bc-slate-500);
 }
 
-/* ==========================================================================
-   BORDER RADIUS TOKENS
-   ========================================================================== */
-
+/* ────────────────────────────────────────────────────────────
+   4. MARKETPLACE COLORS
+   ──────────────────────────────────────────────────────────── */
 :root {
-    --radius-sm: 0.375rem;
-    /* 6px */
-    --radius-md: 0.5rem;
-    /* 8px */
-    --radius-lg: 0.75rem;
-    /* 12px */
-    --radius-xl: 1rem;
-    /* 16px */
-    --radius-2xl: 1.25rem;
-    /* 20px */
-    --radius-full: 9999px;
+  --bc-market-amazon:   #ff9900;
+  --bc-market-flipkart: #2874f0;
+  --bc-market-ajio:     #d23b6c;
+  --bc-market-myntra:   #ff3f6c;
 }
 
-/* ==========================================================================
-   SHADOW TOKENS
-   ========================================================================== */
-
+/* ────────────────────────────────────────────────────────────
+   5. TYPOGRAPHY
+   ──────────────────────────────────────────────────────────── */
 :root {
-    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    --shadow-focus: 0 0 0 3px rgba(27, 79, 216, 0.4);
+  --bc-font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --bc-font-display: 'DM Sans', var(--bc-font-sans);
+  --bc-font-mono:    'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+
+  /* Scale */
+  --bc-text-2xs:  0.625rem;   /* 10px */
+  --bc-text-xs:   0.6875rem;  /* 11px */
+  --bc-text-sm:   0.8125rem;  /* 13px */
+  --bc-text-base: 0.875rem;   /* 14px */
+  --bc-text-md:   1rem;       /* 16px */
+  --bc-text-lg:   1.125rem;   /* 18px */
+  --bc-text-xl:   1.25rem;    /* 20px */
+  --bc-text-2xl:  1.5rem;     /* 24px */
+  --bc-text-3xl:  1.875rem;   /* 30px */
+  --bc-text-4xl:  2.25rem;    /* 36px */
+  --bc-text-5xl:  3rem;       /* 48px */
+
+  /* Weights */
+  --bc-weight-regular:  400;
+  --bc-weight-medium:   500;
+  --bc-weight-semibold: 600;
+  --bc-weight-bold:     700;
+  --bc-weight-extrabold: 800;
+
+  /* Line heights */
+  --bc-leading-none:    1;
+  --bc-leading-tight:   1.25;
+  --bc-leading-snug:    1.375;
+  --bc-leading-normal:  1.5;
+  --bc-leading-relaxed: 1.625;
+
+  /* Letter spacing */
+  --bc-tracking-tighter: -0.05em;
+  --bc-tracking-tight:   -0.025em;
+  --bc-tracking-normal:  0em;
+  --bc-tracking-wide:    0.025em;
+  --bc-tracking-wider:   0.05em;
 }
 
-/* ==========================================================================
-   TRANSITION TOKENS
-   ========================================================================== */
-
+/* ────────────────────────────────────────────────────────────
+   6. SPACING (4px base grid)
+   ──────────────────────────────────────────────────────────── */
 :root {
-    --transition-fast: 150ms ease;
-    --transition-base: 200ms ease;
-    --transition-slow: 350ms ease;
+  --bc-space-0:    0;
+  --bc-space-px:   1px;
+  --bc-space-0\.5: 0.125rem;  /* 2px */
+  --bc-space-1:    0.25rem;   /* 4px */
+  --bc-space-1\.5: 0.375rem;  /* 6px */
+  --bc-space-2:    0.5rem;    /* 8px */
+  --bc-space-2\.5: 0.625rem;  /* 10px */
+  --bc-space-3:    0.75rem;   /* 12px */
+  --bc-space-4:    1rem;      /* 16px */
+  --bc-space-5:    1.25rem;   /* 20px */
+  --bc-space-6:    1.5rem;    /* 24px */
+  --bc-space-8:    2rem;      /* 32px */
+  --bc-space-10:   2.5rem;    /* 40px */
+  --bc-space-12:   3rem;      /* 48px */
+  --bc-space-14:   3.5rem;    /* 56px */
+  --bc-space-16:   4rem;      /* 64px */
+  --bc-space-20:   5rem;      /* 80px */
 }
 
-/* ==========================================================================
-   Z-INDEX TOKENS
-   ========================================================================== */
-
+/* ────────────────────────────────────────────────────────────
+   7. BORDER RADIUS
+   ──────────────────────────────────────────────────────────── */
 :root {
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-fixed: 300;
-    --z-modal-backdrop: 400;
-    --z-modal: 500;
-    --z-toast: 600;
+  --bc-radius-none: 0;
+  --bc-radius-sm:   0.25rem;   /* 4px */
+  --bc-radius-md:   0.375rem;  /* 6px */
+  --bc-radius-lg:   0.5rem;    /* 8px */
+  --bc-radius-xl:   0.75rem;   /* 12px */
+  --bc-radius-2xl:  1rem;      /* 16px */
+  --bc-radius-3xl:  1.25rem;   /* 20px */
+  --bc-radius-full: 9999px;
 }
 
-/* ==========================================================================
-   DARK MODE OVERRIDES
-   ========================================================================== */
+/* ────────────────────────────────────────────────────────────
+   8. SHADOWS / ELEVATION
+   ──────────────────────────────────────────────────────────── */
+:root {
+  --bc-shadow-xs:   0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --bc-shadow-sm:   0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+  --bc-shadow-md:   0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --bc-shadow-lg:   0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --bc-shadow-xl:   0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --bc-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --bc-shadow-focus: 0 0 0 3px rgba(25, 118, 210, 0.25);
+}
 
-/* Dark mode disabled per user request for a pristine white theme */
+/* ────────────────────────────────────────────────────────────
+   9. TRANSITIONS / ANIMATION
+   ──────────────────────────────────────────────────────────── */
+:root {
+  --bc-duration-fast:   100ms;
+  --bc-duration-normal: 200ms;
+  --bc-duration-slow:   300ms;
+  --bc-ease-default:    cubic-bezier(0.4, 0, 0.2, 1);
+  --bc-ease-in:         cubic-bezier(0.4, 0, 1, 1);
+  --bc-ease-out:        cubic-bezier(0, 0, 0.2, 1);
+  --bc-ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+  --bc-transition-fast:   var(--bc-duration-fast) var(--bc-ease-default);
+  --bc-transition-normal: var(--bc-duration-normal) var(--bc-ease-default);
+  --bc-transition-slow:   var(--bc-duration-slow) var(--bc-ease-default);
+}
+
+/* ────────────────────────────────────────────────────────────
+   10. Z-INDEX SCALE
+   ──────────────────────────────────────────────────────────── */
+:root {
+  --bc-z-base:      1;
+  --bc-z-dropdown:  10;
+  --bc-z-sticky:    20;
+  --bc-z-overlay:   30;
+  --bc-z-modal:     40;
+  --bc-z-toast:     50;
+  --bc-z-tooltip:   60;
+}
+
+/* ────────────────────────────────────────────────────────────
+   11. OPACITY
+   ──────────────────────────────────────────────────────────── */
+:root {
+  --bc-opacity-disabled: 0.5;
+  --bc-opacity-hover:    0.8;
+  --bc-opacity-overlay:  0.45;
+}
+
+/* ────────────────────────────────────────────────────────────
+   12. LAYOUT
+   ──────────────────────────────────────────────────────────── */
+:root {
+  --bc-sidebar-width:       240px;
+  --bc-sidebar-collapsed:   72px;
+  --bc-topbar-height:       60px;
+  --bc-content-max-width:   1440px;
+  --bc-card-padding:        var(--bc-space-5);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   13. BACKWARD-COMPATIBILITY ALIASES
+   Maps old variable names → new bc-* tokens
+   Remove these gradually as old references are migrated
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Brand / Primary (from old tokens.css) ── */
+  --color-brand-50:   var(--bc-ro-50);
+  --color-brand-100:  var(--bc-ro-100);
+  --color-brand-200:  var(--bc-ro-200);
+  --color-brand-300:  var(--bc-ro-300);
+  --color-brand-400:  var(--bc-ro-400);
+  --color-brand-500:  var(--bc-ro-500);
+  --color-brand-600:  var(--bc-ro-600);
+  --color-brand-700:  var(--bc-ro-700);
+  --color-brand-800:  var(--bc-ro-800);
+  --color-brand-900:  var(--bc-ro-900);
+
+  /* ── Neutral (from old tokens.css) ── */
+  --color-neutral-50:  var(--bc-slate-50);
+  --color-neutral-100: var(--bc-slate-100);
+  --color-neutral-200: var(--bc-slate-200);
+  --color-neutral-300: var(--bc-slate-300);
+  --color-neutral-400: var(--bc-slate-400);
+  --color-neutral-500: var(--bc-slate-500);
+  --color-neutral-600: var(--bc-slate-600);
+  --color-neutral-700: var(--bc-slate-700);
+  --color-neutral-800: var(--bc-slate-800);
+  --color-neutral-900: var(--bc-slate-900);
+
+  /* ── Semantic Colors (from old tokens.css) ── */
+  --color-success-50:  var(--bc-green-50);
+  --color-success-500: var(--bc-green-500);
+  --color-success-700: var(--bc-green-700);
+
+  --color-warning-50:  var(--bc-amber-50);
+  --color-warning-500: var(--bc-amber-500);
+  --color-warning-700: var(--bc-amber-700);
+
+  --color-danger-50:   var(--bc-red-50);
+  --color-danger-500:  var(--bc-red-500);
+  --color-danger-700:  var(--bc-red-700);
+
+  /* ── Surface (from old tokens.css) ── */
+  --color-surface-0: var(--bc-white);
+  --color-surface-1: var(--bc-slate-100);
+  --color-surface-2: var(--bc-slate-200);
+
+  /* ── Border (from old tokens.css) ── */
+  --color-border:        var(--bc-border-default);
+  --color-border-strong: var(--bc-border-strong);
+
+  /* ── Text (from old tokens.css) ── */
+  --color-text-primary:   var(--bc-text-heading);
+  --color-text-secondary: var(--bc-text-secondary);
+  --color-text-muted:     var(--bc-text-muted);
+
+  /* ── index.css variables ── */
+  --color-primary:      var(--bc-ro-500);
+  --color-primary-light: var(--bc-ro-300);
+  --color-primary-dark:  var(--bc-ro-700);
+  --color-secondary:     #9C27B0;
+  --color-secondary-light: #BA68C8;
+  --color-secondary-dark: #7B1FA2;
+
+  --color-success: var(--bc-green-600);
+  --color-success-bg: rgba(46, 125, 50, 0.1);
+  --color-warning: var(--bc-amber-600);
+  --color-warning-bg: rgba(237, 108, 2, 0.1);
+  --color-error:   var(--bc-red-600);
+  --color-error-bg: rgba(211, 47, 47, 0.1);
+  --color-info:    var(--bc-cyan-500);
+  --color-info-bg: rgba(6, 182, 212, 0.1);
+
+  --color-white: var(--bc-white);
+
+  /* Gray aliases (index.css) */
+  --color-gray-50:  var(--bc-slate-50);
+  --color-gray-100: var(--bc-slate-100);
+  --color-gray-200: var(--bc-slate-200);
+  --color-gray-300: var(--bc-slate-300);
+  --color-gray-400: var(--bc-slate-400);
+  --color-gray-500: var(--bc-slate-500);
+  --color-gray-600: var(--bc-slate-600);
+  --color-gray-700: var(--bc-slate-700);
+  --color-gray-800: var(--bc-slate-800);
+  --color-gray-900: var(--bc-slate-900);
+
+  /* Backgrounds (index.css) */
+  --bg-primary:   var(--bc-surface-page);
+  --bg-secondary: var(--bc-surface-card);
+  --bg-tertiary:  var(--bc-surface-subtle);
+  --bg-app:       var(--bc-surface-page);
+  --bg-sidebar:   var(--bc-white);
+  --bg-topbar:    var(--bc-white);
+  --bg-hover:     var(--bc-surface-hover);
+
+  /* Text (index.css) */
+  --text-primary:   var(--bc-text-heading);
+  --text-secondary: var(--bc-text-secondary);
+  --text-tertiary:  var(--bc-text-muted);
+  --text-muted:     var(--bc-text-muted);
+
+  /* Border (index.css) */
+  --border-color: var(--bc-border-default);
+  --border:       var(--bc-border-default);
+
+  /* Radius (index.css) */
+  --border-radius-sm: var(--bc-radius-sm);
+  --border-radius:    var(--bc-radius-lg);
+  --border-radius-lg: var(--bc-radius-xl);
+  --border-radius-xl: var(--bc-radius-2xl);
+
+  /* Shadows (index.css) */
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow:    var(--bc-shadow-md);
+  --shadow-md: var(--bc-shadow-lg);
+  --shadow-lg: var(--bc-shadow-xl);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* Typography (index.css) */
+  --font-family: var(--bc-font-sans);
+  --font-size-xs:   var(--bc-text-xs);
+  --font-size-sm:   var(--bc-text-sm);
+  --font-size-base: var(--bc-text-base);
+  --font-size-lg:   var(--bc-text-md);
+  --font-size-xl:   var(--bc-text-lg);
+  --font-size-2xl:  var(--bc-text-xl);
+  --font-size-3xl:  var(--bc-text-2xl);
+
+  /* Spacing (index.css) */
+  --spacing-xs:  var(--bc-space-1);
+  --spacing-sm:  var(--bc-space-2);
+  --spacing-md:  var(--bc-space-4);
+  --spacing-lg:  var(--bc-space-6);
+  --spacing-xl:  var(--bc-space-8);
+  --spacing-2xl: var(--bc-space-12);
+
+  /* Layout (index.css) */
+  --sidebar-w:     var(--bc-sidebar-width);
+  --sidebar-w-min: var(--bc-sidebar-collapsed);
+  --topbar-h:      var(--bc-topbar-height);
+
+  /* Colors (index.css short) */
+  --blue:      var(--bc-ro-500);
+  --blue-soft: var(--bc-ro-50);
+  --blue-mid:  rgba(25, 118, 210, 0.12);
+  --green:     var(--bc-green-500);
+  --green-soft: rgba(34, 197, 94, 0.12);
+  --red:       var(--bc-red-500);
+
+  /* Radius (index.css short) */
+  --radius-sm: var(--bc-radius-sm);
+  --radius-md: var(--bc-radius-lg);
+
+  /* Transitions (index.css) */
+  --transition-fast: var(--bc-transition-fast);
+  --transition-base: var(--bc-transition-normal);
+  --transition-slow: var(--bc-transition-slow);
+
+  /* Surface Accents */
+  --grad-primary: linear-gradient(135deg, #0070F3 0%, #3291FF 100%);
+  --grad-secondary: linear-gradient(135deg, #7928CA 0%, #FF0080 100%);
+  --grad-surface: var(--bc-slate-100);
+
+  /* Global overrides z-index */
+  --z-base:           var(--bc-z-base);
+  --z-content:        var(--bc-z-dropdown);
+  --z-table-cell:     20;
+  --z-table-header:   30;
+  --z-sticky-bar:     var(--bc-z-sticky);
+  --z-page-header:    var(--bc-z-overlay);
+  --z-sidebar:        500;
+  --z-fixed-nav:      1000;
+  --z-modal-mask:     1050;
+  --z-modal:          1060;
+  --z-tooltip:        1200;
+  --z-dropdown:       1300;
+  --z-picker:         1400;
+  --z-notification:   1500;
+  --z-critical:       9999;
+
+  /* Old tokens.css radius */
+  --radius-sm: var(--bc-radius-sm);
+  --radius-md: var(--bc-radius-lg);
+  --radius-lg: var(--bc-radius-xl);
+  --radius-xl: var(--bc-radius-2xl);
+  --radius-2xl: var(--bc-radius-3xl);
+  --radius-full: var(--bc-radius-full);
+
+  /* Old tokens.css shadows */
+  --shadow-xs: var(--bc-shadow-xs);
+  --shadow-focus: var(--bc-shadow-focus);
+
+  /* Old tokens.css transitions */
+  --transition-fast: var(--bc-transition-fast);
+  --transition-base: var(--bc-transition-normal);
+  --transition-slow: var(--bc-transition-slow);
+
+  /* Gradients */
+  --grad-blue: linear-gradient(135deg, var(--bc-ro-600) 0%, var(--bc-ro-500) 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   14. DARK MODE — Ready to activate (toggle class on <body>)
+   ═══════════════════════════════════════════════════════════════════════════ */
+body.bc-dark {
+  --bc-primary-50:    #172554;
+  --bc-primary-600:   #3b82f6;
+
+  --bc-surface-page:      #0f172a;
+  --bc-surface-card:      #1e293b;
+  --bc-surface-subtle:    #1e293b;
+  --bc-surface-muted:     #0f172a;
+  --bc-surface-hover:     #334155;
+
+  --bc-text-heading:   #f1f5f9;
+  --bc-text-body:      #e2e8f0;
+  --bc-text-secondary: #94a3b8;
+  --bc-text-muted:     #64748b;
+
+  --bc-border-subtle:   #334155;
+  --bc-border-default:  #334155;
+  --bc-border-strong:   #475569;
+
+  --bc-shadow-xs:   0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --bc-shadow-sm:   0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  --bc-shadow-md:   0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --bc-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --bc-shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.35);
+
+  /* Cascade overrides for dark mode */
+  --color-surface-0: var(--bc-surface-card);
+  --color-surface-1: var(--bc-surface-subtle);
+  --color-surface-2: var(--bc-border-default);
+  --color-text-primary: var(--bc-text-heading);
+  --color-text-secondary: var(--bc-text-secondary);
+  --color-text-muted: var(--bc-text-muted);
+  --color-border: var(--bc-border-default);
+  --color-border-strong: var(--bc-border-strong);
+  --bg-primary: var(--bc-surface-page);
+  --bg-secondary: var(--bc-surface-card);
+  --bg-app: var(--bc-surface-page);
+  --bg-sidebar: var(--bc-surface-card);
+  --bg-topbar: var(--bc-surface-card);
+  --bg-hover: var(--bc-surface-hover);
+  --text-primary: var(--bc-text-heading);
+  --text-secondary: var(--bc-text-secondary);
+  --text-muted: var(--bc-text-muted);
+  --border-color: var(--bc-border-default);
+  --border: var(--bc-border-default);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   15. ACCESSIBILITY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Focus-visible: show ring only for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--bc-primary-500);
+  outline-offset: 2px;
+}
+
+/* Reduced motion: disable all animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

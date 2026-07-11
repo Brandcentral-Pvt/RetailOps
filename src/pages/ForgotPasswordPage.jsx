@@ -61,7 +61,7 @@ const ForgotPasswordPage = () => {
       </div>
 
       {error && (
-        <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 8 }} />
+        <Alert title={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 8 }} />
       )}
 
       <Form layout="vertical" onFinish={handleSubmit} requiredMark={false} size="large">
