@@ -144,7 +144,7 @@ exports.getSellerStats = async (req, res) => {
 
     const sellerStats = sellerResult.recordset[0];
 
-    // Step 2: Count ALL ASINs from Asins table for same filtered sellers
+    // Step 2: Count ALL ASINs — use unfiltered seller set (status filter should NOT reduce ASIN count)
     const asinReq = pool.request();
     const asinWhereParts = ['1=1'];
 
@@ -156,14 +156,11 @@ exports.getSellerStats = async (req, res) => {
       const inClause = buildInClause(asinReq, 'asinSid', sellerIds);
       asinWhereParts.push(`A.SellerId IN (${inClause})`);
     }
+    // Note: status filter is deliberately NOT applied to ASIN count
+    // ASINs belong to sellers — pausing a seller doesn't remove its ASINs
     if (manager) {
       asinWhereParts.push(`A.SellerId IN (SELECT SellerId FROM UserSellers WHERE UserId = @asinMgr)`);
       asinReq.input('asinMgr', sql.VarChar, manager);
-    }
-    if (status) {
-      const isActive = status === 'Active' ? 1 : 0;
-      asinWhereParts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE IsActive = @asinStatus)`);
-      asinReq.input('asinStatus', sql.Bit, isActive);
     }
     if (marketplace) {
       asinWhereParts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @asinMp)`);
