@@ -27,4 +27,9 @@ router.post('/request-password-change', authenticate, authController.requestPass
 router.put('/change-password', authenticate, validate('changePassword'), authController.changePassword);
 router.put('/change-password-with-otp', authenticate, authController.changePasswordWithOtp);
 
+// Password Reset (unauthenticated)
+router.post('/forgot-password', authController.forgotPassword);
+router.get('/validate-reset-token', authController.validateResetToken);
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;
