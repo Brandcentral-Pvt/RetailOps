@@ -18,6 +18,9 @@ import {
 import { adsApi, sellerApi } from '../services/api';
 import InfiniteScrollSelect from '../components/common/InfiniteScrollSelect';
 import AdsImportModal from '../components/ads/AdsImportModal';
+import ExecutiveKPIs from '../components/ads/ExecutiveKPIs';
+import InsightPanel from '../components/ads/InsightPanel';
+import AdsFilters from '../components/ads/AdsFilters';
 import Chart from 'react-apexcharts';
 import { CHART_COLORS, areaChartOptions } from '../utils/chartTheme';
 import { useDateRange } from '../contexts/DateRangeContext';
@@ -778,73 +781,29 @@ export default function AdsManagerPage() {
         onComplete={() => { setShowImportModal(false); fetchAdsData(); }}
       />
 
-      {/* FILTERS */}
-      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Input.Search
-            placeholder="Search ASIN, SKU..."
-            allowClear
-            onSearch={setSearchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: 220, borderRadius: 8 }}
-            size="small"
-          />
-          <Segmented value={groupBy} onChange={setGroupBy}
-            size="small"
-            options={[{ label: 'ASIN Level', value: 'asin' }, { label: 'Parent Level', value: 'parent' }]}
-          />
-          <RangePicker
-            value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
-            onChange={handleDateChange}
-            format="DD MMM YYYY"
-            style={{ borderRadius: 8 }}
-            size="small"
-            presets={[
-              { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
-              { label: 'Last 30 Days', value: [dayjs().subtract(29, 'day'), dayjs()] },
-              { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
-              { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
-            ]}
-          />
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Button onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} />} style={btnStyle}>
-              Refresh
-            </Button>
-            <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
-              Import
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {/* EXECUTIVE KPIs */}
+      <ExecutiveKPIs data={data} />
 
-      {/* KPI STRIP */}
-      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
-        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
-          {[
-            { label: 'Ads Spend', key: 'spend', color: '#D32F2F' },
-            { label: 'Ads Sales', key: 'sales', color: '#15803d' },
-            { label: 'Organic Sales', key: 'organicSales', color: '#2E7D32' },
-            { label: 'ACOS', key: 'acos', color: '#b91c1c' },
-            { label: 'TACOS', key: 'tacos', color: '#0891b2' },
-            { label: 'ROAS', key: 'roas', color: '#a16207' },
-            { label: 'Ads Orders', key: 'orders', color: '#6d28d9' },
-            { label: 'Total Orders', key: 'totalOrders', color: '#475569' },
-          ].map((kpi, idx) => {
-            const meta = METRIC_MAP[kpi.key] || {};
-            const val = summaryData[kpi.key] || 0;
-            const formatted = meta.type === 'currency' ? '₹' + formatCompact(val) : meta.type === 'ratio' ? val.toFixed(2) : meta.type === 'percent' ? val.toFixed(1) + '%' : formatCompact(val);
-            return (
-              <div key={idx} style={{
-                minWidth: 140, padding: '8px 12px', borderRadius: 8,
-                border: '1px solid #e4e4e7', background: '#fafafa'
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: kpi.color, marginBottom: 4 }}>{kpi.label}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#18181b' }}>{formatted}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      {/* INSIGHTS PANEL */}
+      <InsightPanel data={data} />
+
+      {/* FILTERS */}
+      <AdsFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        groupBy={groupBy}
+        setGroupBy={setGroupBy}
+        startDate={startDate}
+        endDate={endDate}
+        handleDateChange={handleDateChange}
+        selectedSeller={selectedSeller}
+        setSelectedSeller={setSelectedSeller}
+        fetchSellerDropdownData={fetchSellerDropdownData}
+        fetchSellerItem={fetchSellerItem}
+        onRefresh={fetchAdsData}
+        onImport={() => setShowImportModal(true)}
+        loading={loading}
+      />
 
       {/* SINGLE CONTAINER: Chart + Table */}
       <Card 
