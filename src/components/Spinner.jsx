@@ -4,36 +4,14 @@ import { LoadingOutlined } from '@ant-design/icons';
 
 const antIcon = <LoadingOutlined style={{ fontSize: 28, color: '#4F46E5' }} spin />;
 
-export function Spinner({ size = 'large', tip, style, fullScreen = false }) {
-  if (fullScreen) {
-    return (
-      <div style={{ 
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        background: 'rgba(255,255,255,0.8)',
-        zIndex: 9999,
-        ...style 
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <Spin indicator={antIcon} size={size} />
-          {tip && <div style={{ marginTop: 12, fontSize: 13, color: '#71717a', fontWeight: 500 }}>{tip}</div>}
-        </div>
-      </div>
-    );
-  }
-
+export function Spinner({ size = 'large', tip, style }) {
   return (
     <div style={{ 
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      padding: '60px 0',
+      width: '100%',
+      minHeight: 'calc(100vh - 120px)',
       ...style 
     }}>
       <div style={{ textAlign: 'center' }}>
@@ -44,16 +22,14 @@ export function Spinner({ size = 'large', tip, style, fullScreen = false }) {
   );
 }
 
-export function ContentSpinner({ tip }) {
+export function ContentSpinner({ tip, height = 300 }) {
   return (
     <div style={{ 
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      minHeight: 300,
-      background: '#fff',
-      borderRadius: 12,
-      border: '1px solid #e4e4e7'
+      minHeight: height,
+      width: '100%'
     }}>
       <div style={{ textAlign: 'center' }}>
         <Spin indicator={antIcon} />
