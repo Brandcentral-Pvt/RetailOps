@@ -2,7 +2,7 @@ import { Spinner } from "@/components/Spinner";
 import { LoadError, EmptyState } from "@/components/LoadError";
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Card, Button, Tag, Select, Spin } from 'antd';
-import { RefreshCw, Download, Upload, BarChart3, ChevronUp } from 'lucide-react';
+import { RefreshCw, Download, Upload, BarChart3, ChevronUp, Package } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useAdsData } from '../hooks/useAdsData';
 import { useAdsFilters } from '../hooks/useAdsFilters';
@@ -10,6 +10,7 @@ import { useAdsChart } from '../hooks/useAdsChart';
 import ExecutiveKPIs from '../components/ads/ExecutiveKPIs';
 import InsightPanel from '../components/ads/InsightPanel';
 import AdsFilters from '../components/ads/AdsFilters';
+import AdsTable from '../components/ads/AdsTable';
 import AdsImportModal from '../components/ads/AdsImportModal';
 import Chart from 'react-apexcharts';
 
@@ -128,9 +129,12 @@ const AdsManagerPage = () => {
               }
             />
           ) : (
-            <div style={{ padding: 16, color: '#71717a', fontSize: 12 }}>
-              Table data loaded — {data.length} records
-            </div>
+            <AdsTable 
+              data={data} 
+              loading={loading} 
+              groupBy={filters.groupBy}
+              onViewDetails={(record) => console.log('View details:', record)}
+            />
           )}
         </div>
       </Card>
