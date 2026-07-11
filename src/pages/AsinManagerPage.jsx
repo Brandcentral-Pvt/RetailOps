@@ -6,6 +6,7 @@ import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
 import { LoadError } from '../components/LoadError';
+import { AsinManagerSkeleton } from '../components/ui/PageSkeletons';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi, sellerApi, taskApi, rulesetApi } from '../services/api';
@@ -2032,7 +2033,7 @@ const AsinManagerPage = (props) => {
   );
 
   if (!initialLoadCompleteRef.current && loading && asins.length === 0) {
-    return <PageLoader message="Loading ASIN Manager..." />;
+    return <AsinManagerSkeleton />;
   }
 
   if (error && !loading && asins.length === 0) {
