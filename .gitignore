@@ -159,3 +159,10 @@ lib-cov
 161: vite.config.ts.timestamp-*
 162: .vite/
 database_backup.zip
+
+# Uploads and temporary files
+backend/uploads/
+backend/temp/
+
+# OS generated files
+Thumbs.db
