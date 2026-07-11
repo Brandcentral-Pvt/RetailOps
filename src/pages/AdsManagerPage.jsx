@@ -1,4 +1,5 @@
 import { Spinner } from "@/components/Spinner";
+import { LoadError } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback, lazy, useRef, Suspense } from 'react';
 import {
   Segmented, Select, Button, Input, Tooltip, Typography, Card, Row, Col,
@@ -16,7 +17,6 @@ import {
 } from 'lucide-react';
 import { adsApi, sellerApi } from '../services/api';
 import InfiniteScrollSelect from '../components/common/InfiniteScrollSelect';
-import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import AdsImportModal from '../components/ads/AdsImportModal';
 import Chart from 'react-apexcharts';
 import { CHART_COLORS, areaChartOptions } from '../utils/chartTheme';
@@ -338,6 +338,7 @@ const AdsHistoryModal = ({ isOpen, onClose, rowData }) => {
 export default function AdsManagerPage() {
   const { startDate, endDate, updateDateRange } = useDateRange();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [data, setData] = useState([]);
 
   const [chartConfigMetrics, setChartConfigMetrics] = useState(['spend', 'sales', 'acos']);
@@ -431,6 +432,7 @@ export default function AdsManagerPage() {
   const fetchAdsData = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = { groupBy, search: searchQuery, page, limit: pageSize, sortBy, sortOrder };
       if (selectedSeller) params.sellerId = selectedSeller;
       if (startDate) params.startDate = format(startDate, 'yyyy-MM-dd');
@@ -441,9 +443,12 @@ export default function AdsManagerPage() {
         setData(res.data || []);
         setTotalCount(res.total || 0);
         setGlobalChartData(res.globalChartData || []);
+      } else {
+        setError('Failed to load ads data');
       }
     } catch (err) {
       console.error('Failed to fetch ads data:', err);
+      setError(err.message || 'Failed to load ads data');
     } finally {
       setLoading(false);
     }
@@ -754,10 +759,14 @@ export default function AdsManagerPage() {
   // ═══════════════════════════════════════════════════════════════
   return (
     <div className="ads-pro-page">
-      {loading && (
+      {loading && !data.length && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
-          <LoadingIndicator type="line-simple" size="md" />
+          <Spinner />
         </div>
+      )}
+
+      {error && !loading && (
+        <LoadError message={error} onRetry={fetchAdsData} />
       )}
 
       <AdsImportModal
@@ -909,9 +918,9 @@ export default function AdsManagerPage() {
       {/* TABLE */}
       <div className="ads-table-wrapper">
         <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-          {loading ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12 }}>
-              Loading data...
+          {loading && !data.length ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Spinner />
             </div>
           ) : paginatedData.length === 0 ? (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
