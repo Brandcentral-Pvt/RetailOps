@@ -10,8 +10,8 @@ export function Spinner({ size = 'large', tip, style }) {
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      width: '100%',
-      minHeight: 400,
+      flex: 1,
+      minHeight: '100%',
       ...style 
     }}>
       <div style={{ textAlign: 'center' }}>
