@@ -766,7 +766,7 @@ export default function AdsManagerPage() {
   const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
 
   return (
-    <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}>
+    <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '16px 24px' }}>
       {loading && !data.length && <Spinner />}
 
       {error && !loading && (
@@ -780,84 +780,91 @@ export default function AdsManagerPage() {
         onComplete={() => { setShowImportModal(false); fetchAdsData(); }}
       />
 
-      {/* PAGE HEADER - Removed, already in GlobalHeader */}
-
       {/* FILTERS */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
-        <Input.Search
-          placeholder="Search ASIN, SKU..."
-          allowClear
-          onSearch={setSearchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: 220, borderRadius: 8 }}
-          size="small"
-        />
-        <Segmented value={groupBy} onChange={setGroupBy}
-          size="small"
-          options={[{ label: 'ASIN Level', value: 'asin' }, { label: 'Parent Level', value: 'parent' }]}
-        />
-        <RangePicker
-          value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
-          onChange={handleDateChange}
-          format="DD MMM YYYY"
-          style={{ borderRadius: 8 }}
-          size="small"
-          presets={[
-            { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
-            { label: 'Last 30 Days', value: [dayjs().subtract(29, 'day'), dayjs()] },
-            { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
-            { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
-          ]}
-        />
-      </div>
+      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Input.Search
+            placeholder="Search ASIN, SKU..."
+            allowClear
+            onSearch={setSearchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: 220, borderRadius: 8 }}
+            size="small"
+          />
+          <Segmented value={groupBy} onChange={setGroupBy}
+            size="small"
+            options={[{ label: 'ASIN Level', value: 'asin' }, { label: 'Parent Level', value: 'parent' }]}
+          />
+          <RangePicker
+            value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
+            onChange={handleDateChange}
+            format="DD MMM YYYY"
+            style={{ borderRadius: 8 }}
+            size="small"
+            presets={[
+              { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
+              { label: 'Last 30 Days', value: [dayjs().subtract(29, 'day'), dayjs()] },
+              { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
+              { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+            ]}
+          />
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <Button onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} />} style={btnStyle}>
+              Refresh
+            </Button>
+            <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
+              Import
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* KPI STRIP */}
-      <div className="ads-kpi-strip" style={{ maxHeight: showDashboardCharts ? 48 : 0, opacity: showDashboardCharts ? 1 : 0 }}>
-        <div className="ads-kpi-scroll">
-          {[
-            { label: 'Ads Spend', key: 'spend', color: '#D32F2F' },
-            { label: 'Ads Sales', key: 'sales', color: '#15803d' },
-            { label: 'Organic Sales', key: 'organicSales', color: '#2E7D32' },
-            { label: 'ACOS', key: 'acos', color: '#b91c1c' },
-            { label: 'TACOS', key: 'tacos', color: '#0891b2' },
-            { label: 'ROAS', key: 'roas', color: '#a16207' },
-            { label: 'Ads Orders', key: 'orders', color: '#6d28d9' },
-            { label: 'Total Orders', key: 'totalOrders', color: '#475569' },
-          ].map((kpi, idx) => {
-            const meta = METRIC_MAP[kpi.key] || {};
-            const val = summaryData[kpi.key] || 0;
-            const formatted = meta.type === 'currency' ? '₹' + formatCompact(val) : meta.type === 'ratio' ? val.toFixed(2) : meta.type === 'percent' ? val.toFixed(1) + '%' : formatCompact(val);
-            return (
-              <div key={idx} style={{
-                height: 32, minWidth: 'max-content', flexShrink: 0, borderRadius: 4,
-                border: '1px solid #e5e7eb', background: '#ffffff', display: 'flex',
-                alignItems: 'center', gap: 8, padding: '0 12px'
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: kpi.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{kpi.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{formatted}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {showDashboardCharts && (
+        <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
+            {[
+              { label: 'Ads Spend', key: 'spend', color: '#D32F2F' },
+              { label: 'Ads Sales', key: 'sales', color: '#15803d' },
+              { label: 'Organic Sales', key: 'organicSales', color: '#2E7D32' },
+              { label: 'ACOS', key: 'acos', color: '#b91c1c' },
+              { label: 'TACOS', key: 'tacos', color: '#0891b2' },
+              { label: 'ROAS', key: 'roas', color: '#a16207' },
+              { label: 'Ads Orders', key: 'orders', color: '#6d28d9' },
+              { label: 'Total Orders', key: 'totalOrders', color: '#475569' },
+            ].map((kpi, idx) => {
+              const meta = METRIC_MAP[kpi.key] || {};
+              const val = summaryData[kpi.key] || 0;
+              const formatted = meta.type === 'currency' ? '₹' + formatCompact(val) : meta.type === 'ratio' ? val.toFixed(2) : meta.type === 'percent' ? val.toFixed(1) + '%' : formatCompact(val);
+              return (
+                <div key={idx} style={{
+                  minWidth: 140, padding: '8px 12px', borderRadius: 8,
+                  border: '1px solid #e4e4e7', background: '#fafafa'
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: kpi.color, marginBottom: 4 }}>{kpi.label}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#18181b' }}>{formatted}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* CHART */}
-      <div className="ads-chart-area" style={{ maxHeight: showDashboardCharts ? 420 : 0, opacity: showDashboardCharts ? 1 : 0 }}>
-        <div style={{ padding: '8px 16px' }}>
-          <Card style={{ borderRadius: 6, border: '1px solid #e5e7eb' }} styles={{ body: { padding: '10px 14px' } }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 3, height: 14, background: '#D32F2F', borderRadius: 2 }} />
-                <Text strong style={{ color: '#0f172a', fontSize: 13 }}>Campaign Trends</Text>
-              </div>
-              <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics}
-                style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics"
-                maxTagCount="responsive"
-                options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))}
-              />
-            </div>
-            <div style={{ height: 320 }}>
+      {showDashboardCharts && (
+        <Card size="small" title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 3, height: 14, background: '#4F46E5', borderRadius: 2 }} />
+            <span style={{ fontWeight: 600, color: '#18181b' }}>Campaign Trends</span>
+          </div>
+        } extra={
+          <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics}
+            style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics"
+            maxTagCount="responsive"
+            options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))}
+          />
+        } style={{ marginBottom: 16, borderRadius: 10 }}>
+          <div style={{ height: 320 }}>
               {dynamicChartState.series.length > 0 ? (
                 <Chart height="100%" type="line" series={dynamicChartState.series}
                   options={{
@@ -886,30 +893,24 @@ export default function AdsManagerPage() {
               )}
             </div>
           </Card>
-        </div>
-      </div>
+      )}
 
       {/* TOGGLE BAR */}
-      <div style={{
-        background: '#ffffff', borderTop: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb',
-        padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0
-      }}>
-        <Button
-          type={showDashboardCharts ? 'primary' : 'default'}
-          icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />}
-          onClick={() => setShowDashboardCharts(!showDashboardCharts)}
-          style={showDashboardCharts ? { fontWeight: 600, fontSize: 11, borderRadius: 8, height: 32 } : { fontWeight: 600, fontSize: 11, borderRadius: 8, height: 32 }}
-        >
-          {showDashboardCharts ? 'Hide Analytics' : 'View Analytics'}
-        </Button>
-        <span style={{
-          fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc',
-          border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20
-        }}>
-          Showing <span style={{ color: '#0f172a', fontWeight: 700 }}>{paginatedData.length}</span> of <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
-        </span>
-      </div>
+      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '8px 16px' } }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Button
+            type={showDashboardCharts ? 'primary' : 'default'}
+            icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />}
+            onClick={() => setShowDashboardCharts(!showDashboardCharts)}
+            style={btnStyle}
+          >
+            {showDashboardCharts ? 'Hide Analytics' : 'View Analytics'}
+          </Button>
+          <Tag color="default" style={{ borderRadius: 20 }}>
+            Showing {paginatedData.length} of {totalCount}
+          </Tag>
+        </div>
+      </Card>
 
       {/* TABLE */}
       <div className="ads-table-wrapper">
