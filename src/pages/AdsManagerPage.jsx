@@ -818,105 +818,102 @@ export default function AdsManagerPage() {
       </Card>
 
       {/* KPI STRIP */}
-      {showDashboardCharts && (
-        <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
-          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
-            {[
-              { label: 'Ads Spend', key: 'spend', color: '#D32F2F' },
-              { label: 'Ads Sales', key: 'sales', color: '#15803d' },
-              { label: 'Organic Sales', key: 'organicSales', color: '#2E7D32' },
-              { label: 'ACOS', key: 'acos', color: '#b91c1c' },
-              { label: 'TACOS', key: 'tacos', color: '#0891b2' },
-              { label: 'ROAS', key: 'roas', color: '#a16207' },
-              { label: 'Ads Orders', key: 'orders', color: '#6d28d9' },
-              { label: 'Total Orders', key: 'totalOrders', color: '#475569' },
-            ].map((kpi, idx) => {
-              const meta = METRIC_MAP[kpi.key] || {};
-              const val = summaryData[kpi.key] || 0;
-              const formatted = meta.type === 'currency' ? '₹' + formatCompact(val) : meta.type === 'ratio' ? val.toFixed(2) : meta.type === 'percent' ? val.toFixed(1) + '%' : formatCompact(val);
-              return (
-                <div key={idx} style={{
-                  minWidth: 140, padding: '8px 12px', borderRadius: 8,
-                  border: '1px solid #e4e4e7', background: '#fafafa'
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: kpi.color, marginBottom: 4 }}>{kpi.label}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#18181b' }}>{formatted}</div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* CHART */}
-      {showDashboardCharts && (
-        <Card size="small" title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 3, height: 14, background: '#4F46E5', borderRadius: 2 }} />
-            <span style={{ fontWeight: 600, color: '#18181b' }}>Campaign Trends</span>
-          </div>
-        } extra={
-          <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics}
-            style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics"
-            maxTagCount="responsive"
-            options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))}
-          />
-        } style={{ marginBottom: 16, borderRadius: 10 }}>
-          <div style={{ height: 320 }}>
-            {dynamicChartState.series.length > 0 ? (
-              <Chart height="100%" type="line" series={dynamicChartState.series}
-                options={{
-                  chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' },
-                  stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' },
-                  colors: dynamicChartState.colors,
-                  plotOptions: { bar: { columnWidth: '45%', borderRadius: 3 } },
-                  fill: { opacity: dynamicChartState.series.map(s => s.type === 'line' ? 1 : 0.85) },
-                  markers: { size: dynamicChartState.series.map(s => s.type === 'line' ? 3 : 0), strokeWidth: 1 },
-                  dataLabels: { enabled: false },
-                  xaxis: {
-                    categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
-                    axisBorder: { show: false }, axisTicks: { show: false },
-                    labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } }
-                  },
-                  yaxis: dynamicChartState.yaxis,
-                  grid: { borderColor: '#f1f5f9', strokeDashArray: 4, padding: { top: 5, right: 15, bottom: 10, left: 15 } },
-                  legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px', markers: { radius: 2 } },
-                  tooltip: { shared: true, intersect: false, theme: 'light' }
-                }}
-              />
-            ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12, background: '#f8fafc', borderRadius: 4 }}>
-                Select metrics to view chart
+      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
+          {[
+            { label: 'Ads Spend', key: 'spend', color: '#D32F2F' },
+            { label: 'Ads Sales', key: 'sales', color: '#15803d' },
+            { label: 'Organic Sales', key: 'organicSales', color: '#2E7D32' },
+            { label: 'ACOS', key: 'acos', color: '#b91c1c' },
+            { label: 'TACOS', key: 'tacos', color: '#0891b2' },
+            { label: 'ROAS', key: 'roas', color: '#a16207' },
+            { label: 'Ads Orders', key: 'orders', color: '#6d28d9' },
+            { label: 'Total Orders', key: 'totalOrders', color: '#475569' },
+          ].map((kpi, idx) => {
+            const meta = METRIC_MAP[kpi.key] || {};
+            const val = summaryData[kpi.key] || 0;
+            const formatted = meta.type === 'currency' ? '₹' + formatCompact(val) : meta.type === 'ratio' ? val.toFixed(2) : meta.type === 'percent' ? val.toFixed(1) + '%' : formatCompact(val);
+            return (
+              <div key={idx} style={{
+                minWidth: 140, padding: '8px 12px', borderRadius: 8,
+                border: '1px solid #e4e4e7', background: '#fafafa'
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: kpi.color, marginBottom: 4 }}>{kpi.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#18181b' }}>{formatted}</div>
               </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* TOGGLE BAR */}
-      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '8px 16px' } }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Button
-            type={showDashboardCharts ? 'primary' : 'default'}
-            icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />}
-            onClick={() => setShowDashboardCharts(!showDashboardCharts)}
-            style={btnStyle}
-          >
-            {showDashboardCharts ? 'Hide Analytics' : 'View Analytics'}
-          </Button>
-          <Tag color="default" style={{ borderRadius: 20 }}>
-            Showing {paginatedData.length} of {totalCount}
-          </Tag>
+            );
+          })}
         </div>
       </Card>
 
-      {/* TABLE */}
-      <Card size="small" style={{ borderRadius: 10 }} styles={{ body: { padding: 0 } }}>
+      {/* SINGLE CONTAINER: Chart + Table */}
+      <Card 
+        size="small" 
+        style={{ borderRadius: 10 }} 
+        styles={{ body: { padding: 0 } }}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 3, height: 14, background: '#4F46E5', borderRadius: 2 }} />
+              <span style={{ fontWeight: 600, color: '#18181b', fontSize: 14 }}>Ads Performance</span>
+              <Tag color="default" style={{ borderRadius: 20, fontSize: 10 }}>
+                {paginatedData.length} records
+              </Tag>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics}
+                style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Chart metrics"
+                maxTagCount="responsive"
+                options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))}
+              />
+              <Button size="small" icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />}
+                onClick={() => setShowDashboardCharts(!showDashboardCharts)} style={btnStyle}>
+                {showDashboardCharts ? 'Hide Chart' : 'Show Chart'}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {/* Chart Section */}
+        {showDashboardCharts && (
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f4f4f5' }}>
+            <div style={{ height: 280 }}>
+              {dynamicChartState.series.length > 0 ? (
+                <Chart height="100%" type="line" series={dynamicChartState.series}
+                  options={{
+                    chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' },
+                    stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' },
+                    colors: dynamicChartState.colors,
+                    plotOptions: { bar: { columnWidth: '45%', borderRadius: 3 } },
+                    fill: { opacity: dynamicChartState.series.map(s => s.type === 'line' ? 1 : 0.85) },
+                    markers: { size: dynamicChartState.series.map(s => s.type === 'line' ? 3 : 0), strokeWidth: 1 },
+                    dataLabels: { enabled: false },
+                    xaxis: {
+                      categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
+                      axisBorder: { show: false }, axisTicks: { show: false },
+                      labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } }
+                    },
+                    yaxis: dynamicChartState.yaxis,
+                    grid: { borderColor: '#f1f5f9', strokeDashArray: 4, padding: { top: 5, right: 15, bottom: 10, left: 15 } },
+                    legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px', markers: { radius: 2 } },
+                    tooltip: { shared: true, intersect: false, theme: 'light' }
+                  }}
+                />
+              ) : (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12, background: '#fafafa', borderRadius: 8 }}>
+                  Select metrics to view chart
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Table Section */}
         <div style={{ overflow: 'auto' }}>
           {loading && !data.length ? (
             <InlineSpinner tip="Loading ads data..." />
           ) : paginatedData.length === 0 ? (
-            <EmptyState
+            <EmptyState 
               title="No ads data found"
               description="Import your ads data or adjust filters"
               icon={Package}
