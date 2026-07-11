@@ -1,6 +1,6 @@
 import { Spinner } from "@/components/Spinner";
 import { LoadError, EmptyState } from "@/components/LoadError";
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Tag, Select, Spin } from 'antd';
 import { RefreshCw, Download, Upload, BarChart3, ChevronUp, Package } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
@@ -24,7 +24,7 @@ const AdsManagerPage = () => {
   }, [setPageTitle]);
 
   const filters = useAdsFilters();
-  const { data, loading, filterLoading, error, globalChartData, summary, fetchData, debouncedFetch } = useAdsData();
+  const { data, loading, filterLoading, error, pagination, globalChartData, summary, fetchData, debouncedFetch } = useAdsData();
   const { selectedMetrics, setSelectedMetrics, chartState, chartOptions, metricOptions } = useAdsChart(globalChartData);
 
   const handleRefresh = useCallback(() => {
@@ -86,7 +86,7 @@ const AdsManagerPage = () => {
               <span style={{ fontWeight: 600, color: '#18181b', fontSize: 14 }}>Ads Performance</span>
               {filterLoading && <Spin size="small" style={{ marginLeft: 8 }} />}
               <Tag color="default" style={{ borderRadius: 20, fontSize: 10 }}>
-                {data.length} records
+                {pagination.total || data.length} records
               </Tag>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -118,7 +118,7 @@ const AdsManagerPage = () => {
         )}
 
         <div style={{ overflow: 'auto' }}>
-          {data.length === 0 ? (
+          {data.length === 0 && !loading ? (
             <EmptyState 
               title="No ads data found"
               description="Import your ads data or adjust filters"
@@ -131,8 +131,11 @@ const AdsManagerPage = () => {
           ) : (
             <AdsTable 
               data={data} 
-              loading={loading} 
+              loading={loading || filterLoading}
+              pagination={pagination}
               groupBy={filters.groupBy}
+              onPageChange={(page) => { filters.setPage(page); fetchData({ ...filters.getFilterParams(), page }); }}
+              onPageSizeChange={(size) => { filters.setPageSize(size); filters.setPage(1); fetchData({ ...filters.getFilterParams(), limit: size, page: 1 }); }}
               onViewDetails={(record) => console.log('View details:', record)}
             />
           )}

@@ -17,11 +17,6 @@ export function useAdsFilters() {
     localStorage.setItem('selectedSeller', selectedSeller);
   }, [selectedSeller]);
 
-  useEffect(() => {
-    setGroupBy('asin');
-    setPage(1);
-  }, [selectedSeller, startDate, endDate]);
-
   const fetchSellerDropdownData = useCallback(async (page = 1, search = '') => {
     try {
       const response = await sellerApi.getAll({ page, limit: 1000, search });

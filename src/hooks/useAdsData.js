@@ -8,12 +8,11 @@ export function useAdsData() {
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
   const [globalChartData, setGlobalChartData] = useState([]);
   const abortControllerRef = useRef(null);
-  const lastFetchKeyRef = useRef('');
+  const initialLoadRef = useRef(false);
 
-  // Cleanup abort controller on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -23,20 +22,10 @@ export function useAdsData() {
   }, []);
 
   const fetchData = useCallback(async (params = {}, isFilterChange = false) => {
-    // Cancel previous request if still in flight
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
-
-    // Generate cache key from params
-    const cacheKey = `ads:${JSON.stringify(params)}`;
-    
-    // Skip if same request is already in flight
-    if (lastFetchKeyRef.current === cacheKey && !isFilterChange) {
-      return;
-    }
-    lastFetchKeyRef.current = cacheKey;
 
     try {
       if (isFilterChange) {
@@ -46,46 +35,55 @@ export function useAdsData() {
       }
       setError(null);
       
-      const queryParams = {};
-      if (params.groupBy) queryParams.groupBy = params.groupBy;
-      if (params.search) queryParams.search = params.search;
-      if (params.page) queryParams.page = params.page;
-      if (params.limit) queryParams.limit = params.limit;
-      if (params.sortBy) queryParams.sortBy = params.sortBy;
-      if (params.sortOrder) queryParams.sortOrder = params.sortOrder;
-      if (params.sellerId) queryParams.sellerId = params.sellerId;
-      if (params.startDate) queryParams.startDate = format(params.startDate, 'yyyy-MM-dd');
-      if (params.endDate) queryParams.endDate = format(params.endDate, 'yyyy-MM-dd');
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.limit || 50,
+        groupBy: params.groupBy,
+        search: params.search,
+        sortBy: params.sortBy,
+        sortOrder: params.sortOrder,
+        sellerId: params.sellerId,
+        startDate: params.startDate ? format(params.startDate, 'yyyy-MM-dd') : undefined,
+        endDate: params.endDate ? format(params.endDate, 'yyyy-MM-dd') : undefined
+      };
 
-      // Use cached fetch with 2 minute TTL for initial load
+      // Remove undefined values
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === undefined) delete queryParams[key];
+      });
+
+      const cacheKey = `ads:${JSON.stringify(queryParams)}`;
       const ttl = isFilterChange ? 0 : 2 * 60 * 1000;
+      
       const res = await cachedFetch(cacheKey, () => adsApi.getAdsManagerData(queryParams), ttl);
       
       if (res.success) {
         setData(res.data || []);
-        setTotalCount(res.total || 0);
+        setPagination(res.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
         setGlobalChartData(res.globalChartData || []);
+        initialLoadRef.current = true;
       } else {
         setError('Failed to load ads data');
+        setData([]);
       }
     } catch (err) {
-      if (err.name === 'AbortError') return; // Request was cancelled
+      if (err.name === 'AbortError') return;
       console.error('Failed to fetch ads data:', err);
       setError(err.message || 'Failed to load ads data');
+      setData([]);
     } finally {
       setLoading(false);
       setFilterLoading(false);
     }
   }, []);
 
-  // Debounced filter change handler
   const debouncedFetch = useMemo(() => {
     let timeoutId;
     return (params) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         invalidateCache('ads:');
-        fetchData(params, true);
+        fetchData({ ...params, page: 1 }, true);
       }, 300);
     };
   }, [fetchData]);
@@ -122,10 +120,11 @@ export function useAdsData() {
     loading, 
     filterLoading, 
     error, 
-    totalCount, 
+    pagination,
     globalChartData, 
     summary, 
     fetchData, 
-    debouncedFetch 
+    debouncedFetch,
+    initialLoadRef
   };
 }
