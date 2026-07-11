@@ -357,7 +357,10 @@ export default function GmsTrackerPage() {
   }, [gmsData, startDate, endDate, selectedBrands, selectedManagers, searchQuery, dbManagers]);
 
   // Reset table pagination when filters change
-  useEffect(() => { setTablePage(1); }, [selectedBrands, selectedManagers, searchQuery, viewLevel]);
+  useEffect(() => {
+    const timer = setTimeout(() => setTablePage(1), 0);
+    return () => clearTimeout(timer);
+  }, [selectedBrands, selectedManagers, searchQuery, viewLevel]);
 
   // Aggregate Metrics for KPIs
   const kpiMetrics = useMemo(() => {
@@ -438,8 +441,8 @@ export default function GmsTrackerPage() {
       return { tableDataSource: [], fixedCols: [], monthGroups: {} };
     }
 
-    let rows = [];
-    let fixedCols = [];
+    let rows;
+    let fixedCols;
 
     if (viewLevel === 'seller') {
       const sellersMap = {};
@@ -1438,5 +1441,3 @@ export default function GmsTrackerPage() {
     </div>
   );
 }
-
-<style>{`@keyframes gms-spin { to { transform: rotate(360deg); } }`}</style>
