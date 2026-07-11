@@ -982,6 +982,9 @@ export default function GmsTrackerPage() {
           <LoadingIndicator type="line-simple" size="sm" />
         </div>
       )}
+      {error && !loading && (
+        <LoadError message={error} onRetry={loadAllData} />
+      )}
       {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60, flexWrap: 'wrap', gap: 8 }}>
         <Space orientation="vertical" size={2}>
