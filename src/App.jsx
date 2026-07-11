@@ -11,6 +11,7 @@ import GlobalHeader from './components/header/GlobalHeader';
 import { HeaderProvider } from './contexts/HeaderContext';
 import RoutePageMeta from './components/layout/RoutePageMeta';
 import Sidebar from './components/common/Sidebar';
+import ErrorBoundary from './components/ErrorBoundary';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 import { SocketProvider } from './contexts/SocketContext';
@@ -243,31 +244,33 @@ function AppRoutes() {
 
 function App() {
   return (
-    <CometChatInitializer>
-      <RefreshProvider>
-        <AuthProvider>
-          <OnboardingProvider>
-            <SocketProvider>
-              <SidebarProvider>
-                <DateRangeProvider>
-                  <PageTitleProvider>
-                    <ToastProvider>
-                      <ConfigProvider
-                        theme={retailOpsTheme}
-                      >
-                      <AntdApp>
-                        <AppRoutes />
-                      </AntdApp>
-                      </ConfigProvider>
-                    </ToastProvider>
-                  </PageTitleProvider>
-                </DateRangeProvider>
-              </SidebarProvider>
-            </SocketProvider>
-          </OnboardingProvider>
-        </AuthProvider>
-      </RefreshProvider>
-    </CometChatInitializer>
+    <ErrorBoundary>
+      <CometChatInitializer>
+        <RefreshProvider>
+          <AuthProvider>
+            <OnboardingProvider>
+              <SocketProvider>
+                <SidebarProvider>
+                  <DateRangeProvider>
+                    <PageTitleProvider>
+                      <ToastProvider>
+                        <ConfigProvider
+                          theme={retailOpsTheme}
+                        >
+                        <AntdApp>
+                          <AppRoutes />
+                        </AntdApp>
+                        </ConfigProvider>
+                      </ToastProvider>
+                    </PageTitleProvider>
+                  </DateRangeProvider>
+                </SidebarProvider>
+              </SocketProvider>
+            </OnboardingProvider>
+          </AuthProvider>
+        </RefreshProvider>
+      </CometChatInitializer>
+    </ErrorBoundary>
   );
 }
 
