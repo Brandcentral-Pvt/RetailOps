@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/Spinner";
+import { Spinner, ContentSpinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Row, Col, Card, Skeleton, Space } from 'antd';
@@ -196,9 +196,7 @@ const Dashboard = () => {
             <Row gutter={[20, 20]} style={{ marginBottom: '24px' }}>
                 <Col xs={24} lg={14}>
                     {orch.isLoadingKpis ? (
-                        <Card style={{ borderRadius: 12, border: '1px solid #E5E7EB' }}>
-                            <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 16 }} />
-                        </Card>
+                        <ContentSpinner tip="Loading sales data..." />
                     ) : (
                         <SalesTrendChart
                             labels={salesTrendLabels}
@@ -209,9 +207,7 @@ const Dashboard = () => {
                 </Col>
                 <Col xs={24} lg={10}>
                     {orch.isLoadingTargets ? (
-                        <Card style={{ borderRadius: 12, border: '1px solid #E5E7EB' }}>
-                            <Skeleton active paragraph={{ rows: 4 }} style={{ padding: 16 }} />
-                        </Card>
+                        <ContentSpinner tip="Loading targets..." />
                     ) : (
                         <AchievementDonut
                             targets={orch.targets || []}

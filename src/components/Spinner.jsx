@@ -16,7 +16,7 @@ export function Spinner({ size = 'large', tip, style, fullScreen = false }) {
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center',
-        background: '#fff',
+        background: 'rgba(255,255,255,0.8)',
         zIndex: 9999,
         ...style 
       }}>
@@ -33,11 +33,30 @@ export function Spinner({ size = 'large', tip, style, fullScreen = false }) {
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      minHeight: '50vh',
+      padding: '60px 0',
       ...style 
     }}>
       <div style={{ textAlign: 'center' }}>
         <Spin indicator={antIcon} size={size} />
+        {tip && <div style={{ marginTop: 12, fontSize: 13, color: '#71717a', fontWeight: 500 }}>{tip}</div>}
+      </div>
+    </div>
+  );
+}
+
+export function ContentSpinner({ tip }) {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: 300,
+      background: '#fff',
+      borderRadius: 12,
+      border: '1px solid #e4e4e7'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <Spin indicator={antIcon} />
         {tip && <div style={{ marginTop: 12, fontSize: 13, color: '#71717a', fontWeight: 500 }}>{tip}</div>}
       </div>
     </div>
