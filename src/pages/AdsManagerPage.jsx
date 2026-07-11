@@ -1,4 +1,4 @@
-import { Spinner, InlineSpinner } from "@/components/Spinner";
+import { Spinner } from "@/components/Spinner";
 import { LoadError, EmptyState } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback, lazy, useRef, Suspense } from 'react';
 import {
@@ -911,7 +911,7 @@ export default function AdsManagerPage() {
         {/* Table Section */}
         <div style={{ overflow: 'auto' }}>
           {loading && !data.length ? (
-            <InlineSpinner tip="Loading ads data..." />
+            <Spinner />
           ) : paginatedData.length === 0 ? (
             <EmptyState 
               title="No ads data found"
