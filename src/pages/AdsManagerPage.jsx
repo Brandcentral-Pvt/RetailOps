@@ -1,11 +1,12 @@
 import { Spinner } from "@/components/Spinner";
 import { LoadError } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Button, Tag, Select, Spin, Typography, Input, Segmented, DatePicker, Collapse } from 'antd';
+import { Card, Button, Tag, Select, Spin, Typography, Input, Segmented, DatePicker } from 'antd';
 import { RefreshCw, Download, BarChart3, ChevronUp, Filter } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
 import { adsApi, sellerApi, userApi } from '../services/api';
+import { useAdsData } from '../hooks/useAdsData';
 import ExecutiveKPIs from '../components/ads/ExecutiveKPIs';
 import InsightPanel from '../components/ads/InsightPanel';
 import AdsTable from '../components/ads/AdsTable';
@@ -68,10 +69,12 @@ export default function AdsManagerPage() {
 
   useEffect(() => { setPageTitle('Ads Manager'); }, [setPageTitle]);
 
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [globalChartData, setGlobalChartData] = useState([]);
+  const { 
+    data, paginatedData, loading, filterLoading, error, 
+    totalCount, page, setPage, pageSize, setPageSize,
+    globalChartData, summary, fetchData, debouncedFetch 
+  } = useAdsData();
+
   const [groupBy, setGroupBy] = useState('asin');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeller, setSelectedSeller] = useState(() => localStorage.getItem('selectedSeller') || '');
@@ -83,19 +86,11 @@ export default function AdsManagerPage() {
   const [managers, setManagers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
-  const [sortBy, setSortBy] = useState('sales');
-  const [sortOrder, setSortOrder] = useState('desc');
   const [showDashboardCharts, setShowDashboardCharts] = useState(true);
   const [showImportModal, setShowImportModal] = useState(false);
   const [activeHistoryRow, setActiveHistoryRow] = useState(null);
   const [chartConfigMetrics, setChartConfigMetrics] = useState(['spend', 'sales', 'acos']);
-  const [expandedCols, setExpandedCols] = useState({
-    totalSales: false, impressions: false, clicks: false, spend: false,
-    sales: false, acos: false, tacos: false, adSalesPct: false,
-    roas: false, orders: false, cvr: false, pageViews: false, organicSales: false
-  });
+  const [expandedCols, setExpandedCols] = useState({});
   const [expandedParents, setExpandedParents] = useState(new Set());
 
   useEffect(() => { localStorage.setItem('selectedSeller', selectedSeller); }, [selectedSeller]);
@@ -123,24 +118,16 @@ export default function AdsManagerPage() {
   const toggleCol = (colKey) => setExpandedCols(prev => ({ ...prev, [colKey]: !prev[colKey] }));
   const toggleParentExpand = (key) => setExpandedParents(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
-  const fetchAdsData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = { groupBy, search: searchQuery, page, limit: pageSize, sortBy, sortOrder };
-      if (selectedSeller) params.sellerId = selectedSeller;
-      if (startDate) params.startDate = format(startDate, 'yyyy-MM-dd');
-      if (endDate) params.endDate = format(endDate, 'yyyy-MM-dd');
-      const res = await adsApi.getAdsManagerData(params);
-      if (res.success) {
-        setData(res.data || []);
-        setTotalCount(res.total || 0);
-        setGlobalChartData(res.globalChartData || []);
-      }
-    } catch (err) { console.error('Failed to fetch ads data:', err); }
-    finally { setLoading(false); }
-  }, [groupBy, searchQuery, startDate, endDate, selectedSeller, page, pageSize, sortBy, sortOrder]);
+  const handleRefresh = useCallback(() => {
+    fetchData({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate });
+  }, [fetchData, groupBy, searchQuery, selectedSeller, startDate, endDate]);
 
-  useEffect(() => { fetchAdsData(); }, [fetchAdsData]);
+  useEffect(() => { fetchData({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate }); }, [fetchData]);
+  
+  // Debounced filter changes
+  useEffect(() => {
+    debouncedFetch({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate });
+  }, [searchQuery, groupBy, selectedSeller, startDate, endDate]);
 
   const handleDateChange = (dates) => {
     if (dates && dates[0] && dates[1]) {
@@ -349,8 +336,8 @@ export default function AdsManagerPage() {
       {/* TABLE */}
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
         <AdsTable
-          data={data}
-          loading={loading}
+          data={paginatedData}
+          loading={loading || filterLoading}
           groupBy={groupBy}
           pagination={{ page, limit: pageSize, total: totalCount }}
           sortBy={sortBy}
