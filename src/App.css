@@ -679,11 +679,8 @@ body.chat-page-active .routes-container {
 }
 /* Fix for DatePicker z-index overlapping with page content/headers */
 .react-datepicker-popper {
-  z-index: 9999 !important;
+  z-index: var(--z-critical) !important;
 }
 .react-datepicker-wrapper {
-  z-index: 9999 !important;
-}
-.ant-picker-dropdown {
-  z-index: 9999 !important;
+  z-index: var(--z-critical) !important;
 }

@@ -92,7 +92,7 @@
 
 /* Ensure all rsuite picker menus are above modals */
 .rs-picker-menu, .rs-picker-select-menu, .rs-picker-check-menu, .rs-picker-daterange-menu {
-    z-index: 9999 !important;
+    z-index: var(--z-critical) !important;
 }
 
 /* Hide selected range text in picker popover to prevent duplication/overlap */

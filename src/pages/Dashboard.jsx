@@ -8,12 +8,16 @@ import { useDateRange } from '../contexts/DateRangeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
 
-// New Components
+// Layer Components
 import GlobalStatusBar from '../components/dashboard/GlobalStatusBar';
 import CriticalActionCenter from '../components/dashboard/CriticalActionCenter';
 import LiveOperations from '../components/dashboard/LiveOperations';
 import NotificationsFeed from '../components/dashboard/NotificationsFeed';
 import CommandPalette from '../components/dashboard/CommandPalette';
+import AICommandCenter from '../components/dashboard/AICommandCenter';
+import MarketplaceIntelligence from '../components/dashboard/MarketplaceIntelligence';
+import ListingPipeline from '../components/dashboard/ListingPipeline';
+import ActivityTimeline from '../components/dashboard/ActivityTimeline';
 
 // Existing Components
 import DashboardHeader from '../components/dashboard/DashboardHeader';
@@ -30,7 +34,7 @@ const containerVariants = {
     visible: { 
         opacity: 1, 
         y: 0,
-        transition: { duration: 0.4, ease: 'easeOut', staggerChildren: 0.1 } 
+        transition: { duration: 0.4, ease: 'easeOut', staggerChildren: 0.05 } 
     }
 };
 
@@ -90,7 +94,6 @@ const Dashboard = () => {
     const salesTrendRevenue = useMemo(() => (orch.dashboardRaw?.adsPerformanceSeries || [])[0]?.data || [], [orch.dashboardRaw]);
     const salesTrendSpend = useMemo(() => (orch.dashboardRaw?.adsPerformanceSeries || [])[1]?.data || [], [orch.dashboardRaw]);
 
-    // Mock notifications for demo
     const notifications = useMemo(() => [
         { type: 'success', title: 'Marketplace Sync Complete', description: 'Successfully synced 245 ASINs across 3 sellers', time: '2m ago', read: false },
         { type: 'warning', title: 'Price Dispute Detected', description: '12 products have conflicting prices on Amazon', time: '15m ago', read: false },
@@ -125,7 +128,7 @@ const Dashboard = () => {
                     onNavigate={navigate}
                 />
 
-                {/* Layer 3: Operational Health (KPIs + Module Status) */}
+                {/* Layer 3: Operations Control Center */}
                 <KpiStrip
                     adSales={kpiValues.adSales}
                     adSpend={kpiValues.adSpend}
@@ -140,7 +143,13 @@ const Dashboard = () => {
                 />
                 <ModuleStatusGrid moduleStats={moduleStats} />
 
-                {/* Layer 4: Live Operations + Notifications */}
+                {/* Layer 4: AI Command Center */}
+                <AICommandCenter />
+
+                {/* Layer 5: Marketplace Intelligence */}
+                <MarketplaceIntelligence />
+
+                {/* Layer 6: Live Operations + Notifications */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={14}>
                         <LiveOperations
@@ -163,7 +172,10 @@ const Dashboard = () => {
                     </Col>
                 </Row>
 
-                {/* Layer 5: Analytics (Charts + Data) */}
+                {/* Layer 7: Listing Pipeline */}
+                <ListingPipeline />
+
+                {/* Layer 8: Analytics */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={14}>
                         <SalesTrendChart labels={salesTrendLabels} revenueData={salesTrendRevenue} spendData={salesTrendSpend} />
@@ -173,11 +185,15 @@ const Dashboard = () => {
                     </Col>
                 </Row>
 
-                <Row gutter={[20, 20]}>
+                {/* Layer 9: Data Cards */}
+                <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} md={8}><TopAsinsCard products={topProducts || []} /></Col>
                     <Col xs={24} md={8}><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></Col>
                     <Col xs={24} md={8}><AlertsPipelineCard alerts={activityLogs} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></Col>
                 </Row>
+
+                {/* Layer 10: Activity Timeline */}
+                <ActivityTimeline />
             </motion.div>
         </>
     );
