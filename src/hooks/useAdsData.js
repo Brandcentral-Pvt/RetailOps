@@ -59,7 +59,12 @@ export function useAdsData() {
       
       if (res.success) {
         setData(res.data || []);
-        setPagination(res.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
+        setPagination({
+          page: res.page || 1,
+          limit: res.limit || 50,
+          total: res.total || 0,
+          totalPages: Math.ceil((res.total || 0) / (res.limit || 50))
+        });
         setGlobalChartData(res.globalChartData || []);
         initialLoadRef.current = true;
       } else {
