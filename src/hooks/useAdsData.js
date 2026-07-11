@@ -1,17 +1,18 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { adsApi } from '../services/api';
 import { format } from 'date-fns';
-import { deduplicatedGet, cachedFetch, invalidateCache } from '../services/apiCache';
+import { invalidateCache } from '../services/apiCache';
 
 export function useAdsData() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
+  const [totalCount, setTotalCount] = useState(0);
   const [globalChartData, setGlobalChartData] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const abortControllerRef = useRef(null);
-  const initialLoadRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -36,8 +37,6 @@ export function useAdsData() {
       setError(null);
       
       const queryParams = {
-        page: params.page || 1,
-        limit: params.limit || 50,
         groupBy: params.groupBy,
         search: params.search,
         sortBy: params.sortBy,
@@ -47,26 +46,16 @@ export function useAdsData() {
         endDate: params.endDate ? format(params.endDate, 'yyyy-MM-dd') : undefined
       };
 
-      // Remove undefined values
       Object.keys(queryParams).forEach(key => {
         if (queryParams[key] === undefined) delete queryParams[key];
       });
 
-      const cacheKey = `ads:${JSON.stringify(queryParams)}`;
-      const ttl = isFilterChange ? 0 : 2 * 60 * 1000;
-      
-      const res = await cachedFetch(cacheKey, () => adsApi.getAdsManagerData(queryParams), ttl);
+      const res = await adsApi.getAdsManagerData(queryParams);
       
       if (res.success) {
         setData(res.data || []);
-        setPagination({
-          page: res.page || 1,
-          limit: res.limit || 50,
-          total: res.total || 0,
-          totalPages: Math.ceil((res.total || 0) / (res.limit || 50))
-        });
+        setTotalCount(res.total || res.data?.length || 0);
         setGlobalChartData(res.globalChartData || []);
-        initialLoadRef.current = true;
       } else {
         setError('Failed to load ads data');
         setData([]);
@@ -88,10 +77,16 @@ export function useAdsData() {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         invalidateCache('ads:');
-        fetchData({ ...params, page: 1 }, true);
+        fetchData(params, true);
       }, 300);
     };
   }, [fetchData]);
+
+  // Client-side pagination
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, page, pageSize]);
 
   const summary = useMemo(() => {
     const sum = { 
@@ -115,21 +110,22 @@ export function useAdsData() {
     sum.cpc = sum.clicks > 0 ? sum.spend / sum.clicks : 0;
     sum.ctr = sum.impressions > 0 ? (sum.clicks / sum.impressions) * 100 : 0;
     sum.tacos = sum.totalSales > 0 ? (sum.spend / sum.totalSales) * 100 : 0;
-    sum.adSalesPct = sum.totalSales > 0 ? (sum.sales / sum.totalSales) * 100 : 0;
     sum.totalOrders = sum.orders + sum.organicOrders;
     return sum;
   }, [data]);
 
   return { 
     data, 
+    paginatedData,
     loading, 
     filterLoading, 
     error, 
-    pagination,
+    totalCount,
+    page, setPage,
+    pageSize, setPageSize,
     globalChartData, 
     summary, 
     fetchData, 
-    debouncedFetch,
-    initialLoadRef
+    debouncedFetch
   };
 }
