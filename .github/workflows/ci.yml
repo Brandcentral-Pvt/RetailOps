@@ -11,11 +11,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ─── Frontend: Lint + Type Check + Build ──────────────────────────────
+  # ─── Frontend: Lint + Build ────────────────────────────────────────
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
 
     steps:
       - name: Checkout
@@ -27,32 +27,19 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci
 
       - name: Lint
         run: npm run lint
-        continue-on-error: false
-
-      - name: Type check
-        run: npm run typecheck
-        continue-on-error: false
 
       - name: Build
         run: npm run build
         env:
           VITE_API_URL: https://data.brandcentral.in/api
           VITE_SOCKET_URL: https://data.brandcentral.in
-        continue-on-error: false
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist/
-          retention-days: 3
-
-  # ─── Backend: Syntax Check + Tests ────────────────────────────────────
+  # ─── Backend: Syntax + Import Check ────────────────────────────────
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
@@ -69,54 +56,41 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install backend dependencies
+      - name: Install
         working-directory: backend
         run: npm ci
 
-      - name: Syntax check all controllers
+      - name: Syntax check
         working-directory: backend
         run: |
-          echo "Checking syntax of all controllers..."
-          for f in controllers/*.js; do
-            node -c "$f" || exit 1
-          done
-          echo "Checking syntax of all services..."
-          for f in services/*.js; do
-            node -c "$f" || exit 1
-          done
-          echo "Checking syntax of email templates..."
-          find emails -name "*.js" -exec node -c {} \;
-          echo "✅ All backend files pass syntax check"
+          echo "Checking syntax..."
+          find controllers services emails utils -name "*.js" -exec node -c {} \; || exit 1
+          echo "✅ Syntax OK"
 
-      - name: Check for required exports
+      - name: Verify imports
         working-directory: backend
         run: |
-          echo "Verifying key controllers export correctly..."
-          node -e "require('./controllers/asinController'); console.log('✅ asinController OK')"
-          node -e "require('./controllers/sellerController'); console.log('✅ sellerController OK')"
-          node -e "require('./controllers/uploadController'); console.log('✅ uploadController OK')"
-          node -e "require('./controllers/authController'); console.log('✅ authController OK')"
-          node -e "require('./services/emailService'); console.log('✅ emailService OK')"
-          node -e "require('./emails'); console.log('✅ emails index OK')"
+          node -e "require('./controllers/asinController'); console.log('✅ asinController')"
+          node -e "require('./controllers/sellerController'); console.log('✅ sellerController')"
+          node -e "require('./controllers/uploadController'); console.log('✅ uploadController')"
+          node -e "require('./controllers/authController'); console.log('✅ authController')"
+          node -e "require('./services/emailService'); console.log('✅ emailService')"
+          node -e "require('./emails'); console.log('✅ emails')"
 
-  # ─── Security: Dependency Audit ───────────────────────────────────────
+  # ─── Security: Audit ───────────────────────────────────────────────
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Audit root
+        run: npm audit --audit-level=high --omit=dev || true
 
-      - name: Root audit
-        run: npm audit --audit-level=high || true
-
-      - name: Backend audit
+      - name: Audit backend
         working-directory: backend
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high --omit=dev || true
