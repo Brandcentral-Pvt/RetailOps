@@ -297,7 +297,7 @@ exports.refreshToken = async (req, res) => {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(400).json({ success: false, message: 'Token required' });
 
-    const decoded = jwt.verify(refreshToken, config.jwtSecret);
+    const decoded = jwt.verify(refreshToken, config.jwt.secret);
     const pool = await getPool();
 
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT * FROM Users WHERE Id = @id');
@@ -463,7 +463,7 @@ exports.verifyOtp = async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(tempToken, config.jwtSecret);
+      decoded = jwt.verify(tempToken, config.jwt.secret);
     } catch (e) {
       return res.status(401).json({ success: false, message: 'Session expired. Please login again.', code: 'SESSION_EXPIRED' });
     }
@@ -510,7 +510,7 @@ exports.resendOtp = async (req, res) => {
     if (!tempToken) return res.status(400).json({ success: false, message: 'Token required' });
 
     let decoded;
-    try { decoded = jwt.verify(tempToken, config.jwtSecret); } catch (e) { return res.status(401).json({ success: false, message: 'Session expired' }); }
+    try { decoded = jwt.verify(tempToken, config.jwt.secret); } catch (e) { return res.status(401).json({ success: false, message: 'Session expired' }); }
 
     const pool = await getPool();
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT Email FROM Users WHERE Id = @id AND IsActive = 1');
