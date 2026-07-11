@@ -1,7 +1,8 @@
 import { Spinner } from "@/components/Spinner";
 import { LoadError } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Button, Tag, Select, Spin } from 'antd';
+import { Card, Button, Tag, Select, Spin, Typography } from 'antd';
+const { Text } = Typography;
 import { RefreshCw, Download, Upload, BarChart3, ChevronUp } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
