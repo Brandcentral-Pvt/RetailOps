@@ -421,30 +421,6 @@ exports.getAsins = async (req, res) => {
     if (req.query.marketplace) rawCountRequest.input('rawMp', sql.VarChar, req.query.marketplace);
     const rawCountResult = await rawCountRequest.query(`SELECT COUNT(*) as total FROM Asins a ${rawWhere}`);
     const rawTotal = rawCountResult.recordset[0].total;
-    if (req.query.minTitleScore) countRequest.input('minTitleScore', sql.Float, parseFloat(req.query.minTitleScore));
-    if (req.query.maxTitleScore) countRequest.input('maxTitleScore', sql.Float, parseFloat(req.query.maxTitleScore));
-    if (req.query.minBulletScore) countRequest.input('minBulletScore', sql.Float, parseFloat(req.query.minBulletScore));
-    if (req.query.maxBulletScore) countRequest.input('maxBulletScore', sql.Float, parseFloat(req.query.maxBulletScore));
-    if (req.query.minImageScore) countRequest.input('minImageScore', sql.Float, parseFloat(req.query.minImageScore));
-    if (req.query.maxImageScore) countRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
-    if (req.query.minDescriptionScore) countRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
-    if (req.query.maxDescriptionScore) countRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
-    const countResult = await countRequest.query(`SELECT COUNT(*) as total FROM Asins a JOIN Sellers s ON a.SellerId = s.Id ${whereClause}`);
-    const total = countResult.recordset[0].total;
-
-    // [5b] Raw total count (no status filter) — accurate ASIN count matching seller stats
-    const rawCountRequest = pool.request();
-    let rawWhere = 'WHERE 1=1';
-    if (!isGlobalUser && allowedSellerIds.length > 0) {
-      const rawSellerClause = buildInClause(rawCountRequest, 'rawSeller', allowedSellerIds);
-      rawWhere += ` AND a.SellerId IN (${rawSellerClause})`;
-    }
-    if (seller) rawWhere += ' AND a.SellerId = @rawSeller';
-    if (req.query.marketplace) rawWhere += ' AND a.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @rawMp)';
-    if (seller) rawCountRequest.input('rawSeller', sql.VarChar, seller);
-    if (req.query.marketplace) rawCountRequest.input('rawMp', sql.VarChar, req.query.marketplace);
-    const rawCountResult = await rawCountRequest.query(`SELECT COUNT(*) as total FROM Asins a ${rawWhere}`);
-    const rawTotal = rawCountResult.recordset[0].total;
 
     // [6] Fetch ASINs
     // Map sortBy from frontend names to SQL ORDER BY clause
