@@ -14,6 +14,13 @@ import Chart from 'react-apexcharts';
 import { format } from 'date-fns';
 import dayjs from 'dayjs';
 
+const formatCompact = (val) => {
+  if (typeof val !== 'number') return '0';
+  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+  if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+  return val.toFixed(0);
+};
+
 const METRIC_MAP = {
   spend: { label: 'Ads Spend', color: '#D32F2F', type: 'currency', seriesType: 'column' },
   sales: { label: 'Ads Sales', color: '#2E7D32', type: 'currency', seriesType: 'column' },
