@@ -404,6 +404,125 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+exports.requestPasswordChange = async (req, res) => {
+  try {
+    const { currentPassword } = req.body;
+    const pool = await getPool();
+
+    const result = await pool.request()
+      .input('id', sql.VarChar, req.userId)
+      .query('SELECT Id, Email, FirstName, LastName, Password FROM Users WHERE Id = @id AND IsActive = 1');
+    const user = result.recordset[0];
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.Password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    const otpResult = await otpService.sendOtp(
+      user.Id,
+      user.Email,
+      'PASSWORD_CHANGE',
+      { ipAddress: clientIp, userAgent, source: 'profile' }
+    );
+
+    const tempToken = jwt.sign(
+      { userId: user.Id, email: user.Email, step: 'PASSWORD_VERIFIED', purpose: 'PASSWORD_CHANGE' },
+      config.jwt.secret,
+      { expiresIn: '10m' }
+    );
+
+    res.json({
+      success: true,
+      tempToken,
+      destination: otpResult.destination,
+      expiresIn: otpResult.expiresIn,
+      message: `Verification code sent to ${otpResult.destination}`
+    });
+  } catch (error) {
+    console.error('[AUTH] Request password change error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to send verification code' });
+  }
+};
+
+exports.changePasswordWithOtp = async (req, res) => {
+  try {
+    const { tempToken, otp, newPassword } = req.body;
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    if (!tempToken || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token, OTP, and new password are required' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, config.jwt.secret);
+    } catch (e) {
+      return res.status(401).json({ success: false, message: 'Session expired. Please start again.' });
+    }
+
+    if (decoded.purpose !== 'PASSWORD_CHANGE' || decoded.step !== 'PASSWORD_VERIFIED') {
+      return res.status(401).json({ success: false, message: 'Invalid session token' });
+    }
+
+    await otpService.verifyOtp(decoded.userId, otp, 'PASSWORD_CHANGE', { ipAddress: clientIp, userAgent });
+
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.VarChar, decoded.userId)
+      .query('SELECT Id, Password FROM Users WHERE Id = @id AND IsActive = 1');
+    const user = result.recordset[0];
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const historyResult = await pool.request()
+      .input('id', sql.VarChar, decoded.userId)
+      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
+    for (const row of historyResult.recordset) {
+      if (await bcrypt.compare(newPassword, row.PasswordHash)) {
+        return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
+      }
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+
+    const histId = require('crypto').randomBytes(12).toString('hex');
+    await pool.request()
+      .input('id', sql.VarChar, decoded.userId)
+      .input('hash', sql.NVarChar, user.Password)
+      .input('hid', sql.VarChar, histId)
+      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
+
+    await pool.request()
+      .input('id', sql.VarChar, decoded.userId)
+      .input('pw', sql.NVarChar, hashed)
+      .query(`UPDATE Users SET Password = @pw, ForcePasswordReset = 0, 
+              PasswordChangedAt = dbo.GetEnvDate(), 
+              PasswordExpiresAt = DATEADD(day, 90, dbo.GetEnvDate()),
+              RefreshToken = NULL, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
+
+    await tokenBlacklist.blacklistUser(decoded.userId);
+
+    res.json({ success: true, message: 'Password changed successfully. Please login again.' });
+  } catch (error) {
+    if (error.message && error.message.includes('OTP')) {
+      return res.status(401).json({ success: false, message: error.message });
+    }
+    console.error('[AUTH] Change password with OTP error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to change password' });
+  }
+};
+
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -415,7 +534,6 @@ exports.changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.Password);
     if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
 
-    // Prevent reuse of last 5 passwords
     const historyResult = await pool.request()
       .input('id', sql.VarChar, req.userId)
       .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
@@ -427,7 +545,6 @@ exports.changePassword = async (req, res) => {
 
     const hashed = await bcrypt.hash(newPassword, 12);
     
-    // Save current password to history
     const histId = require('crypto').randomBytes(12).toString('hex');
     await pool.request()
       .input('id', sql.VarChar, req.userId)
@@ -435,7 +552,6 @@ exports.changePassword = async (req, res) => {
       .input('hid', sql.VarChar, histId)
       .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
 
-    // Update password, clear force reset, clear refresh token (logout all devices)
     await pool.request()
       .input('id', sql.VarChar, req.userId)
       .input('pw', sql.NVarChar, hashed)
@@ -444,12 +560,12 @@ exports.changePassword = async (req, res) => {
               PasswordExpiresAt = DATEADD(day, 90, dbo.GetEnvDate()),
               RefreshToken = NULL, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
 
-    // Revoke all sessions
     await tokenBlacklist.blacklistUser(req.userId);
 
     res.json({ success: true, message: 'Password changed. Please login again.' });
   } catch (error) {
-    res.status(500).json({ success: false });
+    console.error('[AUTH] Change password error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to change password' });
   }
 };
 
