@@ -275,7 +275,7 @@
 
 .sidebar-user-avatar i {
   font-size: 2.5rem;
-  color: #667eea;
+  color: var(--bc-indigo-500);
 }
 
 .sidebar-user-info {
@@ -307,7 +307,7 @@
   gap: 0.5rem;
   width: 100%;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--bc-indigo-500) 0%, var(--bc-violet-600) 100%);
   color: white;
   border: none;
   border-radius: 8px;

@@ -9,110 +9,7 @@
 
 /* ==========================================================================
    CSS Variables - Design System
-   ========================================================================== */
-:root {
-  /* RetailOps Brand Palette — Primary: Operations & Trust */
-  --color-primary: #1976D2;
-  --color-primary-light: #42A5F5;
-  --color-primary-dark: #1565C0;
-  --color-secondary: #9C27B0;
-  --color-secondary-light: #BA68C8;
-  --color-secondary-dark: #7B1FA2;
-
-  /* Semantic Colors */
-  --color-success: #2E7D32;
-  --color-success-bg: rgba(46, 125, 50, 0.1);
-  --color-warning: #ED6C02;
-  --color-warning-bg: rgba(237, 108, 2, 0.1);
-  --color-error: #D32F2F;
-  --color-error-bg: rgba(211, 47, 47, 0.1);
-  --color-info: #0288D1;
-  --color-info-bg: rgba(2, 136, 209, 0.1);
-
-  /* Neutral Colors — RetailOps Slate */
-  --color-white: #ffffff;
-  --color-gray-50: #F8FAFC;
-  --color-gray-100: #F1F5F9;
-  --color-gray-200: #E2E8F0;
-  --color-gray-300: #CBD5E1;
-  --color-gray-400: #94A3B8;
-  --color-gray-500: #64748B;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1E293B;
-  --color-gray-900: #0F172A;
-
-  /* Backgrounds */
-  --bg-primary: #F8FAFC;
-  --bg-secondary: #FFFFFF;
-  --bg-tertiary: #F1F5F9;
-
-  /* Text Colors */
-  --text-primary: #111827;
-  --text-secondary: #4B5563;
-  --text-tertiary: #9CA3AF;
-  --text-muted: #9CA3AF;
-
-  /* Borders */
-  --border-color: #E5E7EB;
-  --border-radius-sm: 4px;
-  --border-radius: 8px;
-  --border-radius-lg: 12px;
-  --border-radius-xl: 16px;
-
-  /* Shadows */
-  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
-
-  /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.8125rem;
-  --font-size-base: 0.875rem;
-  --font-size-lg: 1rem;
-  --font-size-xl: 1.125rem;
-  --font-size-2xl: 1.25rem;
-  --font-size-3xl: 1.5rem;
-
-  /* Spacing — 8px grid */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
-
-  /* Layout */
-  --sidebar-w: 240px;
-  --sidebar-w-min: 70px;
-  --topbar-h: 46px;
-  --bg-sidebar: #ffffff;
-  --bg-topbar: #ffffff;
-  --bg-app: #F8FAFC;
-  --border: #E5E7EB;
-  --blue: #1976D2;
-  --blue-soft: #E3F2FD;
-  --blue-mid: rgba(25, 118, 210, 0.12);
-  --bg-hover: #F1F5F9;
-  --bg-active-nav: #E3F2FD;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --green: #10b981;
-  --green-soft: #10b98120;
-  --red: #ef4444;
-
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Surface Accents (Glowing - Light Mode) */
-  --grad-primary: linear-gradient(135deg, #0070F3 0%, #3291FF 100%);
-  --grad-secondary: linear-gradient(135deg, #7928CA 0%, #FF0080 100%);
-  --grad-surface: #F4F4F5;
-}
+/* CSS Variables — Now sourced from src/styles/tokens.css */
 
 /* Animations */
 @keyframes pulse-green {
@@ -148,99 +45,99 @@
 
 /* Zinc Utility Spectrum - Missing from original system */
 .text-zinc-50 {
-  color: #fafafa !important;
+  color: var(--bc-slate-50) !important;
 }
 
 .text-zinc-100 {
-  color: #f4f4f5 !important;
+  color: var(--bc-slate-100) !important;
 }
 
 .text-zinc-200 {
-  color: #e4e4e7 !important;
+  color: var(--bc-slate-200) !important;
 }
 
 .text-zinc-300 {
-  color: #d4d4d8 !important;
+  color: var(--bc-slate-300) !important;
 }
 
 .text-zinc-400 {
-  color: #a1a1aa !important;
+  color: var(--bc-slate-400) !important;
 }
 
 .text-zinc-500 {
-  color: #71717a !important;
+  color: var(--bc-slate-500) !important;
 }
 
 .text-zinc-600 {
-  color: #52525b !important;
+  color: var(--bc-slate-600) !important;
 }
 
 .text-zinc-700 {
-  color: #3f3f46 !important;
+  color: var(--bc-slate-700) !important;
 }
 
 .text-zinc-800 {
-  color: #27272a !important;
+  color: var(--bc-slate-800) !important;
 }
 
 .text-zinc-900 {
-  color: #18181b !important;
+  color: var(--bc-slate-900) !important;
 }
 
 .text-zinc-950 {
-  color: #09090b !important;
+  color: var(--bc-slate-900) !important;
 }
 
 .bg-zinc-50 {
-  background-color: #fafafa !important;
+  background-color: var(--bc-slate-50) !important;
 }
 
 .bg-zinc-100 {
-  background-color: #f4f4f5 !important;
+  background-color: var(--bc-slate-100) !important;
 }
 
 .bg-zinc-200 {
-  background-color: #e4e4e7 !important;
+  background-color: var(--bc-slate-200) !important;
 }
 
 .bg-zinc-300 {
-  background-color: #d4d4d8 !important;
+  background-color: var(--bc-slate-300) !important;
 }
 
 .bg-zinc-400 {
-  background-color: #a1a1aa !important;
+  background-color: var(--bc-slate-400) !important;
 }
 
 .bg-zinc-500 {
-  background-color: #71717a !important;
+  background-color: var(--bc-slate-500) !important;
 }
 
 .bg-zinc-600 {
-  background-color: #52525b !important;
+  background-color: var(--bc-slate-600) !important;
 }
 
 .bg-zinc-700 {
-  background-color: #3f3f46 !important;
+  background-color: var(--bc-slate-700) !important;
 }
 
 .bg-zinc-800 {
-  background-color: #27272a !important;
+  background-color: var(--bc-slate-800) !important;
 }
 
 .bg-zinc-900 {
-  background-color: #18181b !important;
+  background-color: var(--bc-slate-900) !important;
 }
 
 .border-zinc-100 {
-  border-color: #f4f4f5 !important;
+  border-color: var(--bc-slate-100) !important;
 }
 
 .border-zinc-200 {
-  border-color: #e4e4e7 !important;
+  border-color: var(--bc-slate-200) !important;
 }
 
 .border-zinc-300 {
-  border-color: #d4d4d8 !important;
+  border-color: var(--bc-slate-300) !important;
 }
 
 /* Premium Action Buttons */
@@ -261,8 +158,8 @@
 }
 
 .btn-prism:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  background: var(--bc-slate-50);
+  border-color: var(--bc-slate-300);
   transform: translateY(-1px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
@@ -295,9 +192,9 @@
 }
 
 .btn-white-icon:hover {
-  background: #f9fafb !important;
-  border-color: #0070F3 !important;
-  color: #0070F3 !important;
+  background: var(--bc-slate-50) !important;
+  border-color: var(--bc-blue-600) !important;
+  color: var(--bc-blue-600) !important;
   transform: scale(1.05);
 }
 
@@ -1397,7 +1294,7 @@ a:hover {
 
 /* Subtle badge variants */
 .badge.bg-primary-subtle {
-  background-color: #E0E7FF;
+  background-color: var(--bc-indigo-100);
   color: var(--color-primary-dark);
 }
 
@@ -1897,99 +1794,6 @@ a:hover {
   }
 }
 
-/* Smartsheet Aesthetic Refinement */
-.smartsheet-container {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  overflow: auto;
-  font-family: 'Inter', -apple-system, system-ui, sans-serif;
-  margin-bottom: 2rem;
-}
-
-.smartsheet-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.smartsheet-table th {
-  background: #f8fafc;
-  color: #64748b;
-  font-weight: 600;
-  padding: 8px 12px;
-  text-align: left;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #cbd5e1;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  white-space: nowrap;
-}
-
-.smartsheet-table td {
-  padding: 8px 12px;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  vertical-align: middle;
-  color: #1e293b;
-}
-
-.smartsheet-table tr:hover {
-  background-color: #f1f5f9;
-}
-
-.row-index {
-  width: 40px;
-  background: #f1f5f9;
-  color: #94a3b8;
-  text-align: center !important;
-  font-size: 11px;
-  font-weight: 500;
-  border-right: 1px solid #cbd5e1 !important;
-}
-
-/* Status Dots (Condition) */
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-  position: relative;
-}
-
-.status-dot-green {
-  background-color: #22c55e;
-}
-
-.status-dot-yellow {
-  background-color: #eab308;
-}
-
-.status-dot-red {
-  background-color: #ef4444;
-}
-
-.status-dot-gray {
-  background-color: #94a3b8;
-}
-
-/* Priority Icons */
-.priority-high {
-  color: #ef4444;
-  font-weight: bold;
-}
-
-.priority-medium {
-  color: #f59e0b;
-  font-weight: bold;
-}
-
-.priority-low {
-  color: #3b82f6;
-  font-weight: bold;
-}
-
 .avatar-initial {
   width: 24px;
   height: 24px;
@@ -1999,57 +1803,11 @@ a:hover {
   justify-content: center;
   font-size: 10px;
   font-weight: 700;
-  color: white;
-}
-
-.sm-task-title {
-  font-weight: 600;
-  color: #0f172a;
-  font-size: 13px;
-}
-
-.sm-task-desc {
-  font-size: 11px;
-  color: #64748b;
-  margin-top: 1px;
-}
-
-/* Tree Table Levels and Interactivity */
-.row-level-0 {
-  background-color: #f8fafc !important;
-}
-
-.row-level-0 .row-index {
-  background-color: #e2e8f0 !important;
-  color: #475569 !important;
-  font-weight: 700 !important;
-}
-
-.row-level-0:hover {
-  background-color: #f1f5f9 !important;
-}
-
-.row-level-1 {
-  background-color: #ffffff !important;
-}
-
-.row-level-1 .row-index {
-  background-color: #f8fafc !important;
-}
-
-.objective-row .sm-task-title {
-  color: #1e40af;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-}
-
-.kr-row .sm-task-title {
-  color: #0369a1;
-  font-size: 13px;
+  color: var(--bc-white);
 }
 
 .action-row .sm-task-title {
-  color: #334155;
+  color: var(--bc-slate-700);
   font-weight: 500;
 }
 
@@ -2079,12 +1837,12 @@ a:hover {
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
-  background: #f1f5f9;
+  background: var(--bc-slate-100);
   border-radius: 3px;
   font-size: 10px;
   font-weight: 500;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  color: var(--bc-slate-600);
+  border: 1px solid var(--bc-slate-200);
   max-width: 150px;
   white-space: nowrap;
   overflow: hidden;
@@ -2256,213 +2014,12 @@ a:hover {
 }
 
 .trend-neutral {
-  color: #6b7280;
+  color: var(--bc-slate-500);
 }
 
 /* ==========================================================================
-   Global Table Styles — RetailOps Design System
+   Global Table & Form Styles → moved to styles/antd-overrides.css
    ========================================================================== */
-
-/* Ant Design Table Header */
-.ant-table-thead > tr > th {
-  background: #F8FAFC !important;
-  color: #475569 !important;
-  font-weight: 700 !important;
-  font-size: 11px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
-  border-bottom: 2px solid #E5E7EB !important;
-  padding: 12px 16px !important;
-}
-
-/* Table Body Rows */
-.ant-table-tbody > tr > td {
-  border-bottom: 1px solid #F1F5F9 !important;
-  padding: 12px 16px !important;
-  font-size: 13px;
-  color: #1E293B;
-}
-
-/* Row Hover State */
-.ant-table-tbody > tr:hover > td {
-  background: #F1F5F9 !important;
-}
-
-/* Table Container Border */
-.ant-table-wrapper .ant-table {
-  border-radius: 12px;
-}
-
-/* Table Pagination */
-.ant-table-pagination {
-  margin: 0 !important;
-  padding: 12px 16px !important;
-}
-
-.ant-table-pagination .ant-pagination-item {
-  border-radius: 8px;
-  border: 1px solid #E5E7EB;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.ant-table-pagination .ant-pagination-item-active {
-  background: #1976D2 !important;
-  border-color: #1976D2 !important;
-  color: #FFFFFF !important;
-}
-
-.ant-table-pagination .ant-pagination-item-active a {
-  color: #FFFFFF !important;
-}
-
-/* Table Sort Icons */
-.ant-table-column-sorter .ant-table-column-sorter-inner .anticon {
-  color: #94A3B8;
-}
-
-/* Table Empty State */
-.ant-table-placeholder .ant-empty-description {
-  color: #94A3B8;
-  font-size: 13px;
-}
-
-/* Table Expanded Row */
-.ant-table-expanded-row > td {
-  background: #F8FAFC !important;
-}
-
-/* Table Card Wrapper */
-.table-card {
-  border-radius: 12px;
-  border: 1px solid #E5E7EB;
-  overflow: hidden;
-  background: #FFFFFF;
-}
-
-/* ==========================================================================
-   Global Form Styles — RetailOps Design System
-   ========================================================================== */
-
-/* Input Fields */
-.ant-input,
-.ant-input-affix-wrapper,
-.ant-picker {
-  border-radius: 8px !important;
-  border-color: #E5E7EB !important;
-  font-size: 13px !important;
-  transition: all 0.2s ease !important;
-}
-
-.ant-input:focus,
-.ant-input-affix-wrapper:focus,
-.ant-input-affix-wrapper-focused {
-  border-color: #1976D2 !important;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1) !important;
-}
-
-.ant-input:hover,
-.ant-input-affix-wrapper:hover {
-  border-color: #CBD5E1 !important;
-}
-
-/* Select */
-.ant-select-selector {
-  border-radius: 8px !important;
-  border-color: #E5E7EB !important;
-  font-size: 13px !important;
-}
-
-.ant-select-focused .ant-select-selector {
-  border-color: #1976D2 !important;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1) !important;
-}
-
-/* Textarea */
-textarea.ant-input,
-.ant-input-textarea textarea {
-  border-radius: 8px !important;
-  font-size: 13px !important;
-  line-height: 1.6;
-}
-
-/* Form Labels */
-.ant-form-item-label > label {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  color: #475569 !important;
-}
-
-/* Form Item Spacing */
-.ant-form-item {
-  margin-bottom: 16px !important;
-}
-
-/* Switch */
-.ant-switch {
-  min-width: 36px;
-  height: 20px;
-  border-radius: 10px;
-}
-
-.ant-switch-checked {
-  background-color: #1976D2 !important;
-}
-
-/* Checkbox */
-.ant-checkbox-wrapper {
-  font-size: 13px;
-}
-
-/* Radio */
-.ant-radio-wrapper {
-  font-size: 13px;
-}
-
-/* Date Picker */
-.ant-picker {
-  height: 32px;
-  border-radius: 8px !important;
-  border-color: #E5E7EB !important;
-}
-
-/* Input Number */
-.ant-input-number {
-  border-radius: 8px !important;
-  border-color: #E5E7EB !important;
-  font-size: 13px !important;
-}
-
-/* Upload */
-.ant-upload-drag {
-  border-radius: 12px !important;
-  border-color: #E5E7EB !important;
-  background: #F8FAFC;
-}
-
-.ant-upload-drag:hover {
-  border-color: #1976D2 !important;
-}
-
-/* Rate */
-.ant-rate-star .ant-rate-star-second,
-.ant-rate-star .ant-rate-star-first {
-  color: #E5E7EB;
-}
-
-.ant-rate-star-full .ant-rate-star-second,
-.ant-rate-star-full .ant-rate-star-first {
-  color: #ED6C02;
-}
-
-/* Progress Bar */
-.ant-progress-bg {
-  border-radius: 4px !important;
-}
-
-.ant-progress-inner {
-  border-radius: 4px !important;
-}
 
 /* ==========================================================================
    Modal Styles
@@ -2611,33 +2168,33 @@ textarea.ant-input,
 }
 
 .stat-icon-total {
-  background-color: #E3F2FD;
-  color: #1976D2;
+  background-color: var(--bc-ro-50);
+  color: var(--bc-ro-500);
 }
 
 .stat-icon-critical {
-  background-color: #FFEBEE;
-  color: #D32F2F;
+  background-color: var(--bc-red-50);
+  color: var(--bc-red-600);
 }
 
 .stat-icon-warning {
-  background-color: #FFF3E0;
-  color: #ED6C02;
+  background-color: var(--bc-amber-50);
+  color: var(--bc-amber-600);
 }
 
 .stat-icon-success {
-  background-color: #E8F5E9;
-  color: #2E7D32;
+  background-color: var(--bc-green-50);
+  color: var(--bc-green-700);
 }
 
 .stat-icon-info {
-  background-color: #E1F5FE;
-  color: #0288D1;
+  background-color: var(--bc-cyan-50);
+  color: var(--bc-cyan-500);
 }
 
 .stat-icon-unack {
-  background-color: #F3E5F5;
-  color: #9C27B0;
+  background-color: var(--bc-violet-50);
+  color: var(--bc-violet-600);
 }
 
 .stat-info {
@@ -2705,19 +2262,19 @@ textarea.ant-input,
 }
 
 .alert-item-critical .alert-severity-indicator {
-  background-color: #dc2626;
+  background-color: var(--bc-red-600);
 }
 
 .alert-item-warning .alert-severity-indicator {
-  background-color: #f59e0b;
+  background-color: var(--bc-amber-500);
 }
 
 .alert-item-success .alert-severity-indicator {
-  background-color: #059669;
+  background-color: var(--bc-green-600);
 }
 
 .alert-item-info .alert-severity-indicator {
-  background-color: #3b82f6;
+  background-color: var(--bc-blue-500);
 }
 
 /* Alert Icon */
@@ -2733,23 +2290,23 @@ textarea.ant-input,
 }
 
 .alert-item-critical .alert-icon {
-  background-color: #fee2e2;
-  color: #dc2626;
+  background-color: var(--bc-red-100);
+  color: var(--bc-red-600);
 }
 
 .alert-item-warning .alert-icon {
-  background-color: #fef3c7;
-  color: #f59e0b;
+  background-color: var(--bc-amber-100);
+  color: var(--bc-amber-500);
 }
 
 .alert-item-success .alert-icon {
-  background-color: #d1fae5;
-  color: #059669;
+  background-color: var(--bc-green-100);
+  color: var(--bc-green-600);
 }
 
 .alert-item-info .alert-icon {
-  background-color: #dbeafe;
-  color: #3b82f6;
+  background-color: var(--bc-blue-100);
+  color: var(--bc-blue-500);
 }
 
 /* Alert Content */
@@ -2784,7 +2341,7 @@ textarea.ant-input,
 
 .alert-status {
   font-size: 0.75rem;
-  color: #059669;
+  color: var(--bc-green-600);
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -2884,7 +2441,7 @@ textarea.ant-input,
   display: inline-block;
   width: 8px;
   height: 8px;
-  background-color: #dc2626;
+  background-color: var(--bc-red-600);
   border-radius: 50%;
   animation: pulse 1.5s ease-in-out infinite;
 }
@@ -2939,9 +2496,9 @@ textarea.ant-input,
 }
 
 .timer-display.overdue {
-  background-color: #fee2e2;
-  border-color: #dc2626;
-  color: #dc2626;
+  background-color: var(--bc-red-100);
+  border-color: var(--bc-red-600);
+  color: var(--bc-red-600);
 }
 
 .timer-display i {
@@ -2962,23 +2519,23 @@ textarea.ant-input,
 }
 
 .stage-not-started {
-  background-color: #f3f4f6;
-  color: #6b7280;
+  background-color: var(--bc-slate-100);
+  color: var(--bc-slate-500);
 }
 
 .stage-in-progress {
-  background-color: #dbeafe;
-  color: #3b82f6;
+  background-color: var(--bc-blue-100);
+  color: var(--bc-blue-500);
 }
 
 .stage-review {
-  background-color: #fef3c7;
-  color: #f59e0b;
+  background-color: var(--bc-amber-100);
+  color: var(--bc-amber-500);
 }
 
 .stage-completed {
-  background-color: #d1fae5;
-  color: #059669;
+  background-color: var(--bc-green-100);
+  color: var(--bc-green-600);
 }
 
 /* Action Buttons */
@@ -2989,7 +2546,7 @@ textarea.ant-input,
 }
 
 .btn-start-task {
-  background-color: #3b82f6;
+  background-color: var(--bc-blue-500);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -3001,19 +2558,19 @@ textarea.ant-input,
 }
 
 .btn-start-task:hover {
-  background-color: #2563eb;
+  background-color: var(--bc-blue-600);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 .btn-start-task:disabled {
-  background-color: #9ca3af;
+  background-color: var(--bc-slate-400);
   cursor: not-allowed;
   transform: none;
 }
 
 .btn-complete-task {
-  background-color: #059669;
+  background-color: var(--bc-green-600);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -3025,13 +2582,13 @@ textarea.ant-input,
 }
 
 .btn-complete-task:hover {
-  background-color: #047857;
+  background-color: var(--bc-green-700);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);
 }
 
 .btn-complete-task:disabled {
-  background-color: #9ca3af;
+  background-color: var(--bc-slate-400);
   cursor: not-allowed;
   transform: none;
 }
@@ -3261,7 +2818,7 @@ textarea.ant-input,
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #dc2626;
+  background-color: var(--bc-red-600);
 }
 
 .btn-ghost {
@@ -3395,12 +2952,12 @@ textarea.ant-input,
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  background: var(--bc-slate-200);
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: var(--bc-slate-300);
 }
 
 /* Custom Modal Table for complete tabular format */
@@ -3416,29 +2973,29 @@ textarea.ant-input,
   top: 0;
   z-index: 30;
   background-clip: padding-box;
-  background-color: #fafafa;
+  background-color: var(--bc-slate-50);
   font-size: 0.66rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #71717a;
+  color: var(--bc-slate-500);
   padding: 4px 8px;
   border-top: none;
   border-left: none;
   border-right: none;
-  border-bottom: 0.5px solid #f1f1f1;
+  border-bottom: 0.5px solid var(--bc-slate-100);
 }
 
 .custom-modal-table tbody td {
   padding: 4px 8px;
   font-size: 0.68rem;
-  color: #27272a;
+  color: var(--bc-slate-800);
   height: 28px;
   vertical-align: middle;
   border-top: none;
   border-left: none;
   border-right: none;
-  border-bottom: 0.5px solid #f1f5f9;
+  border-bottom: 0.5px solid var(--bc-slate-100);
 }
 
 /* ==========================================================================
