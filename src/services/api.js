@@ -160,6 +160,32 @@ export const authApi = {
     return res.json();
   },
 
+  requestPasswordChange: async (currentPassword) => {
+    const res = await fetch(`${API_BASE}/auth/request-password-change`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ currentPassword }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to send verification code');
+    }
+    return res.json();
+  },
+
+  changePasswordWithOtp: async (tempToken, otp, newPassword) => {
+    const res = await fetch(`${API_BASE}/auth/change-password-with-otp`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ tempToken, otp, newPassword }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to change password');
+    }
+    return res.json();
+  },
+
   refreshToken: async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) throw new Error('No refresh token');

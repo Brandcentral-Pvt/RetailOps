@@ -23,6 +23,8 @@ router.post('/refresh-token', authController.refreshToken);
 router.post('/logout', authenticate, authController.logout);
 router.get('/me', authenticate, authController.getMe);
 router.put('/profile', authenticate, authController.updateProfile);
+router.post('/request-password-change', authenticate, authController.requestPasswordChange);
 router.put('/change-password', authenticate, validate('changePassword'), authController.changePassword);
+router.put('/change-password-with-otp', authenticate, authController.changePasswordWithOtp);
 
 module.exports = router;
