@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy, useRef } from 'react';
 import { Drawer, Button, Input, Select, Space, Typography, Badge, Segmented, Tooltip, Dropdown, Menu, Modal, Form, Tag, message } from 'antd';
 const { Text, Title } = Typography;
@@ -2033,7 +2034,7 @@ const AsinManagerPage = (props) => {
   );
 
   if (!initialLoadCompleteRef.current && loading && asins.length === 0) {
-    return <AsinManagerSkeleton />;
+    return <Spinner />;
   }
 
   if (error && !loading && asins.length === 0) {

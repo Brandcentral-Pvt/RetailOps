@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { roleApi } from '../services/api';
 import {
@@ -299,7 +300,7 @@ const RolesPage = () => {
     }, [permissionsGrouped, matrixSearch]);
 
     if (loading && roles.length === 0) {
-        return <PageLoader message="Synthesizing Security Policies..." />;
+        return <Spinner />;
     }
 
     const priorityLevels = Object.keys(groupedRoles).sort((a, b) => Number(b) - Number(a));

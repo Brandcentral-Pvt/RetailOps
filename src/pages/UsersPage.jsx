@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { userApi, roleApi } from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
@@ -937,7 +938,7 @@ const UsersPage = () => {
     ], [roles, handleToggleStatus, handleDeleteUser]);
 
     if (loading && users.length === 0) {
-        return <PageLoader message="Loading user directory..." />;
+        return <Spinner />;
     }
 
     // Selection Card Component

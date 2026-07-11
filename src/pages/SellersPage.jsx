@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 // pages/SellersPage.tsx — complete fixed version with optimistic updates
 
 import React, {
@@ -928,7 +929,7 @@ const SellersPage = () => {
   }), [selectedSellerIds]);
 
   if (loading && sellers.length === 0) {
-    return <SellersSkeleton />;
+    return <Spinner />;
   }
 
   if (error && !loading && sellers.length === 0) {

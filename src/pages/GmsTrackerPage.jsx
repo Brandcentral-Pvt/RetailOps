@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo, useCallback, useRef, useTransition } from 'react';
 import {
   Card, Row, Col, Table, Button, DatePicker, Upload, Modal, Typography, Space, Input, Tag, Tooltip, message, Empty, Progress, Skeleton, Select, Segmented, Radio
@@ -974,7 +975,7 @@ export default function GmsTrackerPage() {
   return (
     <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}>
       {loading && gmsData.length === 0 && (
-        <GmsTrackerSkeleton />
+        <Spinner />
       )}
       {loading && gmsData.length > 0 && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
