@@ -149,34 +149,7 @@ const Dashboard = () => {
     const initialLoading = loading && !isHydrated;
 
     if (initialLoading) {
-        return (
-            <div style={{ background: '#F8FAFC', minHeight: '100%', padding: '0 24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 60 }}>
-                    <Space orientation="vertical" size={2}>
-                        <Skeleton.Input active size="large" style={{ width: 220, height: 32 }} />
-                        <Skeleton.Input active size="small" style={{ width: 320, height: 16 }} />
-                    </Space>
-                </div>
-                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                        <Col key={i} xs={12} sm={6} md={3}>
-                            <Card style={{ borderRadius: 12, border: '1px solid #E5E7EB', padding: 8 }}>
-                                <Skeleton active paragraph={{ rows: 1 }} />
-                            </Card>
-                        </Col>
-                    ))}
-                </Row>
-                <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-                    {[1, 2, 3, 4, 5, 6].map(i => (
-                        <Col key={i} xs={24} sm={12} md={8}>
-                            <Card style={{ borderRadius: 12, border: '1px solid #E5E7EB', padding: 16 }}>
-                                <Skeleton active paragraph={{ rows: 2 }} />
-                            </Card>
-                        </Col>
-                    ))}
-                </Row>
-            </div>
-        );
+        return <Spinner />;
     }
 
     return (
@@ -196,17 +169,11 @@ const Dashboard = () => {
                 loading={loading}
             />
 
-            {/* Section 2: KPI Strip -- shows skeleton until KPIs arrive */}
+            {/* Section 2: KPI Strip -- shows spinner until KPIs arrive */}
             {orch.isLoadingKpis ? (
-                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                        <Col key={i} xs={12} sm={6} md={3}>
-                            <Card style={{ borderRadius: 12, border: '1px solid #E5E7EB', padding: 8 }}>
-                                <Skeleton active paragraph={{ rows: 1 }} />
-                            </Card>
-                        </Col>
-                    ))}
-                </Row>
+                <div style={{ marginBottom: 24 }}>
+                    <Spinner />
+                </div>
             ) : (
                 <KpiStrip
                     adSales={kpiValues.adSales}

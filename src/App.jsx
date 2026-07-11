@@ -131,11 +131,10 @@ function AppRoutes() {
   const { isAuthenticated, loading, bootstrapping } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
 
-  if (bootstrapping && isAuthenticated) return <BrandedLoader />;
-  if (loading || onboardingLoading) return null;
+  if (loading || onboardingLoading) return <Spinner />;
 
   return (
-    <Suspense fallback={<PageLoader />}>
+    <Suspense fallback={<Spinner />}>
       {showWizard && <OnboardingWizard />}
       <GlobalNotificationListener />
       <Routes>
