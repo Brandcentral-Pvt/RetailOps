@@ -13,6 +13,7 @@ import { useDateRange } from '../contexts/DateRangeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { LoadError } from '@/components/LoadError';
+import { GmsTrackerSkeleton } from '@/components/ui/PageSkeletons';
 import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -972,7 +973,10 @@ export default function GmsTrackerPage() {
 
   return (
     <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}>
-      {loading && (
+      {loading && gmsData.length === 0 && (
+        <GmsTrackerSkeleton />
+      )}
+      {loading && gmsData.length > 0 && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
           <LoadingIndicator type="line-simple" size="md" />
         </div>
