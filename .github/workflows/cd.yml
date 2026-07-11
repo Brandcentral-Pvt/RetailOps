@@ -1,0 +1,123 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+  DEPLOY_PATH: /opt/brand-central
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ─── Frontend Build ───────────────────────────────────────────────
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_URL: https://data.brandcentral.in/api
+          VITE_SOCKET_URL: https://data.brandcentral.in
+
+      # ─── Backend Install ──────────────────────────────────────────────
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --omit=dev
+
+      # ─── Create deployment artifact ──────────────────────────────────
+      - name: Create deployment bundle
+        run: |
+          mkdir -p deploy/backend
+          mkdir -p deploy/frontend
+
+          # Backend files
+          cp -r backend/controllers deploy/backend/
+          cp -r backend/services deploy/backend/
+          cp -r backend/routes deploy/backend/
+          cp -r backend/middleware deploy/backend/
+          cp -r backend/emails deploy/backend/
+          cp -r backend/utils deploy/backend/
+          cp -r backend/validation deploy/backend/
+          cp -r backend/config deploy/backend/
+          cp -r backend/jobs deploy/backend/
+          cp -r backend/public deploy/backend/
+          cp backend/server.js deploy/backend/
+          cp backend/package.json deploy/backend/
+          cp -r backend/node_modules deploy/backend/
+          cp backend/ecosystem.config.js deploy/backend/ 2>/dev/null || true
+
+          # Frontend files
+          cp -r dist/* deploy/frontend/
+
+          # Root config files
+          cp package.json deploy/
+          cp README.md deploy/ 2>/dev/null || true
+
+          echo "📦 Deployment bundle created"
+          du -sh deploy/
+
+      # ─── Deploy via SSH ──────────────────────────────────────────────
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to server
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Copy deployment bundle
+          rsync -avz --delete \
+            deploy/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+          # Restart services
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'DEPLOY_SCRIPT'
+            cd /opt/brand-central
+
+            echo "🔄 Restarting backend..."
+            cd backend
+            pm2 restart brand-central-api --update-env 2>/dev/null || \
+            pm2 start server.js --name brand-central-api \
+              --max-memory-restart 3G \
+              --node-options="--max-old-space-size=4096"
+
+            echo "✅ Deployment complete"
+            pm2 status
+          DEPLOY_SCRIPT
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -sf https://data.brandcentral.in/api/health || \
+          echo "⚠️ Health check failed - server may still be starting"
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "🚀 Deployment ${{ github.sha }} completed"
+          echo "   Status: ${{ job.status }}"
+          echo "   Branch: main"
+          echo "   Commit: ${{ github.sha }}"

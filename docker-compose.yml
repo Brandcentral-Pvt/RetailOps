@@ -1,0 +1,65 @@
+# ─── Docker Compose — Local Development ─────────────────────────────────
+# Usage: docker compose up -d
+# Access: http://localhost:3001 (API) + http://localhost:5173 (Frontend via Vite)
+
+version: '3.8'
+
+services:
+  # ── Backend API ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: brand-central-api
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=host.docker.internal
+      - DB_PORT=1433
+      - DB_NAME=RetailOps
+      - DB_USER=${DB_USER:-sa}
+      - DB_PASSWORD=${DB_PASSWORD:-your_password}
+      - DB_ENCRYPT=false
+      - LIVE_SYNC_CLIENT_ID=${LIVE_SYNC_CLIENT_ID}
+      - LIVE_SYNC_CLIENT_SECRET=${LIVE_SYNC_CLIENT_SECRET}
+      - LIVE_SYNC_PARTNER_TAG=${LIVE_SYNC_PARTNER_TAG}
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./backend/uploads:/app/backend/uploads
+      - ./backend/logs:/app/backend/logs
+    networks:
+      - brand-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Nginx Reverse Proxy (Production) ─────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: brand-central-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - brand-network
+    restart: unless-stopped
+
+networks:
+  brand-network:
+    driver: bridge
