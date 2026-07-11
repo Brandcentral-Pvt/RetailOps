@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Typography, Tag, Tooltip, Button, Space, Collapse } from 'antd';
+import { Table, Typography, Tag, Tooltip, Button } from 'antd';
 import { 
   ChevronDown, ChevronRight, Eye, Package, 
-  TrendingUp, TrendingDown, Minus, Calendar
+  TrendingUp, TrendingDown, Minus
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -34,48 +34,6 @@ const TrendIndicator = ({ current, previous, isInverted = false }) => {
   );
 };
 
-const MetricCell = ({ value, format = 'number', prevValue, isInverted = false }) => (
-  <div>
-    <div style={{ fontSize: 12, fontWeight: 600, color: '#18181b' }}>{formatValue(value, format)}</div>
-    {prevValue !== undefined && (
-      <TrendIndicator current={value} previous={prevValue} isInverted={isInverted} />
-    )}
-  </div>
-);
-
-// 7-Day Daily Data Component
-const DailyDataView = ({ history = [], metricKey, format = 'number' }) => {
-  const last7Days = history.slice(-7).reverse();
-  
-  if (last7Days.length === 0) {
-    return <Text style={{ fontSize: 11, color: '#a1a1aa' }}>No daily data</Text>;
-  }
-
-  return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-      {last7Days.map((day, idx) => {
-        const val = Number(day[metricKey] || 0);
-        const date = day.date ? new Date(day.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : `D${idx + 1}`;
-        return (
-          <div key={idx} style={{ 
-            padding: '4px 6px', 
-            background: idx === 0 ? '#f0f9ff' : '#f8fafc', 
-            borderRadius: 4, 
-            border: '1px solid #e2e8f0',
-            minWidth: 60,
-            textAlign: 'center'
-          }}>
-            <Text style={{ fontSize: 9, color: '#71717a', display: 'block' }}>{date}</Text>
-            <Text style={{ fontSize: 10, fontWeight: 600, color: '#18181b' }}>
-              {formatValue(val, format)}
-            </Text>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
   const [expandedMetrics, setExpandedMetrics] = useState(new Set());
@@ -88,36 +46,98 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
     });
   };
 
-  const columns = useMemo(() => {
-    const buildExpandableColumn = (title, key, format, metricKey) => ({
-      title: (
-        <div 
-          onClick={(e) => { e.stopPropagation(); toggleMetric(key); }}
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-        >
-          <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>{title}</Text>
-          <ChevronRight 
-            size={10} 
+  // Build columns with expandable daily data
+  const { columns, dailyColumns } = useMemo(() => {
+    const buildExpandableColumn = (title, key, format, bgColor, dailyBgColor) => {
+      const isExpanded = expandedMetrics.has(key);
+      
+      return {
+        title: (
+          <div 
+            onClick={(e) => { e.stopPropagation(); toggleMetric(key); }}
             style={{ 
-              color: '#94a3b8', 
-              transform: expandedMetrics.has(key) ? 'rotate(90deg)' : 'none', 
-              transition: 'transform 0.2s' 
-            }} 
-          />
-        </div>
-      ),
-      key,
-      width: 110,
-      align: 'right',
-      sorter: (a, b) => Number(a[key] || 0) - Number(b[key] || 0),
-      render: (val, record) => {
-        const history = record.weekHistory || record.history || [];
-        if (expandedMetrics.has(key) && history.length > 0) {
-          return <DailyDataView history={history} metricKey={metricKey || key} format={format} />;
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: 4,
+              padding: '4px 8px',
+              borderRadius: 4,
+              background: isExpanded ? (dailyBgColor || '#f8fafc') : '#f8fafc',
+              border: `1px solid ${isExpanded ? (dailyBgColor || '#e5e7eb') : '#e5e7eb'}`,
+              transition: 'all 0.2s'
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.03em' }}>{title}</Text>
+            <ChevronRight 
+              size={10} 
+              style={{ 
+                color: '#94a3b8', 
+                transform: isExpanded ? 'rotate(90deg)' : 'none', 
+                transition: 'transform 0.2s' 
+              }} 
+            />
+          </div>
+        ),
+        key,
+        width: 110,
+        align: 'right',
+        sorter: (a, b) => Number(a[key] || 0) - Number(b[key] || 0),
+        children: isExpanded ? [
+          // Average column
+          {
+            title: <Text style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</Text>,
+            key: `${key}_avg`,
+            width: 70,
+            align: 'right',
+            render: (val, record) => {
+              const numVal = Number(val || 0);
+              return <Text style={{ fontSize: 11, fontWeight: 600, color: '#18181b' }}>{formatValue(numVal, format)}</Text>;
+            }
+          },
+          // Daily columns
+          ...getDailyColumns(key, format, dailyBgColor)
+        ] : undefined
+      };
+    };
+
+    const getDailyColumns = (metricKey, format, bgColor) => {
+      // Get unique dates from all data
+      const allDates = new Set();
+      data.forEach(row => {
+        const history = row.weekHistory || row.history || [];
+        history.forEach(h => {
+          if (h.date) {
+            const dateStr = new Date(h.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            allDates.add(dateStr);
+          }
+        });
+      });
+      
+      const sortedDates = Array.from(allDates).slice(-7).reverse();
+      
+      return sortedDates.map(dateStr => ({
+        title: (
+          <div style={{ textAlign: 'center', fontSize: 8, lineHeight: 1.1 }}>
+            <div style={{ color: '#94a3b8' }}>{dateStr.split(' ')[0]}</div>
+            <div style={{ fontWeight: 700, color: '#475569' }}>{dateStr.split(' ')[1]}</div>
+          </div>
+        ),
+        key: `${metricKey}_${dateStr}`,
+        width: 56,
+        align: 'right',
+        render: (_, record) => {
+          const history = record.weekHistory || record.history || [];
+          const dayData = history.find(h => {
+            const d = new Date(h.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            return d === dateStr;
+          });
+          const val = dayData ? Number(dayData[metricKey] || 0) : 0;
+          if (val === 0) return <Text style={{ fontSize: 10, color: '#cbd5e1' }}>-</Text>;
+          return <Text style={{ fontSize: 10, fontWeight: 600, color: '#475569' }}>{formatValue(val, format)}</Text>;
         }
-        return <MetricCell value={val} format={format} prevValue={record[`prev${key.charAt(0).toUpperCase() + key.slice(1)}`]} />;
-      }
-    });
+      }));
+    };
 
     const baseColumns = [
       {
@@ -148,15 +168,26 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
           </div>
         ),
       },
-      buildExpandableColumn('SPEND', 'spend', 'currency'),
-      buildExpandableColumn('SALES', 'sales', 'currency'),
+      buildExpandableColumn('SPEND', 'spend', 'currency', '#fef2f2', '#fef2f2'),
+      buildExpandableColumn('SALES', 'sales', 'currency', '#f0fdf4', '#f0fdf4'),
       {
         title: (
           <div 
             onClick={(e) => { e.stopPropagation(); toggleMetric('acos'); }}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: 4,
+              padding: '4px 8px',
+              borderRadius: 4,
+              background: expandedMetrics.has('acos') ? '#fef2f2' : '#f8fafc',
+              border: `1px solid ${expandedMetrics.has('acos') ? '#fecaca' : '#e5e7eb'}`,
+              transition: 'all 0.2s'
+            }}
           >
-            <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>ACOS</Text>
+            <Text style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.03em' }}>ACOS</Text>
             <ChevronRight 
               size={10} 
               style={{ 
@@ -171,32 +202,45 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
         width: 90,
         align: 'right',
         sorter: (a, b) => Number(a.acos || 0) - Number(b.acos || 0),
-        render: (val, record) => {
+        children: expandedMetrics.has('acos') ? [
+          {
+            title: <Text style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</Text>,
+            key: 'acos_avg',
+            width: 70,
+            align: 'right',
+            render: (val) => {
+              const acos = Number(val || 0);
+              const color = acos < 20 ? '#2E7D32' : acos < 30 ? '#ED6C02' : '#C62828';
+              return <Text style={{ fontSize: 11, fontWeight: 600, color }}>{acos.toFixed(2)}%</Text>;
+            }
+          },
+          ...getDailyColumns('acos', 'percent', '#fef2f2')
+        ] : undefined,
+        render: (val) => {
+          if (expandedMetrics.has('acos')) return null;
           const acos = Number(val || 0);
           const color = acos < 20 ? '#2E7D32' : acos < 30 ? '#ED6C02' : '#C62828';
-          const history = record.weekHistory || record.history || [];
-          
-          if (expandedMetrics.has('acos') && history.length > 0) {
-            return <DailyDataView history={history} metricKey="acos" format="percent" />;
-          }
-          
-          return (
-            <div>
-              <Text style={{ fontSize: 12, fontWeight: 600, color }}>{acos.toFixed(2)}%</Text>
-              {record.prevAcos !== undefined && (
-                <TrendIndicator current={acos} previous={Number(record.prevAcos)} isInverted={true} />
-              )}
-            </div>
-          );
+          return <Text style={{ fontSize: 12, fontWeight: 600, color }}>{acos.toFixed(2)}%</Text>;
         }
       },
       {
         title: (
           <div 
             onClick={(e) => { e.stopPropagation(); toggleMetric('roas'); }}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: 4,
+              padding: '4px 8px',
+              borderRadius: 4,
+              background: expandedMetrics.has('roas') ? '#fffbeb' : '#f8fafc',
+              border: `1px solid ${expandedMetrics.has('roas') ? '#fed7aa' : '#e5e7eb'}`,
+              transition: 'all 0.2s'
+            }}
           >
-            <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>ROAS</Text>
+            <Text style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.03em' }}>ROAS</Text>
             <ChevronRight 
               size={10} 
               style={{ 
@@ -211,26 +255,28 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
         width: 80,
         align: 'right',
         sorter: (a, b) => Number(a.roas || 0) - Number(b.roas || 0),
-        render: (val, record) => {
+        children: expandedMetrics.has('roas') ? [
+          {
+            title: <Text style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</Text>,
+            key: 'roas_avg',
+            width: 70,
+            align: 'right',
+            render: (val) => {
+              const roas = Number(val || 0);
+              const color = roas > 3 ? '#2E7D32' : roas > 2 ? '#ED6C02' : '#C62828';
+              return <Text style={{ fontSize: 11, fontWeight: 600, color }}>{roas.toFixed(2)}</Text>;
+            }
+          },
+          ...getDailyColumns('roas', 'ratio', '#fffbeb')
+        ] : undefined,
+        render: (val) => {
+          if (expandedMetrics.has('roas')) return null;
           const roas = Number(val || 0);
           const color = roas > 3 ? '#2E7D32' : roas > 2 ? '#ED6C02' : '#C62828';
-          const history = record.weekHistory || record.history || [];
-          
-          if (expandedMetrics.has('roas') && history.length > 0) {
-            return <DailyDataView history={history} metricKey="roas" format="ratio" />;
-          }
-          
-          return (
-            <div>
-              <Text style={{ fontSize: 12, fontWeight: 600, color }}>{roas.toFixed(2)}</Text>
-              {record.prevRoas !== undefined && (
-                <TrendIndicator current={roas} previous={Number(record.prevRoas)} />
-              )}
-            </div>
-          );
+          return <Text style={{ fontSize: 12, fontWeight: 600, color }}>{roas.toFixed(2)}</Text>;
         }
       },
-      buildExpandableColumn('ORDERS', 'orders', 'number'),
+      buildExpandableColumn('ORDERS', 'orders', 'number', '#f5f3ff', '#f5f3ff'),
       {
         title: <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>CTR</Text>,
         key: 'ctr',
@@ -247,8 +293,8 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
         sorter: (a, b) => Number(a.cvr || 0) - Number(b.cvr || 0),
         render: (val) => <Text style={{ fontSize: 12, fontWeight: 500 }}>{Number(val || 0).toFixed(2)}%</Text>
       },
-      buildExpandableColumn('CLICKS', 'clicks', 'number'),
-      buildExpandableColumn('IMPRESSIONS', 'impressions', 'number'),
+      buildExpandableColumn('CLICKS', 'clicks', 'number', '#ecfeff', '#ecfeff'),
+      buildExpandableColumn('IMPRESSIONS', 'impressions', 'number', '#f8fafc', '#f8fafc'),
       {
         title: 'Actions',
         key: 'actions',
@@ -267,8 +313,8 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
       }
     ];
 
-    return baseColumns;
-  }, [expandedMetrics]);
+    return { columns: baseColumns, dailyColumns: [] };
+  }, [expandedMetrics, data]);
 
   // Parent view - group by parent ASIN
   const parentData = useMemo(() => {
@@ -290,7 +336,6 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
       parentMap[parentAsin].childCount++;
       parentMap[parentAsin].children.push(row);
       
-      // Aggregate metrics
       const parent = parentMap[parentAsin];
       parent.spend = (Number(parent.spend) || 0) + (Number(row.spend) || 0);
       parent.sales = (Number(parent.sales) || 0) + (Number(row.sales) || 0);
@@ -298,13 +343,11 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
       parent.clicks = (Number(parent.clicks) || 0) + (Number(row.clicks) || 0);
       parent.impressions = (Number(parent.impressions) || 0) + (Number(row.impressions) || 0);
       
-      // Merge history
       if (row.weekHistory) {
         parent.weekHistory = [...parent.weekHistory, ...row.weekHistory];
       }
     });
 
-    // Calculate parent averages
     return Object.values(parentMap).map(parent => ({
       ...parent,
       acos: Number(parent.sales) > 0 ? (Number(parent.spend) / Number(parent.sales)) * 100 : 0,
@@ -327,7 +370,6 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
           pagination={false}
           size="small"
           style={{ background: '#fafafa', borderRadius: 8 }}
-          rowClassName={() => 'child-row'}
         />
       </div>
     );
@@ -358,5 +400,10 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
     />
   );
 };
+
+// Helper function for daily columns (used inside component)
+function getDailyColumns(metricKey, format, bgColor) {
+  return []; // Placeholder - actual implementation uses data from parent
+}
 
 export default AdsTable;
