@@ -9,8 +9,8 @@ const tokenBlacklist = require('../services/tokenBlacklistService');
 const { recordFailedAttempt, recordSuccessfulLogin, GENERIC_BLOCK } = require('../middleware/loginRateLimiter');
 
 const generateTokens = (userId, fingerprint) => {
-  const accessToken = jwt.sign({ userId, type: 'access', fp: fingerprint || null }, config.jwtSecret, { expiresIn: config.jwtExpiresIn || '15m' });
-  const refreshToken = jwt.sign({ userId, type: 'refresh', fp: fingerprint || null }, config.jwtSecret, { expiresIn: config.refreshTokenExpiresIn || '7d' });
+  const accessToken = jwt.sign({ userId, type: 'access', fp: fingerprint || null }, config.jwt.secret, { expiresIn: config.jwt.expiresIn || '2h' });
+  const refreshToken = jwt.sign({ userId, type: 'refresh', fp: fingerprint || null }, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpiresIn || '7d' });
   return { accessToken, refreshToken };
 };
 
@@ -92,7 +92,7 @@ exports.requestOtp = async (req, res) => {
     // Generate temp token for OTP verification (must match verifyOtp's expected step)
     const tempToken = jwt.sign(
       { userId: user.Id, email: user.Email, step: 'PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' },
-      config.jwtSecret,
+      config.jwt.secret,
       { expiresIn: '10m' }
     );
 
@@ -279,7 +279,7 @@ exports.login = async (req, res) => {
     }
 
     // OTP REQUIRED — Generate temp token and send OTP
-    const tempToken = jwt.sign({ userId: user.Id, email: user.Email, step: 'PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' }, config.jwtSecret, { expiresIn: '10m' });
+    const tempToken = jwt.sign({ userId: user.Id, email: user.Email, step: 'PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' }, config.jwt.secret, { expiresIn: '10m' });
 
     try {
       const otpResult = await otpService.sendOtp(user.Id, user.Email, 'LOGIN', { ipAddress: clientIp, userAgent: req.headers['user-agent'] });

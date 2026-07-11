@@ -4,31 +4,11 @@ const config = require('../config/env');
 const tokenBlacklist = require('../services/tokenBlacklistService');
 const { isGlobalUserRole } = require('../utils/roleUtils');
 
-const DEMO_MODE = process.env.DEMO_MODE === 'true'; // Strictly require DEMO_MODE=true in .env to prevent accidental bypass in production
-
 /**
  * SQL-based Authentication Middleware
  */
 exports.authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-
-  if (DEMO_MODE) {
-    req.userId = 'demo-user';
-    req.user = {
-      Id: 'demo-user',
-      _id: 'demo-user',
-      FirstName: 'Demo',
-      LastName: 'User',
-      Email: 'demo@brandcentral.in',
-      Avatar: null,
-      role: { Name: 'admin', name: 'admin', DisplayName: 'Administrator' },
-      assignedSellers: [],
-      isActive: true,
-      hasPermission: async () => true,
-      hasAnyPermission: async () => true
-    };
-    return next();
-  }
 
   try {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -41,7 +21,7 @@ exports.authenticate = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Token revoked' });
     }
 
-    const decoded = jwt.verify(token, config.jwtSecret);
+    const decoded = jwt.verify(token, config.jwt.secret);
 
     if (await tokenBlacklist.isUserBlacklisted(decoded.userId, decoded.iat)) {
       return res.status(401).json({ success: false, message: 'Session invalidated' });
@@ -49,11 +29,13 @@ exports.authenticate = async (req, res, next) => {
 
     const pool = await getPool();
 
-    // 1. Fetch User and Role
     const userResult = await pool.request()
       .input('id', sql.VarChar, decoded.userId)
       .query(`
-        SELECT U.*, R.Name as RoleName, R.DisplayName as RoleDisplayName 
+        SELECT U.Id, U.Email, U.FirstName, U.LastName, U.Avatar, U.IsActive,
+               U.RoleId, U.ExtraPermissions, U.ExcludedPermissions,
+               U.PasswordExpiresAt, U.IsOnline, U.LastSeen,
+               R.Name as RoleName, R.DisplayName as RoleDisplayName 
         FROM Users U
         LEFT JOIN Roles R ON U.RoleId = R.Id
         WHERE U.Id = @id
@@ -68,20 +50,20 @@ exports.authenticate = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
 
-    // Fingerprint verification (soft - log but don't block on first mismatch)
     if (decoded.fp) {
       const currentFp = Buffer.from(`${req.headers['user-agent'] || ''}|${req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''}`).toString('base64').slice(0, 32);
       if (decoded.fp !== currentFp) {
-        console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId}`);
+        console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId} from ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
+        if (process.env.NODE_ENV === 'production') {
+          return res.status(401).json({ success: false, message: 'Session invalid: device mismatch' });
+        }
       }
     }
 
-    // Password expiry check (90 days)
     if (userData.PasswordExpiresAt && new Date(userData.PasswordExpiresAt) < new Date()) {
       req.forcePasswordReset = true;
     }
 
-    // 2. Fetch Permissions
     const permissionsResult = await pool.request()
       .input('roleId', sql.VarChar, userData.RoleId)
       .query(`
@@ -92,7 +74,6 @@ exports.authenticate = async (req, res, next) => {
       `);
     let permissions = permissionsResult.recordset.map(p => p.Name);
 
-    // Resolve Extra/Excluded IDs to Names
     const allPermsResult = await pool.request().query('SELECT Id, Name FROM Permissions');
     const permMap = {};
     allPermsResult.recordset.forEach(p => {
@@ -117,7 +98,6 @@ exports.authenticate = async (req, res, next) => {
       console.error('Failed to parse ExcludedPermissions:', e);
     }
 
-    // Apply overrides
     extraPerms.forEach(p => {
       if (p && !permissions.includes(p)) {
         permissions.push(p);
@@ -125,7 +105,6 @@ exports.authenticate = async (req, res, next) => {
     });
     permissions = permissions.filter(p => !exclPerms.includes(p));
 
-    // 3. Fetch Assigned Sellers
     let assignedSellers = [];
     if (userData.RoleName === 'listing_team') {
       const bmSellersResult = await pool.request()
@@ -146,11 +125,17 @@ exports.authenticate = async (req, res, next) => {
       assignedSellers = sellersResult.recordset.map(s => s.SellerId);
     }
 
-    // 4. Construct User Object
     req.userId = userData.Id;
     req.user = {
-      ...userData,
-      _id: userData.Id, // Compatibility with legacy code
+      Id: userData.Id,
+      _id: userData.Id,
+      Email: userData.Email,
+      FirstName: userData.FirstName,
+      LastName: userData.LastName,
+      Avatar: userData.Avatar,
+      IsActive: userData.IsActive,
+      IsOnline: userData.IsOnline,
+      LastSeen: userData.LastSeen,
       role: {
         Name: userData.RoleName === 'super_admin' ? 'admin' : userData.RoleName,
         name: userData.RoleName === 'super_admin' ? 'admin' : userData.RoleName,
@@ -166,6 +151,7 @@ exports.authenticate = async (req, res, next) => {
   } catch (error) {
     if (error.name === 'TokenExpiredError') return res.status(401).json({ success: false, message: 'Token expired. Please login again.' });
     if (error.name === 'JsonWebTokenError') return res.status(401).json({ success: false, message: 'Invalid token' });
+    console.error('[AUTH] Authentication error:', error.message);
     res.status(500).json({ success: false, message: 'Authentication failed' });
   }
 };
@@ -245,7 +231,6 @@ exports.checkUserHierarchyAccess = async (req, res, next) => {
 
   try {
     const pool = await getPool();
-    // Simplified: Check if target user has the current user as supervisor
     const supervisorResult = await pool.request()
       .input('userId', sql.VarChar, targetUserId)
       .input('supervisorId', sql.VarChar, req.user.Id || req.user._id)
