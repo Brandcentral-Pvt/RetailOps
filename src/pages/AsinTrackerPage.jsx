@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../components/DataTable';
 import KPICard from '../components/KPICard';
@@ -280,7 +281,7 @@ const AsinTrackerPage = () => {
     </div>
   );
 
-  if (loading && asins.length === 0) { return <PageLoader message="Loading Asin Tracker..." />; }
+  if (loading && asins.length === 0) { return <Spinner />; }
 
   return (
     <>

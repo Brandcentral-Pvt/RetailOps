@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Upload, Star, Trash2, RotateCcw, Search, Grid, List,
@@ -404,7 +405,7 @@ const FileManagerPage = () => {
                  {/* File area */}
                  <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
                      {loading && files.length === 0 ? (
-                         <PageLoader message="Loading Files..." />
+                         <Spinner />
                      ) : filtered.length === 0 ? (
                          section === 'trash' ? (
                              <EmptyState

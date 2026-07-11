@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../services/db';
 import {
@@ -485,7 +486,7 @@ const TemplateManagerPage = () => {
 
     // Show page loader when loading
     if (loading && taskTemplates.length === 0 && goalTemplates.length === 0) {
-        return <PageLoader message="Loading Automation Templates..." />;
+        return <Spinner />;
     }
 
     // Show error state
