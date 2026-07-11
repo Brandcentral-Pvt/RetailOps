@@ -67,7 +67,7 @@ const AdsFilters = ({
         />
         
         <RangePicker
-          value={startDate && endDate ? [startDate, endDate] : null}
+          value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
           onChange={handleDateChange}
           format="DD MMM YYYY"
           style={{ borderRadius: 8, width: 200 }}
