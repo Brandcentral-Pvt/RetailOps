@@ -2,7 +2,7 @@ import React from 'react';
 import { Spin } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 
-const antIcon = <LoadingOutlined style={{ fontSize: 24, color: '#4F46E5' }} spin />;
+const antIcon = <LoadingOutlined style={{ fontSize: 28, color: '#4F46E5' }} spin />;
 
 export function Spinner({ size = 'large', tip, style }) {
   return (
@@ -10,12 +10,13 @@ export function Spinner({ size = 'large', tip, style }) {
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      padding: '40px 0',
+      width: '100%',
+      minHeight: 400,
       ...style 
     }}>
       <div style={{ textAlign: 'center' }}>
         <Spin indicator={antIcon} size={size} />
-        {tip && <div style={{ marginTop: 8, fontSize: 12, color: '#71717a' }}>{tip}</div>}
+        {tip && <div style={{ marginTop: 12, fontSize: 13, color: '#71717a', fontWeight: 500 }}>{tip}</div>}
       </div>
     </div>
   );
