@@ -36,9 +36,11 @@ const AdsManagerPage = () => {
 
   const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
 
+  if (loading && !data.length) return <Spinner />;
+
   return (
     <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '16px 24px' }}>
-      {error && !loading && <LoadError message={error} onRetry={handleRefresh} />}
+      {error && <LoadError message={error} onRetry={handleRefresh} />}
 
       <AdsImportModal
         isOpen={showImportModal}
@@ -109,9 +111,7 @@ const AdsManagerPage = () => {
         )}
 
         <div style={{ overflow: 'auto' }}>
-          {loading && !data.length ? (
-            <Spinner />
-          ) : data.length === 0 ? (
+          {data.length === 0 ? (
             <EmptyState 
               title="No ads data found"
               description="Import your ads data or adjust filters"
