@@ -5,6 +5,7 @@ const TablePagination = lazy(() => import('@mui/material/TablePagination'));
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
+import { LoadError } from '../components/LoadError';
 import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi, sellerApi, taskApi, rulesetApi } from '../services/api';
@@ -397,6 +398,7 @@ const AsinManagerPage = (props) => {
   const [asins, setAsins] = useState([]);
   const [globalHistoryDates, setGlobalHistoryDates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showDashboard, setShowDashboard] = useState(true);
   const [showTable, setShowTable] = useState(true);
   const [newAsin, setNewAsin] = useState('');
@@ -407,7 +409,6 @@ const AsinManagerPage = (props) => {
   const [taskDescription, setTaskDescription] = useState('');
   const [taskPriority, setTaskPriority] = useState('MEDIUM');
   const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
-  const [error, setError] = useState(null);
   const [scrapingIds, setScrapingIds] = useState(new Set());
   const [stats, setStats] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
@@ -2032,6 +2033,10 @@ const AsinManagerPage = (props) => {
 
   if (!initialLoadCompleteRef.current && loading && asins.length === 0) {
     return <PageLoader message="Loading ASIN Manager..." />;
+  }
+
+  if (error && !loading && asins.length === 0) {
+    return <LoadError message={error} onRetry={() => { setError(null); setLoading(true); loadAsins(); }} />;
   }
 
   const thStyle = {
