@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/Spinner";
 import { LoadError, EmptyState } from "@/components/LoadError";
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { Card, Button, Tag, Select } from 'antd';
+import { Card, Button, Tag, Select, Spin } from 'antd';
 import { RefreshCw, Download, Upload, BarChart3, ChevronUp } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useAdsData } from '../hooks/useAdsData';
@@ -23,16 +23,21 @@ const AdsManagerPage = () => {
   }, [setPageTitle]);
 
   const filters = useAdsFilters();
-  const { data, loading, error, globalChartData, summary, fetchData } = useAdsData();
+  const { data, loading, filterLoading, error, globalChartData, summary, fetchData, debouncedFetch } = useAdsData();
   const { selectedMetrics, setSelectedMetrics, chartState, chartOptions, metricOptions } = useAdsChart(globalChartData);
 
   const handleRefresh = useCallback(() => {
-    fetchData(filters.getFilterParams());
+    fetchData(filters.getFilterParams(), true);
   }, [fetchData, filters.getFilterParams]);
 
   useEffect(() => {
     fetchData(filters.getFilterParams());
   }, [fetchData, filters.getFilterParams]);
+
+  // Debounced filter changes
+  useEffect(() => {
+    debouncedFetch(filters.getFilterParams());
+  }, [filters.searchQuery, filters.groupBy, filters.selectedSeller, filters.startDate, filters.endDate]);
 
   const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
 
@@ -66,7 +71,7 @@ const AdsManagerPage = () => {
         fetchSellerItem={filters.fetchSellerItem}
         onRefresh={handleRefresh}
         onImport={() => setShowImportModal(true)}
-        loading={loading}
+        loading={loading || filterLoading}
       />
 
       <Card 
@@ -78,6 +83,7 @@ const AdsManagerPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 3, height: 14, background: '#4F46E5', borderRadius: 2 }} />
               <span style={{ fontWeight: 600, color: '#18181b', fontSize: 14 }}>Ads Performance</span>
+              {filterLoading && <Spin size="small" style={{ marginLeft: 8 }} />}
               <Tag color="default" style={{ borderRadius: 20, fontSize: 10 }}>
                 {data.length} records
               </Tag>
