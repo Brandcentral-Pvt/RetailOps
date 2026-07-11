@@ -325,11 +325,11 @@ io.on('connection', async (socket) => {
   try {
     const jwt = require('jsonwebtoken');
     const config = require('./config/env');
-    if (!config.jwtSecret) {
+    if (!config.jwt?.secret) {
       socket.disconnect(true);
       return;
     }
-    decoded = jwt.verify(token, config.jwtSecret);
+    decoded = jwt.verify(token, config.jwt.secret);
   } catch (err) {
     socket.disconnect(true);
     return;
