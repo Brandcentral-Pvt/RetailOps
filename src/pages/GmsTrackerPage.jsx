@@ -12,6 +12,7 @@ import { userApi } from '../services/api';
 import { useDateRange } from '../contexts/DateRangeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
+import { LoadError } from '@/components/LoadError';
 import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -108,6 +109,7 @@ export default function GmsTrackerPage() {
   const { isAdmin, isGlobalUser, hasPermission } = useAuth();
   const [gmsData, setGmsData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadDate, setUploadDate] = useState(dayjs());
   const [selectedBrands, setSelectedBrands] = useState([]);
@@ -145,57 +147,59 @@ export default function GmsTrackerPage() {
   const [uploadStatus, setUploadStatus] = useState('');
 
   // Fetch Brands/Sellers, ASINs & GMS data — only static data once, GMS data on every date change
-  useEffect(() => {
-    const loadAllData = async () => {
-      setLoading(true);
-      try {
-        let sellers = dbSellersRef.current;
-        let asins = dbAsinsRef.current;
+  const loadAllData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let sellers = dbSellersRef.current;
+      let asins = dbAsinsRef.current;
 
-        // Only fetch sellers/asins/managers on the first load
-        if (!staticLoadedRef.current) {
-          const [sellersRes, asinsRes, managersRes] = await Promise.all([
-            sellerApi.getAll({ limit: 1000 }).catch(() => null),
-            gmsApi.getAsins().catch(() => null),
-            userApi.getManagers().catch(() => null)
-          ]);
+      // Only fetch sellers/asins/managers on the first load
+      if (!staticLoadedRef.current) {
+        const [sellersRes, asinsRes, managersRes] = await Promise.all([
+          sellerApi.getAll({ limit: 1000 }).catch(() => null),
+          gmsApi.getAsins().catch(() => null),
+          userApi.getManagers().catch(() => null)
+        ]);
 
-          if (sellersRes?.success && sellersRes.data?.sellers) {
-            sellers = sellersRes.data.sellers;
-            dbSellersRef.current = sellers;
-            setDbSellers(sellers);
-          }
-          if (asinsRes?.success && asinsRes.data) {
-            asins = asinsRes.data || [];
-            dbAsinsRef.current = asins;
-          }
-          if (managersRes?.success && managersRes.data) {
-            setDbManagers(managersRes.data);
-          }
-          staticLoadedRef.current = true;
+        if (sellersRes?.success && sellersRes.data?.sellers) {
+          sellers = sellersRes.data.sellers;
+          dbSellersRef.current = sellers;
+          setDbSellers(sellers);
         }
-
-        // Always re-fetch GMS data when date range changes
-        // Default to current month if no date range set (prevent 4GB memory spike)
-        const effectiveStart = startDate || dayjs().startOf('month').format('YYYY-MM-DD');
-        const effectiveEnd = endDate || dayjs().endOf('month').format('YYYY-MM-DD');
-        const gmsRes = await gmsApi.getAll({
-          startDate: effectiveStart,
-          endDate: effectiveEnd
-        }).catch(() => null);
-
-        if (gmsRes?.success && gmsRes.data) {
-          const resolved = resolveDbBrands(gmsRes.data, asins, sellers);
-          setGmsData(resolved);
+        if (asinsRes?.success && asinsRes.data) {
+          asins = asinsRes.data || [];
+          dbAsinsRef.current = asins;
         }
-      } catch (err) {
-        console.error('Failed to load GMS data:', err);
-      } finally {
-        setLoading(false);
+        if (managersRes?.success && managersRes.data) {
+          setDbManagers(managersRes.data);
+        }
+        staticLoadedRef.current = true;
       }
-    };
-    loadAllData();
+
+      // Always re-fetch GMS data when date range changes
+      const effectiveStart = startDate || dayjs().startOf('month').format('YYYY-MM-DD');
+      const effectiveEnd = endDate || dayjs().endOf('month').format('YYYY-MM-DD');
+      const gmsRes = await gmsApi.getAll({
+        startDate: effectiveStart,
+        endDate: effectiveEnd
+      }).catch(() => null);
+
+      if (gmsRes?.success && gmsRes.data) {
+        const resolved = resolveDbBrands(gmsRes.data, asins, sellers);
+        setGmsData(resolved);
+      }
+    } catch (err) {
+      console.error('Failed to load GMS data:', err);
+      setError('Failed to load GMS data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [startDate, endDate]);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
 
   const clearAllData = useCallback(() => {
     Modal.confirm({
