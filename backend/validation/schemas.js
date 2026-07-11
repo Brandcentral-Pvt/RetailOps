@@ -67,6 +67,18 @@ const schemas = {
     newPassword: passwordField,
   }),
 
+  requestPasswordChange: Joi.object({
+    currentPassword: Joi.string().max(128).required(),
+  }),
+
+  changePasswordWithOtp: Joi.object({
+    tempToken: Joi.string().min(20).max(2000).required(),
+    otp: Joi.string().pattern(/^\d{6}$/).required().messages({
+      'string.pattern.base': 'OTP must be a 6-digit code',
+    }),
+    newPassword: passwordField,
+  }),
+
   createUser: Joi.object({
     email: emailField,
     password: Joi.string().min(8).max(128).optional(),
