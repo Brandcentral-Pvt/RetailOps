@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Table, Tag, Progress, Typography, Space, Select, Button, DatePicker, Spin, Badge, Tooltip, Divider, Empty } from 'antd';
 import {
@@ -293,7 +294,7 @@ export default function PemsDashboard() {
     { title: 'SLA%', key: 'sla', width: 55, align: 'center', render: (_, r) => <Text style={{ fontSize: 10, fontWeight: 700, color: r.slaCompliance >= 90 ? '#16a34a' : '#dc2626' }}>{r.slaCompliance}%</Text> },
   ];
 
-  if (loading && !summary) return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
+  if (loading && !summary) return <div style={{ textAlign: 'center', padding: 60 }}><Spinner /></div>;
 
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh' }}>

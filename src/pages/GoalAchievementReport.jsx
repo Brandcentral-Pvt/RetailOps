@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../services/db';
 import {
@@ -64,7 +65,7 @@ const GoalAchievementReport = () => {
     };
 
     if (loading && !data) {
-        return <PageLoader message="Analyzing Performance..." />;
+        return <Spinner />;
     }
 
     const { metrics = [], summary = {} } = data || {};

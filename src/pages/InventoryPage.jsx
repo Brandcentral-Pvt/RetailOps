@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
@@ -128,7 +129,7 @@ const InventoryPage = () => {
   };
 
   if (loading && data.length === 0) {
-    return <PageLoader message="Loading Inventory..." />;
+    return <Spinner />;
   }
 
   return (

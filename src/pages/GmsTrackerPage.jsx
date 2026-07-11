@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo, useCallback, useRef, useTransition } from 'react';
 import {
   Card, Row, Col, Table, Button, DatePicker, Upload, Modal, Typography, Space, Input, Tag, Tooltip, message, Empty, Progress, Skeleton, Select, Segmented, Radio
@@ -13,6 +14,7 @@ import { useDateRange } from '../contexts/DateRangeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { LoadError } from '@/components/LoadError';
+import { GmsTrackerSkeleton } from '@/components/ui/PageSkeletons';
 import dayjs from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -972,7 +974,10 @@ export default function GmsTrackerPage() {
 
   return (
     <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}>
-      {loading && (
+      {loading && gmsData.length === 0 && (
+        <Spinner />
+      )}
+      {loading && gmsData.length > 0 && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
           <LoadingIndicator type="line-simple" size="md" />
         </div>

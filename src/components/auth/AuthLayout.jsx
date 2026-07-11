@@ -1,412 +1,144 @@
-import React from "react";
-import {
-  Card,
-  Typography,
-  ConfigProvider,
-  Space,
-  Divider,
-} from "antd";
-import { motion } from "framer-motion";
-import {
-  ShieldCheck,
-  BarChart3,
-  Users,
-  Clock3,
-} from "lucide-react";
+import React from 'react';
+import { ConfigProvider, Typography } from 'antd';
+import { motion } from 'framer-motion';
+import { ShieldCheck } from 'lucide-react';
 
-import { RetailOpsWordmark } from "../common/BrandLogo";
+const { Text } = Typography;
 
-const { Text, Title } = Typography;
-
-const AuthLayout = ({
-  children,
-  footerText = "RetailOps Technologies",
-}) => {
+const AuthLayout = ({ children, footerText = 'RetailOps' }) => {
   return (
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: "#0145F2",
-          colorInfo: "#0145F2",
-          borderRadius: 14,
-          fontFamily: "Inter, sans-serif",
-          colorBgContainer: "#FFFFFF",
-          colorText: "#0F172A",
-          colorTextDescription: "#64748B",
+          colorPrimary: '#18181b',
+          borderRadius: 10,
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+          colorBgContainer: '#FFFFFF',
+          colorText: '#18181b',
+          colorTextDescription: '#71717a',
         },
-
         components: {
-          Button: {
-            controlHeight: 52,
-            borderRadius: 14,
-            fontWeight: 600,
-            fontSize: 14,
-          },
-
-          Input: {
-            controlHeight: 52,
-            borderRadius: 14,
-            activeBorderColor: "#0145F2",
-          },
-
-          Checkbox: {
-            colorPrimary: "#0145F2",
-          },
+          Button: { controlHeight: 44, borderRadius: 10, fontWeight: 600, fontSize: 14 },
+          Input: { controlHeight: 44, borderRadius: 10 },
         },
       }}
     >
-      <div style={styles.page}>
-        <div style={styles.backgroundGlowTop} />
-        <div style={styles.backgroundGlowBottom} />
+      <div style={styles.wrapper}>
+        <div style={styles.bgOrb1} />
+        <div style={styles.bgOrb2} />
+        
+        <motion.div 
+          style={styles.container} 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 0.5 }}
+        >
+          <div style={styles.logoWrap}>
+            <img 
+              src="https://brandcentral.in/wp-content/uploads/2024/09/logo.png" 
+              alt="BrandCentral" 
+              style={styles.logo} 
+            />
+          </div>
 
-        <div style={styles.container}>
-          {/* ====================================================== */}
-          {/* LEFT SIDE */}
-          {/* ====================================================== */}
-
-          <motion.div
-            initial={{ opacity: 0, x: -15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.45 }}
-            style={styles.leftSection}
-          >
-            <Card
-              bordered={false}
-              style={styles.authCard}
-              bodyStyle={{
-                padding: 40,
-              }}
-            >
-              {/* Logo */}
-              <div style={styles.logoWrapper}>
-                <RetailOpsWordmark
-                  size={26}
-                  color="#0F172A"
-                />
-              </div>
-
-              {/* Security Badge */}
-              <div style={styles.securityBadge}>
-                <ShieldCheck
-                  size={16}
-                  color="#16A34A"
-                />
-
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#475569",
-                    fontWeight: 500,
-                  }}
-                >
-                  Secure enterprise authentication
-                </Text>
-              </div>
-
-              <Divider
-                style={{
-                  marginTop: 24,
-                  marginBottom: 24,
-                }}
-              />
-
+          <div style={styles.card}>
+            <div style={styles.cardAccent} />
+            <div style={styles.cardBody}>
               {children}
-
-              <Divider />
-
+              
               <div style={styles.footer}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#94A3B8",
-                  }}
-                >
-                  RetailOps Partner Platform
-                </Text>
-
-                <br />
-
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: "#CBD5E1",
-                  }}
-                >
-                  © 2026 {footerText}
-                </Text>
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* ====================================================== */}
-          {/* RIGHT SIDE */}
-          {/* ====================================================== */}
-
-          <motion.div
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.55 }}
-            style={styles.rightSection}
-          >
-            <div style={styles.rightContent}>
-              <Text style={styles.badge}>
-                RetailOps Intelligence Platform
-              </Text>
-
-              <Title
-                level={1}
-                style={styles.heroTitle}
-              >
-                Unified Commerce
-                <br />
-                Operations Platform
-              </Title>
-
-              <Text style={styles.heroSubtitle}>
-                Manage sellers, workflows, tickets,
-                SLAs, analytics, reports and support
-                operations from a single enterprise
-                ecosystem.
-              </Text>
-
-              {/* KPI GRID */}
-
-              <div style={styles.kpiGrid}>
-                <div style={styles.kpiCard}>
-                  <BarChart3
-                    size={18}
-                    color="#0145F2"
-                  />
-
-                  <Title
-                    level={3}
-                    style={styles.kpiNumber}
-                  >
-                    50K+
-                  </Title>
-
-                  <Text style={styles.kpiLabel}>
-                    Monthly Tasks
-                  </Text>
+                <div style={styles.securityBadge}>
+                  <ShieldCheck size={14} color="#2E7D32" />
+                  <Text style={styles.securityText}>Secured by enterprise encryption</Text>
                 </div>
-
-                <div style={styles.kpiCard}>
-                  <Clock3
-                    size={18}
-                    color="#0145F2"
-                  />
-
-                  <Title
-                    level={3}
-                    style={styles.kpiNumber}
-                  >
-                    99.8%
-                  </Title>
-
-                  <Text style={styles.kpiLabel}>
-                    SLA Compliance
-                  </Text>
-                </div>
-
-                <div style={styles.kpiCard}>
-                  <Users
-                    size={18}
-                    color="#0145F2"
-                  />
-
-                  <Title
-                    level={3}
-                    style={styles.kpiNumber}
-                  >
-                    500+
-                  </Title>
-
-                  <Text style={styles.kpiLabel}>
-                    Seller Partners
-                  </Text>
-                </div>
-
-                <div style={styles.kpiCard}>
-                  <ShieldCheck
-                    size={18}
-                    color="#0145F2"
-                  />
-
-                  <Title
-                    level={3}
-                    style={styles.kpiNumber}
-                  >
-                    24/7
-                  </Title>
-
-                  <Text style={styles.kpiLabel}>
-                    Support Operations
-                  </Text>
-                </div>
-              </div>
-
-              {/* Trusted Brands */}
-
-              <div style={styles.brandSection}>
-                <Text style={styles.brandLabel}>
-                  TRUSTED COMMERCE NETWORK
-                </Text>
-
-                <Space size={20}>
-                  <Text strong>Amazon</Text>
-                  <Text strong>Flipkart</Text>
-                  <Text strong>Myntra</Text>
-                  <Text strong>Nykaa</Text>
-                  <Text strong>Ajio</Text>
-                </Space>
+                <Text style={styles.copyright}>&copy; {new Date().getFullYear()} {footerText}. All rights reserved.</Text>
               </div>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       </div>
     </ConfigProvider>
   );
 };
 
 const styles = {
-  page: {
-    minHeight: "100vh",
-    background:
-      "linear-gradient(180deg,#FFFFFF 0%,#F8FAFC 100%)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-    position: "relative",
-    overflow: "hidden",
+  wrapper: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    background: '#f4f5f7',
+    fontFamily: "'Inter', sans-serif",
   },
-
-  backgroundGlowTop: {
-    position: "absolute",
-    width: 500,
-    height: 500,
-    background:
-      "rgba(1,69,242,0.05)",
-    borderRadius: "50%",
-    top: -200,
-    right: -150,
-    filter: "blur(80px)",
+  bgOrb1: {
+    position: 'absolute',
+    width: 600,
+    height: 600,
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(251,79,64,0.08) 0%, transparent 65%)',
+    top: '-200px',
+    left: '-200px',
   },
-
-  backgroundGlowBottom: {
-    position: "absolute",
-    width: 500,
-    height: 500,
-    background:
-      "rgba(59,130,246,0.04)",
-    borderRadius: "50%",
-    bottom: -250,
-    left: -200,
-    filter: "blur(90px)",
+  bgOrb2: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(79,70,229,0.06) 0%, transparent 65%)',
+    bottom: '-150px',
+    right: '-100px',
   },
-
   container: {
-    width: "100%",
-    maxWidth: 1320,
-    display: "grid",
-    gridTemplateColumns: "520px 1fr",
-    gap: 80,
-    alignItems: "center",
-    zIndex: 2,
+    width: '100%',
+    maxWidth: 420,
+    padding: '0 20px',
+    zIndex: 1,
   },
-
-  leftSection: {},
-
-  authCard: {
-    borderRadius: 24,
-    background: "#FFFFFF",
-    border: "1px solid #E2E8F0",
-
-    boxShadow: `
-      0 1px 2px rgba(15,23,42,.04),
-      0 8px 24px rgba(15,23,42,.06),
-      0 24px 48px rgba(15,23,42,.04)
-    `,
+  logoWrap: {
+    textAlign: 'center',
+    marginBottom: 24,
   },
-
-  logoWrapper: {
-    display: "flex",
-    justifyContent: "center",
+  logo: {
+    height: 36,
+    width: 'auto',
   },
-
-  securityBadge: {
-    marginTop: 20,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  card: {
+    background: '#fff',
+    borderRadius: 16,
+    boxShadow: '0 8px 30px rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+    position: 'relative',
   },
-
+  cardAccent: {
+    height: 3,
+    background: 'linear-gradient(90deg, #18181b, #4F46E5, #18181b)',
+  },
+  cardBody: {
+    padding: '32px 28px 24px',
+  },
   footer: {
-    textAlign: "center",
-  },
-
-  rightSection: {},
-
-  rightContent: {
-    maxWidth: 620,
-  },
-
-  badge: {
-    padding: "8px 14px",
-    borderRadius: 999,
-    background: "#EFF6FF",
-    color: "#0145F2",
-    fontWeight: 600,
-  },
-
-  heroTitle: {
     marginTop: 24,
-    marginBottom: 16,
-    fontSize: 52,
-    lineHeight: 1.1,
-    color: "#0F172A",
+    paddingTop: 16,
+    borderTop: '1px solid #f4f4f5',
+    textAlign: 'center',
   },
-
-  heroSubtitle: {
-    fontSize: 18,
-    color: "#64748B",
-    lineHeight: 1.8,
+  securityBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 8,
   },
-
-  kpiGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2,1fr)",
-    gap: 20,
-    marginTop: 40,
-  },
-
-  kpiCard: {
-    background: "#FFFFFF",
-    border: "1px solid #E2E8F0",
-    borderRadius: 20,
-    padding: 24,
-  },
-
-  kpiNumber: {
-    marginTop: 12,
-    marginBottom: 4,
-  },
-
-  kpiLabel: {
-    color: "#64748B",
-  },
-
-  brandSection: {
-    marginTop: 40,
-  },
-
-  brandLabel: {
-    display: "block",
-    marginBottom: 12,
+  securityText: {
     fontSize: 11,
-    letterSpacing: 1,
-    color: "#94A3B8",
+    color: '#71717a',
+    fontWeight: 500,
+  },
+  copyright: {
+    fontSize: 11,
+    color: '#a1a1aa',
   },
 };
 

@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 // pages/SellersPage.tsx — complete fixed version with optimistic updates
 
 import React, {
@@ -19,6 +20,7 @@ import {
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { LoadError } from '@/components/LoadError';
+import { SellersSkeleton } from '@/components/ui/PageSkeletons';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useHeader } from '../contexts/HeaderContext';
@@ -927,7 +929,7 @@ const SellersPage = () => {
   }), [selectedSellerIds]);
 
   if (loading && sellers.length === 0) {
-    return <PageLoader message="Loading Sellers..." />;
+    return <Spinner />;
   }
 
   if (error && !loading && sellers.length === 0) {

@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useRef } from 'react';
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
@@ -148,7 +149,7 @@ const ScrapeTasksPage = () => {
     { title: 'Latest Progress', value: tasks.length > 0 ? (tasks.find(t => t.status === 'RUNNING')?.progress || 0) + '%' : '0%', icon: 'Percent', trend: 0, trendType: 'neutral' },
   ];
 
-  if (loading) return <PageLoader message="Initializing Real-time Pipeline..." />;
+  if (loading) return <Spinner />;
 
   return (
     <div className="scrape-tasks-container container-fluid p-4">

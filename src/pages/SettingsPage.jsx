@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card, Input, InputNumber, Switch, TimePicker, Button,
@@ -272,7 +273,7 @@ const SettingsPage = () => {
     ];
 
     if (loading) {
-        return <PageLoader message="Loading configuration..." />;
+        return <Spinner />;
     }
 
     return (
