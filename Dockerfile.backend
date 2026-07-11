@@ -1,0 +1,64 @@
+# ─── Backend Dockerfile ────────────────────────────────────────────────────
+# Multi-stage build for production deployment
+# Stage 1: Build dependencies
+# Stage 2: Production runtime
+
+# ── Stage 1: Dependencies ──────────────────────────────────────────────
+FROM node:20-alpine AS deps
+
+WORKDIR /app/backend
+
+# Copy package files first for layer caching
+COPY backend/package.json backend/package-lock.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev && npm cache clean --force
+
+# ── Stage 2: Production ───────────────────────────────────────────────
+FROM node:20-alpine AS production
+
+# Security: non-root user
+RUN addgroup -g 1001 -S brandcentral && \
+    adduser -S brandcentral -u 1001 -G brandcentral
+
+WORKDIR /app
+
+# Copy dependencies from stage 1
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
+
+# Copy backend source code
+COPY backend/package.json ./backend/
+COPY backend/server.js ./backend/
+COPY backend/controllers/ ./backend/controllers/
+COPY backend/services/ ./backend/services/
+COPY backend/routes/ ./backend/routes/
+COPY backend/middleware/ ./backend/middleware/
+COPY backend/emails/ ./backend/emails/
+COPY backend/utils/ ./backend/utils/
+COPY backend/validation/ ./backend/validation/
+COPY backend/config/ ./backend/config/
+COPY backend/jobs/ ./backend/jobs/
+COPY backend/public/ ./backend/public/
+COPY backend/migrations/ ./backend/migrations/
+
+# Copy frontend build
+COPY dist/ ./frontend/
+
+# Create uploads directory
+RUN mkdir -p /app/backend/uploads/exports /app/backend/uploads/temp
+
+# Set ownership
+RUN chown -R brandcentral:brandcentral /app
+
+USER brandcentral
+
+# Expose backend port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
+
+# Start backend
+WORKDIR /app/backend
+CMD ["node", "--max-old-space-size=4096", "server.js"]
