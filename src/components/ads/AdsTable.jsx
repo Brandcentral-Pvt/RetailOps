@@ -1,423 +1,355 @@
-import React, { useMemo, useState } from 'react';
-import { Table, Typography, Tag, Tooltip, Button } from 'antd';
-import { 
-  ChevronDown, ChevronRight, Eye, Package, 
-  TrendingUp, TrendingDown, Minus
+import React, { useState, useMemo, Suspense, lazy } from 'react';
+import { Button, Tooltip, Typography, Spin } from 'antd';
+import {
+  ChevronDown, ChevronRight, ChevronLeft,
+  Eye, Package, TrendingUp, TrendingDown, Activity,
+  BarChart3, Target, RefreshCw, Eye as EyeIcon,
+  FileBarChart, Layers, TrendingUp as TrendUpIcon
 } from 'lucide-react';
 
 const { Text } = Typography;
+const TablePagination = lazy(() => import('@mui/material/TablePagination'));
 
-const formatValue = (val, type = 'number') => {
-  if (val === null || val === undefined) return '-';
-  const num = Number(val);
-  if (isNaN(num)) return '-';
-  if (type === 'currency') return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (type === 'percent') return `${num.toFixed(2)}%`;
-  if (type === 'ratio') return num.toFixed(2);
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString('en-IN');
+const formatCompact = (val) => {
+  if (typeof val !== 'number') return '0.00';
+  if (val >= 1000000) return (val / 1000000).toFixed(2) + 'M';
+  if (val >= 1000) return (val / 1000).toFixed(2) + 'K';
+  return val.toFixed(2);
 };
 
-const TrendIndicator = ({ current, previous, isInverted = false }) => {
-  if (!previous || previous === 0) return <Minus size={12} color="#a1a1aa" />;
-  const change = ((current - previous) / previous) * 100;
-  if (Math.abs(change) < 0.5) return <Minus size={12} color="#a1a1aa" />;
-  const isGood = isInverted ? change < 0 : change > 0;
+const normalizeDateStr = (dateInput) => {
+  if (!dateInput) return '';
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) {
+      if (typeof dateInput === 'string') return dateInput.substring(0, 10);
+      return '';
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch (e) { return ''; }
+};
+
+const MiniSpark = ({ data, color }) => {
+  if (!data || data.length < 2) return <div style={{ width: '100%', height: 12 }} />;
+  const max = Math.max(...data) || 1;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      {isGood ? <TrendingUp size={12} color="#2E7D32" /> : <TrendingDown size={12} color="#C62828" />}
-      <span style={{ fontSize: 10, fontWeight: 600, color: isGood ? '#2E7D32' : '#C62828' }}>
-        {Math.abs(change).toFixed(1)}%
-      </span>
+    <div style={{ width: '100%', height: 14, overflow: 'hidden', opacity: 0.8 }}>
+      <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
+        <polyline fill="none" stroke={color} strokeWidth="8"
+          points={data.map((v, i) => `${(i / (data.length - 1)) * 100},${100 - ((v / max) * 90)}`).join(' ')} />
+      </svg>
     </div>
   );
 };
 
-const AdsTable = ({ 
-  data = [], 
-  loading, 
-  groupBy = 'asin', 
+const AdsTable = ({
+  data = [],
+  loading,
+  groupBy = 'asin',
   pagination = { page: 1, limit: 50, total: 0, totalPages: 0 },
+  sortBy = 'sales',
+  sortOrder = 'desc',
+  selectedSeller = '',
+  activeDates = [],
+  expandedCols = {},
+  expandedParents = new Set(),
+  onSort,
   onPageChange,
   onPageSizeChange,
-  onViewDetails 
+  onExpandCol,
+  onExpandParent,
+  onSetActiveHistoryRow
 }) => {
-  const [expandedRowKeys, setExpandedRowKeys] = useState([]);
-  const [expandedMetrics, setExpandedMetrics] = useState(new Set());
+  const toggleCol = onExpandCol || (() => {});
+  const toggleParentExpand = onExpandParent || (() => {});
 
-  const toggleMetric = (key) => {
-    setExpandedMetrics(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
+  const getTransitionStyle = (isExpanded, index, total, width = '56px') => ({
+    width: isExpanded ? width : '0px',
+    overflow: 'hidden',
+    transition: 'all 0.3s ease',
+    opacity: isExpanded ? 1 : 0,
+    padding: isExpanded ? '6px' : '0px'
+  });
 
-  // Build columns with expandable daily data
-  const { columns, dailyColumns } = useMemo(() => {
-    const buildExpandableColumn = (title, key, format, bgColor, dailyBgColor) => {
-      const isExpanded = expandedMetrics.has(key);
-      
-      return {
-        title: (
-          <div 
-            onClick={(e) => { e.stopPropagation(); toggleMetric(key); }}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: 4,
-              padding: '4px 8px',
-              borderRadius: 4,
-              background: isExpanded ? (dailyBgColor || '#f8fafc') : '#f8fafc',
-              border: `1px solid ${isExpanded ? (dailyBgColor || '#e5e7eb') : '#e5e7eb'}`,
-              transition: 'all 0.2s'
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.03em' }}>{title}</Text>
-            <ChevronRight 
-              size={10} 
-              style={{ 
-                color: '#94a3b8', 
-                transform: isExpanded ? 'rotate(90deg)' : 'none', 
-                transition: 'transform 0.2s' 
-              }} 
-            />
-          </div>
-        ),
-        key,
-        width: 110,
-        align: 'right',
-        sorter: (a, b) => Number(a[key] || 0) - Number(b[key] || 0),
-        children: isExpanded ? [
-          // Average column
-          {
-            title: <Text style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</Text>,
-            key: `${key}_avg`,
-            width: 70,
-            align: 'right',
-            render: (val, record) => {
-              const numVal = Number(val || 0);
-              return <Text style={{ fontSize: 11, fontWeight: 600, color: '#18181b' }}>{formatValue(numVal, format)}</Text>;
-            }
-          },
-          // Daily columns
-          ...getDailyColumns(key, format, dailyBgColor)
-        ] : undefined
-      };
-    };
+  const buildMetricGroup = (title, key, icon, isCurrency = false, isPercent = false) => {
+    const isExpanded = expandedCols[key];
+    const avgWidth = 64;
+    const trendWidth = 50;
+    const dateWidth = 56;
 
-    const getDailyColumns = (metricKey, format, bgColor) => {
-      // Get unique dates from all data
-      const allDates = new Set();
-      data.forEach(row => {
-        const history = row.weekHistory || row.history || [];
-        history.forEach(h => {
-          if (h.date) {
-            const dateStr = new Date(h.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-            allDates.add(dateStr);
+    const children = [
+      {
+        title: <span style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</span>,
+        key, dataIndex: key, width: avgWidth, align: 'right', sorter: true,
+        sortOrder: sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : null,
+        render: (val, record) => {
+          const numVal = Number(val || 0);
+          const formattedVal = isCurrency ? `₹${numVal.toLocaleString('en-IN')}` : isPercent ? `${numVal.toFixed(2)}%` : numVal.toLocaleString();
+          return <span style={{ fontSize: 10.5, fontWeight: 700, color: '#0f172a' }}>{formattedVal}</span>;
+        }
+      },
+      {
+        title: <span style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>TREND</span>,
+        key: `${key}_trn`, width: trendWidth, align: 'center',
+        render: (_, record) => {
+          const history = record.weekHistory || record.history || [];
+          if (history.length === 0) return <span style={{ color: '#cbd5e1' }}>-</span>;
+          const values = history.map(h => Number(h[key] || 0));
+          if (values.every(v => v === 0)) return <span style={{ color: '#cbd5e1' }}>-</span>;
+          const isGood = key === 'acos' ? values[values.length - 1] < values[0] : values[values.length - 1] > values[0];
+          return <div style={{ width: 40, margin: 'auto' }}><MiniSpark data={values} color={isGood ? '#15803d' : '#b91c1c'} /></div>;
+        }
+      }
+    ];
+
+    if (isExpanded) {
+      activeDates.forEach(d => {
+        children.push({
+          title: <div style={{ textAlign: 'center', fontSize: 9, lineHeight: 1.1 }}><div style={{ color: '#94a3b8' }}>{d.month}</div><div style={{ fontWeight: 700, color: '#475569' }}>{d.day}</div></div>,
+          key: `${key}_${d.raw}`, width: dateWidth, align: 'right',
+          render: (_, record) => {
+            const hist = record.weekHistory?.find(h => normalizeDateStr(h.date) === d.raw);
+            const val = hist ? (hist[key] || 0) : 0;
+            if (val === 0) return <span style={{ color: '#cbd5e1' }}>-</span>;
+            return <span style={{ fontSize: 10, fontWeight: 600, color: '#475569' }}>
+              {isCurrency ? `₹${val.toLocaleString('en-IN')}` : isPercent ? `${val.toFixed(2)}%` : val.toLocaleString()}
+            </span>;
           }
         });
       });
-      
-      const sortedDates = Array.from(allDates).slice(-7).reverse();
-      
-      return sortedDates.map(dateStr => ({
-        title: (
-          <div style={{ textAlign: 'center', fontSize: 8, lineHeight: 1.1 }}>
-            <div style={{ color: '#94a3b8' }}>{dateStr.split(' ')[0]}</div>
-            <div style={{ fontWeight: 700, color: '#475569' }}>{dateStr.split(' ')[1]}</div>
-          </div>
-        ),
-        key: `${metricKey}_${dateStr}`,
-        width: 56,
-        align: 'right',
-        render: (_, record) => {
-          const history = record.weekHistory || record.history || [];
-          const dayData = history.find(h => {
-            const d = new Date(h.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-            return d === dateStr;
-          });
-          const val = dayData ? Number(dayData[metricKey] || 0) : 0;
-          if (val === 0) return <Text style={{ fontSize: 10, color: '#cbd5e1' }}>-</Text>;
-          return <Text style={{ fontSize: 10, fontWeight: 600, color: '#475569' }}>{formatValue(val, format)}</Text>;
-        }
-      }));
-    };
+    }
 
-    const baseColumns = [
+    return {
+      title: (
+        <div onClick={() => toggleCol(key)} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+          cursor: 'pointer', padding: '4px 8px', borderRadius: 4,
+          background: '#f8fafc', border: '1px solid #e5e7eb',
+          color: '#475569', transition: 'all 0.15s', minWidth: avgWidth + trendWidth
+        }}>
+          {icon}
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.03em' }}>{title}</span>
+          {isExpanded ? <ChevronLeft size={9} /> : <ChevronRight size={9} />}
+        </div>
+      ),
+      width: avgWidth + trendWidth + (activeDates.length * dateWidth),
+      children
+    };
+  };
+
+  const getColumns = useMemo(() => {
+    const cols = [
       {
-        title: 'Product',
-        key: 'product',
-        width: 200,
-        fixed: 'left',
-        render: (_, record) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {record.imageUrl ? (
-              <img 
-                src={record.imageUrl} 
-                alt="" 
-                style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'contain', border: '1px solid #e4e4e7' }} 
-              />
-            ) : (
-              <div style={{ width: 36, height: 36, borderRadius: 6, background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Package size={14} color="#a1a1aa" />
+        title: 'IMAGE', dataIndex: 'imageUrl', key: 'imageUrl', width: 48, fixed: 'left',
+        render: (url, record) => (
+          <div style={{ width: 36, height: 36, margin: 'auto', background: '#f8fafc', borderRadius: 4, border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            onClick={() => onSetActiveHistoryRow?.(record)}>
+            {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={14} style={{ color: '#cbd5e1' }} />}
+          </div>
+        )
+      },
+      {
+        title: 'ASIN / PARENT', key: 'identifier', width: 155, fixed: 'left',
+        render: (_, record) => {
+          const isParentRow = record.isParent === true || record.isParentView === true;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+              onClick={() => onSetActiveHistoryRow?.(record)}>
+              {isParentRow && (
+                <div onClick={(e) => { e.stopPropagation(); toggleParentExpand(record.asin || record.parentAsin); }}
+                  style={{ width: 18, height: 18, borderRadius: 4, background: '#f1f5f9', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  {expandedParents.has(record.asin || record.parentAsin) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </div>
+              )}
+              <div>
+                <Text strong code style={{ fontSize: 10, color: '#0f172a', padding: '1px 4px' }}>{record.asin || record.parentAsin}</Text>
+                {isParentRow && <div style={{ fontSize: 9, fontWeight: 700, color: '#475569', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '1px 6px', borderRadius: 4, width: 'fit-content', marginTop: 2 }}>{record.childCount || 0} CHILDREN</div>}
               </div>
-            )}
-            <div style={{ minWidth: 0 }}>
-              <Text style={{ fontSize: 11, fontWeight: 600, color: '#18181b', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 120 }}>
-                {record.title || 'Untitled'}
-              </Text>
-              <Text code style={{ fontSize: 10, color: '#71717a' }}>{record.asin}</Text>
-              {record.sku && <Text style={{ fontSize: 10, color: '#a1a1aa', marginLeft: 6 }}>SKU: {record.sku}</Text>}
             </div>
-          </div>
-        ),
-      },
-      buildExpandableColumn('SPEND', 'spend', 'currency', '#fef2f2', '#fef2f2'),
-      buildExpandableColumn('SALES', 'sales', 'currency', '#f0fdf4', '#f0fdf4'),
-      {
-        title: (
-          <div 
-            onClick={(e) => { e.stopPropagation(); toggleMetric('acos'); }}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: 4,
-              padding: '4px 8px',
-              borderRadius: 4,
-              background: expandedMetrics.has('acos') ? '#fef2f2' : '#f8fafc',
-              border: `1px solid ${expandedMetrics.has('acos') ? '#fecaca' : '#e5e7eb'}`,
-              transition: 'all 0.2s'
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.03em' }}>ACOS</Text>
-            <ChevronRight 
-              size={10} 
-              style={{ 
-                color: '#94a3b8', 
-                transform: expandedMetrics.has('acos') ? 'rotate(90deg)' : 'none', 
-                transition: 'transform 0.2s' 
-              }} 
-            />
-          </div>
-        ),
-        key: 'acos',
-        width: 90,
-        align: 'right',
-        sorter: (a, b) => Number(a.acos || 0) - Number(b.acos || 0),
-        children: expandedMetrics.has('acos') ? [
-          {
-            title: <Text style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</Text>,
-            key: 'acos_avg',
-            width: 70,
-            align: 'right',
-            render: (val) => {
-              const acos = Number(val || 0);
-              const color = acos < 20 ? '#2E7D32' : acos < 30 ? '#ED6C02' : '#C62828';
-              return <Text style={{ fontSize: 11, fontWeight: 600, color }}>{acos.toFixed(2)}%</Text>;
-            }
-          },
-          ...getDailyColumns('acos', 'percent', '#fef2f2')
-        ] : undefined,
-        render: (val) => {
-          if (expandedMetrics.has('acos')) return null;
-          const acos = Number(val || 0);
-          const color = acos < 20 ? '#2E7D32' : acos < 30 ? '#ED6C02' : '#C62828';
-          return <Text style={{ fontSize: 12, fontWeight: 600, color }}>{acos.toFixed(2)}%</Text>;
+          );
         }
       },
       {
-        title: (
-          <div 
-            onClick={(e) => { e.stopPropagation(); toggleMetric('roas'); }}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: 4,
-              padding: '4px 8px',
-              borderRadius: 4,
-              background: expandedMetrics.has('roas') ? '#fffbeb' : '#f8fafc',
-              border: `1px solid ${expandedMetrics.has('roas') ? '#fed7aa' : '#e5e7eb'}`,
-              transition: 'all 0.2s'
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: 700, color: '#334155', letterSpacing: '0.03em' }}>ROAS</Text>
-            <ChevronRight 
-              size={10} 
-              style={{ 
-                color: '#94a3b8', 
-                transform: expandedMetrics.has('roas') ? 'rotate(90deg)' : 'none', 
-                transition: 'transform 0.2s' 
-              }} 
-            />
-          </div>
-        ),
-        key: 'roas',
-        width: 80,
-        align: 'right',
-        sorter: (a, b) => Number(a.roas || 0) - Number(b.roas || 0),
-        children: expandedMetrics.has('roas') ? [
-          {
-            title: <Text style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</Text>,
-            key: 'roas_avg',
-            width: 70,
-            align: 'right',
-            render: (val) => {
-              const roas = Number(val || 0);
-              const color = roas > 3 ? '#2E7D32' : roas > 2 ? '#ED6C02' : '#C62828';
-              return <Text style={{ fontSize: 11, fontWeight: 600, color }}>{roas.toFixed(2)}</Text>;
-            }
-          },
-          ...getDailyColumns('roas', 'ratio', '#fffbeb')
-        ] : undefined,
-        render: (val) => {
-          if (expandedMetrics.has('roas')) return null;
-          const roas = Number(val || 0);
-          const color = roas > 3 ? '#2E7D32' : roas > 2 ? '#ED6C02' : '#C62828';
-          return <Text style={{ fontSize: 12, fontWeight: 600, color }}>{roas.toFixed(2)}</Text>;
-        }
-      },
-      buildExpandableColumn('ORDERS', 'orders', 'number', '#f5f3ff', '#f5f3ff'),
-      {
-        title: <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>CTR</Text>,
-        key: 'ctr',
-        width: 80,
-        align: 'right',
-        sorter: (a, b) => Number(a.ctr || 0) - Number(b.ctr || 0),
-        render: (val) => <Text style={{ fontSize: 12, fontWeight: 500 }}>{Number(val || 0).toFixed(2)}%</Text>
+        title: 'SKU', dataIndex: 'sku', key: 'sku', width: 80, fixed: 'left',
+        render: (sku, record) => record.isParent || record.isParentView
+          ? <span style={{ fontSize: 9, fontWeight: 700, color: '#64748b', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: 4 }}>GROUP</span>
+          : <span style={{ fontWeight: 600, color: '#475569', fontSize: 10 }}>{sku || '-'}</span>
       },
       {
-        title: <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>CVR</Text>,
-        key: 'cvr',
-        width: 80,
-        align: 'right',
-        sorter: (a, b) => Number(a.cvr || 0) - Number(b.cvr || 0),
-        render: (val) => <Text style={{ fontSize: 12, fontWeight: 500 }}>{Number(val || 0).toFixed(2)}%</Text>
+        title: 'PRODUCT DETAILS', key: 'productDetails', width: 170, fixed: 'left',
+        render: (_, record) => (
+          <Tooltip title={<div><div style={{ fontWeight: 700, marginBottom: 4 }}>{record.title || 'Loading...'}</div>{record.brand && <div style={{ fontSize: 11, color: '#cbd5e1' }}>{record.brand}{record.category ? ` · ${record.category}` : ''}</div>}</div>}>
+            <div style={{ width: '100%', overflow: 'hidden' }}>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.title || 'Loading...'}</div>
+              <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.brand || ''}{record.brand && record.category ? ' · ' : ''}{record.category || ''}</div>
+            </div>
+          </Tooltip>
+        )
       },
-      buildExpandableColumn('CLICKS', 'clicks', 'number', '#ecfeff', '#ecfeff'),
-      buildExpandableColumn('IMPRESSIONS', 'impressions', 'number', '#f8fafc', '#f8fafc'),
+      buildMetricGroup('TOTAL SALES', 'totalSales', <FileBarChart size={11} />, true, false),
+      buildMetricGroup('ORDERS', 'orders', <Layers size={11} />, false, false),
+      buildMetricGroup('SPEND', 'spend', <BarChart3 size={11} />, true, false),
+      buildMetricGroup('CLICKS', 'clicks', <TrendUpIcon size={11} />, false, false),
+      buildMetricGroup('IMPRESSIONS', 'impressions', <Eye size={11} />, false, false),
+      buildMetricGroup('ROAS', 'roas', <RefreshCw size={11} />, false, false),
+      buildMetricGroup('ACOS', 'acos', <Target size={11} />, false, true),
+      buildMetricGroup('TACOS', 'tacos', <Target size={11} />, false, true),
+      buildMetricGroup('AD SALES', 'sales', <FileBarChart size={11} />, true, false),
+      buildMetricGroup('AD SALES %', 'adSalesPct', <Layers size={11} />, false, true),
+      buildMetricGroup('CVR', 'cvr', <Activity size={11} />, false, true),
+      buildMetricGroup('ORGANIC', 'organicSales', <BarChart3 size={11} />, true, false),
+      buildMetricGroup('VIEWS', 'pageViews', <Eye size={11} />, false, false),
       {
-        title: 'Actions',
-        key: 'actions',
-        width: 60,
-        fixed: 'right',
+        title: 'ACTIONS', key: 'actions', fixed: 'right', width: 48, align: 'center',
         render: (_, record) => (
           <Tooltip title="View Details">
-            <Button 
-              type="text" 
-              size="small" 
-              icon={<Eye size={14} />}
-              onClick={() => onViewDetails?.(record)}
-            />
+            <Button type="text" size="small" icon={<Eye size={13} />}
+              onClick={(e) => { e.stopPropagation(); onSetActiveHistoryRow?.(record); }} />
           </Tooltip>
         )
       }
     ];
+    return cols;
+  }, [activeDates, expandedCols, expandedParents, sortBy, sortOrder, toggleCol, toggleParentExpand, onSetActiveHistoryRow]);
 
-    return { columns: baseColumns, dailyColumns: [] };
-  }, [expandedMetrics, data]);
+  const tableColumns = useMemo(() => getColumns, [activeDates, data, expandedCols, expandedParents, selectedSeller]);
 
-  // Parent view - group by parent ASIN
-  const parentData = useMemo(() => {
-    if (groupBy !== 'parent') return data;
-    
-    const parentMap = {};
-    data.forEach(row => {
-      const parentAsin = row.parentAsin || row.asin;
-      if (!parentMap[parentAsin]) {
-        parentMap[parentAsin] = {
-          ...row,
-          asin: parentAsin,
-          isParent: true,
-          childCount: 0,
-          children: [],
-          weekHistory: []
-        };
+  const { rows: hRows, stickyLeft, stickyRight } = useMemo(() => {
+    const depth = (cols) => { let max = 0; for (const col of cols) { if (col.children?.length > 0) max = Math.max(max, depth(col.children)); } return max + 1; };
+    const leafColumns = (cols) => { const r = []; for (const col of cols) { if (col.children?.length > 0) r.push(...leafColumns(col.children)); else r.push(col); } return r; };
+    const buildRows = (cols) => {
+      const d = depth(cols);
+      const rows = Array.from({ length: d }, () => []);
+      const walk = (arr, level) => {
+        for (const col of arr) {
+          if (col.children?.length > 0) {
+            const leafCount = leafColumns(col.children).length;
+            rows[level].push({ ...col, colSpan: leafCount, rowSpan: 1, isGroup: true });
+            walk(col.children, level + 1);
+          } else {
+            rows[level].push({ ...col, colSpan: 1, rowSpan: d - level });
+          }
+        }
+      };
+      walk(cols, 0);
+      return rows;
+    };
+    const rows = buildRows(tableColumns);
+    const stickyLeft = {}, stickyRight = {};
+    let leftAcc = 0, rightAcc = 0;
+    for (const col of tableColumns) {
+      if (col.fixed === 'left') { stickyLeft[col.key] = leftAcc; leftAcc += col.width || 0; }
+      if (col.fixed === 'right') { stickyRight[col.key] = rightAcc; rightAcc += col.width || 0; }
+    }
+    return { rows, stickyLeft, stickyRight };
+  }, [tableColumns]);
+
+  const leafCols = useMemo(() => {
+    const result = [];
+    for (const col of tableColumns) {
+      if (col.children?.length > 0) {
+        result.push(...col.children);
+      } else {
+        result.push(col);
       }
-      parentMap[parentAsin].childCount++;
-      parentMap[parentAsin].children.push(row);
-      
-      const parent = parentMap[parentAsin];
-      parent.spend = (Number(parent.spend) || 0) + (Number(row.spend) || 0);
-      parent.sales = (Number(parent.sales) || 0) + (Number(row.sales) || 0);
-      parent.orders = (Number(parent.orders) || 0) + (Number(row.orders) || 0);
-      parent.clicks = (Number(parent.clicks) || 0) + (Number(row.clicks) || 0);
-      parent.impressions = (Number(parent.impressions) || 0) + (Number(row.impressions) || 0);
-      
-      if (row.weekHistory) {
-        parent.weekHistory = [...parent.weekHistory, ...row.weekHistory];
-      }
-    });
-
-    return Object.values(parentMap).map(parent => ({
-      ...parent,
-      acos: Number(parent.sales) > 0 ? (Number(parent.spend) / Number(parent.sales)) * 100 : 0,
-      roas: Number(parent.spend) > 0 ? Number(parent.sales) / Number(parent.spend) : 0,
-      ctr: Number(parent.impressions) > 0 ? (Number(parent.clicks) / Number(parent.impressions)) * 100 : 0,
-      cvr: Number(parent.clicks) > 0 ? (Number(parent.orders) / Number(parent.clicks)) * 100 : 0,
-    }));
-  }, [data, groupBy]);
-
-  const tableData = groupBy === 'parent' ? parentData : data;
-
-  const expandedRowRender = (record) => {
-    if (!record.children || record.children.length === 0) return null;
-    
-    return (
-      <div style={{ padding: '8px 0' }}>
-        <Table
-          columns={columns.filter(c => c.key !== 'product' && c.key !== 'actions')}
-          dataSource={record.children.map((child, idx) => ({ ...child, key: `${record.asin}-child-${idx}` }))}
-          pagination={false}
-          size="small"
-          style={{ background: '#fafafa', borderRadius: 8 }}
-        />
-      </div>
-    );
-  };
+    }
+    return result;
+  }, [tableColumns]);
 
   return (
-    <Table
-      columns={columns}
-      dataSource={tableData.map((row, idx) => ({ ...row, key: row.asin || idx }))}
-      loading={loading}
-      pagination={{
-        current: pagination.page,
-        pageSize: pagination.limit,
-        total: pagination.total,
-        showSizeChanger: true,
-        pageSizeOptions: ['25', '50', '100'],
-        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
-        size: 'small',
-        onChange: (page, pageSize) => {
-          if (onPageChange) onPageChange(page);
-          if (onPageSizeChange && pageSize !== pagination.limit) onPageSizeChange(pageSize);
-        }
-      }}
-      scroll={{ x: 1200 }}
-      size="small"
-      expandable={groupBy === 'parent' ? {
-        expandedRowKeys,
-        onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
-        expandedRowRender,
-        rowExpandable: (record) => record.children && record.children.length > 0
-      } : undefined}
-      rowClassName={(record) => record.isParent ? 'parent-row' : ''}
-      style={{ borderRadius: 8 }}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, width: '100%', background: '#ffffff', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+        {loading ? (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12 }}>
+            <Spin /> Loading data...
+          </div>
+        ) : data.length === 0 ? (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+            <Package size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+            <span style={{ fontSize: 12, fontWeight: 500 }}>No ads data found</span>
+          </div>
+        ) : (
+          <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+              {hRows.map((row, ri) => (
+                <tr key={ri}>
+                  {row.map((col) => {
+                    const s = {
+                      fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
+                      letterSpacing: '0.04em', color: '#4b5563', padding: '6px 6px',
+                      background: '#f8fafc', position: 'sticky', top: 0,
+                      border: '1px solid #e5e7eb', whiteSpace: 'nowrap',
+                      ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
+                    };
+                    if (col.width) s.width = col.width;
+                    if (stickyLeft[col.key] !== undefined) { s.left = stickyLeft[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; }
+                    if (stickyRight[col.key] !== undefined) { s.right = stickyRight[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; if (ri === 0) s.borderLeft = '1px solid #d1d5db'; }
+                    let titleContent = col.title;
+                    if (!col.isGroup && col.sorter) {
+                      const isActive = sortBy === col.key;
+                      titleContent = (
+                        <div onClick={() => onSort?.(col.key)} style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'space-between', gap: 3 }}>
+                          <span>{col.title}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '7px', lineHeight: 1, opacity: isActive ? 1 : 0.4 }}>
+                            <ChevronUp size={8} strokeWidth={4} style={{ color: isActive && sortOrder === 'asc' ? '#1890ff' : '#8c8c8c', marginBottom: '0px' }} />
+                            <ChevronDown size={8} strokeWidth={4} style={{ color: isActive && sortOrder === 'desc' ? '#1890ff' : '#8c8c8c' }} />
+                          </div>
+                        </div>
+                      );
+                    }
+                    return <th key={col.key} colSpan={col.colSpan} rowSpan={col.rowSpan} style={s}>{titleContent}</th>;
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {data.map((record, idx) => (
+                <tr key={record.id || record.asin || idx} className="table-row-hover">
+                  {leafCols.map((col) => {
+                    const val = col.dataIndex ? record[col.dataIndex] : undefined;
+                    const rendered = col.render ? col.render(val, record, idx) : (val ?? '');
+                    const isFixed = stickyLeft[col.key] !== undefined || stickyRight[col.key] !== undefined;
+                    const bg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
+                    const s = {
+                      padding: '2px 5px', fontSize: '0.65rem',
+                      border: '1px solid #f0f0f0', verticalAlign: 'middle',
+                      color: '#27272a', background: bg,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
+                    };
+                    if (isFixed && col.width) { s.minWidth = col.width; s.maxWidth = col.width; }
+                    if (stickyLeft[col.key] !== undefined) { s.position = 'sticky'; s.left = stickyLeft[col.key]; s.zIndex = 5; s.background = bg; }
+                    if (stickyRight[col.key] !== undefined) { s.position = 'sticky'; s.right = stickyRight[col.key]; s.zIndex = 5; s.background = bg; }
+                    return <td key={col.key} style={s}>{rendered}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
+        <Suspense fallback={<div style={{ height: 40, background: '#f1f5f9' }} />}>
+          <TablePagination
+            component="div"
+            count={pagination.total || 0}
+            page={(pagination.page || 1) - 1}
+            onPageChange={(e, newPage) => onPageChange?.(newPage + 1)}
+            rowsPerPage={pagination.limit || 50}
+            onRowsPerPageChange={(e) => onPageSizeChange?.(parseInt(e.target.value, 10))}
+            rowsPerPageOptions={[25, 50, 100, 200, 500]}
+            sx={{
+              fontSize: '11px', minHeight: '36px',
+              '.MuiToolbar-root': { minHeight: '36px', height: '36px', paddingLeft: '12px', paddingRight: '12px' },
+              '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': { fontSize: '11px', fontWeight: 600, color: '#6b7280', margin: 0 },
+              '.MuiTablePagination-select': { fontSize: '11px', fontWeight: 600 },
+              '.MuiTablePagination-actions': { marginLeft: '8px', '& .MuiIconButton-root': { padding: '4px' } }
+            }}
+          />
+        </Suspense>
+      </div>
+    </div>
   );
 };
-
-// Helper function for daily columns (used inside component)
-function getDailyColumns(metricKey, format, bgColor) {
-  return []; // Placeholder - actual implementation uses data from parent
-}
 
 export default AdsTable;
