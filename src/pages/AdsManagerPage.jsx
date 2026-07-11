@@ -21,6 +21,7 @@ import AdsImportModal from '../components/ads/AdsImportModal';
 import Chart from 'react-apexcharts';
 import { CHART_COLORS, areaChartOptions } from '../utils/chartTheme';
 import { useDateRange } from '../contexts/DateRangeContext';
+import { usePageTitle } from '../contexts/PageTitleContext';
 
 import { format } from 'date-fns';
 import dayjs from 'dayjs';
@@ -336,10 +337,15 @@ const AdsHistoryModal = ({ isOpen, onClose, rowData }) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function AdsManagerPage() {
+  const { setPageTitle } = usePageTitle();
   const { startDate, endDate, updateDateRange } = useDateRange();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState([]);
+
+  useEffect(() => {
+    setPageTitle('Ads Manager');
+  }, [setPageTitle]);
 
   const [chartConfigMetrics, setChartConfigMetrics] = useState(['spend', 'sales', 'acos']);
   const [selectedSeller, setSelectedSeller] = useState(() => localStorage.getItem('selectedSeller') || '');
@@ -774,23 +780,7 @@ export default function AdsManagerPage() {
         onComplete={() => { setShowImportModal(false); fetchAdsData(); }}
       />
 
-      {/* PAGE HEADER */}
-      <div style={{ padding: '20px 0 16px', borderBottom: '1px solid #f4f4f7', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>Ads Manager</h2>
-            <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 4 }}>Track and optimize your Amazon advertising campaigns</p>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
-              Import Data
-            </Button>
-            <Button type="primary" onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} />} style={btnStyle}>
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* PAGE HEADER - Removed, already in GlobalHeader */}
 
       {/* FILTERS */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
