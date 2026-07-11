@@ -34,7 +34,15 @@ const TrendIndicator = ({ current, previous, isInverted = false }) => {
   );
 };
 
-const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
+const AdsTable = ({ 
+  data = [], 
+  loading, 
+  groupBy = 'asin', 
+  pagination = { page: 1, limit: 50, total: 0, totalPages: 0 },
+  onPageChange,
+  onPageSizeChange,
+  onViewDetails 
+}) => {
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
   const [expandedMetrics, setExpandedMetrics] = useState(new Set());
 
@@ -380,12 +388,18 @@ const AdsTable = ({ data = [], loading, groupBy = 'asin', onViewDetails }) => {
       columns={columns}
       dataSource={tableData.map((row, idx) => ({ ...row, key: row.asin || idx }))}
       loading={loading}
-      pagination={{ 
-        pageSize: 25, 
-        showSizeChanger: true, 
+      pagination={{
+        current: pagination.page,
+        pageSize: pagination.limit,
+        total: pagination.total,
+        showSizeChanger: true,
         pageSizeOptions: ['25', '50', '100'],
         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
-        size: 'small'
+        size: 'small',
+        onChange: (page, pageSize) => {
+          if (onPageChange) onPageChange(page);
+          if (onPageSizeChange && pageSize !== pagination.limit) onPageSizeChange(pageSize);
+        }
       }}
       scroll={{ x: 1200 }}
       size="small"
