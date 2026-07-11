@@ -1,5 +1,5 @@
-import { Spinner } from "@/components/Spinner";
-import { LoadError } from "@/components/LoadError";
+import { Spinner, InlineSpinner } from "@/components/Spinner";
+import { LoadError, EmptyState } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback, lazy, useRef, Suspense } from 'react';
 import {
   Segmented, Select, Button, Input, Tooltip, Typography, Card, Row, Col,
@@ -767,8 +767,6 @@ export default function AdsManagerPage() {
 
   return (
     <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '16px 24px' }}>
-      {loading && !data.length && <Spinner />}
-
       {error && !loading && (
         <LoadError message={error} onRetry={fetchAdsData} />
       )}
@@ -865,34 +863,34 @@ export default function AdsManagerPage() {
           />
         } style={{ marginBottom: 16, borderRadius: 10 }}>
           <div style={{ height: 320 }}>
-              {dynamicChartState.series.length > 0 ? (
-                <Chart height="100%" type="line" series={dynamicChartState.series}
-                  options={{
-                    chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' },
-                    stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' },
-                    colors: dynamicChartState.colors,
-                    plotOptions: { bar: { columnWidth: '45%', borderRadius: 3 } },
-                    fill: { opacity: dynamicChartState.series.map(s => s.type === 'line' ? 1 : 0.85) },
-                    markers: { size: dynamicChartState.series.map(s => s.type === 'line' ? 3 : 0), strokeWidth: 1 },
-                    dataLabels: { enabled: false },
-                    xaxis: {
-                      categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
-                      axisBorder: { show: false }, axisTicks: { show: false },
-                      labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } }
-                    },
-                    yaxis: dynamicChartState.yaxis,
-                    grid: { borderColor: '#f1f5f9', strokeDashArray: 4, padding: { top: 5, right: 15, bottom: 10, left: 15 } },
-                    legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px', markers: { radius: 2 } },
-                    tooltip: { shared: true, intersect: false, theme: 'light' }
-                  }}
-                />
-              ) : (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12, background: '#f8fafc', borderRadius: 4 }}>
-                  Select metrics to view chart
-                </div>
-              )}
-            </div>
-          </Card>
+            {dynamicChartState.series.length > 0 ? (
+              <Chart height="100%" type="line" series={dynamicChartState.series}
+                options={{
+                  chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' },
+                  stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' },
+                  colors: dynamicChartState.colors,
+                  plotOptions: { bar: { columnWidth: '45%', borderRadius: 3 } },
+                  fill: { opacity: dynamicChartState.series.map(s => s.type === 'line' ? 1 : 0.85) },
+                  markers: { size: dynamicChartState.series.map(s => s.type === 'line' ? 3 : 0), strokeWidth: 1 },
+                  dataLabels: { enabled: false },
+                  xaxis: {
+                    categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
+                    axisBorder: { show: false }, axisTicks: { show: false },
+                    labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } }
+                  },
+                  yaxis: dynamicChartState.yaxis,
+                  grid: { borderColor: '#f1f5f9', strokeDashArray: 4, padding: { top: 5, right: 15, bottom: 10, left: 15 } },
+                  legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px', markers: { radius: 2 } },
+                  tooltip: { shared: true, intersect: false, theme: 'light' }
+                }}
+              />
+            ) : (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12, background: '#f8fafc', borderRadius: 4 }}>
+                Select metrics to view chart
+              </div>
+            )}
+          </div>
+        </Card>
       )}
 
       {/* TOGGLE BAR */}
@@ -913,23 +911,21 @@ export default function AdsManagerPage() {
       </Card>
 
       {/* TABLE */}
-      <div className="ads-table-wrapper">
-        <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+      <Card size="small" style={{ borderRadius: 10 }} styles={{ body: { padding: 0 } }}>
+        <div style={{ overflow: 'auto' }}>
           {loading && !data.length ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Spinner />
-            </div>
+            <InlineSpinner tip="Loading ads data..." />
           ) : paginatedData.length === 0 ? (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 60 }}>
-              <div style={{ width: 64, height: 64, borderRadius: 16, background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Package size={28} style={{ color: '#a1a1aa' }} />
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', marginBottom: 4 }}>No ads data found</span>
-              <span style={{ fontSize: 12, color: '#71717a', marginBottom: 16 }}>Import your ads data or adjust filters</span>
-              <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
-                Import Data
-              </Button>
-            </div>
+            <EmptyState
+              title="No ads data found"
+              description="Import your ads data or adjust filters"
+              icon={Package}
+              action={
+                <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
+                  Import Data
+                </Button>
+              }
+            />
           ) : (() => {
             const { rows: hRows, stickyLeft, stickyRight } = buildHeaderRows(tableColumns);
             const leafCols = getLeafColumns(tableColumns);
@@ -1078,7 +1074,7 @@ export default function AdsManagerPage() {
             />
           </Suspense>
         </div>
-      </div>
+      </Card>
 
       {/* STYLES */}
       <style>{`
