@@ -1,0 +1,47 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy-staging:
+    name: Deploy Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: staging-deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to staging server
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Upload build to staging
+          rsync -avz --delete dist/ "$STAGING_USER@$STAGING_HOST:/var/www/staging/"
+          
+          # Restart backend on staging
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "$STAGING_USER@$STAGING_HOST" "
+            cd /var/app/staging &&
+            git pull origin develop &&
+            npm ci --production &&
+            pm2 restart staging-backend
+          "
