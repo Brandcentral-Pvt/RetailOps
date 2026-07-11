@@ -5,12 +5,10 @@ import { authApi } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Form, Input, Button, Typography, Alert, Checkbox } from 'antd';
 import { MailOutlined, LockOutlined, SafetyCertificateOutlined, ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
+import AuthLayout from '../components/auth/AuthLayout';
 
 const { Title, Text } = Typography;
 
-const fadeUp = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } } };
-
-// ─── OTP Verification Step ─────────────────────────────────
 const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
   const { completeLogin } = useAuth();
   const navigate = useNavigate();
@@ -50,7 +48,6 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
       const res = await authApi.verifyOtp(tempToken, code, trustDevice);
       if (res.success) {
         await completeLogin(res);
-        // Redirect to wizard if needed
         if (res.requiresSetup || res.needsPasswordReset) {
           setTimeout(() => navigate('/setup-wizard'), 100);
           return;
@@ -81,62 +78,55 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
   const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardAccent} />
-      <div style={styles.cardBody}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f0f5ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <SafetyCertificateOutlined style={{ fontSize: 22, color: '#1976D2' }} />
-          </div>
-          <Title level={4} style={{ margin: 0 }}>Verify Your Identity</Title>
-          <Text style={{ fontSize: 13, color: '#64748b', display: 'block', marginTop: 6 }}>
-            We sent a 6-digit code to <strong>{destination}</strong>
-          </Text>
-        </div>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f0f5ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+        <SafetyCertificateOutlined style={{ fontSize: 22, color: '#18181b' }} />
+      </div>
+      <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Verify Your Identity</Title>
+      <Text style={{ fontSize: 13, color: '#71717a', display: 'block', marginTop: 6 }}>
+        We sent a 6-digit code to <strong>{destination}</strong>
+      </Text>
 
-        {error && <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16 }} />}
+      {error && <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 8 }} />}
 
-        {/* OTP Inputs */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
-          {otp.map((d, i) => (
-            <input key={i} ref={el => inputRefs.current[i] = el} type="text" inputMode="numeric" maxLength={1}
-              value={d} onChange={e => handleChange(i, e.target.value)} onKeyDown={e => handleKeyDown(i, e)}
-              onPaste={i === 0 ? handlePaste : undefined} disabled={loading}
-              style={{ width: 44, height: 52, fontSize: 22, fontWeight: 600, textAlign: 'center', border: `2px solid ${d ? '#1976D2' : '#e2e8f0'}`, borderRadius: 8, outline: 'none', fontFamily: 'monospace', background: d ? '#f5f3ff' : '#fff', transition: 'all 0.15s' }} />
-          ))}
-        </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+        {otp.map((d, i) => (
+          <input key={i} ref={el => inputRefs.current[i] = el} type="text" inputMode="numeric" maxLength={1}
+            value={d} onChange={e => handleChange(i, e.target.value)} onKeyDown={e => handleKeyDown(i, e)}
+            onPaste={i === 0 ? handlePaste : undefined} disabled={loading}
+            style={{ width: 44, height: 52, fontSize: 22, fontWeight: 600, textAlign: 'center', border: `2px solid ${d ? '#18181b' : '#e4e4e7'}`, borderRadius: 8, outline: 'none', fontFamily: 'monospace', background: d ? '#f4f4f5' : '#fff', transition: 'all 0.15s' }} />
+        ))}
+      </div>
 
-        {timeLeft > 0 ? (
-          <Text style={{ display: 'block', textAlign: 'center', fontSize: 13, color: timeLeft < 60 ? '#C62828' : '#64748b', marginBottom: 16 }}>
-            Expires in {fmt(timeLeft)}
-          </Text>
-        ) : (
-          <Alert type="warning" message="Code expired. Please request a new one." showIcon style={{ marginBottom: 16 }} />
-        )}
+      {timeLeft > 0 ? (
+        <Text style={{ display: 'block', textAlign: 'center', fontSize: 13, color: timeLeft < 60 ? '#C62828' : '#71717a', marginBottom: 16 }}>
+          Expires in {fmt(timeLeft)}
+        </Text>
+      ) : (
+        <Alert type="warning" message="Code expired. Please request a new one." showIcon style={{ marginBottom: 16, borderRadius: 8 }} />
+      )}
 
-        <div style={{ marginBottom: 16 }}>
-          <Checkbox checked={trustDevice} onChange={e => setTrustDevice(e.target.checked)}>
-            <span style={{ fontSize: 13 }}>Trust this device for 12 hours</span>
-          </Checkbox>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <Checkbox checked={trustDevice} onChange={e => setTrustDevice(e.target.checked)}>
+          <span style={{ fontSize: 13 }}>Trust this device for 12 hours</span>
+        </Checkbox>
+      </div>
 
-        <Button type="primary" block size="large" loading={loading} disabled={otp.some(d => !d)}
-          onClick={() => verify(otp.join(''))} style={styles.submitBtn}>
-          Verify & Sign In
+      <Button type="primary" block size="large" loading={loading} disabled={otp.some(d => !d)}
+        onClick={() => verify(otp.join(''))} style={{ height: 44, fontWeight: 600, borderRadius: 10, background: '#18181b', borderColor: '#18181b' }}>
+        Verify & Sign In
+      </Button>
+
+      <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', justifyContent: 'center', gap: 16 }}>
+        <Button type="link" size="small" icon={<ReloadOutlined />} onClick={handleResend} loading={resending} disabled={resendCooldown > 0} style={{ fontSize: 12, color: '#18181b' }}>
+          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
         </Button>
-
-        <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', justifyContent: 'center', gap: 16 }}>
-          <Button type="link" size="small" icon={<ReloadOutlined />} onClick={handleResend} loading={resending} disabled={resendCooldown > 0} style={{ fontSize: 12, color: '#1976D2' }}>
-            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
-          </Button>
-          <Button type="link" size="small" icon={<ArrowLeftOutlined />} onClick={onBack} style={{ fontSize: 12 }}>Back to Login</Button>
-        </div>
+        <Button type="link" size="small" icon={<ArrowLeftOutlined />} onClick={onBack} style={{ fontSize: 12 }}>Back to Login</Button>
       </div>
     </div>
   );
 };
 
-// ─── Main Login Page ────────────────────────────────────────
 const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -151,21 +141,15 @@ const LoginPage = () => {
     try {
       const result = await login(values.email.trim(), values.password);
       if (!result.success) throw new Error(result.error || 'Login failed');
-
-      // Check if OTP is required
       if (result.requiresOtp) {
         setOtpData({ tempToken: result.tempToken, destination: result.destination, expiresIn: result.expiresIn });
         setStep('otp');
         return;
       }
-
-      // Force password reset — redirect to wizard
       if (result.needsPasswordReset || result.forcePasswordReset) {
         navigate('/setup-wizard');
         return;
       }
-
-      // Trusted device — direct login, check if setup needed
       if (result.requiresSetup) {
         navigate('/setup-wizard');
         return;
@@ -177,95 +161,54 @@ const LoginPage = () => {
     } finally { setLoading(false); }
   };
 
-  // OTP step
   if (step === 'otp' && otpData) {
     return (
-      <div style={styles.wrapper}>
-        <div style={styles.bgOrb1} /><div style={styles.bgOrb2} />
-        <motion.div style={styles.container} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-          <div style={styles.logoWrap}>
-            <img src="https://brandcentral.in/wp-content/uploads/2024/09/logo.png" alt="BrandCentral" style={styles.logo} />
-          </div>
-          <OtpStep {...otpData} onBack={() => { setStep('login'); setOtpData(null); setError(''); }} />
-        </motion.div>
-      </div>
+      <AuthLayout>
+        <OtpStep {...otpData} onBack={() => { setStep('login'); setOtpData(null); setError(''); }} />
+      </AuthLayout>
     );
   }
 
-  // Login step
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.bgOrb1} /><div style={styles.bgOrb2} />
-      <motion.div style={styles.container} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-        <div style={styles.logoWrap}>
-          <img src="https://brandcentral.in/wp-content/uploads/2024/09/logo.png" alt="BrandCentral" style={styles.logo} />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} style={{ width: '100%' }}>
-          <div style={styles.card}>
-            <div style={styles.cardAccent} />
-            <div style={styles.cardBody}>
-              <motion.div style={styles.header}>
-                <Title level={3} style={styles.title}>Welcome back</Title>
-                <Text style={styles.subtitle}>Sign in to your account</Text>
-              </motion.div>
+    <AuthLayout>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <Title level={3} style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#18181b' }}>Welcome back</Title>
+        <Text style={{ fontSize: 13, color: '#71717a', display: 'block', marginTop: 4 }}>Sign in to your account</Text>
+      </div>
 
-              <AnimatePresence mode="wait">
-                {error && (
-                  <motion.div key="err" style={styles.errorBox} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                    <div style={styles.errorInner}><span>{error}</span></div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off" size="large" requiredMark={false}>
-                <Form.Item name="email" rules={[{ required: true, message: 'Email required' }, { type: 'email', message: 'Invalid email' }]}>
-                  <Input prefix={<MailOutlined style={{ color: '#8c8e8f' }} />} placeholder="Email address" autoFocus />
-                </Form.Item>
-                <Form.Item name="password" rules={[{ required: true, message: 'Password required' }]}>
-                  <Input.Password prefix={<LockOutlined style={{ color: '#8c8e8f' }} />} placeholder="Password" />
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 0 }}>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button type="primary" htmlType="submit" loading={loading} block size="large" style={styles.submitBtn}>
-                      {loading ? 'Verifying...' : 'Continue →'}
-                    </Button>
-                  </motion.div>
-                </Form.Item>
-              </Form>
-
-              {/* <div style={{ textAlign: 'center', marginTop: 20, padding: '12px', background: '#f5f3ff', borderRadius: 8, fontSize: 12, color: '#9C27B0' }}>
-                🔐 Two-step verification required on every login
-              </div> */}
-
-              <div style={styles.footer}>
-                <Text style={styles.footerText}>&copy; {new Date().getFullYear()} BrandCentral. All rights reserved.</Text>
-              </div>
+      <AnimatePresence mode="wait">
+        {error && (
+          <motion.div key="err" style={{ overflow: 'hidden' }} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 12, lineHeight: 1.5, marginBottom: 16 }}>
+              <span>{error}</span>
             </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </div>
-  );
-};
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-const styles = {
-  wrapper: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: '#f4f5f7', fontFamily: "'Inter', sans-serif" },
-  bgOrb1: { position: 'absolute', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(251,79,64,0.08) 0%, transparent 65%)', top: '-200px', left: '-200px' },
-  bgOrb2: { position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(79,70,229,0.06) 0%, transparent 65%)', bottom: '-150px', right: '-100px' },
-  container: { width: '100%', maxWidth: 420, padding: '0 20px', zIndex: 1 },
-  logoWrap: { textAlign: 'center', marginBottom: 24 },
-  logo: { height: 36, width: 'auto' },
-  card: { background: '#fff', borderRadius: 16, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', overflow: 'hidden', position: 'relative' },
-  cardAccent: { height: 3, background: 'linear-gradient(90deg, #D32F2F, #ED6C02, #D32F2F)' },
-  cardBody: { padding: '32px 28px 24px' },
-  header: { textAlign: 'center', marginBottom: 24 },
-  title: { fontSize: 20, fontWeight: 700, margin: 0, color: '#18181b' },
-  subtitle: { fontSize: 13, color: '#71717a', display: 'block', marginTop: 4 },
-  errorBox: { overflow: 'hidden' },
-  errorInner: { display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 12, lineHeight: 1.5 },
-  submitBtn: { height: 44, fontWeight: 600, fontSize: 14, borderRadius: 10, background: '#18181b', borderColor: '#18181b' },
-  footer: { textAlign: 'center', marginTop: 20, paddingTop: 16, borderTop: '1px solid #f4f4f5' },
-  footerText: { fontSize: 11, color: '#a1a1aa' },
+      <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off" size="large" requiredMark={false}>
+        <Form.Item name="email" rules={[{ required: true, message: 'Email required' }, { type: 'email', message: 'Invalid email' }]}>
+          <Input prefix={<MailOutlined style={{ color: '#71717a' }} />} placeholder="Email address" autoFocus />
+        </Form.Item>
+        <Form.Item name="password" rules={[{ required: true, message: 'Password required' }]}>
+          <Input.Password prefix={<LockOutlined style={{ color: '#71717a' }} />} placeholder="Password" />
+        </Form.Item>
+        <Form.Item style={{ marginBottom: 0 }}>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button type="primary" htmlType="submit" loading={loading} block size="large" style={{ height: 44, fontWeight: 600, fontSize: 14, borderRadius: 10, background: '#18181b', borderColor: '#18181b' }}>
+              {loading ? 'Verifying...' : 'Continue'}
+            </Button>
+          </motion.div>
+        </Form.Item>
+      </Form>
+
+      <div style={{ textAlign: 'center', marginTop: 20 }}>
+        <Text style={{ fontSize: 13, color: '#71717a' }}>
+          Don't have an account? <a href="/register" style={{ color: '#18181b', fontWeight: 600 }}>Sign Up</a>
+        </Text>
+      </div>
+    </AuthLayout>
+  );
 };
 
 export default LoginPage;
