@@ -13,6 +13,10 @@ dist-ssr/
 !.env.staging.example
 !.env.production.example
 backend/.env
+backend/.env.example
+
+# Config files with potential secrets
+backend/config/env.js
 
 # Logs
 logs/
