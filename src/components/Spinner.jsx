@@ -7,15 +7,22 @@ const antIcon = <LoadingOutlined style={{ fontSize: 28, color: '#4F46E5' }} spin
 export function Spinner({ size = 'large', tip, style }) {
   return (
     <div style={{ 
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       display: 'flex', 
       justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '50vh',
+      alignItems: 'center',
+      background: '#fff',
+      zIndex: 9999,
       ...style 
     }}>
-      <Spin indicator={antIcon} size={size} tip={tip}>
-        {tip && <div style={{ padding: 50 }} />}
-      </Spin>
+      <div style={{ textAlign: 'center' }}>
+        <Spin indicator={antIcon} size={size} />
+        {tip && <div style={{ marginTop: 12, fontSize: 13, color: '#71717a', fontWeight: 500 }}>{tip}</div>}
+      </div>
     </div>
   );
 }
