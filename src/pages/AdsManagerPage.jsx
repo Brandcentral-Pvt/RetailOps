@@ -2,8 +2,7 @@ import { Spinner } from "@/components/Spinner";
 import { LoadError } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Button, Tag, Select, Spin, Typography } from 'antd';
-const { Text } = Typography;
-import { RefreshCw, Download, Upload, BarChart3, ChevronUp } from 'lucide-react';
+import { RefreshCw, Download, BarChart3, ChevronUp } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
 import { adsApi, sellerApi } from '../services/api';
@@ -15,12 +14,7 @@ import Chart from 'react-apexcharts';
 import { format } from 'date-fns';
 import dayjs from 'dayjs';
 
-const formatCompact = (val) => {
-  if (typeof val !== 'number') return '0';
-  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
-  if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
-  return val.toFixed(0);
-};
+const { Text } = Typography;
 
 const METRIC_MAP = {
   spend: { label: 'Ads Spend', color: '#D32F2F', type: 'currency', seriesType: 'column' },
@@ -32,6 +26,13 @@ const METRIC_MAP = {
   clicks: { label: 'Clicks', color: '#94a3b8', type: 'number', seriesType: 'column' },
   cvr: { label: 'CVR', color: '#0d9488', type: 'percent', seriesType: 'line' },
   ctr: { label: 'CTR', color: '#9C27B0', type: 'percent', seriesType: 'line' },
+};
+
+const formatCompact = (val) => {
+  if (typeof val !== 'number') return '0';
+  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+  if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+  return val.toFixed(0);
 };
 
 const normalizeDateStr = (dateInput) => {
@@ -94,19 +95,6 @@ export default function AdsManagerPage() {
   const toggleCol = (colKey) => setExpandedCols(prev => ({ ...prev, [colKey]: !prev[colKey] }));
   const toggleParentExpand = (key) => setExpandedParents(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
-  const fetchSellerDropdownData = useCallback(async (pg = 1, search = '') => {
-    try {
-      const r = await sellerApi.getAll({ page: pg, limit: 1000, search });
-      if (r.success) return { data: r.data.sellers || [], hasMore: r.data.pagination?.page < r.data.pagination?.totalPages };
-    } catch (e) {}
-    return { data: [], hasMore: false };
-  }, []);
-
-  const fetchSellerItem = useCallback(async (id) => {
-    try { const r = await sellerApi.getById(id); if (r.success && r.seller) return r.seller; } catch (e) {}
-    return null;
-  }, []);
-
   const fetchAdsData = useCallback(async () => {
     try {
       setLoading(true);
@@ -140,17 +128,16 @@ export default function AdsManagerPage() {
   };
 
   const summaryData = useMemo(() => {
-    const sum = { impressions: 0, clicks: 0, spend: 0, sales: 0, orders: 0, pageViews: 0, organicSales: 0, organicOrders: 0, totalOrders: 0 };
+    const sum = { impressions: 0, clicks: 0, spend: 0, sales: 0, orders: 0, organicSales: 0, organicOrders: 0, totalOrders: 0 };
     data.forEach(d => {
       sum.impressions += Number(d.impressions || 0); sum.clicks += Number(d.clicks || 0);
       sum.spend += Number(d.spend || 0); sum.sales += Number(d.sales || 0);
-      sum.orders += Number(d.orders || 0); sum.pageViews += Number(d.pageViews || 0);
+      sum.orders += Number(d.orders || 0);
       sum.organicSales += Number(d.organicSales || 0); sum.organicOrders += Number(d.organicOrders || 0);
     });
     sum.totalSales = sum.sales + sum.organicSales;
     sum.acos = sum.sales > 0 ? (sum.spend / sum.sales) * 100 : 0;
     sum.roas = sum.spend > 0 ? (sum.sales / sum.spend) : 0;
-    sum.cvr = sum.clicks > 0 ? (sum.orders / sum.clicks) * 100 : 0;
     sum.ctr = sum.impressions > 0 ? (sum.clicks / sum.impressions) * 100 : 0;
     sum.tacos = sum.totalSales > 0 ? (sum.spend / sum.totalSales) * 100 : 0;
     sum.totalOrders = sum.orders + sum.organicOrders;
@@ -218,13 +205,7 @@ export default function AdsManagerPage() {
 
       {/* KPI STRIP */}
       <div style={{ marginBottom: 16, overflow: 'hidden', background: '#f8fafc', border: '1px solid #e4e4e7', borderRadius: 8, padding: '8px 16px', display: 'flex', gap: 8, overflowX: 'auto' }}>
-        {[
-          { label: 'Ads Spend', key: 'spend', color: '#D32F2F' },
-          { label: 'Ads Sales', key: 'sales', color: '#15803d' },
-          { label: 'ACOS', key: 'acos', color: '#b91c1c' },
-          { label: 'ROAS', key: 'roas', color: '#a16207' },
-          { label: 'Orders', key: 'orders', color: '#6d28d9' },
-        ].map((kpi, idx) => (
+        {[{ label: 'Ads Spend', key: 'spend', color: '#D32F2F' }, { label: 'Ads Sales', key: 'sales', color: '#15803d' }, { label: 'ACOS', key: 'acos', color: '#b91c1c' }, { label: 'ROAS', key: 'roas', color: '#a16207' }, { label: 'Orders', key: 'orders', color: '#6d28d9' }].map((kpi, idx) => (
           <div key={idx} style={{ height: 32, minWidth: 'max-content', flexShrink: 0, borderRadius: 4, border: '1px solid #e5e7eb', background: '#ffffff', display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color }} />
             <span style={{ fontSize: 10, fontWeight: 700, color: kpi.color }}>{kpi.label}</span>
@@ -241,38 +222,19 @@ export default function AdsManagerPage() {
               <div style={{ width: 3, height: 14, background: '#D32F2F', borderRadius: 2 }} />
               <Text strong style={{ color: '#0f172a', fontSize: 13 }}>Campaign Trends</Text>
             </div>
-            <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics}
-              style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics"
-              maxTagCount="responsive"
-              options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))}
-            />
+            <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics} style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics" maxTagCount="responsive" options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))} />
           </div>
           <div style={{ height: 320 }}>
             {dynamicChartState.series.length > 0 ? (
-              <Chart height="100%" type="line" series={dynamicChartState.series}
-                options={{
-                  chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' },
-                  stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' },
-                  colors: dynamicChartState.colors,
-                  dataLabels: { enabled: false },
-                  xaxis: { categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } } },
-                  yaxis: dynamicChartState.yaxis,
-                  grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-                  legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px' },
-                  tooltip: { shared: true, intersect: false, theme: 'light' }
-                }}
-              />
-            ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 12 }}>Select metrics to view chart</div>
-            )}
+              <Chart height="100%" type="line" series={dynamicChartState.series} options={{ chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' }, stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' }, colors: dynamicChartState.colors, dataLabels: { enabled: false }, xaxis: { categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } } }, yaxis: dynamicChartState.yaxis, grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }, legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px' }, tooltip: { shared: true, intersect: false, theme: 'light' } }} />
+            ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 12 }}>Select metrics to view chart</div>}
           </div>
         </Card>
       )}
 
       {/* TOGGLE BAR */}
       <div style={{ background: '#ffffff', borderTop: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Button type={showDashboardCharts ? 'primary' : 'default'} icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />}
-          onClick={() => setShowDashboardCharts(!showDashboardCharts)} style={btnStyle}>
+        <Button type={showDashboardCharts ? 'primary' : 'default'} icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />} onClick={() => setShowDashboardCharts(!showDashboardCharts)} style={btnStyle}>
           {showDashboardCharts ? 'Hide Analytics' : 'View Analytics'}
         </Button>
         <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20 }}>
@@ -286,7 +248,7 @@ export default function AdsManagerPage() {
           data={data}
           loading={loading}
           groupBy={groupBy}
-          pagination={{ page, limit: pageSize, total: totalCount, totalPages: Math.ceil(totalCount / pageSize) }}
+          pagination={{ page, limit: pageSize, total: totalCount }}
           sortBy={sortBy}
           sortOrder={sortOrder}
           selectedSeller={selectedSeller}
