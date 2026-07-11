@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/Spinner";
 import { LoadError } from "@/components/LoadError";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Button, Tag, Select, Spin, Typography } from 'antd';
+import { Card, Button, Tag, Select, Spin, Typography, Input, Segmented, DatePicker } from 'antd';
 import { RefreshCw, Download, BarChart3, ChevronUp } from 'lucide-react';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const METRIC_MAP = {
   spend: { label: 'Ads Spend', color: '#D32F2F', type: 'currency', seriesType: 'column' },
@@ -184,24 +185,44 @@ export default function AdsManagerPage() {
       <ExecutiveKPIs data={data} />
       <InsightPanel data={data} />
 
-      {/* FILTERS */}
-      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <input placeholder="Search ASIN, SKU..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: 220, height: 32, borderRadius: 8, border: '1px solid #d9d9d9', padding: '0 11px', fontSize: 12, outline: 'none' }} />
-          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            style={{ height: 32, borderRadius: 8, border: '1px solid #d9d9d9', padding: '0 11px', fontSize: 12, outline: 'none', background: '#fff' }}>
-            <option value="asin">ASIN Level</option>
-            <option value="parent">Parent Level</option>
-          </select>
-          <input type="date" value={startDate ? format(startDate, 'yyyy-MM-dd') : ''} onChange={e => { if (e.target.value) { const d = new Date(e.target.value); handleDateChange([dayjs(d), dayjs(d)]); } }}
-            style={{ height: 32, borderRadius: 8, border: '1px solid #d9d9d9', padding: '0 11px', fontSize: 12, outline: 'none' }} />
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Button onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} />} style={btnStyle}>Refresh</Button>
-            <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>Import</Button>
-          </div>
+      {/* FILTERS - Original from given code */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
+        <Input.Search
+          placeholder="Search ASIN, SKU..."
+          allowClear
+          onSearch={setSearchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: 220, borderRadius: 8 }}
+          size="small"
+        />
+        <Segmented value={groupBy} onChange={setGroupBy}
+          size="small"
+          options={[{ label: 'ASIN Level', value: 'asin' }, { label: 'Parent Level', value: 'parent' }]}
+        />
+        <RangePicker
+          value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
+          onChange={handleDateChange}
+          format="DD MMM YYYY"
+          style={{ borderRadius: 8 }}
+          size="small"
+          presets={[
+            { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
+            { label: 'Last 30 Days', value: [dayjs().subtract(29, 'day'), dayjs()] },
+            { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
+            { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+          ]}
+        />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <Button onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} strokeWidth={2} />}
+            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+            Refresh
+          </Button>
+          <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} strokeWidth={2} />}
+            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+            Import
+          </Button>
         </div>
-      </Card>
+      </div>
 
       {/* KPI STRIP */}
       <div style={{ marginBottom: 16, overflow: 'hidden', background: '#f8fafc', border: '1px solid #e4e4e7', borderRadius: 8, padding: '8px 16px', display: 'flex', gap: 8, overflowX: 'auto' }}>
