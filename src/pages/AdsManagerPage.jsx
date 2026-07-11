@@ -757,13 +757,11 @@ export default function AdsManagerPage() {
   // ═══════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════
+  const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
+
   return (
-    <div className="ads-pro-page">
-      {loading && !data.length && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
-          <Spinner />
-        </div>
-      )}
+    <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}>
+      {loading && !data.length && <Spinner />}
 
       {error && !loading && (
         <LoadError message={error} onRetry={fetchAdsData} />
@@ -776,43 +774,51 @@ export default function AdsManagerPage() {
         onComplete={() => { setShowImportModal(false); fetchAdsData(); }}
       />
 
-      {/* HEADER */}
-      <div className="ads-header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Input.Search
-            placeholder="Search ASIN, SKU..."
-            allowClear
-            onSearch={setSearchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: 220, borderRadius: 8 }}
-            size="small"
-          />
-          <Segmented value={groupBy} onChange={setGroupBy}
-            size="small"
-            options={[{ label: 'ASIN Level', value: 'asin' }, { label: 'Parent Level', value: 'parent' }]}
-          />
-          <RangePicker
-            value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
-            onChange={handleDateChange}
-            format="DD MMM YYYY"
-            style={{ borderRadius: 8 }}
-            size="small"
-            presets={[
-              { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
-              { label: 'Last 30 Days', value: [dayjs().subtract(29, 'day'), dayjs()] },
-              { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
-              { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
-            ]}
-          />
-          <Button onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} strokeWidth={2} />}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
-            Refresh
-          </Button>
-          <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} strokeWidth={2} />}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
-            Import
-          </Button>
+      {/* PAGE HEADER */}
+      <div style={{ padding: '20px 0 16px', borderBottom: '1px solid #f4f4f7', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>Ads Manager</h2>
+            <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 4 }}>Track and optimize your Amazon advertising campaigns</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
+              Import Data
+            </Button>
+            <Button type="primary" onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} />} style={btnStyle}>
+              Refresh
+            </Button>
+          </div>
         </div>
+      </div>
+
+      {/* FILTERS */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
+        <Input.Search
+          placeholder="Search ASIN, SKU..."
+          allowClear
+          onSearch={setSearchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: 220, borderRadius: 8 }}
+          size="small"
+        />
+        <Segmented value={groupBy} onChange={setGroupBy}
+          size="small"
+          options={[{ label: 'ASIN Level', value: 'asin' }, { label: 'Parent Level', value: 'parent' }]}
+        />
+        <RangePicker
+          value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
+          onChange={handleDateChange}
+          format="DD MMM YYYY"
+          style={{ borderRadius: 8 }}
+          size="small"
+          presets={[
+            { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
+            { label: 'Last 30 Days', value: [dayjs().subtract(29, 'day'), dayjs()] },
+            { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
+            { label: 'Last Month', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
+          ]}
+        />
       </div>
 
       {/* KPI STRIP */}
@@ -923,9 +929,15 @@ export default function AdsManagerPage() {
               <Spinner />
             </div>
           ) : paginatedData.length === 0 ? (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-              <Package size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
-              <span style={{ fontSize: 12, fontWeight: 500 }}>No ads data found</span>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 60 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 16, background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Package size={28} style={{ color: '#a1a1aa' }} />
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#18181b', marginBottom: 4 }}>No ads data found</span>
+              <span style={{ fontSize: 12, color: '#71717a', marginBottom: 16 }}>Import your ads data or adjust filters</span>
+              <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} />} style={btnStyle}>
+                Import Data
+              </Button>
             </div>
           ) : (() => {
             const { rows: hRows, stickyLeft, stickyRight } = buildHeaderRows(tableColumns);
