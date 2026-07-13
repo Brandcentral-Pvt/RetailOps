@@ -246,9 +246,22 @@ const TaskDetailDrawer = ({
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'center', width: 36 }}></th>
                     <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'left' }}>ASIN</th>
-                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Channel</th>
-                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Market</th>
-                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Diff</th>
+                    {subTasks[0]?.currentPrice !== undefined && (
+                      <>
+                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Channel</th>
+                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Market</th>
+                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Diff</th>
+                      </>
+                    )}
+                    {subTasks[0]?.currentPrice === undefined && subTasks[0]?.stockLevel !== undefined && (
+                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Stock</th>
+                    )}
+                    {subTasks[0]?.currentPrice === undefined && subTasks[0]?.lqs !== undefined && (
+                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>LQS</th>
+                    )}
+                    {subTasks[0]?.currentPrice === undefined && subTasks[0]?.stockLevel === undefined && subTasks[0]?.lqs === undefined && (
+                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'left' }}>Details</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -257,25 +270,33 @@ const TaskDetailDrawer = ({
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', opacity: isCompleted ? 0.6 : 1 }}>
                         <td style={{ padding: '8px 8px', textAlign: 'center' }}>
-                          <Checkbox
-                            checked={isCompleted}
-                            onChange={() => handleToggleSubTask(i)}
-                          />
+                          <Checkbox checked={isCompleted} onChange={() => handleToggleSubTask(i)} />
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}>
                           <span style={{ textDecoration: isCompleted ? 'line-through' : 'none' }}>{st.asinCode}</span>
+                          {st.brand && <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>{st.brand}</span>}
                         </td>
-                        <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                          ₹{(st.currentPrice || 0).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                          ₹{(st.uploadedPrice || 0).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right' }}>
-                          <Tag color={st.difference > 50 ? 'error' : 'warning'} style={{ borderRadius: 4, fontSize: 10 }}>
-                            ₹{(st.difference || 0).toLocaleString()}
-                          </Tag>
-                        </td>
+                        {st.currentPrice !== undefined ? (
+                          <>
+                            <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>₹{(st.currentPrice || 0).toLocaleString()}</td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>₹{(st.uploadedPrice || 0).toLocaleString()}</td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right' }}>
+                              <Tag color={st.difference > 50 ? 'error' : 'warning'} style={{ borderRadius: 4, fontSize: 10 }}>₹{(st.difference || 0).toLocaleString()}</Tag>
+                            </td>
+                          </>
+                        ) : st.stockLevel !== undefined ? (
+                          <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right' }}>
+                            <Tag color={st.stockLevel === 0 ? 'error' : st.stockLevel < 10 ? 'warning' : 'success'} style={{ borderRadius: 4, fontSize: 10 }}>{st.stockLevel}</Tag>
+                          </td>
+                        ) : st.lqs !== undefined ? (
+                          <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right' }}>
+                            <Tag color={st.lqs < 50 ? 'error' : st.lqs < 70 ? 'warning' : 'success'} style={{ borderRadius: 4, fontSize: 10 }}>{st.lqs}</Tag>
+                          </td>
+                        ) : (
+                          <td style={{ padding: '8px 12px', fontSize: 11, color: '#64748b' }}>
+                            {st.title || st.asinCode}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
