@@ -15,7 +15,7 @@ const EXCLUDE_DAYS_MAP = {
   'None': 0
 };
 
-async function getEntityData(type, sellerId, dateRange, excludeDays) {
+async function getEntityData(type, sellerId, dateRange, excludeDays, hasTotalOrders = true, sqlFilter = '') {
   const pool = await getPool();
 
   if (type === 'ASIN' || type === 'Product') {
@@ -29,9 +29,9 @@ async function getEntityData(type, sellerId, dateRange, excludeDays) {
       a.PriceDispute, a.HasDeal, a.DealBadge,
       a.BsrTrend, a.RatingTrend,
       a.Tags, a.SoldBy, a.Manufacturer,
-      (SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode) as totalOrders
+      ${hasTotalOrders ? `(SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode)` : '0'} as totalOrders
     FROM Asins a WITH (NOLOCK)
-    WHERE a.Status IN ('Active', 'Error')`;
+    WHERE a.Status IN ('Active', 'Error') ${sqlFilter}`;
     
     const request = pool.request();
     if (sellerId) {
@@ -344,6 +344,89 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
   return results;
 }
 
+function mapAttributeToColumn(attr) {
+  const map = {
+    priceDispute: 'PriceDispute',
+    buyBoxWin: 'BuyBoxWin',
+    stockLevel: 'StockLevel',
+    currentPrice: 'CurrentPrice',
+    uploadedPrice: 'UploadedPrice',
+    mrp: 'Mrp',
+    discountPercentage: 'DiscountPercentage',
+    hasDeal: 'HasDeal',
+    lqs: 'LQS',
+    bsr: 'BSR',
+    subBsr: 'SubBsr',
+    rating: 'Rating',
+    reviewCount: 'ReviewCount',
+    availabilityStatus: 'AvailabilityStatus',
+    asinStatus: 'Status',
+    seller: 'SellerId',
+    category: 'Category',
+    brand: 'Brand'
+  };
+  return map[attr] || null;
+}
+
+function formatSqlCondition(col, op, val, val2) {
+  let sqlOp = op;
+  if (op === '=') sqlOp = '=';
+  else if (op === '≠') sqlOp = '<>';
+  
+  let sqlVal = val;
+  if (val === 'true' || val === 'Yes' || val === 'yes') sqlVal = '1';
+  else if (val === 'false' || val === 'No' || val === 'no') sqlVal = '0';
+  
+  if (op === 'is empty') return `(${col} IS NULL OR ${col} = '')`;
+  if (op === 'is not empty') return `(${col} IS NOT NULL AND ${col} <> '')`;
+  if (op === 'contains') return `${col} LIKE '%${val}%'`;
+  if (op === 'not contains') return `${col} NOT LIKE '%${val}%'`;
+  if (op === 'starts with') return `${col} LIKE '${val}%'`;
+  
+  if (op === 'between') {
+    return `(${col} BETWEEN ${Number(val) || 0} AND ${Number(val2) || 0})`;
+  }
+  
+  if (isNaN(sqlVal)) {
+    return `${col} ${sqlOp} '${sqlVal}'`;
+  } else {
+    return `${col} ${sqlOp} ${sqlVal}`;
+  }
+}
+
+function buildSqlFilter(rules) {
+  if (!Array.isArray(rules) || rules.length === 0) return '';
+  
+  const ruleFilters = [];
+  for (const rule of rules) {
+    if (!rule.isActive || !rule.conditions || rule.conditions.length === 0) continue;
+    
+    const condFilters = [];
+    for (let i = 0; i < rule.conditions.length; i++) {
+      const cond = rule.conditions[i];
+      const col = mapAttributeToColumn(cond.attribute);
+      if (!col) continue;
+      
+      const sqlCond = formatSqlCondition(col, cond.operator, cond.value, cond.value2);
+      if (sqlCond) {
+        if (i > 0) {
+          condFilters.push(` ${cond.logicalOp || 'AND'} ${sqlCond}`);
+        } else {
+          condFilters.push(sqlCond);
+        }
+      }
+    }
+    if (condFilters.length > 0) {
+      ruleFilters.push(`(${condFilters.join('')})`);
+    }
+  }
+  
+  if (ruleFilters.length > 0) {
+    return ` AND (${ruleFilters.join(' OR ')})`;
+  }
+  return '';
+}
+
 async function evaluateRuleset(rulesetId, options = {}) {
   const dryRun = options.dryRun || false;
   const triggeredBy = options.triggeredBy || 'manual';
@@ -373,11 +456,18 @@ async function evaluateRuleset(rulesetId, options = {}) {
   ruleset.Rules = Array.isArray(rules) ? rules : [];
 
   const startTime = Date.now();
+  const hasTotalOrders = ruleset.Rules.some(r => 
+    r.conditions?.some(c => c.attribute === 'totalOrders')
+  );
+  const sqlFilter = buildSqlFilter(ruleset.Rules);
+
   let entities = await getEntityData(
     ruleset.Type,
     ruleset.SellerId,
     ruleset.UsingDataFrom,
-    ruleset.ExcludeDays
+    ruleset.ExcludeDays,
+    hasTotalOrders,
+    sqlFilter
   );
 
   if (selectedAsins && selectedAsins.length > 0) {
@@ -394,6 +484,7 @@ async function evaluateRuleset(rulesetId, options = {}) {
 
   const entries = [];
 
+  const matchedEntities = [];
   for (const entity of entities) {
     let matchedRule = null;
     let matchedIndex = -1;
@@ -409,7 +500,16 @@ async function evaluateRuleset(rulesetId, options = {}) {
 
     if (matchedRule) {
       summary.totalMatched++;
+      matchedEntities.push({ entity, matchedRule, matchedIndex });
+    } else {
+      summary.totalSkipped++;
+    }
+  }
 
+  const batchSize = 100;
+  for (let i = 0; i < matchedEntities.length; i += batchSize) {
+    const batch = matchedEntities.slice(i, i + batchSize);
+    await Promise.all(batch.map(async ({ entity, matchedRule, matchedIndex }) => {
       let actionResults = [];
       if (!dryRun) {
         actionResults = await applyAction(
@@ -437,9 +537,7 @@ async function evaluateRuleset(rulesetId, options = {}) {
         actionApplied: matchedRule.action,
         status: dryRun ? 'dry_run' : (actionResults.some(r => r.status === 'success') ? 'applied' : 'failed')
       });
-    } else {
-      summary.totalSkipped++;
-    }
+    }));
   }
 
   summary.executionTimeMs = Date.now() - startTime;
@@ -453,10 +551,10 @@ async function evaluateRuleset(rulesetId, options = {}) {
       .input('Status', sql.NVarChar, 'SUCCESS')
       .input('MatchedCount', sql.Int, summary.totalMatched)
       .input('ActionedCount', sql.Int, summary.totalActioned)
-      .input('Summary', sql.NVarChar, JSON.stringify(summary))
+      .input('ErrorMessage', sql.NVarChar, JSON.stringify(summary))
       .query(`
-        INSERT INTO RulesetExecutionLogs (Id, RulesetId, ExecutedAt, TriggeredBy, Status, MatchedCount, ActionedCount, Summary)
-        VALUES (@Id, @RulesetId, dbo.GetEnvDate(), @TriggeredBy, @Status, @MatchedCount, @ActionedCount, @Summary)
+        INSERT INTO RulesetExecutionLogs (Id, RulesetId, ExecutedAt, TriggeredBy, Status, MatchedCount, ActionedCount, ErrorMessage)
+        VALUES (@Id, @RulesetId, dbo.GetEnvDate(), @TriggeredBy, @Status, @MatchedCount, @ActionedCount, @ErrorMessage)
       `);
 
     await pool.request()
