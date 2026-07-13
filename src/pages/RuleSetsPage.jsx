@@ -121,6 +121,16 @@ const RuleSetsPage = () => {
 
   return (
     <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
+      <style>{`
+        .ruleset-card-hover {
+          transition: all 0.2s ease-in-out !important;
+        }
+        .ruleset-card-hover:hover {
+          transform: translateY(-3px) !important;
+          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+          border-color: #cbd5e1 !important;
+        }
+      `}</style>
       {/* Page Header */}
       <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -208,78 +218,100 @@ const RuleSetsPage = () => {
                 try { summary = JSON.parse(rs.lastRunSummary || '{}'); } catch {}
 
                 return (
-                  <div key={rs._id || rs.id} style={{
-                    border: '1px solid #e4e4e7', borderRadius: 12, overflow: 'hidden',
-                    background: rs.isActive ? '#fff' : '#fafafa',
-                    opacity: rs.isActive ? 1 : 0.7, transition: 'all 0.15s'
-                  }}>
-                    {/* Card Header */}
-                    <div style={{ padding: '12px 16px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#18181b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {rs.name}
-                          </span>
-                          <TypeBadge type={rs.type} />
+                  <div 
+                    key={rs._id || rs.id} 
+                    style={{
+                      border: '1px solid #f1f5f9', 
+                      borderRadius: 12, 
+                      overflow: 'hidden',
+                      background: rs.isActive ? '#fff' : '#f8fafc',
+                      opacity: rs.isActive ? 1 : 0.8, 
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      justifyContent: 'space-between'
+                    }}
+                    className="ruleset-card-hover"
+                  >
+                    {/* Main Content Area */}
+                    <div style={{ padding: '16px' }}>
+                      {/* Card Header */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {rs.name}
+                            </span>
+                            <TypeBadge type={rs.type} />
+                          </div>
+                          {rs.description ? (
+                            <p style={{ fontSize: 11, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', whiteSpace: 'normal', height: 32 }}>
+                              {rs.description}
+                            </p>
+                          ) : (
+                            <div style={{ height: 32 }} />
+                          )}
                         </div>
-                        {rs.description && (
-                          <p style={{ fontSize: 11, color: '#71717a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {rs.description}
-                          </p>
-                        )}
+                        <Switch size="small" checked={rs.isActive} onChange={() => handleToggle(rs._id || rs.id)} style={{ marginLeft: 8 }} />
                       </div>
-                      <Switch size="small" checked={rs.isActive} onChange={() => handleToggle(rs._id || rs.id)} />
-                    </div>
 
-                    {/* Stats */}
-                    <div style={{ padding: '10px 16px', display: 'flex', gap: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Rules</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rules.length}</span>
+                      {/* Stats Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, padding: '10px', background: '#f8fafc', borderRadius: 8, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Rules</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{rules.length}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
+                          <span style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Runs</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{rs.totalRunCount || 0}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Matched</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981' }}>{summary.totalMatched || 0}</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Runs</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rs.totalRunCount || 0}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Matched</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32' }}>{summary.totalMatched || 0}</span>
-                      </div>
-                      <div style={{ flex: 1 }} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {rs.isAutomated && (
-                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 5px', margin: 0, background: '#eff6ff', color: '#0288D1', border: '1px solid #bfdbfe' }}>
-                            <Clock size={9} style={{ marginRight: 2 }} />
+
+                      {/* Execution Time & Pill */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        {rs.isAutomated ? (
+                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: '1px 8px', margin: 0, background: '#eff6ff', color: '#1976D2', border: '1px solid #bfdbfe' }}>
+                            <Clock size={9} style={{ marginRight: 3, verticalAlign: 'middle' }} />
                             {rs.runFrequency || 'Daily'}
                           </Tag>
+                        ) : (
+                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: '1px 8px', margin: 0, background: '#f1f5f9', color: '#64748b', border: 'none' }}>
+                            Manual
+                          </Tag>
                         )}
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>
-                          {rs.lastRunAt ? formatTime(rs.lastRunAt) : 'Never run'}
+                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
+                          Last run: {rs.lastRunAt ? formatTime(rs.lastRunAt) : 'Never'}
                         </span>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div style={{ padding: '8px 16px 12px', borderTop: '1px solid #f4f4f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Space size={4}>
+                    {/* Footer Actions */}
+                    <div style={{ padding: '8px 16px', background: '#fafafa', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Space size={8}>
                         <Tooltip title="Run Now">
-                          <Button type="text" size="small" icon={<PlayCircle size={13} />}
+                          <Button type="text" size="small" icon={<PlayCircle size={14} />}
                             loading={executing === (rs._id || rs.id)}
                             onClick={() => handleExecute(rs._id || rs.id)}
-                            style={{ color: '#2E7D32' }} />
+                            style={{ color: '#10b981', padding: 0 }} />
                         </Tooltip>
                         <Tooltip title="Duplicate">
-                          <Button type="text" size="small" icon={<Copy size={13} />}
-                            onClick={() => handleDuplicate(rs._id || rs.id)} />
+                          <Button type="text" size="small" icon={<Copy size={14} />}
+                            onClick={() => handleDuplicate(rs._id || rs.id)} style={{ color: '#64748b', padding: 0 }} />
                         </Tooltip>
                         <Tooltip title="Edit">
-                          <Button type="text" size="small" icon={<SlidersHorizontal size={13} />}
-                            onClick={() => navigate(`/rule-sets/${rs._id || rs.id}`)} />
+                          <Button type="text" size="small" icon={<SlidersHorizontal size={14} />}
+                            onClick={() => navigate(`/rule-sets/${rs._id || rs.id}`)} style={{ color: '#64748b', padding: 0 }} />
                         </Tooltip>
-                        <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(rs._id || rs.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                          <Button type="text" danger size="small" icon={<Trash2 size={13} />} />
-                        </Popconfirm>
                       </Space>
+                      <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(rs._id || rs.id)} okText="Delete" okButtonProps={{ danger: true }}>
+                        <Button type="text" danger size="small" icon={<Trash2 size={14} />} style={{ padding: 0 }} />
+                      </Popconfirm>
                     </div>
                   </div>
                 );
