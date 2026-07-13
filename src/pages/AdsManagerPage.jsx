@@ -24,6 +24,11 @@ const METRIC_MAP = {
   acos: { label: 'ACOS', color: '#C62828', type: 'percent', seriesType: 'line' },
   roas: { label: 'ROAS', color: '#E65100', type: 'ratio', seriesType: 'line' },
   orders: { label: 'Ads Orders', color: '#9333ea', type: 'number', seriesType: 'column' },
+  organicSales: { label: 'Organic Sales', color: '#6b7280', type: 'currency', seriesType: 'column' },
+  organicOrders: { label: 'Organic Orders', color: '#64748b', type: 'number', seriesType: 'column' },
+  totalOrders: { label: 'Total Orders', color: '#475569', type: 'number', seriesType: 'column' },
+  totalSales: { label: 'Total Sales', color: '#374151', type: 'currency', seriesType: 'column' },
+  tacos: { label: 'TACOS', color: '#9C27B0', type: 'percent', seriesType: 'line' },
   impressions: { label: 'Impressions', color: '#94a3b8', type: 'number', seriesType: 'column' },
   clicks: { label: 'Clicks', color: '#94a3b8', type: 'number', seriesType: 'column' },
   cvr: { label: 'CVR', color: '#0d9488', type: 'percent', seriesType: 'line' },
@@ -69,10 +74,10 @@ export default function AdsManagerPage() {
 
   useEffect(() => { setPageTitle('Ads Manager'); }, [setPageTitle]);
 
-  const { 
-    data, paginatedData, loading, filterLoading, error, 
+  const {
+    data, paginatedData, loading, filterLoading, error,
     totalCount, page, setPage, pageSize, setPageSize,
-    globalChartData, summary, fetchData, debouncedFetch 
+    globalChartData, summary, fetchData, debouncedFetch
   } = useAdsData();
 
   const [groupBy, setGroupBy] = useState('asin');
@@ -84,14 +89,18 @@ export default function AdsManagerPage() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [managers, setManagers] = useState([]);
+  const [sellers, setSellers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [filtersLoading, setFiltersLoading] = useState(true);
   const [showDashboardCharts, setShowDashboardCharts] = useState(true);
   const [showImportModal, setShowImportModal] = useState(false);
   const [activeHistoryRow, setActiveHistoryRow] = useState(null);
   const [chartConfigMetrics, setChartConfigMetrics] = useState(['spend', 'sales', 'acos']);
   const [expandedCols, setExpandedCols] = useState({});
   const [expandedParents, setExpandedParents] = useState(new Set());
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState('');
 
   useEffect(() => { localStorage.setItem('selectedSeller', selectedSeller); }, [selectedSeller]);
   useEffect(() => { setExpandedParents(new Set()); setPage(1); }, [groupBy]);
@@ -99,6 +108,7 @@ export default function AdsManagerPage() {
   // Fetch managers, categories, brands for filters
   useEffect(() => {
     const fetchFilterData = async () => {
+      setFiltersLoading(true);
       try {
         const [managersRes, sellersRes] = await Promise.all([
           userApi.getManagers(),
@@ -106,11 +116,16 @@ export default function AdsManagerPage() {
         ]);
         if (managersRes?.success) setManagers(managersRes.data || []);
         if (sellersRes?.success) {
-          const sellers = sellersRes.data?.sellers || [];
-          setCategories([...new Set(sellers.map(s => s.category).filter(Boolean))]);
-          setBrands([...new Set(sellers.map(s => s.brand).filter(Boolean))]);
+          const sellersList = sellersRes.data?.sellers || [];
+          setSellers(sellersList);
+          setCategories([...new Set(sellersList.map(s => s.category).filter(Boolean))]);
+          setBrands([...new Set(sellersList.map(s => s.brand).filter(Boolean))]);
         }
-      } catch (err) { console.error('Failed to fetch filter data:', err); }
+      } catch (err) {
+        console.error('Failed to fetch filter data:', err);
+      } finally {
+        setFiltersLoading(false);
+      }
     };
     fetchFilterData();
   }, []);
@@ -119,15 +134,15 @@ export default function AdsManagerPage() {
   const toggleParentExpand = (key) => setExpandedParents(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   const handleRefresh = useCallback(() => {
-    fetchData({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate });
-  }, [fetchData, groupBy, searchQuery, selectedSeller, startDate, endDate]);
+    fetchData({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate, sortBy, sortOrder });
+  }, [fetchData, groupBy, searchQuery, selectedSeller, startDate, endDate, sortBy, sortOrder]);
 
-  useEffect(() => { fetchData({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate }); }, [fetchData]);
-  
+  useEffect(() => { fetchData({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate, sortBy, sortOrder }); }, [fetchData]);
+
   // Debounced filter changes
   useEffect(() => {
-    debouncedFetch({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate });
-  }, [searchQuery, groupBy, selectedSeller, startDate, endDate]);
+    debouncedFetch({ groupBy, search: searchQuery, sellerId: selectedSeller, startDate, endDate, sortBy, sortOrder });
+  }, [searchQuery, groupBy, selectedSeller, startDate, endDate, sortBy, sortOrder]);
 
   const handleDateChange = (dates) => {
     if (dates && dates[0] && dates[1]) {
@@ -179,10 +194,13 @@ export default function AdsManagerPage() {
       const firstN = chartConfigMetrics.findIndex(k => !['percent', 'ratio'].includes(METRIC_MAP[k].type));
       const firstP = chartConfigMetrics.findIndex(k => ['percent', 'ratio'].includes(METRIC_MAP[k].type));
       const show = idx === firstN || idx === firstP;
-      return { seriesName: c.label, opposite: isP, show, axisTicks: { show: false }, axisBorder: { show: false },
+      return {
+        seriesName: c.label, opposite: isP, show, axisTicks: { show: false }, axisBorder: { show: false },
         title: { style: { fontSize: '9px', fontWeight: 600, color: c.color } },
-        labels: { show, style: { fontSize: '10px', fontWeight: 500, colors: '#64748b' },
-          formatter: (v) => { const val = Number(v); if (isP) return val.toFixed(1) + '%'; if (isC) { if (val >= 100000) return (val / 100000).toFixed(1) + 'L'; if (val >= 1000) return (val / 1000).toFixed(1) + 'k'; return val.toFixed(0); } return val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0); } }
+        labels: {
+          show, style: { fontSize: '10px', fontWeight: 500, colors: '#64748b' },
+          formatter: (v) => { const val = Number(v); if (isP) return val.toFixed(1) + '%'; if (isC) { if (val >= 100000) return (val / 100000).toFixed(1) + 'L'; if (val >= 1000) return (val / 1000).toFixed(1) + 'k'; return val.toFixed(0); } return val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0); }
+        }
       };
     });
     return { series, yaxis, colors };
@@ -193,15 +211,15 @@ export default function AdsManagerPage() {
   if (loading && !data.length) return <Spinner />;
 
   return (
-    <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '16px 24px' }}>
-      <AdsImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} selectedSeller={selectedSeller} onComplete={() => { setShowImportModal(false); fetchAdsData(); }} />
+    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <AdsImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} selectedSeller={selectedSeller} onComplete={() => { setShowImportModal(false); handleRefresh(); }} />
 
       <ExecutiveKPIs data={data} />
       <InsightPanel data={data} />
 
-      {/* FILTERS */}
-      <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '12px 16px' }}>
+      {/* FILTERS & CONTROLS */}
+      <Card size="small" style={{ borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 16px' } }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Input.Search
             placeholder="Search ASIN, SKU..."
             allowClear
@@ -231,43 +249,61 @@ export default function AdsManagerPage() {
             style={{ borderRadius: 8, fontWeight: 600, fontSize: 11 }}>
             {showFilters ? 'Less' : 'More'}
           </Button>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Button onClick={fetchAdsData} loading={loading} icon={<RefreshCw size={13} strokeWidth={2} />}
-              style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Button 
+              type={showDashboardCharts ? 'primary' : 'default'} 
+              icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />} 
+              onClick={() => setShowDashboardCharts(!showDashboardCharts)} 
+              style={btnStyle}
+              size="small"
+            >
+              {showDashboardCharts ? 'Hide Analytics' : 'View Analytics'}
+            </Button>
+            <Button onClick={handleRefresh} loading={loading} icon={<RefreshCw size={13} strokeWidth={2} />}
+              style={btnStyle}
+              size="small"
+            >
               Refresh
             </Button>
             <Button type="primary" onClick={() => setShowImportModal(true)} icon={<Download size={13} strokeWidth={2} />}
-              style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+              style={btnStyle}
+              size="small"
+            >
               Import
             </Button>
           </div>
         </div>
-        
+
         {/* Expanded Filters */}
         {showFilters && (
-          <div style={{ borderTop: '1px solid #f4f4f5', padding: '12px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+          <div style={{ borderTop: '1px solid #f4f4f5', marginTop: 12, paddingTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Seller</div>
               <Select size="small" placeholder="All Sellers" style={{ width: '100%' }} allowClear
                 value={selectedSeller || undefined} onChange={setSelectedSeller}
-                options={[]} showSearch filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} />
+                loading={filtersLoading}
+                options={sellers.map(s => ({ label: s.name || s.Name, value: s.id || s._id || s.SellerId }))} showSearch filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} />
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Manager</div>
               <Select size="small" placeholder="All Managers" style={{ width: '100%' }} allowClear
                 value={selectedManager || undefined} onChange={setSelectedManager}
+                loading={filtersLoading}
                 options={managers.map(m => ({ label: m.name || m.Name, value: m.id || m.Id }))} />
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Category</div>
               <Select size="small" placeholder="All Categories" style={{ width: '100%' }} allowClear showSearch
                 value={selectedCategory || undefined} onChange={setSelectedCategory}
+                loading={filtersLoading}
                 options={categories.map(c => ({ label: c, value: c }))} />
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Brand</div>
               <Select size="small" placeholder="All Brands" style={{ width: '100%' }} allowClear showSearch
                 value={selectedBrand || undefined} onChange={setSelectedBrand}
+                loading={filtersLoading}
                 options={brands.map(b => ({ label: b, value: b }))} />
             </div>
             <div>
@@ -292,25 +328,14 @@ export default function AdsManagerPage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* KPI STRIP */}
-      <div style={{ marginBottom: 16, overflow: 'hidden', background: '#f8fafc', border: '1px solid #e4e4e7', borderRadius: 8, padding: '8px 16px', display: 'flex', gap: 8, overflowX: 'auto' }}>
-        {[{ label: 'Ads Spend', key: 'spend', color: '#D32F2F' }, { label: 'Ads Sales', key: 'sales', color: '#15803d' }, { label: 'ACOS', key: 'acos', color: '#b91c1c' }, { label: 'ROAS', key: 'roas', color: '#a16207' }, { label: 'Orders', key: 'orders', color: '#6d28d9' }].map((kpi, idx) => (
-          <div key={idx} style={{ height: 32, minWidth: 'max-content', flexShrink: 0, borderRadius: 4, border: '1px solid #e5e7eb', background: '#ffffff', display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color }} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: kpi.color }}>{kpi.label}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{formatCompact(summaryData[kpi.key] || 0)}</span>
-          </div>
-        ))}
-      </div>
+      </Card>
 
       {/* CHART */}
       {showDashboardCharts && (
-        <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '10px 14px' } }}>
+        <Card size="small" style={{ borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 14px' } }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 3, height: 14, background: '#D32F2F', borderRadius: 2 }} />
+              <div style={{ width: 3, height: 14, background: '#1976D2', borderRadius: 2 }} />
               <Text strong style={{ color: '#0f172a', fontSize: 13 }}>Campaign Trends</Text>
             </div>
             <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics} style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics" maxTagCount="responsive" options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))} />
@@ -323,18 +348,20 @@ export default function AdsManagerPage() {
         </Card>
       )}
 
-      {/* TOGGLE BAR */}
-      <div style={{ background: '#ffffff', borderTop: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Button type={showDashboardCharts ? 'primary' : 'default'} icon={showDashboardCharts ? <ChevronUp size={13} /> : <BarChart3 size={13} />} onClick={() => setShowDashboardCharts(!showDashboardCharts)} style={btnStyle}>
-          {showDashboardCharts ? 'Hide Analytics' : 'View Analytics'}
-        </Button>
-        <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20 }}>
-          Showing <span style={{ color: '#0f172a', fontWeight: 700 }}>{data.length}</span> of <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
-        </span>
-      </div>
-
       {/* TABLE */}
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+      <Card 
+        size="small"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Campaign Performance Details</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20 }}>
+              Showing <span style={{ color: '#0f172a', fontWeight: 700 }}>{data.length}</span> of <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
+            </span>
+          </div>
+        }
+        style={{ borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
+        styles={{ body: { padding: 0 } }}
+      >
         <AdsTable
           data={paginatedData}
           loading={loading || filterLoading}
@@ -353,7 +380,7 @@ export default function AdsManagerPage() {
           onExpandParent={toggleParentExpand}
           onSetActiveHistoryRow={setActiveHistoryRow}
         />
-      </div>
+      </Card>
     </div>
   );
 }

@@ -36,7 +36,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { PageLoading } from '../components/application/loading-indicator';
+import { PageLoading } from '../components/Spinner';
 import { usePageTitle } from '../contexts/PageTitleContext';
 
 dayjs.extend(relativeTime);
