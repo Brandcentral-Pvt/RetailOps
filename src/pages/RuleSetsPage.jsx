@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, Input, Select, Space, Tag, Tooltip, Popconfirm, Card,
-  Switch, Badge, Pagination, Empty, Spin, Typography
+  Switch, Badge, Pagination, Empty, Spin, Typography, Table
 } from 'antd';
 const { Text } = Typography;
 import {
@@ -119,18 +119,136 @@ const RuleSetsPage = () => {
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   };
 
+  const columns = [
+    {
+      title: 'Ruleset Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: '28%',
+      render: (text, record) => (
+        <div>
+          <span 
+            style={{ fontWeight: 600, color: '#18181b', fontSize: 13, cursor: 'pointer', hoverColor: '#1976D2' }}
+            onClick={() => navigate(`/rule-sets/${record._id || record.id}`)}
+          >
+            {text}
+          </span>
+          {record.description && (
+            <div style={{ fontSize: 11, color: '#71717a', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }} title={record.description}>
+              {record.description}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      title: 'Entity Type',
+      dataIndex: 'type',
+      key: 'type',
+      width: '12%',
+      render: (type) => <TypeBadge type={type} />
+    },
+    {
+      title: 'Rules Count',
+      key: 'rulesCount',
+      width: '10%',
+      render: (_, record) => {
+        const rules = (() => { try { return JSON.parse(record.rules || '[]'); } catch { return []; } })();
+        return <span style={{ fontSize: 12, fontWeight: 500, color: '#3f3f46' }}>{rules.length} rules</span>;
+      }
+    },
+    {
+      title: 'Frequency',
+      key: 'schedule',
+      width: '12%',
+      render: (_, record) => {
+        return record.isAutomated ? (
+          <Tag style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: '1px 8px', background: '#eff6ff', color: '#1976D2', border: '1px solid #bfdbfe' }}>
+            <Clock size={9} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+            {record.runFrequency || 'Daily'}
+          </Tag>
+        ) : (
+          <Tag style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: '1px 8px', background: '#f4f4f5', color: '#71717a', border: 'none' }}>
+            Manual
+          </Tag>
+        );
+      }
+    },
+    {
+      title: 'Runs',
+      dataIndex: 'totalRunCount',
+      key: 'totalRunCount',
+      width: '8%',
+      align: 'center',
+      render: (count) => <span style={{ fontSize: 12, fontWeight: 600, color: '#18181b' }}>{count || 0}</span>
+    },
+    {
+      title: 'Matched',
+      key: 'matched',
+      width: '10%',
+      align: 'center',
+      render: (_, record) => {
+        let summary = {};
+        try { summary = JSON.parse(record.lastRunSummary || '{}'); } catch {}
+        return (
+          <span style={{ fontSize: 12, fontWeight: 700, color: (summary.totalMatched > 0) ? '#10b981' : '#71717a' }}>
+            {summary.totalMatched || 0}
+          </span>
+        );
+      }
+    },
+    {
+      title: 'Last Run',
+      dataIndex: 'lastRunAt',
+      key: 'lastRunAt',
+      width: '12%',
+      render: (date) => (
+        <span style={{ fontSize: 11, color: '#71717a' }}>
+          {date ? formatTime(date) : 'Never'}
+        </span>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'isActive',
+      key: 'isActive',
+      width: '8%',
+      align: 'center',
+      render: (checked, record) => (
+        <Switch size="small" checked={checked} onChange={() => handleToggle(record._id || record.id)} />
+      )
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: '10%',
+      align: 'right',
+      render: (_, record) => (
+        <Space size={8}>
+          <Tooltip title="Run Now">
+            <Button type="text" size="small" icon={<PlayCircle size={14} />}
+              loading={executing === (record._id || record.id)}
+              onClick={() => handleExecute(record._id || record.id)}
+              style={{ color: '#10b981', padding: 0 }} />
+          </Tooltip>
+          <Tooltip title="Duplicate">
+            <Button type="text" size="small" icon={<Copy size={14} />}
+              onClick={() => handleDuplicate(record._id || record.id)} style={{ color: '#64748b', padding: 0 }} />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button type="text" size="small" icon={<SlidersHorizontal size={14} />}
+              onClick={() => navigate(`/rule-sets/${record._id || record.id}`)} style={{ color: '#64748b', padding: 0 }} />
+          </Tooltip>
+          <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(record._id || record.id)} okText="Delete" okButtonProps={{ danger: true }}>
+            <Button type="text" danger size="small" icon={<Trash2 size={14} />} style={{ padding: 0 }} />
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
   return (
     <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
-      <style>{`
-        .ruleset-card-hover {
-          transition: all 0.2s ease-in-out !important;
-        }
-        .ruleset-card-hover:hover {
-          transform: translateY(-3px) !important;
-          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
-          border-color: #cbd5e1 !important;
-        }
-      `}</style>
       {/* Page Header */}
       <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -211,112 +329,14 @@ const RuleSetsPage = () => {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
-              {filtered.map(rs => {
-                const rules = (() => { try { return JSON.parse(rs.rules || '[]'); } catch { return []; } })();
-                let summary = {};
-                try { summary = JSON.parse(rs.lastRunSummary || '{}'); } catch {}
-
-                return (
-                  <div 
-                    key={rs._id || rs.id} 
-                    style={{
-                      border: '1px solid #f1f5f9', 
-                      borderRadius: 12, 
-                      overflow: 'hidden',
-                      background: rs.isActive ? '#fff' : '#f8fafc',
-                      opacity: rs.isActive ? 1 : 0.8, 
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      height: '100%',
-                      justifyContent: 'space-between'
-                    }}
-                    className="ruleset-card-hover"
-                  >
-                    {/* Main Content Area */}
-                    <div style={{ padding: '16px' }}>
-                      {/* Card Header */}
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {rs.name}
-                            </span>
-                            <TypeBadge type={rs.type} />
-                          </div>
-                          {rs.description ? (
-                            <p style={{ fontSize: 11, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', whiteSpace: 'normal', height: 32 }}>
-                              {rs.description}
-                            </p>
-                          ) : (
-                            <div style={{ height: 32 }} />
-                          )}
-                        </div>
-                        <Switch size="small" checked={rs.isActive} onChange={() => handleToggle(rs._id || rs.id)} style={{ marginLeft: 8 }} />
-                      </div>
-
-                      {/* Stats Grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, padding: '10px', background: '#f8fafc', borderRadius: 8, marginBottom: 12 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Rules</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{rules.length}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
-                          <span style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Runs</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{rs.totalRunCount || 0}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Matched</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981' }}>{summary.totalMatched || 0}</span>
-                        </div>
-                      </div>
-
-                      {/* Execution Time & Pill */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        {rs.isAutomated ? (
-                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: '1px 8px', margin: 0, background: '#eff6ff', color: '#1976D2', border: '1px solid #bfdbfe' }}>
-                            <Clock size={9} style={{ marginRight: 3, verticalAlign: 'middle' }} />
-                            {rs.runFrequency || 'Daily'}
-                          </Tag>
-                        ) : (
-                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: '1px 8px', margin: 0, background: '#f1f5f9', color: '#64748b', border: 'none' }}>
-                            Manual
-                          </Tag>
-                        )}
-                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
-                          Last run: {rs.lastRunAt ? formatTime(rs.lastRunAt) : 'Never'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Footer Actions */}
-                    <div style={{ padding: '8px 16px', background: '#fafafa', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Space size={8}>
-                        <Tooltip title="Run Now">
-                          <Button type="text" size="small" icon={<PlayCircle size={14} />}
-                            loading={executing === (rs._id || rs.id)}
-                            onClick={() => handleExecute(rs._id || rs.id)}
-                            style={{ color: '#10b981', padding: 0 }} />
-                        </Tooltip>
-                        <Tooltip title="Duplicate">
-                          <Button type="text" size="small" icon={<Copy size={14} />}
-                            onClick={() => handleDuplicate(rs._id || rs.id)} style={{ color: '#64748b', padding: 0 }} />
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <Button type="text" size="small" icon={<SlidersHorizontal size={14} />}
-                            onClick={() => navigate(`/rule-sets/${rs._id || rs.id}`)} style={{ color: '#64748b', padding: 0 }} />
-                        </Tooltip>
-                      </Space>
-                      <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(rs._id || rs.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                        <Button type="text" danger size="small" icon={<Trash2 size={14} />} style={{ padding: 0 }} />
-                      </Popconfirm>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <Table 
+              columns={columns} 
+              dataSource={filtered} 
+              rowKey={(record) => record._id || record.id} 
+              pagination={false} 
+              size="middle"
+              style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 12, overflow: 'hidden' }}
+            />
 
             {total > pageSize && (
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
