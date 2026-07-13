@@ -163,13 +163,35 @@ const RuleSetsPage = () => {
       width: '12%',
       render: (_, record) => {
         return record.isAutomated ? (
-          <Tag style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: '1px 8px', background: '#eff6ff', color: '#1976D2', border: '1px solid #bfdbfe' }}>
-            <Clock size={9} style={{ marginRight: 3, verticalAlign: 'middle' }} />
-            {record.runFrequency || 'Daily'}
+          <Tag style={{ 
+            fontSize: 10, 
+            fontWeight: 600, 
+            borderRadius: 20, 
+            padding: '2px 8px', 
+            background: '#eff6ff', 
+            color: '#1976D2', 
+            border: '1px solid #bfdbfe',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            <Clock size={11} />
+            <span>{record.runFrequency || 'Daily'}</span>
           </Tag>
         ) : (
-          <Tag style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: '1px 8px', background: '#f4f4f5', color: '#71717a', border: 'none' }}>
-            Manual
+          <Tag style={{ 
+            fontSize: 10, 
+            fontWeight: 600, 
+            borderRadius: 20, 
+            padding: '2px 8px', 
+            background: '#f4f4f5', 
+            color: '#71717a', 
+            border: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            <span>Manual</span>
           </Tag>
         );
       }
