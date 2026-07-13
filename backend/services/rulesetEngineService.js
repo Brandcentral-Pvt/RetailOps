@@ -15,8 +15,8 @@ const EXCLUDE_DAYS_MAP = {
   'None': 0
 };
 
-async function getEntityData(type, sellerId, dateRange, excludeDays, hasTotalOrders = true, sqlFilter = '') {
-  const pool = await getPool();
+async function getEntityData(type, sellerId, dateRange, excludeDays, hasTotalOrders = true, sqlFilter = '', filterParams = {}, sharedPool = null) {
+  const pool = sharedPool || await getPool();
 
   if (type === 'ASIN' || type === 'Product') {
     let query = `SELECT 
@@ -39,6 +39,15 @@ async function getEntityData(type, sellerId, dateRange, excludeDays, hasTotalOrd
       request.input('sellerId', sql.VarChar, sellerId);
     }
     
+    // Bind parameterized filter params
+    for (const [key, val] of Object.entries(filterParams)) {
+      if (typeof val === 'number') {
+        request.input(key, sql.Decimal(18, 4), val);
+      } else {
+        request.input(key, sql.NVarChar, String(val));
+      }
+    }
+
     const result = await request.query(query);
     
     return result.recordset.map(asin => {
@@ -226,25 +235,36 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
         const asinsJson = JSON.stringify([entity.asinCode || entity.entityId]);
         const priority = action.actionType === 'create_task_high' ? 'High' : 'Medium';
         const ruleName = matchedRule?.name || 'Ruleset Rule';
-        const title = `[Ruleset] ${ruleName}`;
-        const description = `Automated task from ruleset "${ruleName}" for ASIN ${entity.asinCode || entity.entityId}.`;
+        const asinCode = entity.asinCode || entity.entityId || '';
+        const title = `[Ruleset] ${ruleName}${asinCode ? ` — ${asinCode}` : ''}`;
+        const description = `Automated task from ruleset "${ruleName}" for ASIN ${asinCode}.`;
         const sellerIdStr = sellerId || entity.seller || '';
+        const createdByUserId = userId || ruleset?.CreatedBy || '';
+
+        // Default due date: CRITICAL=1d, HIGH=3d, MEDIUM=7d, LOW=14d
+        const dueDays = { Critical: 1, High: 3, Medium: 7, Low: 14 };
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + (dueDays[priority] || 7));
 
         await pool.request()
           .input('Id', sql.VarChar, id)
           .input('Title', sql.NVarChar, title)
           .input('Description', sql.NVarChar, description)
           .input('Priority', sql.NVarChar, priority)
-          .input('Status', sql.NVarChar, 'pending')
+          .input('Status', sql.NVarChar, 'PENDING')
           .input('Type', sql.NVarChar, 'automated')
+          .input('Category', sql.NVarChar, 'Listing')
           .input('Asins', sql.NVarChar, asinsJson)
           .input('SellerId', sql.VarChar, sellerIdStr)
-          .input('CreatedBy', sql.VarChar, userId)
+          .input('CreatedBy', sql.VarChar, createdByUserId)
+          .input('AssignedTo', sql.VarChar, createdByUserId)
+          .input('DueDate', sql.DateTime2, dueDate)
+          .input('TimeLimit', sql.Int, dueDays[priority] || 7)
           .query(`
-            INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Asins, SellerId, CreatedBy, CreatedAt, UpdatedAt)
-            VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Asins, @SellerId, @CreatedBy, dbo.GetEnvDate(), dbo.GetEnvDate())
+            INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SellerId, CreatedBy, AssignedTo, DueDate, TimeLimit, CreatedAt, UpdatedAt)
+            VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SellerId, @CreatedBy, @AssignedTo, @DueDate, @TimeLimit, dbo.GetEnvDate(), dbo.GetEnvDate())
           `);
-        results.push({ action: 'task_created', status: 'success', taskId: id });
+        results.push({ action: 'task_created', status: 'success', taskId: id, title, priority, dueDate: dueDate.toISOString() });
       } catch (err) {
         results.push({ action: 'task_failed', status: 'failed', error: err.message });
       }
@@ -368,36 +388,15 @@ function mapAttributeToColumn(attr) {
   return map[attr] || null;
 }
 
-function formatSqlCondition(col, op, val, val2) {
-  let sqlOp = op;
-  if (op === '=') sqlOp = '=';
-  else if (op === '≠') sqlOp = '<>';
-  
-  let sqlVal = val;
-  if (val === 'true' || val === 'Yes' || val === 'yes') sqlVal = '1';
-  else if (val === 'false' || val === 'No' || val === 'no') sqlVal = '0';
-  
-  if (op === 'is empty') return `(${col} IS NULL OR ${col} = '')`;
-  if (op === 'is not empty') return `(${col} IS NOT NULL AND ${col} <> '')`;
-  if (op === 'contains') return `${col} LIKE '%${val}%'`;
-  if (op === 'not contains') return `${col} NOT LIKE '%${val}%'`;
-  if (op === 'starts with') return `${col} LIKE '${val}%'`;
-  
-  if (op === 'between') {
-    return `(${col} BETWEEN ${Number(val) || 0} AND ${Number(val2) || 0})`;
-  }
-  
-  if (isNaN(sqlVal)) {
-    return `${col} ${sqlOp} '${sqlVal}'`;
-  } else {
-    return `${col} ${sqlOp} ${sqlVal}`;
-  }
-}
+// formatSqlCondition removed — use parameterized buildSqlFilter instead
 
 function buildSqlFilter(rules) {
-  if (!Array.isArray(rules) || rules.length === 0) return '';
+  if (!Array.isArray(rules) || rules.length === 0) return { sql: '', params: {} };
   
   const ruleFilters = [];
+  const params = {};
+  let paramIdx = 0;
+
   for (const rule of rules) {
     if (!rule.isActive || !rule.conditions || rule.conditions.length === 0) continue;
     
@@ -407,13 +406,48 @@ function buildSqlFilter(rules) {
       const col = mapAttributeToColumn(cond.attribute);
       if (!col) continue;
       
-      const sqlCond = formatSqlCondition(col, cond.operator, cond.value, cond.value2);
-      if (sqlCond) {
-        if (i > 0) {
-          condFilters.push(` ${cond.logicalOp || 'AND'} ${sqlCond}`);
+      const key = `rf${paramIdx++}`;
+      const op = cond.operator;
+      const val = cond.value;
+      const val2 = cond.value2;
+
+      if (op === 'is empty') {
+        condFilters.push(`(${col} IS NULL OR ${col} = '')`);
+      } else if (op === 'is not empty') {
+        condFilters.push(`(${col} IS NOT NULL AND ${col} <> '')`);
+      } else if (op === 'contains') {
+        params[key] = `%${val}%`;
+        condFilters.push(`${col} LIKE @${key}`);
+      } else if (op === 'not contains') {
+        params[key] = `%${val}%`;
+        condFilters.push(`${col} NOT LIKE @${key}`);
+      } else if (op === 'starts with') {
+        params[key] = `${val}%`;
+        condFilters.push(`${col} LIKE @${key}`);
+      } else if (op === 'between') {
+        const k1 = `rf${paramIdx++}`;
+        const k2 = `rf${paramIdx++}`;
+        params[k1] = Number(val) || 0;
+        params[k2] = Number(val2) || 0;
+        condFilters.push(`(${col} BETWEEN @${k1} AND @${k2})`);
+      } else if (op === '=' || op === '≠' || op === '<' || op === '<=' || op === '>' || op === '>=') {
+        let sqlOp = op === '≠' ? '<>' : op;
+        let sqlVal = val;
+        if (val === 'true' || val === 'Yes' || val === 'yes') sqlVal = '1';
+        else if (val === 'false' || val === 'No' || val === 'no') sqlVal = '0';
+
+        if (isNaN(sqlVal)) {
+          params[key] = String(sqlVal);
         } else {
-          condFilters.push(sqlCond);
+          params[key] = Number(sqlVal);
         }
+        condFilters.push(`${col} ${sqlOp} @${key}`);
+      } else {
+        continue;
+      }
+
+      if (condFilters.length > 1 && i > 0) {
+        condFilters[condFilters.length - 1] = ` ${cond.logicalOp || 'AND'} ${condFilters[condFilters.length - 1]}`;
       }
     }
     if (condFilters.length > 0) {
@@ -422,9 +456,9 @@ function buildSqlFilter(rules) {
   }
   
   if (ruleFilters.length > 0) {
-    return ` AND (${ruleFilters.join(' OR ')})`;
+    return { sql: ` AND (${ruleFilters.join(' OR ')})`, params };
   }
-  return '';
+  return { sql: '', params: {} };
 }
 
 async function evaluateRuleset(rulesetId, options = {}) {
@@ -462,7 +496,7 @@ async function evaluateRuleset(rulesetId, options = {}) {
   const hasTotalOrders = ruleset.Rules.some(r => 
     r.conditions?.some(c => c.attribute === 'totalOrders')
   );
-  const sqlFilter = buildSqlFilter(ruleset.Rules);
+  const sqlFilterResult = buildSqlFilter(ruleset.Rules);
 
   let entities = await getEntityData(
     ruleset.Type,
@@ -470,7 +504,9 @@ async function evaluateRuleset(rulesetId, options = {}) {
     ruleset.UsingDataFrom,
     ruleset.ExcludeDays,
     hasTotalOrders,
-    sqlFilter
+    sqlFilterResult.sql,
+    sqlFilterResult.params,
+    pool
   );
 
   if (selectedAsins && selectedAsins.length > 0) {
