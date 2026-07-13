@@ -100,7 +100,7 @@
   gap: 10px;
   padding: 7px 12px;
   background: var(--bg-hover);
-  border: 1px solid #d9e6e9;
+  border: 1px solid var(--bc-border-default);
   border-radius: 8px;
   cursor: pointer;
   font-size: 12.5px;
@@ -133,7 +133,7 @@
   gap: 2px;
   padding: 2px 5px;
   background: var(--bg-secondary);
-  border: 1px solid #d9e6e9;
+  border: 1px solid var(--bc-border-default);
   border-radius: 4px;
   font-size: 10px;
   font-family: 'SF Mono', 'Monaco', 'Inter', monospace;
@@ -179,7 +179,7 @@
   height: 16px !important;
   line-height: 16px !important;
   padding: 0 4px !important;
-  box-shadow: 0 0 0 2px #ffffff !important;
+  box-shadow: 0 0 0 2px var(--bc-white) !important;
 }
 
 /* ─── Date Range Trigger ──────────────────────────────────────────────── */
@@ -189,7 +189,7 @@
   gap: 8px;
   padding: 6px 12px;
   background: var(--bg-secondary);
-  border: 1px solid #d9e6e9;
+  border: 1px solid var(--bc-border-default);
   border-radius: 8px;
   cursor: pointer;
   font-size: 12px;
@@ -262,12 +262,12 @@
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  background: #fff0f0;
-  border: 1px solid #ffb3ae;
+  background: var(--bc-red-50);
+  border: 1px solid var(--bc-red-200);
   border-radius: 100px;
   font-size: 10.5px;
   font-weight: 600;
-  color: #d94033;
+  color: var(--bc-red-700);
   font-family: 'Inter', sans-serif;
 }
 
@@ -275,7 +275,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #D32F2F;
+  background: var(--bc-red-600);
   position: relative;
 }
 
@@ -284,7 +284,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: #D32F2F;
+  background: var(--bc-red-600);
   animation: liveOrbit 1.8s ease-in-out infinite;
 }
 
@@ -308,7 +308,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  border-bottom: 1px solid #f4f5f7;
+  border-bottom: 1px solid var(--bc-slate-100);
 }
 
 .cmd-palette-input {
@@ -349,7 +349,7 @@
 
 .cmd-palette-item:hover,
 .cmd-palette-item.active {
-  background: #fff0f0;
+  background: var(--bc-red-50);
 }
 
 .cmd-palette-item-icon {
@@ -366,8 +366,8 @@
 }
 
 .cmd-palette-item.active .cmd-palette-item-icon {
-  background: #ffd6d4;
-  color: #d94033;
+  background: var(--bc-red-100);
+  color: var(--bc-red-700);
 }
 
 .cmd-palette-item-content {
@@ -393,7 +393,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  border-top: 1px solid #f4f5f7;
+  border-top: 1px solid var(--bc-slate-100);
   background: var(--bg-hover);
   font-size: 11px;
   color: var(--text-tertiary);
@@ -414,7 +414,7 @@
 
 /* ─── Notification Drawer ─────────────────────────────────────────────── */
 .notif-drawer .ant-drawer-header {
-  border-bottom: 1px solid #f4f5f7 !important;
+  border-bottom: 1px solid var(--bc-slate-100) !important;
   padding: 16px 20px !important;
 }
 
@@ -433,7 +433,7 @@
   display: flex;
   gap: 12px;
   padding: 14px 20px;
-  border-bottom: 1px solid #f4f5f7;
+  border-bottom: 1px solid var(--bc-slate-100);
   cursor: pointer;
   transition: background 0.12s;
   position: relative;
@@ -452,7 +452,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #D32F2F;
+  background: var(--bc-red-600);
 }
 
 .notif-item-icon {
@@ -508,45 +508,45 @@
 
 .date-range-popover .ant-picker:hover,
 .date-range-popover .ant-picker-focused {
-  border-color: #D32F2F;
+  border-color: var(--bc-red-600);
   box-shadow: 0 0 0 2px rgba(251, 79, 64, 0.1);
 }
 
 .date-range-popover .ant-picker-active-bar {
-  background: #D32F2F;
+  background: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-cell-selected .ant-picker-cell-inner {
-  background: #D32F2F;
+  background: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-cell-today .ant-picker-cell-inner::before {
-  border-color: #D32F2F;
+  border-color: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
-  background: #D32F2F;
+  background: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
-  background: #D32F2F;
+  background: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-in-range::before {
-  background: #fff0f0;
+  background: var(--bc-red-50);
 }
 
 .date-range-popover .ant-picker-header button:hover {
-  color: #D32F2F;
+  color: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-today-btn {
-  color: #D32F2F;
+  color: var(--bc-red-600);
 }
 
 .date-range-popover .ant-picker-today-btn:hover {
-  color: #d94033;
+  color: var(--bc-red-700);
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────── */

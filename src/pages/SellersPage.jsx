@@ -494,9 +494,12 @@ const SellersPage = () => {
     setSyncingIds(prev => new Set(prev).add(sellerId));
     try {
       const res = await marketSyncApi.syncSellerAsins(sellerId, false);
-      if (res.success) toastRef.current('Sync triggered!', 'success');
+      if (res.success) toastRef.current(res.message || 'Sync triggered!', 'success');
+      else toastRef.current(res.error || res.hint || 'Sync failed', 'error');
     } catch (error) {
-      toastRef.current(error.message, 'error');
+      const msg = error.message || 'Sync failed';
+      const hint = msg.includes('No sync method') ? 'Use Bulk Import for catalog data or configure Live Sync' : '';
+      toastRef.current(hint ? `${msg}\n${hint}` : msg, 'error');
     } finally {
       setSyncingIds(prev => { const n = new Set(prev); n.delete(sellerId); return n; });
     }
@@ -619,6 +622,26 @@ const SellersPage = () => {
   const [globalSyncing, setGlobalSyncing] = useState(false);
   const [globalSyncProgress, setGlobalSyncProgress] = useState(null);
   const globalSyncPollRef = useRef(null);
+
+  // ── Restart All Octoparse Tasks ─────────────────────────────────────────
+  const handleRestartOctoparse = useCallback(async () => {
+    if (!window.confirm('This will STOP all running Octoparse tasks, clear all locks, and restart fresh scraping for every active seller. Continue?')) return;
+    try {
+      setGlobalSyncing(true);
+      toastRef.current('Restarting all Octoparse tasks...', 'info');
+      const res = await marketSyncApi.restartAllOctoparse();
+      if (res.success) {
+        toastRef.current(res.message, 'success');
+        void loadSellers({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch, silent: true });
+      } else {
+        toastRef.current(res.error || 'Restart failed', 'error');
+      }
+    } catch (error) {
+      toastRef.current(error.message || 'Restart failed', 'error');
+    } finally {
+      setGlobalSyncing(false);
+    }
+  }, [page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, debouncedSearch, loadSellers]);
 
   const handleGlobalLiveSync = useCallback(async () => {
     setGlobalSyncing(true);
@@ -884,11 +907,10 @@ const SellersPage = () => {
             <Package size={14} color="#94A3B8" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-            <Text strong style={{ fontSize: 11.5 }}>{total || 0} Total</Text>
-            <div style={{ fontSize: 9, color: '#2E7D32', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#2E7D32', display: 'inline-block' }} />
-              {seller.activeAsins || 0} Active
-            </div>
+            <Text strong style={{ fontSize: 11.5 }}>{total || 0} ASINs</Text>
+            <Text style={{ fontSize: 9, color: '#94A3B8' }}>
+              Click to manage
+            </Text>
           </div>
         </Button>
       )
@@ -951,6 +973,7 @@ const SellersPage = () => {
         onOpenCsvImport={() => setShowImportModal(true)}
         globalSyncing={globalSyncing}
         handleGlobalLiveSync={handleGlobalLiveSync}
+        onRestartOctoparse={handleRestartOctoparse}
         isBrandManager={isBrandManager}
       />
 

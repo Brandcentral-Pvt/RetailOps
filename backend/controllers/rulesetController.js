@@ -7,7 +7,20 @@ const normalizeRuleset = (r) => {
         id: r.Id,
         name: r.Name,
         description: r.Description,
-        rules: r.Rules ? JSON.parse(r.Rules) : [],
+        rules: (() => {
+            try {
+                let rules = r.Rules;
+                if (typeof rules === 'string') {
+                    rules = JSON.parse(rules);
+                    if (typeof rules === 'string') {
+                        rules = JSON.parse(rules);
+                    }
+                }
+                return Array.isArray(rules) ? rules : [];
+            } catch (e) {
+                return [];
+            }
+        })(),
         conditions: r.Conditions ? JSON.parse(r.Conditions) : {},
         actions: r.Actions ? JSON.parse(r.Actions) : [],
         createdBy: r.CreatedBy,
@@ -31,6 +44,12 @@ const normalizeRuleset = (r) => {
         createdAt: r.CreatedAt,
         updatedAt: r.UpdatedAt
     };
+};
+
+const stringifyIfNeeded = (val) => {
+    if (val === undefined || val === null) return null;
+    if (typeof val === 'string') return val;
+    return JSON.stringify(val);
 };
 
 /**
@@ -73,9 +92,9 @@ exports.createRuleset = async (req, res) => {
             .input('Id', sql.VarChar, id)
             .input('Name', sql.NVarChar, name)
             .input('Description', sql.NVarChar, description || '')
-            .input('Rules', sql.NVarChar, JSON.stringify(rules || []))
-            .input('Conditions', sql.NVarChar, JSON.stringify(conditions || {}))
-            .input('Actions', sql.NVarChar, JSON.stringify(actions || []))
+            .input('Rules', sql.NVarChar, stringifyIfNeeded(rules || []))
+            .input('Conditions', sql.NVarChar, stringifyIfNeeded(conditions || {}))
+            .input('Actions', sql.NVarChar, stringifyIfNeeded(actions || []))
             .input('CreatedBy', sql.VarChar, userId)
             .input('IsActive', sql.Bit, 1)
             .input('Type', sql.VarChar, type || 'ASIN')
@@ -85,7 +104,7 @@ exports.createRuleset = async (req, res) => {
             .input('IsAutomated', sql.Bit, isAutomated ? 1 : 0)
             .input('RunFrequency', sql.VarChar, runFrequency || 'Daily')
             .input('RunTime', sql.VarChar, runTime || '08 AM')
-            .input('Scope', sql.NVarChar, JSON.stringify(scope || { applyTo: 'all' }))
+            .input('Scope', sql.NVarChar, stringifyIfNeeded(scope || { applyTo: 'all' }))
             .input('ConflictResolution', sql.VarChar, conflictResolution || 'first')
             .input('EmailOnRun', sql.Bit, emailOnRun ? 1 : 0)
             .input('EmailOnAction', sql.Bit, emailOnAction ? 1 : 0)
@@ -133,9 +152,9 @@ exports.updateRuleset = async (req, res) => {
 
         if (name !== undefined) { updates.push(`Name = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, name); }
         if (description !== undefined) { updates.push(`Description = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, description); }
-        if (rules !== undefined) { updates.push(`Rules = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, JSON.stringify(rules)); }
-        if (conditions !== undefined) { updates.push(`Conditions = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, JSON.stringify(conditions)); }
-        if (actions !== undefined) { updates.push(`Actions = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, JSON.stringify(actions)); }
+        if (rules !== undefined) { updates.push(`Rules = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, stringifyIfNeeded(rules)); }
+        if (conditions !== undefined) { updates.push(`Conditions = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, stringifyIfNeeded(conditions)); }
+        if (actions !== undefined) { updates.push(`Actions = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, stringifyIfNeeded(actions)); }
         if (isActive !== undefined) { updates.push(`IsActive = @p${idx++}`); request.input(`p${idx-1}`, sql.Bit, isActive ? 1 : 0); }
         if (type !== undefined) { updates.push(`Type = @p${idx++}`); request.input(`p${idx-1}`, sql.VarChar, type); }
         if (sellerId !== undefined) { updates.push(`SellerId = @p${idx++}`); request.input(`p${idx-1}`, sql.VarChar, sellerId); }
@@ -144,7 +163,7 @@ exports.updateRuleset = async (req, res) => {
         if (isAutomated !== undefined) { updates.push(`IsAutomated = @p${idx++}`); request.input(`p${idx-1}`, sql.Bit, isAutomated ? 1 : 0); }
         if (runFrequency !== undefined) { updates.push(`RunFrequency = @p${idx++}`); request.input(`p${idx-1}`, sql.VarChar, runFrequency); }
         if (runTime !== undefined) { updates.push(`RunTime = @p${idx++}`); request.input(`p${idx-1}`, sql.VarChar, runTime); }
-        if (scope !== undefined) { updates.push(`Scope = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, JSON.stringify(scope)); }
+        if (scope !== undefined) { updates.push(`Scope = @p${idx++}`); request.input(`p${idx-1}`, sql.NVarChar, stringifyIfNeeded(scope)); }
         if (conflictResolution !== undefined) { updates.push(`ConflictResolution = @p${idx++}`); request.input(`p${idx-1}`, sql.VarChar, conflictResolution); }
         if (emailOnRun !== undefined) { updates.push(`EmailOnRun = @p${idx++}`); request.input(`p${idx-1}`, sql.Bit, emailOnRun ? 1 : 0); }
         if (emailOnAction !== undefined) { updates.push(`EmailOnAction = @p${idx++}`); request.input(`p${idx-1}`, sql.Bit, emailOnAction ? 1 : 0); }
@@ -342,7 +361,20 @@ exports.previewRuleset = async (req, res) => {
 };
 
 exports.getRulesetHistory = async (req, res) => {
-    res.json({ success: true, data: [] });
+    try {
+        const { id } = req.params;
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('rulesetId', sql.VarChar, id)
+            .query(`
+                SELECT * FROM RulesetExecutionLogs
+                WHERE RulesetId = @rulesetId
+                ORDER BY ExecutedAt DESC
+            `);
+        res.json({ success: true, data: result.recordset });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 exports.getExecutionDetails = async (req, res) => {

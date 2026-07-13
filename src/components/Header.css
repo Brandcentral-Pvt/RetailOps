@@ -64,7 +64,7 @@
 
 .search-bar-wrapper:hover,
 .search-bar-wrapper:focus-within {
-    border-color: #2E7D32;
+    border-color: var(--bc-green-700);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
@@ -157,7 +157,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #171717;
+    background: var(--bc-slate-900);
     color: white;
     font-family: 'DM Sans', sans-serif;
     font-weight: 600;

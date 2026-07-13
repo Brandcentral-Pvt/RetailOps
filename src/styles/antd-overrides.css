@@ -1,0 +1,386 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Ant Design Overrides — RetailOps Design System
+   Single source of truth for ALL global Ant Design component overrides.
+   
+   RULES:
+   - This file ONLY contains .ant-* selector overrides
+   - Component-scoped overrides (e.g., .sidebar-sider .ant-menu) stay in their files
+   - Every override uses design tokens from tokens.css
+   - !important is required here to override Ant Design's specificity
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Z-INDEX LAYER (popups above everything)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Pickers */
+.ant-picker-dropdown,
+.ant-picker-dropdown-range,
+.ant-picker-panel-container {
+  z-index: var(--z-picker) !important;
+  background: var(--bc-white) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--bc-slate-200) !important;
+}
+
+/* Select */
+.ant-select-dropdown {
+  z-index: var(--z-dropdown) !important;
+  background: var(--bc-white) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--bc-slate-200) !important;
+}
+
+/* Dropdown */
+.ant-dropdown,
+.ant-dropdown-menu {
+  z-index: var(--z-dropdown) !important;
+  background: var(--bc-white) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Popover */
+.ant-popover {
+  z-index: var(--z-dropdown) !important;
+}
+
+.ant-popover-inner {
+  background: var(--bc-white) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 10px !important;
+}
+
+/* Tooltip */
+.ant-tooltip {
+  z-index: var(--z-tooltip) !important;
+}
+
+.ant-tooltip-inner {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Modal */
+.ant-modal-mask {
+  z-index: var(--z-modal-mask) !important;
+  background: rgba(15, 23, 42, var(--bc-opacity-overlay)) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+.ant-modal-wrap {
+  z-index: var(--z-modal) !important;
+}
+
+/* Notifications & Messages */
+.ant-notification,
+.ant-message {
+  z-index: var(--z-notification) !important;
+}
+
+/* Drawer */
+.ant-drawer {
+  z-index: var(--z-modal-mask) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OPAQUE BACKGROUNDS (prevent transparent popup bleeding)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ant-picker-panel,
+.ant-picker-date-panel,
+.ant-picker-month-panel,
+.ant-picker-year-panel,
+.ant-picker-decade-panel,
+.ant-picker-week-panel,
+.ant-picker-time-panel,
+.ant-picker-datetime-panel,
+.ant-picker-footer,
+.ant-picker-ranges {
+  background-color: var(--bc-white) !important;
+}
+
+.ant-picker-cell-inner {
+  background-color: transparent !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner,
+.ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background-color: var(--bc-ro-500) !important;
+  color: var(--bc-white) !important;
+}
+
+/* Select Items */
+.ant-select-item {
+  background-color: transparent !important;
+}
+
+.ant-select-item-option-active {
+  background-color: var(--bc-slate-100) !important;
+}
+
+.ant-select-item-option-selected {
+  background-color: var(--bc-indigo-100) !important;
+  font-weight: 600 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TABLE OVERRIDES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Table wrapper — prevent stacking context above popups */
+.ant-table-wrapper {
+  position: relative;
+  z-index: var(--z-content);
+}
+
+.ant-table {
+  z-index: auto !important;
+}
+
+.ant-table-container {
+  z-index: auto !important;
+}
+
+/* Regular table cells */
+.ant-table-tbody > tr > td {
+  z-index: auto !important;
+  border-bottom: 1px solid var(--bc-slate-100) !important;
+  padding: 12px 16px !important;
+  font-size: 13px;
+  color: var(--bc-slate-800);
+}
+
+/* Row Hover State */
+.ant-table-tbody > tr:hover > td {
+  background: var(--bc-slate-100) !important;
+}
+
+/* Sticky table headers */
+.ant-table-thead > tr > th {
+  background: var(--bc-slate-50) !important;
+  color: var(--bc-slate-600) !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border-bottom: 2px solid var(--bc-border-default) !important;
+  padding: 12px 16px !important;
+  z-index: var(--z-table-header) !important;
+}
+
+/* Fixed left/right columns */
+.ant-table-cell-fix-left,
+.ant-table-cell-fix-right {
+  z-index: var(--z-table-cell) !important;
+}
+
+.ant-table-thead .ant-table-cell-fix-left,
+.ant-table-thead .ant-table-cell-fix-right {
+  z-index: var(--z-table-header) !important;
+}
+
+.ant-table-cell-fix-left-last::after,
+.ant-table-cell-fix-right-first::after {
+  z-index: var(--z-table-cell) !important;
+}
+
+/* Table Container Border */
+.ant-table-wrapper .ant-table {
+  border-radius: var(--bc-radius-xl);
+}
+
+/* Table Pagination */
+.ant-table-pagination {
+  margin: 0 !important;
+  padding: 12px 16px !important;
+}
+
+.ant-table-pagination .ant-pagination-item {
+  border-radius: var(--bc-radius-lg);
+  border: 1px solid var(--bc-border-default);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.ant-table-pagination .ant-pagination-item-active {
+  background: var(--bc-ro-500) !important;
+  border-color: var(--bc-ro-500) !important;
+  color: var(--bc-white) !important;
+}
+
+.ant-table-pagination .ant-pagination-item-active a {
+  color: var(--bc-white) !important;
+}
+
+/* Table Sort Icons */
+.ant-table-column-sorter .ant-table-column-sorter-inner .anticon {
+  color: var(--bc-slate-400);
+}
+
+/* Table Empty State */
+.ant-table-placeholder .ant-empty-description {
+  color: var(--bc-slate-400);
+  font-size: 13px;
+}
+
+/* Table Expanded Row */
+.ant-table-expanded-row > td {
+  background: var(--bc-slate-50) !important;
+}
+
+/* Table Scroll Container */
+.ant-table-body,
+.ant-table-content {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORM OVERRIDES (Input, Select, Switch, Picker, etc.)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Input Fields */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-picker {
+  border-radius: var(--bc-radius-lg) !important;
+  border-color: var(--bc-border-default) !important;
+  font-size: 13px !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border-color: var(--bc-ro-500) !important;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1) !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover {
+  border-color: var(--bc-slate-300) !important;
+}
+
+/* Select */
+.ant-select-selector {
+  border-radius: var(--bc-radius-lg) !important;
+  border-color: var(--bc-border-default) !important;
+  font-size: 13px !important;
+}
+
+.ant-select-focused .ant-select-selector {
+  border-color: var(--bc-ro-500) !important;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1) !important;
+}
+
+/* Textarea */
+textarea.ant-input,
+.ant-input-textarea textarea {
+  border-radius: var(--bc-radius-lg) !important;
+  font-size: 13px !important;
+  line-height: 1.6;
+}
+
+/* Form Labels */
+.ant-form-item-label > label {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--bc-slate-600) !important;
+}
+
+/* Form Item Spacing */
+.ant-form-item {
+  margin-bottom: 16px !important;
+}
+
+/* Switch */
+.ant-switch {
+  min-width: 36px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.ant-switch-checked {
+  background-color: var(--bc-ro-500) !important;
+}
+
+/* Checkbox & Radio */
+.ant-checkbox-wrapper {
+  font-size: 13px;
+}
+
+.ant-radio-wrapper {
+  font-size: 13px;
+}
+
+/* Date Picker */
+.ant-picker {
+  height: 32px;
+  border-radius: var(--bc-radius-lg) !important;
+  border-color: var(--bc-border-default) !important;
+}
+
+/* Input Number */
+.ant-input-number {
+  border-radius: var(--bc-radius-lg) !important;
+  border-color: var(--bc-border-default) !important;
+  font-size: 13px !important;
+}
+
+/* Upload */
+.ant-upload-drag {
+  border-radius: var(--bc-radius-xl) !important;
+  border-color: var(--bc-border-default) !important;
+  background: var(--bc-slate-50);
+}
+
+.ant-upload-drag:hover {
+  border-color: var(--bc-ro-500) !important;
+}
+
+/* Rate */
+.ant-rate-star .ant-rate-star-second,
+.ant-rate-star .ant-rate-star-first {
+  color: var(--bc-border-default);
+}
+
+.ant-rate-star-full .ant-rate-star-second,
+.ant-rate-star-full .ant-rate-star-first {
+  color: var(--bc-amber-600);
+}
+
+/* Progress Bar */
+.ant-progress-bg {
+  border-radius: var(--bc-radius-sm) !important;
+}
+
+.ant-progress-inner {
+  border-radius: var(--bc-radius-sm) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INPUT AFFIX ALIGNMENT FIXES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ant-input-affix-wrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.ant-input-affix-wrapper > input.ant-input {
+  height: 100% !important;
+  line-height: normal !important;
+}
+
+.ant-input-affix-wrapper .ant-input-prefix,
+.ant-input-affix-wrapper .ant-input-suffix {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.ant-input {
+  line-height: normal !important;
+}

@@ -50,9 +50,9 @@
 }
 
 .sidebar-toggle:hover {
-  color: #1976D2;
-  border-color: #1976D2;
-  background-color: #E3F2FD;
+  color: var(--bc-ro-500);
+  border-color: var(--bc-ro-500);
+  background-color: var(--bc-ro-50);
   box-shadow: 0 2px 12px rgba(25, 118, 210, 0.2);
   transform: scale(1.1);
 }
@@ -78,12 +78,12 @@
 }
 
 .nav-body::-webkit-scrollbar-thumb {
-  background: #E5E7EB;
+  background: var(--bc-slate-200);
   border-radius: 10px;
 }
 
 .nav-body:hover::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
+  background: var(--bc-slate-300);
 }
 
 /* ─── Ant Menu Overrides ────────────────────────────────────────────── */
@@ -110,7 +110,7 @@
   content: '';
   width: 10px;
   height: 2px;
-  background: #1976D2;
+  background: var(--bc-ro-500);
   border-radius: 2px;
   flex-shrink: 0;
 }
@@ -129,15 +129,15 @@
 }
 
 .sidebar-sider .ant-menu-item:hover {
-  background-color: #E3F2FD !important;
+  background-color: var(--bc-ro-50) !important;
   color: var(--text-primary) !important;
 }
 
 /* Selected Item */
 .sidebar-sider .ant-menu-item-selected {
   font-weight: 600 !important;
-  background-color: #E3F2FD !important;
-  color: #1565C0 !important;
+  background-color: var(--bc-ro-50) !important;
+  color: var(--bc-ro-600) !important;
   position: relative;
 }
 
@@ -148,12 +148,12 @@
   top: 6px;
   bottom: 6px;
   width: 3px;
-  background: #1976D2;
+  background: var(--bc-ro-500);
   border-radius: 0 3px 3px 0;
 }
 
 .sidebar-sider .ant-menu-item-selected:hover {
-  color: #1565C0 !important;
+  color: var(--bc-ro-600) !important;
 }
 
 /* Menu Item Icon */
@@ -191,11 +191,11 @@
 }
 
 .pipeline-dot.idle {
-  background: #D1D5DB;
+  background: var(--bc-slate-300);
 }
 
 .pipeline-dot.active {
-  background: #1976D2;
+  background: var(--bc-ro-500);
   box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
   animation: pipelinePulse 2s infinite;
 }
@@ -228,14 +228,14 @@
 }
 
 .user-row:hover {
-  background-color: #f4f5f7;
+  background-color: var(--bc-slate-100);
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1565C0, #1976D2);
+  background: var(--grad-blue);
   color: white;
   font-family: 'DM Sans', sans-serif;
   font-weight: 650;
@@ -278,7 +278,7 @@
 }
 
 .user-arrow {
-  color: #D1D5DB;
+  color: var(--bc-slate-300);
   flex-shrink: 0;
   transition: color 150ms;
 }
@@ -320,9 +320,9 @@
 }
 
 .logout-btn:hover {
-  background: #E3F2FD;
-  border-color: #90CAF9;
-  color: #1976D2;
+  background: var(--bc-ro-50);
+  border-color: var(--bc-ro-200);
+  color: var(--bc-ro-500);
 }
 
 .sidebar-sider.ant-layout-sider-collapsed .logout-btn {

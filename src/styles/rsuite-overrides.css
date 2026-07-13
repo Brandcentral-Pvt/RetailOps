@@ -1,13 +1,13 @@
 /* Zinc-inspired overrides for rsuite components */
 
 :root {
-  --rs-primary-500: #171717; /* Our brand black */
-  --rs-primary-600: #333333;
-  --rs-primary-700: #000000;
+  --rs-primary-500: var(--bc-slate-900); /* Our brand black */
+  --rs-primary-600: var(--bc-slate-700);
+  --rs-primary-700: var(--bc-slate-900);
   --rs-primary-opacity: rgba(16, 185, 129, 0.1);
   --rs-font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --rs-border-primary: #e4e4e7; /* zinc-200 */
-  --rs-bg-card: #ffffff;
+  --rs-border-primary: var(--bc-slate-200); /* zinc-200 */
+  --rs-bg-card: var(--bc-white);
 }
 
 /* Customize DatePicker trigger appearance in the header */
@@ -37,7 +37,7 @@
 
 .header-datepicker:hover,
 .header-datepicker.rs-picker-focused {
-    border-color: #2E7D32 !important;
+    border-color: var(--bc-green-700) !important;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
 }
 
@@ -61,14 +61,14 @@
 /* Advanced Picker Popover Styling */
 .rs-picker-daterange-menu {
     border-radius: 12px !important;
-    border: 1px solid #e4e4e7 !important;
+    border: 1px solid var(--bc-slate-200) !important;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1) !important;
     margin-top: 8px !important;
 }
 
 .rs-calendar-table-cell-selected .rs-calendar-table-cell-content {
-    background-color: #171717 !important;
-    color: #ffffff !important;
+    background-color: var(--bc-slate-900) !important;
+    color: var(--bc-white) !important;
 }
 
 .rs-calendar-table-cell-in-range:before {
@@ -76,12 +76,12 @@
 }
 
 .rs-btn-primary {
-    background-color: #171717 !important;
-    color: #ffffff !important;
+    background-color: var(--bc-slate-900) !important;
+    color: var(--bc-white) !important;
 }
 
 .rs-btn-primary:hover {
-    background-color: #333333 !important;
+    background-color: var(--bc-slate-700) !important;
 }
 
 .rs-picker-toolbar-right .rs-btn-primary {
@@ -92,7 +92,7 @@
 
 /* Ensure all rsuite picker menus are above modals */
 .rs-picker-menu, .rs-picker-select-menu, .rs-picker-check-menu, .rs-picker-daterange-menu {
-    z-index: 9999 !important;
+    z-index: var(--z-critical) !important;
 }
 
 /* Hide selected range text in picker popover to prevent duplication/overlap */

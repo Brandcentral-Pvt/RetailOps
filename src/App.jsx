@@ -121,49 +121,20 @@ function AppLayout({ children }) {
   );
 }
 
+import Spinner from './components/Spinner';
+
 const BrandedLoader = () => (
-  <div style={{
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    background: '#f4f5f7',
-    gap: 32,
-  }}>
-    <div style={{
-      width: 80,
-      height: 80,
-      borderRadius: 20,
-      background: 'linear-gradient(135deg, #D32F2F 0%, #d94033 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: '0 8px 32px rgba(251,79,64,0.25)',
-    }}>
-      <span style={{ color: '#fff', fontSize: 36, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>R</span>
-    </div>
-    <div style={{
-      width: 40,
-      height: 40,
-      border: '3px solid #d9e6e9',
-      borderTopColor: '#D32F2F',
-      borderRadius: '50%',
-      animation: 'branded-spin 0.8s linear infinite',
-    }} />
-    <style>{`@keyframes branded-spin { to { transform: rotate(360deg); } }`}</style>
-  </div>
+  <Spinner fullPage />
 );
 
 function AppRoutes() {
   const { isAuthenticated, loading, bootstrapping } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
 
-  if (bootstrapping && isAuthenticated) return <BrandedLoader />;
-  if (loading || onboardingLoading) return null;
+  if (loading || onboardingLoading) return <Spinner fullPage />;
 
   return (
-    <Suspense fallback={<PageLoader />}>
+    <Suspense fallback={<Spinner fullPage />}>
       {showWizard && <OnboardingWizard />}
       <GlobalNotificationListener />
       <Routes>

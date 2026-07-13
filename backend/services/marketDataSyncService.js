@@ -2417,11 +2417,15 @@ class MarketDataSyncService {
             }
 
             const updates = {
+                // A+ Content (Octoparse specialty — PA-API doesn't have this)
                 HasAplus: hasAplus ? 1 : 0,
                 AplusContent: aplusContent,
                 AplusModuleCount: aplusModuleCount,
+                AplusAbsentSince: aplusAbsentSince,
+                AplusPresentSince: aplusPresentSince,
+                // Review Rating Breakdown (Octoparse specialty — PA-API doesn't have star distribution)
                 RatingBreakdown: JSON.stringify(finalRatingBreakdown),
-                PriceDispute: isDisputed ? 1 : 0,
+                // Sync metadata
                 LastOctoparseSyncAt: now,
                 LastSyncSource: 'OCTOPARSE',
                 ScrapeStatus: 'COMPLETED',

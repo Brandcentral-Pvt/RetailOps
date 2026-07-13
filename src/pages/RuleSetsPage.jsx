@@ -3,13 +3,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, Input, Select, Space, Tag, Tooltip, Popconfirm, Card,
-  Switch, Badge, Pagination, Empty, Spin, Typography
+  Switch, Badge, Pagination, Empty, Spin, Typography, Table, Drawer
 } from 'antd';
 const { Text } = Typography;
 import {
   Plus, Search, Play, Trash2, Copy, SlidersHorizontal, Zap,
   Settings, Activity, RefreshCw, Clock, CheckCircle2, PauseCircle,
-  Package, PlayCircle
+  Package, PlayCircle, History
 } from 'lucide-react';
 import { rulesetApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,11 +47,17 @@ const RuleSetsPage = () => {
   const [total, setTotal] = useState(0);
   const pageSize = 20;
 
+  // History Drawer State
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedRulesetId, setSelectedRulesetId] = useState(null);
+  const [executionHistory, setExecutionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   useEffect(() => { loadRulesets(); }, [page, filterStatus]);
 
-  const loadRulesets = async () => {
+  const loadRulesets = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const params = { page, limit: pageSize };
       const res = await rulesetApi.getAll(params);
       setRulesets(res.data || []);
@@ -59,7 +65,21 @@ const RuleSetsPage = () => {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const loadHistory = async (rulesetId) => {
+    setSelectedRulesetId(rulesetId);
+    setShowHistoryDrawer(true);
+    setHistoryLoading(true);
+    try {
+      const res = await rulesetApi.getHistory(rulesetId);
+      setExecutionHistory(res.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -96,7 +116,7 @@ const RuleSetsPage = () => {
     try {
       setExecuting(id);
       await rulesetApi.execute(id);
-      loadRulesets();
+      await loadRulesets(true);
     } catch (e) { console.error(e); }
     finally { setExecuting(null); }
   };
@@ -118,6 +138,161 @@ const RuleSetsPage = () => {
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   };
+
+  const columns = [
+    {
+      title: 'Ruleset Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: '28%',
+      render: (text, record) => (
+        <div>
+          <span 
+            style={{ fontWeight: 600, color: '#18181b', fontSize: 13, cursor: 'pointer', hoverColor: '#1976D2' }}
+            onClick={() => navigate(`/rule-sets/${record._id || record.id}`)}
+          >
+            {text}
+          </span>
+          {record.description && (
+            <div style={{ fontSize: 11, color: '#71717a', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }} title={record.description}>
+              {record.description}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      title: 'Entity Type',
+      dataIndex: 'type',
+      key: 'type',
+      width: '12%',
+      render: (type) => <TypeBadge type={type} />
+    },
+    {
+      title: 'Rules Count',
+      key: 'rulesCount',
+      width: '10%',
+      render: (_, record) => {
+        const rules = (() => { try { return JSON.parse(record.rules || '[]'); } catch { return []; } })();
+        return <span style={{ fontSize: 12, fontWeight: 500, color: '#3f3f46' }}>{rules.length} rules</span>;
+      }
+    },
+    {
+      title: 'Frequency',
+      key: 'schedule',
+      width: '12%',
+      render: (_, record) => {
+        return record.isAutomated ? (
+          <Tag style={{ 
+            fontSize: 10, 
+            fontWeight: 600, 
+            borderRadius: 20, 
+            padding: '2px 8px', 
+            background: '#eff6ff', 
+            color: '#1976D2', 
+            border: '1px solid #bfdbfe',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            <Clock size={11} />
+            <span>{record.runFrequency || 'Daily'}</span>
+          </Tag>
+        ) : (
+          <Tag style={{ 
+            fontSize: 10, 
+            fontWeight: 600, 
+            borderRadius: 20, 
+            padding: '2px 8px', 
+            background: '#f4f4f5', 
+            color: '#71717a', 
+            border: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            <span>Manual</span>
+          </Tag>
+        );
+      }
+    },
+    {
+      title: 'Runs',
+      dataIndex: 'totalRunCount',
+      key: 'totalRunCount',
+      width: '8%',
+      align: 'center',
+      render: (count) => <span style={{ fontSize: 12, fontWeight: 600, color: '#18181b' }}>{count || 0}</span>
+    },
+    {
+      title: 'Matched',
+      key: 'matched',
+      width: '10%',
+      align: 'center',
+      render: (_, record) => {
+        let summary = {};
+        try { summary = JSON.parse(record.lastRunSummary || '{}'); } catch {}
+        return (
+          <span style={{ fontSize: 12, fontWeight: 700, color: (summary.totalMatched > 0) ? '#10b981' : '#71717a' }}>
+            {summary.totalMatched || 0}
+          </span>
+        );
+      }
+    },
+    {
+      title: 'Last Run',
+      dataIndex: 'lastRunAt',
+      key: 'lastRunAt',
+      width: '12%',
+      render: (date) => (
+        <span style={{ fontSize: 11, color: '#71717a' }}>
+          {date ? formatTime(date) : 'Never'}
+        </span>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'isActive',
+      key: 'isActive',
+      width: '8%',
+      align: 'center',
+      render: (checked, record) => (
+        <Switch size="small" checked={checked} onChange={() => handleToggle(record._id || record.id)} />
+      )
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: '10%',
+      align: 'right',
+      render: (_, record) => (
+        <Space size={8}>
+          <Tooltip title="Run Now">
+            <Button type="text" size="small" icon={<PlayCircle size={14} />}
+              loading={executing === (record._id || record.id)}
+              onClick={() => handleExecute(record._id || record.id)}
+              style={{ color: '#10b981', padding: 0 }} />
+          </Tooltip>
+          <Tooltip title="Execution History">
+            <Button type="text" size="small" icon={<History size={14} />}
+              onClick={() => loadHistory(record._id || record.id)}
+              style={{ color: '#0288D1', padding: 0 }} />
+          </Tooltip>
+          <Tooltip title="Duplicate">
+            <Button type="text" size="small" icon={<Copy size={14} />}
+              onClick={() => handleDuplicate(record._id || record.id)} style={{ color: '#64748b', padding: 0 }} />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button type="text" size="small" icon={<SlidersHorizontal size={14} />}
+              onClick={() => navigate(`/rule-sets/${record._id || record.id}`)} style={{ color: '#64748b', padding: 0 }} />
+          </Tooltip>
+          <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(record._id || record.id)} okText="Delete" okButtonProps={{ danger: true }}>
+            <Button type="text" danger size="small" icon={<Trash2 size={14} />} style={{ padding: 0 }} />
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
 
   return (
     <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
@@ -184,7 +359,7 @@ const RuleSetsPage = () => {
 
         {/* Content */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}><Spin /></div>
+          <Spinner />
         ) : filtered.length === 0 ? (
           <div style={{ border: '1px solid #e4e4e7', borderRadius: 12, padding: '60px 24px', textAlign: 'center' }}>
             <Empty description={
@@ -201,90 +376,14 @@ const RuleSetsPage = () => {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
-              {filtered.map(rs => {
-                const rules = (() => { try { return JSON.parse(rs.rules || '[]'); } catch { return []; } })();
-                let summary = {};
-                try { summary = JSON.parse(rs.lastRunSummary || '{}'); } catch {}
-
-                return (
-                  <div key={rs._id || rs.id} style={{
-                    border: '1px solid #e4e4e7', borderRadius: 12, overflow: 'hidden',
-                    background: rs.isActive ? '#fff' : '#fafafa',
-                    opacity: rs.isActive ? 1 : 0.7, transition: 'all 0.15s'
-                  }}>
-                    {/* Card Header */}
-                    <div style={{ padding: '12px 16px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#18181b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {rs.name}
-                          </span>
-                          <TypeBadge type={rs.type} />
-                        </div>
-                        {rs.description && (
-                          <p style={{ fontSize: 11, color: '#71717a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {rs.description}
-                          </p>
-                        )}
-                      </div>
-                      <Switch size="small" checked={rs.isActive} onChange={() => handleToggle(rs._id || rs.id)} />
-                    </div>
-
-                    {/* Stats */}
-                    <div style={{ padding: '10px 16px', display: 'flex', gap: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Rules</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rules.length}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Runs</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rs.totalRunCount || 0}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Matched</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32' }}>{summary.totalMatched || 0}</span>
-                      </div>
-                      <div style={{ flex: 1 }} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {rs.isAutomated && (
-                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 5px', margin: 0, background: '#eff6ff', color: '#0288D1', border: '1px solid #bfdbfe' }}>
-                            <Clock size={9} style={{ marginRight: 2 }} />
-                            {rs.runFrequency || 'Daily'}
-                          </Tag>
-                        )}
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>
-                          {rs.lastRunAt ? formatTime(rs.lastRunAt) : 'Never run'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ padding: '8px 16px 12px', borderTop: '1px solid #f4f4f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Space size={4}>
-                        <Tooltip title="Run Now">
-                          <Button type="text" size="small" icon={<PlayCircle size={13} />}
-                            loading={executing === (rs._id || rs.id)}
-                            onClick={() => handleExecute(rs._id || rs.id)}
-                            style={{ color: '#2E7D32' }} />
-                        </Tooltip>
-                        <Tooltip title="Duplicate">
-                          <Button type="text" size="small" icon={<Copy size={13} />}
-                            onClick={() => handleDuplicate(rs._id || rs.id)} />
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <Button type="text" size="small" icon={<SlidersHorizontal size={13} />}
-                            onClick={() => navigate(`/rule-sets/${rs._id || rs.id}`)} />
-                        </Tooltip>
-                        <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(rs._id || rs.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                          <Button type="text" danger size="small" icon={<Trash2 size={13} />} />
-                        </Popconfirm>
-                      </Space>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <Table 
+              columns={columns} 
+              dataSource={filtered} 
+              rowKey={(record) => record._id || record.id} 
+              pagination={false} 
+              size="middle"
+              style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 12, overflow: 'hidden' }}
+            />
 
             {total > pageSize && (
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
@@ -295,6 +394,37 @@ const RuleSetsPage = () => {
           </>
         )}
       </div>
+
+      {/* History Drawer */}
+      <Drawer title="Execution History" open={showHistoryDrawer} onClose={() => setShowHistoryDrawer(false)}
+        width={500} styles={{ body: { padding: '12px 20px' } }}>
+        {historyLoading ? <Spin style={{ display: 'block', margin: '40px auto' }} /> : (
+          executionHistory.length === 0 ? <Empty description="No execution history yet" /> :
+            executionHistory.map((log, i) => {
+              let summary = {};
+              try { summary = JSON.parse(log.Summary || '{}'); } catch (e) {}
+              return (
+                <div key={log.Id || i} style={{ padding: '12px 0', borderBottom: '1px solid #f4f4f5' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#10b981' : '#ef4444' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>
+                        {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
+                      {new Date(log.ExecutedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', gap: 8 }}>
+                    <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{log.TriggeredBy}</strong></span>
+                    {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
+                  </div>
+                </div>
+              );
+            })
+        )}
+      </Drawer>
     </div>
   );
 };

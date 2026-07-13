@@ -98,7 +98,7 @@
 .notification-unread-dot {
     width: 8px;
     height: 8px;
-    background-color: #007aff;
+    background-color: var(--bc-blue-500);
     /* iOS Blue */
     border-radius: 50%;
 }
@@ -135,7 +135,7 @@
 }
 
 .ios-btn-primary {
-    background: #007aff !important;
+    background: var(--bc-blue-500) !important;
     border: none;
     box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
 }
@@ -144,5 +144,5 @@
     background: rgba(255, 255, 255, 0.8) !important;
     backdrop-filter: blur(5px);
     border: 1px solid rgba(255, 255, 255, 0.5);
-    color: #333;
+    color: var(--bc-slate-700);
 }
