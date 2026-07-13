@@ -494,9 +494,12 @@ const SellersPage = () => {
     setSyncingIds(prev => new Set(prev).add(sellerId));
     try {
       const res = await marketSyncApi.syncSellerAsins(sellerId, false);
-      if (res.success) toastRef.current('Sync triggered!', 'success');
+      if (res.success) toastRef.current(res.message || 'Sync triggered!', 'success');
+      else toastRef.current(res.error || res.hint || 'Sync failed', 'error');
     } catch (error) {
-      toastRef.current(error.message, 'error');
+      const msg = error.message || 'Sync failed';
+      const hint = msg.includes('No sync method') ? 'Use Bulk Import for catalog data or configure Live Sync' : '';
+      toastRef.current(hint ? `${msg}\n${hint}` : msg, 'error');
     } finally {
       setSyncingIds(prev => { const n = new Set(prev); n.delete(sellerId); return n; });
     }
