@@ -3,29 +3,29 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, Input, Select, Space, Tag, Tooltip, Popconfirm, Card,
-  Switch, Badge, Pagination, Empty, Spin, Typography
+  Switch, Badge, Pagination, Empty, Typography
 } from 'antd';
 const { Text } = Typography;
 import {
-  Plus, Search, Play, Trash2, Copy, SlidersHorizontal, Zap,
-  Settings, Activity, RefreshCw, Clock, CheckCircle2, PauseCircle,
-  Package, PlayCircle
+  Plus, Search, Trash2, Copy, SlidersHorizontal, Zap,
+  Activity, Clock, CheckCircle2, PlayCircle, AlertTriangle,
+  RefreshCw, Package
 } from 'lucide-react';
 import { rulesetApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageTitle } from '../contexts/PageTitleContext';
+import toast from '../utils/toast';
 
 const RULE_TYPE_OPTIONS = [
   { value: 'ASIN', label: 'ASIN Operations', icon: <Activity size={13} /> },
+  { value: 'PRICE', label: 'Price Disputes', icon: <AlertTriangle size={13} /> },
+  { value: 'INVENTORY', label: 'Inventory', icon: <Package size={13} /> },
 ];
-
-const typeColors = {
-  ASIN: { bg: '#ecfdf5', color: '#2E7D32', border: '#a7f3d0' },
-};
 
 const TypeBadge = ({ type }) => {
   const c = typeColors[type] || typeColors.ASIN;
   return (
-    <span className="badge" style={{
+    <span style={{
       background: c.bg, color: c.color, border: `1px solid ${c.border}`,
       fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
       textTransform: 'uppercase', letterSpacing: '0.03em'
@@ -35,33 +35,30 @@ const TypeBadge = ({ type }) => {
   );
 };
 
+const typeColors = {
+  ASIN: { bg: '#ecfdf5', color: '#2E7D32', border: '#a7f3d0' },
+  PRICE: { bg: '#fef2f2', color: '#C62828', border: '#fecaca' },
+  INVENTORY: { bg: '#fffbeb', color: '#ED6C02', border: '#fed7aa' },
+};
+
+
+
 const RuleSetsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { setPageTitle } = usePageTitle();
   const [rulesets, setRulesets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [executing, setExecuting] = useState(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 20;
-
-  useEffect(() => { loadRulesets(); }, [page, filterStatus]);
-
-  const loadRulesets = async () => {
-    try {
-      setLoading(true);
-      const params = { page, limit: pageSize };
-      const res = await rulesetApi.getAll(params);
-      setRulesets(res.data || []);
-      setTotal(res.pagination?.total || (res.data || []).length);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newRulesetName, setNewRulesetName] = useState('');
+  const [newRulesetType, setNewRulesetType] = useState('ASIN');
+  const pageSize = 12;
 
   const filtered = useMemo(() => {
     let list = rulesets;
@@ -69,10 +66,8 @@ const RuleSetsPage = () => {
       const q = searchQuery.toLowerCase();
       list = list.filter(r => (r.name || '').toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
     }
-    if (filterStatus === 'active') list = list.filter(r => r.isActive);
-    if (filterStatus === 'paused') list = list.filter(r => !r.isActive);
     return list;
-  }, [rulesets, searchQuery, filterStatus]);
+  }, [rulesets, searchQuery]);
 
   const activeCount = useMemo(() => rulesets.filter(r => r.isActive).length, [rulesets]);
   const autoCount = useMemo(() => rulesets.filter(r => r.isAutomated).length, [rulesets]);
@@ -81,7 +76,8 @@ const RuleSetsPage = () => {
     try {
       await rulesetApi.toggle(id);
       setRulesets(prev => prev.map(r => (r._id === id || r.id === id) ? { ...r, isActive: !r.isActive } : r));
-    } catch (e) { console.error(e); }
+      toast.success('Ruleset toggled');
+    } catch (e) { toast.error('Failed to toggle ruleset'); }
   };
 
   const handleDelete = async (id) => {
@@ -89,24 +85,55 @@ const RuleSetsPage = () => {
       await rulesetApi.delete(id);
       setRulesets(prev => prev.filter(r => (r._id !== id && r.id !== id)));
       setTotal(prev => Math.max(0, prev - 1));
-    } catch (e) { console.error(e); }
+      toast.success('Ruleset deleted');
+    } catch (e) { toast.error('Failed to delete ruleset'); }
   };
 
   const handleExecute = async (id) => {
     try {
       setExecuting(id);
+      toast.loading('Executing ruleset...');
       await rulesetApi.execute(id);
+      toast.success('Ruleset executed successfully');
       loadRulesets();
-    } catch (e) { console.error(e); }
-    finally { setExecuting(null); }
+    } catch (e) { 
+      toast.error('Failed to execute ruleset');
+    } finally { 
+      setExecuting(null); 
+    }
   };
 
   const handleDuplicate = async (id) => {
     try {
       const res = await rulesetApi.duplicate(id);
       const newId = res.data?._id || res.data?.id;
-      if (newId) navigate(`/rule-sets/${newId}`);
-    } catch (e) { console.error(e); }
+      if (newId) {
+        toast.success('Ruleset duplicated');
+        navigate(`/rule-sets/${newId}`);
+      }
+    } catch (e) { toast.error('Failed to duplicate ruleset'); }
+  };
+
+  const handleCreate = async () => {
+    if (!newRulesetName.trim()) {
+      toast.warning('Please enter a name');
+      return;
+    }
+    try {
+      const res = await rulesetApi.create({
+        name: newRulesetName,
+        type: newRulesetType,
+        rules: [],
+        isActive: false
+      });
+      const newId = res.data?._id || res.data?.id;
+      if (newId) {
+        toast.success('Ruleset created');
+        setShowCreateModal(false);
+        setNewRulesetName('');
+        navigate(`/rule-sets/${newId}`);
+      }
+    } catch (e) { toast.error('Failed to create ruleset'); }
   };
 
   const formatTime = (date) => {
@@ -119,182 +146,203 @@ const RuleSetsPage = () => {
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   };
 
+  const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
+
   return (
-    <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
+    <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '16px 24px' }}>
       {/* Page Header */}
-      <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>Automation Rules</h2>
-            <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 4 }}>Automated rules for listing quality, pricing, inventory alerts & task creation</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>Automation Rules</h2>
+          <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 4 }}>Automated rules for listing quality, pricing, inventory alerts & task creation</p>
+        </div>
+        <Button type="primary" icon={<Plus size={13} />} onClick={() => setShowCreateModal(true)} style={btnStyle}>
+          Create Ruleset
+        </Button>
+      </div>
+
+      {/* KPI Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={16} color="#fff" />
           </div>
-          <Button type="primary" icon={<Plus size={13} />} onClick={() => navigate('/rule-sets/new')}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
-            Create Ruleset
-          </Button>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase' }}>Total Rulesets</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#18181b' }}>{total}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CheckCircle2 size={16} color="#fff" />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase' }}>Active</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#2E7D32' }}>{activeCount}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e4e4e7' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Clock size={16} color="#fff" />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase' }}>Auto-run</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#4F46E5' }}>{autoCount}</div>
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '16px 28px' }}>
-        {/* KPI Strip */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#f4f4f5', borderRadius: 8, border: '1px solid #e4e4e7' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={13} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#18181b' }}>{total}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#ecfdf5', borderRadius: 8, border: '1px solid #d1fae5' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle2 size={13} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#065f46' }}>{activeCount}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#0288D1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={13} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#0288D1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-run</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#1e40af' }}>{autoCount}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      {/* Filters */}
+      <Card size="small" style={{ marginBottom: 16, borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Input prefix={<Search size={12} style={{ color: '#a1a1aa' }} />}
             placeholder="Search rulesets..." allowClear value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            size="small" style={{ width: 240, borderRadius: 8 }} />
+            size="small" style={{ width: 220, borderRadius: 8 }} />
           <Select size="small" value={filterStatus} style={{ width: 120, borderRadius: 8 }}
             onChange={v => { setFilterStatus(v); setPage(1); }}
             options={[
-              { value: 'all', label: 'All' },
+              { value: 'all', label: 'All Status' },
               { value: 'active', label: 'Active' },
               { value: 'paused', label: 'Paused' },
             ]} />
+          <Select size="small" value={filterType} style={{ width: 150, borderRadius: 8 }}
+            onChange={v => { setFilterType(v); setPage(1); }}
+            options={[
+              { value: 'all', label: 'All Types' },
+              ...RULE_TYPE_OPTIONS
+            ]} />
+          <Button size="small" icon={<RefreshCw size={13} />} onClick={loadRulesets} style={btnStyle}>Refresh</Button>
         </div>
+      </Card>
 
-        {/* Content */}
-        {loading ? (
-          <Spinner />
-        ) : filtered.length === 0 ? (
-          <div style={{ border: '1px solid #e4e4e7', borderRadius: 12, padding: '60px 24px', textAlign: 'center' }}>
-            <Empty description={
-              <span style={{ color: '#a1a1aa', fontSize: 12 }}>
-                {searchQuery ? 'No rulesets match your search' : 'No rulesets yet — create your first automation rule'}
-              </span>
-            } />
-            {!searchQuery && (
-              <Button type="primary" icon={<Plus size={13} />} onClick={() => navigate('/rule-sets/new')}
-                style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32, marginTop: 8 }}>
-                Create First Ruleset
-              </Button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
-              {filtered.map(rs => {
-                const rules = (() => { try { return JSON.parse(rs.rules || '[]'); } catch { return []; } })();
-                let summary = {};
-                try { summary = JSON.parse(rs.lastRunSummary || '{}'); } catch {}
+      {/* Content */}
+      {loading ? (
+        <Spinner />
+      ) : filtered.length === 0 ? (
+        <Card style={{ borderRadius: 10, padding: '60px 24px', textAlign: 'center' }}>
+          <Empty description={
+            <span style={{ color: '#a1a1aa', fontSize: 12 }}>
+              {searchQuery ? 'No rulesets match your search' : 'No rulesets yet — create your first automation rule'}
+            </span>
+          } />
+          {!searchQuery && (
+            <Button type="primary" icon={<Plus size={13} />} onClick={() => setShowCreateModal(true)} style={{ ...btnStyle, marginTop: 12 }}>
+              Create First Ruleset
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
+            {filtered.map(rs => {
+              const rules = (() => { try { return JSON.parse(rs.rules || '[]'); } catch { return []; } })();
+              let summary = {};
+              try { summary = JSON.parse(rs.lastRunSummary || '{}'); } catch {}
 
-                return (
-                  <div key={rs._id || rs.id} style={{
-                    border: '1px solid #e4e4e7', borderRadius: 12, overflow: 'hidden',
-                    background: rs.isActive ? '#fff' : '#fafafa',
-                    opacity: rs.isActive ? 1 : 0.7, transition: 'all 0.15s'
-                  }}>
-                    {/* Card Header */}
-                    <div style={{ padding: '12px 16px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              return (
+                <Card key={rs._id || rs.id} size="small" style={{ borderRadius: 10, border: '1px solid #e4e4e7' }}
+                  styles={{ body: { padding: 0 } }}
+                  title={
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#18181b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 700, color: '#18181b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {rs.name}
-                          </span>
+                          </Text>
                           <TypeBadge type={rs.type} />
                         </div>
                         {rs.description && (
-                          <p style={{ fontSize: 11, color: '#71717a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Text style={{ fontSize: 11, color: '#71717a', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {rs.description}
-                          </p>
+                          </Text>
                         )}
                       </div>
                       <Switch size="small" checked={rs.isActive} onChange={() => handleToggle(rs._id || rs.id)} />
                     </div>
-
-                    {/* Stats */}
-                    <div style={{ padding: '10px 16px', display: 'flex', gap: 16 }}>
+                  }
+                  extra={
+                    <Space size={4}>
+                      <Tooltip title="Run Now">
+                        <Button type="text" size="small" icon={<PlayCircle size={13} />}
+                          loading={executing === (rs._id || rs.id)}
+                          onClick={() => handleExecute(rs._id || rs.id)}
+                          style={{ color: '#2E7D32' }} />
+                      </Tooltip>
+                      <Tooltip title="Duplicate">
+                        <Button type="text" size="small" icon={<Copy size={13} />}
+                          onClick={() => handleDuplicate(rs._id || rs.id)} />
+                      </Tooltip>
+                      <Tooltip title="Edit">
+                        <Button type="text" size="small" icon={<SlidersHorizontal size={13} />}
+                          onClick={() => navigate(`/rule-sets/${rs._id || rs.id}`)} />
+                      </Tooltip>
+                      <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(rs._id || rs.id)} okText="Delete" okButtonProps={{ danger: true }}>
+                        <Button type="text" danger size="small" icon={<Trash2 size={13} />} />
+                      </Popconfirm>
+                    </Space>
+                  }
+                >
+                  <div style={{ padding: '0 16px 12px' }}>
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Rules</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rules.length}</span>
+                        <Text style={{ fontSize: 10, color: '#a1a1aa' }}>Rules</Text>
+                        <Text style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rules.length}</Text>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Runs</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rs.totalRunCount || 0}</span>
+                        <Text style={{ fontSize: 10, color: '#a1a1aa' }}>Runs</Text>
+                        <Text style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{rs.totalRunCount || 0}</Text>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>Matched</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32' }}>{summary.totalMatched || 0}</span>
-                      </div>
-                      <div style={{ flex: 1 }} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {rs.isAutomated && (
-                          <Tag style={{ fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 5px', margin: 0, background: '#eff6ff', color: '#0288D1', border: '1px solid #bfdbfe' }}>
-                            <Clock size={9} style={{ marginRight: 2 }} />
-                            {rs.runFrequency || 'Daily'}
-                          </Tag>
-                        )}
-                        <span style={{ fontSize: 10, color: '#a1a1aa' }}>
-                          {rs.lastRunAt ? formatTime(rs.lastRunAt) : 'Never run'}
-                        </span>
+                        <Text style={{ fontSize: 10, color: '#a1a1aa' }}>Matched</Text>
+                        <Text style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32' }}>{summary.totalMatched || 0}</Text>
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <div style={{ padding: '8px 16px 12px', borderTop: '1px solid #f4f4f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Space size={4}>
-                        <Tooltip title="Run Now">
-                          <Button type="text" size="small" icon={<PlayCircle size={13} />}
-                            loading={executing === (rs._id || rs.id)}
-                            onClick={() => handleExecute(rs._id || rs.id)}
-                            style={{ color: '#2E7D32' }} />
-                        </Tooltip>
-                        <Tooltip title="Duplicate">
-                          <Button type="text" size="small" icon={<Copy size={13} />}
-                            onClick={() => handleDuplicate(rs._id || rs.id)} />
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <Button type="text" size="small" icon={<SlidersHorizontal size={13} />}
-                            onClick={() => navigate(`/rule-sets/${rs._id || rs.id}`)} />
-                        </Tooltip>
-                        <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(rs._id || rs.id)} okText="Delete" okButtonProps={{ danger: true }}>
-                          <Button type="text" danger size="small" icon={<Trash2 size={13} />} />
-                        </Popconfirm>
-                      </Space>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {rs.isAutomated ? (
+                        <Tag style={{ fontSize: 9, borderRadius: 4, padding: '1px 6px', margin: 0, background: '#eff6ff', color: '#4F46E5', border: 'none' }}>
+                          <Clock size={9} style={{ marginRight: 2 }} />{rs.runFrequency || 'Daily'}
+                        </Tag>
+                      ) : (
+                        <Tag style={{ fontSize: 9, borderRadius: 4, padding: '1px 6px', margin: 0, background: '#f4f4f5', color: '#71717a', border: 'none' }}>Manual</Tag>
+                      )}
+                      <Text style={{ fontSize: 10, color: '#a1a1aa' }}>
+                        {rs.lastRunAt ? formatTime(rs.lastRunAt) : 'Never run'}
+                      </Text>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </Card>
+              );
+            })}
+          </div>
 
-            {total > pageSize && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                <Pagination size="small" current={page} pageSize={pageSize} total={total}
-                  onChange={p => setPage(p)} showSizeChanger={false} />
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          {total > pageSize && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <Pagination size="small" current={page} pageSize={pageSize} total={total}
+                onChange={p => setPage(p)} showSizeChanger={false} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Create Modal */}
+      <Modal open={showCreateModal} onCancel={() => setShowCreateModal(false)} title="Create Ruleset"
+        footer={[
+          <Button key="cancel" onClick={() => setShowCreateModal(false)} style={btnStyle}>Cancel</Button>,
+          <Button key="create" type="primary" onClick={handleCreate} style={btnStyle}>Create</Button>
+        ]}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <Text style={{ fontSize: 11, fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Name *</Text>
+            <Input placeholder="Enter ruleset name" value={newRulesetName} onChange={e => setNewRulesetName(e.target.value)} style={{ borderRadius: 8 }} />
+          </div>
+          <div>
+            <Text style={{ fontSize: 11, fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Type *</Text>
+            <Select value={newRulesetType} onChange={setNewRulesetType} style={{ width: '100%', borderRadius: 8 }}
+              options={RULE_TYPE_OPTIONS} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
