@@ -435,11 +435,14 @@ async function evaluateRuleset(rulesetId, options = {}) {
   const pool = await getPool();
   const result = await pool.request()
     .input('id', sql.VarChar, rulesetId)
-    .query("SELECT * FROM Rulesets WHERE Id = @id AND IsActive = 1");
+    .query("SELECT * FROM Rulesets WHERE Id = @id");
   
   const ruleset = result.recordset[0];
   if (!ruleset) {
-    throw new Error('Ruleset not found or inactive');
+    throw new Error('Ruleset not found');
+  }
+  if (triggeredBy !== 'manual' && !ruleset.IsActive) {
+    throw new Error('Ruleset is inactive');
   }
 
   let rules = ruleset.Rules;
@@ -588,9 +591,34 @@ async function scheduleRuleset(rulesetId) {
   return syncResult;
 }
 
+async function runForSeller(sellerId) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('sellerId', sql.VarChar, sellerId)
+    .query(`
+      SELECT Id FROM Rulesets 
+      WHERE IsActive = 1 AND IsAutomated = 1 
+      AND (SellerId = @sellerId OR SellerId IS NULL OR SellerId = '')
+    `);
+  
+  const rulesets = result.recordset || [];
+  const results = [];
+  for (const r of rulesets) {
+    try {
+      const res = await evaluateRuleset(r.Id, { triggeredBy: 'scheduled' });
+      results.push({ rulesetId: r.Id, status: 'success', summary: res?.summary });
+    } catch (err) {
+      console.error(`Error running automated ruleset ${r.Id} for seller ${sellerId}:`, err);
+      results.push({ rulesetId: r.Id, status: 'error', error: err.message });
+    }
+  }
+  return results;
+}
+
 module.exports = {
   evaluateRuleset,
   scheduleRuleset,
+  runForSeller,
   getEntityData,
   evaluateCondition,
   evaluateRule
