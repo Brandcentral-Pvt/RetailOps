@@ -357,9 +357,9 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
       break;
     }
 
-    case 'create_dispute_group':
+    case 'create_group_task':
       // Group actions are handled in evaluateRuleset post-processing, not per-entity
-      results.push({ action: 'create_dispute_group', status: 'deferred', reason: 'Handled as group action' });
+      results.push({ action: 'create_group_task', status: 'deferred', reason: 'Handled as group action' });
       break;
 
     default:
@@ -369,118 +369,233 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
   return results;
 }
 
-// ─── Standard Operating Procedure for Price Disputes ─────────────────────────
-const DISPUTE_SOP = [
-  { stepNo: 1, title: 'Review Disputed ASINs', description: 'Identify all ASINs with price discrepancies between channel price (UploadedPrice) and marketplace price (CurrentPrice).' },
-  { stepNo: 2, title: 'Check Active Deals', description: 'Verify if any dispute is caused by an active deal badge. If a deal is active, the dispute may be temporary — document and monitor.' },
-  { stepNo: 3, title: 'Contact Channel Team', description: 'Raise a ticket with the channel/pricing team to update the UploadedPrice for affected ASINs.' },
-  { stepNo: 4, title: 'Update Prices', description: 'Once channel confirms the correct price, update UploadedPrice for all affected ASINs in the ASIN Manager.' },
-  { stepNo: 5, title: 'Verify Resolution', description: 'Re-run the price dispute check. Confirm all disputed ASINs now show PriceDispute = false.' },
-  { stepNo: 6, title: 'Close Task', description: 'Mark all sub-tasks as completed and submit the main task for review.' },
-];
+// ─── Default SOP Templates (by category) ────────────────────────────────────
+const SOP_TEMPLATES = {
+  pricing: [
+    { stepNo: 1, title: 'Review Affected ASINs', description: 'Identify all ASINs with pricing discrepancies.' },
+    { stepNo: 2, title: 'Check Active Deals', description: 'Verify if any discrepancy is caused by an active deal badge.' },
+    { stepNo: 3, title: 'Contact Channel Team', description: 'Raise a ticket with the channel/pricing team.' },
+    { stepNo: 4, title: 'Update Prices', description: 'Update prices for all affected ASINs.' },
+    { stepNo: 5, title: 'Verify Resolution', description: 'Confirm all ASINs now show correct prices.' },
+    { stepNo: 6, title: 'Close Task', description: 'Mark all sub-tasks as completed and submit for review.' },
+  ],
+  listing: [
+    { stepNo: 1, title: 'Review Affected ASINs', description: 'Identify all ASINs with listing quality issues.' },
+    { stepNo: 2, title: 'Prioritize by Impact', description: 'Rank ASINs by BSR, revenue, or LQS score.' },
+    { stepNo: 3, title: 'Create Optimization Plan', description: 'Define specific improvements for each ASIN.' },
+    { stepNo: 4, title: 'Implement Changes', description: 'Update titles, images, bullets, descriptions as needed.' },
+    { stepNo: 5, title: 'Verify Improvements', description: 'Confirm LQS scores and listing completeness improved.' },
+  ],
+  inventory: [
+    { stepNo: 1, title: 'Review Stock Levels', description: 'Check current stock levels for all affected ASINs.' },
+    { stepNo: 2, title: 'Contact Supply Chain', description: 'Coordinate with supply chain for restocking.' },
+    { stepNo: 3, title: 'Update Inventory', description: 'Update stock levels and availability status.' },
+    { stepNo: 4, title: 'Monitor Restock', description: 'Track restock progress until items are back in stock.' },
+  ],
+  general: [
+    { stepNo: 1, title: 'Review Affected Items', description: 'Review all items flagged by this ruleset.' },
+    { stepNo: 2, title: 'Take Action', description: 'Address each item according to the ruleset criteria.' },
+    { stepNo: 3, title: 'Verify Resolution', description: 'Confirm all items are resolved.' },
+    { stepNo: 4, title: 'Close Task', description: 'Mark all sub-tasks as completed and submit for review.' },
+  ],
+};
 
 /**
- * Creates grouped dispute tasks — 1 main task per seller, sub-tasks per ASIN.
- * This is called AFTER all entities have been matched, to group them.
+ * Creates grouped tasks — 1 main task per group, sub-tasks per entity.
+ * Universal: works for any ruleset type, groups by configurable field.
+ * 
+ * @param {Array} matchedEntities - [{ entity, matchedRule, matchedIndex }]
+ * @param {Object} ruleset - The ruleset being executed
+ * @param {Object} pool - Database pool
+ * @param {Object} options - { groupBy: 'seller'|'category'|'brand', priority, sop, titleTemplate }
  */
-async function createDisputeGroupTasks(matchedEntities, ruleset, pool) {
+async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
   const results = [];
-  const GROUP_BY_SELLER = true;
+  const dryRun = options.dryRun || false;
 
-  // Group entities by seller
-  const sellerGroups = {};
-  for (const { entity, matchedRule, matchedIndex } of matchedEntities) {
-    const sellerKey = entity.seller || 'UNKNOWN';
-    if (!sellerGroups[sellerKey]) {
-      sellerGroups[sellerKey] = { sellerId: sellerKey, entities: [], rule: matchedRule, ruleIndex: matchedIndex };
+  const groupByField = options.groupBy || 'seller';
+  const priority = options.priority || 'Medium';
+  const customSop = options.sop || null;
+  const titleTemplate = options.titleTemplate || null;
+  const dueDays = { Critical: 1, High: 3, Medium: 7, Low: 14 };
+  const dueDateMs = dueDays[priority] || 7;
+
+  // Determine grouping key from entity
+  const getGroupKey = (entity) => {
+    switch (groupByField) {
+      case 'seller': return entity.seller || 'UNKNOWN';
+      case 'category': return entity.category || 'UNCATEGORIZED';
+      case 'brand': return entity.brand || 'NO_BRAND';
+      case 'bsrRange': {
+        const bsr = entity.bsr || 0;
+        if (bsr <= 1000) return 'Top 1K';
+        if (bsr <= 10000) return '1K-10K';
+        if (bsr <= 50000) return '10K-50K';
+        return '50K+';
+      }
+      case 'priceRange': {
+        const price = entity.currentPrice || 0;
+        if (price <= 500) return 'Under ₹500';
+        if (price <= 2000) return '₹500-2K';
+        if (price <= 5000) return '₹2K-5K';
+        return 'Over ₹5K';
+      }
+      default: return entity[groupByField] || 'UNKNOWN';
     }
-    sellerGroups[sellerKey].entities.push(entity);
+  };
+
+  // Group entities
+  const groups = {};
+  for (const me of matchedEntities) {
+    const key = getGroupKey(me.entity);
+    if (!groups[key]) {
+      groups[key] = { key, entities: [], rule: me.matchedRule, ruleIndex: me.matchedIndex };
+    }
+    groups[key].entities.push(me.entity);
   }
 
-  // Fetch seller names
-  const sellerIds = Object.keys(sellerGroups).filter(id => id !== 'UNKNOWN');
-  let sellerNameMap = {};
-  if (sellerIds.length > 0) {
-    try {
-      const placeholders = sellerIds.map((_, i) => `@sid${i}`).join(',');
-      const req = pool.request();
-      sellerIds.forEach((id, i) => req.input(`sid${i}`, sql.VarChar, id));
-      const res = await req.query(`SELECT Id, Name FROM Sellers WHERE Id IN (${placeholders})`);
-      res.recordset.forEach(s => { sellerNameMap[s.Id] = s.Name; });
-    } catch (e) {
-      console.warn('[DisputeGroup] Could not fetch seller names:', e.message);
+  // Resolve display names for group keys
+  let displayNameMap = {};
+  const groupKeys = Object.keys(groups);
+
+  if (groupByField === 'seller' && groupKeys.length > 0) {
+    const validKeys = groupKeys.filter(k => k !== 'UNKNOWN');
+    if (validKeys.length > 0) {
+      try {
+        const placeholders = validKeys.map((_, i) => `@gk${i}`).join(',');
+        const req = pool.request();
+        validKeys.forEach((id, i) => req.input(`gk${i}`, sql.VarChar, id));
+        const res = await req.query(`SELECT Id, Name FROM Sellers WHERE Id IN (${placeholders})`);
+        res.recordset.forEach(s => { displayNameMap[s.Id] = s.Name; });
+      } catch (e) { console.warn('[GroupTask] Could not fetch seller names:', e.message); }
     }
+  } else if (groupByField === 'category') {
+    // Categories are already human-readable
+    groupKeys.forEach(k => { displayNameMap[k] = k; });
+  } else if (groupByField === 'brand') {
+    groupKeys.forEach(k => { displayNameMap[k] = k; });
+  } else {
+    groupKeys.forEach(k => { displayNameMap[k] = k; });
   }
 
-  for (const [sellerKey, group] of Object.entries(sellerGroups)) {
-    const sellerName = sellerNameMap[sellerKey] || sellerKey;
-    const asinCount = group.entities.length;
-    const ruleName = group.rule?.name || 'Price Dispute Ruleset';
+  // Get SOP
+  const getSop = (entities) => {
+    if (customSop && customSop.length > 0) return customSop;
+    // Auto-detect SOP from entity data
+    const hasPriceDispute = entities.some(e => e.priceDispute);
+    const hasLowLqs = entities.some(e => (e.lqs || 0) < 70);
+    const hasLowStock = entities.some(e => (e.stockLevel || 0) === 0);
+    if (hasPriceDispute) return SOP_TEMPLATES.pricing;
+    if (hasLowLqs) return SOP_TEMPLATES.listing;
+    if (hasLowStock) return SOP_TEMPLATES.inventory;
+    return SOP_TEMPLATES.general;
+  };
 
-    // Build sub-tasks from entities
-    const subTasks = group.entities.map((entity, idx) => ({
-      id: idx + 1,
-      asinCode: entity.asinCode || '',
-      title: entity.title || entity.asinCode || `ASIN ${idx + 1}`,
-      brand: entity.brand || '',
-      category: entity.category || '',
-      currentPrice: entity.currentPrice || 0,
-      uploadedPrice: entity.uploadedPrice || 0,
-      difference: Math.abs((entity.currentPrice || 0) - (entity.uploadedPrice || 0)),
-      bsr: entity.bsr || 0,
-      rating: entity.rating || 0,
-      hasDeal: entity.hasDeal || false,
-      dealBadge: entity.dealBadge || '',
-      status: 'pending',
-    }));
+  // Create tasks for each group
+  for (const [groupKey, group] of Object.entries(groups)) {
+    const displayName = displayNameMap[groupKey] || groupKey;
+    const entityCount = group.entities.length;
+    const ruleName = group.rule?.name || 'Ruleset';
+    const sop = getSop(group.entities);
 
-    // Create main task
-    const taskId = generateId();
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 3); // 3 days for disputes
+    // Build sub-tasks generically from entity data
+    const subTasks = group.entities.map((entity, idx) => {
+      const sub = {
+        id: idx + 1,
+        asinCode: entity.asinCode || '',
+        title: entity.title || entity.asinCode || `Item ${idx + 1}`,
+        brand: entity.brand || '',
+        category: entity.category || '',
+        status: 'pending',
+      };
 
-    const mainTitle = `[Price Dispute] ${sellerName} — ${asinCount} ASIN${asinCount > 1 ? 's' : ''} affected`;
-    const mainDescription = [
-      `Price Dispute Alert for ${sellerName}`,
+      // Add contextual data based on what the entity has
+      if (entity.currentPrice !== undefined) sub.currentPrice = entity.currentPrice;
+      if (entity.uploadedPrice !== undefined) sub.uploadedPrice = entity.uploadedPrice;
+      if (entity.currentPrice && entity.uploadedPrice) {
+        sub.difference = Math.abs(entity.currentPrice - entity.uploadedPrice);
+      }
+      if (entity.bsr) sub.bsr = entity.bsr;
+      if (entity.rating) sub.rating = entity.rating;
+      if (entity.reviewCount) sub.reviewCount = entity.reviewCount;
+      if (entity.stockLevel !== undefined) sub.stockLevel = entity.stockLevel;
+      if (entity.lqs) sub.lqs = entity.lqs;
+      if (entity.hasAplus !== undefined) sub.hasAplus = entity.hasAplus;
+      if (entity.imagesCount) sub.imagesCount = entity.imagesCount;
+      if (entity.hasDeal) sub.hasDeal = entity.hasDeal;
+      if (entity.dealBadge) sub.dealBadge = entity.dealBadge;
+      if (entity.priceDispute) sub.priceDispute = true;
+      if (entity.bsrTrend) sub.bsrTrend = entity.bsrTrend;
+      if (entity.availabilityStatus) sub.availabilityStatus = entity.availabilityStatus;
+      if (entity.totalOrders) sub.totalOrders = entity.totalOrders;
+
+      return sub;
+    });
+
+    // Build title from template or auto-generate
+    const mainTitle = titleTemplate
+      ? titleTemplate
+        .replace('{seller}', displayName)
+        .replace('{count}', entityCount)
+        .replace('{rule}', ruleName)
+        .replace('{groupBy}', groupByField)
+      : `[${ruleName}] ${displayName} — ${entityCount} item${entityCount > 1 ? 's' : ''}`;
+
+    // Build description with SOP
+    const description = [
+      `Ruleset: ${ruleName}`,
+      `Group: ${displayName} (${groupByField})`,
+      `Affected Items: ${entityCount}`,
       '',
-      `${asinCount} ASIN(s) have price discrepancies between channel price and marketplace price.`,
+      'Items:',
+      ...subTasks.map((st, i) => {
+        const parts = [`  ${i + 1}. ${st.asinCode}${st.brand ? ` (${st.brand})` : ''}`];
+        if (st.currentPrice && st.uploadedPrice) parts.push(` — ₹${st.uploadedPrice} vs ₹${st.currentPrice}`);
+        if (st.stockLevel === 0) parts.push(' — OUT OF STOCK');
+        if (st.lqs && st.lqs < 70) parts.push(` — LQS: ${st.lqs}`);
+        return parts.join('');
+      }).join('\n'),
       '',
-      'Disputed ASINs:',
-      ...subTasks.map((st, i) => `  ${i + 1}. ${st.asinCode}${st.brand ? ` (${st.brand})` : ''} — Channel: ₹${st.uploadedPrice} vs Market: ₹${st.currentPrice} (Δ₹${st.difference})`).join('\n'),
+      'SOP:',
+      ...sop.map(s => `  ${s.stepNo}. ${s.title}: ${s.description}`),
       '',
-      'SOP: Complete all sub-tasks below to resolve these disputes.',
+      'Complete all sub-tasks below to resolve.',
     ].join('\n');
 
-    // Fetch assigned user for this seller
+    // Fetch assigned user for this group key
     let assignedTo = ruleset.CreatedBy || '';
-    try {
-      const assigneeRes = await pool.request()
-        .input('sid', sql.VarChar, sellerKey)
-        .query('SELECT TOP 1 UserId FROM UserSellers WHERE SellerId = @sid');
-      if (assigneeRes.recordset.length > 0) {
-        assignedTo = assigneeRes.recordset[0].UserId;
-      }
-    } catch (e) { /* fallback to ruleset creator */ }
+    if (groupByField === 'seller' && groupKey !== 'UNKNOWN') {
+      try {
+        const assigneeRes = await pool.request()
+          .input('sid', sql.VarChar, groupKey)
+          .query('SELECT TOP 1 UserId FROM UserSellers WHERE SellerId = @sid');
+        if (assigneeRes.recordset.length > 0) {
+          assignedTo = assigneeRes.recordset[0].UserId;
+        }
+      } catch (e) { /* fallback */ }
+    }
 
-    const subTasksJson = JSON.stringify(subTasks);
+    const taskId = generateId();
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + dueDateMs);
 
     if (!dryRun) {
       await pool.request()
         .input('Id', sql.VarChar, taskId)
         .input('Title', sql.NVarChar, mainTitle)
-        .input('Description', sql.NVarChar, mainDescription)
-        .input('Priority', sql.NVarChar, 'High')
+        .input('Description', sql.NVarChar, description)
+        .input('Priority', sql.NVarChar, priority)
         .input('Status', sql.NVarChar, 'PENDING')
         .input('Type', sql.NVarChar, 'automated')
-        .input('Category', sql.NVarChar, 'Pricing')
+        .input('Category', sql.NVarChar, group.entities[0]?.category || 'General')
         .input('Asins', sql.NVarChar, JSON.stringify(subTasks.map(st => st.asinCode)))
-        .input('SubTasks', sql.NVarChar, subTasksJson)
-        .input('SubTaskProgress', sql.NVarChar, `0/${asinCount}`)
-        .input('SellerId', sql.VarChar, sellerKey)
+        .input('SubTasks', sql.NVarChar, JSON.stringify(subTasks))
+        .input('SubTaskProgress', sql.NVarChar, `0/${entityCount}`)
+        .input('SellerId', sql.VarChar, groupKey)
         .input('CreatedBy', sql.VarChar, ruleset.CreatedBy || '')
         .input('AssignedTo', sql.VarChar, assignedTo)
         .input('DueDate', sql.DateTime2, dueDate)
-        .input('TimeLimit', sql.Int, 3)
+        .input('TimeLimit', sql.Int, dueDateMs)
         .query(`
           INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SubTasks, SubTaskProgress, SellerId, CreatedBy, AssignedTo, DueDate, TimeLimit, CreatedAt, UpdatedAt)
           VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SubTasks, @SubTaskProgress, @SellerId, @CreatedBy, @AssignedTo, @DueDate, @TimeLimit, dbo.GetEnvDate(), dbo.GetEnvDate())
@@ -488,17 +603,20 @@ async function createDisputeGroupTasks(matchedEntities, ruleset, pool) {
     }
 
     results.push({
-      action: 'dispute_group_created',
+      action: 'group_task_created',
       status: 'success',
       taskId,
       title: mainTitle,
-      sellerId: sellerKey,
-      sellerName,
-      asinCount,
+      groupKey,
+      displayName,
+      groupByField,
+      entityCount,
       subTaskCount: subTasks.length,
+      priority,
+      dueDate: dueDate.toISOString(),
     });
 
-    console.log(`📋 [DisputeGroup] Created task for ${sellerName}: ${asinCount} ASINs as sub-tasks`);
+    console.log(`📋 [GroupTask] Created: ${mainTitle} (${entityCount} sub-tasks)`);
   }
 
   return results;
@@ -686,7 +804,7 @@ async function evaluateRuleset(rulesetId, options = {}) {
   }
 
   const batchSize = 100;
-  const GROUP_ACTIONS = ['create_dispute_group'];
+  const GROUP_ACTIONS = ['create_group_task'];
   const individualEntities = [];
   const groupEntities = {};
 
@@ -736,21 +854,28 @@ async function evaluateRuleset(rulesetId, options = {}) {
     }));
   }
 
-  // Process group actions (e.g., create_dispute_group)
+  // Process group actions (e.g., create_group_task)
   for (const [actionKey, groupData] of Object.entries(groupEntities)) {
-    if (actionKey === 'create_dispute_group') {
-      const groupResults = await createDisputeGroupTasks(groupData.entities, ruleset, pool);
+    if (actionKey === 'create_group_task') {
+      const actionConfig = groupData.action || {};
+      const groupResults = await createGroupTasks(groupData.entities, ruleset, pool, {
+        groupBy: actionConfig.groupBy || 'seller',
+        priority: actionConfig.priority || 'Medium',
+        sop: actionConfig.sop || null,
+        titleTemplate: actionConfig.titleTemplate || null,
+        dryRun,
+      });
       summary.totalActioned += groupResults.length;
 
       for (const gr of groupResults) {
         entries.push({
-          entityId: `${gr.sellerId} (${gr.asinCount} ASINs)`,
-          entityType: 'DISPUTE_GROUP',
+          entityId: `${gr.groupKey} (${gr.entityCount} items)`,
+          entityType: 'GROUP_TASK',
           entityName: gr.title,
-          ruleName: groupData.rule?.name || 'Dispute Group',
+          ruleName: groupData.rule?.name || 'Group Task',
           ruleOrder: 0,
           conditionsMet: [],
-          actionApplied: { actionType: 'create_dispute_group' },
+          actionApplied: { actionType: 'create_group_task', ...actionConfig },
           status: dryRun ? 'dry_run' : gr.status
         });
       }
