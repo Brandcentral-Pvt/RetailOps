@@ -2,6 +2,7 @@ export const ACTIONS_BY_TYPE = {
   ASIN: [
     { value: 'create_task', label: 'Create Task', hasValue: false, group: 'Tasks', icon: 'CheckSquare', description: 'Auto-create an actionable task for this ASIN' },
     { value: 'create_task_high', label: 'Create Urgent Task', hasValue: false, group: 'Tasks', icon: 'AlertTriangle', description: 'Create a high-priority urgent task' },
+    { value: 'create_dispute_group', label: 'Create Dispute Group', hasValue: false, group: 'Tasks', icon: 'FolderOpen', description: 'Group all matched ASINs by seller into 1 main task with sub-tasks and SOP' },
 
     { value: 'send_notification', label: 'Send Notification', hasValue: false, group: 'Alerts', icon: 'Bell', description: 'In-app notification to team members' },
     { value: 'send_email', label: 'Send Email Alert', hasValue: false, group: 'Alerts', icon: 'Mail', description: 'Email alert to configured recipients' },

@@ -1,11 +1,12 @@
 import React from 'react';
-import { Drawer, Tag, Space, Button, Descriptions, Card, Progress, Typography, Avatar, Divider, Tooltip } from 'antd';
-import { CloseOutlined, EditOutlined, UserOutlined, LinkOutlined } from '@ant-design/icons';
+import { Drawer, Tag, Space, Button, Descriptions, Card, Progress, Typography, Avatar, Divider, Tooltip, Checkbox } from 'antd';
+import { CloseOutlined, EditOutlined, UserOutlined, LinkOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { can, formatUserName, getInitials } from './modalHelpers';
 import WorkflowActionButton from './WorkflowActionButton';
 import TaskStatusTimeline from './TaskStatusTimeline';
 import WorkflowNotification from './WorkflowNotification';
+import { db } from '../../services/db';
 
 const { Text } = Typography;
 
@@ -49,8 +50,21 @@ const TaskDetailDrawer = ({
   };
 
   const linkedAsins = action.asins || action.linkedAsins || [];
+  const subTasks = action.subTasks || [];
+  const completedSubTasks = subTasks.filter(st => st.status === 'completed').length;
+  const subTaskProgress = action.subTaskProgress || `${completedSubTasks}/${subTasks.length}`;
   const showAllAsins = linkedAsins.length > 5;
   const displayAsins = showAllAsins ? linkedAsins.slice(0, 5) : linkedAsins;
+
+  const handleToggleSubTask = async (subIdx) => {
+    try {
+      await db.toggleSubTask(action.id || action._id, subIdx);
+      // Refresh by triggering a page reload of the drawer
+      window.dispatchEvent(new CustomEvent('task-subtask-updated', { detail: { taskId: action.id || action._id } }));
+    } catch (err) {
+      console.error('Failed to toggle subtask:', err);
+    }
+  };
 
   return (
     <Drawer
@@ -209,6 +223,68 @@ const TaskDetailDrawer = ({
         )}
 
         <Divider style={{ margin: '12px 0' }} />
+
+        {/* Sub-Tasks (for grouped tasks like price disputes) */}
+        {subTasks.length > 0 && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text strong style={{ fontSize: 13, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckSquareOutlined style={{ fontSize: 14 }} />
+                Sub-Tasks ({subTaskProgress})
+              </Text>
+              <Progress
+                percent={subTasks.length > 0 ? Math.round((completedSubTasks / subTasks.length) * 100) : 0}
+                size="small"
+                strokeColor="#16a34a"
+                railColor="#f1f5f9"
+                style={{ width: 100, margin: 0 }}
+              />
+            </div>
+            <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'center', width: 36 }}></th>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'left' }}>ASIN</th>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Channel</th>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Market</th>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#94a3b8', textAlign: 'right' }}>Diff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subTasks.map((st, i) => {
+                    const isCompleted = st.status === 'completed';
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', opacity: isCompleted ? 0.6 : 1 }}>
+                        <td style={{ padding: '8px 8px', textAlign: 'center' }}>
+                          <Checkbox
+                            checked={isCompleted}
+                            onChange={() => handleToggleSubTask(i)}
+                          />
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}>
+                          <span style={{ textDecoration: isCompleted ? 'line-through' : 'none' }}>{st.asinCode}</span>
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          ₹{(st.currentPrice || 0).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          ₹{(st.uploadedPrice || 0).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 12, textAlign: 'right' }}>
+                          <Tag color={st.difference > 50 ? 'error' : 'warning'} style={{ borderRadius: 4, fontSize: 10 }}>
+                            ₹{(st.difference || 0).toLocaleString()}
+                          </Tag>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
+            <Divider style={{ margin: '12px 0' }} />
+          </>
+        )}
 
         <Text strong style={{ fontSize: 13, color: '#1e293b', display: 'block', marginBottom: 8 }}>Progress</Text>
         <Progress
