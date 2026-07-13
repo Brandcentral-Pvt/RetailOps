@@ -73,4 +73,7 @@ router.post('/repair', authenticate, requirePermission('scraping_manage'), marke
 router.post('/sync-all-live', authenticate, requirePermission('scraping_manage'), marketSyncController.syncAllLiveSync);
 router.get('/sync-all-live/status', authenticate, requirePermission('scraping_manage'), marketSyncController.getGlobalLiveSyncStatus);
 
+// Restart all Octoparse tasks: stop → clear locks → re-inject → start fresh
+router.post('/restart-all', authenticate, requirePermission('scraping_manage'), marketSyncController.restartAllOctoparseTasks);
+
 module.exports = router;

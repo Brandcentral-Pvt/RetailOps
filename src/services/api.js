@@ -494,6 +494,14 @@ export const marketSyncApi = {
     });
     return handleResponse(res, 'Failed to fetch global sync status');
   },
+
+  restartAllOctoparse: async () => {
+    const res = await fetch(`${API_BASE}/market-sync/restart-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    });
+    return handleResponse(res, 'Failed to restart Octoparse tasks');
+  },
 };
 
 // Scheduled Runs API

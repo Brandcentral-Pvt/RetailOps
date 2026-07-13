@@ -623,6 +623,26 @@ const SellersPage = () => {
   const [globalSyncProgress, setGlobalSyncProgress] = useState(null);
   const globalSyncPollRef = useRef(null);
 
+  // ── Restart All Octoparse Tasks ─────────────────────────────────────────
+  const handleRestartOctoparse = useCallback(async () => {
+    if (!window.confirm('This will STOP all running Octoparse tasks, clear all locks, and restart fresh scraping for every active seller. Continue?')) return;
+    try {
+      setGlobalSyncing(true);
+      toastRef.current('Restarting all Octoparse tasks...', 'info');
+      const res = await marketSyncApi.restartAllOctoparse();
+      if (res.success) {
+        toastRef.current(res.message, 'success');
+        void loadSellers({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch, silent: true });
+      } else {
+        toastRef.current(res.error || 'Restart failed', 'error');
+      }
+    } catch (error) {
+      toastRef.current(error.message || 'Restart failed', 'error');
+    } finally {
+      setGlobalSyncing(false);
+    }
+  }, [page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, debouncedSearch, loadSellers]);
+
   const handleGlobalLiveSync = useCallback(async () => {
     setGlobalSyncing(true);
     setGlobalSyncProgress({ status: 'STARTING', sellers: 0, asins: 0 });
@@ -953,6 +973,7 @@ const SellersPage = () => {
         onOpenCsvImport={() => setShowImportModal(true)}
         globalSyncing={globalSyncing}
         handleGlobalLiveSync={handleGlobalLiveSync}
+        onRestartOctoparse={handleRestartOctoparse}
         isBrandManager={isBrandManager}
       />
 
