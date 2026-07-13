@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Space, Dropdown, Tooltip } from 'antd';
 import {
-  PlusOutlined, DownloadOutlined, EllipsisOutlined, ThunderboltOutlined
+  PlusOutlined, DownloadOutlined, EllipsisOutlined, ThunderboltOutlined, ReloadOutlined
 } from '@ant-design/icons';
 
 const SellerPageHeader = ({
@@ -10,6 +10,7 @@ const SellerPageHeader = ({
   onOpenCsvImport,
   globalSyncing,
   handleGlobalLiveSync,
+  onRestartOctoparse,
   isBrandManager,
 }) => {
   const moreMenuItems = [
@@ -34,6 +35,12 @@ const SellerPageHeader = ({
       label: globalSyncing ? 'Syncing...' : 'Sync All Brands',
       disabled: globalSyncing,
       onClick: handleGlobalLiveSync,
+    },
+    {
+      key: 'restart-octo',
+      icon: <ReloadOutlined />,
+      label: 'Restart All Octoparse',
+      onClick: onRestartOctoparse,
     },
   ];
 

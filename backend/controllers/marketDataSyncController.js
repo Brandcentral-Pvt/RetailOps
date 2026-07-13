@@ -1206,3 +1206,78 @@ exports.getGlobalLiveSyncStatus = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+/**
+ * Restart all Octoparse tasks: stop all running → clear locks → re-inject → start fresh
+ */
+exports.restartAllOctoparseTasks = async (req, res) => {
+    try {
+        const roleName = req.user?.role?.Name || req.user?.role?.name || req.user?.role;
+        if (!isGlobalUserRole(roleName)) {
+            return res.status(403).json({ success: false, error: 'Admin only' });
+        }
+
+        const pool = await getPool();
+
+        // 1. Get all sellers with Octoparse tasks
+        const sellersResult = await pool.request()
+            .query("SELECT Id, Name, OctoparseId FROM Sellers WHERE IsActive = 1 AND OctoparseId IS NOT NULL AND OctoparseId != ''");
+        const sellers = sellersResult.recordset;
+
+        if (sellers.length === 0) {
+            return res.json({ success: true, message: 'No sellers with Octoparse tasks found', stopped: 0, restarted: 0 });
+        }
+
+        console.log(`🔄 [RESTART] Stopping ${sellers.length} Octoparse tasks...`);
+
+        // 2. Stop all running tasks
+        let stopped = 0;
+        for (const seller of sellers) {
+            try {
+                await marketDataSyncService.stopSync(seller.OctoparseId);
+                stopped++;
+            } catch (e) {
+                console.warn(`⚠️ [RESTART] Could not stop task for ${seller.Name}: ${e.message}`);
+            }
+        }
+
+        // 3. Clear all sync locks
+        marketDataSyncService.syncLocks.clear();
+        console.log(`🧹 [RESTART] Cleared all sync locks`);
+
+        // 4. Wait for tasks to stabilize
+        await new Promise(r => setTimeout(r, 3000));
+
+        // 5. Re-inject and start all tasks in parallel (fire and forget)
+        const results = [];
+        for (const seller of sellers) {
+            try {
+                await marketDataSyncService.syncSellerAsinsToOctoparse(seller.Id, {
+                    triggerScrape: true,
+                    fullSync: true,
+                    forceReRun: true
+                });
+                results.push({ sellerId: seller.Id, name: seller.Name, success: true });
+                console.log(`✅ [RESTART] Re-synced: ${seller.Name}`);
+            } catch (e) {
+                results.push({ sellerId: seller.Id, name: seller.Name, success: false, error: e.message });
+                console.error(`❌ [RESTART] Failed: ${seller.Name} — ${e.message}`);
+            }
+        }
+
+        const restarted = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success);
+
+        res.json({
+            success: true,
+            message: `Stopped ${stopped} tasks, restarted ${restarted}${failed.length ? `, ${failed.length} failed` : ''}`,
+            stopped,
+            restarted,
+            failed: failed.length,
+            details: results
+        });
+    } catch (error) {
+        console.error('[RESTART] Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
