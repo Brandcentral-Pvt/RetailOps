@@ -573,6 +573,48 @@ router.post('/create-from-analysis/:asinId', protect, requireAnyPermission(['act
     }
 });
 
+// Sub-task completion — toggles a sub-task's status inside the SubTasks JSON array
+router.post('/:id/subtasks/:subIdx/complete', protect, requireAnyPermission(['actions_edit', 'actions_manage']), async (req, res) => {
+    try {
+        const pool = await actionController.getPool();
+        const { id, subIdx } = req.params;
+        const actionResult = await pool.request()
+            .input('id', sql.VarChar, id)
+            .query("SELECT Id, SubTasks FROM Actions WHERE Id = @id");
+
+        if (actionResult.recordset.length === 0) return res.status(404).json({ success: false, message: 'Task not found' });
+
+        const action = actionResult.recordset[0];
+        let subTasks = [];
+        try { subTasks = JSON.parse(action.SubTasks || '[]'); } catch (e) { subTasks = []; }
+
+        const idx = parseInt(subIdx);
+        if (isNaN(idx) || idx < 0 || idx >= subTasks.length) {
+            return res.status(400).json({ success: false, message: 'Invalid sub-task index' });
+        }
+
+        subTasks[idx].status = subTasks[idx].status === 'completed' ? 'pending' : 'completed';
+        subTasks[idx].completedAt = subTasks[idx].status === 'completed' ? new Date().toISOString() : null;
+        subTasks[idx].completedBy = subTasks[idx].status === 'completed' ? (req.user.Id || req.user._id) : null;
+
+        const completedCount = subTasks.filter(st => st.status === 'completed').length;
+        const progress = `${completedCount}/${subTasks.length}`;
+
+        await pool.request()
+            .input('id', sql.VarChar, id)
+            .input('SubTasks', sql.NVarChar, JSON.stringify(subTasks))
+            .input('SubTaskProgress', sql.NVarChar, progress)
+            .query(`UPDATE Actions SET SubTasks = @SubTasks, SubTaskProgress = @SubTaskProgress, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
+
+        try { sendSseEvent('subtask_completed', { taskId: id, subIdx: idx, progress }); } catch (e) { }
+
+        res.json({ success: true, data: { subTasks, subTaskProgress: progress } });
+    } catch (error) {
+        console.error('Complete subtask error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
 // Remaining endpoints (completeTask, uploadAudio, etc.) would follow similar pattern
 // For now, we'll add basic implementations
 
