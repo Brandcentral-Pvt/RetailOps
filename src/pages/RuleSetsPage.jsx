@@ -9,7 +9,7 @@ const { Text } = Typography;
 import {
   Plus, Search, Trash2, Copy, SlidersHorizontal, Zap,
   Activity, Clock, CheckCircle2, PlayCircle, AlertTriangle,
-  RefreshCw, Package
+  RefreshCw, BarChart3, TrendingUp
 } from 'lucide-react';
 import { rulesetApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,8 +19,14 @@ import toast from '../utils/toast';
 const RULE_TYPE_OPTIONS = [
   { value: 'ASIN', label: 'ASIN Operations', icon: <Activity size={13} /> },
   { value: 'PRICE', label: 'Price Disputes', icon: <AlertTriangle size={13} /> },
-  { value: 'INVENTORY', label: 'Inventory', icon: <Package size={13} /> },
+  { value: 'INVENTORY', label: 'Inventory', icon: <ShoppingBag size={13} /> },
 ];
+
+const typeColors = {
+  ASIN: { bg: '#ecfdf5', color: '#2E7D32', border: '#a7f3d0' },
+  PRICE: { bg: '#fef2f2', color: '#C62828', border: '#fecaca' },
+  INVENTORY: { bg: '#fffbeb', color: '#ED6C02', border: '#fed7aa' },
+};
 
 const TypeBadge = ({ type }) => {
   const c = typeColors[type] || typeColors.ASIN;
@@ -35,13 +41,13 @@ const TypeBadge = ({ type }) => {
   );
 };
 
-const typeColors = {
-  ASIN: { bg: '#ecfdf5', color: '#2E7D32', border: '#a7f3d0' },
-  PRICE: { bg: '#fef2f2', color: '#C62828', border: '#fecaca' },
-  INVENTORY: { bg: '#fffbeb', color: '#ED6C02', border: '#fed7aa' },
-};
-
-
+const ShoppingBag = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <path d="M16 10a4 4 0 0 1-8 0"></path>
+  </svg>
+);
 
 const RuleSetsPage = () => {
   const navigate = useNavigate();
@@ -60,31 +66,26 @@ const RuleSetsPage = () => {
   const [newRulesetType, setNewRulesetType] = useState('ASIN');
   const pageSize = 12;
 
+  useEffect(() => { setPageTitle('Automation Rules'); }, [setPageTitle]);
+  useEffect(() => { loadRulesets(); }, [page, filterStatus, filterType]);
+
   const loadRulesets = async () => {
-    setLoading(true);
     try {
-      const params = {
-        page,
-        limit: pageSize,
-      };
-      if (filterStatus !== 'all') params.status = filterStatus;
+      setLoading(true);
+      const params = { page, limit: pageSize };
+      if (filterStatus !== 'all') params.isActive = filterStatus === 'active';
       if (filterType !== 'all') params.type = filterType;
-      
+      if (searchQuery) params.search = searchQuery;
       const res = await rulesetApi.getAll(params);
-      if (res?.success) {
-        setRulesets(res.data?.rulesets || []);
-        setTotal(res.data?.total || 0);
-      }
+      setRulesets(res.data || []);
+      setTotal(res.pagination?.total || (res.data || []).length);
     } catch (e) {
+      console.error(e);
       toast.error('Failed to load rulesets');
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadRulesets();
-  }, [page, filterStatus, filterType]);
 
   const filtered = useMemo(() => {
     let list = rulesets;
