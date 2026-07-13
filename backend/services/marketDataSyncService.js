@@ -2417,51 +2417,15 @@ class MarketDataSyncService {
             }
 
             const updates = {
-                // Product data
-                CurrentPrice: price > 0 ? price : asin.CurrentPrice,
-                Mrp: mrp > 0 ? mrp : asin.Mrp,
-                Title: title || asin.Title,
-                Brand: brand || asin.Brand,
-                Category: category || asin.Category,
-                BSR: bsr > 0 ? bsr : asin.BSR,
-                SubBsrCategory: subBsr || asin.SubBsrCategory,
-                Rating: rating > 0 ? rating : asin.Rating,
-                ReviewCount: reviewCount || asin.ReviewCount,
-                ImagesCount: imagesCount || asin.ImagesCount,
-                ImageUrl: mainImageUrl || asin.ImageUrl,
-                VideoCount: videoCount || asin.VideoCount,
-                StockLevel: stockLevel,
-                SoldBy: soldBy || asin.SoldBy,
-                BuyBoxWin: buyBoxWin ? 1 : 0,
-                SecondAsp: secondAsp || asin.SecondAsp,
-                SoldBySec: soldBySec || asin.SoldBySec,
-                AvailabilityStatus: availabilityStatus || asin.AvailabilityStatus,
-                DiscountPercentage: dealBadge || asin.DiscountPercentage,
-                ParentAsin: parentAsin || asin.ParentAsin,
-                BulletPoints: bulletPointsCount || asin.BulletPoints,
-                // Listing quality
-                LQS: lqsScore,
-                LQSGrade: lqsGrade,
-                TitleScore: lqsAnalysis.titleScore,
-                BulletScore: lqsAnalysis.bulletScore,
-                ImageScore: lqsAnalysis.imageScore,
-                DescriptionScore: lqsAnalysis.descriptionScore,
-                // Trends
-                BsrTrend: bsrTrend,
-                RatingTrend: ratingTrend,
-                // History (last 7 days)
-                History: JSON.stringify(uniqueHistory),
-                // Sync metadata
+                // A+ Content (Octoparse specialty — PA-API doesn't have this)
                 HasAplus: hasAplus ? 1 : 0,
                 AplusContent: aplusContent,
                 AplusModuleCount: aplusModuleCount,
                 AplusAbsentSince: aplusAbsentSince,
                 AplusPresentSince: aplusPresentSince,
+                // Review Rating Breakdown (Octoparse specialty — PA-API doesn't have star distribution)
                 RatingBreakdown: JSON.stringify(finalRatingBreakdown),
-                PriceDispute: isDisputed ? 1 : 0,
-                Tags: JSON.stringify(currentTags),
-                OfferCount: allOffers.length,
-                BuyBoxes: JSON.stringify(allOffers),
+                // Sync metadata
                 LastOctoparseSyncAt: now,
                 LastSyncSource: 'OCTOPARSE',
                 ScrapeStatus: 'COMPLETED',
