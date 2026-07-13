@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/Spinner";
+import { Spinner, LoadingIndicator } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy, useRef } from 'react';
 import { Drawer, Button, Input, Select, Space, Typography, Badge, Segmented, Tooltip, Dropdown, Menu, Modal, Form, Tag, message } from 'antd';
 const { Text, Title } = Typography;
@@ -64,8 +64,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useRefresh } from '../contexts/RefreshContext';
 import { useHeader } from '../contexts/HeaderContext';
-import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
-import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
+
 const AsinDetailModal = lazy(() => import('../components/AsinDetailModal'));
 const AsinTrendsModal = lazy(() => import('../components/AsinTrendsModal'));
 const PriceViewModal = lazy(() => import('../components/PriceViewModal'));

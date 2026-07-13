@@ -258,76 +258,78 @@ const AdsTable = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, width: '100%', background: '#ffffff', overflow: 'hidden', position: 'relative' }}>
-      <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-        {loading ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 600, fontSize: 12 }}>
-            <Spin /> Loading data...
-          </div>
-        ) : data.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-            <Package size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
-            <span style={{ fontSize: 12, fontWeight: 500 }}>No ads data found</span>
-          </div>
-        ) : (
-          <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
-            <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-              {hRows.map((row, ri) => (
-                <tr key={ri}>
-                  {row.map((col) => {
-                    const s = {
-                      fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
-                      letterSpacing: '0.04em', color: '#4b5563', padding: '6px 6px',
-                      background: '#f8fafc', position: 'sticky', top: 0,
-                      border: '1px solid #e5e7eb', whiteSpace: 'nowrap',
-                      ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
-                    };
-                    if (col.width) s.width = col.width;
-                    if (stickyLeft[col.key] !== undefined) { s.left = stickyLeft[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; }
-                    if (stickyRight[col.key] !== undefined) { s.right = stickyRight[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; if (ri === 0) s.borderLeft = '1px solid #d1d5db'; }
-                    let titleContent = col.title;
-                    if (!col.isGroup && col.sorter) {
-                      const isActive = sortBy === col.key;
-                      titleContent = (
-                        <div onClick={() => onSort?.(col.key)} style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'space-between', gap: 3 }}>
-                          <span>{col.title}</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '7px', lineHeight: 1, opacity: isActive ? 1 : 0.4 }}>
-                            <ChevronUp size={8} strokeWidth={4} style={{ color: isActive && sortOrder === 'asc' ? '#1890ff' : '#8c8c8c', marginBottom: '0px' }} />
-                            <ChevronDown size={8} strokeWidth={4} style={{ color: isActive && sortOrder === 'desc' ? '#1890ff' : '#8c8c8c' }} />
+      <Spin spinning={loading} tip="Loading data..." size="large" style={{ maxHeight: 'none' }}>
+        <div style={{ flex: 1, overflow: 'auto', position: 'relative', minHeight: data.length === 0 ? 300 : 'auto' }}>
+          {data.length === 0 ? (
+            <div style={{ height: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+              {!loading && (
+                <>
+                  <Package size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>No ads data found</span>
+                </>
+              )}
+            </div>
+          ) : (
+            <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+                {hRows.map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map((col) => {
+                      const s = {
+                        fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
+                        letterSpacing: '0.04em', color: '#4b5563', padding: '6px 6px',
+                        background: '#f8fafc', position: 'sticky', top: 0,
+                        border: '1px solid #e5e7eb', whiteSpace: 'nowrap',
+                        ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
+                      };
+                      if (col.width) s.width = col.width;
+                      if (stickyLeft[col.key] !== undefined) { s.left = stickyLeft[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; }
+                      if (stickyRight[col.key] !== undefined) { s.right = stickyRight[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; if (ri === 0) s.borderLeft = '1px solid #d1d5db'; }
+                      let titleContent = col.title;
+                      if (!col.isGroup && col.sorter) {
+                        const isActive = sortBy === col.key;
+                        titleContent = (
+                          <div onClick={() => onSort?.(col.key)} style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'space-between', gap: 3 }}>
+                            <span>{col.title}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', fontSize: '7px', lineHeight: 1, opacity: isActive ? 1 : 0.4 }}>
+                              <ChevronUp size={8} strokeWidth={4} style={{ color: isActive && sortOrder === 'asc' ? '#1890ff' : '#8c8c8c', marginBottom: '0px' }} />
+                              <ChevronDown size={8} strokeWidth={4} style={{ color: isActive && sortOrder === 'desc' ? '#1890ff' : '#8c8c8c' }} />
+                            </div>
                           </div>
-                        </div>
-                      );
-                    }
-                    return <th key={col.key} colSpan={col.colSpan} rowSpan={col.rowSpan} style={s}>{titleContent}</th>;
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {data.map((record, idx) => (
-                <tr key={record.id || record.asin || idx} className="table-row-hover">
-                  {leafCols.map((col) => {
-                    const val = col.dataIndex ? record[col.dataIndex] : undefined;
-                    const rendered = col.render ? col.render(val, record, idx) : (val ?? '');
-                    const isFixed = stickyLeft[col.key] !== undefined || stickyRight[col.key] !== undefined;
-                    const bg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
-                    const s = {
-                      padding: '2px 5px', fontSize: '0.65rem',
-                      border: '1px solid #f0f0f0', verticalAlign: 'middle',
-                      color: '#27272a', background: bg,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
-                    };
-                    if (isFixed && col.width) { s.minWidth = col.width; s.maxWidth = col.width; }
-                    if (stickyLeft[col.key] !== undefined) { s.position = 'sticky'; s.left = stickyLeft[col.key]; s.zIndex = 5; s.background = bg; }
-                    if (stickyRight[col.key] !== undefined) { s.position = 'sticky'; s.right = stickyRight[col.key]; s.zIndex = 5; s.background = bg; }
-                    return <td key={col.key} style={s}>{rendered}</td>;
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                        );
+                      }
+                      return <th key={col.key} colSpan={col.colSpan} rowSpan={col.rowSpan} style={s}>{titleContent}</th>;
+                    })}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {data.map((record, idx) => (
+                  <tr key={record.id || record.asin || idx} className="table-row-hover">
+                    {leafCols.map((col) => {
+                      const val = col.dataIndex ? record[col.dataIndex] : undefined;
+                      const rendered = col.render ? col.render(val, record, idx) : (val ?? '');
+                      const isFixed = stickyLeft[col.key] !== undefined || stickyRight[col.key] !== undefined;
+                      const bg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
+                      const s = {
+                        padding: '2px 5px', fontSize: '0.65rem',
+                        border: '1px solid #f0f0f0', verticalAlign: 'middle',
+                        color: '#27272a', background: bg,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
+                      };
+                      if (isFixed && col.width) { s.minWidth = col.width; s.maxWidth = col.width; }
+                      if (stickyLeft[col.key] !== undefined) { s.position = 'sticky'; s.left = stickyLeft[col.key]; s.zIndex = 5; s.background = bg; }
+                      if (stickyRight[col.key] !== undefined) { s.position = 'sticky'; s.right = stickyRight[col.key]; s.zIndex = 5; s.background = bg; }
+                      return <td key={col.key} style={s}>{rendered}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Spin>
       <div style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
         <Suspense fallback={<div style={{ height: 40, background: '#f1f5f9' }} />}>
           <TablePagination

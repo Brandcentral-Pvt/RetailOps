@@ -124,17 +124,17 @@ function AppLayout({ children }) {
 import Spinner from './components/Spinner';
 
 const BrandedLoader = () => (
-  <Spinner />
+  <Spinner fullPage />
 );
 
 function AppRoutes() {
   const { isAuthenticated, loading, bootstrapping } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
 
-  if (loading || onboardingLoading) return <Spinner />;
+  if (loading || onboardingLoading) return <Spinner fullPage />;
 
   return (
-    <Suspense fallback={<Spinner />}>
+    <Suspense fallback={<Spinner fullPage />}>
       {showWizard && <OnboardingWizard />}
       <GlobalNotificationListener />
       <Routes>

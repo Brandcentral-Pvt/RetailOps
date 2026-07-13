@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/Spinner";
+import { Spinner, LoadingIndicator } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo, useCallback, useRef, useTransition } from 'react';
 import {
   Card, Row, Col, Table, Button, DatePicker, Upload, Modal, Typography, Space, Input, Tag, Tooltip, message, Empty, Progress, Skeleton, Select, Segmented, Radio
@@ -12,7 +12,7 @@ import { sellerApi, gmsApi, exportApi } from '../services/api';
 import { userApi } from '../services/api';
 import { useDateRange } from '../contexts/DateRangeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
+
 import { LoadError } from '@/components/LoadError';
 import { GmsTrackerSkeleton } from '@/components/ui/PageSkeletons';
 import dayjs from 'dayjs';
@@ -939,12 +939,12 @@ export default function GmsTrackerPage() {
     const sortedDates = Object.keys(dailyData).sort((a, b) => String(a).localeCompare(String(b)));
     return {
       options: {
-        chart: { id: 'gms-revenue-trend', type: 'area', toolbar: { show: true }, zoom: { enabled: true }, sparkline: { enabled: false } },
-        colors: ['#2563eb', '#16a34a', '#dc2626'],
-        stroke: { width: [2, 2, 1.5], curve: 'smooth', dashArray: [0, 0, 4] },
+        chart: { id: 'gms-revenue-trend', type: 'area', toolbar: { show: false }, zoom: { enabled: false }, sparkline: { enabled: false } },
+        colors: ['#1976D2', '#2E7D32', '#D32F2F'],
+        stroke: { width: [2.5, 2, 1.5], curve: 'smooth', dashArray: [0, 0, 4] },
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.02, stops: [0, 90, 100] } },
         dataLabels: { enabled: false },
-        markers: { size: 2, strokeWidth: 1, hover: { size: 5 } },
+        markers: { size: 3, strokeWidth: 1, hover: { size: 6 } },
         xaxis: {
           categories: sortedDates.map(d => dayjs(d).format('DD MMM')),
           labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } },
@@ -952,15 +952,26 @@ export default function GmsTrackerPage() {
           tickAmount: Math.min(sortedDates.length, 10)
         },
         yaxis: [
-          { title: { text: 'Revenue (₹)', style: { fontSize: '10px', color: '#64748b' } },
+          { title: { text: 'Revenue (₹)', style: { fontSize: '10px', color: '#64748b', fontWeight: 600 } },
             labels: { formatter: (val) => `₹${val >= 100000 ? (val / 100000).toFixed(1) + 'L' : val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`,
             style: { colors: '#64748b', fontSize: '10px' } } },
-          { opposite: true, title: { text: 'Units', style: { fontSize: '10px', color: '#16a34a' } },
-            labels: { style: { colors: '#16a34a', fontSize: '10px' } } }
+          { opposite: true, title: { text: 'Units', style: { fontSize: '10px', color: '#2E7D32', fontWeight: 600 } },
+            labels: { style: { colors: '#2E7D32', fontSize: '10px' } } }
         ],
-        tooltip: { enabled: false },
+        tooltip: { 
+          enabled: true,
+          shared: true,
+          intersect: false,
+          theme: 'light',
+          y: {
+            formatter: (val, { seriesIndex }) => {
+              if (seriesIndex === 0) return `₹${val.toLocaleString('en-IN')}`;
+              return `${val} units`;
+            }
+          }
+        },
         grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-        legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', markers: { radius: 3 } }
+        legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', fontWeight: 600, markers: { radius: 3 } }
       },
       series: [
         { name: 'Revenue', data: sortedDates.map(d => dailyData[d]) },
@@ -972,11 +983,12 @@ export default function GmsTrackerPage() {
 
   const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
 
+  if (loading && gmsData.length === 0) {
+    return <Spinner />;
+  }
+
   return (
     <div style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}>
-      {loading && gmsData.length === 0 && (
-        <Spinner />
-      )}
       {loading && gmsData.length > 0 && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
           <LoadingIndicator type="line-simple" size="md" />
@@ -1096,7 +1108,7 @@ export default function GmsTrackerPage() {
             options={chartSeries.options}
             series={chartSeries.series}
             type="area"
-            height={220}
+            height={300}
           />
         </Card>
       )}
@@ -1114,6 +1126,7 @@ export default function GmsTrackerPage() {
             <Table
               columns={tableColumns}
               dataSource={tableDataSource}
+              loading={loading || isFilterPending}
               pagination={{
                 current: tablePage,
                 pageSize: tablePageSize,

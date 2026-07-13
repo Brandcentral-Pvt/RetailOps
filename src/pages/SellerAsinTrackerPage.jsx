@@ -19,7 +19,7 @@ import {
   Modal, Form, DatePicker
 } from 'antd';
 import api from '../services/api';
-import { PageLoading } from '../components/application/loading-indicator';
+import { PageLoading } from '../components/Spinner';
 
 const { Text } = Typography;
 
