@@ -109,9 +109,11 @@ function evaluateCondition(condition, entity) {
   }
 
   // Boolean type
-  if (typeof entityValue === 'boolean' || operator === '=' && (value === 'true' || value === 'false')) {
-    const boolVal = value === 'true' || value === true || value === 1;
-    if (operator === '=') return entityValue === boolVal || entityValue == (boolVal ? 1 : 0);
+  if (typeof entityValue === 'boolean' || (value === 'true' || value === 'false' || value === 'Yes' || value === 'No' || value === 'yes' || value === 'no')) {
+    const boolVal = value === 'true' || value === true || value === 1 || value === 'Yes' || value === 'yes' || value === 'Y' || value === 'y';
+    const currentBool = entityValue === true || entityValue === 1;
+    if (operator === '=' || operator === 'is') return currentBool === boolVal;
+    if (operator === '≠' || operator === 'is not') return currentBool !== boolVal;
     return false;
   }
 
