@@ -63,6 +63,7 @@ const PemsAnalyticsPage = lazy(() => import('./modules/pems/pages/PemsAnalyticsP
 const TemplateDetailPage = lazy(() => import('./modules/pems/pages/TemplateDetailPage'));
 const LiveSyncTrackerPage = lazy(() => import('./pages/LiveSyncTrackerPage'));
 const LiveDataInspectorPage = lazy(() => import('./pages/LiveDataInspectorPage'));
+const LiveSyncPage = lazy(() => import('./pages/LiveSyncPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ChatContainer = lazy(() => import('./components/chat/ChatContainer'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
@@ -178,8 +179,9 @@ function AppRoutes() {
                   <Route path="/rule-sets/new" element={<ProtectedRoute permission="rules_manage"><RulesetBuilderPage /></ProtectedRoute>} />
                   <Route path="/rule-sets/:id" element={<ProtectedRoute permission="rules_manage"><RulesetBuilderPage /></ProtectedRoute>} />
                    <Route path="/scrape-tasks" element={<ProtectedRoute permission="scraping_view"><ScrapeTasksPage /></ProtectedRoute>} />
-                   <Route path="/live-sync-tracker" element={<ProtectedRoute permission="scraping_view"><LiveSyncTrackerPage /></ProtectedRoute>} />
-                   <Route path="/live-data-inspector" element={<LiveDataInspectorPage />} />
+                   <Route path="/live-sync-tracker" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
+                   <Route path="/live-data-inspector" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
+                   <Route path="/live-sync" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                   <Route path="/scheduled-runs" element={<ProtectedRoute permission="scraping_view"><ScheduledRunsPage /></ProtectedRoute>} />
                   <Route path="/sellers" element={<ProtectedRoute permission="seller_view"><SellersPage /></ProtectedRoute>} />
                   <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><SellerAsinTrackerPage /></ProtectedRoute>} />
