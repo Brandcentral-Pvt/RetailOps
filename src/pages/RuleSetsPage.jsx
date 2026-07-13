@@ -60,6 +60,32 @@ const RuleSetsPage = () => {
   const [newRulesetType, setNewRulesetType] = useState('ASIN');
   const pageSize = 12;
 
+  const loadRulesets = async () => {
+    setLoading(true);
+    try {
+      const params = {
+        page,
+        limit: pageSize,
+      };
+      if (filterStatus !== 'all') params.status = filterStatus;
+      if (filterType !== 'all') params.type = filterType;
+      
+      const res = await rulesetApi.getAll(params);
+      if (res?.success) {
+        setRulesets(res.data?.rulesets || []);
+        setTotal(res.data?.total || 0);
+      }
+    } catch (e) {
+      toast.error('Failed to load rulesets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRulesets();
+  }, [page, filterStatus, filterType]);
+
   const filtered = useMemo(() => {
     let list = rulesets;
     if (searchQuery.trim()) {
