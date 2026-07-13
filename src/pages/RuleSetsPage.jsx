@@ -184,7 +184,7 @@ const RuleSetsPage = () => {
 
         {/* Content */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}><Spin /></div>
+          <Spinner />
         ) : filtered.length === 0 ? (
           <div style={{ border: '1px solid #e4e4e7', borderRadius: 12, padding: '60px 24px', textAlign: 'center' }}>
             <Empty description={
