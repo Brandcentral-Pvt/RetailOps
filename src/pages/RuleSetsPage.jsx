@@ -3,13 +3,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, Input, Select, Space, Tag, Tooltip, Popconfirm, Card,
-  Switch, Badge, Pagination, Empty, Spin, Typography, Table
+  Switch, Badge, Pagination, Empty, Spin, Typography, Table, Drawer
 } from 'antd';
 const { Text } = Typography;
 import {
   Plus, Search, Play, Trash2, Copy, SlidersHorizontal, Zap,
   Settings, Activity, RefreshCw, Clock, CheckCircle2, PauseCircle,
-  Package, PlayCircle
+  Package, PlayCircle, History
 } from 'lucide-react';
 import { rulesetApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,11 +47,17 @@ const RuleSetsPage = () => {
   const [total, setTotal] = useState(0);
   const pageSize = 20;
 
+  // History Drawer State
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedRulesetId, setSelectedRulesetId] = useState(null);
+  const [executionHistory, setExecutionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   useEffect(() => { loadRulesets(); }, [page, filterStatus]);
 
-  const loadRulesets = async () => {
+  const loadRulesets = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const params = { page, limit: pageSize };
       const res = await rulesetApi.getAll(params);
       setRulesets(res.data || []);
@@ -59,7 +65,21 @@ const RuleSetsPage = () => {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const loadHistory = async (rulesetId) => {
+    setSelectedRulesetId(rulesetId);
+    setShowHistoryDrawer(true);
+    setHistoryLoading(true);
+    try {
+      const res = await rulesetApi.getHistory(rulesetId);
+      setExecutionHistory(res.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -96,7 +116,7 @@ const RuleSetsPage = () => {
     try {
       setExecuting(id);
       await rulesetApi.execute(id);
-      loadRulesets();
+      await loadRulesets(true);
     } catch (e) { console.error(e); }
     finally { setExecuting(null); }
   };
@@ -253,6 +273,11 @@ const RuleSetsPage = () => {
               onClick={() => handleExecute(record._id || record.id)}
               style={{ color: '#10b981', padding: 0 }} />
           </Tooltip>
+          <Tooltip title="Execution History">
+            <Button type="text" size="small" icon={<History size={14} />}
+              onClick={() => loadHistory(record._id || record.id)}
+              style={{ color: '#0288D1', padding: 0 }} />
+          </Tooltip>
           <Tooltip title="Duplicate">
             <Button type="text" size="small" icon={<Copy size={14} />}
               onClick={() => handleDuplicate(record._id || record.id)} style={{ color: '#64748b', padding: 0 }} />
@@ -369,6 +394,37 @@ const RuleSetsPage = () => {
           </>
         )}
       </div>
+
+      {/* History Drawer */}
+      <Drawer title="Execution History" open={showHistoryDrawer} onClose={() => setShowHistoryDrawer(false)}
+        width={500} styles={{ body: { padding: '12px 20px' } }}>
+        {historyLoading ? <Spin style={{ display: 'block', margin: '40px auto' }} /> : (
+          executionHistory.length === 0 ? <Empty description="No execution history yet" /> :
+            executionHistory.map((log, i) => {
+              let summary = {};
+              try { summary = JSON.parse(log.Summary || '{}'); } catch (e) {}
+              return (
+                <div key={log.Id || i} style={{ padding: '12px 0', borderBottom: '1px solid #f4f4f5' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#10b981' : '#ef4444' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>
+                        {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
+                      {new Date(log.ExecutedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', gap: 8 }}>
+                    <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{log.TriggeredBy}</strong></span>
+                    {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
+                  </div>
+                </div>
+              );
+            })
+        )}
+      </Drawer>
     </div>
   );
 };
