@@ -130,31 +130,64 @@ exports.getSellerStats = async (req, res) => {
       reqObj.input('gssSearch', sql.NVarChar, `%${search}%`);
     }
 
-    const result = await reqObj.query(`
+    // Step 1: Get seller-level stats
+    const sellerResult = await reqObj.query(`
       SELECT
         COUNT(DISTINCT S.Id) as totalStores,
         SUM(CASE WHEN S.IsActive = 1 THEN 1 ELSE 0 END) as activeStores,
         SUM(CASE WHEN S.IsActive = 0 OR S.IsActive IS NULL THEN 1 ELSE 0 END) as pausedStores,
         COUNT(DISTINCT S.Marketplace) as marketplaces,
-        SUM(CASE WHEN S.LastScrapedAt >= DATEADD(HOUR, -24, GETDATE()) THEN 1 ELSE 0 END) as activeToday,
-        COUNT(A.Id) as totalAsins,
-        SUM(CASE WHEN A.Status IS NULL OR A.Status != 'Inactive' THEN 1 ELSE 0 END) as activeAsins
+        SUM(CASE WHEN S.LastScrapedAt >= DATEADD(HOUR, -24, GETDATE()) THEN 1 ELSE 0 END) as activeToday
       FROM Sellers S
-      LEFT JOIN Asins A ON S.Id = A.SellerId
       ${whereClause}
     `);
 
-    const stats = result.recordset[0];
+    const sellerStats = sellerResult.recordset[0];
+
+    // Step 2: Count ALL ASINs — use unfiltered seller set (status filter should NOT reduce ASIN count)
+    const asinReq = pool.request();
+    const asinWhereParts = ['1=1'];
+
+    if (!isGlobalUser) {
+      const sellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
+      if (sellerIds.length === 0) {
+        return res.json({ success: true, data: { totalStores: 0, activeStores: 0, pausedStores: 0, totalAsins: 0, marketplaces: 0, activeToday: 0 } });
+      }
+      const inClause = buildInClause(asinReq, 'asinSid', sellerIds);
+      asinWhereParts.push(`A.SellerId IN (${inClause})`);
+    }
+    // Note: status filter is deliberately NOT applied to ASIN count
+    // ASINs belong to sellers — pausing a seller doesn't remove its ASINs
+    if (manager) {
+      asinWhereParts.push(`A.SellerId IN (SELECT SellerId FROM UserSellers WHERE UserId = @asinMgr)`);
+      asinReq.input('asinMgr', sql.VarChar, manager);
+    }
+    if (marketplace) {
+      asinWhereParts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @asinMp)`);
+      asinReq.input('asinMp', sql.NVarChar, marketplace);
+    }
+    if (search) {
+      asinWhereParts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Name LIKE @asinSearch OR SellerId LIKE @asinSearch)`);
+      asinReq.input('asinSearch', sql.NVarChar, `%${search}%`);
+    }
+
+    const asinResult = await asinReq.query(`
+      SELECT COUNT(*) as totalAsins
+      FROM Asins A
+      WHERE ${asinWhereParts.join(' AND ')}
+    `);
+
+    const totalAsins = Number(asinResult.recordset[0]?.totalAsins) || 0;
+
     res.json({
       success: true,
       data: {
-        totalStores: Number(stats.totalStores) || 0,
-        activeStores: Number(stats.activeStores) || 0,
-        pausedStores: Number(stats.pausedStores) || 0,
-        totalAsins: Number(stats.totalAsins) || 0,
-        activeAsins: Number(stats.activeAsins) || 0,
-        marketplaces: Number(stats.marketplaces) || 0,
-        activeToday: Number(stats.activeToday) || 0,
+        totalStores: Number(sellerStats.totalStores) || 0,
+        activeStores: Number(sellerStats.activeStores) || 0,
+        pausedStores: Number(sellerStats.pausedStores) || 0,
+        totalAsins,
+        marketplaces: Number(sellerStats.marketplaces) || 0,
+        activeToday: Number(sellerStats.activeToday) || 0,
       }
     });
   } catch (error) {

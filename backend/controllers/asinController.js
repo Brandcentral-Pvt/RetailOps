@@ -408,6 +408,20 @@ exports.getAsins = async (req, res) => {
     const countResult = await countRequest.query(`SELECT COUNT(*) as total FROM Asins a JOIN Sellers s ON a.SellerId = s.Id ${whereClause}`);
     const total = countResult.recordset[0].total;
 
+    // [5b] Raw total count (no status filter) — accurate ASIN count matching seller stats
+    const rawCountRequest = pool.request();
+    let rawWhere = 'WHERE 1=1';
+    if (!isGlobalUser && allowedSellerIds.length > 0) {
+      const rawSellerClause = buildInClause(rawCountRequest, 'rawSeller', allowedSellerIds);
+      rawWhere += ` AND a.SellerId IN (${rawSellerClause})`;
+    }
+    if (seller) rawWhere += ' AND a.SellerId = @rawSeller';
+    if (req.query.marketplace) rawWhere += ' AND a.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @rawMp)';
+    if (seller) rawCountRequest.input('rawSeller', sql.VarChar, seller);
+    if (req.query.marketplace) rawCountRequest.input('rawMp', sql.VarChar, req.query.marketplace);
+    const rawCountResult = await rawCountRequest.query(`SELECT COUNT(*) as total FROM Asins a ${rawWhere}`);
+    const rawTotal = rawCountResult.recordset[0].total;
+
     // [6] Fetch ASINs
     // Map sortBy from frontend names to SQL ORDER BY clause
     const getOrderBy = () => {
@@ -472,7 +486,7 @@ exports.getAsins = async (req, res) => {
 
     if (asins.length === 0) {
       if (res.headersSent) return;
-      return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } });
+      return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total: rawTotal, totalPages: Math.ceil(rawTotal / limitNum) } });
     }
 
     // [7] Fetch all history data IN PARALLEL to avoid sequential timeouts
@@ -892,8 +906,8 @@ exports.getAsins = async (req, res) => {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total,
-        totalPages: Math.ceil(total / limitNum),
+        total: rawTotal,
+        totalPages: Math.ceil(rawTotal / limitNum),
       },
     });
 

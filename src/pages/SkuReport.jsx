@@ -16,7 +16,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import dayjs from 'dayjs';
-import { PageLoading } from '../components/application/loading-indicator';
+import { PageLoading } from '../components/Spinner';
 
 const { Text } = Typography;
 
