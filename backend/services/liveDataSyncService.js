@@ -13,13 +13,14 @@ class LiveDataSyncService extends EventEmitter {
         this._config = {
             _t: 'https://api.amazon.co.uk/auth/o2/token',
             _b: 'https://creatorsapi.amazon',
-            maxPerRequest: 10,
-            concurrency: 1,              // Token bucket: 1 req/sec — must serialize
-            requestDelay: 1100,          // Slightly > 1s to stay under burst
-            sellerDelay: 2000,
+            maxPerRequest: 20,             // Increased: 10→20 items per API call (Amazon allows up to 20)
+            concurrency: 2,               // Parallel sellers (2 concurrent, each with own rate limiter)
+            requestDelay: 600,            // Reduced: 600ms between batches per credential (2 keys = 2 req/s effective)
+            sellerDelay: 500,             // Reduced: 500ms between sellers (parallelism handles throughput)
             maxRetries: 3,
-            retryDelay: 5000,
-            rateLimitPerSecond: 1
+            retryDelay: 3000,
+            rateLimitPerSecond: 1,        // Per-credential rate (doubled with 2 keys)
+            maxConcurrency: 3,            // Max parallel seller syncs
         };
         
         this._tokens = new Map();
@@ -213,10 +214,10 @@ class LiveDataSyncService extends EventEmitter {
                 }
             } catch (e) { console.error('Socket emission error:', e.message); }
             
-            // 8. If there are failed ASINs, schedule auto-retry after 30s
+            // 8. If there are failed ASINs, schedule auto-retry after 10s (was 30s)
             if (stats.failedAsinCodes.length > 0) {
                 const failedCodes = [...stats.failedAsinCodes];
-                console.log(`🔄 Scheduling re-sync for ${failedCodes.length} failed ASINs in 30s...`);
+                console.log(`🔄 Scheduling re-sync for ${failedCodes.length} failed ASINs in 10s...`);
                 
                 setTimeout(async () => {
                     try {
@@ -224,7 +225,7 @@ class LiveDataSyncService extends EventEmitter {
                     } catch (reSyncErr) {
                         console.error(`Re-sync of failed ASINs error:`, reSyncErr.message);
                     }
-                }, 30000);
+                }, 10000);
             }
             
             // 9. Notify users about sync results
@@ -264,7 +265,7 @@ class LiveDataSyncService extends EventEmitter {
     // GLOBAL: Sync All Sellers (parallel batching)
     // ============================================
     async syncAllSellers(options = {}) {
-        const { concurrency = 1, sellerIds = null, maxRetries = 2 } = options;
+        const { concurrency = this._config.maxConcurrency, sellerIds = null, maxRetries = 2 } = options;
         const startTime = Date.now();
         
         // Prevent duplicate global sync
@@ -300,22 +301,9 @@ class LiveDataSyncService extends EventEmitter {
 
             const results = [];
 
-            // Process sellers sequentially for reliability (concurrency=1 default)
-            for (let i = 0; i < sellers.length; i++) {
-                const seller = sellers[i];
-                const progress = `[${i + 1}/${sellers.length}]`;
-
-                if (this._globalSyncAborted) {
-                    results.push({ sellerId: seller.Id, name: seller.Name, status: 'SKIPPED', reason: 'Sync aborted' });
-                    continue;
-                }
-
-                if (this.activeSyncs.has(seller.Id)) {
-                    results.push({ sellerId: seller.Id, name: seller.Name, status: 'SKIPPED', reason: 'Already syncing' });
-                    console.log(`  ${progress} ⏭️  ${seller.Name} — already syncing, skipped`);
-                    continue;
-                }
-
+            // Parallel seller processing with concurrency limiter
+            const processOneSeller = async (seller, index) => {
+                const progress = `[${index + 1}/${sellers.length}]`;
                 let lastError = null;
                 let attempt = 0;
 
@@ -325,34 +313,39 @@ class LiveDataSyncService extends EventEmitter {
                             console.log(`  ${progress} 🔄 ${seller.Name} — retry ${attempt}/${maxRetries}`);
                             await this._delay(this._config.retryDelay);
                         }
-
                         const result = await this.syncSellerLiveData(seller.Id);
                         results.push({
-                            sellerId: seller.Id,
-                            name: seller.Name,
+                            sellerId: seller.Id, name: seller.Name,
                             status: result.success ? 'SUCCESS' : 'PARTIAL',
-                            updated: result.updatedAsins || 0,
-                            failed: result.failedAsins || 0,
+                            updated: result.updatedAsins || 0, failed: result.failedAsins || 0,
                             duration: result.duration || 0
                         });
                         console.log(`  ${progress} ✅ ${seller.Name}: ${result.updatedAsins || 0} updated, ${result.failedAsins || 0} failed (${((result.duration || 0) / 1000).toFixed(1)}s)`);
-                        break; // success, no more retries
+                        return;
                     } catch (err) {
                         lastError = err;
                         attempt++;
                         console.warn(`  ${progress} ⚠️  ${seller.Name}: attempt ${attempt}/${maxRetries} failed — ${err.message}`);
                     }
                 }
+                results.push({ sellerId: seller.Id, name: seller.Name, status: 'FAILED', error: lastError?.message, retries: maxRetries });
+            };
 
-                // If all retries failed
-                if (lastError && attempt > maxRetries) {
-                    results.push({ sellerId: seller.Id, name: seller.Name, status: 'FAILED', error: lastError.message, retries: maxRetries });
-                    console.error(`  ${progress} ❌ ${seller.Name}: FAILED after ${maxRetries} retries — ${lastError.message}`);
+            // Process with concurrency limiter
+            const queue = [...sellers];
+            const running = new Set();
+            let processed = 0;
+
+            while (queue.length > 0 || running.size > 0) {
+                while (running.size < concurrency && queue.length > 0) {
+                    const seller = queue.shift();
+                    const idx = processed++;
+                    const p = processOneSeller(seller, idx);
+                    running.add(p);
+                    p.finally(() => running.delete(p));
                 }
-
-                // Delay between sellers (respect rate limit)
-                if (i < sellers.length - 1) {
-                    await this._delay(this._config.sellerDelay);
+                if (running.size > 0) {
+                    await Promise.race(running);
                 }
             }
 
