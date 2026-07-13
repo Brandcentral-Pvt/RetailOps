@@ -196,60 +196,96 @@ exports.syncSellerAsins = async (req, res) => {
             return res.status(403).json({ success: false, error: 'Unauthorized to trigger sync for this seller' });
         }
 
-        // 3. Update ASIN statuses in bulk
-        await pool.request()
-            .input('sellerId', sql.VarChar, sellerId)
-            .query("UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Inactive')");
+        const isAmazon = seller.Marketplace?.toLowerCase() === 'amazon.in';
+        const isOctoparseConfigured = marketDataSyncService.isConfigured() && process.env.AUTOMATION_ENABLED === 'true';
+        const hasLiveSync = seller.LiveSyncClientId && seller.LiveSyncClientSecret;
 
-        const isConfigured = marketDataSyncService.isConfigured();
-        const automationEnabled = process.env.AUTOMATION_ENABLED === 'true';
-        let useDirect = (!seller.OctoparseId || !isConfigured) && !automationEnabled;
-
-        // Silent decision log
-
-        if (!useDirect) {
+        // 3. Determine sync method: Live Sync (Amazon) > Octoparse > Error
+        if (isAmazon && hasLiveSync) {
+            // Live Sync for Amazon sellers
             try {
-                // Silent sync start
-                const fullSync = req.body?.fullSync === true || req.query?.fullSync === 'true';
-                const forceReRun = req.body?.forceReRun === true || req.query?.forceReRun === 'true';
-
-                const syncStarted = await marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { 
-                    triggerScrape: true,
-                    fullSync: fullSync,
-                    forceReRun: forceReRun
+                const liveSyncResult = await marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, {
+                    triggerScrape: false,
+                    fullSync: req.body?.fullSync === true || req.query?.fullSync === 'true',
+                    forceReRun: req.body?.forceReRun === true || req.query?.forceReRun === 'true'
                 });
 
-                if (!syncStarted) {
-                    throw new Error('Automated sync service failed to initialize');
+                // Also update ASIN statuses
+                await pool.request()
+                    .input('sellerId', sql.VarChar, sellerId)
+                    .query("UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Inactive')");
+
+                if (!liveSyncResult) {
+                    throw new Error('Sync service failed to initialize');
                 }
 
                 return res.json({
                     success: true,
-                    message: `Batch sync initiated and background monitoring started for active ASINs`,
+                    message: `Sync initiated for ${seller.Name}. Updates will appear shortly.`,
+                    method: 'octoparse'
                 });
-            } catch (octoError) {
-                console.error(`❌ Octoparse Batch Sync failed for ${seller.Name}:`, octoError.message);
-                
+            } catch (syncError) {
+                console.error(`❌ Sync failed for ${seller.Name}:`, syncError.message);
+
                 // Revert status
                 await pool.request()
                     .input('sellerId', sql.VarChar, sellerId)
                     .query("UPDATE Asins SET ScrapeStatus = 'FAILED', Status = 'Error', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND ScrapeStatus = 'SCRAPING'");
 
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Octoparse Batch Sync failed: ' + octoError.message
+                return res.status(400).json({
+                    success: false,
+                    error: 'Sync failed: ' + syncError.message
+                });
+            }
+        } else if (isOctoparseConfigured) {
+            // Octoparse for non-Amazon or sellers with OctoparseId
+            await pool.request()
+                .input('sellerId', sql.VarChar, sellerId)
+                .query("UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Inactive')");
+
+            try {
+                const fullSync = req.body?.fullSync === true || req.query?.fullSync === 'true';
+                const forceReRun = req.body?.forceReRun === true || req.query?.forceReRun === 'true';
+
+                const syncStarted = await marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, {
+                    triggerScrape: true,
+                    fullSync,
+                    forceReRun
+                });
+
+                if (!syncStarted) {
+                    throw new Error('Octoparse sync service failed to initialize');
+                }
+
+                return res.json({
+                    success: true,
+                    message: `Octoparse batch sync initiated for ${seller.Name}`,
+                    method: 'octoparse'
+                });
+            } catch (octoError) {
+                console.error(`❌ Octoparse Batch Sync failed for ${seller.Name}:`, octoError.message);
+
+                await pool.request()
+                    .input('sellerId', sql.VarChar, sellerId)
+                    .query("UPDATE Asins SET ScrapeStatus = 'FAILED', Status = 'Error', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND ScrapeStatus = 'SCRAPING'");
+
+                return res.status(400).json({
+                    success: false,
+                    error: 'Octoparse sync failed: ' + octoError.message
                 });
             }
         } else {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Octoparse is not configured.' 
+            // No sync method available — upload JSON data manually instead
+            return res.status(400).json({
+                success: false,
+                error: `No sync method configured for this seller. Use Bulk Import to upload catalog data, or configure Live Sync credentials for Amazon sellers.`,
+                hint: isAmazon ? 'Set Live Sync Client ID and Secret in seller settings' : 'Set Octoparse task ID or enable automation'
             });
         }
 
     } catch (error) {
-        console.error('Batch Sync Error:', error.message);
-        res.status(500).json({ success: false, error: 'Internal Batch Sync Error: ' + error.message });
+        console.error('Sync Error:', error.message);
+        res.status(500).json({ success: false, error: 'Internal Sync Error: ' + error.message });
     }
 };
 
@@ -282,26 +318,46 @@ exports.syncAllAsins = async (req, res) => {
             return res.json({ success: true, message: 'No active ASINs to sync' });
         }
 
-        // 2. Update ASIN statuses in bulk (Prevent SQL Injection with OPENJSON)
-        const asinIdsArray = asins.map(a => a.Id);
-        await pool.request()
-            .input('asinIdsJson', sql.NVarChar, JSON.stringify(asinIdsArray))
-            .query(`UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE Id IN (SELECT value FROM OPENJSON(@asinIdsJson))`);
-
-        // 3. Process Sellers in background (Bulk sync approach)
+        // 2. Check which sellers have sync methods available
         const sellerIds = [...new Set(asins.map(a => a.SellerId).filter(Boolean))];
+        const sellersResult = await pool.request()
+            .query(`SELECT Id, Marketplace, OctoparseId, LiveSyncClientId, LiveSyncClientSecret 
+                    FROM Sellers WHERE Id IN (${sellerIds.map((_, i) => `@sid${i}`).join(',')})`);
+        sellerIds.forEach((id, i) => pool.request().input(`sid${i}`, sql.VarChar, id));
+        
+        const sellerMap = {};
+        sellersResult.recordset.forEach(s => { sellerMap[s.Id] = s; });
+        
+        const syncableSellerIds = sellerIds.filter(id => {
+            const s = sellerMap[id];
+            if (!s) return false;
+            const isAmazon = s.Marketplace?.toLowerCase() === 'amazon.in';
+            const hasLiveSync = s.LiveSyncClientId && s.LiveSyncClientSecret;
+            const hasOctoparse = s.OctoparseId && marketDataSyncService.isConfigured();
+            return isAmazon || hasOctoparse;
+        });
+
+        // Only update status for ASINs belonging to syncable sellers
+        const syncableAsinIds = asins.filter(a => syncableSellerIds.includes(a.SellerId)).map(a => a.Id);
+        const skippedCount = asins.length - syncableAsinIds.length;
+        
+        if (syncableAsinIds.length === 0) {
+            return res.json({ success: true, message: 'No sellers have sync methods configured. Use Bulk Import to upload catalog data.', count: 0 });
+        }
+
+        await pool.request()
+            .input('asinIdsJson', sql.NVarChar, JSON.stringify(syncableAsinIds))
+            .query(`UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE Id IN (SELECT value FROM OPENJSON(@asinIdsJson))`);
         
         // Force-Clear any stale locks for these specific sellers
-        sellerIds.forEach(id => marketDataSyncService.syncLocks.delete(id.toString()));
-        console.log(`🧹 Cleared status locks for ${sellerIds.length} sellers to allow fresh sync.`);
-        // Silent global sync
+        syncableSellerIds.forEach(id => marketDataSyncService.syncLocks.delete(id.toString()));
+        console.log(`🧹 Cleared status locks for ${syncableSellerIds.length} sellers to allow fresh sync.`);
 
         // Fire and forget background process
         setTimeout(async () => {
-            // TRUE PARALLEL: Fire ALL task triggers simultaneously without waiting
-            console.log(`🚀 Starting ALL ${sellerIds.length} Octoparse tasks simultaneously...`);
+            console.log(`🚀 Starting ${syncableSellerIds.length} sync tasks simultaneously...`);
             
-            const triggerPromises = sellerIds.map(async (sellerId) => {
+            const triggerPromises = syncableSellerIds.map(async (sellerId) => {
                 try {
                     await marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { 
                         fullSync: true,
@@ -333,8 +389,9 @@ exports.syncAllAsins = async (req, res) => {
 
         res.json({
             success: true,
-            message: `Global sync initiated for ${asins.length} ASINs`,
-            count: asins.length
+            message: `Global sync initiated for ${syncableAsinIds.length} ASINs${skippedCount > 0 ? ` (${skippedCount} skipped — no sync method configured)` : ''}`,
+            count: syncableAsinIds.length,
+            skipped: skippedCount
         });
     } catch (error) {
         console.error('Global Sync Error:', error.message);
