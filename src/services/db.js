@@ -481,6 +481,12 @@ class DatabaseService {
     }, null);
   }
 
+  async toggleSubTask(actionId, subIdx) {
+    return this.request(`/actions/${actionId}/subtasks/${subIdx}/complete`, {
+      method: 'POST',
+    }, null);
+  }
+
   /**
    * Upload audio for task completion
    * @param {string} actionId
