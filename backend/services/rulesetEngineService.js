@@ -359,7 +359,18 @@ async function evaluateRuleset(rulesetId, options = {}) {
     throw new Error('Ruleset not found or inactive');
   }
 
-  ruleset.Rules = JSON.parse(ruleset.Rules || '[]');
+  let rules = ruleset.Rules;
+  try {
+    if (typeof rules === 'string') {
+      rules = JSON.parse(rules);
+      if (typeof rules === 'string') {
+        rules = JSON.parse(rules);
+      }
+    }
+  } catch (e) {
+    rules = [];
+  }
+  ruleset.Rules = Array.isArray(rules) ? rules : [];
 
   const startTime = Date.now();
   let entities = await getEntityData(
