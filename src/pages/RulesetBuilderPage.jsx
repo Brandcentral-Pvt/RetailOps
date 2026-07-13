@@ -74,7 +74,11 @@ const RulesetBuilderPage = () => {
         if (res.success && res.data) {
           const d = res.data;
           let rules = [];
-          try { rules = JSON.parse(d.rules || '[]'); } catch (e) { rules = []; }
+          if (Array.isArray(d.rules)) {
+            rules = d.rules;
+          } else {
+            try { rules = JSON.parse(d.rules || '[]'); } catch (e) { rules = []; }
+          }
           setRuleset({
             name: d.name || '',
             description: d.description || '',
