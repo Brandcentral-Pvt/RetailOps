@@ -342,7 +342,20 @@ exports.previewRuleset = async (req, res) => {
 };
 
 exports.getRulesetHistory = async (req, res) => {
-    res.json({ success: true, data: [] });
+    try {
+        const { id } = req.params;
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('rulesetId', sql.VarChar, id)
+            .query(`
+                SELECT * FROM RulesetExecutionLogs
+                WHERE RulesetId = @rulesetId
+                ORDER BY ExecutedAt DESC
+            `);
+        res.json({ success: true, data: result.recordset });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 exports.getExecutionDetails = async (req, res) => {
