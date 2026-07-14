@@ -137,7 +137,7 @@ const Sidebar = () => {
                                     height: '18px',
                                     lineHeight: '18px',
                                     border: 'none',
-                                    borderRadius: '12px'
+                                    borderRadius: 'var(--radius-lg)'
                                 }} 
                             />
                         )}

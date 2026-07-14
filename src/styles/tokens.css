@@ -293,15 +293,7 @@
 /* ────────────────────────────────────────────────────────────
    10. Z-INDEX SCALE
    ──────────────────────────────────────────────────────────── */
-:root {
-  --bc-z-base:      1;
-  --bc-z-dropdown:  10;
-  --bc-z-sticky:    20;
-  --bc-z-overlay:   30;
-  --bc-z-modal:     40;
-  --bc-z-toast:     50;
-  --bc-z-tooltip:   60;
-}
+/* Legacy --bc-z-* scale removed — use --z-* from global-overrides.css */
 
 /* ────────────────────────────────────────────────────────────
    11. OPACITY
@@ -488,13 +480,7 @@
   --grad-secondary: linear-gradient(135deg, #7928CA 0%, #FF0080 100%);
   --grad-surface: var(--bc-slate-100);
 
-  /* Global overrides z-index */
-  --z-base:           var(--bc-z-base);
-  --z-content:        var(--bc-z-dropdown);
-  --z-table-cell:     20;
-  --z-table-header:   30;
-  --z-sticky-bar:     var(--bc-z-sticky);
-  --z-page-header:    var(--bc-z-overlay);
+  /* Global overrides z-index (canonical source: global-overrides.css) */
   --z-sidebar:        500;
   --z-fixed-nav:      1000;
   --z-modal-mask:     1050;
@@ -524,6 +510,29 @@
 
   /* Gradients */
   --grad-blue: linear-gradient(135deg, var(--bc-ro-600) 0%, var(--bc-ro-500) 100%);
+
+  /* Auth & Status Semantic Aliases */
+  --text-brand:      var(--bc-ro-500);
+  --text-danger:     #D32F2F;
+  --text-success:    var(--bc-green-600);
+  --text-warning:    var(--bc-amber-600);
+  --text-tertiary:   var(--bc-slate-400);
+  --bg-brand:        var(--bc-ro-500);
+  --bg-danger-subtle:  var(--bc-red-50);
+  --bg-success-subtle: var(--bc-green-50);
+  --bg-warning-subtle: var(--bc-amber-50);
+  --bg-info-subtle:    var(--bc-cyan-50);
+  --bg-active:       var(--bc-slate-200);
+  --text-brand-dark: #1565C0;
+  --color-info-blue: #0288D1;
+  --color-data-blue-bg: #dbeafe;
+  --color-success-border: #bbf7d0;
+  --color-danger-border: #fecaca;
+  --color-warning-border: #fde68a;
+  --color-info-border: #bfdbfe;
+  --border-light:    #d9e6e9;
+  --border-medium:   var(--bc-slate-300);
+  --error-border:    var(--bc-red-200);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,24 @@
+---
+description: Prevent unchanged file re-reads — trust session memory
+alwaysApply: true
+---
+
+# Tooling Configuration — Obolus Compression Layer
+- This workspace runs the Obolus local MCP server for context compression. All file reads go through `read_optimized_skeleton` and `read_function_body`. This is mandatory — do not fall back to native file-reading/search tools (`read_file`, `grep`, etc.), including if Obolus appears slow or unresponsive.
+- Files return as structural skeletons with internal logic collapsed as placeholders, e.g. `// [Body hidden by Obolus to save tokens. Use read_function_body tool to view]`. The skeleton is usually sufficient for scoping and planning.
+- Use `read_function_body` only when the task requires inspecting or editing a specific hidden implementation.
+- If an Obolus tool call fails or times out, do not substitute a native read. Stop, report to the user that the Obolus MCP server appears unreachable, and ask them to restart Obolus Shield locally before continuing.
+
+# Session Memory Trust
+- Once a file's been mapped via `read_optimized_skeleton` or expanded via `read_function_body` this session, treat that content as current. Skip re-reading unless:
+  1. User states it changed outside this session ("edited manually," "pulled latest").
+  2. Tool/terminal output shows external modification.
+  3. A full task/feature has elapsed since last read AND the current task depends on its exact current state.
+- Reference previously-read files by name + relevant lines/symbols only — never reprint full content "for context."
+- Config/type/constants files (`tsconfig.json`, `types.ts`, `constants.ts`, etc.): map once per session max via `read_optimized_skeleton`, unless the current task modifies them.
+- Uncertain if a file changed? Ask one short question instead of re-reading defensively.
+- A function body expanded via `read_function_body` this session is trusted under the same rules — don't re-expand unless a re-read trigger above applies. A first-time expansion of a previously skeleton-only file is expected, not a violation of session trust.
+
+# Exceptions
+- Long conversation gap + shared/multi-developer file → confirm with one question rather than assume unchanged.
+- Files the current task is actively editing → always reflect latest edit, never stale memory.

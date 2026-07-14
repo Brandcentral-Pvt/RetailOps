@@ -79,17 +79,17 @@ const AdsTable = ({
 
     const children = [
       {
-        title: <span style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>AVG</span>,
+        title: <span style={{ fontSize: 8, fontWeight: 600, color: '#64748b' }}>AVG</span>,
         key, dataIndex: key, width: avgWidth, align: 'right', sorter: true,
         sortOrder: sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : null,
         render: (val, record) => {
           const numVal = Number(val || 0);
           const formattedVal = isCurrency ? `₹${numVal.toLocaleString('en-IN')}` : isPercent ? `${numVal.toFixed(2)}%` : numVal.toLocaleString();
-          return <span style={{ fontSize: 10.5, fontWeight: 700, color: '#0f172a' }}>{formattedVal}</span>;
+          return <span style={{ fontSize: 10.5, fontWeight: 600, color: '#0f172a' }}>{formattedVal}</span>;
         }
       },
       {
-        title: <span style={{ fontSize: 8, fontWeight: 700, color: '#64748b' }}>TREND</span>,
+        title: <span style={{ fontSize: 8, fontWeight: 600, color: '#64748b' }}>TREND</span>,
         key: `${key}_trn`, width: trendWidth, align: 'center',
         render: (_, record) => {
           const history = record.weekHistory || record.history || [];
@@ -97,7 +97,7 @@ const AdsTable = ({
           const values = history.map(h => Number(h[key] || 0));
           if (values.every(v => v === 0)) return <span style={{ color: '#cbd5e1' }}>-</span>;
           const isGood = key === 'acos' ? values[values.length - 1] < values[0] : values[values.length - 1] > values[0];
-          return <div style={{ width: 40, margin: 'auto' }}><MiniSpark data={values} color={isGood ? '#15803d' : '#b91c1c'} /></div>;
+          return <div style={{ width: 40, margin: 'auto' }}><MiniSpark data={values} color={isGood ? '#2E7D32' : '#D32F2F'} /></div>;
         }
       }
     ];
@@ -105,7 +105,7 @@ const AdsTable = ({
     if (isExpanded) {
       activeDates.forEach(d => {
         children.push({
-          title: <div style={{ textAlign: 'center', fontSize: 9, lineHeight: 1.1 }}><div style={{ color: '#94a3b8' }}>{d.month}</div><div style={{ fontWeight: 700, color: '#475569' }}>{d.day}</div></div>,
+          title: <div style={{ textAlign: 'center', fontSize: 9, lineHeight: 1.1 }}><div style={{ color: '#94a3b8' }}>{d.month}</div><div style={{ fontWeight: 600, color: '#475569' }}>{d.day}</div></div>,
           key: `${key}_${d.raw}`, width: dateWidth, align: 'right',
           render: (_, record) => {
             const hist = record.weekHistory?.find(h => normalizeDateStr(h.date) === d.raw);
@@ -123,12 +123,12 @@ const AdsTable = ({
       title: (
         <div onClick={() => toggleCol(key)} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-          cursor: 'pointer', padding: '4px 8px', borderRadius: 4,
+          cursor: 'pointer', padding: '4px 8px', borderRadius: "var(--radius-sm)",
           background: '#f8fafc', border: '1px solid #e5e7eb',
           color: '#475569', transition: 'all 0.15s', minWidth: avgWidth + trendWidth
         }}>
           {icon}
-          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.03em' }}>{title}</span>
+          <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.03em' }}>{title}</span>
           {isExpanded ? <ChevronLeft size={9} /> : <ChevronRight size={9} />}
         </div>
       ),
@@ -142,7 +142,7 @@ const AdsTable = ({
       {
         title: 'IMAGE', dataIndex: 'imageUrl', key: 'imageUrl', width: 48, fixed: 'left',
         render: (url, record) => (
-          <div style={{ width: 36, height: 36, margin: 'auto', background: '#f8fafc', borderRadius: 4, border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          <div style={{ width: 36, height: 36, margin: 'auto', background: '#f8fafc', borderRadius: "var(--radius-sm)", border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             onClick={() => onSetActiveHistoryRow?.(record)}>
             {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={14} style={{ color: '#cbd5e1' }} />}
           </div>
@@ -157,13 +157,13 @@ const AdsTable = ({
               onClick={() => onSetActiveHistoryRow?.(record)}>
               {isParentRow && (
                 <div onClick={(e) => { e.stopPropagation(); toggleParentExpand(record.asin || record.parentAsin); }}
-                  style={{ width: 18, height: 18, borderRadius: 4, background: '#f1f5f9', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ width: 18, height: 18, borderRadius: "var(--radius-sm)", background: '#f1f5f9', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                   {expandedParents.has(record.asin || record.parentAsin) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </div>
               )}
               <div>
                 <Text strong code style={{ fontSize: 10, color: '#0f172a', padding: '1px 4px' }}>{record.asin || record.parentAsin}</Text>
-                {isParentRow && <div style={{ fontSize: 9, fontWeight: 700, color: '#475569', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '1px 6px', borderRadius: 4, width: 'fit-content', marginTop: 2 }}>{record.childCount || 0} CHILDREN</div>}
+                {isParentRow && <div style={{ fontSize: 9, fontWeight: 600, color: '#475569', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '1px 6px', borderRadius: "var(--radius-sm)", width: 'fit-content', marginTop: 2 }}>{record.childCount || 0} CHILDREN</div>}
               </div>
             </div>
           );
@@ -172,13 +172,13 @@ const AdsTable = ({
       {
         title: 'SKU', dataIndex: 'sku', key: 'sku', width: 80, fixed: 'left',
         render: (sku, record) => record.isParent || record.isParentView
-          ? <span style={{ fontSize: 9, fontWeight: 700, color: '#64748b', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: 4 }}>GROUP</span>
+          ? <span style={{ fontSize: 9, fontWeight: 600, color: '#64748b', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>GROUP</span>
           : <span style={{ fontWeight: 600, color: '#475569', fontSize: 10 }}>{sku || '-'}</span>
       },
       {
         title: 'PRODUCT DETAILS', key: 'productDetails', width: 170, fixed: 'left',
         render: (_, record) => (
-          <Tooltip title={<div><div style={{ fontWeight: 700, marginBottom: 4 }}>{record.title || 'Loading...'}</div>{record.brand && <div style={{ fontSize: 11, color: '#cbd5e1' }}>{record.brand}{record.category ? ` · ${record.category}` : ''}</div>}</div>}>
+          <Tooltip title={<div><div style={{ fontWeight: 600, marginBottom: 4 }}>{record.title || 'Loading...'}</div>{record.brand && <div style={{ fontSize: 11, color: '#cbd5e1' }}>{record.brand}{record.category ? ` · ${record.category}` : ''}</div>}</div>}>
             <div style={{ width: '100%', overflow: 'hidden' }}>
               <div style={{ fontSize: 10.5, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.title || 'Loading...'}</div>
               <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.brand || ''}{record.brand && record.category ? ' · ' : ''}{record.category || ''}</div>
@@ -265,7 +265,7 @@ const AdsTable = ({
               {!loading && (
                 <>
                   <Package size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>No ads data found</span>
+                  <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>No ads data found</span>
                 </>
               )}
             </div>
@@ -277,7 +277,7 @@ const AdsTable = ({
                     {row.map((col) => {
                       const s = {
                         fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
-                        letterSpacing: '0.04em', color: '#4b5563', padding: '6px 6px',
+                        letterSpacing: '0.04em', color: 'var(--text-secondary)', padding: '6px 6px',
                         background: '#f8fafc', position: 'sticky', top: 0,
                         border: '1px solid #e5e7eb', whiteSpace: 'nowrap',
                         ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
@@ -341,10 +341,10 @@ const AdsTable = ({
             onRowsPerPageChange={(e) => onPageSizeChange?.(parseInt(e.target.value, 10))}
             rowsPerPageOptions={[25, 50, 100, 200, 500]}
             sx={{
-              fontSize: '11px', minHeight: '36px',
+              fontSize: 'var(--font-size-xs)', minHeight: '36px',
               '.MuiToolbar-root': { minHeight: '36px', height: '36px', paddingLeft: '12px', paddingRight: '12px' },
-              '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': { fontSize: '11px', fontWeight: 600, color: '#6b7280', margin: 0 },
-              '.MuiTablePagination-select': { fontSize: '11px', fontWeight: 600 },
+              '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': { fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 },
+              '.MuiTablePagination-select': { fontSize: 'var(--font-size-xs)', fontWeight: 600 },
               '.MuiTablePagination-actions': { marginLeft: '8px', '& .MuiIconButton-root': { padding: '4px' } }
             }}
           />

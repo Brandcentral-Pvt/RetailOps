@@ -24,7 +24,7 @@ const InsightItem = ({ type, title, description, metric, value, color, onAction 
       padding: '10px 12px',
       background: config.bg,
       border: `1px solid ${config.border}`,
-      borderRadius: 8,
+      borderRadius: "var(--radius-md)",
       display: 'flex',
       alignItems: 'flex-start',
       gap: 10,
@@ -39,12 +39,12 @@ const InsightItem = ({ type, title, description, metric, value, color, onAction 
         <Icon size={14} color={config.color} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 12, fontWeight: 600, color: '#18181b', display: 'block', marginBottom: 2 }}>{title}</Text>
-        <Text style={{ fontSize: 11, color: '#71717a', display: 'block' }}>{description}</Text>
+        <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', display: 'block', marginBottom: 2 }}>{title}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: '#71717a', display: 'block' }}>{description}</Text>
       </div>
       {metric && (
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <Text style={{ fontSize: 14, fontWeight: 700, color: config.color }}>{metric}</Text>
+          <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: config.color }}>{metric}</Text>
           {value && <Text style={{ fontSize: 9, color: '#71717a', display: 'block' }}>{value}</Text>}
         </div>
       )}
@@ -147,8 +147,8 @@ const InsightPanel = ({ data = [] }) => {
           <div style={{ width: 24, height: 24, borderRadius: 6, background: '#f3e8ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Lightbulb size={12} color="#9C27B0" />
           </div>
-          <Text strong style={{ fontSize: 13 }}>Executive Insights</Text>
-          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#f3e8ff', color: '#9C27B0', border: 'none' }}>AI Powered</Tag>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Executive Insights</Text>
+          <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: '#f3e8ff', color: '#9C27B0', border: 'none' }}>AI Powered</Tag>
         </div>
       }
       style={{ marginBottom: 16, borderRadius: 10 }}

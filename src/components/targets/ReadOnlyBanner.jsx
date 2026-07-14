@@ -11,7 +11,7 @@ export const ReadOnlyBanner = ({ isBrandManager }) => {
                 </span>
             }
             description={
-                <span style={{ color: '#4B5563' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>
                     {isBrandManager 
                         ? 'You are viewing targets for your assigned brands only. Target creation, editing, and deletion are disabled.'
                         : 'You do not have write/edit permissions for targets. The dashboard is loaded in read-only mode.'}
@@ -22,7 +22,7 @@ export const ReadOnlyBanner = ({ isBrandManager }) => {
             icon={<EyeOutlined style={{ color: '#D97706', fontSize: '18px' }} />}
             style={{
                 marginBottom: '20px',
-                borderRadius: '12px',
+                borderRadius: 'var(--radius-lg)',
                 border: '1px solid rgba(217, 119, 6, 0.15)',
                 background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
                 boxShadow: '0 4px 12px rgba(217, 119, 6, 0.04)'

@@ -8,12 +8,14 @@ import {
 } from 'lucide-react';
 import { userApi } from '../../services/api';
 import {
-  Modal, Form, Input, Select, Switch, Button,
-  Space, Typography, Alert, Spin, Row, Col
+  Modal, Form, Input, Select, Switch,
+  Space, Typography, Alert, Spin
 } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
+import { ModalHeader, ModalFooter } from './ModalShell';
+import styles from './SellerModals.module.css';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 function normaliseManagerIds(managers) {
   if (!Array.isArray(managers)) return [];
@@ -117,73 +119,40 @@ const AddSellerModal = memo(({
       destroyOnHidden
       centered
       width={560}
-      styles={{
-        content: { borderRadius: 16, padding: 0, overflow: 'hidden' },
-        header: { padding: '20px 24px 0', borderBottom: 'none' },
-        body: { padding: '16px 24px' },
-        footer: { padding: '0 24px 20px', borderTop: 'none' }
-      }}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
-          <div style={{
-            padding: 9, background: '#0f172a', color: '#fff',
-            borderRadius: 10, display: 'flex', flexShrink: 0
-          }}>
-            <Store size={20} strokeWidth={2.5} />
-          </div>
-          <div>
-            <Title level={5} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.01em' }}>
-              {isEditMode ? 'Edit Seller Details' : 'Configure New Store'}
-            </Title>
-            <Text style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-              {isEditMode
-                ? `Updating ${initialData?.name || 'seller'}`
-                : 'Fill in the details to register a new storefront'}
-            </Text>
-          </div>
-        </div>
-      }
-      footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button onClick={onClose} disabled={submitting}
-            style={{ borderRadius: 8, fontWeight: 600, height: 36, fontSize: 12 }}>
-            Cancel
-          </Button>
-          <Button type="primary" loading={submitting} onClick={handleSubmit}
-            style={{
-              borderRadius: 8, fontWeight: 700, height: 36, fontSize: 12,
-              background: '#0f172a', borderColor: '#0f172a', paddingInline: 20
-            }}>
-            {isEditMode ? 'Save Changes' : 'Create Seller'}
-          </Button>
-        </div>
-      }
+      className={styles.modalContent}
+      closable={false}
+      footer={null}
     >
+      <ModalHeader
+        icon={Store}
+        title={isEditMode ? 'Edit Seller Details' : 'Configure New Store'}
+        subtitle={isEditMode ? `Updating ${initialData?.name || 'seller'}` : 'Fill in the details to register a new storefront'}
+      />
       {submitError && (
         <Alert type="error" showIcon message={submitError} closable
           onClose={() => setSubmitError(null)}
-          style={{ marginBottom: 16, borderRadius: 8 }} />
+          style={{ marginBottom: 16, borderRadius: "var(--radius-md)" }} />
       )}
 
       <Form form={form} layout="vertical" requiredMark={false} disabled={submitting}>
         <div style={{ paddingTop: 8 }}>
           {/* Brand Name */}
           <Form.Item name="name"
-            label={<FieldLabel icon={<LayoutGrid size={13} color="#94a3b8" />} text="BRAND NAME" required />}
+            label={<FieldLabel icon={<LayoutGrid size={13} color="var(--text-muted, #94a3b8)" />} text="BRAND NAME" required />}
             rules={[{ required: true, message: 'Brand name is required' }]}
             style={{ marginBottom: 16 }}>
             <Input placeholder="e.g. 101-BHARVITA"
-              style={{ height: 38, borderRadius: 8, fontWeight: 600, fontSize: 13 }}
+              style={{ height: 38, borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)' }}
               maxLength={100} />
           </Form.Item>
 
           {/* Marketplace + Seller ID */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <Form.Item name="marketplace"
-              label={<FieldLabel icon={<Globe size={13} color="#94a3b8" />} text="MARKETPLACE" required />}
+              label={<FieldLabel icon={<Globe size={13} color="var(--text-muted, #94a3b8)" />} text="MARKETPLACE" required />}
               rules={[{ required: true }]}
               style={{ marginBottom: 0 }}>
-              <Select size="small" style={{ borderRadius: 8 }}>
+              <Select size="small" style={{ borderRadius: "var(--radius-md)" }}>
                 {canAccessAmazon && <Select.Option value="amazon.in">Amazon.in</Select.Option>}
                 {canAccessAjio && <Select.Option value="ajio">Ajio</Select.Option>}
                 {canAccessMyntra && <Select.Option value="myntra">Myntra</Select.Option>}
@@ -191,7 +160,7 @@ const AddSellerModal = memo(({
             </Form.Item>
             <Form.Item name="sellerId"
               label={
-                <FieldLabel icon={<Key size={13} color="#94a3b8" />}
+                <FieldLabel icon={<Key size={13} color="var(--text-muted, #94a3b8)" />}
                   text="SELLER ID"
                   required={watchedMarketplace === 'amazon.in'}
                   optional={watchedMarketplace !== 'amazon.in'} />
@@ -202,23 +171,23 @@ const AddSellerModal = memo(({
               }]}
               style={{ marginBottom: 0 }}>
               <Input placeholder={watchedMarketplace === 'amazon.in' ? 'Merchant ID' : 'Optional'}
-                style={{ height: 38, borderRadius: 8, fontWeight: 700, fontFamily: 'monospace', color: '#0288D1' }}
+                style={{ height: 38, borderRadius: "var(--radius-md)", fontWeight: 600, fontFamily: 'monospace', color: 'var(--color-info-blue, #0288D1)' }}
                 maxLength={30} />
             </Form.Item>
           </div>
 
           {/* Email */}
           <Form.Item name="email"
-            label={<FieldLabel icon={<Globe size={13} color="#94a3b8" />} text="EMAIL" />}
+            label={<FieldLabel icon={<Globe size={13} color="var(--text-muted, #94a3b8)" />} text="EMAIL" />}
             style={{ marginBottom: 16 }}>
             <Input placeholder="seller@example.com" type="email"
-              style={{ height: 38, borderRadius: 8, fontSize: 13 }} />
+              style={{ height: 38, borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }} />
           </Form.Item>
 
           {/* Active Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <Form.Item name="isActive" label={
-              <FieldLabel icon={<ToggleRight size={13} color="#94a3b8" />} text="STATUS" />
+              <FieldLabel icon={<ToggleRight size={13} color="var(--text-muted, #94a3b8)" />} text="STATUS" />
             } valuePropName="checked" style={{ marginBottom: 0 }}>
               <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
             </Form.Item>
@@ -226,17 +195,17 @@ const AddSellerModal = memo(({
 
           {/* Brand Managers */}
           <Form.Item name="assignedUserIds"
-            label={<FieldLabel icon={<Users size={13} color="#94a3b8" />} text="BRAND MANAGER" />}
+            label={<FieldLabel icon={<Users size={13} color="var(--text-muted, #94a3b8)" />} text="BRAND MANAGER" />}
             style={{ marginBottom: 0 }}>
             <Select mode="multiple" size="small"
               placeholder={loadingManagers ? 'Loading managers…' : '— Unassigned (Public Pool) —'}
-              style={{ borderRadius: 8 }}
+              style={{ borderRadius: "var(--radius-md)" }}
               options={managerOptions}
               maxTagCount="responsive"
               loading={loadingManagers}
               notFoundContent={
                 loadingManagers ? <Spin size="small" /> :
-                  <Text style={{ fontSize: 12, color: '#94a3b8' }}>No managers found</Text>
+                  <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, #94a3b8)' }}>No managers found</Text>
               }
               filterOption={(input, opt) =>
                 (opt?.label || '').toLowerCase().includes(input.toLowerCase())
@@ -245,6 +214,12 @@ const AddSellerModal = memo(({
           </Form.Item>
         </div>
       </Form>
+      <ModalFooter
+        onCancel={onClose}
+        onConfirm={handleSubmit}
+        confirmText={isEditMode ? 'Save Changes' : 'Create Seller'}
+        loading={submitting}
+      />
     </Modal>
   );
 });
@@ -252,12 +227,12 @@ const AddSellerModal = memo(({
 const FieldLabel = memo(({ icon, text, required, optional }) => (
   <Space size={4} style={{ marginBottom: 4 }}>
     {icon}
-    <Text strong style={{ fontSize: 11, color: '#64748b', letterSpacing: '0.05em' }}>
+    <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', letterSpacing: '0.05em' }}>
       {text}
     </Text>
-    {required && <span style={{ color: '#D32F2F', fontSize: 12, lineHeight: 1 }}>*</span>}
+    {required && <span style={{ color: 'var(--text-danger, #D32F2F)', fontSize: 'var(--font-size-sm)', lineHeight: 1 }}>*</span>}
     {optional && (
-      <Text style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400 }}>(optional)</Text>
+      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', fontWeight: 400 }}>(optional)</Text>
     )}
   </Space>
 ));

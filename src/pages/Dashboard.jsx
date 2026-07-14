@@ -7,6 +7,9 @@ import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
+import api from '../services/api';
+import DashboardErrorBoundary from '../components/dashboard/DashboardErrorBoundary';
+import '../components/dashboard/dashboard-animations.css';
 
 // Layer Components
 import GlobalStatusBar from '../components/dashboard/GlobalStatusBar';
@@ -14,9 +17,7 @@ import CriticalActionCenter from '../components/dashboard/CriticalActionCenter';
 import LiveOperations from '../components/dashboard/LiveOperations';
 import NotificationsFeed from '../components/dashboard/NotificationsFeed';
 import CommandPalette from '../components/dashboard/CommandPalette';
-import AICommandCenter from '../components/dashboard/AICommandCenter';
 import MarketplaceIntelligence from '../components/dashboard/MarketplaceIntelligence';
-import ListingPipeline from '../components/dashboard/ListingPipeline';
 import ActivityTimeline from '../components/dashboard/ActivityTimeline';
 
 // Existing Components
@@ -65,13 +66,25 @@ const Dashboard = () => {
         loading, isHydrated, refresh
     } = useDashboardData(filters);
 
+    const [notifications, setNotifications] = useState([]);
+
+    useEffect(() => {
+        api.notificationApi.getNotifications({ page: 1, limit: 20 })
+            .then(res => {
+                const data = res?.data?.data?.notifications || res?.data?.data || [];
+                setNotifications(Array.isArray(data) ? data : []);
+            })
+            .catch(() => {});
+    }, []);
+
     const kpiValues = useMemo(() => {
         const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
         const adSales = (adsPerf[0]?.data || []).reduce((a, b) => a + b, 0);
         const adSpend = (adsPerf[1]?.data || []).reduce((a, b) => a + b, 0);
         const orders = orch.dashboardRaw?.kpi?.[0]?.trend || 0;
         const acos = adSales > 0 ? (adSpend / adSales) * 100 : 0;
-        const units = Math.round(orders * 1.48);
+        const unitsSeries = orch.dashboardRaw?.unitsSeries || [];
+        const units = unitsSeries.reduce((a, b) => a + b, 0) || Math.round(orders * 1.48);
 
         const targetsList = orch.targets || [];
         let totalTarget = 0, totalAchieved = 0;
@@ -94,12 +107,7 @@ const Dashboard = () => {
     const salesTrendRevenue = useMemo(() => (orch.dashboardRaw?.adsPerformanceSeries || [])[0]?.data || [], [orch.dashboardRaw]);
     const salesTrendSpend = useMemo(() => (orch.dashboardRaw?.adsPerformanceSeries || [])[1]?.data || [], [orch.dashboardRaw]);
 
-    const notifications = useMemo(() => [
-        { type: 'success', title: 'Marketplace Sync Complete', description: 'Successfully synced 245 ASINs across 3 sellers', time: '2m ago', read: false },
-        { type: 'warning', title: 'Price Dispute Detected', description: '12 products have conflicting prices on Amazon', time: '15m ago', read: false },
-        { type: 'info', title: 'AI Image Generated', description: '3 new lifestyle images ready for review', time: '1h ago', read: true },
-        { type: 'alert', title: 'Low Stock Alert', description: '5 products are below minimum threshold', time: '2h ago', read: true },
-    ], []);
+    const marketplaceCategory = useMemo(() => orch.dashboardRaw?.category || [], [orch.dashboardRaw]);
 
     if (loading && !isHydrated) return <Spinner />;
 
@@ -107,93 +115,108 @@ const Dashboard = () => {
         <>
             <CmdPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
             <motion.div variants={containerVariants} initial="hidden" animate="visible"
-                style={{ background: '#f4f5f7', minHeight: '100%', padding: '0 24px' }}
+                style={{ background: 'var(--bg-primary, #f8fafc)', minHeight: '100%', padding: '0 24px' }}
             >
                 {/* Layer 1: Header + Global Status Bar */}
                 <DashboardHeader filters={filters} setFilters={setFilters} userSellers={userSellers} managers={managers} onSync={refresh} loading={loading} />
-                <GlobalStatusBar 
-                    healthScore={Math.round(kpiValues.achievementRate)}
-                    activeAlerts={activityLogs?.filter(a => !a.AcknowledgedAt)?.length || 0}
-                    runningAutomations={scrapeTasks?.filter(t => t.status === 'running')?.length || 0}
-                    pendingTasks={optimizationTasks?.filter(t => t.status === 'pending')?.length || 0}
-                />
+                <DashboardErrorBoundary fallbackText="Status bar failed to load">
+                    <GlobalStatusBar 
+                        healthScore={Math.round(kpiValues.achievementRate)}
+                        activeAlerts={activityLogs?.filter(a => !a.AcknowledgedAt)?.length || 0}
+                        runningAutomations={scrapeTasks?.filter(t => t.status === 'RUNNING')?.length || 0}
+                        pendingTasks={optimizationTasks?.filter(t => t.status === 'pending')?.length || 0}
+                        marketplaceStatus={scrapeTasks?.length > 0 ? 'operational' : 'idle'}
+                    />
+                </DashboardErrorBoundary>
 
                 {/* Layer 2: Critical Action Center */}
-                <CriticalActionCenter
-                    priceDisputes={12}
-                    outOfStock={5}
-                    failedListings={3}
-                    pendingApprovals={8}
-                    syncFailures={2}
-                    onNavigate={navigate}
-                />
+                <DashboardErrorBoundary fallbackText="Action center failed to load">
+                    <CriticalActionCenter
+                        priceDisputes={moduleStats.alerts?.critical || 0}
+                        outOfStock={moduleStats.asins?.outOfStock || 0}
+                        failedListings={moduleStats.pipeline?.failed || 0}
+                        pendingApprovals={moduleStats.tasks?.pending || 0}
+                        syncFailures={moduleStats.pipeline?.failed || 0}
+                        onNavigate={navigate}
+                    />
+                </DashboardErrorBoundary>
 
                 {/* Layer 3: Operations Control Center */}
-                <KpiStrip
-                    adSales={kpiValues.adSales}
-                    adSpend={kpiValues.adSpend}
-                    orders={kpiValues.orders}
-                    acos={kpiValues.acos}
-                    units={kpiValues.units}
-                    targetTotal={kpiValues.targetTotal}
-                    targetAchieved={kpiValues.targetAchieved}
-                    achievementRate={kpiValues.achievementRate}
-                    brandCount={0}
-                    sparklineData={sparklineData}
-                />
-                <ModuleStatusGrid moduleStats={moduleStats} />
+                <DashboardErrorBoundary fallbackText="KPI strip failed to load">
+                    <KpiStrip
+                        adSales={kpiValues.adSales}
+                        adSpend={kpiValues.adSpend}
+                        orders={kpiValues.orders}
+                        acos={kpiValues.acos}
+                        units={kpiValues.units}
+                        targetTotal={kpiValues.targetTotal}
+                        targetAchieved={kpiValues.targetAchieved}
+                        achievementRate={kpiValues.achievementRate}
+                        brandCount={userSellers?.length || 0}
+                        sparklineData={sparklineData}
+                    />
+                </DashboardErrorBoundary>
+                <DashboardErrorBoundary fallbackText="Module status failed to load">
+                    <ModuleStatusGrid moduleStats={moduleStats} />
+                </DashboardErrorBoundary>
 
-                {/* Layer 4: AI Command Center */}
-                <AICommandCenter />
-
-                {/* Layer 5: Marketplace Intelligence */}
-                <MarketplaceIntelligence />
+                {/* Layer 4: Marketplace Intelligence */}
+                <DashboardErrorBoundary fallbackText="Marketplace intelligence failed to load">
+                    <MarketplaceIntelligence marketplaces={marketplaceCategory} />
+                </DashboardErrorBoundary>
 
                 {/* Layer 6: Live Operations + Notifications */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={14}>
-                        <LiveOperations
-                            listingPipeline={scrapeTasks?.length || 0}
-                            publishingQueue={5}
-                            aiImageGen={3}
-                            contentGen={2}
-                            validationQueue={8}
-                            exports={0}
-                            marketplaceSync={scrapeTasks?.filter(t => t.type === 'sync')?.length || 0}
-                            onNavigate={navigate}
-                        />
+                        <DashboardErrorBoundary fallbackText="Live operations failed to load">
+                            <LiveOperations
+                                listingPipeline={scrapeTasks?.length || 0}
+                                publishingQueue={scrapeTasks?.filter(t => t.status === 'RUNNING')?.length || 0}
+                                aiImageGen={moduleStats.pipeline?.running || 0}
+                                contentGen={moduleStats.tasks?.inProgress || 0}
+                                validationQueue={moduleStats.tasks?.pending || 0}
+                                exports={moduleStats.pipeline?.completed || 0}
+                                marketplaceSync={scrapeTasks?.filter(t => t.type === 'sync')?.length || 0}
+                                onNavigate={navigate}
+                            />
+                        </DashboardErrorBoundary>
                     </Col>
                     <Col xs={24} lg={10}>
-                        <NotificationsFeed
-                            notifications={notifications}
-                            onMarkAllRead={() => {}}
-                            onViewAll={() => navigate('/alerts')}
-                        />
+                        <DashboardErrorBoundary fallbackText="Notifications failed to load">
+                            <NotificationsFeed
+                                notifications={notifications}
+                                onMarkAllRead={() => api.notificationApi.markAllAsRead().then(() => setNotifications(prev => prev.map(n => ({ ...n, IsRead: true }))))}
+                                onViewAll={() => navigate('/alerts')}
+                            />
+                        </DashboardErrorBoundary>
                     </Col>
                 </Row>
 
-                {/* Layer 7: Listing Pipeline */}
-                <ListingPipeline />
-
-                {/* Layer 8: Analytics */}
+                {/* Layer 7: Analytics */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={14}>
-                        <SalesTrendChart labels={salesTrendLabels} revenueData={salesTrendRevenue} spendData={salesTrendSpend} />
+                        <DashboardErrorBoundary fallbackText="Sales chart failed to load">
+                            <SalesTrendChart labels={salesTrendLabels} revenueData={salesTrendRevenue} spendData={salesTrendSpend} />
+                        </DashboardErrorBoundary>
                     </Col>
                     <Col xs={24} lg={10}>
-                        <AchievementDonut targets={orch.targets || []} overallRate={kpiValues.achievementRate} />
+                        <DashboardErrorBoundary fallbackText="Achievement chart failed to load">
+                            <AchievementDonut targets={orch.targets || []} overallRate={kpiValues.achievementRate} />
+                        </DashboardErrorBoundary>
                     </Col>
                 </Row>
 
                 {/* Layer 9: Data Cards */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
-                    <Col xs={24} md={8}><TopAsinsCard products={topProducts || []} /></Col>
-                    <Col xs={24} md={8}><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></Col>
-                    <Col xs={24} md={8}><AlertsPipelineCard alerts={activityLogs} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></Col>
+                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Top ASINs failed to load"><TopAsinsCard products={topProducts || []} /></DashboardErrorBoundary></Col>
+                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Tasks failed to load"><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></DashboardErrorBoundary></Col>
+                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Alerts failed to load"><AlertsPipelineCard alerts={activityLogs} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></DashboardErrorBoundary></Col>
                 </Row>
 
-                {/* Layer 10: Activity Timeline */}
-                <ActivityTimeline />
+                {/* Layer 8: Activity Timeline */}
+                <DashboardErrorBoundary fallbackText="Activity timeline failed to load">
+                    <ActivityTimeline events={activityLogs} />
+                </DashboardErrorBoundary>
             </motion.div>
         </>
     );

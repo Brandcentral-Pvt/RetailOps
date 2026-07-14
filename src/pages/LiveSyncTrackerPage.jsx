@@ -41,7 +41,7 @@ export default function LiveSyncTrackerPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginBottom: 16 }}>
         <Space>
           <Text strong style={{ fontSize: 18 }}>Live Sync Status</Text>
-          {lastRefresh && <Text style={{ fontSize: 11, color: '#94a3b8' }}>Last refresh: {dayjs(lastRefresh).format('HH:mm:ss')}</Text>}
+          {lastRefresh && <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>Last refresh: {dayjs(lastRefresh).format('HH:mm:ss')}</Text>}
         </Space>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading} size="small">Refresh</Button>
       </div>
@@ -50,22 +50,22 @@ export default function LiveSyncTrackerPage() {
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={8}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #2563eb' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>{synced}/{total}</div>
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Brands Synced</div>
-            <Progress showInfo={false} percent={total > 0 ? Math.round((synced / total) * 100) : 0} size="small" strokeColor="#16a34a" style={{ marginTop: 4 }} />
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#0f172a' }}>{synced}/{total}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Brands Synced</div>
+            <Progress showInfo={false} percent={total > 0 ? Math.round((synced / total) * 100) : 0} size="small" strokeColor="#2E7D32" style={{ marginTop: 4 }} />
           </Card>
         </Col>
         <Col xs={8}>
-          <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #16a34a' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#16a34a' }}>{syncedAsins.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>ASINs Synced</div>
+          <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #2E7D32' }}>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#2E7D32' }}>{syncedAsins.toLocaleString()}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>ASINs Synced</div>
             <Progress showInfo={false} percent={totalAsins > 0 ? Math.round((syncedAsins / totalAsins) * 100) : 0} size="small" strokeColor="#2563eb" style={{ marginTop: 4 }} />
           </Card>
         </Col>
         <Col xs={8}>
           <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #94a3b8' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#94a3b8' }}>{total - synced}</div>
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Pending Sync</div>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#94a3b8' }}>{total - synced}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Pending Sync</div>
           </Card>
         </Col>
       </Row>
@@ -77,15 +77,15 @@ export default function LiveSyncTrackerPage() {
           rowKey="Id"
           size="small"
           loading={loading}
-          pagination={{ pageSize: 20, showTotal: (t) => <Text type="secondary" style={{ fontSize: 11 }}>{t} brands</Text> }}
+          pagination={{ pageSize: 20, showTotal: (t) => <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>{t} brands</Text> }}
           columns={[
             {
               title: 'Brand', dataIndex: 'Name', key: 'name', width: 220,
-              render: (name) => <Text strong style={{ fontSize: 12 }}>{name}</Text>,
+              render: (name) => <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{name}</Text>,
             },
             {
               title: 'Marketplace', dataIndex: 'Marketplace', key: 'mp', width: 100,
-              render: (mp) => <Tag style={{ fontSize: 9, borderRadius: 8 }}>{mp}</Tag>,
+              render: (mp) => <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)" }}>{mp}</Tag>,
             },
             {
               title: 'ASINs', dataIndex: 'totalAsins', key: 'total', width: 70, align: 'center',
@@ -99,7 +99,7 @@ export default function LiveSyncTrackerPage() {
               render: (_, r) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Progress percent={r.syncPercentage} size="small" showInfo={false}
-                    strokeColor={r.syncPercentage >= 80 ? '#16a34a' : r.syncPercentage >= 30 ? '#f59e0b' : '#dc2626'}
+                    strokeColor={r.syncPercentage >= 80 ? '#2E7D32' : r.syncPercentage >= 30 ? '#ED6C02' : '#D32F2F'}
                     style={{ width: 80, margin: 0 }} />
                   <Text style={{ fontSize: 10, fontWeight: 600 }}>{r.syncPercentage}%</Text>
                 </div>
@@ -108,9 +108,9 @@ export default function LiveSyncTrackerPage() {
             {
               title: 'Status', key: 'status', width: 120,
               render: (_, r) => {
-                if (r.syncPercentage >= 80) return <Tag color="success" style={{ fontSize: 9, borderRadius: 8 }}><CheckCircleOutlined /> Synced</Tag>;
-                if (r.syncPercentage > 0) return <Tag color="warning" style={{ fontSize: 9, borderRadius: 8 }}><SyncOutlined /> Partial</Tag>;
-                return <Tag style={{ fontSize: 9, borderRadius: 8, color: '#94a3b8' }}><ClockCircleOutlined /> Pending</Tag>;
+                if (r.syncPercentage >= 80) return <Tag color="success" style={{ fontSize: 9, borderRadius: "var(--radius-md)" }}><CheckCircleOutlined /> Synced</Tag>;
+                if (r.syncPercentage > 0) return <Tag color="warning" style={{ fontSize: 9, borderRadius: "var(--radius-md)" }}><SyncOutlined /> Partial</Tag>;
+                return <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", color: '#94a3b8' }}><ClockCircleOutlined /> Pending</Tag>;
               },
             },
             {

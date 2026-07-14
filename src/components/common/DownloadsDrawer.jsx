@@ -54,7 +54,7 @@ const getFileIcon = (format) => {
     if (f.includes('xml')) return { Icon: FileCode2, color: '#9C27B0', bg: '#f5f3ff', border: '#ddd6fe' };
     if (f.includes('pdf')) return { Icon: FileText, color: '#C62828', bg: '#fef2f2', border: '#fee2e2' };
     if (f.includes('zip')) return { Icon: Archive, color: '#1976D2', bg: '#eef2ff', border: '#e0e7ff' };
-    return { Icon: File, color: '#4b5563', bg: '#f3f4f6', border: '#e5e7eb' };
+    return { Icon: File, color: 'var(--text-secondary)', bg: '#f3f4f6', border: '#e5e7eb' };
 };
 
 const getStatusConfig = (status) => {
@@ -239,7 +239,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
         <ConfigProvider
             theme={{
                 token: {
-                    borderRadius: 8,
+                    borderRadius: "var(--radius-md)",
                     colorPrimary: '#1976D2',
                     colorBgLayout: '#f8fafc'
                 },
@@ -256,7 +256,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                         <div style={{
                             width: 38,
                             height: 38,
-                            borderRadius: 8,
+                            borderRadius: "var(--radius-md)",
                             background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
                             display: 'flex',
                             alignItems: 'center',
@@ -267,10 +267,10 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             <DownloadCloud size={18} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <Title level={5} style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>
+                            <Title level={5} style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>
                                 Exports Center
                             </Title>
-                            <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 1 }}>
+                            <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', marginTop: 1 }}>
                                 Manage and download your exported reports
                             </Text>
                         </div>
@@ -311,36 +311,36 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                 <Col span={6}>
                                     <Card size="small" styles={{ body: { padding: '10px 6px', textAlign: 'center' } }}>
                                         <Statistic
-                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 700 }}>TOTAL</Text>}
+                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 600 }}>TOTAL</Text>}
                                             value={stats.total}
-                                            valueStyle={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}
+                                            valueStyle={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a' }}
                                         />
                                     </Card>
                                 </Col>
                                 <Col span={6}>
                                     <Card size="small" styles={{ body: { padding: '10px 6px', textAlign: 'center' } }}>
                                         <Statistic
-                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 700 }}>ACTIVE</Text>}
+                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 600 }}>ACTIVE</Text>}
                                             value={stats.processing}
-                                            valueStyle={{ fontSize: 16, fontWeight: 800, color: '#1890ff' }}
+                                            valueStyle={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#1890ff' }}
                                         />
                                     </Card>
                                 </Col>
                                 <Col span={6}>
                                     <Card size="small" styles={{ body: { padding: '10px 6px', textAlign: 'center' } }}>
                                         <Statistic
-                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 700 }}>READY</Text>}
+                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 600 }}>READY</Text>}
                                             value={stats.completed}
-                                            valueStyle={{ fontSize: 16, fontWeight: 800, color: '#52c41a' }}
+                                            valueStyle={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#52c41a' }}
                                         />
                                     </Card>
                                 </Col>
                                 <Col span={6}>
                                     <Card size="small" styles={{ body: { padding: '10px 6px', textAlign: 'center' } }}>
                                         <Statistic
-                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 700 }}>FAILED</Text>}
+                                            title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 600 }}>FAILED</Text>}
                                             value={stats.failed}
-                                            valueStyle={{ fontSize: 16, fontWeight: 800, color: '#ff4d4f' }}
+                                            valueStyle={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#ff4d4f' }}
                                         />
                                     </Card>
                                 </Col>
@@ -359,7 +359,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                     { label: `Ready (${stats.completed})`, value: 'completed' },
                                     { label: `Failed (${stats.failed})`, value: 'failed' }
                                 ]}
-                                style={{ fontWeight: 700 }}
+                                style={{ fontWeight: 600 }}
                             />
                         )}
 
@@ -374,7 +374,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                             description={
                                                 <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                                                     <Text strong>No Exports Registered</Text>
-                                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                                    <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
                                                         Your downloaded files and matrix spreadsheets will show up here.
                                                     </Text>
                                                 </Space>
@@ -399,7 +399,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                 style={{
                                                     width: '100%',
                                                     borderLeft: `4px solid ${statusConfig.colorCode}`,
-                                                    borderRadius: 8,
+                                                    borderRadius: "var(--radius-md)",
                                                     boxShadow: '0 1px 2px rgba(0,0,0,0.01)'
                                                 }}
                                                 styles={{ body: { padding: 14 } }}
@@ -410,7 +410,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                     <div style={{
                                                         width: 38,
                                                         height: 38,
-                                                        borderRadius: 8,
+                                                        borderRadius: "var(--radius-md)",
                                                         background: fileConfig.bg,
                                                         border: `1px solid ${fileConfig.border}`,
                                                         display: 'flex',
@@ -425,17 +425,17 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                     {/* Description Details */}
                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8, marginBottom: 4 }}>
-                                                            <Typography.Text strong style={{ fontSize: 13, lineHeight: 1.3 }} ellipsis={{ tooltip: item.fileName }}>
+                                                            <Typography.Text strong style={{ fontSize: 'var(--font-size-sm)', lineHeight: 1.3 }} ellipsis={{ tooltip: item.fileName }}>
                                                                 {item.fileName}
                                                             </Typography.Text>
-                                                            <Tag color={statusConfig.color} style={{ margin: 0, textTransform: 'uppercase', fontSize: 9, fontWeight: 700 }}>
+                                                            <Tag color={statusConfig.color} style={{ margin: 0, textTransform: 'uppercase', fontSize: 9, fontWeight: 600 }}>
                                                                 {statusConfig.label}
                                                             </Tag>
                                                         </div>
 
                                                         {/* Metadata row */}
-                                                        <Space size="middle" separator={<span style={{ color: '#d9d9d9', fontSize: 10 }}>|</span>} style={{ fontSize: 11, color: '#8c8c8c', marginBottom: item.status === 'processing' || item.status === 'failed' ? 8 : 0, display: 'flex', flexWrap: 'wrap' }}>
-                                                            <Text type="secondary" style={{ fontSize: 11, fontWeight: 700, color: fileConfig.color }}>
+                                                        <Space size="middle" separator={<span style={{ color: '#d9d9d9', fontSize: 10 }}>|</span>} style={{ fontSize: 'var(--font-size-xs)', color: '#8c8c8c', marginBottom: item.status === 'processing' || item.status === 'failed' ? 8 : 0, display: 'flex', flexWrap: 'wrap' }}>
+                                                            <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: fileConfig.color }}>
                                                                 {item.format.toUpperCase()}
                                                             </Text>
                                                             {item.rowCount !== undefined && item.rowCount !== null && (
@@ -469,7 +469,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                                     message={item.errorMessage}
                                                                     type="error"
                                                                     showIcon
-                                                                    style={{ padding: '4px 8px', fontSize: 11 }}
+                                                                    style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)' }}
                                                                 />
                                                             </div>
                                                         )}
@@ -477,7 +477,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                                         {/* Native Action Button */}
                                                         {isClickable && (
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
-                                                                <span style={{ fontSize: 11, color: '#52c41a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                                <span style={{ fontSize: 'var(--font-size-xs)', color: '#52c41a', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                                                     <Sparkles size={11} style={{ fill: '#52c41a' }} />
                                                                     File ready
                                                                 </span>
@@ -514,11 +514,11 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                 justifyContent: 'space-between',
                                 color: '#64748b'
                             }}>
-                                <Typography.Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>
+                                <Typography.Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
                                     Showing {filteredDownloads.length} of {stats.total} exports
                                 </Typography.Text>
                                 {stats.totalSize > 0 && (
-                                    <Tag color="purple" style={{ margin: 0, fontWeight: 700 }}>
+                                    <Tag color="purple" style={{ margin: 0, fontWeight: 600 }}>
                                         Disk Used: {formatSize(stats.totalSize)}
                                     </Tag>
                                 )}

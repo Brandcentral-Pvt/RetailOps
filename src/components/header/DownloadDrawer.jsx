@@ -67,7 +67,7 @@ const DownloadDrawer = () => {
           aria-label="Downloads"
           style={{ position: 'relative' }}
         >
-          <DownloadOutlined style={{ fontSize: '16px' }} />
+          <DownloadOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
           {hasNew && (
             <span
               style={{

@@ -1,0 +1,15 @@
+---
+description: Enforce diff-only output — never rewrite full files for small changes
+alwaysApply: true
+---
+
+# Diff-Only Output
+- Default: minimal diff/patch with 1–3 lines of surrounding context. Never reprint the full file.
+- Full-file output only if: (1) new file, (2) >~60% of lines change, or (3) user explicitly asks.
+- Batch multiple small edits to the same file into one diff pass, not sequential full-file outputs.
+- One short sentence before the diff — no line-by-line narration after.
+- Renames/moves/deletions: state the operation ("rename `foo.ts` → `bar.ts`") instead of showing old-then-new full content.
+
+# Exceptions
+- Never trim context lines to the point the diff is ambiguous — guesswork-driven follow-ups cost more than the saved tokens.
+- Diff-only doesn't waive correctness — still verify the change compiles/type-checks logically.

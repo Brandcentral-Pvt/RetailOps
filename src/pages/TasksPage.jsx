@@ -57,7 +57,7 @@ const STATUS_META = {
 };
 
 const PRIORITY_META = {
-  CRITICAL: { label: 'Critical', color: '#b91c1c', bg: '#fee2e2', icon: <ExclamationCircleOutlined /> },
+  CRITICAL: { label: 'Critical', color: '#D32F2F', bg: '#fee2e2', icon: <ExclamationCircleOutlined /> },
   HIGH: { label: 'High', color: '#c2410c', bg: '#ffedd5', icon: <ArrowUpOutlined /> },
   MEDIUM: { label: 'Medium', color: '#b45309', bg: '#fef3c7', icon: <MinusOutlined /> },
   LOW: { label: 'Low', color: '#475569', bg: '#f1f5f9', icon: <ArrowDownOutlined /> },
@@ -259,7 +259,7 @@ const PriorityTag = ({ priority }) => {
         border: `1px solid ${cfg.color}30`,
         borderRadius: 20,
         fontWeight: 600,
-        fontSize: 11,
+        fontSize: 'var(--font-size-xs)',
         padding: '1px 8px',
         display: 'inline-flex',
         alignItems: 'center',
@@ -272,17 +272,17 @@ const PriorityTag = ({ priority }) => {
 };
 
 const UserChip = ({ user }) => {
-  if (!user) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+  if (!user) return <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>—</Text>;
   const color = getRoleColor(user?.role);
   const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email || 'User';
   const role = user.role?.name || user.role || 'User';
   return (
     <Tooltip title={`${name} · ${role}`}>
       <Space size={6}>
-        <Avatar size={22} style={{ background: color, fontSize: 11, fontWeight: 700 }}>
+        <Avatar size={22} style={{ background: color, fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
           {getUserInitial(user)}
         </Avatar>
-        <Text style={{ fontSize: 12, fontWeight: 500 }}>{name.split(' ')[0]}</Text>
+        <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{name.split(' ')[0]}</Text>
       </Space>
     </Tooltip>
   );
@@ -317,12 +317,12 @@ const TimelineCell = ({ createdAt, startedAt, completedAt, status }) => {
   const content = (
     <Space orientation="vertical" size={2}>
       {items.map((it, i) => (
-        <Text key={i} style={{ fontSize: 11, color: '#64748b' }}>{it.label}: {it.exact}</Text>
+        <Text key={i} style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{it.label}: {it.exact}</Text>
       ))}
     </Space>
   );
 
-  if (items.length === 0) return <Text style={{ color: '#cbd5e1', fontSize: 12 }}>—</Text>;
+  if (items.length === 0) return <Text style={{ color: '#cbd5e1', fontSize: 'var(--font-size-sm)' }}>—</Text>;
 
   return (
     <Tooltip title={content}>
@@ -331,7 +331,7 @@ const TimelineCell = ({ createdAt, startedAt, completedAt, status }) => {
           <Space key={i} size={4}>
             {it.icon}
             <Text style={{ fontSize: 10, color: '#94a3b8' }}>{it.label}</Text>
-            <Text style={{ fontSize: 11, fontWeight: 600, color: it.color }}>{it.value}</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: it.color }}>{it.value}</Text>
           </Space>
         ))}
         {duration && (
@@ -342,7 +342,7 @@ const TimelineCell = ({ createdAt, startedAt, completedAt, status }) => {
             background: status === 'COMPLETED' ? '#ecfdf5' : '#eef2ff',
             color: status === 'COMPLETED' ? '#2E7D32' : '#1976D2',
             border: 'none',
-            borderRadius: 4,
+            borderRadius: "var(--radius-sm)",
             padding: '0 6px',
           }}>
             {duration}
@@ -364,7 +364,7 @@ const ProgressCell = ({ pct }) => {
         strokeColor={color}
         railColor="#f1f5f9"
       />
-      <Text style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums', textAlign: 'center', display: 'block' }}>
+      <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontVariantNumeric: 'tabular-nums', textAlign: 'center', display: 'block' }}>
         {pct}%
       </Text>
     </Space>
@@ -379,13 +379,13 @@ const RejectionForm = ({ onSubmit, onCancel }) => {
       style={{
         margin: '4px 16px 8px 16px',
         borderLeft: '4px solid #ED6C02',
-        borderRadius: 8,
+        borderRadius: "var(--radius-md)",
         background: '#fffbeb',
       }}
       styles={{ body: { padding: '12px 16px' } }}
     >
       <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-        <Text strong style={{ fontSize: 12, color: '#92400e' }}>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#92400e' }}>
           <ExclamationCircleOutlined style={{ marginRight: 6 }} />
           Rejection Reason (Required)
         </Text>
@@ -394,7 +394,7 @@ const RejectionForm = ({ onSubmit, onCancel }) => {
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="Describe what needs to be changed..."
-          style={{ fontSize: 12, borderRadius: 6 }}
+          style={{ fontSize: 'var(--font-size-sm)', borderRadius: 6 }}
         />
         <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
           <Button size="small" onClick={onCancel}>Cancel</Button>
@@ -813,7 +813,7 @@ const TasksPage = () => {
       key: 'index',
       width: 48,
       render: (_, __, idx) => (
-        <Text style={{ fontSize: 12, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
+        <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
           {idx + 1}
         </Text>
       ),
@@ -827,9 +827,9 @@ const TasksPage = () => {
         const asins = task.asins?.length || task.asinCount || 0;
         return (
           <Space orientation="vertical" size={2}>
-            <Text strong style={{ fontSize: 13, color: '#1e293b' }}>{name}</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>{name}</Text>
             {asins > 0 && (
-              <Tag style={{ fontSize: 10, borderRadius: 4, background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' }}>
+              <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' }}>
                 {asins} ASIN{asins > 1 ? 's' : ''}
               </Tag>
             )}
@@ -845,7 +845,7 @@ const TasksPage = () => {
         const cat = task.type || task.category || task.actionType || 'General';
         return (
           <Tag style={{
-            fontSize: 11, borderRadius: 4,
+            fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-sm)",
             background: '#f8fafc', color: '#475569',
             border: '1px solid #e2e8f0',
           }}>
@@ -870,7 +870,7 @@ const TasksPage = () => {
       width: 130,
       render: (_, task) => {
         const u = task.assignedTo;
-        if (!u) return <Text style={{ color: '#cbd5e1', fontSize: 12 }}>—</Text>;
+        if (!u) return <Text style={{ color: '#cbd5e1', fontSize: 'var(--font-size-sm)' }}>—</Text>;
         const users = Array.isArray(u) ? u : [u];
         return (
           <Space size={4}>
@@ -890,7 +890,7 @@ const TasksPage = () => {
       width: 100,
       render: (_, task) => task.priority
         ? <PriorityTag priority={(task.priority || '').toUpperCase()} />
-        : <Text style={{ color: '#cbd5e1', fontSize: 12 }}>—</Text>,
+        : <Text style={{ color: '#cbd5e1', fontSize: 'var(--font-size-sm)' }}>—</Text>,
     },
     {
       title: 'Status / Review',
@@ -985,25 +985,25 @@ const TasksPage = () => {
             <Row align="middle" gutter={16} style={{ width: '100%' }}>
               <Col>
                 <Tag style={{
-                  fontSize: 10, fontWeight: 700, fontFamily: 'monospace',
+                  fontSize: 10, fontWeight: 600, fontFamily: 'monospace',
                   background: '#eef2ff', color: '#1976D2',
-                  border: '1px solid #c7d2fe', borderRadius: 4,
+                  border: '1px solid #c7d2fe', borderRadius: "var(--radius-sm)",
                   minWidth: 36, textAlign: 'center',
                 }}>OBJ</Tag>
               </Col>
               <Col flex={1}>
                 <Space size={8}>
                   {hasReview && <Tooltip title="Has tasks awaiting review"><Badge dot color="#ED6C02" /></Tooltip>}
-                  {childIncomplete && <Tooltip title="Not all tasks complete"><LockOutlined style={{ color: '#fbbf24', fontSize: 12 }} /></Tooltip>}
-                  <Text strong style={{ fontSize: 13, color: '#1e293b' }}>{obj.title || 'Untitled Objective'}</Text>
+                  {childIncomplete && <Tooltip title="Not all tasks complete"><LockOutlined style={{ color: '#fbbf24', fontSize: 'var(--font-size-sm)' }} /></Tooltip>}
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>{obj.title || 'Untitled Objective'}</Text>
                   {obj.isStandalone && <Tag style={{ fontSize: 10, background: '#f8fafc', color: '#94a3b8', border: '1px solid #e2e8f0' }}>Direct Actions</Tag>}
                 </Space>
               </Col>
               <Col>
                 <Space size={12} align="center">
-                  <Text style={{ fontSize: 11, color: '#94a3b8' }}>{objDone}/{objTasks.length} done</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{objDone}/{objTasks.length} done</Text>
                   <Progress percent={objPct} size="small" style={{ width: 80, margin: 0 }} strokeColor={objPct === 100 ? '#2E7D32' : '#1976D2'} railColor="#f1f5f9" showInfo={false} />
-                  <Text style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums', minWidth: 32 }}>{objPct}%</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontVariantNumeric: 'tabular-nums', minWidth: 32 }}>{objPct}%</Text>
                 </Space>
               </Col>
             </Row>
@@ -1030,8 +1030,8 @@ const TasksPage = () => {
                             <Row key={sub._id || sub.id || si} align="middle" gutter={16} style={{ padding: '6px 12px', background: 'white', borderRadius: 6, marginBottom: 4, border: '1px solid #f1f5f9' }}>
                               <Col flex={1}>
                                 <Space size={8}>
-                                  <Tag style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4 }}>SUB</Tag>
-                                  <Text style={{ fontSize: 12, color: '#374151' }}>{sub.action || sub.title || sub.name || 'Untitled'}</Text>
+                                  <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: "var(--radius-sm)" }}>SUB</Tag>
+                                  <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{sub.action || sub.title || sub.name || 'Untitled'}</Text>
                                 </Space>
                               </Col>
                               <Col><StatusTag status={(sub.status || 'PENDING').toUpperCase()} size="small" /></Col>
@@ -1063,9 +1063,9 @@ const TasksPage = () => {
             key: 'direct-tasks',
             label: (
               <Space>
-                <Tag style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd', borderRadius: 4 }}>DIRECT</Tag>
-                <Text strong style={{ fontSize: 13, color: '#1e293b' }}>Direct Tasks</Text>
-                <Tag style={{ fontSize: 11, background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 12 }}>{filteredDirect.length} tasks</Tag>
+                <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd', borderRadius: "var(--radius-sm)" }}>DIRECT</Tag>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>Direct Tasks</Text>
+                <Tag style={{ fontSize: 'var(--font-size-xs)', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)" }}>{filteredDirect.length} tasks</Tag>
               </Space>
             ),
             children: (
@@ -1105,34 +1105,34 @@ const TasksPage = () => {
           if (collapseItems.length === 0) return null;
 
           return (
-            <Card key={group.sellerId} style={{ borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} styles={{ body: { padding: 0 } }}>
+            <Card key={group.sellerId} style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} styles={{ body: { padding: 0 } }}>
               <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${sellerColor}10, #ffffff)`, borderBottom: '1px solid #f1f5f9', borderLeft: `4px solid ${sellerColor}` }}>
                 <Row align="middle" gutter={16} style={{ width: '100%' }}>
                   <Col>
-                    <Avatar size={36} style={{ background: sellerColor, fontSize: 15, fontWeight: 700 }}>
+                    <Avatar size={36} style={{ background: sellerColor, fontSize: 15, fontWeight: 600 }}>
                       {getSellerInitial(group.sellerName)}
                     </Avatar>
                   </Col>
                   <Col flex={1}>
                     <Space size={8} wrap>
-                      <Text strong style={{ fontSize: 14, color: '#1e293b' }}>{group.sellerName}</Text>
-                      <Tag style={{ borderRadius: 12, fontSize: 11, background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                      <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#1e293b' }}>{group.sellerName}</Text>
+                      <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>
                         {group.objectives.length} objective{group.objectives.length !== 1 ? 's' : ''}
                       </Tag>
-                      <Tag style={{ borderRadius: 12, fontSize: 11, background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>
+                      <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>
                         {totalTasks} task{totalTasks !== 1 ? 's' : ''}
                       </Tag>
-                      {overdueTasks > 0 && <Tag style={{ borderRadius: 12, fontSize: 11, background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3' }}><ExclamationCircleOutlined style={{ marginRight: 4 }} />{overdueTasks} overdue</Tag>}
-                      {reviewTasks > 0 && <Tag style={{ borderRadius: 12, fontSize: 11, background: '#f5f3ff', color: '#9C27B0', border: '1px solid #ddd6fe' }}><EyeOutlined style={{ marginRight: 4 }} />{reviewTasks} needs review</Tag>}
+                      {overdueTasks > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3' }}><ExclamationCircleOutlined style={{ marginRight: 4 }} />{overdueTasks} overdue</Tag>}
+                      {reviewTasks > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#f5f3ff', color: '#9C27B0', border: '1px solid #ddd6fe' }}><EyeOutlined style={{ marginRight: 4 }} />{reviewTasks} needs review</Tag>}
                     </Space>
                   </Col>
                   <Col>
                     <Space size={16} align="center">
                       <Space size={8}>
-                        <Badge color="#2E7D32" text={<Text style={{ fontSize: 12 }}>{doneTasks}</Text>} />
-                        <Badge color="#1976D2" text={<Text style={{ fontSize: 12 }}>{inProgTasks}</Text>} />
+                        <Badge color="#2E7D32" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{doneTasks}</Text>} />
+                        <Badge color="#1976D2" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{inProgTasks}</Text>} />
                       </Space>
-                      <Progress percent={pct} size="small" style={{ width: 100, margin: 0 }} strokeColor={sellerColor} railColor="#f1f5f9" format={p => <Text style={{ fontSize: 11, color: '#64748b' }}>{p}%</Text>} />
+                      <Progress percent={pct} size="small" style={{ width: 100, margin: 0 }} strokeColor={sellerColor} railColor="#f1f5f9" format={p => <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{p}%</Text>} />
                     </Space>
                   </Col>
                 </Row>
@@ -1150,27 +1150,27 @@ const TasksPage = () => {
   const kpiCards = [
     {
       title: 'Total Tasks', value: kpis.all,
-      icon: <UnorderedListOutlined style={{ fontSize: 20, color: '#1976D2' }} />,
+      icon: <UnorderedListOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#1976D2' }} />,
       color: '#1976D2', bg: '#E3F2FD',
     },
     {
       title: 'In Progress', value: kpis.status.inProgress,
-      icon: <SyncOutlined spin={kpis.status.inProgress > 0} style={{ fontSize: 20, color: '#1976D2' }} />,
+      icon: <SyncOutlined spin={kpis.status.inProgress > 0} style={{ fontSize: 'var(--font-size-xl)', color: '#1976D2' }} />,
       color: '#1976D2', bg: '#E3F2FD',
     },
     {
       title: 'Pending Review', value: kpis.status.review,
-      icon: <EyeOutlined style={{ fontSize: 20, color: '#9C27B0' }} />,
+      icon: <EyeOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#9C27B0' }} />,
       color: '#9C27B0', bg: '#F3E5F5',
     },
     {
       title: 'Overdue', value: kpis.overdue,
-      icon: <WarningOutlined style={{ fontSize: 20, color: '#D32F2F' }} />,
+      icon: <WarningOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#D32F2F' }} />,
       color: '#D32F2F', bg: '#FFEBEE',
     },
     {
       title: 'Completed', value: kpis.status.completed,
-      icon: <CheckCircleOutlined style={{ fontSize: 20, color: '#2E7D32' }} />,
+      icon: <CheckCircleOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#2E7D32' }} />,
       color: '#2E7D32', bg: '#E8F5E9',
     },
   ];
@@ -1194,7 +1194,7 @@ const TasksPage = () => {
             <Space size={12} align="center">
               {/* KPI quick numbers - clean inline */}
               <Space orientation="vertical" size={0} style={{ textAlign: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                <Text style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#1e293b', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                   {kpis.all}
                 </Text>
                 <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 600 }}>
@@ -1203,7 +1203,7 @@ const TasksPage = () => {
               </Space>
               <Divider vertical style={{ margin: 0, height: 25 }} />
               <Space orientation="vertical" size={0} style={{ textAlign: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: 800, color: '#ffa200ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                <Text style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#ffa200ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                   {kpis.todo}
                 </Text>
                 <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 600 }}>
@@ -1221,9 +1221,9 @@ const TasksPage = () => {
                       background: '#f5f3ff',
                       border: '1px solid #ddd6fe',
                       color: '#9C27B0',
-                      borderRadius: 8,
+                      borderRadius: "var(--radius-md)",
                       fontWeight: 600,
-                      fontSize: 12,
+                      fontSize: 'var(--font-size-sm)',
                       height: 28,
                     }}
                     icon={<Badge count={reviewCount} size="small" color="#9C27B0"><EyeOutlined /></Badge>}
@@ -1236,8 +1236,8 @@ const TasksPage = () => {
               <Button
                 icon={<ThunderboltOutlined />}
                 style={{
-                  height: 32, borderRadius: 8, border: '1px solid #e2e8f0',
-                  fontWeight: 600, fontSize: 12,
+                  height: 32, borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0',
+                  fontWeight: 600, fontSize: 'var(--font-size-sm)',
                 }}
                 onClick={() => setIsAutoGenModalOpen(true)}
               >
@@ -1246,8 +1246,8 @@ const TasksPage = () => {
               <Button
                 icon={<ThunderboltOutlined style={{ color: '#ED6C02' }} />}
                 style={{
-                  height: 32, borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb',
-                  fontWeight: 600, fontSize: 12, color: '#92400e',
+                  height: 32, borderRadius: "var(--radius-md)", border: '1px solid #fde68a', background: '#fffbeb',
+                  fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#92400e',
                 }}
                 onClick={handleCreateAction}
               >
@@ -1257,7 +1257,7 @@ const TasksPage = () => {
                 type="primary"
                 icon={<PlusOutlined />}
                 style={{
-                  height: 32, borderRadius: 8, fontWeight: 600, fontSize: 12,
+                  height: 32, borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)',
                   background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
                   border: 'none',
                   boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
@@ -1299,9 +1299,9 @@ const TasksPage = () => {
                 ]}
                 style={{
                   background: '#f1f5f9',
-                  borderRadius: 8,
+                  borderRadius: "var(--radius-md)",
                   fontWeight: 600,
-                  fontSize: 13,
+                  fontSize: 'var(--font-size-sm)',
                 }}
               />
               <Divider vertical style={{ height: 20, margin: 0 }} />
@@ -1310,15 +1310,15 @@ const TasksPage = () => {
           <Col>
             <Space size={8}>
               <Input
-                prefix={<SearchOutlined style={{ color: '#94a3b8', fontSize: 13 }} />}
+                prefix={<SearchOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }} />}
                 suffix={searchQuery
-                  ? <CloseOutlined style={{ fontSize: 11, color: '#94a3b8', cursor: 'pointer' }} onClick={() => handleSearchChange('')} />
+                  ? <CloseOutlined style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', cursor: 'pointer' }} onClick={() => handleSearchChange('')} />
                   : null
                 }
                 placeholder="Search tasks..."
                 value={searchQuery}
                 onChange={e => handleSearchChange(e.target.value)}
-                style={{ width: 220, height: 32, borderRadius: 8, fontSize: 12 }}
+                style={{ width: 220, height: 32, borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }}
               />
               <Select
                 allowClear
@@ -1359,7 +1359,7 @@ const TasksPage = () => {
                   icon={<ReloadOutlined />}
                   onClick={loadData}
                   loading={loading}
-                  style={{ height: 32, width: 32, borderRadius: 8, border: '1px solid #e2e8f0', padding: 0 }}
+                  style={{ height: 32, width: 32, borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', padding: 0 }}
                 />
               </Tooltip>
               {isAdmin && (
@@ -1368,7 +1368,7 @@ const TasksPage = () => {
                     danger
                     icon={<DeleteOutlined />}
                     size="small"
-                    style={{ height: 32, width: 32, borderRadius: 8, padding: 0 }}
+                    style={{ height: 32, width: 32, borderRadius: "var(--radius-md)", padding: 0 }}
                     onClick={() => {
                       Modal.confirm({
                         title: 'Delete all data?',
@@ -1404,7 +1404,7 @@ const TasksPage = () => {
                   height: 26,
                   borderRadius: 13,
                   cursor: 'pointer',
-                  fontSize: 11,
+                  fontSize: 'var(--font-size-xs)',
                   fontWeight: isActive ? 700 : 500,
                   border: isActive ? `1.5px solid ${pill.color}` : '1px solid #e2e8f0',
                   background: isActive ? `${pill.color}18` : 'white',
@@ -1421,7 +1421,7 @@ const TasksPage = () => {
                 }} />
                 <span>{pill.label}</span>
                 <span style={{
-                  fontWeight: 700, fontSize: 10, fontVariantNumeric: 'tabular-nums',
+                  fontWeight: 600, fontSize: 10, fontVariantNumeric: 'tabular-nums',
                   background: 'transparent',
                   marginLeft: 2,
                   color: isActive ? pill.color : '#94a3b8',
@@ -1439,7 +1439,7 @@ const TasksPage = () => {
                 onClick={clearFilters}
                 icon={<CloseOutlined />}
                 style={{
-                  height: 26, borderRadius: 13, fontSize: 11, fontWeight: 600,
+                  height: 26, borderRadius: 13, fontSize: 'var(--font-size-xs)', fontWeight: 600,
                   background: '#D32F2F', color: 'white', border: 'none',
                   display: 'inline-flex', alignItems: 'center',
                 }}
@@ -1476,7 +1476,7 @@ const TasksPage = () => {
                     <div style={{
                       width: 34, height: 34,
                       background: card.bg,
-                      borderRadius: 8,
+                      borderRadius: "var(--radius-md)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1485,7 +1485,7 @@ const TasksPage = () => {
                     </div>
                   </Col>
                   <Col>
-                    <Text style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', display: 'block', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                    <Text style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#1e293b', display: 'block', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                       {card.value}
                     </Text>
                     <Text style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1510,7 +1510,7 @@ const TasksPage = () => {
         >
           <Row align="middle" gutter={12}>
             <Col>
-              <Text style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Overall Progress</Text>
+              <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Overall Progress</Text>
             </Col>
             <Col flex={1}>
               <Progress
@@ -1523,7 +1523,7 @@ const TasksPage = () => {
               />
             </Col>
             <Col>
-              <Text style={{ fontSize: 12, fontWeight: 700, color: '#1976D2', fontVariantNumeric: 'tabular-nums' }}>
+              <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1976D2', fontVariantNumeric: 'tabular-nums' }}>
                 {kpis.all === 0 ? 0 : Math.round((kpis.status.completed / kpis.all) * 100)}% complete
               </Text>
             </Col>
@@ -1535,14 +1535,14 @@ const TasksPage = () => {
           <div style={{ textAlign: 'center', padding: 60 }}>
             <Spin
               indicator={<LoadingOutlined style={{ fontSize: 32, color: '#1976D2' }} spin />}
-              tip={<Text style={{ color: '#64748b', fontSize: 13, marginTop: 12 }}>Loading tasks...</Text>}
+              tip={<Text style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', marginTop: 12 }}>Loading tasks...</Text>}
             />
           </div>
         ) : viewMode === 'ALL_TASKS' ? (
           <Card
             styles={{ body: { padding: 0 } }}
             style={{
-              borderRadius: 12,
+              borderRadius: "var(--radius-lg)",
               border: '1px solid #e2e8f0',
               overflow: 'hidden',
               boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
@@ -1558,14 +1558,14 @@ const TasksPage = () => {
             }}>
               <Space>
                 <UnorderedListOutlined style={{ color: '#1976D2' }} />
-                <Text strong style={{ fontSize: 14, color: '#1e293b' }}>
+                <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#1e293b' }}>
                   All Tasks
                 </Text>
-                <Tag style={{ borderRadius: 12, background: '#eef2ff', color: '#1976D2', border: '1px solid #c7d2fe', fontSize: 11 }}>
+                <Tag style={{ borderRadius: "var(--radius-lg)", background: '#eef2ff', color: '#1976D2', border: '1px solid #c7d2fe', fontSize: 'var(--font-size-xs)' }}>
                   {filteredActions.length} tasks
                 </Tag>
               </Space>
-              <Text style={{ fontSize: 12, color: '#94a3b8' }}>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>
                 Showing {filteredActions.length} of {kpis.all} total
               </Text>
             </div>
@@ -1578,7 +1578,7 @@ const TasksPage = () => {
                       <Text style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                         No tasks found
                       </Text>
-                      <Text style={{ fontSize: 13, color: '#94a3b8' }}>
+                      <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>
                         {searchQuery || activeFilter !== 'ALL' || statusFilter || priorityFilter
                           ? 'Try clearing your filters'
                           : 'Create your first task to get started'
@@ -1614,7 +1614,7 @@ const TasksPage = () => {
                   showSizeChanger: true,
                   pageSizeOptions: ['10', '20', '50', '100'],
                   showTotal: (total) => (
-                    <Text style={{ fontSize: 12, color: '#94a3b8' }}>{total} tasks</Text>
+                    <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>{total} tasks</Text>
                   ),
                   style: { padding: '12px 20px', margin: 0, borderTop: '1px solid #f1f5f9' },
                   size: 'small',
@@ -1643,9 +1643,9 @@ const TasksPage = () => {
                           />
                         )}
                         {hasSubtasks && (
-                          <div style={{ padding: '4px 0 0 32px', background: '#f8fafc', borderRadius: 8 }}>
+                          <div style={{ padding: '4px 0 0 32px', background: '#f8fafc', borderRadius: "var(--radius-md)" }}>
                             <Text style={{
-                              fontSize: 11, color: '#94a3b8', fontWeight: 700,
+                              fontSize: 'var(--font-size-xs)', color: '#94a3b8', fontWeight: 600,
                               textTransform: 'uppercase', letterSpacing: 0.5,
                               display: 'block', marginBottom: 6, padding: '6px 12px 0',
                             }}>
@@ -1660,19 +1660,19 @@ const TasksPage = () => {
                                   style={{
                                     padding: '7px 10px',
                                     background: 'white',
-                                    borderRadius: 8,
+                                    borderRadius: "var(--radius-md)",
                                     border: '1px solid #f1f5f9',
                                   }}
                                 >
                                   <Col>
                                     <Tag style={{
-                                      fontSize: 10, fontWeight: 700, fontFamily: 'monospace',
+                                      fontSize: 10, fontWeight: 600, fontFamily: 'monospace',
                                       background: '#f0fdfa', color: '#0d9488',
-                                      border: '1px solid #99f6e4', borderRadius: 4,
+                                      border: '1px solid #99f6e4', borderRadius: "var(--radius-sm)",
                                     }}>SUB</Tag>
                                   </Col>
                                   <Col flex={1}>
-                                    <Text style={{ fontSize: 12, color: '#374151' }}>
+                                    <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>
                                       {sub.action || sub.title || sub.name || 'Untitled'}
                                     </Text>
                                   </Col>
@@ -1823,24 +1823,24 @@ const TasksPage = () => {
               <Zap size={18} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Auto-Generate Tasks</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>Scan ASINs and create optimization tasks automatically</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Auto-Generate Tasks</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>Scan ASINs and create optimization tasks automatically</div>
             </div>
           </div>
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 8 }}>This will analyze your ASIN catalog and generate tasks for:</div>
+            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569', marginBottom: 8 }}>This will analyze your ASIN catalog and generate tasks for:</div>
             {['Titles — Missing SEO keywords or too short', 'Images — Below recommended count', 'A+ Content — Missing modules or low quality', 'LQS — Below quality threshold'].map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: 12, color: '#334155' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: 'var(--font-size-sm)', color: '#334155' }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1976D2', flexShrink: 0 }} />
                 {item}
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setIsAutoGenModalOpen(false)} style={{ borderRadius: 8, fontSize: 12 }}>Cancel</Button>
+            <Button onClick={() => setIsAutoGenModalOpen(false)} style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }}>Cancel</Button>
             <Button type="primary" loading={autoGenerating} icon={<Zap size={13} />}
               onClick={handleAutoGenerate}
-              style={{ borderRadius: 8, fontWeight: 600, fontSize: 12, background: '#ED6C02', borderColor: '#ED6C02' }}>
+              style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)', background: '#ED6C02', borderColor: '#ED6C02' }}>
               {autoGenerating ? 'Generating...' : 'Generate Tasks'}
             </Button>
           </div>

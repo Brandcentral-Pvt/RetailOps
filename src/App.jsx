@@ -10,10 +10,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GlobalHeader from './components/header/GlobalHeader';
 import { HeaderProvider } from './contexts/HeaderContext';
 import RoutePageMeta from './components/layout/RoutePageMeta';
+import RouteProgress from './components/ui/RouteProgress';
+import ModuleFallback from './components/ui/ModuleFallback';
 import Sidebar from './components/common/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 import { SocketProvider } from './contexts/SocketContext';
@@ -23,7 +24,6 @@ import { RefreshProvider } from './contexts/RefreshContext';
 const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard'));
 const GlobalNotificationListener = lazy(() => import('./components/GlobalNotificationListener'));
 import CometChatInitializer from './components/chat/CometChatInitializer';
-import { DashboardSkeleton } from './components/ui/skeleton/index.jsx';
 import './App.css';
 
 // Lazy load pages for better performance
@@ -74,35 +74,6 @@ const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
 const WebhookSettingsPage = lazy(() => import('./pages/WebhookSettingsPage'));
 const SetupWizardPage = lazy(() => import('./pages/SetupWizardPage'));
 
-// Minimal full-screen spinner — used only for the outer auth Suspense boundary
-// (login / register pages are tiny; the skeleton would be jarring there)
-const PageLoader = () => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    background: '#f9fafb'
-  }}>
-    <div style={{
-      width: 36,
-      height: 36,
-      border: '3px solid #e5e7eb',
-      borderTopColor: '#1976D2',
-      borderRadius: '50%',
-      animation: 'spin 0.9s linear infinite'
-    }} />
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-  </div>
-);
-
-// Skeleton fallback used for all protected routes (matches the page layout)
-const PageSkeleton = () => (
-  <div style={{ padding: '24px' }}>
-    <DashboardSkeleton statsCount={4} tableRows={6} />
-  </div>
-);
-
 // Layout wrapper — flex row: Sidebar takes its own width, content fills the rest
 function AppLayout({ children }) {
   return (
@@ -124,10 +95,6 @@ function AppLayout({ children }) {
 
 import Spinner from './components/Spinner';
 
-const BrandedLoader = () => (
-  <Spinner fullPage />
-);
-
 function AppRoutes() {
   const { isAuthenticated, loading, bootstrapping } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
@@ -136,12 +103,13 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<Spinner fullPage />}>
+      <RouteProgress />
       {showWizard && <OnboardingWizard />}
       <GlobalNotificationListener />
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
-        <Route path="/register" element={<Navigate to="/login" replace />} />
+
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/setup-wizard" element={<ProtectedRoute><SetupWizardPage /></ProtectedRoute>} />
@@ -152,7 +120,7 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <AppLayout>
-                <Suspense fallback={<PageSkeleton />}>
+                <ModuleFallback>
                 <RoutePageMeta />
                 <Routes>
                   <Route path="/" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
@@ -183,9 +151,9 @@ function AppRoutes() {
                    <Route path="/live-data-inspector" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-sync" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                   <Route path="/scheduled-runs" element={<ProtectedRoute permission="scraping_view"><ScheduledRunsPage /></ProtectedRoute>} />
-                  <Route path="/sellers" element={<ProtectedRoute permission="seller_view"><SellersPage /></ProtectedRoute>} />
-                  <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><SellerAsinTrackerPage /></ProtectedRoute>} />
-                  <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><SellerAsinTrackerPage /></ProtectedRoute>} />
+                  <Route path="/sellers" element={<ProtectedRoute permission="seller_view"><ErrorBoundary><SellersPage /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/activity-log" element={<ProtectedRoute permission="activitylogs_view"><ActivityLog /></ProtectedRoute>} />
                   <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
                   <Route path="/actions/achievement-report" element={<ProtectedRoute permission="monthlyreport_view"><GoalAchievementReport /></ProtectedRoute>} />
@@ -207,7 +175,7 @@ function AppRoutes() {
                   <Route path="/chat" element={<ProtectedRoute permission="chat_view"><ChatContainer /></ProtectedRoute>} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                 </Routes>
-                </Suspense>
+                </ModuleFallback>
               </AppLayout>
             </ProtectedRoute>
           }

@@ -19,23 +19,23 @@ function SopPhaseBuilder({ phases, setPhases }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {phases.map((phase, pi) => (
-        <Card key={pi} size="small" style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
-          title={<Space><Tag style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 10, borderRadius: 4, background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4' }}>Phase {pi + 1}</Tag>
+        <Card key={pi} size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}
+          title={<Space><Tag style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 10, borderRadius: "var(--radius-sm)", background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4' }}>Phase {pi + 1}</Tag>
             <Input size="small" value={phase.title} onChange={e => updatePhase(pi, 'title', e.target.value)} placeholder="Phase name (e.g. Campaign Analysis)" style={{ width: 300, fontWeight: 600 }} bordered={false} />
           </Space>}
           extra={phases.length > 1 && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removePhase(pi)} />}>
           {(phase.activities || []).map((act, ai) => (
             <div key={ai} style={{ padding: '10px 12px', background: '#fafbfc', borderRadius: 6, marginBottom: 6, border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <Tag style={{ fontSize: 9, fontWeight: 700, fontFamily: 'monospace', background: '#eef2ff', color: '#1976D2', borderRadius: 4 }}>Activity {ai + 1}</Tag>
+                <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: '#eef2ff', color: '#1976D2', borderRadius: "var(--radius-sm)" }}>Activity {ai + 1}</Tag>
                 <Input size="small" value={act.title} onChange={e => updateActivity(pi, ai, 'title', e.target.value)} placeholder="Activity name..." style={{ flex: 1, fontWeight: 500 }} bordered={false} />
                 {phase.activities.length > 1 && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeActivity(pi, ai)} />}
               </div>
               <Input.TextArea size="small" value={act.instructions} onChange={e => updateActivity(pi, ai, 'instructions', e.target.value)} placeholder="Instructions / SOP steps..." rows={2} bordered={false} style={{ marginBottom: 6 }} />
               <Row gutter={8}>
-                <Col span={8}><Input size="small" value={act.expectedOutput} onChange={e => updateActivity(pi, ai, 'expectedOutput', e.target.value)} placeholder="Expected output" bordered={false} style={{ fontSize: 11 }} /></Col>
-                <Col span={8}><Input size="small" value={act.validationRules} onChange={e => updateActivity(pi, ai, 'validationRules', e.target.value)} placeholder="Validation rules" bordered={false} style={{ fontSize: 11 }} /></Col>
-                <Col span={8}><InputNumber size="small" value={act.estimatedMinutes} onChange={v => updateActivity(pi, ai, 'estimatedMinutes', v)} min={1} placeholder="Minutes" style={{ width: '100%', fontSize: 11 }} addonAfter="min" /></Col>
+                <Col span={8}><Input size="small" value={act.expectedOutput} onChange={e => updateActivity(pi, ai, 'expectedOutput', e.target.value)} placeholder="Expected output" bordered={false} style={{ fontSize: 'var(--font-size-xs)' }} /></Col>
+                <Col span={8}><Input size="small" value={act.validationRules} onChange={e => updateActivity(pi, ai, 'validationRules', e.target.value)} placeholder="Validation rules" bordered={false} style={{ fontSize: 'var(--font-size-xs)' }} /></Col>
+                <Col span={8}><InputNumber size="small" value={act.estimatedMinutes} onChange={v => updateActivity(pi, ai, 'estimatedMinutes', v)} min={1} placeholder="Minutes" style={{ width: '100%', fontSize: 'var(--font-size-xs)' }} addonAfter="min" /></Col>
               </Row>
             </div>
           ))}
@@ -56,15 +56,15 @@ function SubTaskBuilder({ subTasks, setSubTasks }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={{ fontSize: 11, color: '#64748b' }}>
-          Total weight: <Text strong style={{ color: totalWeight === 100 ? '#16a34a' : totalWeight > 100 ? '#dc2626' : '#f59e0b' }}>{totalWeight}%</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+          Total weight: <Text strong style={{ color: totalWeight === 100 ? '#2E7D32' : totalWeight > 100 ? '#D32F2F' : '#ED6C02' }}>{totalWeight}%</Text>
           {totalWeight < 100 && <Text type="secondary"> (should equal 100%)</Text>}
         </Text>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {subTasks.map((st, i) => (
-          <Card key={i} size="small" style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
-            title={<Space><Tag style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', borderRadius: 4 }}>ST-{i + 1}</Tag>
+          <Card key={i} size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}
+            title={<Space><Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', borderRadius: "var(--radius-sm)" }}>ST-{i + 1}</Tag>
               <Input size="small" value={st.title} onChange={e => update(i, 'title', e.target.value)} placeholder="Sub Task name" style={{ width: 260, fontWeight: 600 }} bordered={false} />
             </Space>
             } extra={subTasks.length > 1 && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeSubTask(i)} />}>
@@ -258,12 +258,12 @@ export default function TaskTemplatesPage() {
 
   const columns = [
     { title: 'Code', dataIndex: 'TaskCode', width: 90, render: (code) => <Text code style={{ fontSize: 10 }}>{code}</Text> },
-    { title: 'Name', dataIndex: 'Name', render: (name) => <Text strong style={{ fontSize: 12 }}>{name}</Text> },
+    { title: 'Name', dataIndex: 'Name', render: (name) => <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{name}</Text> },
     { title: 'Department', dataIndex: 'Department', width: 110, render: (d) => <Tag style={{ borderRadius: 10, fontSize: 10, background: '#eff6ff', color: '#1d4ed8' }}>{d || '-'}</Tag> },
     { title: 'Category', dataIndex: 'Category', width: 90, render: (c) => <Tag style={{ borderRadius: 10, fontSize: 10 }}>{c}</Tag> },
     { title: 'Freq', dataIndex: 'Frequency', width: 80, render: (f) => <Tag color="blue" style={{ borderRadius: 10, fontSize: 9 }}>{FREQUENCIES.find(x => x.value === f)?.label || f}</Tag> },
     { title: 'Priority', dataIndex: 'Priority', width: 80, render: (p) => { const c = PRIORITIES[p] || PRIORITIES.MEDIUM; return <Tag style={{ background: c.bg, color: c.color, border: `1px solid ${c.color}30`, borderRadius: 10, fontSize: 10 }}>{c.label}</Tag>; } },
-    { title: 'SLA', dataIndex: 'SLAHours', width: 55, align: 'center', render: (h) => <Text style={{ fontSize: 11 }}>{h}h</Text> },
+    { title: 'SLA', dataIndex: 'SLAHours', width: 55, align: 'center', render: (h) => <Text style={{ fontSize: 'var(--font-size-xs)' }}>{h}h</Text> },
     { title: 'Target', dataIndex: 'DefaultTarget', width: 60, align: 'center', render: (t) => t || '-' },
     {
       title: 'SOP', key: 'sop', width: 80, align: 'center', render: (_, r) => {
@@ -329,7 +329,7 @@ export default function TaskTemplatesPage() {
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Assignment Mode</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 6 }}>Assignment Mode</Text>
             <Select value={assignmentMode} onChange={setAssignmentMode} style={{ width: 200 }} options={[
               { value: 'manual', label: 'Manual Assignment' },
               { value: 'auto', label: 'Auto Assignment' },
@@ -337,23 +337,23 @@ export default function TaskTemplatesPage() {
           </div>
           {assignmentMode === 'auto' && (
             <div>
-              <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Auto Assignment Strategy</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 6 }}>Auto Assignment Strategy</Text>
               <Select value={autoStrategy} onChange={setAutoStrategy} style={{ width: 240 }}
                 options={AUTO_ASSIGN_STRATEGIES.map(s => ({ value: s.value, label: s.label }))} />
             </div>
           )}
           <Divider style={{ margin: '4px 0' }} />
-          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Escalation</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 6 }}>Escalation</Text>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Text style={{ fontSize: 11 }}>Escalate after</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)' }}>Escalate after</Text>
             <InputNumber size="small" value={escalationHours} onChange={setEscalationHours} min={1} max={168} style={{ width: 80 }} />
-            <Text style={{ fontSize: 11 }}>hours</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)' }}>hours</Text>
           </div>
           <Divider style={{ margin: '4px 0' }} />
-          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Quality Control</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 6 }}>Quality Control</Text>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Switch size="small" checked={qualityScoreRequired} onChange={setQualityScoreRequired} />
-            <Text style={{ fontSize: 11 }}>Require quality score on review</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)' }}>Require quality score on review</Text>
           </div>
         </div>
       ),
@@ -367,10 +367,10 @@ export default function TaskTemplatesPage() {
             <Col span={8}><Form.Item name="tatHours" label="TAT Hours"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
           </Row>
           <Divider style={{ margin: '4px 0' }} />
-          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Approval Level</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 8 }}>Approval Level</Text>
           <Select value={approvalLevel} onChange={setApprovalLevel} style={{ width: 220 }} options={APPROVAL_LEVELS.map(a => ({ value: a.value, label: a.label }))} />
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-            <Text style={{ fontSize: 11, color: '#64748b' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
               {approvalLevel === 'single' && 'Single approval: One reviewer approves to complete the task.'}
               {approvalLevel === 'dual' && 'Dual approval: Two independent reviewers must approve.'}
               {approvalLevel === 'multi' && 'Multi-level: Multiple approvals required at different stages.'}
@@ -386,10 +386,10 @@ export default function TaskTemplatesPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
         <Space>
           <Text strong style={{ fontSize: 18 }}>Task Templates</Text>
-          <Tag color="blue" style={{ borderRadius: 12 }}>{pagination.total}</Tag>
+          <Tag color="blue" style={{ borderRadius: "var(--radius-lg)" }}>{pagination.total}</Tag>
         </Space>
         <Space>
-          <Input prefix={<SearchOutlined />} placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} onPressEnter={() => loadTemplates(1)} style={{ width: 200, borderRadius: 8 }} size="small" />
+          <Input prefix={<SearchOutlined />} placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} onPressEnter={() => loadTemplates(1)} style={{ width: 200, borderRadius: "var(--radius-md)" }} size="small" />
           <Select allowClear placeholder="Category" value={categoryFilter} onChange={v => { setCategoryFilter(v); setTimeout(() => loadTemplates(1), 0); }} style={{ width: 110 }} size="small" options={CATEGORIES.map(c => ({ value: c.value, label: c.label }))} />
           <Select allowClear placeholder="Freq" value={frequencyFilter} onChange={v => { setFrequencyFilter(v); setTimeout(() => loadTemplates(1), 0); }} style={{ width: 100 }} size="small" options={FREQUENCIES.map(f => ({ value: f.value, label: f.label }))} />
           <Button icon={<ReloadOutlined />} onClick={() => loadTemplates(1)} size="small" />
@@ -397,11 +397,11 @@ export default function TaskTemplatesPage() {
         </Space>
       </div>
 
-      <Card size="small" style={{ borderRadius: 8 }}>
+      <Card size="small" style={{ borderRadius: "var(--radius-md)" }}>
         <Table dataSource={templates} columns={columns} rowKey="Id" loading={loading} size="small"
           pagination={{
             current: pagination.page, pageSize: pagination.limit, total: pagination.total, showSizeChanger: true, onChange: (page) => loadTemplates(page),
-            showTotal: (t) => <Text type="secondary" style={{ fontSize: 11 }}>{t} templates</Text>
+            showTotal: (t) => <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>{t} templates</Text>
           }} />
       </Card>
 

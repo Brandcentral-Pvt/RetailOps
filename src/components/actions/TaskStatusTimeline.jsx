@@ -56,7 +56,7 @@ const TaskStatusTimeline = ({ task, compact = false }) => {
             {assigneeName} started working • {formatRelativeTime(timeTracking.startedAt)}
           </div>
           {!compact && timeTracking.startNote && (
-            <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', background: '#f8fafc', padding: '4px 8px', borderRadius: 4, marginTop: 4, borderLeft: '2px solid #818cf8' }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontStyle: 'italic', background: '#f8fafc', padding: '4px 8px', borderRadius: "var(--radius-sm)", marginTop: 4, borderLeft: '2px solid #818cf8' }}>
               " {timeTracking.startNote} "
             </div>
           )}
@@ -74,12 +74,12 @@ const TaskStatusTimeline = ({ task, compact = false }) => {
         color: 'red',
         children: (
           <div style={{ fontSize: compact ? 11 : 13 }}>
-            <strong style={{ color: '#991b1b' }}>Rejected (#{index + 1})</strong>
+            <strong style={{ color: '#D32F2F' }}>Rejected (#{index + 1})</strong>
             <div style={{ color: '#C62828', fontSize: compact ? 10 : 11 }}>
               By {formatUserName(rej.rejectedBy)} • {formatRelativeTime(rej.rejectedAt || rej.timestamp)}
             </div>
             {!compact && rej.reason && (
-              <div style={{ fontSize: 11, color: '#7f1d1d', background: '#fef2f2', padding: '4px 8px', borderRadius: 4, marginTop: 4, borderLeft: '2px solid #f87171' }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#7f1d1d', background: '#fef2f2', padding: '4px 8px', borderRadius: "var(--radius-sm)", marginTop: 4, borderLeft: '2px solid #f87171' }}>
                 Reason: " {rej.reason} "
               </div>
             )}
@@ -104,14 +104,14 @@ const TaskStatusTimeline = ({ task, compact = false }) => {
           {!compact && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
               {submission.timeSpent && (
-                <div style={{ fontSize: 11, color: '#64748b' }}>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
                   Time Spent: <strong>{submission.timeSpent}h</strong>
                 </div>
               )}
               {submission.outcome && (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>Outcome:</span>
-                  <Tag color="success" style={{ fontSize: 10, padding: '0 6px', borderRadius: 4 }}>
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>Outcome:</span>
+                  <Tag color="success" style={{ fontSize: 10, padding: '0 6px', borderRadius: "var(--radius-sm)" }}>
                     {submission.outcome}
                   </Tag>
                 </div>
@@ -162,7 +162,7 @@ const TaskStatusTimeline = ({ task, compact = false }) => {
             Approved {reviewerName ? `by ${reviewerName}` : ''} • {formatRelativeTime(timeTracking.completedAt)}
           </div>
           {!compact && durationText && (
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginTop: 2 }}>
               Total duration: <strong>{durationText}</strong>
             </div>
           )}

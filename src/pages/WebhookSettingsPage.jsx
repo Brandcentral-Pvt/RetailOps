@@ -265,7 +265,7 @@ export default function WebhookSettingsPage() {
                             ? <span className="ws-ev-badge ws-ev-badge--all">All Events</span>
                             : whEvents.slice(0, 5).map(e => {
                                 const cat = e.split('.')[0];
-                                const meta = CATEGORIES[cat] || { color: '#6b7280', bg: '#f3f4f6' };
+                                const meta = CATEGORIES[cat] || { color: 'var(--text-secondary)', bg: '#f3f4f6' };
                                 return (
                                   <span key={e} className="ws-ev-badge" style={{ color: meta.color, background: meta.bg }}>
                                     {e}
@@ -388,7 +388,7 @@ export default function WebhookSettingsPage() {
                 {!allSelected && (
                   <div className="ws-ev-groups">
                     {Object.entries(grouped).map(([cat, evList]) => {
-                      const meta = CATEGORIES[cat] || { label: cat, color: '#6b7280', bg: '#f3f4f6' };
+                      const meta = CATEGORIES[cat] || { label: cat, color: 'var(--text-secondary)', bg: '#f3f4f6' };
                       return (
                         <div key={cat} className="ws-ev-group">
                           <div className="ws-ev-group-label" style={{ color: meta.color }}>

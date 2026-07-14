@@ -46,7 +46,7 @@ export const PermissionGuard = ({
                 padding: '24px',
                 background: 'rgba(255, 255, 255, 0.02)',
                 backdropFilter: 'blur(8px)',
-                borderRadius: '16px',
+                borderRadius: 'var(--radius-xl)',
             }}>
                 <Card style={{
                     maxWidth: 500,
@@ -54,7 +54,7 @@ export const PermissionGuard = ({
                     textAlign: 'center',
                     boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.08)',
                     border: '1px solid rgba(0, 0, 0, 0.06)',
-                    borderRadius: '16px',
+                    borderRadius: 'var(--radius-xl)',
                 }}>
                     <Result
                         icon={<LockOutlined style={{ fontSize: 50, color: '#FF4D4F' }} />}
@@ -66,7 +66,7 @@ export const PermissionGuard = ({
                                 key="home" 
                                 size="large" 
                                 onClick={() => navigate('/dashboard')}
-                                style={{ borderRadius: '8px' }}
+                                style={{ borderRadius: 'var(--radius-md)' }}
                             >
                                 Back to Dashboard
                             </Button>

@@ -26,32 +26,6 @@ const DashboardHeader = ({
 
   return (
     <>
-      <style>{`
-        .dash-header-filter .ant-select-selector {
-          border-radius: 6px !important;
-          border-color: #d9e6e9 !important;
-          background: #ffffff !important;
-        }
-        .dash-header-filter .ant-select:hover .ant-select-selector,
-        .dash-header-filter .ant-select-focused .ant-select-selector {
-          border-color: #D32F2F !important;
-          box-shadow: 0 0 0 2px rgba(251,79,64,0.08) !important;
-        }
-        .dash-header-filter .ant-picker {
-          border-radius: 6px;
-          border-color: #d9e6e9;
-          background: #ffffff;
-        }
-        .dash-header-filter .ant-picker:hover,
-        .dash-header-filter .ant-picker-focused {
-          border-color: #D32F2F;
-          box-shadow: 0 0 0 2px rgba(251,79,64,0.08);
-        }
-        @keyframes dash-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -62,9 +36,9 @@ const DashboardHeader = ({
       }}>
         <h1 style={{
           margin: 0,
-          fontSize: 20,
-          fontWeight: 700,
-          color: '#121b1e',
+          fontSize: 'var(--font-size-xl)',
+          fontWeight: 600,
+          color: 'var(--text-primary, #0f172a)',
           letterSpacing: '-0.3px',
           whiteSpace: 'nowrap',
         }}>
@@ -94,7 +68,7 @@ const DashboardHeader = ({
             }}
             size="middle"
             style={{ minWidth: 240 }}
-            separator={<span style={{ color: '#8c8e8f' }}>—</span>}
+            separator={<span style={{ color: 'var(--text-secondary, #64748b)' }}>—</span>}
           />
 
           <Select
@@ -141,11 +115,11 @@ const DashboardHeader = ({
               gap: 6,
               height: 32,
               padding: '0 14px',
-              background: loading ? '#94a3b8' : '#D32F2F',
-              color: '#ffffff',
+              background: loading ? 'var(--text-secondary, #64748b)' : 'var(--text-brand, #1976D2)',
+              color: 'var(--bg-primary, #fff)',
               border: 'none',
-              borderRadius: 6,
-              fontSize: 12,
+              borderRadius: 'var(--radius-md, 8px)',
+              fontSize: 'var(--font-size-sm)',
               fontWeight: 600,
               cursor: loading ? 'wait' : 'pointer',
               whiteSpace: 'nowrap',
@@ -161,12 +135,12 @@ const DashboardHeader = ({
 
           {activeFiltersCount > 0 && (
             <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#8c8e8f',
-              background: '#f4f5f7',
+              fontSize: 'var(--font-size-xs)',
+              fontWeight: 600,
+              color: 'var(--text-secondary, #64748b)',
+              background: 'var(--bg-secondary, #f8fafc)',
               padding: '2px 8px',
-              borderRadius: 4,
+              borderRadius: "var(--radius-sm)",
             }}>
               {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''}
             </span>

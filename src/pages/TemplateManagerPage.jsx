@@ -337,7 +337,7 @@ const TemplateManagerPage = () => {
             key: 'title',
             render: (title, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong style={{ fontSize: '13px', color: '#1e293b', letterSpacing: '-0.01em' }}>{title}</Text>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', letterSpacing: '-0.01em' }}>{title}</Text>
                     <Text type="secondary" ellipsis={{ tooltip: record.description }} style={{ fontSize: '11.5px', maxWidth: 400, marginTop: 2 }}>
                         {record.description || 'No guidelines configured.'}
                     </Text>
@@ -353,7 +353,7 @@ const TemplateManagerPage = () => {
             render: (type) => {
                 const label = taskTypes.find(t => t.value === type)?.label || type;
                 return (
-                    <Space size={6} style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                    <Space size={6} style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569' }}>
                         <Settings size={13} className="text-slate-400" />
                         <span>{label}</span>
                     </Space>
@@ -377,7 +377,7 @@ const TemplateManagerPage = () => {
             key: 'priority',
             width: 120,
             render: (priority) => (
-                <Tag color={getPriorityColor(priority)} style={{ borderRadius: 10, fontWeight: 700, fontSize: 9.5, padding: '0 8px', textTransform: 'uppercase' }}>
+                <Tag color={getPriorityColor(priority)} style={{ borderRadius: 10, fontWeight: 600, fontSize: 9.5, padding: '0 8px', textTransform: 'uppercase' }}>
                     {priority}
                 </Tag>
             )
@@ -422,7 +422,7 @@ const TemplateManagerPage = () => {
             key: 'name',
             render: (name, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong style={{ fontSize: '13px', color: '#1e293b', letterSpacing: '-0.01em' }}>{name}</Text>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', letterSpacing: '-0.01em' }}>{name}</Text>
                     <Text type="secondary" ellipsis={{ tooltip: record.description }} style={{ fontSize: '11.5px', maxWidth: 450, marginTop: 2 }}>
                         {record.description || 'No description defined.'}
                     </Text>
@@ -435,7 +435,7 @@ const TemplateManagerPage = () => {
             dataIndex: 'goals',
             key: 'goals',
             render: (goals = []) => {
-                if (!goals?.length) return <Text type="secondary" italic style={{ fontSize: 11 }}>No metrics mapped</Text>;
+                if (!goals?.length) return <Text type="secondary" italic style={{ fontSize: 'var(--font-size-xs)' }}>No metrics mapped</Text>;
                 return (
                     <Space wrap size={4}>
                         {goals.slice(0, 3).map((g, idx) => (
@@ -444,7 +444,7 @@ const TemplateManagerPage = () => {
                             </Tag>
                         ))}
                         {goals.length > 3 && (
-                            <Tag variant="filled" style={{ borderRadius: 6, fontWeight: 700, fontSize: 10, color: '#64748b', background: '#f1f5f9' }}>
+                            <Tag variant="filled" style={{ borderRadius: 6, fontWeight: 600, fontSize: 10, color: '#64748b', background: '#f1f5f9' }}>
                                 +{goals.length - 3}
                             </Tag>
                         )}
@@ -494,7 +494,7 @@ const TemplateManagerPage = () => {
         return (
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
                 {contextHolder}
-                <div style={{ textAlign: 'center', padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+                <div style={{ textAlign: 'center', padding: 32, background: '#fff', borderRadius: "var(--radius-xl)", boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
                     <Title level={4} style={{ color: '#D32F2F' }}>Configuration Error</Title>
                     <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>{error}</Text>
                     <Button type="primary" size="large" shape="round" onClick={() => fetchTemplates(true)}>Refresh Interface</Button>
@@ -582,7 +582,7 @@ const TemplateManagerPage = () => {
             }}>
                 {/* Left Side: Switcher with Badges */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 11, fontWeight: 750, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Template Type:</span>
+                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 750, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Template Type:</span>
                     <Segmented 
                         className="segmented-templates"
                         value={activeTab}
@@ -604,7 +604,7 @@ const TemplateManagerPage = () => {
                             allowClear
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            style={{ width: 220, borderRadius: 8 }}
+                            style={{ width: 220, borderRadius: "var(--radius-md)" }}
                         />
 
                     <Button 
@@ -612,8 +612,8 @@ const TemplateManagerPage = () => {
                         icon={<Sparkles size={13} />}
                         style={{ 
                             fontWeight: 600,
-                            fontSize: 11,
-                            borderRadius: 8,
+                            fontSize: 'var(--font-size-xs)',
+                            borderRadius: "var(--radius-md)",
                             height: 32,
                             borderColor: '#1976D2', 
                             color: '#1976D2', 
@@ -630,8 +630,8 @@ const TemplateManagerPage = () => {
                         onClick={() => activeTab === 'task' ? handleOpenTaskModal() : handleOpenGoalModal()} 
                         icon={<Plus size={13} />}
                         style={{ 
-                            borderRadius: 8,
-                            fontSize: 11,
+                            borderRadius: "var(--radius-md)",
+                            fontSize: 'var(--font-size-xs)',
                             fontWeight: 600,
                             height: 32
                         }}
@@ -646,7 +646,7 @@ const TemplateManagerPage = () => {
                 {/* Content Table Grid */}
                 <Card 
                     styles={{ body: { padding: 0 } }}
-                    style={{ borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}
+                    style={{ borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}
                 >
                     <Table 
                         dataSource={activeTab === 'task' ? filteredTasks : filteredGoals}
@@ -654,7 +654,7 @@ const TemplateManagerPage = () => {
                         rowKey={record => record._id || record.id}
                         pagination={{
                             pageSize: 10,
-                            showTotal: (total, range) => <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Viewing {range[0]}-{range[1]} of {total} templates</span>,
+                            showTotal: (total, range) => <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Viewing {range[0]}-{range[1]} of {total} templates</span>,
                             position: ['bottomRight']
                         }}
                         scroll={{ x: 900, y: 'calc(100vh - 190px)' }}
@@ -670,10 +670,10 @@ const TemplateManagerPage = () => {
             <Modal
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: 8, display: 'flex' }}>
+                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: "var(--radius-md)", display: 'flex' }}>
                             <Zap size={16} />
                         </div>
-                        <span style={{ fontWeight: 700 }}>{currentTaskTemplate ? 'Edit Task Template' : 'New Task Template'}</span>
+                        <span style={{ fontWeight: 600 }}>{currentTaskTemplate ? 'Edit Task Template' : 'New Task Template'}</span>
                     </div>
                 }
                 open={showTaskModal}
@@ -683,7 +683,7 @@ const TemplateManagerPage = () => {
                 width={580}
                 className="custom-glass-modal"
                 footer={[
-                    <Button key="back" onClick={() => setShowTaskModal(false)} style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+                    <Button key="back" onClick={() => setShowTaskModal(false)} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>
                         Cancel
                     </Button>,
                     <Button 
@@ -691,14 +691,14 @@ const TemplateManagerPage = () => {
                         type="primary" 
                         loading={isSubmitting}
                         onClick={handleTaskSubmit}
-                        style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}
+                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}
                     >
                         {currentTaskTemplate ? 'Save' : 'Create'}
                     </Button>
                 ]}
             >
                 <Form layout="vertical" style={{ padding: '12px 0' }} onFinish={handleTaskSubmit}>
-                    <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Task Template Title</span>} required>
+                    <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Task Template Title</span>} required>
                         <Input 
                             size="large"
                             placeholder="e.g. Optimize Amazon Product Title for SEO" 
@@ -708,7 +708,7 @@ const TemplateManagerPage = () => {
                         />
                     </Form.Item>
 
-                    <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Action Guidelines</span>} required>
+                    <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Action Guidelines</span>} required>
                         <TextArea 
                             rows={4}
                             placeholder="Outline the execution instructions and step-by-step guidelines..."
@@ -720,7 +720,7 @@ const TemplateManagerPage = () => {
 
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Category</span>}>
+                            <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Category</span>}>
                                 <Select 
                                     size="large"
                                     value={taskFormData.category}
@@ -732,7 +732,7 @@ const TemplateManagerPage = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Task Type</span>}>
+                            <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Task Type</span>}>
                                 <Select 
                                     size="large"
                                     value={taskFormData.type}
@@ -747,7 +747,7 @@ const TemplateManagerPage = () => {
 
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Priority</span>}>
+                            <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Priority</span>}>
                                 <Select 
                                     size="large"
                                     value={taskFormData.priority}
@@ -759,7 +759,7 @@ const TemplateManagerPage = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Estimated Time</span>}>
+                            <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Estimated Time</span>}>
                                 <InputNumber 
                                     size="large"
                                     min={1}
@@ -778,10 +778,10 @@ const TemplateManagerPage = () => {
             <Modal
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ background: '#ECFDF5', color: '#10B981', padding: 6, borderRadius: 8, display: 'flex' }}>
+                        <div style={{ background: '#ECFDF5', color: '#10B981', padding: 6, borderRadius: "var(--radius-md)", display: 'flex' }}>
                             <Target size={16} />
                         </div>
-                        <span style={{ fontWeight: 700 }}>{currentGoalTemplate ? 'Configure Roadmap Template' : 'New Roadmap Template'}</span>
+                        <span style={{ fontWeight: 600 }}>{currentGoalTemplate ? 'Configure Roadmap Template' : 'New Roadmap Template'}</span>
                     </div>
                 }
                 open={showGoalModal}
@@ -791,7 +791,7 @@ const TemplateManagerPage = () => {
                 width={760}
                 className="custom-glass-modal"
                 footer={[
-                    <Button key="back" onClick={() => setShowGoalModal(false)} style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+                    <Button key="back" onClick={() => setShowGoalModal(false)} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>
                         Cancel
                     </Button>,
                     <Button 
@@ -799,7 +799,7 @@ const TemplateManagerPage = () => {
                         type="primary" 
                         loading={isSubmitting}
                         onClick={handleGoalSubmit}
-                        style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}
+                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}
                     >
                         {currentGoalTemplate ? 'Save' : 'Deploy'}
                     </Button>
@@ -807,7 +807,7 @@ const TemplateManagerPage = () => {
             >
                 <div style={{ padding: '12px 0' }}>
                     <Form layout="vertical">
-                        <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Roadmap Name</span>} required>
+                        <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Roadmap Name</span>} required>
                             <Input 
                                 size="large"
                                 placeholder="e.g. Q3 Sales Booster Roadmap" 
@@ -817,7 +817,7 @@ const TemplateManagerPage = () => {
                             />
                         </Form.Item>
 
-                        <Form.Item label={<span style={{ fontWeight: 700, color: '#334155', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Roadmap Description</span>}>
+                        <Form.Item label={<span style={{ fontWeight: 600, color: '#334155', fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Roadmap Description</span>}>
                             <TextArea 
                                 rows={2}
                                 placeholder="Describe the target goals for this e-commerce roadmap..."
@@ -829,13 +829,13 @@ const TemplateManagerPage = () => {
                     </Form>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4 }}>
-                        <Text strong style={{ fontSize: 13, color: '#334155', letterSpacing: '-0.01em' }}>Target Performance Metrics</Text>
+                        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', letterSpacing: '-0.01em' }}>Target Performance Metrics</Text>
                         <Button 
                             size="small" 
                             shape="round" 
                             icon={<Plus size={13} />} 
                             onClick={addSubGoal}
-                            style={{ fontSize: 11, fontWeight: 600 }}
+                            style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}
                         >
                             Add Target Metric
                         </Button>
@@ -846,7 +846,7 @@ const TemplateManagerPage = () => {
                         overflowY: 'auto', 
                         padding: 12, 
                         background: '#f8fafc', 
-                        borderRadius: 16, 
+                        borderRadius: "var(--radius-xl)", 
                         border: '1px solid #e2e8f0'
                     }}>
                         {goalFormData.goals.map((g, idx) => (
@@ -856,7 +856,7 @@ const TemplateManagerPage = () => {
                                         placeholder="e.g. Hit ₹5,00,000 monthly sales" 
                                         value={g.title} 
                                         onChange={e => updateSubGoal(idx, 'title', e.target.value)}
-                                        style={{ border: 'none', background: '#f1f5f9', borderRadius: 8 }}
+                                        style={{ border: 'none', background: '#f1f5f9', borderRadius: "var(--radius-md)" }}
                                     />
                                 </div>
                                 <div style={{ flex: 2 }}>
@@ -894,7 +894,7 @@ const TemplateManagerPage = () => {
                                         placeholder="Target Value" 
                                         value={g.targetValue || ''} 
                                         onChange={e => updateSubGoal(idx, 'targetValue', e.target.value)}
-                                        style={{ border: 'none', background: '#f1f5f9', borderRadius: 8 }}
+                                        style={{ border: 'none', background: '#f1f5f9', borderRadius: "var(--radius-md)" }}
                                     />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -911,7 +911,7 @@ const TemplateManagerPage = () => {
                         {goalFormData.goals.length === 0 && (
                             <div style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8' }}>
                                 <BarChart2 size={24} style={{ opacity: 0.5, marginBottom: 8 }} />
-                                <div style={{ fontSize: 12, fontWeight: 500 }}>Add some performance metrics to track this roadmap.</div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Add some performance metrics to track this roadmap.</div>
                             </div>
                         )}
                     </div>
@@ -922,10 +922,10 @@ const TemplateManagerPage = () => {
             <Modal
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: 8, display: 'flex' }}>
+                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: "var(--radius-md)", display: 'flex' }}>
                             <Sparkles size={16} fill="currentColor" />
                         </div>
-                        <span style={{ fontWeight: 700 }}>AI Template Generator</span>
+                        <span style={{ fontWeight: 600 }}>AI Template Generator</span>
                     </div>
                 }
                 open={showAiModal}
@@ -974,8 +974,8 @@ const TemplateManagerPage = () => {
                                 style={{ 
                                     background: '#4F46E5', 
                                     borderColor: '#4F46E5', 
-                                    fontWeight: 700,
-                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    fontSize: 'var(--font-size-sm)',
                                     letterSpacing: '0.02em'
                                 }}
                             >
@@ -996,16 +996,16 @@ const TemplateManagerPage = () => {
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                                 <div style={{ flex: 1, paddingRight: 16 }}>
-                                    <Tag color="indigo" style={{ borderRadius: 6, fontWeight: 700, fontSize: 9, marginBottom: 8 }}>SUGGESTED STRATEGY</Tag>
+                                    <Tag color="indigo" style={{ borderRadius: 6, fontWeight: 600, fontSize: 9, marginBottom: 8 }}>SUGGESTED STRATEGY</Tag>
                                     <h4 style={{ fontWeight: 800, fontSize: 15, color: '#0f172a', margin: '0 0 4px 0' }}>{aiSuggestions.name}</h4>
-                                    <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>{aiSuggestions.strategy}</p>
+                                    <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: 0 }}>{aiSuggestions.strategy}</p>
                                 </div>
                                 <Button 
                                     type="primary" 
                                     shape="round" 
                                     loading={isSubmitting} 
                                     onClick={() => handleAcceptSuggestion(aiSuggestions)}
-                                    style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 700, fontSize: 12 }}
+                                    style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}
                                 >
                                     Apply AI Template
                                 </Button>
@@ -1018,7 +1018,7 @@ const TemplateManagerPage = () => {
                                     <div key={idx} style={{ 
                                         background: '#f8fafc', 
                                         border: '1px solid #f1f5f9', 
-                                        borderRadius: 12, 
+                                        borderRadius: "var(--radius-lg)", 
                                         padding: '12px 16px',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -1039,7 +1039,7 @@ const TemplateManagerPage = () => {
                                             {idx + 1}
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <h6 style={{ margin: 0, fontWeight: 700, color: '#1e293b', fontSize: 12.5 }}>{m.objective}</h6>
+                                            <h6 style={{ margin: 0, fontWeight: 600, color: '#1e293b', fontSize: 12 }}>{m.objective}</h6>
                                         </div>
                                         <Tag color="emerald" variant="filled" style={{ borderRadius: 6, fontWeight: 800, fontSize: 9 }}>AI GENERATED</Tag>
                                     </div>

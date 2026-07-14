@@ -1,0 +1,335 @@
+/* ============================================
+   Dashboard Animations - Extracted from inline <style> tags
+   ============================================ */
+
+/* ==========================================
+   Shared Keyframes
+   ========================================== */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Alias kept for DashboardHeader inline usage */
+@keyframes dash-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================
+   KpiStrip
+   ========================================== */
+
+.kpi-premium-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.1);
+  border-color: var(--border-medium, #cbd0d4);
+}
+
+.kpi-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.kpi-section-divider {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-light, #d9e6e9) 0%, transparent 100%);
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,79,64,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(251,79,64,0); }
+}
+
+.kpi-live-indicator {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   ModuleStatusGrid
+   ========================================== */
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+    opacity: 0.7;
+  }
+}
+
+@keyframes scale-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.03); opacity: 0.9; }
+}
+
+.rotating-icon {
+  animation: spin 3s linear infinite;
+}
+
+.rotating-icon-mini {
+  animation: spin 2s linear infinite;
+}
+
+.stat-pulse {
+  animation: scale-pulse 2s ease-in-out infinite;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+  border-color: var(--border-medium, #cbd0d4);
+}
+
+.module-card:hover .action-arrow {
+  background: var(--text-brand, #1976D2) !important;
+  color: var(--bg-primary, #ffffff) !important;
+  transform: translateX(2px);
+}
+
+/* ==========================================
+   DashboardHeader
+   ========================================== */
+
+.dash-header-filter .ant-select-selector {
+  border-radius: 6px !important;
+  border-color: var(--border-light, #d9e6e9) !important;
+  background: var(--bg-primary, #ffffff) !important;
+}
+
+.dash-header-filter .ant-select:hover .ant-select-selector,
+.dash-header-filter .ant-select-focused .ant-select-selector {
+  border-color: var(--text-danger, #D32F2F) !important;
+  box-shadow: 0 0 0 2px rgba(251,79,64,0.08) !important;
+}
+
+.dash-header-filter .ant-picker {
+  border-radius: 6px;
+  border-color: var(--border-light, #d9e6e9);
+  background: var(--bg-primary, #ffffff);
+}
+
+.dash-header-filter .ant-picker:hover,
+.dash-header-filter .ant-picker-focused {
+  border-color: var(--text-danger, #D32F2F);
+  box-shadow: 0 0 0 2px rgba(251,79,64,0.08);
+}
+
+/* ==========================================
+   TopAsinsCard
+   ========================================== */
+
+.asin-row-hover:hover {
+  transform: translateX(2px) translateY(-1px);
+  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-medium, #cbd0d4) !important;
+}
+
+.top-asins-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.top-asins-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.top-asins-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-medium, #cbd5e1);
+  border-radius: 4px;
+}
+
+.top-asins-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.section-link-asins:hover {
+  color: var(--text-danger, #D32F2F) !important;
+  transform: translateX(2px);
+}
+
+@keyframes shimmer-crown {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.crown-animate {
+  animation: shimmer-crown 2s ease-in-out infinite;
+}
+
+.asin-search-input {
+  border: 1px solid var(--border-light, #d9e6e9) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s;
+}
+
+.asin-search-input:focus,
+.asin-search-input:hover {
+  border-color: var(--text-danger, #D32F2F) !important;
+  box-shadow: 0 0 0 3px rgba(251, 79, 64, 0.08) !important;
+}
+
+/* ==========================================
+   SalesTrendChart
+   ========================================== */
+
+.sales-trend-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sales-trend-card:hover {
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.08);
+}
+
+.legend-toggle {
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.legend-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.legend-toggle.disabled {
+  opacity: 0.4;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.live-pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   TasksOverviewCard
+   ========================================== */
+
+@keyframes pulse-task {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.pulse-task-icon {
+  animation: pulse-task 1.5s ease-in-out infinite;
+}
+
+.task-item-hover:hover {
+  transform: translateX(2px) translateY(-1px);
+  box-shadow: 0 8px 16px -4px rgba(0,0,0,0.08);
+  border-color: var(--border-medium, #cbd0d4) !important;
+}
+
+.section-link-tasks:hover {
+  color: var(--text-danger, #D32F2F) !important;
+  transform: translateX(2px);
+}
+
+@keyframes shimmer-stat {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.live-dot-tasks {
+  animation: shimmer-stat 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   AlertsPipelineCard
+   ========================================== */
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+@keyframes pulse-fresh {
+  0%, 100% { box-shadow: 0 0 0 0 var(--text-success, #2E7D32); }
+  50% { box-shadow: 0 0 0 4px transparent; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.spinning-icon {
+  animation: spin 1.5s linear infinite;
+}
+
+.status-pulse {
+  animation: pulse-status 1.5s ease-in-out infinite;
+}
+
+.fresh-dot {
+  animation: pulse-fresh 2s ease-in-out infinite;
+}
+
+.progress-fill-animated {
+  background-size: 1000px 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.alert-item-hover:hover {
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.06);
+}
+
+.pipeline-task-hover:hover {
+  border-color: var(--border-medium, #cbd5e1) !important;
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.06);
+}
+
+.section-link:hover {
+  color: var(--text-danger, #D32F2F) !important;
+  transform: translateX(2px);
+}
+
+.sync-button-premium:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -4px rgba(251,79,64,0.3) !important;
+}
+
+/* ==========================================
+   AchievementDonut
+   ========================================== */
+
+.donut-segment:hover {
+  stroke-width: 26 !important;
+  opacity: 1 !important;
+}
+
+.tier-row-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.08);
+  border-color: currentColor !important;
+}
+
+.section-link-donut:hover {
+  color: var(--text-danger, #D32F2F) !important;
+  transform: translateX(2px);
+}
+
+@keyframes float-icon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.floating-icon {
+  animation: float-icon 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.status-glow {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}

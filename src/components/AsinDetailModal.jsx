@@ -29,7 +29,7 @@ const C = {
   borderLight: '#f0f0f3',
   bg: '#f4f5f7',
   white: '#fff',
-  success: '#22c55e',
+  success: '#2E7D32',
   successBg: '#f0fdf4',
   warning: '#ED6C02',
   warningBg: '#fffbeb',
@@ -68,13 +68,13 @@ const ScoreCard = ({ title, score: rawScore, grade, issues = [], recommendations
     <Card
       hoverable
       style={{
-        height: '100%', borderRadius: 12, border: `1px solid ${C.borderLight}`, background: C.white
+        height: '100%', borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}`, background: C.white
       }}
       styles={{ body: { padding: 20 } }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Text strong style={{ fontSize: 13, color: C.text }}>{title}</Text>
-        <Tag color={color} style={{ borderRadius: 6, border: 'none', fontWeight: 700, padding: '2px 8px', fontSize: 10 }}>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: C.text }}>{title}</Text>
+        <Tag color={color} style={{ borderRadius: 6, border: 'none', fontWeight: 600, padding: '2px 8px', fontSize: 10 }}>
           GRADE {grade || 'N/A'}
         </Tag>
       </div>
@@ -84,7 +84,7 @@ const ScoreCard = ({ title, score: rawScore, grade, issues = [], recommendations
         </div>
         <Text strong style={{ fontSize: 15, color: C.dark, minWidth: 42, textAlign: 'right' }}>
           {score.toFixed(1)}
-          <span style={{ fontSize: 11, color: C.textSecondary, fontWeight: 400 }}>/10</span>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary, fontWeight: 400 }}>/10</span>
         </Text>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -95,7 +95,7 @@ const ScoreCard = ({ title, score: rawScore, grade, issues = [], recommendations
             </Text>
             <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {parsedIssues.slice(0, 3).map((issue, idx) => (
-                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 11, color: C.textSecondary, lineHeight: 1.4 }}>
+                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 'var(--font-size-xs)', color: C.textSecondary, lineHeight: 1.4 }}>
                   <span style={{ color: C.danger, marginTop: 2 }}>•</span>
                   <span>{issue}</span>
                 </li>
@@ -115,7 +115,7 @@ const ScoreCard = ({ title, score: rawScore, grade, issues = [], recommendations
             </Text>
             <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {parsedRecs.slice(0, 3).map((rec, idx) => (
-                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 11, color: C.text, lineHeight: 1.4 }}>
+                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 'var(--font-size-xs)', color: C.text, lineHeight: 1.4 }}>
                   <CheckCircle2 size={12} color={C.success} style={{ flexShrink: 0, marginTop: 2 }} />
                   <span style={{ fontWeight: 500 }}>{rec}</span>
                 </li>
@@ -128,9 +128,9 @@ const ScoreCard = ({ title, score: rawScore, grade, issues = [], recommendations
             </ul>
           </div>
         ) : (
-          <div style={{ padding: '8px 12px', background: C.successBg, borderRadius: 8, border: `1px solid #dcfce7`, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ padding: '8px 12px', background: C.successBg, borderRadius: "var(--radius-md)", border: `1px solid #dcfce7`, display: 'flex', alignItems: 'center', gap: 8 }}>
             <CheckCircle2 size={14} color={C.success} />
-            <Text strong style={{ color: '#15803d', fontSize: 11 }}>Fully Optimized!</Text>
+            <Text strong style={{ color: '#2E7D32', fontSize: 'var(--font-size-xs)' }}>Fully Optimized!</Text>
           </div>
         )}
       </div>
@@ -270,7 +270,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
       formatter: (val) => val ? `₹${Number(val).toLocaleString()}` : '',
       offsetY: -10,
       style: { fontSize: '10px', colors: [C.primary], fontWeight: 600 },
-      background: { enabled: true, borderWidth: 0, borderRadius: 4, padding: 4, opacity: 0.9 }
+      background: { enabled: true, borderWidth: 0, borderRadius: "var(--radius-sm)", padding: 4, opacity: 0.9 }
     },
     stroke: { curve: 'smooth', width: 3, colors: [C.primary] },
     fill: {
@@ -314,7 +314,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
       stroke: { curve: 'smooth', width: 3 },
       markers: { size: 4 },
       legend: {
-        show: true, position: 'bottom', fontSize: '11px',
+        show: true, position: 'bottom', fontSize: 'var(--font-size-xs)',
         fontFamily: 'Inter, sans-serif', fontWeight: 500,
         itemMargin: { horizontal: 12, vertical: 4 }
       },
@@ -393,12 +393,12 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     yaxis: hasBreakdownHistory ? [
       {
         seriesName: 'Avg Rating', min: 0, max: 5, tickAmount: 5,
-        title: { text: 'Avg (1-5)', style: { color: C.warning, fontWeight: 600, fontSize: '11px' } },
+        title: { text: 'Avg (1-5)', style: { color: C.warning, fontWeight: 600, fontSize: 'var(--font-size-xs)' } },
         labels: { style: { colors: C.warning, fontWeight: 500 }, formatter: (v) => v?.toFixed(1) }
       },
       {
         opposite: true, min: 0, max: 100, tickAmount: 5,
-        title: { text: 'Percentage (%)', style: { color: C.textSecondary, fontWeight: 600, fontSize: '11px' } },
+        title: { text: 'Percentage (%)', style: { color: C.textSecondary, fontWeight: 600, fontSize: 'var(--font-size-xs)' } },
         labels: { style: { colors: C.textSecondary, fontWeight: 500 }, formatter: (v) => `${v}%` }
       }
     ] : {
@@ -407,7 +407,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     },
     legend: {
       show: hasBreakdownHistory, position: 'bottom', horizontalAlign: 'center',
-      fontSize: '11px', fontWeight: 500, markers: { radius: 12 },
+      fontSize: 'var(--font-size-xs)', fontWeight: 500, markers: { radius: 12 },
       itemMargin: { horizontal: 10, vertical: 5 }
     },
     tooltip: {
@@ -425,16 +425,16 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
       label: <Space size={6}><Package size={16} /><span>Catalog Overview</span></Space>,
       children: (
         <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <Card style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }} styles={{ body: { padding: 24 } }}>
+          <Card style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }} styles={{ body: { padding: 24 } }}>
             <Row gutter={[24, 24]} align="middle">
               <Col xs={24} md={5}>
-                <div style={{ width: '100%', height: 200, borderRadius: 12, border: `1px solid ${C.borderLight}`, padding: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#fafafa', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: 200, borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}`, padding: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#fafafa', overflow: 'hidden' }}>
                   {asin.imageUrl ? (
                     <img src={asin.imageUrl} alt={asin.asinCode} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: C.textSecondary }}>
                       <Package size={48} />
-                      <Text type="secondary" style={{ fontSize: 11, marginTop: 8 }}>NO IMAGE</Text>
+                      <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', marginTop: 8 }}>NO IMAGE</Text>
                     </div>
                   )}
                 </div>
@@ -443,7 +443,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                 <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                   <div>
                     <Space wrap size={6} style={{ marginBottom: 8 }}>
-                      <Tag color="error" style={{ fontWeight: 700, border: 'none', letterSpacing: '0.03em', fontFamily: 'monospace', fontSize: 12 }}>
+                      <Tag color="error" style={{ fontWeight: 600, border: 'none', letterSpacing: '0.03em', fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}>
                         {asin.asinCode}
                       </Tag>
                       {asin.category && asin.category.split('›').map((node, i) => (
@@ -456,7 +456,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                       {asin.title}
                     </Title>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                      <Text type="secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Store size={13} /> Sold By: <strong style={{ color: C.text }}>{asin.soldBy || 'Amazon.in'}</strong>
                       </Text>
                       <Button
@@ -465,7 +465,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                         href={asin.marketplace === 'ajio' ? (asin.pageUrl || `https://www.ajio.com/p/${asin.asinCode}`) : asin.marketplace === 'myntra' ? (asin.pageUrl || 'https://www.myntra.com') : `https://www.amazon.in/dp/${asin.asinCode}`}
                         target="_blank"
                         icon={<ExternalLink size={12} />}
-                        style={{ padding: 0, height: 'auto', fontSize: 12, fontWeight: 600 }}
+                        style={{ padding: 0, height: 'auto', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}
                       >
                         Open in Marketplace
                       </Button>
@@ -473,34 +473,34 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginTop: 8 }}>
                     <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
-                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Price</Text>
+                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Price</Text>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                         <Text strong style={{ fontSize: 18, color: C.primary }}>₹{currentData.value?.toLocaleString() || 0}</Text>
                         <SourceBadge source={currentData.source} date={currentData.date} />
                       </div>
                     </div>
                     <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
-                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>MRP Reference</Text>
+                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>MRP Reference</Text>
                       <div style={{ marginTop: 4 }}>
                         <Text strong style={{ fontSize: 18, color: C.textSecondary }}>{asin.mrp ? `₹${asin.mrp.toLocaleString()}` : '—'}</Text>
                       </div>
                     </div>
                     <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
-                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Main BSR Rank</Text>
+                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Main BSR Rank</Text>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                         <Text strong style={{ fontSize: 18, color: C.success }}>#{bsrData.value?.toLocaleString() || '—'}</Text>
                         <SourceBadge source={bsrData.source} date={bsrData.date} />
                       </div>
                     </div>
                     <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}` }}>
-                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Buy Box Info</Text>
+                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Buy Box Info</Text>
                       <div style={{ marginTop: 4 }}>
                         <Popover
                           trigger="click"
                           placement="bottom"
                           content={
                             <div style={{ minWidth: 240, padding: 4 }}>
-                              <Text strong style={{ fontSize: 11, color: C.textSecondary, textTransform: 'uppercase', display: 'block', borderBottom: `1px solid ${C.borderLight}`, paddingBottom: 8, marginBottom: 8 }}>
+                              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary, textTransform: 'uppercase', display: 'block', borderBottom: `1px solid ${C.borderLight}`, paddingBottom: 8, marginBottom: 8 }}>
                                 Offer Hierarchy Map
                               </Text>
                               <Space orientation="vertical" size={8} style={{ width: '100%' }}>
@@ -508,9 +508,9 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                                   { seller: asin.soldBy, price: currentData.value, isBuyBoxWinner: true },
                                   { seller: asin.soldBySec, price: asin.secondAsp, isBuyBoxWinner: false }
                                 ].filter(o => o.seller || o.price > 0)).map((offer, idx) => (
-                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.bg, padding: '8px 12px', borderRadius: 8 }}>
+                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.bg, padding: '8px 12px', borderRadius: "var(--radius-md)" }}>
                                     <div>
-                                      <Text strong style={{ fontSize: 12, color: C.text, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <Text strong style={{ fontSize: 'var(--font-size-sm)', color: C.text, display: 'flex', alignItems: 'center', gap: 4 }}>
                                         {offer.seller || 'Unknown Seller'}
                                         {offer.isBuyBoxWinner && <Trophy size={11} style={{ color: C.warning }} />}
                                       </Text>
@@ -521,7 +521,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                                         </Text>
                                       )}
                                     </div>
-                                    <Text strong style={{ color: C.primary, fontSize: 13 }}>₹{offer.price?.toLocaleString()}</Text>
+                                    <Text strong style={{ color: C.primary, fontSize: 'var(--font-size-sm)' }}>₹{offer.price?.toLocaleString()}</Text>
                                   </div>
                                 ))}
                               </Space>
@@ -530,7 +530,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                         >
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '2px 8px', borderRadius: 6, border: `1px solid ${C.border}` }}>
                             <Store size={12} style={{ color: C.textSecondary }} />
-                            <Text strong style={{ fontSize: 12, color: C.text, maxWidth: 100 }} ellipsis>{asin.soldBy || 'Amazon.in'}</Text>
+                            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: C.text, maxWidth: 100 }} ellipsis>{asin.soldBy || 'Amazon.in'}</Text>
                             {asin.allOffers && asin.allOffers.length > 1 && (
                               <Tag color="error" style={{ border: 'none', fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '16px' }}>+{asin.allOffers.length - 1}</Tag>
                             )}
@@ -545,21 +545,21 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
           </Card>
 
           {/* Brand, Manufacturer, Product Info, Deal, Availability */}
-          <Card style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }} styles={{ body: { padding: 24 } }}>
+          <Card style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }} styles={{ body: { padding: 24 } }}>
             <Row gutter={[16, 16]}>
               {/* Brand & Manufacturer */}
               <Col xs={24} sm={12} lg={8}>
                 <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}`, height: '100%' }}>
-                  <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Brand & Manufacturer</Text>
+                  <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Brand & Manufacturer</Text>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
                       <Text type="secondary" style={{ fontSize: 10 }}>Brand</Text>
-                      <Text strong style={{ fontSize: 14, display: 'block', color: C.dark }}>{asin.brand || '—'}</Text>
+                      <Text strong style={{ fontSize: 'var(--font-size-base)', display: 'block', color: C.dark }}>{asin.brand || '—'}</Text>
                     </div>
                     {asin.manufacturer && (
                       <div>
                         <Text type="secondary" style={{ fontSize: 10 }}>Manufacturer</Text>
-                        <Text strong style={{ fontSize: 13, display: 'block', color: C.text }}>{asin.manufacturer}</Text>
+                        <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', color: C.text }}>{asin.manufacturer}</Text>
                       </div>
                     )}
                   </div>
@@ -569,31 +569,31 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
               {/* Product Info (Dimensions, Weight) */}
               <Col xs={24} sm={12} lg={8}>
                 <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}`, height: '100%' }}>
-                  <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Product Details</Text>
+                  <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Product Details</Text>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {asin.dimensions?.length && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Length</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.dimensions.length.converted || asin.dimensions.length.value + ' ' + asin.dimensions.length.unit}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Length</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.dimensions.length.converted || asin.dimensions.length.value + ' ' + asin.dimensions.length.unit}</Text></div>
                     )}
                     {asin.dimensions?.width && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Width</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.dimensions.width.converted || asin.dimensions.width.value + ' ' + asin.dimensions.width.unit}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Width</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.dimensions.width.converted || asin.dimensions.width.value + ' ' + asin.dimensions.width.unit}</Text></div>
                     )}
                     {asin.dimensions?.height && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Height</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.dimensions.height.converted || asin.dimensions.height.value + ' ' + asin.dimensions.height.unit}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Height</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.dimensions.height.converted || asin.dimensions.height.value + ' ' + asin.dimensions.height.unit}</Text></div>
                     )}
                     {asin.dimensions?.weight && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Weight</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.dimensions.weight.converted || asin.dimensions.weight.value + ' ' + asin.dimensions.weight.unit}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Weight</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.dimensions.weight.converted || asin.dimensions.weight.value + ' ' + asin.dimensions.weight.unit}</Text></div>
                     )}
                     {asin.productInfo?.color && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Color</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.productInfo.color}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Color</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.productInfo.color}</Text></div>
                     )}
                     {asin.productInfo?.size && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Size</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.productInfo.size}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Size</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.productInfo.size}</Text></div>
                     )}
                     {asin.productInfo?.binding && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Binding</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.productInfo.binding}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Binding</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.productInfo.binding}</Text></div>
                     )}
                     {asin.productInfo?.unitCount && (
-                      <div><Text type="secondary" style={{ fontSize: 10 }}>Unit Count</Text><Text strong style={{ fontSize: 13, display: 'block' }}>{asin.productInfo.unitCount}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 10 }}>Unit Count</Text><Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block' }}>{asin.productInfo.unitCount}</Text></div>
                     )}
                   </div>
                 </div>
@@ -602,15 +602,15 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
               {/* Deal Badge & Availability */}
               <Col xs={24} sm={12} lg={8}>
                 <div style={{ background: C.white, padding: '14px 16px', borderRadius: 10, border: `1px solid ${C.borderLight}`, height: '100%' }}>
-                  <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Deal & Availability</Text>
+                  <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Deal & Availability</Text>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {(() => {
                       const dealActive = asin.dealBadge && asin.dealBadge !== 'No deal found' && asin.dealBadge !== '' && asin.dealStartTime && asin.dealEndTime && new Date(asin.dealStartTime) <= new Date() && new Date() <= new Date(asin.dealEndTime);
                       return dealActive ? (
-                      <div style={{ padding: '8px 10px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8 }}>
+                      <div style={{ padding: '8px 10px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: "var(--radius-md)" }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>{asin.dealBadge}</span>
-                          <Tag color="warning" style={{ border: 'none', fontSize: 9, padding: '0 4px', lineHeight: '16px', fontWeight: 700 }}>ACTIVE</Tag>
+                          <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#92400e' }}>{asin.dealBadge}</span>
+                          <Tag color="warning" style={{ border: 'none', fontSize: 9, padding: '0 4px', lineHeight: '16px', fontWeight: 600 }}>ACTIVE</Tag>
                         </div>
                         {asin.dealStartTime && (
                           <div style={{ fontSize: 10, color: '#92400e', display: 'flex', gap: 8 }}>
@@ -620,14 +620,14 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                         )}
                       </div>
                       ) : (
-                      <div style={{ fontSize: 12, color: C.textSecondary }}>No active deal</div>
+                      <div style={{ fontSize: 'var(--font-size-sm)', color: C.textSecondary }}>No active deal</div>
                       );
                     })()}
                     <div>
-                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Availability</Text>
+                      <Text type="secondary" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Availability</Text>
                       <div style={{ marginTop: 4 }}>
                         <Tag color={asin.availabilityStatus === 'In stock' || (asin.availabilityStatus && asin.availabilityStatus.toLowerCase().includes('stock')) ? 'success' : asin.availabilityStatus === 'Out of Stock' ? 'error' : 'default'}
-                          style={{ borderRadius: 6, border: 'none', fontWeight: 700, fontSize: 11 }}>
+                          style={{ borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
                           {asin.availabilityStatus || asin.availability?.status || 'Unknown'}
                         </Tag>
                       </div>
@@ -638,9 +638,9 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
             </Row>
           </Card>
 
-          <Card style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }} styles={{ body: { padding: 24 } }}>
+          <Card style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }} styles={{ body: { padding: 24 } }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <div style={{ background: C.primaryLight, color: C.primary, padding: 8, borderRadius: 8 }}><ListChecks size={18} /></div>
+              <div style={{ background: C.primaryLight, color: C.primary, padding: 8, borderRadius: "var(--radius-md)" }}><ListChecks size={18} /></div>
               <Text strong style={{ fontSize: 15, color: C.text }}>Product Key Features</Text>
             </div>
             {(() => {
@@ -680,11 +680,11 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                           <div style={{
                             width: 22, height: 22, borderRadius: '50%', background: C.primary,
                             color: C.white, display: 'flex', justifyContent: 'center', alignItems: 'center',
-                            fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 1
+                            fontSize: 10, fontWeight: 600, flexShrink: 0, marginTop: 1
                           }}>
                             {idx + 1}
                           </div>
-                          <Text style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{bullet}</Text>
+                          <Text style={{ fontSize: 'var(--font-size-sm)', color: C.text, lineHeight: 1.5 }}>{bullet}</Text>
                         </div>
                       </Col>
                     ))}
@@ -694,12 +694,12 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
               if (typeof asin.bullet_points === 'string' && asin.bullet_points.length > 20) {
                 return (
                   <div
-                    style={{ padding: 20, background: C.bg, borderRadius: 12, border: `1px solid ${C.borderLight}`, color: C.text, fontSize: 13, lineHeight: 1.6 }}
+                    style={{ padding: 20, background: C.bg, borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}`, color: C.text, fontSize: 'var(--font-size-sm)', lineHeight: 1.6 }}
                     dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(asin.bullet_points) }}
                   />
                 );
               }
-              return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: C.textSecondary, fontSize: 13 }}>No product features synced for this listing yet</span>} />;
+              return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: C.textSecondary, fontSize: 'var(--font-size-sm)' }}>No product features synced for this listing yet</span>} />;
             })()}
           </Card>
         </div>
@@ -721,12 +721,12 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
             return (
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                background: gradientBg, padding: '20px 28px', borderRadius: 12,
+                background: gradientBg, padding: '20px 28px', borderRadius: "var(--radius-lg)",
                 border: `1px solid ${C.borderLight}`, borderLeft: `5px solid ${accentColor}`
               }}>
                 <div>
                   <Title level={4} style={{ margin: 0, fontWeight: 800, color: C.dark }}>Overall Catalog Performance</Title>
-                  <Text type="secondary" style={{ fontSize: 13 }}>Algorithmic scoring mapped against optimal marketplace benchmarks</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>Algorithmic scoring mapped against optimal marketplace benchmarks</Text>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                   <div style={{ textAlign: 'center' }}>
@@ -738,7 +738,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                     <Text type="secondary" style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>QUALITY GRADE</Text>
                     <div style={{ marginTop: 4 }}>
                       <Tag style={{
-                        fontSize: 11, fontWeight: 800, padding: '4px 12px', borderRadius: 6,
+                        fontSize: 'var(--font-size-xs)', fontWeight: 800, padding: '4px 12px', borderRadius: 6,
                         border: 'none', color: accentColor,
                         background: lqsScore >= 8.5 ? C.successBg : lqsScore >= 7.0 ? C.warningBg : C.dangerBg
                       }}>
@@ -773,7 +773,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
       children: (
         <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', gap: 24 }}>
           <Card
-            style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }}
+            style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }}
             styles={{ body: { padding: 24 } }}
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -781,14 +781,14 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                 <Text strong style={{ fontSize: 15 }}>Marketplace Pricing Flow</Text>
               </div>
             }
-            extra={<Text type="secondary" style={{ fontSize: 11 }}>Snapshots recorded: <strong>{history.length}</strong></Text>}
+            extra={<Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Snapshots recorded: <strong>{history.length}</strong></Text>}
           >
             <div style={{ minHeight: 280 }}>
               <Chart options={priceOptions} series={priceSeries} type="area" height={280} />
             </div>
           </Card>
           <Card
-            style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }}
+            style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }}
             styles={{ body: { padding: 24 } }}
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -812,9 +812,9 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                         <div style={{ padding: '12px 16px', background: C.bg, borderRadius: 10, border: `1px solid ${C.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ overflow: 'hidden' }}>
                             <Text type="secondary" strong style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.category}</Text>
-                            <Text strong style={{ fontSize: 16, color: C.dark, marginTop: 2, display: 'block' }}>#{t.latestRank?.toLocaleString() || '—'}</Text>
+                            <Text strong style={{ fontSize: 'var(--font-size-lg)', color: C.dark, marginTop: 2, display: 'block' }}>#{t.latestRank?.toLocaleString() || '—'}</Text>
                           </div>
-                          <div style={{ padding: 8, background: C.white, borderRadius: 8, boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                          <div style={{ padding: 8, background: C.white, borderRadius: "var(--radius-md)", boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
                             <Trophy size={14} style={{ color: i === 0 ? C.warning : C.border }} />
                           </div>
                         </div>
@@ -826,8 +826,8 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 350, color: C.textSecondary }}>
                   <RefreshCcw size={32} style={{ marginBottom: 8, opacity: 0.6 }} />
-                  <Text type="secondary" style={{ fontWeight: 500, fontSize: 13 }}>No historical sub-BSR categorization synchronized yet</Text>
-                  <Text style={{ fontSize: 11, color: C.border }}>Synchronizing pipeline will populate metrics on next active crawler window.</Text>
+                  <Text type="secondary" style={{ fontWeight: 500, fontSize: 'var(--font-size-sm)' }}>No historical sub-BSR categorization synchronized yet</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: C.border }}>Synchronizing pipeline will populate metrics on next active crawler window.</Text>
                 </div>
               )}
             </div>
@@ -841,7 +841,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
       children: (
         <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', gap: 24 }}>
           <Card
-            style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }}
+            style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }}
             styles={{ body: { padding: 24 } }}
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -863,12 +863,12 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                 return (
                   <Col xs={24} md={12} key={stars}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <Text strong style={{ minWidth: 36, color: C.textSecondary, fontSize: 13 }}>{stars} ★</Text>
+                      <Text strong style={{ minWidth: 36, color: C.textSecondary, fontSize: 'var(--font-size-sm)' }}>{stars} ★</Text>
                       <div style={{ flex: 1 }}>
                         <Progress percent={percentage} strokeColor={color} trailColor={C.borderLight} size={[undefined, 10]} showInfo={false} />
                       </div>
                       <div style={{ minWidth: 80, textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-                        <Text strong style={{ fontSize: 13, color: C.dark }}>{percentage}%</Text>
+                        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: C.dark }}>{percentage}%</Text>
                         <Text type="secondary" style={{ fontSize: 10 }}>({Math.round((percentage / 100) * (asin.reviewCount || 0)).toLocaleString()} count)</Text>
                       </div>
                     </div>
@@ -878,7 +878,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
             </Row>
           </Card>
           <Card
-            style={{ borderRadius: 12, border: `1px solid ${C.borderLight}` }}
+            style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${C.borderLight}` }}
             styles={{ body: { padding: 24 } }}
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -914,23 +914,23 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
             <div>
               <Title level={5} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.01em' }}>Catalog Specifications</Title>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <Text strong style={{ fontSize: 12, color: C.text, fontFamily: 'monospace' }}>{asin.asinCode}</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>•</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>{asin.marketplace === 'ajio' ? 'Ajio IN' : asin.marketplace === 'myntra' ? 'Myntra' : 'Amazon India'}</Text>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: C.text, fontFamily: 'monospace' }}>{asin.asinCode}</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>•</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>{asin.marketplace === 'ajio' ? 'Ajio IN' : asin.marketplace === 'myntra' ? 'Myntra' : 'Amazon India'}</Text>
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.primary, padding: '5px 12px', borderRadius: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.primary, padding: '5px 12px', borderRadius: "var(--radius-md)" }}>
               <Calendar size={13} color={C.white} />
-              <Text style={{ fontSize: 11, fontWeight: 600, color: C.white }}>
+              <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: C.white }}>
                 {format(dateRange.start, 'MMM dd')} — {format(dateRange.end, 'MMM dd, yyyy')}
               </Text>
               <Button
                 type="text"
                 size="small"
                 onClick={() => setIsPickerOpen(true)}
-                style={{ height: 'auto', padding: '1px 8px', fontSize: 10, background: C.white, fontWeight: 700, color: C.primary, borderRadius: 4, lineHeight: '20px' }}
+                style={{ height: 'auto', padding: '1px 8px', fontSize: 10, background: C.white, fontWeight: 600, color: C.primary, borderRadius: "var(--radius-sm)", lineHeight: '20px' }}
               >
                 Change
               </Button>

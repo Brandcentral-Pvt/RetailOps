@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Form, Input, Button, Typography, Alert, Checkbox } from 'antd';
 import { MailOutlined, LockOutlined, SafetyCertificateOutlined, ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import AuthLayout from '../components/auth/AuthLayout';
+import styles from '../components/auth/Auth.module.css';
 
 const { Title, Text } = Typography;
 
@@ -49,10 +50,10 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
       if (res.success) {
         await completeLogin(res);
         if (res.requiresSetup || res.needsPasswordReset) {
-          setTimeout(() => navigate('/setup-wizard'), 100);
+          navigate('/setup-wizard');
           return;
         }
-        setTimeout(() => navigate('/'), 100);
+        navigate('/');
       }
     } catch (e) {
       setError(e.message || 'Verification failed');
@@ -78,50 +79,61 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
   const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f0f5ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-        <SafetyCertificateOutlined style={{ fontSize: 22, color: '#18181b' }} />
+    <div className={styles.textCenter}>
+      <div className={styles.statusIconInfo}>
+        <SafetyCertificateOutlined style={{ fontSize: 22, color: 'var(--text-primary)' }} />
       </div>
-      <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Verify Your Identity</Title>
-      <Text style={{ fontSize: 13, color: '#71717a', display: 'block', marginTop: 6 }}>
+      <Title level={4} className={styles.statusTitle}>Verify Your Identity</Title>
+      <Text className={styles.statusBody} style={{ marginTop: 6 }}>
         We sent a 6-digit code to <strong>{destination}</strong>
       </Text>
 
-      {error && <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 8 }} />}
+      {error && <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 'var(--radius-md)' }} />}
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+      <div className={styles.otpContainer} role="group" aria-label="One-time password input">
         {otp.map((d, i) => (
-          <input key={i} ref={el => inputRefs.current[i] = el} type="text" inputMode="numeric" maxLength={1}
-            value={d} onChange={e => handleChange(i, e.target.value)} onKeyDown={e => handleKeyDown(i, e)}
-            onPaste={i === 0 ? handlePaste : undefined} disabled={loading}
-            style={{ width: 44, height: 52, fontSize: 22, fontWeight: 600, textAlign: 'center', border: `2px solid ${d ? '#18181b' : '#e4e4e7'}`, borderRadius: 8, outline: 'none', fontFamily: 'monospace', background: d ? '#f4f4f5' : '#fff', transition: 'all 0.15s' }} />
+          <input
+            key={i}
+            ref={el => inputRefs.current[i] = el}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            autoComplete="one-time-code"
+            aria-label={`OTP digit ${i + 1}`}
+            value={d}
+            onChange={e => handleChange(i, e.target.value)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            onPaste={i === 0 ? handlePaste : undefined}
+            disabled={loading}
+            className={d ? styles.otpInputFilled : styles.otpInput}
+          />
         ))}
       </div>
 
       {timeLeft > 0 ? (
-        <Text style={{ display: 'block', textAlign: 'center', fontSize: 13, color: timeLeft < 60 ? '#C62828' : '#71717a', marginBottom: 16 }}>
+        <Text className={timeLeft < 60 ? styles.otpTimerUrgent : styles.otpTimer}>
           Expires in {fmt(timeLeft)}
         </Text>
       ) : (
-        <Alert type="warning" message="Code expired. Please request a new one." showIcon style={{ marginBottom: 16, borderRadius: 8 }} />
+        <Alert type="warning" message="Code expired. Please request a new one." showIcon style={{ marginBottom: 16, borderRadius: 'var(--radius-md)' }} />
       )}
 
       <div style={{ marginBottom: 16 }}>
         <Checkbox checked={trustDevice} onChange={e => setTrustDevice(e.target.checked)}>
-          <span style={{ fontSize: 13 }}>Trust this device for 12 hours</span>
+          <span style={{ fontSize: 'var(--font-size-sm)' }}>Trust this device for 12 hours</span>
         </Checkbox>
       </div>
 
       <Button type="primary" block size="large" loading={loading} disabled={otp.some(d => !d)}
-        onClick={() => verify(otp.join(''))} style={{ height: 44, fontWeight: 600, borderRadius: 10, background: '#18181b', borderColor: '#18181b' }}>
+        onClick={() => verify(otp.join(''))} className={styles.authBtn}>
         Verify & Sign In
       </Button>
 
-      <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', justifyContent: 'center', gap: 16 }}>
-        <Button type="link" size="small" icon={<ReloadOutlined />} onClick={handleResend} loading={resending} disabled={resendCooldown > 0} style={{ fontSize: 12, color: '#18181b' }}>
+      <div className={styles.otpActions}>
+        <Button type="link" size="small" icon={<ReloadOutlined />} onClick={handleResend} loading={resending} disabled={resendCooldown > 0} style={{ color: 'var(--text-primary)' }}>
           {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
         </Button>
-        <Button type="link" size="small" icon={<ArrowLeftOutlined />} onClick={onBack} style={{ fontSize: 12 }}>Back to Login</Button>
+        <Button type="link" size="small" icon={<ArrowLeftOutlined />} onClick={onBack}>Back to Login</Button>
       </div>
     </div>
   );
@@ -171,43 +183,43 @@ const LoginPage = () => {
 
   return (
     <AuthLayout>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#18181b' }}>Welcome back</Title>
-        <Text style={{ fontSize: 13, color: '#71717a', display: 'block', marginTop: 4 }}>Sign in to your account</Text>
+      <div className={styles.header}>
+        <Title level={3} className={styles.headerTitle}>Welcome back</Title>
+        <Text className={styles.headerSubtitle}>Sign in to your account</Text>
       </div>
 
       <AnimatePresence mode="wait">
         {error && (
           <motion.div key="err" style={{ overflow: 'hidden' }} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 12, lineHeight: 1.5, marginBottom: 16 }}>
+            <div className={styles.errorBanner}>
               <span>{error}</span>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off" size="large" requiredMark={false}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="on" size="large" requiredMark={false}>
         <Form.Item name="email" rules={[{ required: true, message: 'Email required' }, { type: 'email', message: 'Invalid email' }]}>
-          <Input prefix={<MailOutlined style={{ color: '#71717a' }} />} placeholder="Email address" autoFocus />
+          <Input prefix={<MailOutlined style={{ color: 'var(--text-secondary)' }} />} placeholder="Email address" autoFocus autoComplete="email" />
         </Form.Item>
-        <Form.Item name="password" rules={[{ required: true, message: 'Password required' }]}>
-          <Input.Password prefix={<LockOutlined style={{ color: '#71717a' }} />} placeholder="Password" />
+        <Form.Item name="password" rules={[{ required: true, message: 'Password required' }, { min: 6, message: 'Minimum 6 characters' }]}>
+          <Input.Password prefix={<LockOutlined style={{ color: 'var(--text-secondary)' }} />} placeholder="Password" autoComplete="current-password" />
         </Form.Item>
         <div style={{ textAlign: 'right', marginTop: -8, marginBottom: 16 }}>
-          <a href="/forgot-password" style={{ fontSize: 12, color: '#71717a' }}>Forgot password?</a>
+          <Link to="/forgot-password" className={styles.authLink}>Forgot password?</Link>
         </div>
         <Form.Item style={{ marginBottom: 0 }}>
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button type="primary" htmlType="submit" loading={loading} block size="large" style={{ height: 44, fontWeight: 600, fontSize: 14, borderRadius: 10, background: '#18181b', borderColor: '#18181b' }}>
+            <Button type="primary" htmlType="submit" loading={loading} block size="large" className={styles.authBtn}>
               {loading ? 'Verifying...' : 'Continue'}
             </Button>
           </motion.div>
         </Form.Item>
       </Form>
 
-      <div style={{ textAlign: 'center', marginTop: 20 }}>
-        <Text style={{ fontSize: 13, color: '#71717a' }}>
-          Don't have an account? <a href="/register" style={{ color: '#18181b', fontWeight: 600 }}>Sign Up</a>
+      <div className={styles.mt20}>
+        <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+          Don't have an account? <Link to="/register" className={styles.authLinkPrimary}>Sign Up</Link>
         </Text>
       </div>
     </AuthLayout>
