@@ -378,17 +378,17 @@ const ExportAsinModal = ({
       className="export-drawer-v2"
       styles={{
         wrapper: { width: 820 },
-        header: { padding: '14px 20px', borderBottom: '1px solid #e2e8f0' },
-        body:   { padding: 0, background: '#f8fafc', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
-        footer: { padding: '12px 20px', borderTop: '1px solid #e2e8f0', background: 'white' },
+        header: { padding: '14px 20px', borderBottom: '1px solid var(--border-light)' },
+        body:   { padding: 0, background: 'var(--bg-secondary)', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+        footer: { padding: '12px 20px', borderTop: '1px solid var(--border-light)', background: 'white' },
       }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <Space size={12}>
             <div className="drawer-icon"><Download size={17} /></div>
             <div>
-              <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>Export Center</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: 1 }}>Configure and download your product data</div>
+              <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>Export Center</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 1 }}>Configure and download your product data</div>
             </div>
           </Space>
           {step === 1 && (
@@ -420,7 +420,7 @@ const ExportAsinModal = ({
               onClick={handleExport}
               loading={exporting}
               disabled={selectedFields.length === 0}
-              style={{ minWidth: 160, background: '#0f172a', borderColor: '#0f172a' }}
+              style={{ minWidth: 160, background: 'var(--text-primary)', borderColor: 'var(--text-primary)' }}
             >
               {exporting ? 'Generating…' : `Export ${exportFormat.toUpperCase()}`}
             </Button>
@@ -459,7 +459,7 @@ const ExportAsinModal = ({
                         value: 'filtered',
                         label: (
                           <div className="seg-opt">
-                            <ListChecks size={14} style={{ color: '#0288D1', flexShrink: 0 }} />
+                            <ListChecks size={14} style={{ color: 'var(--text-brand)', flexShrink: 0 }} />
                             <div>
                               <div className="seg-main">Filtered View</div>
                               <div className="seg-sub">Current board state</div>
@@ -529,10 +529,10 @@ const ExportAsinModal = ({
                           optionRender={opt => opt.data.meta ? (
                             <div style={{ lineHeight: 1.35 }}>
                               <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{opt.data.meta.name}</div>
-                              <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{opt.data.meta.sellerId} · {opt.data.meta.marketplace}</div>
+                              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{opt.data.meta.sellerId} · {opt.data.meta.marketplace}</div>
                             </div>
                           ) : (
-                            <Text strong style={{ color: '#0288D1' }}><ListChecks size={12} style={{ marginRight: 5 }} />Select All Sellers</Text>
+                            <Text strong style={{ color: 'var(--text-brand)' }}><ListChecks size={12} style={{ marginRight: 5 }} />Select All Sellers</Text>
                           )}
                           maxTagCount="responsive"
                           showSearch
@@ -576,7 +576,7 @@ const ExportAsinModal = ({
                   {/* Search + category pills */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
                     <Input
-                      prefix={<Search size={13} style={{ color: '#94a3b8' }} />}
+                      prefix={<Search size={13} style={{ color: 'var(--text-muted)' }} />}
                       placeholder="Search fields…"
                       value={fieldSearch}
                       onChange={e => setFieldSearch(e.target.value)}
@@ -644,7 +644,7 @@ const ExportAsinModal = ({
                       </Row>
                     )}
                     {visibleFields.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                      <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 'var(--font-size-sm)' }}>
                         No fields match "{fieldSearch}"
                       </div>
                     )}
@@ -737,7 +737,7 @@ const ExportAsinModal = ({
                       strokeWidth={7}
                       size={108}
                       format={pct => (
-                        <span style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>{pct}%</span>
+                        <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>{pct}%</span>
                       )}
                     />
                     <Title level={4} style={{ margin: '18px 0 4px' }}>
@@ -763,7 +763,7 @@ const ExportAsinModal = ({
                     <Button
                       type="primary" size="large"
                       onClick={() => { setStep(1); setError(null); }}
-                      style={{ background: '#0f172a', borderColor: '#0f172a' }}
+                      style={{ background: 'var(--text-primary)', borderColor: 'var(--text-primary)' }}
                     >
                       Back to Configuration
                     </Button>
@@ -778,7 +778,7 @@ const ExportAsinModal = ({
             key: 'tags',
             label: <Space size={6}><TagIcon size={13} />Tags Template</Space>,
             children: (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, background: '#f8fafc' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, background: 'var(--bg-secondary)' }}>
                 <div className="tags-card">
                   <div className="tags-icon"><FileDown size={34} /></div>
                   <Title level={4} style={{ margin: '16px 0 8px' }}>Bulk Tags Template</Title>
@@ -787,7 +787,7 @@ const ExportAsinModal = ({
                   </Paragraph>
                   <Button type="primary" size="large" icon={<Download size={15} />} block
                     onClick={handleDownloadTemplate}
-                    style={{ background: '#0288D1', borderColor: '#0288D1' }}>
+                    style={{ background: 'var(--text-brand)', borderColor: 'var(--text-brand)' }}>
                     Download Template
                   </Button>
                 </div>
