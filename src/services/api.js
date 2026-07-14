@@ -692,7 +692,11 @@ export const sellerApi = {
       const res = await fetch(`${API_BASE}/sellers/${id}`, {
         headers: { ...getAuthHeader() },
       });
-      if (!res.ok) throw new Error('Failed to fetch seller');
+      if (!res.ok) {
+        let msg = 'Failed to fetch seller';
+        try { const body = await res.json(); msg = body.error || body.message || msg; } catch {}
+        throw new Error(msg);
+      }
       return res.json();
     }, 1 * 60 * 1000); // 1 min TTL
   },
@@ -717,7 +721,11 @@ export const sellerApi = {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to update seller');
+    if (!res.ok) {
+      let msg = 'Failed to update seller';
+      try { const body = await res.json(); msg = body.error || body.message || msg; } catch {}
+      throw new Error(msg);
+    }
     invalidateCachePattern('sellers:');
     invalidateCachePattern(`seller:${id}`);
     return res.json();
@@ -728,7 +736,11 @@ export const sellerApi = {
       method: 'DELETE',
       headers: { ...getAuthHeader() }
     });
-    if (!res.ok) throw new Error('Failed to delete seller');
+    if (!res.ok) {
+      let msg = 'Failed to delete seller';
+      try { const body = await res.json(); msg = body.error || body.message || msg; } catch {}
+      throw new Error(msg);
+    }
     invalidateCachePattern('sellers:');
     invalidateCachePattern(`seller:${id}`);
     return res.json();

@@ -205,7 +205,7 @@ exports.checkSellerAccess = async (req, res, next) => {
   const roleName = req.user.role?.Name || req.user.role?.name;
   if (isGlobalUserRole(roleName)) return next();
 
-  const sellerId = req.params.sellerId || req.body?.sellerId || req.query?.sellerId || req.params.id;
+  const sellerId = req.params.id || req.params.sellerId || req.query?.sellerId;
   if (!sellerId) return next();
 
   if (!req.user.assignedSellers || !req.user.assignedSellers.includes(sellerId.toString())) {

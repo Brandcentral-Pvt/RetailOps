@@ -307,6 +307,7 @@ const UsersPage = () => {
     const [permissionSearch, setPermissionSearch] = useState('');
     const [showUserModal, setShowUserModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+    const [prevAssignedSellers, setPrevAssignedSellers] = useState([]);
     const [userFormData, setUserFormData] = useState({
         email: '', password: '', firstName: '', lastName: '', phone: '',
         role: '', isActive: true, assignedSellers: [], brandManagers: [], supervisors: []
@@ -456,6 +457,8 @@ const UsersPage = () => {
                 const response = await userApi.getById(user._id || user.id);
                 const fullUser = response.data;
                 setEditingUser(fullUser);
+                const prevBrands = fullUser.assignedSellers?.map(s => s._id || s.id || s) || [];
+                setPrevAssignedSellers(prevBrands);
                 setUserFormData({
                     email: fullUser.email || '', password: '',
                     firstName: fullUser.firstName || '', lastName: fullUser.lastName || '',
@@ -468,6 +471,8 @@ const UsersPage = () => {
                 });
             } catch {
                 setEditingUser(user);
+                const prevBrands = user.assignedSellers?.map(s => s._id || s.id || s) || [];
+                setPrevAssignedSellers(prevBrands);
                 setUserFormData({
                     email: user.email || '', password: '',
                     firstName: user.firstName || '', lastName: user.lastName || '',
@@ -481,6 +486,7 @@ const UsersPage = () => {
             }
         } else {
             setEditingUser(null);
+            setPrevAssignedSellers([]);
             setUserFormData({
                 email: '', password: '', firstName: '', lastName: '', phone: '',
                 role: '', isActive: true, assignedSellers: [], brandManagers: [], supervisors: []
@@ -533,30 +539,35 @@ const UsersPage = () => {
             if (editingUser) {
                 result = await userApi.update(editingUser._id || editingUser.id, data);
                 messageApi.success('User updated successfully');
+
+                const addedBrands = finalSellers.filter(id => !prevAssignedSellers.includes(id));
+                const removedBrands = prevAssignedSellers.filter(id => !finalSellers.includes(id));
+                if (addedBrands.length > 0 || removedBrands.length > 0) {
+                    try {
+                        const uid = editingUser._id || editingUser.id;
+                        const addedNames = addedBrands.map(id => sellers.find(s => (s._id || s.id) === id)?.name || id).filter(Boolean);
+                        const removedNames = removedBrands.map(id => sellers.find(s => (s._id || s.id) === id)?.name || id).filter(Boolean);
+                        let msg = '';
+                        if (addedNames.length > 0) msg += `Brands assigned: ${addedNames.join(', ')}. `;
+                        if (removedNames.length > 0) msg += `Brands removed: ${removedNames.join(', ')}.`;
+                        await userApi.sendEmail({ userId: uid, subject: 'Your brand assignments have been updated', message: msg.trim() });
+                    } catch {
+                        console.warn('Brand change notification email failed');
+                    }
+                }
             } else {
                 result = await userApi.create(data);
                 messageApi.success('User created successfully');
-                
-                // Show option to send credentials
+
                 const newUserId = result?.data?._id || result?.data?.id;
                 const tempPassword = userFormData.password || '';
-                if (newUserId) {
-                    Modal.confirm({
-                        title: 'Send Credentials Email?',
-                        content: tempPassword 
-                            ? `Send login credentials to ${userFormData.email}?`
-                            : `Send login invitation to ${userFormData.email}? (User will set their own password)`,
-                        okText: 'Send Email',
-                        cancelText: 'Skip',
-                        onOk: async () => {
-                            try {
-                                await userApi.sendCredentials(newUserId, tempPassword || 'invitation');
-                                messageApi.success('Credentials email sent successfully');
-                            } catch (err) {
-                                messageApi.error('Failed to send credentials email');
-                            }
-                        }
-                    });
+                if (newUserId && tempPassword) {
+                    try {
+                        await userApi.sendCredentials(newUserId, tempPassword);
+                        messageApi.success('Credentials email sent');
+                    } catch {
+                        messageApi.warning('User created but credentials email failed');
+                    }
                 }
             }
             setShowUserModal(false);
@@ -714,6 +725,21 @@ const UsersPage = () => {
         const q = modalSearchSeller.toLowerCase();
         return list.filter(s => `${s.name || ''} ${s.code || ''}`.toLowerCase().includes(q));
     }, [isListingTeam, inheritedSellers, sellers, modalSearchSeller]);
+
+    const brandOwnershipMap = useMemo(() => {
+        const map = {};
+        const editingId = editingUser?._id || editingUser?.id;
+        users.forEach(u => {
+            const uid = u._id || u.id;
+            if (uid === editingId) return;
+            (u.assignedSellers || []).forEach(s => {
+                const sid = typeof s === 'string' ? s : s._id || s.id || s;
+                if (!map[sid]) map[sid] = [];
+                map[sid].push(`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email);
+            });
+        });
+        return map;
+    }, [users, editingUser]);
 
     // ============================================
     // ENHANCED TABLE COLUMNS
@@ -965,7 +991,7 @@ const UsersPage = () => {
     }
 
     // Selection Card Component
-    const SelectionCard = ({ isChecked, onClick, icon: ItemIcon, iconBg, name, subtitle, readOnly = false }) => (
+    const SelectionCard = ({ isChecked, onClick, icon: ItemIcon, iconBg, name, subtitle, readOnly = false, badge = null }) => (
         <div
             onClick={readOnly ? undefined : onClick}
             style={{
@@ -974,21 +1000,21 @@ const UsersPage = () => {
                 justifyContent: 'space-between',
                 padding: '12px 14px',
                 background: isChecked ? '#eff6ff' : '#ffffff',
-                border: `2px solid ${isChecked ? '#0288D1' : '#e2e8f0'}`,
+                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : '#e2e8f0'}`,
                 borderRadius: "var(--radius-md)",
                 cursor: readOnly ? 'default' : 'pointer',
                 transition: 'all 0.2s ease'
             }}
             onMouseEnter={(e) => {
                 if (!readOnly && !isChecked) {
-                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.borderColor = badge ? '#f97316' : '#cbd5e1';
                     e.currentTarget.style.background = '#fafbfc';
                     e.currentTarget.style.transform = 'translateX(2px)';
                 }
             }}
             onMouseLeave={(e) => {
                 if (!readOnly && !isChecked) {
-                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.borderColor = badge ? '#ED6C02' : '#e2e8f0';
                     e.currentTarget.style.background = '#ffffff';
                     e.currentTarget.style.transform = 'translateX(0)';
                 }
@@ -998,8 +1024,8 @@ const UsersPage = () => {
                 <div style={{
                     width: 32, height: 32, borderRadius: "var(--radius-md)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: isChecked ? (iconBg || '#0288D1') : '#f1f5f9',
-                    color: isChecked ? '#ffffff' : '#64748b',
+                    background: isChecked ? (iconBg || '#0288D1') : badge ? '#fff7ed' : '#f1f5f9',
+                    color: isChecked ? '#ffffff' : badge ? '#ED6C02' : '#64748b',
                     fontSize: 'var(--font-size-xs)', fontWeight: 600,
                     transition: 'all 0.2s'
                 }}>
@@ -1008,11 +1034,25 @@ const UsersPage = () => {
                 <div>
                     <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>{name}</div>
                     {subtitle && <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginTop: 1 }}>{subtitle}</div>}
+                    {badge && !isChecked && (
+                        <div style={{
+                            fontSize: 'var(--font-size-xs)',
+                            color: '#ED6C02',
+                            marginTop: 3,
+                            padding: '1px 6px',
+                            background: '#fff7ed',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid #fed7aa',
+                            display: 'inline-block'
+                        }}>
+                            {badge}
+                        </div>
+                    )}
                 </div>
             </div>
             <div style={{
                 width: 20, height: 20, borderRadius: '50%',
-                border: `2px solid ${isChecked ? '#0288D1' : '#cbd5e1'}`,
+                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : '#cbd5e1'}`,
                 background: isChecked ? '#0288D1' : '#ffffff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.2s'
@@ -2046,8 +2086,7 @@ const UsersPage = () => {
                         </div>
 
                         {/* Supervisors */}
-                        {!isBrandManager && (
-                            <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
@@ -2106,7 +2145,6 @@ const UsersPage = () => {
                                     )}
                                 </div>
                             </div>
-                        )}
 
                         {/* Brand Managers (for Listing Team) */}
                         {isListingTeam && (
@@ -2262,6 +2300,10 @@ const UsersPage = () => {
                                 {filteredSellers.map(s => {
                                     const id = s._id || s.id;
                                     const checked = isListingTeam ? true : userFormData.assignedSellers.includes(id);
+                                    const owners = brandOwnershipMap[id];
+                                    const badgeText = !checked && owners?.length
+                                        ? `Assigned to ${owners.length === 1 ? owners[0] : `${owners[0]} +${owners.length - 1} more`}`
+                                        : null;
                                     return (
                                         <SelectionCard
                                             key={id}
@@ -2271,6 +2313,7 @@ const UsersPage = () => {
                                             iconBg="#2E7D32"
                                             name={s.name}
                                             subtitle={s.code || 'Brand'}
+                                            badge={badgeText}
                                             onClick={() => {
                                                 if (isListingTeam) return;
                                                 setUserFormData({
