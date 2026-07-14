@@ -174,7 +174,7 @@ const TimelineItem = memo(({ activity }) => {
       padding: '14px 16px',
       background: isManagerChange ? '#f0fdff' : '#ffffff',
       border: `1px solid ${isManagerChange ? 'var(--color-info-border, #bae6fd)' : 'var(--border-light, #d9e6e9)'}`,
-      borderLeft: isManagerChange ? '3px solid #0891b2' : '1px solid var(--border-light, #d9e6e9)',
+      borderLeft: isManagerChange ? '3px solid var(--color-info)' : '1px solid var(--border-light, #d9e6e9)',
       borderRadius: 'var(--radius-md, 8px)',
       marginBottom: 8,
       transition: 'border-color 0.15s, background 0.15s'
@@ -268,7 +268,7 @@ const TimelineItem = memo(({ activity }) => {
               </div>
 
               {/* Arrow */}
-              <div style={{ fontSize: 'var(--font-size-xl)', color: '#0891b2', fontWeight: 600, textAlign: 'center' }}>→</div>
+              <div style={{ fontSize: 'var(--font-size-xl)', color: 'var(--color-info)', fontWeight: 600, textAlign: 'center' }}>→</div>
 
               {/* New BM */}
               <div>
@@ -276,7 +276,7 @@ const TimelineItem = memo(({ activity }) => {
                 <div style={{
                   fontSize: 'var(--font-size-sm)',
                   fontWeight: 600,
-                  color: '#0891b2',
+                  color: 'var(--color-info)',
                   background: 'var(--bg-info-subtle, #ecfeff)',
                   border: '1px solid #a5f3fc',
                   borderRadius: 'var(--radius-md, 8px)',
@@ -290,7 +290,7 @@ const TimelineItem = memo(({ activity }) => {
             {/* Footer: actor + timestamp */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {actorName && (
-                <span style={{ fontSize: 'var(--font-size-xs)', color: '#475569', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Users size={10} strokeWidth={2} />
                   Changed by <strong style={{ color: 'var(--text-primary, #0f172a)' }}>{actorName}</strong>
                 </span>
@@ -307,8 +307,8 @@ const TimelineItem = memo(({ activity }) => {
         {activity.metadata && !isManagerChange && (
           <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
             {Object.entries(activity.metadata).map(([key, value], i) => (
-              <span key={i} style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500, color: '#475569', background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-light, #d9e6e9)', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>
-                <span style={{ fontWeight: 600, color: '#334155' }}>{key}:</span> {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
+              <span key={i} style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-light, #d9e6e9)', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{key}:</span> {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
               </span>
             ))}
           </div>
@@ -394,7 +394,7 @@ const UpcomingTaskItem = memo(({ task }) => {
             <span style={{
               fontSize: 'var(--font-size-xs)',
               fontWeight: 600,
-              color: '#475569',
+                    color: 'var(--text-secondary)',
               background: 'var(--bg-secondary, #f8fafc)',
               border: '1px solid var(--border-light, #d9e6e9)',
               padding: '2px 8px',
@@ -448,7 +448,7 @@ const UpcomingTaskItem = memo(({ task }) => {
           fontWeight: 500
         }}>
           <Users size={11} strokeWidth={2} />
-          Assigned to <span style={{ color: '#334155', fontWeight: 600 }}>{task.assignee}</span>
+          Assigned to <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{task.assignee}</span>
         </div>
       )}
     </div>
@@ -492,7 +492,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: isActive ? '#ffffff' : '#334155',
+          color: isActive ? '#ffffff' : 'var(--text-secondary)',
           fontWeight: 600,
           fontSize: avatarFontSize,
           flexShrink: 0,
@@ -543,7 +543,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
               <span style={{
                 fontFamily: '"JetBrains Mono", monospace',
                 fontWeight: 600,
-                color: '#475569',
+                color: 'var(--text-secondary)',
                 fontSize: 'var(--font-size-xs)'
               }}>
                 #{parsed.number}
@@ -762,7 +762,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
           {record.imageUrl && (
             <Avatar shape="square" size={32} src={record.imageUrl} style={{ borderRadius: "var(--radius-sm)", border: '1px solid var(--border-light, #d9e6e9)' }} />
           )}
-          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#334155' }}>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--text-secondary)' }}>
             {title || <span style={{ fontStyle: 'italic', color: 'var(--text-muted, #94a3b8)' }}>No title available</span>}
           </span>
         </Space>
@@ -858,7 +858,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
-                    color: '#475569',
+              color: 'var(--text-secondary)',
                     background: 'var(--bg-secondary, #f8fafc)',
                     border: '1px solid var(--border-light, #d9e6e9)',
                     padding: '2px 8px',
@@ -894,7 +894,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 </span>
               </div>
               <Space size={12} separator={<Divider orientation="vertical" style={{ margin: 0 }} />}>
-                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#475569' }}>
+                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--text-secondary)' }}>
                   {marketplaceLabel}
                 </span>
                 <span style={{
@@ -999,7 +999,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     padding: '0 6px',
                     background: activeTab === 'activity' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)',
-                    color: activeTab === 'activity' ? '#ffffff' : '#475569',
+                    color: activeTab === 'activity' ? '#ffffff' : 'var(--text-secondary)',
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
@@ -1019,7 +1019,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     padding: '0 6px',
                     background: overdueTasks > 0 ? 'var(--text-danger, #D32F2F)' : (activeTab === 'tasks' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)'),
-                    color: overdueTasks > 0 ? '#ffffff' : (activeTab === 'tasks' ? '#ffffff' : '#475569'),
+                    color: overdueTasks > 0 ? '#ffffff' : (activeTab === 'tasks' ? '#ffffff' : 'var(--text-secondary)'),
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
@@ -1039,7 +1039,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     padding: '0 6px',
                     background: activeTab === 'asins' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)',
-                    color: activeTab === 'asins' ? '#ffffff' : '#475569',
+                    color: activeTab === 'asins' ? '#ffffff' : 'var(--text-secondary)',
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
@@ -1083,7 +1083,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               <div style={{
                 fontSize: 'var(--font-size-sm)',
                 fontWeight: 600,
-                color: '#334155',
+                color: 'var(--text-secondary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em'
               }}>
@@ -1118,10 +1118,10 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 textAlign: 'center',
                 background: '#ffffff',
                 borderRadius: 'var(--radius-md, 8px)',
-                border: '1px dashed #cbd5e1'
+                border: '1px dashed var(--border-medium)'
               }}>
-                <Activity size={32} style={{ color: '#cbd5e1', marginBottom: 12 }} />
-                <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                <Activity size={32} style={{ color: 'var(--border-medium)', marginBottom: 12 }} />
+                <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   No activity recorded
                 </div>
                 <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, #94a3b8)' }}>
@@ -1148,7 +1148,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               <div style={{
                 fontSize: 'var(--font-size-sm)',
                 fontWeight: 600,
-                color: '#334155',
+                color: 'var(--text-secondary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em'
               }}>
@@ -1177,10 +1177,10 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 textAlign: 'center',
                 background: '#ffffff',
                 borderRadius: 'var(--radius-md, 8px)',
-                border: '1px dashed #cbd5e1'
+                border: '1px dashed var(--border-medium)'
               }}>
                 <CheckCircle2 size={32} style={{ color: 'var(--text-success, #2E7D32)', marginBottom: 12 }} />
-                <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   No pending tasks
                 </div>
                 <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, #94a3b8)' }}>

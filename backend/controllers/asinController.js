@@ -3686,7 +3686,7 @@ exports.getParentChildren = async (req, res) => {
 };
 
 /**
- * Run auto-tag computation for GMS Top 20, New 20, and age tags.
+ * Run auto-tag computation for Pareto 80/20 contributors and age tags.
  * POST /api/asins/auto-tags/run
  */
 exports.runAutoTags = async (req, res) => {

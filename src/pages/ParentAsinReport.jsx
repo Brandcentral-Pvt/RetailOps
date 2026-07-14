@@ -38,13 +38,13 @@ const genTrend = (base, days, variance) =>
 const TooltipBox = ({ active, payload, label, formatter }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#0f172a', color: '#fff', borderRadius: "var(--radius-md)", padding: '8px 12px', fontSize: 'var(--font-size-xs)', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-      <div style={{ color: '#94a3b8', marginBottom: 4 }}>{label}</div>
+    <div style={{ background: 'var(--text-primary)', color: '#fff', borderRadius: "var(--radius-md)", padding: '8px 12px', fontSize: 'var(--font-size-xs)', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color || p.stroke, display: 'inline-block' }} />
-            <span style={{ color: '#cbd5e1' }}>{p.name}</span>
+            <span style={{ color: 'var(--border-medium)' }}>{p.name}</span>
           </span>
           <span style={{ fontWeight: 600 }}>{formatter ? formatter(p.value) : Number(p.value).toLocaleString('en-IN')}</span>
         </div>
@@ -198,7 +198,7 @@ const ParentAsinReport = () => {
       render: (asin, rec) => (
         <Tooltip title={rec.title}>
           <Button type="link" size="small" onClick={() => loadChildAsins(asin)}
-            style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '2px 8px', borderRadius: "var(--radius-sm)", background: '#f8fafc', border: '1px solid #e5e7eb', height: 'auto' }}>
+            style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '2px 8px', borderRadius: "var(--radius-sm)", background: 'var(--bg-secondary)', border: '1px solid var(--border-light)', height: 'auto' }}>
             {asin}
           </Button>
         </Tooltip>
@@ -210,64 +210,64 @@ const ParentAsinReport = () => {
       render: (b) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 20, height: 20, borderRadius: "var(--radius-sm)", background: '#e0e7ff', color: '#4338ca', fontSize: 9, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{(b || '?')[0]}</span>
-          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b}</span>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b}</span>
         </div>
       )
     },
     {
       title: 'Children', dataIndex: 'childCount', key: 'cc', width: 90, align: 'center',
       sorter: (a, b) => a.childCount - b.childCount,
-      render: (c) => <Tag style={{ borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 'var(--font-size-xs)', color: c > 100 ? '#9C27B0' : '#475569' }}>{c}</Tag>
+      render: (c) => <Tag style={{ borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 'var(--font-size-xs)', color: c > 100 ? 'var(--color-secondary)' : 'var(--text-secondary)' }}>{c}</Tag>
     },
     {
       title: 'Revenue', dataIndex: 'totalRevenue', key: 'rev', width: 130, align: 'right',
       sorter: (a, b) => a.totalRevenue - b.totalRevenue,
-      render: (v) => <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span>
+      render: (v) => <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span>
     },
     {
       title: 'Ad Spend', dataIndex: 'adSpend', key: 'as', width: 110, align: 'right',
       sorter: (a, b) => a.adSpend - b.adSpend,
-      render: (v) => v === 0 ? <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>—</span> : (
-        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: v > 50000 ? '#e11d48' : v > 10000 ? '#E65100' : '#475569', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span>
+      render: (v) => v === 0 ?         <span style={{ color: 'var(--border-medium)', fontSize: 'var(--font-size-xs)' }}>—</span> : (
+        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: v > 50000 ? '#e11d48' : v > 10000 ? 'var(--text-warning)' : 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span>
       )
     },
     {
       title: 'Ad Sales', dataIndex: 'adSales', key: 'asl', width: 110, align: 'right',
       sorter: (a, b) => a.adSales - b.adSales,
-      render: (v) => v === 0 ? <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>—</span> : (
-        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: v > 50000 ? '#2E7D32' : '#2E7D32', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span>
+      render: (v) => v === 0 ?         <span style={{ color: 'var(--border-medium)', fontSize: 'var(--font-size-xs)' }}>—</span> : (
+        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: v > 50000 ? 'var(--text-success)' : 'var(--text-success)', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span>
       )
     },
     {
       title: 'Orders', dataIndex: 'orders', key: 'ord', width: 80, align: 'center',
       sorter: (a, b) => a.orders - b.orders,
-      render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: '#475569', fontVariantNumeric: 'tabular-nums' }}>{(v || 0).toLocaleString('en-IN')}</span>
+      render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{(v || 0).toLocaleString('en-IN')}</span>
     },
     {
       title: 'ACOS', dataIndex: 'acos', key: 'acos', width: 90, align: 'center',
       sorter: (a, b) => a.acos - b.acos,
       render: (v) => {
-        if (!v) return <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', color: '#8c8e8f', background: '#f4f5f7' }}>—</Tag>;
-        return <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: 600, border: 'none', color: v < 10 ? '#2E7D32' : v < 15 ? '#E65100' : '#C62828', background: v < 10 ? '#ecfdf5' : v < 15 ? '#fffbeb' : '#fef2f2' }}>{v}%</Tag>;
+        if (!v) return <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', background: 'var(--bg-primary)' }}>—</Tag>;
+        return <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: 600, border: 'none', color: v < 10 ? 'var(--text-success)' : v < 15 ? 'var(--text-warning)' : 'var(--text-danger)', background: v < 10 ? 'var(--bg-success-subtle)' : v < 15 ? 'var(--bg-warning-subtle)' : 'var(--bg-danger-subtle)' }}>{v}%</Tag>;
       }
     },
     {
       title: 'ROAS', dataIndex: 'roas', key: 'roas', width: 80, align: 'center',
       sorter: (a, b) => a.roas - b.roas,
       render: (v) => {
-        if (!v) return <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>—</span>;
-        return <span style={{ fontWeight: v >= 8 ? 700 : v >= 5 ? 600 : 500, fontSize: 'var(--font-size-sm)', color: v >= 8 ? '#2E7D32' : v >= 5 ? '#0f172a' : '#E65100', fontVariantNumeric: 'tabular-nums' }}>{v}<span style={{ color: '#8c8e8f', fontWeight: 400, fontSize: 'var(--font-size-xs)', marginLeft: 1 }}>x</span></span>;
+        if (!v) return <span style={{ color: 'var(--border-medium)', fontSize: 'var(--font-size-xs)' }}>—</span>;
+        return <span style={{ fontWeight: v >= 8 ? 700 : v >= 5 ? 600 : 500, fontSize: 'var(--font-size-sm)', color: v >= 8 ? 'var(--text-success)' : v >= 5 ? 'var(--text-primary)' : 'var(--text-warning)', fontVariantNumeric: 'tabular-nums' }}>{v}<span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 'var(--font-size-xs)', marginLeft: 1 }}>x</span></span>;
       }
     },
     {
       title: 'Rating', dataIndex: 'avgRating', key: 'rat', width: 110, align: 'center',
       render: (v) => {
-        if (!v) return <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>—</span>;
+        if (!v) return <span style={{ color: 'var(--border-medium)', fontSize: 'var(--font-size-xs)' }}>—</span>;
         const full = Math.floor(v);
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
             {Array.from({ length: 5 }, (_, i) => <Star key={i} size={11} fill={i < full ? '#ED6C02' : '#e2e8f0'} stroke={i < full ? '#ED6C02' : '#e2e8f0'} />)}
-            <span style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginLeft: 2 }}>{v.toFixed(1)}</span>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginLeft: 2 }}>{v.toFixed(1)}</span>
           </span>
         );
       }
@@ -276,10 +276,10 @@ const ParentAsinReport = () => {
       title: 'Growth', dataIndex: 'growth', key: 'grow', width: 90, align: 'center',
       sorter: (a, b) => (a.growth || 0) - (b.growth || 0),
       render: (v) => {
-        if (v == null) return <span style={{ color: '#cbd5e1' }}>—</span>;
-        if (v > 0) return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 600, fontSize: 'var(--font-size-xs)', color: '#2E7D32' }}><ArrowUpRight size={11} />{v.toFixed(1)}%</span>;
-        if (v < 0) return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 600, fontSize: 'var(--font-size-xs)', color: '#C62828' }}><ArrowDownRight size={11} />{Math.abs(v).toFixed(1)}%</span>;
-        return <span style={{ color: '#cbd5e1' }}><Minus size={11} /></span>;
+        if (v == null) return <span style={{ color: 'var(--border-medium)' }}>—</span>;
+        if (v > 0) return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--text-success)' }}><ArrowUpRight size={11} />{v.toFixed(1)}%</span>;
+        if (v < 0) return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--text-danger)' }}><ArrowDownRight size={11} />{Math.abs(v).toFixed(1)}%</span>;
+        return <span style={{ color: 'var(--border-medium)' }}><Minus size={11} /></span>;
       }
     },
   ];
@@ -289,10 +289,10 @@ const ParentAsinReport = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', background: '#f4f5f7' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', background: 'var(--bg-primary)' }}>
 
       {/* TOOLBAR */}
-      <div style={{ background: '#fff', padding: '12px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+      <div style={{ background: '#fff', padding: '12px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
         <Input.Search placeholder="Search Parent ASIN, brand..." allowClear size="small" style={{ width: 220, borderRadius: "var(--radius-md)" }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         <Select placeholder="All Sellers" size="small" allowClear showSearch optionFilterProp="label" style={{ minWidth: 160, maxWidth: 240 }} value={selectedSeller} onChange={setSelectedSeller}
           options={sellers.map(s => ({ value: s._id || s.Id, label: s.name }))} />
@@ -305,23 +305,23 @@ const ParentAsinReport = () => {
       </div>
 
       {/* KPI STRIP */}
-      <div style={{ display: 'flex', gap: 10, padding: '10px 20px', flexShrink: 0, overflowX: 'auto', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+      <div style={{ display: 'flex', gap: 10, padding: '10px 20px', flexShrink: 0, overflowX: 'auto', background: '#fff', borderBottom: '1px solid var(--border-light)' }}>
         {kpiConfig.map((k, i) => {
           const pos = k.trend.startsWith('+') || parseFloat(k.trend) > 0;
           const good = k.inv ? !pos : pos;
           return (
-            <div key={i} style={{ minWidth: 150, flexShrink: 0, padding: '10px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: "var(--radius-md)", transition: 'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#e5e7eb'; }}>
+            <div key={i} style={{ minWidth: 150, flexShrink: 0, padding: '10px 14px', background: '#fff', border: '1px solid var(--border-light)', borderRadius: "var(--radius-md)", transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'var(--border-medium)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border-light)'; }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: k.color, display: 'inline-block' }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k.label}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k.label}</span>
               </div>
-              <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</div>
+              <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</div>
               <div style={{ marginTop: 6 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: good ? '#2E7D32' : '#C62828', background: good ? '#ecfdf5' : '#fef2f2' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: good ? 'var(--text-success)' : 'var(--text-danger)', background: good ? 'var(--bg-success-subtle)' : 'var(--bg-danger-subtle)' }}>
                   {good ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {k.trend} <span style={{ color: '#8c8e8f', fontWeight: 500 }}>vs prev</span>
+                  {k.trend} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>vs prev</span>
                 </span>
               </div>
             </div>
@@ -334,11 +334,11 @@ const ParentAsinReport = () => {
         <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'auto' }}>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={14}>
-              <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
+              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div>
-                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Revenue by Brand</Text>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2 }}>Top 10 performing brands this period</div>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>Revenue by Brand</Text>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>Top 10 performing brands this period</div>
                   </div>
                   <Tag color="blue" style={{ borderRadius: 20, fontSize: 10, fontWeight: 600, border: 'none' }}>Top 10</Tag>
                 </div>
@@ -355,11 +355,11 @@ const ParentAsinReport = () => {
               </Card>
             </Col>
             <Col xs={24} lg={10}>
-              <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
+              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div>
-                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Ad Spend vs Ad Sales</Text>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2 }}>Performance efficiency by brand</div>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>Ad Spend vs Ad Sales</Text>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>Performance efficiency by brand</div>
                   </div>
                   <Tag color="purple" style={{ borderRadius: 20, fontSize: 10, fontWeight: 600, border: 'none' }}>Avg ROAS {kpis.avgRoas}x</Tag>
                 </div>
@@ -374,17 +374,17 @@ const ParentAsinReport = () => {
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 8 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: '#64748b' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }} />Ad Spend</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: '#64748b' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2E7D32', display: 'inline-block' }} />Ad Sales</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }} />Ad Spend</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2E7D32', display: 'inline-block' }} />Ad Sales</span>
                 </div>
               </Card>
             </Col>
           </Row>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
-              <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>ACOS Trend</Text>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2, marginBottom: 8 }}>Daily average over period</div>
+              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>ACOS Trend</Text>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2, marginBottom: 8 }}>Daily average over period</div>
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={charts.acosTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <defs><linearGradient id="acosG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ED6C02" stopOpacity={0.2} /><stop offset="100%" stopColor="#ED6C02" stopOpacity={0.02} /></linearGradient></defs>
@@ -398,9 +398,9 @@ const ParentAsinReport = () => {
               </Card>
             </Col>
             <Col xs={24} lg={12}>
-              <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Orders & Revenue</Text>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2, marginBottom: 8 }}>14-day daily breakdown</div>
+              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>Orders & Revenue</Text>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2, marginBottom: 8 }}>14-day daily breakdown</div>
                 <ResponsiveContainer width="100%" height={180}>
                   <ComposedChart data={charts.ordersRevTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -421,17 +421,17 @@ const ParentAsinReport = () => {
       {/* TABLE */}
       {view === 'table' && (
         <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
-          <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: 0 } }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Parent ASIN Performance Ledger</Text>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2 }}>Showing {filteredData.length} of {data.length} parent ASINs</div>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>Parent ASIN Performance Ledger</Text>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>Showing {filteredData.length} of {data.length} parent ASINs</div>
               </div>
-              <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', background: '#f1f5f9', border: 'none' }}>{data.length.toLocaleString('en-IN')} collections</Tag>
+              <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: 'none' }}>{data.length.toLocaleString('en-IN')} collections</Tag>
             </div>
             <Table columns={columns} dataSource={filteredData} rowKey="id" loading={loading} size="small"
               scroll={{ x: 'max-content' }} bordered
-              pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['10', '20', '50', '100'], showTotal: (t) => <span style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f' }}>{t} parent ASINs</span>, size: 'small' }}
+              pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['10', '20', '50', '100'], showTotal: (t) => <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{t} parent ASINs</span>, size: 'small' }}
               expandable={{
                 expandedRowKeys: selectedParent ? [filteredData.find(d => d.parentAsin === selectedParent)?.id].filter(Boolean) : [],
                 onExpand: (exp, rec) => { if (exp) loadChildAsins(rec.parentAsin); else { setSelectedParent(null); setChildAsins([]); } },
@@ -446,7 +446,7 @@ const ParentAsinReport = () => {
                         { title: 'Rating', dataIndex: 'rating', width: 70, align: 'center', render: (v) => v ? `${v}★` : '—' },
                         { title: 'Reviews', dataIndex: 'reviewCount', width: 80, align: 'right', render: (v) => (v || 0).toLocaleString('en-IN') },
                         { title: 'LQS', dataIndex: 'lqs', width: 70, align: 'center', render: (v) => v ? `${Math.round(v)}%` : '—' },
-                        { title: 'Stock', dataIndex: 'stockLevel', width: 70, align: 'center', render: (v) => <Tag style={{ borderRadius: "var(--radius-sm)", fontSize: 10, color: v < 10 ? '#e11d48' : v < 30 ? '#E65100' : '#2E7D32', background: v < 10 ? '#fef2f2' : v < 30 ? '#fffbeb' : '#ecfdf5' }}>{v ?? '—'}</Tag> },
+                        { title: 'Stock', dataIndex: 'stockLevel', width: 70, align: 'center', render: (v) => <Tag style={{ borderRadius: "var(--radius-sm)", fontSize: 10, color: v < 10 ? '#e11d48' : v < 30 ? 'var(--text-warning)' : 'var(--text-success)', background: v < 10 ? 'var(--bg-danger-subtle)' : v < 30 ? 'var(--bg-warning-subtle)' : 'var(--bg-success-subtle)' }}>{v ?? '—'}</Tag> },
                       ]} />
                   </Spin>
                 ),

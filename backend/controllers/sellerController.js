@@ -659,7 +659,7 @@ exports.updateSeller = async (req, res) => {
           sellerName: finalName,
           marketplace: finalMarketplace,
           changedBy: `${req.user?.firstName || ''} ${req.user?.lastName || ''}`.trim() || 'Admin'
-        }).catch(err => console.error('[SellerUpdate] Email notification failed:', err.message));
+        });
       }
     } else if (!isGlobalUser) {
       // Non-global users cannot reassign managers — skip manager update block

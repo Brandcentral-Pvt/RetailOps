@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy, useRe
 import { Drawer, Button, Input, Select, Space, Typography, Badge, Segmented, Tooltip, Dropdown, Menu, Modal, Form, Tag, message } from 'antd';
 const { Text, Title } = Typography;
 const TablePagination = lazy(() => import('@mui/material/TablePagination'));
+import styles from './AsinManager.module.css';
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
@@ -146,14 +147,14 @@ const normalizeDateStr = (dateInput) => {
 
 // Helper function for week history badges
 const getWeekHistoryBadge = (value, type, uploadedPrice = 0) => {
-  if (value === undefined || value === null || value === '') return <span style={{ color: '#9ca3af' }}>-</span>;
+  if (value === undefined || value === null || value === '') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
 
   if (type === 'price') {
     return (
       <div className="d-flex flex-column align-items-center justify-content-center">
         <span style={{
           fontWeight: 600,
-          color: '#2E7D32',
+          color: 'var(--text-success)',
           fontSize: '10.5px',
           lineHeight: 1
         }}>
@@ -162,15 +163,15 @@ const getWeekHistoryBadge = (value, type, uploadedPrice = 0) => {
       </div>
     );
   } else if (type === 'number') {
-    return <span style={{ fontWeight: 600, color: '#0288D1', fontSize: '10.5px' }}>#{value.toLocaleString()}</span>;
+    return <span style={{ fontWeight: 600, color: 'var(--text-brand)', fontSize: '10.5px' }}>#{value.toLocaleString()}</span>;
   } else if (type === 'rating') {
-    return <span style={{ fontWeight: 600, color: '#E65100', fontSize: '10.5px' }}>{value.toFixed(1)}</span>;
+    return <span style={{ fontWeight: 600, color: 'var(--text-warning)', fontSize: '10.5px' }}>{value.toFixed(1)}</span>;
   } else if (type === 'subBsr') {
     const clean = String(value).replace(/[^0-9]/g, '');
-    if (!clean) return <span style={{ color: '#9ca3af' }}>-</span>;
+    if (!clean) return <span style={{ color: 'var(--text-muted)' }}>-</span>;
     const num = parseInt(clean, 10);
-    if (isNaN(num)) return <span style={{ color: '#9ca3af' }}>-</span>;
-    return <span style={{ fontWeight: 600, color: '#9C27B0', fontSize: '10px' }}>#{num.toLocaleString()}</span>;
+    if (isNaN(num)) return <span style={{ color: 'var(--text-muted)' }}>-</span>;
+    return <span style={{ fontWeight: 600, color: 'var(--color-secondary)', fontSize: '10px' }}>#{num.toLocaleString()}</span>;
   }
   return value;
 };
@@ -812,13 +813,13 @@ const AsinManagerPage = (props) => {
         if (value === 'false') label = 'No';
 
         badges.push(
-          <div key={key} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: '#f4f4f5', color: '#3f3f46', borderColor: '#e4e4e7', borderRadius: '6px' }}>
+          <div key={key} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-active)', color: '#3f3f46', borderColor: 'var(--border-light)', borderRadius: '6px' }}>
             <span className="fw-bold opacity-70 text-uppercase" style={{ fontSize: '8px', letterSpacing: '0.02em' }}>{mapping[key]}:</span>
             <span className="fw-bold">{label}</span>
             <button
               type="button"
               className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-              style={{ color: '#9ca3af', cursor: 'pointer', marginLeft: '2px' }}
+              style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '2px' }}
               onClick={() => removeAppliedFilter(key)}
             >
               <X size={11} strokeWidth={2.5} />
@@ -837,7 +838,7 @@ const AsinManagerPage = (props) => {
             <button
               type="button"
               className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-              style={{ color: '#818cf8', cursor: 'pointer', marginLeft: '2px' }}
+              style={{ color: 'var(--color-info)', cursor: 'pointer', marginLeft: '2px' }}
               onClick={() => removeAppliedFilter('selectedTags', tag)}
             >
               <X size={11} strokeWidth={2.5} />
@@ -850,13 +851,13 @@ const AsinManagerPage = (props) => {
     if (selectedSeller) {
       const seller = sellers.find(s => s._id === selectedSeller);
       badges.unshift(
-        <div key="seller" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: '#18181b', color: '#ffffff', borderColor: '#18181b', borderRadius: '6px' }}>
+        <div key="seller" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--text-primary)', color: '#ffffff', borderColor: 'var(--text-primary)', borderRadius: '6px' }}>
           <Store size={10} className="opacity-80" />
           <span className="fw-bold">{seller?.name || 'Selected Seller'}</span>
           <button
             type="button"
             className="p-0 border-0 bg-transparent d-flex align-items-center text-zinc-400 hover-text-white transition-colors"
-            style={{ color: '#a1a1aa', cursor: 'pointer', marginLeft: '2px' }}
+            style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '2px' }}
             onClick={() => setSelectedSeller('')}
           >
             <X size={11} strokeWidth={2.5} />
@@ -867,13 +868,13 @@ const AsinManagerPage = (props) => {
 
     if (appliedSearchQuery) {
       badges.unshift(
-        <div key="search" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: '#fffbeb', color: '#b45309', borderColor: '#fcd34d', borderRadius: '6px' }}>
+        <div key="search" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-warning-subtle)', color: '#b45309', borderColor: '#fcd34d', borderRadius: '6px' }}>
           <Search size={10} className="opacity-80" />
           <span className="fw-bold italic">"{appliedSearchQuery}"</span>
           <button
             type="button"
             className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-            style={{ color: '#ED6C02', cursor: 'pointer', marginLeft: '2px' }}
+            style={{ color: 'var(--text-warning)', cursor: 'pointer', marginLeft: '2px' }}
             onClick={() => { setAppliedSearchQuery(''); setSearchQuery(''); }}
           >
             <X size={11} strokeWidth={2.5} />
@@ -930,18 +931,18 @@ const AsinManagerPage = (props) => {
   const handleCsvUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedSellerId) {
-      alert('Please select a file and seller');
+      message.warning('Please select a file and seller');
       return;
     }
 
     setUploading(true);
     try {
       const result = await asinApi.importCsv(file, selectedSellerId);
-      alert(`Imported ${result.inserted} ASINs. ${result.duplicates} duplicates skipped.`);
+      message.success(`Imported ${result.inserted} ASINs. ${result.duplicates} duplicates skipped.`);
       setShowUploadModal(false);
       loadData();
     } catch (err) {
-      alert('Import failed: ' + err.message);
+      message.error('Import failed: ' + err.message);
     } finally {
       setUploading(false);
     }
@@ -1000,11 +1001,14 @@ const AsinManagerPage = (props) => {
 
   const handleBulkPriceDispute = async (isDispute) => {
     if (selectedIds.size === 0) {
-      alert('Please select at least one ASIN');
+      message.warning('Please select at least one ASIN');
       return;
     }
 
-    if (!window.confirm(`Mark ${selectedIds.size} ASINs as ${isDispute ? 'Disputed' : 'Resolved'}?`)) return;
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({ title: 'Confirm', content: `Mark ${selectedIds.size} ASINs as ${isDispute ? 'Disputed' : 'Resolved'}?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -1015,7 +1019,7 @@ const AsinManagerPage = (props) => {
         setSelectedIds(new Set());
       }
     } catch (err) {
-      alert('Bulk update failed: ' + err.message);
+      message.error('Bulk update failed: ' + err.message);
     } finally {
       setLoading(false);
       setShowActionsDropdown(false);
@@ -1024,7 +1028,7 @@ const AsinManagerPage = (props) => {
 
   const handleRunRulesets = async () => {
     if (selectedIds.size === 0) {
-      alert('Please select at least one ASIN');
+      message.warning('Please select at least one ASIN');
       return;
     }
 
@@ -1033,26 +1037,27 @@ const AsinManagerPage = (props) => {
       .map(a => a.asinCode || a.AsinCode);
 
     if (selectedAsinCodes.length === 0) {
-      alert('No valid ASIN codes found in selection.');
+      message.warning('No valid ASIN codes found in selection.');
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to run active rulesets on ${selectedAsinCodes.length} selected ASIN(s)?`)) {
-      return;
-    }
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({ title: 'Confirm', content: `Are you sure you want to run active rulesets on ${selectedAsinCodes.length} selected ASIN(s)?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     try {
       const res = await rulesetApi.executeForAsins(selectedAsinCodes);
       if (res.success) {
-        alert(`Successfully evaluated active rulesets and generated tasks!`);
+        message.success(`Successfully evaluated active rulesets and generated tasks!`);
         setSelectedIds(new Set());
       } else {
-        alert('Ruleset execution failed: ' + (res.message || 'Unknown error'));
+        message.error('Ruleset execution failed: ' + (res.message || 'Unknown error'));
       }
     } catch (err) {
       console.error('Ruleset execution error:', err);
-      alert('Error running rulesets: ' + err.message);
+      message.error('Error running rulesets: ' + err.message);
     } finally {
       setLoading(false);
       setShowActionsDropdown(false);
@@ -1061,7 +1066,7 @@ const AsinManagerPage = (props) => {
 
   const handleOpenTaskModal = () => {
     if (selectedIds.size === 0) {
-      alert('Please select at least one ASIN');
+      message.warning('Please select at least one ASIN');
       return;
     }
     setTaskTitle('');
@@ -1074,7 +1079,7 @@ const AsinManagerPage = (props) => {
 
   const handleCreateManualTask = async () => {
     if (!taskTitle.trim()) {
-      alert('Please enter a task title');
+      message.warning('Please enter a task title');
       return;
     }
 
@@ -1083,7 +1088,7 @@ const AsinManagerPage = (props) => {
       .map(a => a.asinCode || a.AsinCode);
 
     if (selectedAsinCodes.length === 0) {
-      alert('No valid ASIN codes found in selection.');
+      message.warning('No valid ASIN codes found in selection.');
       return;
     }
 
@@ -1103,15 +1108,15 @@ const AsinManagerPage = (props) => {
 
       const res = await db.createAction(payload);
       if (res && (res.success || res.data)) {
-        alert(`✅ Successfully created task for ${selectedAsinCodes.length} ASIN(s)!`);
+        message.success(`✅ Successfully created task for ${selectedAsinCodes.length} ASIN(s)!`);
         setSelectedIds(new Set());
         setShowManualTaskModal(false);
       } else {
-        alert('Failed to create task: ' + (res?.message || 'Unknown error'));
+        message.error('Failed to create task: ' + (res?.message || 'Unknown error'));
       }
     } catch (err) {
       console.error('Task creation error:', err);
-      alert('Error creating task: ' + err.message);
+      message.error('Error creating task: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -1303,8 +1308,8 @@ const AsinManagerPage = (props) => {
       <div className={`d-flex align-items-center ${justify} cursor-pointer`} onClick={() => handleSort(field)} style={{ userSelect: 'none' }}>
         <span className={justify === 'justify-content-end' ? 'me-1' : ''}>{label}</span>
         <div className="d-flex flex-column ms-1" style={{ fontSize: '7px', gap: '-3px', opacity: active ? 1 : 0.4, minWidth: '10px' }}>
-          <ChevronUp size={8} strokeWidth={4} style={{ color: active && sortOrder === 'asc' ? '#1890ff' : '#8c8c8c', marginBottom: '-2px' }} />
-          <ChevronDown size={8} strokeWidth={4} style={{ color: active && sortOrder === 'desc' ? '#1890ff' : '#8c8c8c' }} />
+          <ChevronUp size={8} strokeWidth={4} style={{ color: active && sortOrder === 'asc' ? 'var(--text-brand)' : '#8c8c8c', marginBottom: '-2px' }} />
+          <ChevronDown size={8} strokeWidth={4} style={{ color: active && sortOrder === 'desc' ? 'var(--text-brand)' : '#8c8c8c' }} />
         </div>
       </div>
     );
@@ -1318,14 +1323,14 @@ const AsinManagerPage = (props) => {
     try {
       const response = await asinApi.bulkUploadTags(file, selectedSeller);
       if (response.success) {
-        alert(`Successfully updated tags for ${response.updated} ASINs`);
+        message.success(`Successfully updated tags for ${response.updated} ASINs`);
         loadData(pagination.page, pagination.limit); // Refresh
       } else {
-        alert('Failed to import tags: ' + (response.error || 'Unknown error'));
+        message.error('Failed to import tags: ' + (response.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Tags import error:', err);
-      alert('Error importing tags');
+      message.error('Error importing tags');
     } finally {
       setImportingTags(false);
       if (e.target) e.target.value = ''; // reset
@@ -1333,23 +1338,27 @@ const AsinManagerPage = (props) => {
   };
 
   const handleRecalculateLQS = async () => {
-    const msg = selectedRows.length > 0
-      ? `Recalculate LQS for ${selectedRows.length} selected ASINs?`
+    const selectedArray = Array.from(selectedIds);
+    const msg = selectedArray.length > 0
+      ? `Recalculate LQS for ${selectedArray.length} selected ASINs?`
       : 'Recalculate LQS for all ASINs in your current view/scope?';
 
-    if (!window.confirm(msg)) return;
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({ title: 'Confirm', content: msg, onOk: () => resolve(true), onCancel: () => resolve(false) });
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     try {
-      const response = await asinApi.recalculateLQS(selectedRows);
+      const response = await asinApi.recalculateLQS(selectedArray);
       if (response.success) {
-        alert(`Successfully recalculated LQS for ${response.processedCount} ASINs`);
+        message.success(`Successfully recalculated LQS for ${response.processedCount} ASINs`);
         loadData(pagination.page, pagination.limit);
-        setSelectedRows([]); // Clear selection after processing
+        setSelectedIds(new Set());
       }
     } catch (err) {
       console.error('Recalculate LQS error:', err);
-      alert('Error recalculating LQS: ' + err.message);
+      message.error('Error recalculating LQS: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -1432,7 +1441,7 @@ const AsinManagerPage = (props) => {
     socket.on('repair_job_finished', (data) => {
       console.log('✅ Repair finished:', data);
       setRepairStatus(null);
-      alert(`Data repair completed! Processed: ${data.processed}, Failed: ${data.failed}`);
+      message.info(`Data repair completed! Processed: ${data.processed}, Failed: ${data.failed}`);
       loadData();
     });
 
@@ -1446,7 +1455,7 @@ const AsinManagerPage = (props) => {
       console.log('⚡ Live sync completed:', data);
       message.success({
         content: `Live sync completed — ${data.updatedAsins} ASINs updated for seller`,
-        icon: <Zap size={16} style={{ color: '#9C27B0' }} />,
+        icon: <Zap size={16} style={{ color: 'var(--color-secondary)' }} />,
         duration: 4
       });
       loadData(pagination.page);
@@ -1456,7 +1465,7 @@ const AsinManagerPage = (props) => {
       console.log('⚡ Global live sync completed:', data);
       message.success({
         content: `Global live sync completed — ${data.totalAsinsUpdated} ASINs updated across ${data.totalSellers} sellers`,
-        icon: <Zap size={16} style={{ color: '#9C27B0' }} />,
+        icon: <Zap size={16} style={{ color: 'var(--color-secondary)' }} />,
         duration: 5
       });
       loadData(pagination.page);
@@ -1505,7 +1514,7 @@ const AsinManagerPage = (props) => {
     if (stats) {
       const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
       const reviewTrend = reviewChange >= 0 ? '↑' : '↓';
-      const reviewColor = reviewChange >= 0 ? '#2E7D32' : '#D32F2F';
+      const reviewColor = reviewChange >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
       const bestSeller = stats.bestSellingAsins?.[0];
 
       // Compute derived values not directly in API response
@@ -1520,17 +1529,17 @@ const AsinManagerPage = (props) => {
 
       return [
         {
-          label: 'ALL ASINS', value: totalNum.toLocaleString(), color: '#1976D2', icon: <Package size={14} />,
+          label: 'ALL ASINS', value: totalNum.toLocaleString(), color: 'var(--text-brand)', icon: <Package size={14} />,
           sub: `${uniqueParents} parent groups`
         },
         {
-          label: 'ACTIVE ASINS', value: activeNum.toLocaleString(), color: '#2E7D32', icon: <Activity size={14} />,
+          label: 'ACTIVE ASINS', value: activeNum.toLocaleString(), color: 'var(--text-success)', icon: <Activity size={14} />,
           sub: `${totalNum - activeNum} inactive`
         },
         {
           label: 'TOTAL REVIEWS',
           value: totalReviews.toLocaleString(),
-          color: '#9C27B0',
+          color: 'var(--color-secondary)',
           icon: <Star size={14} />,
           sub: `Avg ${avgReviewsPerParent.toLocaleString()}/parent`,
           onClick: () => { setShowAllRatingHistory(true); }
@@ -1538,7 +1547,7 @@ const AsinManagerPage = (props) => {
         {
           label: 'AVG RATING',
           value: `${stats.avgRating || '0.00'} ★`,
-          color: '#ED6C02',
+          color: 'var(--text-warning)',
           icon: <Trophy size={14} />,
           sub: `${stats.above4Star || 0} above 4★`,
           onClick: () => { setShowAllRatingHistory(true); }
@@ -1547,21 +1556,21 @@ const AsinManagerPage = (props) => {
           label: 'BEST SELLER',
           value: bestSeller ? `#${(bestSeller.BSR || bestSeller.bsr || 0).toLocaleString()}` : '-',
           sub: bestSeller?.AsinCode || bestSeller?.asinCode || '',
-          color: '#0288D1',
+          color: 'var(--text-brand)',
           icon: <Award size={14} />,
           onClick: () => { setShowAllBsrHistory(true); }
         },
         {
           label: 'AVG PRICE',
           value: '₹' + avgPriceNum.toLocaleString(),
-          color: '#9C27B0',
+          color: 'var(--color-secondary)',
           icon: <IndianRupee size={14} />,
           onClick: () => { setShowAllPriceHistory(true); }
         },
         {
           label: 'AVG LQS',
           value: avgLqsNum.toFixed(1) + '%',
-          color: '#9C27B0',
+          color: 'var(--color-secondary)',
           icon: <Sparkles size={14} />
         },
         {
@@ -1577,20 +1586,20 @@ const AsinManagerPage = (props) => {
     // Fallback when stats not available
     const total = asins?.length || 0;
     return [
-      { label: 'ALL ASINS', value: total.toLocaleString(), color: '#1976D2', icon: <Package size={14} /> },
-      { label: 'ACTIVE', value: asins.filter(a => a.status === 'Active').length, color: '#2E7D32', icon: <Activity size={14} /> },
+      { label: 'ALL ASINS', value: total.toLocaleString(), color: 'var(--text-brand)', icon: <Package size={14} /> },
+      { label: 'ACTIVE', value: asins.filter(a => a.status === 'Active').length, color: 'var(--text-success)', icon: <Activity size={14} /> },
     ];
   }, [asins, stats]);
 
 
   const handleSync = useCallback(async () => {
     if (!newAsin.trim()) {
-      alert('Please enter at least one ASIN');
+      message.warning('Please enter at least one ASIN');
       return;
     }
 
     if (!selectedSellerId) {
-      alert('Please select a target seller association first.');
+      message.warning('Please select a target seller association first.');
       return;
     }
 
@@ -1599,7 +1608,7 @@ const AsinManagerPage = (props) => {
       const asinList = newAsin.split(/[,\s]+/).map(a => a.trim().toUpperCase()).filter(a => a.length > 0);
 
       if (asinList.length === 0) {
-        alert('No valid ASINs found.');
+        message.warning('No valid ASINs found.');
         setSyncing(false);
         return;
       }
@@ -1616,14 +1625,14 @@ const AsinManagerPage = (props) => {
       // Refresh list
       await loadData();
 
-      alert(`Successfully added ${asinList.length} ASIN(s) to the tracking pool.`);
+      message.success(`Successfully added ${asinList.length} ASIN(s) to the tracking pool.`);
       setNewAsin('');
       setSelectedSellerId('');
       setShowAddModal(false);
 
     } catch (error) {
       console.error('Failed to add ASINs:', error);
-      alert('Failed to add ASINs: ' + error.message);
+      message.error('Failed to add ASINs: ' + error.message);
     } finally {
       setSyncing(false);
     }
@@ -1631,15 +1640,15 @@ const AsinManagerPage = (props) => {
 
   const handleRepairData = async () => {
     const sellerToRepair = selectedSeller || selectedSellerId;
-    if (!sellerToRepair) return alert('Please select a seller first.');
+    if (!sellerToRepair) { message.warning('Please select a seller first.'); return; }
 
     try {
       setSyncing(true);
       const res = await asinApi.repairIncomplete(sellerToRepair);
       setRepairStatus({ running: true, total: res.total, processed: 0, failed: 0, percentage: 0 });
-      alert(`🛠️ Repair job started for ${res.total} incomplete ASINs.`);
+      message.info(`🛠️ Repair job started for ${res.total} incomplete ASINs.`);
     } catch (err) {
-      alert('❌ Repair failed: ' + err.message);
+      message.error('❌ Repair failed: ' + err.message);
     } finally {
       setSyncing(false);
     }
@@ -1650,11 +1659,11 @@ const AsinManagerPage = (props) => {
     try {
       setScrapingIds(prev => new Set(prev).add(asinId));
       await marketSyncApi.syncAsin(asinId);
-      alert('Scraping initiated successfully!');
+      message.success('Scraping initiated successfully!');
       loadData();
     } catch (err) {
       console.error('Scrape failed:', err);
-      alert('Failed to start scraping: ' + err.message);
+      message.error('Failed to start scraping: ' + err.message);
     } finally {
       setScrapingIds(prev => {
         const newSet = new Set(prev);
@@ -1665,15 +1674,18 @@ const AsinManagerPage = (props) => {
   };
 
   const handleDeleteAsin = async (asinId) => {
-    if (!window.confirm('Are you sure you want to completely delete this ASIN from the database? This action cannot be undone.')) return;
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({ title: 'Confirm', content: 'Are you sure you want to completely delete this ASIN from the database? This action cannot be undone.', onOk: () => resolve(true), onCancel: () => resolve(false) });
+    });
+    if (!confirmed) return;
     try {
       setSyncing(true);
       await asinApi.delete(asinId);
-      alert('✅ ASIN deleted successfully from the database.');
+      message.success('✅ ASIN deleted successfully from the database.');
       loadData();
     } catch (err) {
       console.error('Delete failed:', err);
-      alert('Failed to delete ASIN: ' + err.message);
+      message.error('Failed to delete ASIN: ' + err.message);
     } finally {
       setSyncing(false);
     }
@@ -1681,38 +1693,44 @@ const AsinManagerPage = (props) => {
 
   const handleCreateTasks = async (asinId, asinCode) => {
     try {
-      if (!window.confirm(`Auto-generate optimization tasks for ASIN ${asinCode}?`)) return;
+      const confirmed = await new Promise(resolve => {
+        Modal.confirm({ title: 'Confirm', content: `Auto-generate optimization tasks for ASIN ${asinCode}?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+      });
+      if (!confirmed) return;
       const res = await db.createActionsFromAnalysis(asinId);
       if (res && res.count > 0) {
-        alert(`✅ Successfully created ${res.count} optimization task(s) for ${asinCode}!`);
+        message.success(`✅ Successfully created ${res.count} optimization task(s) for ${asinCode}!`);
       } else if (res && res.success === false) {
-        alert(`❌ Error: ${res.message || 'Failed to create tasks'}`);
+        message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
       } else {
-        alert(`Analysis complete for ${asinCode}. No critical tasks needed at this time.`);
+        message.info(`Analysis complete for ${asinCode}. No critical tasks needed at this time.`);
       }
     } catch (err) {
       console.error('Task creation failed:', err);
-      alert('Failed to create tasks: ' + err.message);
+      message.error('Failed to create tasks: ' + err.message);
     }
   };
 
   const handleGenerateAiImages = async (asinId, asinCode) => {
     try {
-      if (!window.confirm(`Generate AI lifestyle images for ASIN ${asinCode}? This uses Nvidia NIM (SD3 Medium).`)) return;
+      const confirmed = await new Promise(resolve => {
+        Modal.confirm({ title: 'Confirm', content: `Generate AI lifestyle images for ASIN ${asinCode}? This uses Nvidia NIM (SD3 Medium).`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+      });
+      if (!confirmed) return;
 
       setScrapingIds(prev => new Set(prev).add(asinId));
       const res = await asinApi.generateImages(asinId);
 
       if (res.success) {
-        alert(`✅ AI Image Generated!\nView it at: ${res.imageUrl}`);
+        message.success(`✅ AI Image Generated!\nView it at: ${res.imageUrl}`);
         // Refresh ASIN data to show updated action status if needed
         loadData();
       } else {
-        alert(`❌ Generation failed: ${res.error || 'Unknown error'}`);
+        message.error(`❌ Generation failed: ${res.error || 'Unknown error'}`);
       }
     } catch (err) {
       console.error('AI Image generation failed:', err);
-      alert('AI Generation Error: ' + (err.response?.data?.error || err.message));
+      message.error('AI Generation Error: ' + (err.response?.data?.error || err.message));
     } finally {
       setScrapingIds(prev => {
         const newSet = new Set(prev);
@@ -1726,7 +1744,10 @@ const AsinManagerPage = (props) => {
     const totalCount = stats?.total || asins.length;
 
     // Quick confirmation for global heavy action
-    if (!window.confirm(`Force-sync and refresh all ${totalCount} ASINs? This starts concurrent Octoparse tasks in the background.`)) return;
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({ title: 'Confirm', content: `Force-sync and refresh all ${totalCount} ASINs? This starts concurrent Octoparse tasks in the background.`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+    });
+    if (!confirmed) return;
 
     try {
       setSyncing(true);
@@ -1737,10 +1758,10 @@ const AsinManagerPage = (props) => {
       // 2. Refresh current local database data in UI
       await loadData(pagination.page);
 
-      alert(`✅ Success: Sync initiated for all ${totalCount} ASINs. Background scrapes are now running concurrently.`);
+      message.success(`✅ Success: Sync initiated for all ${totalCount} ASINs. Background scrapes are now running concurrently.`);
     } catch (err) {
       console.error('Bulk scrape failed:', err);
-      alert('❌ Failed to start bulk scraping: ' + err.message);
+      message.error('❌ Failed to start bulk scraping: ' + err.message);
     } finally {
       setSyncing(false);
     }
@@ -1749,20 +1770,23 @@ const AsinManagerPage = (props) => {
   const handleBulkCreateActions = async () => {
     try {
       const totalCount = stats?.total || asins.length;
-      if (!window.confirm(`Auto-generate optimization tasks for ALL ${totalCount} ASINs? This will analyze every ASIN in the current filter.`)) return;
+      const confirmed = await new Promise(resolve => {
+        Modal.confirm({ title: 'Confirm', content: `Auto-generate optimization tasks for ALL ${totalCount} ASINs? This will analyze every ASIN in the current filter.`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+      });
+      if (!confirmed) return;
 
       setSyncing(true);
       const res = await db.createBulkActionsFromAnalysis();
       if (res && res.count > 0) {
-        alert(`✅ Successfully generated ${res.count} bulk optimization tasks!`);
+        message.success(`✅ Successfully generated ${res.count} bulk optimization tasks!`);
       } else if (res && res.success === false) {
-        alert(`❌ Error: ${res.message || 'Failed to create tasks'}`);
+        message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
       } else {
-        alert('Analysis complete. All ASINs look good! No optimization actions needed.');
+        message.info('Analysis complete. All ASINs look good! No optimization actions needed.');
       }
     } catch (err) {
       console.error('Bulk task creation failed:', err);
-      alert('Failed to create bulk tasks: ' + err.message);
+      message.error('Failed to create bulk tasks: ' + err.message);
     } finally {
       setSyncing(false);
     }
@@ -1772,28 +1796,31 @@ const AsinManagerPage = (props) => {
     try {
       const selectedAsinIds = Array.from(selectedIds);
       if (selectedAsinIds.length === 0) {
-        alert('Please select at least one ASIN first.');
+        message.warning('Please select at least one ASIN first.');
         return;
       }
 
-      if (!window.confirm(`Analyze ${selectedAsinIds.length} ASINs and generate optimization tasks?`)) return;
+      const confirmed = await new Promise(resolve => {
+        Modal.confirm({ title: 'Confirm', content: `Analyze ${selectedAsinIds.length} ASINs and generate optimization tasks?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+      });
+      if (!confirmed) return;
 
       setSyncing(true);
       const res = await taskApi.generate(selectedAsinIds);
 
       if (res.success) {
-        alert(`✅ Generated ${res.savedCount} optimization tasks from ${res.summary.analyzed} ASINs!\n\n` +
+        message.success(`✅ Generated ${res.savedCount} optimization tasks from ${res.summary.analyzed} ASINs!\n\n` +
           `By Category: ${JSON.stringify(res.summary.byCategory)}\n` +
           `High Priority: ${res.summary.byPriority.High} | Medium: ${res.summary.byPriority.Medium}`);
         clearSelection();
       } else if (res && res.success === false) {
-        alert(`❌ Error: ${res.message || 'Failed to create tasks'}`);
+        message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
       } else {
-        alert('Selected ASINs analyzed. No immediate optimizations required for these specific items.');
+        message.info('Selected ASINs analyzed. No immediate optimizations required for these specific items.');
       }
     } catch (err) {
       console.error('Selected task creation failed:', err);
-      alert('Failed to create selected tasks: ' + err.message);
+      message.error('Failed to create selected tasks: ' + err.message);
     } finally {
       setSyncing(false);
     }
@@ -1805,8 +1832,8 @@ const AsinManagerPage = (props) => {
 
   const handleAiListingAnalysis = async () => {
     const selectedAsinIds = Array.from(selectedIds);
-    if (selectedAsinIds.length === 0) { alert('Please select ASINs first.'); return; }
-    if (selectedAsinIds.length > 5) { alert('AI analysis supports max 5 ASINs at a time for quality results.'); return; }
+    if (selectedAsinIds.length === 0) { message.warning('Please select ASINs first.'); return; }
+    if (selectedAsinIds.length > 5) { message.warning('AI analysis supports max 5 ASINs at a time for quality results.'); return; }
 
     setAiAnalysisLoading(true);
     setShowAiAnalysisModal(true);
@@ -1834,12 +1861,12 @@ const AsinManagerPage = (props) => {
       setSyncing(true);
       const res = await db.analyzeListing(asinId, true);
       if (res?.success && res.data?.createdTasks) {
-        alert(`✅ Created ${res.data.tasksCount} optimization tasks`);
+        message.success(`✅ Created ${res.data.tasksCount} optimization tasks`);
         setShowAiAnalysisModal(false);
         clearSelection();
       }
     } catch (err) {
-      alert('Failed to create tasks: ' + err.message);
+      message.error('Failed to create tasks: ' + err.message);
     } finally {
       setSyncing(false);
     }
@@ -1849,7 +1876,10 @@ const AsinManagerPage = (props) => {
     const selectedAsinIds = Array.from(selectedIds);
     if (selectedAsinIds.length === 0) return;
 
-    if (!window.confirm(`Force-sync and refresh data for the ${selectedAsinIds.length} selected ASINs?`)) return;
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({ title: 'Confirm', content: `Force-sync and refresh data for the ${selectedAsinIds.length} selected ASINs?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
+    });
+    if (!confirmed) return;
 
     try {
       setSyncing(true);
@@ -1863,11 +1893,11 @@ const AsinManagerPage = (props) => {
       await Promise.allSettled(syncPromises);
 
       await loadData(pagination.page);
-      alert(`✅ Sync initiated for ${selectedAsinIds.length} selected items.`);
+      message.success(`✅ Sync initiated for ${selectedAsinIds.length} selected items.`);
       clearSelection();
     } catch (err) {
       console.error('Selected sync failed:', err);
-      alert('❌ Failed to start sync for some items: ' + err.message);
+      message.error('❌ Failed to start sync for some items: ' + err.message);
     } finally {
       setSyncing(false);
       setScrapingIds(new Set());
@@ -1875,10 +1905,10 @@ const AsinManagerPage = (props) => {
   };
 
   const getLqsBadge = (lqs) => {
-    let bgColor = '#2E7D32';
+    let bgColor = 'var(--text-success)';
     let textColor = '#fff';
-    if (lqs < 60) { bgColor = '#C62828'; }
-    else if (lqs < 80) { bgColor = '#E65100'; }
+    if (lqs < 60) { bgColor = 'var(--text-danger)'; }
+    else if (lqs < 80) { bgColor = 'var(--text-warning)'; }
     return (
       <span
         className="badge"
@@ -1891,7 +1921,7 @@ const AsinManagerPage = (props) => {
 
   const getBuyBoxBadge = (asin) => {
     const { buyBoxWin, status, soldBy, secondAsp, currentPrice } = asin;
-    if (status === 'Scraping') return <span style={{ color: '#9ca3af' }}>-</span>;
+    if (status === 'Scraping') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
 
     const formatRupee = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
 
@@ -1906,7 +1936,7 @@ const AsinManagerPage = (props) => {
           <div className="d-flex align-items-center gap-1">
             <span
               className="badge mb-1"
-              style={{ backgroundColor: '#2E7D32', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+              style={{ backgroundColor: 'var(--text-success)', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
             >
               Won
             </span>
@@ -1926,7 +1956,7 @@ const AsinManagerPage = (props) => {
       <div className="d-flex flex-column align-items-center">
         <span
           className="badge mb-1"
-          style={{ backgroundColor: '#D32F2F', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+          style={{ backgroundColor: 'var(--text-danger)', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
         >
           Lost
         </span>
@@ -1943,8 +1973,8 @@ const AsinManagerPage = (props) => {
   };
 
   const getAplusBadge = (hasAplus, status) => {
-    if (status === 'Scraping') return <span style={{ color: '#9ca3af' }}>-</span>;
-    const bgColor = hasAplus ? '#2E7D32' : '#6b7280';
+    if (status === 'Scraping') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
+    const bgColor = hasAplus ? 'var(--text-success)' : '#6b7280';
     return (
       <span
         className="badge"
@@ -1956,7 +1986,7 @@ const AsinManagerPage = (props) => {
   };
 
   const getStatusBadge = (status) => {
-    const bgColor = status === 'Active' ? '#2E7D32' : '#E65100';
+    const bgColor = status === 'Active' ? 'var(--text-success)' : 'var(--text-warning)';
     return (
       <span
         className="badge"
@@ -1969,16 +1999,16 @@ const AsinManagerPage = (props) => {
 
   const renderRatingBreakdown = (breakdown) => {
     if (!breakdown || (!breakdown.fiveStar && !breakdown.fourStar && !breakdown.threeStar && !breakdown.twoStar && !breakdown.oneStar)) {
-      return <span style={{ color: '#9ca3af' }}>-</span>;
+      return <span style={{ color: 'var(--text-muted)' }}>-</span>;
     }
 
     // Mini horizontal bar chart showing star distribution
     const stars = [
-      { key: 'fiveStar', label: '5', color: '#22c55e' },
+      { key: 'fiveStar', label: '5', color: 'var(--text-success)' },
       { key: 'fourStar', label: '4', color: '#84cc16' },
       { key: 'threeStar', label: '3', color: '#eab308' },
-      { key: 'twoStar', label: '2', color: '#ED6C02' },
-      { key: 'oneStar', label: '1', color: '#D32F2F' }
+      { key: 'twoStar', label: '2', color: 'var(--text-warning)' },
+      { key: 'oneStar', label: '1', color: 'var(--text-danger)' }
     ];
 
     return (
@@ -2005,13 +2035,13 @@ const AsinManagerPage = (props) => {
     <div className="bg-white border border-zinc-200 rounded-4 shadow-sm mb-4 overflow-hidden">
       <div
         onClick={onToggle}
-        className="px-4 py-3 d-flex align-items-center justify-content-between cursor-pointer transition-all"
-        style={{ background: isOpen ? '#fff' : '#fcfcfc', borderBottom: isOpen ? '1px solid #f1f5f9' : 'none' }}
+        className={`px-4 py-3 d-flex align-items-center justify-content-between cursor-pointer ${styles.transitionAll}`}
+        style={{ background: isOpen ? '#fff' : '#fcfcfc', borderBottom: isOpen ? '1px solid var(--bg-secondary)' : 'none' }}
       >
         <div className="d-flex align-items-center gap-3">
           <div className="d-flex align-items-center justify-content-center rounded-2" style={{
             width: '28px', height: '28px',
-            background: '#f8fafc', color: '#64748b'
+            background: 'var(--bg-secondary)', color: 'var(--text-muted)'
           }}>
             <Icon size={14} />
           </div>
@@ -2037,7 +2067,7 @@ const AsinManagerPage = (props) => {
   }
 
   if (error && !loading && asins.length === 0) {
-    return <LoadError message={error} onRetry={() => { setError(null); setLoading(true); loadAsins(); }} />;
+    return <LoadError message={error} onRetry={() => { setError(null); setLoading(true); loadData(); }} />;
   }
 
   const thStyle = {
@@ -2047,10 +2077,10 @@ const AsinManagerPage = (props) => {
     letterSpacing: '0.04em',
     color: 'var(--text-secondary)', // cool gray 600
     padding: '10px 12px',
-    background: '#f9fafb',
+    background: 'var(--bg-secondary)',
     position: 'sticky',
     top: 0,
-    borderBottom: '1px solid #e5e7eb',
+    borderBottom: '1px solid var(--border-light)',
     whiteSpace: 'nowrap',
     border: '0.5px solid #f1f1f1',
     zIndex: 10
@@ -2059,12 +2089,12 @@ const AsinManagerPage = (props) => {
   const tdStyle = {
     padding: '3px 8px',
     fontSize: '0.68rem',
-    borderBottom: '0.5px solid #f1f5f9',
+    borderBottom: '0.5px solid var(--bg-secondary)',
     verticalAlign: 'middle',
-    color: '#27272a', // zinc-800
+    color: 'var(--text-primary)', // zinc-800
     height: '34px',
-    borderLeft: '0.5px solid #f1f5f9',
-    borderRight: '0.5px solid #f1f5f9',
+    borderLeft: '0.5px solid var(--bg-secondary)',
+    borderRight: '0.5px solid var(--bg-secondary)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
@@ -2076,11 +2106,11 @@ const AsinManagerPage = (props) => {
     fontWeight: '700',
     height: '18px',
     borderRadius: 'var(--radius-sm)',
-    border: '1px solid #e4e4e7'
+    border: '1px solid var(--border-light)'
   };
 
   return (
-    <div className="asin-page-container">
+    <div className={styles.pageContainer}>
       {loading && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
           <LoadingIndicator type="line-simple" size="md" />
@@ -2091,10 +2121,10 @@ const AsinManagerPage = (props) => {
       <Drawer
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
-            <div style={{ background: '#f4f4f5', padding: 7, borderRadius: "var(--radius-md)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: 'var(--bg-active)', padding: 7, borderRadius: "var(--radius-md)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <SlidersHorizontal size={16} style={{ color: '#3f3f46' }} />
             </div>
-            <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b' }}>Filters</span>
+            <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)' }}>Filters</span>
           </div>
         }
         placement="right"
@@ -2102,11 +2132,11 @@ const AsinManagerPage = (props) => {
         open={filterPanelOpen}
         width={400}
         styles={{
-          header: { borderBottom: '1px solid #f4f4f5', padding: '12px 20px' },
+          header: { borderBottom: '1px solid var(--bg-active)', padding: '12px 20px' },
           body: { padding: 0, display: 'flex', flexDirection: 'column', background: '#fff' }
         }}
         extra={
-          <Button type="link" size="small" onClick={resetAllFilters} style={{ fontSize: 12, color: '#D32F2F', fontWeight: 600, padding: 0 }}>
+          <Button type="link" size="small" onClick={resetAllFilters} style={{ fontSize: 12, color: 'var(--text-danger)', fontWeight: 600, padding: 0 }}>
             Reset All
           </Button>
         }
@@ -2116,7 +2146,7 @@ const AsinManagerPage = (props) => {
 
           {/* SEARCH & BASIC */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Identity & Search</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Identity & Search</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>SKU</div>
@@ -2129,11 +2159,11 @@ const AsinManagerPage = (props) => {
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#f4f4f5', margin: '0 -20px 24px' }} />
+          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
 
           {/* ATTRIBUTES */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Product Attributes</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Product Attributes</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Scrape Status</div>
@@ -2158,11 +2188,11 @@ const AsinManagerPage = (props) => {
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#f4f4f5', margin: '0 -20px 24px' }} />
+          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
 
           {/* QUICK FLAGS */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Quick Flags</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Quick Flags</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BuyBox</div>
@@ -2199,11 +2229,11 @@ const AsinManagerPage = (props) => {
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#f4f4f5', margin: '0 -20px 24px' }} />
+          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
 
           {/* TRENDS & HISTORY */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Performance Trends</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Performance Trends</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Trend</div>
@@ -2220,11 +2250,11 @@ const AsinManagerPage = (props) => {
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#f4f4f5', margin: '0 -20px 24px' }} />
+          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
 
           {/* RANGES */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Metrics & Ranges</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Metrics & Ranges</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Range (₹)</div>
@@ -2250,11 +2280,11 @@ const AsinManagerPage = (props) => {
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#f4f4f5', margin: '0 -20px 24px' }} />
+          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
 
           {/* TAGS */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tags</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tags</div>
             <Input.Search size="small" placeholder="Search tags..." value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} style={{ borderRadius: "var(--radius-md)", marginBottom: 10 }} />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {filterOptions.tags
@@ -2264,7 +2294,7 @@ const AsinManagerPage = (props) => {
                   return (
                     <Tag
                       key={tag}
-                      style={{ cursor: 'pointer', borderRadius: 100, fontSize: 10, fontWeight: 600, padding: '2px 10px', margin: 0, border: active ? '1px solid #18181b' : '1px solid #e4e4e7', background: active ? '#18181b' : '#f4f4f5', color: active ? '#fff' : '#52525b' }}
+                      style={{ cursor: 'pointer', borderRadius: 100, fontSize: 10, fontWeight: 600, padding: '2px 10px', margin: 0, border: active ? '1px solid var(--text-primary)' : '1px solid var(--border-light)', background: active ? 'var(--text-primary)' : 'var(--bg-active)', color: active ? '#fff' : '#52525b' }}
                       onClick={() => {
                         const newTags = active ? filters.selectedTags.filter(t => t !== tag) : [...filters.selectedTags, tag];
                         setFilters({ ...filters, selectedTags: newTags });
@@ -2277,11 +2307,11 @@ const AsinManagerPage = (props) => {
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#f4f4f5', margin: '0 -20px 24px' }} />
+          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
 
           {/* AGE FILTER */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Listing Age</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Listing Age</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {[
                 { label: 'New (<30D)', value: '30' },
@@ -2293,7 +2323,7 @@ const AsinManagerPage = (props) => {
               ].map(opt => (
                 <Tag
                   key={opt.value}
-                  style={{ cursor: 'pointer', borderRadius: 100, fontSize: 10, fontWeight: 600, padding: '2px 10px', margin: 0, border: filters.ageFilter === opt.value ? '1px solid #18181b' : '1px solid #e4e4e7', background: filters.ageFilter === opt.value ? '#18181b' : '#f4f4f5', color: filters.ageFilter === opt.value ? '#fff' : '#52525b' }}
+                  style={{ cursor: 'pointer', borderRadius: 100, fontSize: 10, fontWeight: 600, padding: '2px 10px', margin: 0, border: filters.ageFilter === opt.value ? '1px solid var(--text-primary)' : '1px solid var(--border-light)', background: filters.ageFilter === opt.value ? 'var(--text-primary)' : 'var(--bg-active)', color: filters.ageFilter === opt.value ? '#fff' : '#52525b' }}
                   onClick={() => setFilters({ ...filters, ageFilter: filters.ageFilter === opt.value ? '' : opt.value })}
                 >
                   {opt.label}
@@ -2311,9 +2341,9 @@ const AsinManagerPage = (props) => {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #f4f4f5', background: '#fafafa', display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--bg-active)', background: '#fafafa', display: 'flex', gap: 8, flexShrink: 0 }}>
           <Button size="small" block onClick={resetAllFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32 }}>Reset</Button>
-          <Button size="small" type="primary" block onClick={handleApplyFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32, background: '#18181b', borderColor: '#18181b' }}>Apply Filters</Button>
+          <Button size="small" type="primary" block onClick={handleApplyFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32, background: 'var(--text-primary)', borderColor: 'var(--text-primary)' }}>Apply Filters</Button>
         </div>
       </Drawer>
 
@@ -2321,18 +2351,18 @@ const AsinManagerPage = (props) => {
 
       {/* ANALYTICS MODULE AREA - RECTANGULAR PILLS STYLE */}
       <div className="flex-shrink-0 overflow-hidden" style={{ maxHeight: showDashboard ? '52px' : '0px', transition: 'all 0.3s ease', opacity: showDashboard ? 1 : 0, pointerEvents: showDashboard ? 'auto' : 'none' }}>
-        <div className="px-3 py-1 d-flex align-items-center gap-2 overflow-x-auto custom-scrollbar" style={{ width: '100%' }}>
+        <div className={`px-3 py-1 d-flex align-items-center gap-2 overflow-x-auto ${styles.customScrollbar}`} style={{ width: '100%' }}>
           {kpis.map((kpi, idx) => (
             <Tooltip key={idx} title={kpi.sub || null} placement="bottom" mouseEnterDelay={0.3}>
               <div
-                className="bg-white border shadow-sm d-flex align-items-center gap-2 px-3 hover-up-mild"
+                className={`bg-white border shadow-sm d-flex align-items-center gap-2 px-3 ${styles.hoverUpMild}`}
                 style={{
                   height: '32px',
                   minWidth: 'max-content',
                   flexShrink: 0,
                   cursor: kpi.onClick ? 'pointer' : 'default',
                   borderRadius: '6px',
-                  borderColor: '#e4e4e7'
+                  borderColor: 'var(--border-light)'
                 }}
                 onClick={kpi.onClick}
               >
@@ -2359,7 +2389,7 @@ const AsinManagerPage = (props) => {
 
                 {/* Inline sub hint */}
                 {kpi.sub && (
-                  <span style={{ fontSize: '9px', color: '#a1a1aa', whiteSpace: 'nowrap', marginLeft: '2px' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '2px' }}>
                     ({kpi.sub})
                   </span>
                 )}
@@ -2375,7 +2405,7 @@ const AsinManagerPage = (props) => {
           <div className="spin text-amber-500"><Zap size={12} /></div>
           <span className="smallest text-amber-900 fw-bold text-uppercase tracking-wider" style={{ fontSize: '9px' }}>Data Repair</span>
           <div className="flex-grow-1" style={{ height: '4px', background: '#fef3c7', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#ED6C02', width: `${repairStatus.percentage}%`, transition: 'width 0.4s ease' }} />
+            <div style={{ height: '100%', background: 'var(--text-warning)', width: `${repairStatus.percentage}%`, transition: 'width 0.4s ease' }} />
           </div>
           <span className="smallest text-amber-600 fw-bold" style={{ fontSize: '9px' }}>{repairStatus.processed}/{repairStatus.total}</span>
         </div>
@@ -2393,141 +2423,10 @@ const AsinManagerPage = (props) => {
         {/* ELEVATED MODULE CONTAINER */}
         <div className="bg-white shadow-sm rounded-4 overflow-hidden flex-grow-1 d-flex flex-column border border-light-subtle position-relative">
 
-          <style>{`
-                  .filter-section-title {
-                    font-size: 11px;
-                    font-weight: 800;
-                    color: #18181b;
-                    text-transform: uppercase;
-                    letter-spacing: 0.1em;
-                    margin-bottom: 16px;
-                    padding-bottom: 8px;
-                    border-bottom: 1.5px solid #f4f4f5;
-                  }
-                  .filter-group {
-                    margin-bottom: 4px;
-                  }
-                  .filter-label {
-                    display: block;
-                    font-size: 10px;
-                    font-weight: 700;
-                    color: #71717a;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                    margin-bottom: 8px;
-                  }
-                  @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                  }
-                  @keyframes slideInRight {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
-                  }
-                  .hover-up-mild {
-                    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-                  }
-                  .hover-up-mild:hover {
-                    transform: translateY(-3px);
-                    box-shadow: 0 10px 20px -5px rgba(0,0,0,0.08) !important;
-                  }
-                  .rotate-180 {
-                    transform: rotate(180deg);
-                  }
-                  .transition-all {
-                    transition: all 0.2s ease-in-out;
-                  }
-                  .tracking-tight {
-                    letter-spacing: -0.02em;
-                  }
-                  .custom-scrollbar::-webkit-scrollbar {
-                    width: 6px;
-                    height: 6px;
-                  }
-                  .custom-scrollbar::-webkit-scrollbar-track {
-                    background: transparent;
-                  }
-                  .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: #cbd5e1;
-                    border-radius: 10px;
-                  }
-                  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: #94a3b8;
-                  }
-                  .asin-page-container {
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                    overflow: hidden;
-                    background-color: #f4f5f7;
-                  }
-                  .asin-toolbar {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    flex-shrink: 0;
-                    gap: 12px;
-                    padding: 8px 16px;
-                  }
-                  .asin-toolbar-left {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                  }
-                  .asin-toolbar-right {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                  }
-                  .asin-search-input {
-                    width: 230px;
-                  }
-                  .asin-seller-select-wrapper {
-                    width: 160px;
-                  }
-                  @media (max-width: 992px) {
-                    .asin-page-container {
-                      margin: -0.75rem;
-                      height: calc(100vh - 60px);
-                    }
-                  }
-                  @media (max-width: 768px) {
-                    .asin-toolbar {
-                      flex-direction: column;
-                      align-items: stretch;
-                      padding: 12px 16px;
-                      gap: 12px;
-                    }
-                    .asin-toolbar-left {
-                      flex-direction: column;
-                      align-items: stretch;
-                      gap: 12px;
-                    }
-                    .asin-toolbar-left > div {
-                      width: 100%;
-                      justify-content: space-between;
-                    }
-                    .asin-toolbar-right {
-                      justify-content: flex-start;
-                      flex-wrap: wrap;
-                      gap: 8px;
-                    }
-                    .asin-search-input, 
-                    .asin-seller-select-wrapper {
-                      width: 100% !important;
-                      flex: 1;
-                    }
-                    .asin-toolbar-right .btn {
-                      flex-grow: 1;
-                      justify-content: center;
-                    }
-                  }
-          `}</style>
-
           {/* Table Toolbar */}
-          <div className="asin-toolbar border-bottom bg-white">
-            <div className="asin-toolbar-left d-flex align-items-center gap-2 flex-grow-1" style={{ flexWrap: 'wrap', minWidth: 0 }}>
-              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#27272a', letterSpacing: '0.02em', whiteSpace: 'nowrap' }} className="text-uppercase d-flex align-items-center gap-1">
+          <div className={`${styles.toolbar} border-bottom bg-white`}>
+            <div className={`${styles.toolbarLeft} d-flex align-items-center gap-2 flex-grow-1`} style={{ flexWrap: 'wrap', minWidth: 0 }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }} className="text-uppercase d-flex align-items-center gap-1">
                 Inventory
                 <span className="bg-light border text-secondary px-1.5 rounded-pill fw-semibold" style={{ fontSize: '10px', lineHeight: '18px' }}>
                   {pagination.total.toLocaleString()}
@@ -2577,7 +2476,7 @@ const AsinManagerPage = (props) => {
                     )
                   }] : [])
                 ]}
-                style={{ background: '#f4f4f5', padding: '2px', borderRadius: '6px', flexShrink: 0 }}
+                style={{ background: 'var(--bg-active)', padding: '2px', borderRadius: '6px', flexShrink: 0 }}
               />
 
               <Input.Search
@@ -2587,9 +2486,9 @@ const AsinManagerPage = (props) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onSearch={handleApplySearch}
-                className="antd-dense-search asin-search-input"
+                className={`antd-dense-search ${styles.searchInput}`}
               />
-              <div className="asin-seller-select-wrapper">
+              <div className={styles.sellerSelectWrapper}>
                 <InfiniteScrollSelect
                   fetchData={fetchSellerDropdownData}
                   value={selectedSeller}
@@ -2727,9 +2626,9 @@ const AsinManagerPage = (props) => {
 
               {/* Scrape Progress */}
               {scrapeProgress && (
-                <div className="bg-light border rounded-2 px-2 d-flex align-items-center gap-2" style={{ height: '32px', borderColor: '#e4e4e7' }}>
-                  <RefreshCw size={12} className="spin" style={{ color: '#D32F2F' }} />
-                  <span className="fw-bold font-monospace small" style={{ color: '#27272a' }}>{scrapeProgress.processed}/{scrapeProgress.total}</span>
+                <div className="bg-light border rounded-2 px-2 d-flex align-items-center gap-2" style={{ height: '32px', borderColor: 'var(--border-light)' }}>
+                  <RefreshCw size={12} className="spin" style={{ color: 'var(--text-danger)' }} />
+                  <span className="fw-bold font-monospace small" style={{ color: 'var(--text-primary)' }}>{scrapeProgress.processed}/{scrapeProgress.total}</span>
                 </div>
               )}
 
@@ -2763,7 +2662,7 @@ const AsinManagerPage = (props) => {
                 </Button>
 
                 {hasPermission('asinmanager_manage') && (
-                  <Tooltip title="Auto-tag: GMS Top 20, New 20, Age tags">
+                  <Tooltip title="Auto-tag: Pareto 80/20 Contributors, Age tags">
                     <Button
                       icon={<Sparkles size={14} />}
                       onClick={async () => {
@@ -2771,7 +2670,12 @@ const AsinManagerPage = (props) => {
                           message.loading({ content: 'Running auto-tags...', key: 'auto-tags' });
                           const res = await asinApi.runAutoTags();
                           if (res.success) {
-                            message.success({ content: `Auto-tags complete. GMS Top 20: ${res.data?.gmsTop20?.updated || 0}, New 20: ${res.data?.new20?.updated || 0}`, key: 'auto-tags', duration: 4 });
+                            const pareto = res.data?.pareto || {};
+                            message.success({
+                              content: `Auto-tags complete. Pareto: ${pareto.updated || 0} ASINs across ${pareto.brandCount || 0} brands`,
+                              key: 'auto-tags',
+                              duration: 4
+                            });
                             loadData(pagination.page);
                           }
                         } catch (err) {
@@ -2839,7 +2743,7 @@ const AsinManagerPage = (props) => {
                     <Button
                       onClick={handleBulkCreateActions}
                       disabled={asins.length === 0 || syncing}
-                      icon={<Zap size={14} style={{ color: '#D32F2F' }} />}
+                      icon={<Zap size={14} style={{ color: 'var(--text-danger)' }} />}
                       style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center justify-content-center shadow-sm"
                     />
@@ -2850,7 +2754,7 @@ const AsinManagerPage = (props) => {
                   <Tooltip title="Export">
                     <Button
                       onClick={() => setShowExportModal(true)}
-                      icon={<Download size={14} style={{ color: '#27272a' }} />}
+                      icon={<Download size={14} style={{ color: 'var(--text-primary)' }} />}
                       style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center justify-content-center shadow-sm"
                     />
@@ -2935,7 +2839,7 @@ const AsinManagerPage = (props) => {
 
           {/* APPLIED FILTERS BADGES */}
           {(Object.values(appliedFilters).some(v => v !== '' && (!Array.isArray(v) || v.length > 0)) || appliedSearchQuery || selectedSeller) && (
-            <div className="border-bottom d-flex align-items-center flex-wrap gap-3" style={{ flexShrink: 0, padding: '8px 24px', backgroundColor: '#f8fafc' }}>
+            <div className="border-bottom d-flex align-items-center flex-wrap gap-3" style={{ flexShrink: 0, padding: '8px 24px', backgroundColor: 'var(--bg-secondary)' }}>
               <span className="text-secondary fw-bold text-uppercase tracking-wider" style={{ fontSize: '9px' }}>
                 Active Filters
               </span>
@@ -2959,7 +2863,7 @@ const AsinManagerPage = (props) => {
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
                   {isVisible('checkbox') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '40px', left: 0, zIndex: 22, background: '#f8fafc', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '40px', left: 0, zIndex: 22, background: 'var(--bg-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-light)' }}>
                       <input
                         type="checkbox"
                         checked={selectedIds.size === filteredAsins.length && filteredAsins.length > 0}
@@ -2969,61 +2873,61 @@ const AsinManagerPage = (props) => {
                     </th>
                   )}
                   {isVisible('asinCode') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '110px', left: isVisible('checkbox') ? '40px' : '0px', zIndex: 21, background: '#f8fafc', borderRight: '1px solid #e2e8f0', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '110px', left: isVisible('checkbox') ? '40px' : '0px', zIndex: 21, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-light)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader(marketplaceFilter === 'ajio' ? 'JIOCODE' : 'ASIN ID', 'asinCode')}
                     </th>
                   )}
                   {isVisible('releaseDate') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader('RELEASED', 'releaseDate', 'center')}
                     </th>
                   )}
                   {isVisible('parentAsin') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '110px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '110px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader('PARENT ASIN', 'parentAsin')}
                     </th>
                   )}
                   {isVisible('sellerBrand') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '115px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '115px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader('SELLER / BRAND', 'sellerBrand')}
                     </th>
                   )}
                   {isVisible('sku') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '95px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '95px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader('SKU', 'sku')}
                     </th>
                   )}
                   {isVisible('title') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '220px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '220px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader('PRODUCT TITLE', 'title')}
                     </th>
                   )}
                   {isVisible('category') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '135px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '135px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
                       {renderSortableHeader('CATEGORY', 'category')}
                     </th>
                   )}
-                  {isVisible('tags') && <th rowSpan={2} style={{ ...thStyle, width: '100px', background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>TAGS</th>}
+                  {isVisible('tags') && <th rowSpan={2} style={{ ...thStyle, width: '100px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>TAGS</th>}
 
                   {/* LQS columns disabled per user request
                   {visibleLQSCount > 0 && (
-                    <th colSpan={visibleLQSCount} style={{ ...thStyle, background: '#f8fafc', color: '#1e293b', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                    <th colSpan={visibleLQSCount} style={{ ...thStyle, background: 'var(--bg-secondary)', color: '#1e293b', textAlign: 'center', borderBottom: '1px solid var(--border-light)' }}>
                       LISTING QUALITY (LQS)
                     </th>
                   )}
                   */}
 
                   {/* ===== DEAL & MANUFACTURER COLUMNS (Slate Palette) ===== */}
-                  {isVisible('manufacturer') && <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'left', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>MANUFACTURER</th>}
-                  {isVisible('availabilityStatus') && <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>AVAILABILITY</th>}
+                  {isVisible('manufacturer') && <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>MANUFACTURER</th>}
+                  {isVisible('availabilityStatus') && <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>AVAILABILITY</th>}
 
-                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>ADS</th>}
-                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: '#ecfdf5', color: '#065f46', borderBottom: '2px solid #d1fae5' }}>GMS</th>}
+                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>ADS</th>}
+                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: 'var(--bg-success-subtle)', color: '#065f46', borderBottom: '2px solid #d1fae5' }}>GMS</th>}
                   {visibleOrdersCount > 0 && (
                     <th
                       rowSpan={ordersExpanded ? 1 : 2}
                       colSpan={ordersExpanded ? (availableMonths.length + 1) : 1}
-                      style={{ ...thStyle, background: '#f8fafc', color: '#334155', textAlign: 'center', borderBottom: '2px solid #cbd5e1', transition: 'all 0.3s ease' }}
+                      style={{ ...thStyle, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-medium)', transition: 'all 0.3s ease' }}
                     >
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         {ordersExpanded ? (
@@ -3034,7 +2938,7 @@ const AsinManagerPage = (props) => {
                         <button
                           onClick={(e) => { e.stopPropagation(); setOrdersExpanded(!ordersExpanded); }}
                           className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center ms-1"
-                          style={{ border: 'none', background: 'none', color: '#334155', cursor: 'pointer' }}
+                          style={{ border: 'none', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
                           title={ordersExpanded ? "Collapse to Total" : "Expand to Monthly Orders"}
                         >
                           {ordersExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -3042,11 +2946,11 @@ const AsinManagerPage = (props) => {
                       </div>
                     </th>
                   )}
-                  {isVisible('dealBadge') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>DEAL</th>}
-                  {isVisible('dealStartTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>DEAL START</th>}
-                  {isVisible('dealEndTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>DEAL END</th>}
-                  {isVisible('dealAccessType') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>DEAL TYPE</th>}
-                  {isVisible('currentBuybox') && <th rowSpan={2} style={{ ...thStyle, width: '140px', textAlign: 'left', background: '#f8fafc', color: '#334155', borderBottom: '2px solid #cbd5e1' }}>BUYBOX</th>}
+                  {isVisible('dealBadge') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL</th>}
+                  {isVisible('dealStartTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL START</th>}
+                  {isVisible('dealEndTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL END</th>}
+                  {isVisible('dealAccessType') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL TYPE</th>}
+                  {isVisible('currentBuybox') && <th rowSpan={2} style={{ ...thStyle, width: '140px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>BUYBOX</th>}
 
                   {/* ===== PRICE COLUMNS (MRP, Price, Dispute, Price Trend) (Indigo Palette) ===== */}
                   {isVisible('mrp') && (
@@ -3112,24 +3016,24 @@ const AsinManagerPage = (props) => {
 
                   {/* ===== RATING COLUMNS (Amber Palette) ===== */}
                   {isVisible('rating') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('RT', 'rating', 'center')}
                     </th>
                   )}
                   {isVisible('reviewCount') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('CNT', 'reviewCount', 'center')}
                     </th>
                   )}
                   {isVisible('ratingBreakdown') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
                       DISTRIBUTION
                     </th>
                   )}
-                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>RATING TR</th>}
+                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>RATING TR</th>}
                   {visibleRatingTrendCount > 0 && (
                     <th colSpan={visibleRatingTrendCount}
-                      style={{ ...thStyle, background: '#fffbeb', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{ratingTrendExpanded ? 'RATING TREND' : 'RT'}</span>
                         <button
@@ -3143,10 +3047,10 @@ const AsinManagerPage = (props) => {
                       </div>
                     </th>
                   )}
-                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
+                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
                   {visibleReviewTrendCount > 0 && (
                     <th colSpan={visibleReviewTrendCount}
-                      style={{ ...thStyle, background: '#fffbeb', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{reviewTrendExpanded ? 'REVIEWS TREND' : 'REV'}</span>
                         <button
@@ -3199,12 +3103,12 @@ const AsinManagerPage = (props) => {
                     ...thStyle,
                     width: '60px',
                     textAlign: 'center',
-                    background: '#f8fafc',
+                    background: 'var(--bg-secondary)',
                     position: 'sticky',
                     right: 0,
                     zIndex: 25,
-                    borderLeft: '1px solid #e5e7eb',
-                    borderBottom: '2px solid #e2e8f0'
+                    borderLeft: '1px solid var(--border-light)',
+                    borderBottom: '2px solid var(--border-light)'
                   }}>
                     ACTIONS
                   </th>
@@ -3212,11 +3116,11 @@ const AsinManagerPage = (props) => {
 
                 <tr>
                   {/* LQS sub-columns disabled per user request
-                  {isVisible('titleScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: '#f8fafc' }} title="Title Quality Score">TTL</th>}
-                  {isVisible('bulletScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: '#f8fafc' }} title="Bullet Points Score">BLT</th>}
-                  {isVisible('imageScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: '#f8fafc' }} title="Image Quality Score">IMG</th>}
-                  {isVisible('descriptionScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: '#f8fafc' }} title="Description Score">DSC</th>}
-                  {isVisible('lqs') && <th style={{ ...thStyle, width: '50px', textAlign: 'center', background: '#f1f5f9', fontWeight: 800 }} title="Overall LQS Score">TOTAL</th>}
+                  {isVisible('titleScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Title Quality Score">TTL</th>}
+                  {isVisible('bulletScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Bullet Points Score">BLT</th>}
+                  {isVisible('imageScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Image Quality Score">IMG</th>}
+                  {isVisible('descriptionScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Description Score">DSC</th>}
+                  {isVisible('lqs') && <th style={{ ...thStyle, width: '50px', textAlign: 'center', background: 'var(--bg-secondary)', fontWeight: 800 }} title="Overall LQS Score">TOTAL</th>}
                   */}
 
                   {/* Orders Expanded Monthly Columns */}
@@ -3226,8 +3130,8 @@ const AsinManagerPage = (props) => {
                       ...getTransitionStyle(ordersExpanded, idx, availableMonths.length + 1, '70px'),
                       fontSize: 9,
                       textAlign: 'center',
-                      background: '#f8fafc',
-                      color: '#334155'
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-secondary)'
                     }}>
                       <div style={{
                         width: ordersExpanded ? 'auto' : '0px',
@@ -3244,9 +3148,9 @@ const AsinManagerPage = (props) => {
                       ...getTransitionStyle(ordersExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
                       fontSize: 9,
                       textAlign: 'center',
-                      background: '#f1f5f9',
+                      background: 'var(--bg-secondary)',
                       fontWeight: 800,
-                      color: '#334155'
+                      color: 'var(--text-secondary)'
                     }}>
                       <div style={{
                         width: ordersExpanded ? 'auto' : '0px',
@@ -3265,7 +3169,7 @@ const AsinManagerPage = (props) => {
                       ...getTransitionStyle(gmsRevenueExpanded, idx, availableMonths.length + 1, '70px'),
                       fontSize: 9,
                       textAlign: 'center',
-                      background: '#ecfdf5',
+                      background: 'var(--bg-success-subtle)',
                       color: '#065f46'
                     }}>
                       <div style={{
@@ -3349,7 +3253,7 @@ const AsinManagerPage = (props) => {
                         ...getTransitionStyle(ratingTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#fffbeb',
+                        background: 'var(--bg-warning-subtle)',
                         color: '#b45309'
                       }}>
                         <div style={{
@@ -3371,7 +3275,7 @@ const AsinManagerPage = (props) => {
                         ...getTransitionStyle(reviewTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#fffbeb',
+                        background: 'var(--bg-warning-subtle)',
                         color: '#b45309'
                       }}>
                         <div style={{
@@ -3437,8 +3341,8 @@ const AsinManagerPage = (props) => {
                         background: (() => {
                           const s = (asin.availabilityStatus || '').toLowerCase();
                           const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                          if (isUnavailable) return '#fef2f2';
-                          return idx % 2 === 0 ? '#fff' : '#f9fafb';
+                          if (isUnavailable) return 'var(--bg-danger-subtle)';
+                          return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
                         })()
                       }}>
                         {isVisible('checkbox') && (
@@ -3450,8 +3354,8 @@ const AsinManagerPage = (props) => {
                             background: (() => {
                               const s = (asin.availabilityStatus || '').toLowerCase();
                               const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                              if (isUnavail) return '#fef2f2';
-                              return idx % 2 === 0 ? '#fff' : '#f9fafb';
+                              if (isUnavail) return 'var(--bg-danger-subtle)';
+                              return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
                             })(),
                             zIndex: 6,
                             textAlign: 'center',
@@ -3469,7 +3373,7 @@ const AsinManagerPage = (props) => {
                           <td style={{
                             ...tdStyle,
                             fontWeight: 600,
-                            color: '#0288D1',
+                            color: 'var(--text-brand)',
                             cursor: 'pointer',
                             position: 'sticky',
                             width: '110px',
@@ -3477,11 +3381,11 @@ const AsinManagerPage = (props) => {
                             background: (() => {
                               const s = (asin.availabilityStatus || '').toLowerCase();
                               const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                              if (isUnavail) return '#fef2f2';
-                              return idx % 2 === 0 ? '#fff' : '#f9fafb';
+                              if (isUnavail) return 'var(--bg-danger-subtle)';
+                              return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
                             })(),
                             zIndex: 5,
-                            borderRight: '2px solid #e5e7eb'
+                            borderRight: '2px solid var(--border-light)'
                           }}
                             onClick={() => handleViewAsin(asin)}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -3492,15 +3396,15 @@ const AsinManagerPage = (props) => {
                                 rel="noopener noreferrer"
                                 title={asin.marketplace === 'ajio' || marketplaceFilter === 'ajio' ? "Open on Ajio" : "Open on Amazon"}
                                 style={{
-                                  color: '#9ca3af',
+                                  color: 'var(--text-muted)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   marginLeft: '4px',
                                   transition: 'color 0.2s'
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                onMouseOver={(e) => e.currentTarget.style.color = '#0288D1'}
-                                onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
+                                onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-brand)'}
+                                onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                               >
                                 <ExternalLink size={13} />
                               </a>
@@ -3525,7 +3429,7 @@ const AsinManagerPage = (props) => {
                                 </span>
                               </div>
                             ) : (
-                              <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
                             )}
                           </td>
                         )}
@@ -3538,22 +3442,22 @@ const AsinManagerPage = (props) => {
                                 if (!pAsin) return <span style={{ color: '#d1d5db' }}>-</span>;
                                 return (
                                   <>
-                                    <span style={{ fontWeight: 600, color: '#0288D1' }}>{pAsin}</span>
+                                    <span style={{ fontWeight: 600, color: 'var(--text-brand)' }}>{pAsin}</span>
                                     <a
                                       href={(asin.marketplace === 'ajio' || marketplaceFilter === 'ajio') ? `https://www.ajio.com/p/${pAsin}` : (asin.marketplace === 'myntra' || marketplaceFilter === 'myntra') ? 'https://www.myntra.com' : `https://www.amazon.in/dp/${pAsin}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       title={asin.marketplace === 'ajio' || marketplaceFilter === 'ajio' ? "Open Parent on Ajio" : "Open Parent on Amazon"}
                                       style={{
-                                        color: '#9ca3af',
+                                        color: 'var(--text-muted)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         marginLeft: '4px',
                                         transition: 'color 0.2s'
                                       }}
                                       onClick={(e) => e.stopPropagation()}
-                                      onMouseOver={(e) => e.currentTarget.style.color = '#0288D1'}
-                                      onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
+                                      onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-brand)'}
+                                      onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                                     >
                                       <ExternalLink size={13} />
                                     </a>
@@ -3569,7 +3473,7 @@ const AsinManagerPage = (props) => {
                               <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden' }}>
                                 {asin.seller?.name || asin.seller || 'Global'}
                               </span>
-                              {asin.soldBy && <span style={{ fontSize: 9, color: '#9ca3af' }}>• {asin.soldBy}</span>}
+                              {asin.soldBy && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>• {asin.soldBy}</span>}
                             </div>
                           </td>
                         )}
@@ -3624,9 +3528,9 @@ const AsinManagerPage = (props) => {
                               className="badge fw-bold"
                               style={{
                                 fontSize: '10px',
-                                backgroundColor: (asin.titleScore || 0) >= 8.5 ? '#2E7D32' :
-                                  (asin.titleScore || 0) >= 7.0 ? '#E65100' :
-                                    (asin.titleScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
+                                backgroundColor: (asin.titleScore || 0) >= 8.5 ? 'var(--text-success)' :
+                                  (asin.titleScore || 0) >= 7.0 ? 'var(--text-warning)' :
+                                    (asin.titleScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
                                 color: '#fff',
                                 minWidth: '28px'
                               }}
@@ -3634,7 +3538,7 @@ const AsinManagerPage = (props) => {
                               {typeof asin.titleScore === 'number' ? (asin.titleScore > 10 ? (asin.titleScore / 10).toFixed(1) : asin.titleScore.toFixed(1)) : (parseFloat(asin.titleScore || 0) > 10 ? (parseFloat(asin.titleScore || 0) / 10).toFixed(1) : parseFloat(asin.titleScore || 0).toFixed(1))}
                             </span>
                           ) : (
-                            <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
                           )}
                         </td>
                       )} */}
@@ -3646,9 +3550,9 @@ const AsinManagerPage = (props) => {
                                 className="badge fw-bold"
                                 style={{
                                   fontSize: '10px',
-                                  backgroundColor: (asin.bulletScore || 0) >= 8.5 ? '#2E7D32' :
-                                    (asin.bulletScore || 0) >= 7.0 ? '#E65100' :
-                                      (asin.bulletScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
+                                  backgroundColor: (asin.bulletScore || 0) >= 8.5 ? 'var(--text-success)' :
+                                    (asin.bulletScore || 0) >= 7.0 ? 'var(--text-warning)' :
+                                      (asin.bulletScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
                                   color: '#fff',
                                   minWidth: '28px'
                                 }}
@@ -3656,7 +3560,7 @@ const AsinManagerPage = (props) => {
                                 {typeof asin.bulletScore === 'number' ? (asin.bulletScore > 10 ? (asin.bulletScore / 10).toFixed(1) : asin.bulletScore.toFixed(1)) : (parseFloat(asin.bulletScore || 0) > 10 ? (parseFloat(asin.bulletScore || 0) / 10).toFixed(1) : parseFloat(asin.bulletScore || 0).toFixed(1))}
                               </span>
                             ) : (
-                              <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
                             )}
                           </td>
                         )} */}
@@ -3668,9 +3572,9 @@ const AsinManagerPage = (props) => {
                                 className="badge fw-bold"
                                 style={{
                                   fontSize: '10px',
-                                  backgroundColor: (asin.imageScore || 0) >= 8.5 ? '#2E7D32' :
-                                    (asin.imageScore || 0) >= 7.0 ? '#E65100' :
-                                      (asin.imageScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
+                                  backgroundColor: (asin.imageScore || 0) >= 8.5 ? 'var(--text-success)' :
+                                    (asin.imageScore || 0) >= 7.0 ? 'var(--text-warning)' :
+                                      (asin.imageScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
                                   color: '#fff',
                                   minWidth: '28px'
                                 }}
@@ -3678,7 +3582,7 @@ const AsinManagerPage = (props) => {
                                 {typeof asin.imageScore === 'number' ? (asin.imageScore > 10 ? (asin.imageScore / 10).toFixed(1) : asin.imageScore.toFixed(1)) : (parseFloat(asin.imageScore || 0) > 10 ? (parseFloat(asin.imageScore || 0) / 10).toFixed(1) : parseFloat(asin.imageScore || 0).toFixed(1))}
                               </span>
                             ) : (
-                              <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
                             )}
                           </td>
                         )} */}
@@ -3690,9 +3594,9 @@ const AsinManagerPage = (props) => {
                                 className="badge fw-bold"
                                 style={{
                                   fontSize: '10px',
-                                  backgroundColor: (asin.descriptionScore || 0) >= 8.5 ? '#2E7D32' :
-                                    (asin.descriptionScore || 0) >= 7.0 ? '#E65100' :
-                                      (asin.descriptionScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
+                                  backgroundColor: (asin.descriptionScore || 0) >= 8.5 ? 'var(--text-success)' :
+                                    (asin.descriptionScore || 0) >= 7.0 ? 'var(--text-warning)' :
+                                      (asin.descriptionScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
                                   color: '#fff',
                                   minWidth: '28px'
                                 }}
@@ -3700,21 +3604,21 @@ const AsinManagerPage = (props) => {
                                 {typeof asin.descriptionScore === 'number' ? (asin.descriptionScore > 10 ? (asin.descriptionScore / 10).toFixed(1) : asin.descriptionScore.toFixed(1)) : (parseFloat(asin.descriptionScore || 0) > 10 ? (parseFloat(asin.descriptionScore || 0) / 10).toFixed(1) : parseFloat(asin.descriptionScore || 0).toFixed(1))}
                               </span>
                             ) : (
-                              <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
                             )}
                           </td>
                         )} */}
 
                         {/* {isVisible('lqs') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', background: '#f1f5f9', fontWeight: 600 }}>
+                          <td style={{ ...tdStyle, textAlign: 'center', background: 'var(--bg-secondary)', fontWeight: 600 }}>
                             {asin.lqs != null ? (
                               <span
                                 className="badge fw-bold"
                                 style={{
                                   fontSize: 'var(--font-size-xs)',
-                                  backgroundColor: (asin.lqs || 0) >= 8.5 || (asin.lqs || 0) >= 85 ? '#2E7D32' :
-                                    (asin.lqs || 0) >= 7.0 || (asin.lqs || 0) >= 70 ? '#E65100' :
-                                      (asin.lqs || 0) >= 5.0 || (asin.lqs || 0) >= 50 ? '#C62828' : '#D32F2F',
+                                  backgroundColor: (asin.lqs || 0) >= 8.5 || (asin.lqs || 0) >= 85 ? 'var(--text-success)' :
+                                    (asin.lqs || 0) >= 7.0 || (asin.lqs || 0) >= 70 ? 'var(--text-warning)' :
+                                      (asin.lqs || 0) >= 5.0 || (asin.lqs || 0) >= 50 ? 'var(--text-danger)' : 'var(--text-danger)',
                                   color: '#fff',
                                   padding: '3px 8px',
                                   minWidth: '36px'
@@ -3723,14 +3627,14 @@ const AsinManagerPage = (props) => {
                                 {typeof asin.lqs === 'number' ? (asin.lqs > 10 ? (asin.lqs / 10).toFixed(1) : asin.lqs.toFixed(1)) : (parseFloat(asin.lqs || 0) > 10 ? (parseFloat(asin.lqs || 0) / 10).toFixed(1) : parseFloat(asin.lqs || 0).toFixed(1))}
                               </span>
                             ) : (
-                              <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
                             )}
                           </td>
                         )} */}
                         {isVisible('manufacturer') && (
                           <td style={{ ...tdStyle, textAlign: 'left' }}>
-                            <span style={{ fontSize: '10px', color: '#334155', maxWidth: '110px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={asin.manufacturer || ''}>
-                              {asin.manufacturer || <span style={{ color: '#9ca3af' }}>-</span>}
+                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', maxWidth: '110px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={asin.manufacturer || ''}>
+                              {asin.manufacturer || <span style={{ color: 'var(--text-muted)' }}>-</span>}
                             </span>
                           </td>
                         )}
@@ -3741,9 +3645,9 @@ const AsinManagerPage = (props) => {
                                 const s = (asin.availabilityStatus || '').toLowerCase();
                                 const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
                                 const isInStock = s.includes('in stock') || s.includes('add to bag') || s.includes('add to cart') || s === 'available';
-                                const bgColor = isUnavailable ? '#fef2f2' : isInStock ? '#ecfdf5' : '#f8fafc';
-                                const textColor = isUnavailable ? '#C62828' : isInStock ? '#2E7D32' : '#334155';
-                                const borderColor = isUnavailable ? '#fecaca' : isInStock ? '#a7f3d0' : '#e2e8f0';
+                                const bgColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bg-success-subtle)' : 'var(--bg-secondary)';
+                                const textColor = isUnavailable ? 'var(--text-danger)' : isInStock ? 'var(--text-success)' : 'var(--text-secondary)';
+                                const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? '#a7f3d0' : 'var(--border-light)';
                                 return (
                                   <Tooltip title={asin.availabilityStatus} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                     <span className="badge" style={{
@@ -3757,7 +3661,7 @@ const AsinManagerPage = (props) => {
                                   </Tooltip>
                                 );
                               })()
-                            ) : <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>}
+                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
                           </td>
                         )}
 
@@ -3765,7 +3669,7 @@ const AsinManagerPage = (props) => {
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.Ads ? (
                               <div className="d-flex align-items-center justify-content-center gap-1" title="Advertising Active">
-                                <span className="badge d-flex align-items-center gap-1 shadow-sm" style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
+                                <span className="badge d-flex align-items-center gap-1 shadow-sm" style={{ backgroundColor: 'var(--bg-success-subtle)', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
                                   <Megaphone size={10} />
                                   YES
                                 </span>
@@ -3778,7 +3682,7 @@ const AsinManagerPage = (props) => {
                         {isVisible('ads') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.hasGms ? (
-                              <span className="badge d-flex align-items-center justify-content-center gap-1 shadow-sm" style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
+                              <span className="badge d-flex align-items-center justify-content-center gap-1 shadow-sm" style={{ backgroundColor: 'var(--bg-success-subtle)', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
                                 YES
                               </span>
                             ) : (
@@ -3817,7 +3721,7 @@ const AsinManagerPage = (props) => {
                             ...tdStyle,
                             ...getTransitionStyle(ordersExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
                             textAlign: 'center',
-                            background: ordersExpanded ? '#f8fafc' : 'transparent'
+                            background: ordersExpanded ? 'var(--bg-secondary)' : 'transparent'
                           }}>
                             <div style={{
                               width: 'auto',
@@ -3894,9 +3798,9 @@ const AsinManagerPage = (props) => {
                                 <span
                                   className="badge"
                                   style={{
-                                    backgroundColor: '#fef2f2',
-                                    color: '#C62828',
-                                    border: '1px solid #fecaca',
+                                    backgroundColor: 'var(--bg-danger-subtle)',
+                                    color: 'var(--text-danger)',
+                                    border: '1px solid var(--bg-danger-subtle)',
                                     fontWeight: 600,
                                     fontSize: '0.65rem',
                                     padding: '2px 6px',
@@ -3913,40 +3817,40 @@ const AsinManagerPage = (props) => {
                                 </span>
                               </Tooltip>
                             ) : (
-                              <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>
                             )}
                           </td>
                         )}
                         {isVisible('dealStartTime') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.dealStartTime ? (
-                              <span style={{ fontSize: '10px', color: '#334155' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
                                 {new Date(asin.dealStartTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                               </span>
-                            ) : <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>}
+                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
                           </td>
                         )}
                         {isVisible('dealEndTime') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.dealEndTime ? (
-                              <span style={{ fontSize: '10px', color: '#334155' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
                                 {new Date(asin.dealEndTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                               </span>
-                            ) : <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>}
+                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
                           </td>
                         )}
                         {isVisible('dealAccessType') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.dealAccessType ? (
                               <span className="badge" style={{
-                                backgroundColor: asin.dealAccessType === 'ALL' ? '#ecfdf5' : '#eff6ff',
-                                color: asin.dealAccessType === 'ALL' ? '#2E7D32' : '#0288D1',
+                                backgroundColor: asin.dealAccessType === 'ALL' ? 'var(--bg-success-subtle)' : '#eff6ff',
+                                color: asin.dealAccessType === 'ALL' ? 'var(--text-success)' : 'var(--text-brand)',
                                 border: `1px solid ${asin.dealAccessType === 'ALL' ? '#a7f3d0' : '#bfdbfe'}`,
                                 fontWeight: 600, fontSize: '0.6rem', padding: '2px 5px', borderRadius: 'var(--radius-sm)'
                               }}>
                                 {asin.dealAccessType}
                               </span>
-                            ) : <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>}
+                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
                           </td>
                         )}
                         {/* ===== CURRENT BUYBOX ===== */}
@@ -3963,7 +3867,7 @@ const AsinManagerPage = (props) => {
                               const condition = winner?.condition?.value || '';
                               const availability = winner?.availability || '';
 
-                              if (!seller && !price) return <span style={{ color: '#9ca3af', fontSize: '10px' }}>-</span>;
+                              if (!seller && !price) return <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>;
 
                               return (
                                 <Tooltip title={
@@ -3984,7 +3888,7 @@ const AsinManagerPage = (props) => {
                                       ₹{price.toLocaleString()}
                                     </span>
                                     {savings > 0 && (
-                                      <span style={{ fontSize: '8px', color: '#2E7D32', fontWeight: 600 }}>
+                                      <span style={{ fontSize: '8px', color: 'var(--text-success)', fontWeight: 600 }}>
                                         {savingsPct}% OFF
                                       </span>
                                     )}
@@ -4009,7 +3913,7 @@ const AsinManagerPage = (props) => {
                                 const isDisputed = computeDynamicDispute(asin);
                                 return (
                                   <>
-                                    <span style={{ color: isDisputed ? '#C62828' : '#2E7D32' }}>
+                                    <span style={{ color: isDisputed ? 'var(--text-danger)' : 'var(--text-success)' }}>
                                       ₹{(asin.uploadedPrice || 0).toLocaleString()}
                                     </span>
                                     {isDisputed && (
@@ -4017,7 +3921,7 @@ const AsinManagerPage = (props) => {
                                         fontSize: '8px',
                                         padding: '2px 6px',
                                         fontWeight: 800,
-                                        backgroundColor: '#C62828',
+                                        backgroundColor: 'var(--text-danger)',
                                         color: '#fff',
                                         borderRadius: 'var(--radius-sm)',
                                         textTransform: 'uppercase'
@@ -4045,9 +3949,9 @@ const AsinManagerPage = (props) => {
                               return (
                                 <Tooltip title={isDisputed ? 'Channel price differs from current price by >₹5' : 'No price dispute'} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                   <span className="badge" style={{
-                                    backgroundColor: isDisputed ? '#fef2f2' : '#ecfdf5',
-                                    color: isDisputed ? '#C62828' : '#2E7D32',
-                                    border: `1px solid ${isDisputed ? '#fecaca' : '#a7f3d0'}`,
+                                    backgroundColor: isDisputed ? 'var(--bg-danger-subtle)' : 'var(--bg-success-subtle)',
+                                    color: isDisputed ? 'var(--text-danger)' : 'var(--text-success)',
+                                    border: `1px solid ${isDisputed ? 'var(--bg-danger-subtle)' : '#a7f3d0'}`,
                                     fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
                                     cursor: 'default'
                                   }}>
@@ -4094,7 +3998,7 @@ const AsinManagerPage = (props) => {
                           <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer', background: '#f5f3ff1a' }}
                             onClick={(e) => handleViewBsr(asin, e)}>
                             <div className="d-flex flex-column align-items-center">
-                              <div style={{ fontWeight: 600, color: '#9C27B0', fontSize: 'var(--font-size-xs)' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--color-secondary)', fontSize: 'var(--font-size-xs)' }}>
                                 {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
                               </div>
                               {asin.bsr && asin.category && (
@@ -4157,7 +4061,7 @@ const AsinManagerPage = (props) => {
                                   )}
                                 </div>
                               ) : (
-                                <span style={{ color: '#9ca3af' }}>-</span>
+                                <span style={{ color: 'var(--text-muted)' }}>-</span>
                               );
                             })()}
                           </td>
@@ -4288,7 +4192,7 @@ const AsinManagerPage = (props) => {
                             <span
                               className="badge"
                               style={{
-                                backgroundColor: asin.videoCount > 0 ? '#2E7D32' : '#6b7280',
+                                backgroundColor: asin.videoCount > 0 ? 'var(--text-success)' : '#6b7280',
                                 color: '#fff',
                                 fontWeight: 600,
                                 fontSize: '0.75rem'
@@ -4335,12 +4239,12 @@ const AsinManagerPage = (props) => {
                         {isVisible('hasAplus') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.status === 'Scraping' ? (
-                              <span style={{ color: '#9ca3af' }}>-</span>
+                              <span style={{ color: 'var(--text-muted)' }}>-</span>
                             ) : (
                               <span
                                 className="badge"
                                 style={{
-                                  backgroundColor: asin.hasAplus ? '#2E7D32' : '#6b7280',
+                                  backgroundColor: asin.hasAplus ? 'var(--text-success)' : '#6b7280',
                                   color: '#fff',
                                   fontWeight: 600,
                                   fontSize: '0.75rem'
@@ -4353,7 +4257,7 @@ const AsinManagerPage = (props) => {
                         )}
 
                         {isVisible('aplusDays') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#C62828' }}>
+                          <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: 'var(--text-danger)' }}>
                             {asin.aplusAbsentSince && !asin.hasAplus
                               ? Math.floor((Date.now() - new Date(asin.aplusAbsentSince)) / (1000 * 60 * 60 * 24))
                               : '-'}
@@ -4366,9 +4270,9 @@ const AsinManagerPage = (props) => {
                           textAlign: 'center',
                           position: 'sticky',
                           right: 0,
-                          background: idx % 2 === 0 ? '#fff' : '#f9fafb',
+                          background: idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)',
                           zIndex: 6,
-                          borderLeft: '1px solid #e5e7eb',
+                          borderLeft: '1px solid var(--border-light)',
                           padding: '4px'
                         }}>
                           <Dropdown
@@ -4423,7 +4327,7 @@ const AsinManagerPage = (props) => {
                             <Button
                               type="text"
                               size="small"
-                              icon={<MoreHorizontal size={16} color="#71717a" />}
+                              icon={<MoreHorizontal size={16} color="var(--text-muted)" />}
                               className="hover-bg-zinc-100 rounded-circle"
                               style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             />
@@ -4438,7 +4342,7 @@ const AsinManagerPage = (props) => {
 
           {/* [F] Pagination Footer */}
           <div style={{
-            background: '#f9fafb', borderTop: '1px solid #e5e7eb',
+            background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-light)',
             flexShrink: 0
           }}>
             <Suspense fallback={<div className="h-10 w-full animate-pulse bg-zinc-100" />}>
@@ -4586,7 +4490,7 @@ const AsinManagerPage = (props) => {
               type="primary"
               loading={loading}
               onClick={handleCreateManualTask}
-              style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 600 }}
+              style={{ background: 'var(--text-success)', borderColor: 'var(--text-success)', fontWeight: 600 }}
             >
               {loading ? 'Creating...' : 'Create Task'}
             </Button>
@@ -4673,7 +4577,7 @@ const AsinManagerPage = (props) => {
               loading={uploading}
               disabled={!selectedSellerId}
               onClick={() => document.querySelector('input[type="file"]')?.click()}
-              style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 600 }}
+              style={{ background: 'var(--text-success)', borderColor: 'var(--text-success)', fontWeight: 600 }}
             >
               {uploading ? 'Uploading...' : 'Import CSV'}
             </Button>
@@ -4771,55 +4675,54 @@ const AsinManagerPage = (props) => {
           onClick={() => !aiAnalysisLoading && setShowAiAnalysisModal(false)}>
           <div style={{ background: '#fff', borderRadius: "var(--radius-xl)", width: '90%', maxWidth: 800, maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'linear-gradient(135deg, #6d28d9, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Sparkles size={16} color="#fff" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>AI Listing Quality Analysis</div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>Amazon policy compliance & optimization recommendations</div>
+                  <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)' }}>AI Listing Quality Analysis</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>Amazon policy compliance & optimization recommendations</div>
                 </div>
               </div>
-              <button onClick={() => setShowAiAnalysisModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#64748b', fontSize: 18 }}>×</button>
+              <button onClick={() => setShowAiAnalysisModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-muted)', fontSize: 18 }}>×</button>
             </div>
             <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(85vh - 120px)' }}>
               {aiAnalysisLoading && (
                 <div style={{ textAlign: 'center', padding: 40 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#6d28d9', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569' }}>AI is analyzing your listings against Amazon policies...</div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: 4 }}>This may take 15-30 seconds per ASIN</div>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border-light)', borderTopColor: '#6d28d9', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary)' }}>AI is analyzing your listings against Amazon policies...</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 4 }}>This may take 15-30 seconds per ASIN</div>
                 </div>
               )}
               {!aiAnalysisLoading && aiAnalysisResult && aiAnalysisResult.map((result, idx) => (
-                <div key={idx} style={{ marginBottom: 20, border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
+                <div key={idx} style={{ marginBottom: 20, border: '1px solid var(--border-light)', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
                   {result.error ? (
-                    <div style={{ padding: 20, background: '#fef2f2', color: '#C62828', fontSize: 12 }}>Error: {result.error}</div>
+                    <div style={{ padding: 20, background: 'var(--bg-danger-subtle)', color: 'var(--text-danger)', fontSize: 12 }}>Error: {result.error}</div>
                   ) : (
                     <>
-                      <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ padding: '12px 16px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>Score: {result.overallScore}/100</span>
-                          <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginLeft: 8 }}>{result.summary}</span>
+                          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Score: {result.overallScore}/100</span>
+                          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginLeft: 8 }}>{result.summary}</span>
                         </div>
                         <button onClick={() => handleAiCreateTasks(result.asinId)}
                           disabled={syncing}
-                          style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '4px 12px', borderRadius: 6, background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                          style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '4px 12px', borderRadius: 6, background: 'var(--text-primary)', color: '#fff', border: 'none', cursor: 'pointer' }}>
                           {syncing ? 'Creating...' : 'Create Tasks'}
                         </button>
                       </div>
                       {result.issues?.length > 0 && (
                         <div style={{ padding: 12 }}>
                           {result.issues.map((issue, i) => (
-                            <div key={i} style={{ padding: '8px 12px', background: issue.severity === 'critical' ? '#fef2f2' : issue.severity === 'high' ? '#fffbeb' : '#f8fafc', borderLeft: `3px solid ${issue.severity === 'critical' ? '#D32F2F' : issue.severity === 'high' ? '#ED6C02' : '#1976D2'}`, borderRadius: 6, marginBottom: 8, fontSize: 12 }}>
+                            <div key={i} style={{ padding: '8px 12px', background: issue.severity === 'critical' ? 'var(--bg-danger-subtle)' : issue.severity === 'high' ? 'var(--bg-warning-subtle)' : 'var(--bg-secondary)', borderLeft: `3px solid ${issue.severity === 'critical' ? 'var(--text-danger)' : issue.severity === 'high' ? 'var(--text-warning)' : 'var(--text-brand)'}`, borderRadius: 6, marginBottom: 8, fontSize: 12 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <span style={{ fontWeight: 600, color: '#0f172a', textTransform: 'uppercase', fontSize: 10 }}>{issue.field} · {issue.severity}</span>
-                                <span style={{ fontSize: 10, fontWeight: 600, color: issue.priority === 'HIGH' ? '#C62828' : '#64748b' }}>{issue.priority}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', fontSize: 10 }}>{issue.field} · {issue.severity}</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: issue.priority === 'HIGH' ? 'var(--text-danger)' : 'var(--text-muted)' }}>{issue.priority}</span>
                               </div>
-                              <div style={{ color: '#334155', marginBottom: 2 }}>{issue.issue}</div>
-                              <div style={{ color: '#2E7D32', fontSize: 'var(--font-size-xs)' }}>→ {issue.recommendation}</div>
-                              {issue.amazonPolicy && <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 2 }}>Policy: {issue.amazonPolicy}</div>}
+                              <div style={{ color: 'var(--text-secondary)', marginBottom: 2 }}>{issue.issue}</div>
+                              <div style={{ color: 'var(--text-success)', fontSize: 'var(--font-size-xs)' }}>→ {issue.recommendation}</div>
+                              {issue.amazonPolicy && <div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 2 }}>Policy: {issue.amazonPolicy}</div>}
                             </div>
                           ))}
                         </div>
