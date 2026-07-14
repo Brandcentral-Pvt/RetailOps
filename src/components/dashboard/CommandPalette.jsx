@@ -73,18 +73,18 @@ const CommandPalette = ({ open, onClose }) => {
       footer={null}
       closable={false}
       width={560}
-      styles={{ body: { padding: 0, borderRadius: 12, overflow: 'hidden' } }}
+      styles={{ body: { padding: 0, borderRadius: "var(--radius-lg)", overflow: 'hidden' } }}
     >
-      <div style={{ borderBottom: '1px solid #e4e4e7', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <SearchOutlined style={{ fontSize: 18, color: '#71717a' }} />
+      <div style={{ borderBottom: '1px solid var(--border-light, #d9e6e9)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <SearchOutlined style={{ fontSize: 18, color: 'var(--text-secondary, #64748b)' }} />
         <input
           ref={inputRef}
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search pages, commands..."
-          style={{ flex: 1, border: 'none', outline: 'none', fontSize: 15, fontWeight: 500, color: '#18181b', background: 'transparent' }}
+          style={{ flex: 1, border: 'none', outline: 'none', fontSize: 15, fontWeight: 500, color: 'var(--text-primary, #0f172a)', background: 'transparent' }}
         />
-        <Tag style={{ fontSize: 10, margin: 0, borderRadius: 4 }}>ESC</Tag>
+        <Tag style={{ fontSize: 10, margin: 0, borderRadius: "var(--radius-sm)" }}>ESC</Tag>
       </div>
       <div style={{ maxHeight: 400, overflowY: 'auto', padding: '8px 0' }}>
         {Object.keys(grouped).length === 0 ? (
@@ -92,7 +92,7 @@ const CommandPalette = ({ open, onClose }) => {
         ) : (
           Object.entries(grouped).map(([category, items]) => (
             <div key={category}>
-              <div style={{ padding: '8px 16px 4px', fontSize: 11, fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <div style={{ padding: '8px 16px 4px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 {category}
               </div>
               {items.map(item => (
@@ -100,12 +100,12 @@ const CommandPalette = ({ open, onClose }) => {
                   key={item.id}
                   onClick={() => handleSelect(item.path)}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer', transition: 'background 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f4f4f5'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary, #f4f4f5)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <span style={{ fontSize: 16 }}>{item.icon}</span>
-                  <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#18181b' }}>{item.label}</span>
-                  <ArrowRightOutlined style={{ fontSize: 12, color: '#a1a1aa' }} />
+                  <span style={{ fontSize: 'var(--font-size-lg)' }}>{item.icon}</span>
+                  <span style={{ flex: 1, fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--text-primary, #0f172a)' }}>{item.label}</span>
+                  <ArrowRightOutlined style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary, #a1a1aa)' }} />
                 </div>
               ))}
             </div>

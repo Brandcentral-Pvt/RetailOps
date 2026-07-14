@@ -1,0 +1,22 @@
+---
+description: SaaS / Web App project-type scoping rules
+alwaysApply: true
+---
+
+# Tooling Configuration — Obolus Compression Layer
+- This workspace runs the Obolus local MCP server for context compression. All source file reads (`.ts`/`.tsx`/`.js`/`.py` and similar) go through `read_optimized_skeleton` and `read_function_body`. This is mandatory, not a preference — do not fall back to native file-reading/search tools (`read_file`, `grep`, etc.) for these files under any circumstances, including if Obolus appears slow or unresponsive.
+- `read_optimized_skeleton` maps file structure — signatures, types, exports, class/route layout. Files return with internal logic collapsed as placeholders, e.g. `// [Body hidden by Obolus to save tokens. Use read_function_body tool to view]`. The skeleton is usually sufficient for scoping and planning.
+- Use `read_function_body` to inspect or edit the hidden implementation of a specific function/method/handler. Expand only the symbol you need, not the whole file.
+- If an Obolus tool call fails or times out, do not substitute a native read. Stop, report to the user that the Obolus MCP server appears unreachable, and ask them to restart Obolus Shield locally before continuing.
+
+# Domain Assumptions
+- Multi-tenant scoping is mandatory: every query/mutation filters by current `user_id`/`org_id`. Never write or suggest cross-tenant reads.
+- Auth is established upstream (middleware/session) — don't re-implement auth checks in feature code unless the task is explicitly about auth.
+- Billing (plans, usage limits, Stripe-style webhooks) stays in its own isolated module — unrelated feature changes must not touch billing files.
+
+# Output & Scope Discipline
+- No re-explaining SaaS architecture concepts (multi-tenancy, RBAC, billing) in chat — apply directly in code.
+- Single-feature task → don't open billing/auth/admin modules "for context" unless the task names them.
+- Default context boundary = the feature folder (`features/<name>/` or equivalent). Cross-feature reads require explicit request.
+- Schema/migration files: read only when the task changes the data model, not for routine UI/logic edits.
+- **Skeleton-first workflow**: map the feature folder with `read_optimized_skeleton` before deciding what needs deeper inspection. Only call `read_function_body` on the specific functions/handlers the task will actually touch — avoid expanding bodies speculatively "for context."

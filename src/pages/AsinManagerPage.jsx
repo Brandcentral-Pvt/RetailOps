@@ -152,7 +152,7 @@ const getWeekHistoryBadge = (value, type, uploadedPrice = 0) => {
     return (
       <div className="d-flex flex-column align-items-center justify-content-center">
         <span style={{
-          fontWeight: 700,
+          fontWeight: 600,
           color: '#2E7D32',
           fontSize: '10.5px',
           lineHeight: 1
@@ -186,7 +186,7 @@ const TrendBadge = ({ status }) => {
 
   if (status === 'Grow') {
     return (
-      <div className="d-flex align-items-center gap-1 text-emerald-600" style={{ fontSize: '10px', fontWeight: 700 }}>
+      <div className="d-flex align-items-center gap-1 text-emerald-600" style={{ fontSize: '10px', fontWeight: 600 }}>
         <TrendingUp size={10} />
         <span>GROW</span>
       </div>
@@ -195,7 +195,7 @@ const TrendBadge = ({ status }) => {
 
   if (status === 'Down') {
     return (
-      <div className="d-flex align-items-center gap-1 text-red-500" style={{ fontSize: '10px', fontWeight: 700 }}>
+      <div className="d-flex align-items-center gap-1 text-red-500" style={{ fontSize: '10px', fontWeight: 600 }}>
         <TrendingDown size={10} />
         <span>DOWN</span>
       </div>
@@ -1989,10 +1989,10 @@ const AsinManagerPage = (props) => {
             <div key={star.key} className="d-flex align-items-center gap-1">
               <span className="text-muted" style={{ fontSize: '0.6rem', width: '12px', textAlign: 'right' }}>{star.label}</span>
               <svg width="8" height="8" viewBox="0 0 24 24" fill="#fbbf24" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <div style={{ flex: 1, height: '5px', backgroundColor: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ flex: 1, height: '5px', backgroundColor: 'var(--bg-active)', borderRadius: '3px', overflow: 'hidden' }}>
                 <div style={{ width: `${pct}%`, height: '100%', backgroundColor: star.color, borderRadius: '3px', transition: 'width 0.3s' }} />
               </div>
-              <span style={{ fontSize: '9px', color: '#6b7280', width: '22px', textAlign: 'right' }}>{pct}%</span>
+              <span style={{ fontSize: '9px', color: 'var(--text-secondary)', width: '22px', textAlign: 'right' }}>{pct}%</span>
             </div>
           );
         })}
@@ -2045,7 +2045,7 @@ const AsinManagerPage = (props) => {
     fontWeight: 800,
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    color: '#4b5563', // cool gray 600
+    color: 'var(--text-secondary)', // cool gray 600
     padding: '10px 12px',
     background: '#f9fafb',
     position: 'sticky',
@@ -2075,7 +2075,7 @@ const AsinManagerPage = (props) => {
     fontSize: '9px',
     fontWeight: '700',
     height: '18px',
-    borderRadius: '4px',
+    borderRadius: 'var(--radius-sm)',
     border: '1px solid #e4e4e7'
   };
 
@@ -2091,10 +2091,10 @@ const AsinManagerPage = (props) => {
       <Drawer
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
-            <div style={{ background: '#f4f4f5', padding: 7, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#f4f4f5', padding: 7, borderRadius: "var(--radius-md)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <SlidersHorizontal size={16} style={{ color: '#3f3f46' }} />
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#18181b' }}>Filters</span>
+            <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b' }}>Filters</span>
           </div>
         }
         placement="right"
@@ -2116,15 +2116,15 @@ const AsinManagerPage = (props) => {
 
           {/* SEARCH & BASIC */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Identity & Search</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Identity & Search</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>SKU</div>
-                <Input size="small" placeholder="Enter SKU..." value={filters.sku} onChange={(e) => setFilters({ ...filters, sku: e.target.value })} allowClear style={{ borderRadius: 8 }} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>SKU</div>
+                <Input size="small" placeholder="Enter SKU..." value={filters.sku} onChange={(e) => setFilters({ ...filters, sku: e.target.value })} allowClear style={{ borderRadius: "var(--radius-md)" }} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Parent ASIN</div>
-                <Input size="small" placeholder="Enter Parent ASIN..." value={filters.parentAsin} onChange={(e) => setFilters({ ...filters, parentAsin: e.target.value })} allowClear style={{ borderRadius: 8 }} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Parent ASIN</div>
+                <Input size="small" placeholder="Enter Parent ASIN..." value={filters.parentAsin} onChange={(e) => setFilters({ ...filters, parentAsin: e.target.value })} allowClear style={{ borderRadius: "var(--radius-md)" }} />
               </div>
             </div>
           </div>
@@ -2133,27 +2133,27 @@ const AsinManagerPage = (props) => {
 
           {/* ATTRIBUTES */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Product Attributes</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Product Attributes</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Scrape Status</div>
-                <Select size="small" placeholder="All Statuses" value={filters.scrapeStatus || undefined} onChange={(v) => setFilters({ ...filters, scrapeStatus: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: 8 }} options={(filterOptions.scrapeStatuses || []).map(s => ({ value: s, label: s }))} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Scrape Status</div>
+                <Select size="small" placeholder="All Statuses" value={filters.scrapeStatus || undefined} onChange={(v) => setFilters({ ...filters, scrapeStatus: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={(filterOptions.scrapeStatuses || []).map(s => ({ value: s, label: s }))} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Brand</div>
-                <Select size="small" placeholder="All Brands" value={filters.brand || undefined} onChange={(v) => setFilters({ ...filters, brand: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: 8 }} options={filterOptions.brands.map(b => ({ value: b, label: b }))} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Brand</div>
+                <Select size="small" placeholder="All Brands" value={filters.brand || undefined} onChange={(v) => setFilters({ ...filters, brand: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={filterOptions.brands.map(b => ({ value: b, label: b }))} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Category</div>
-                <Select size="small" placeholder="All Categories" value={filters.category || undefined} onChange={(v) => setFilters({ ...filters, category: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: 8 }} options={filterOptions.categories.map(c => ({ value: c, label: c }))} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Category</div>
+                <Select size="small" placeholder="All Categories" value={filters.category || undefined} onChange={(v) => setFilters({ ...filters, category: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={filterOptions.categories.map(c => ({ value: c, label: c }))} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Sub BSR Category</div>
-                <Select size="small" placeholder="All Sub BSR Categories" value={filters.subBsrCategory || undefined} onChange={(v) => setFilters({ ...filters, subBsrCategory: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: 8 }} options={(filterOptions.subBsrCategories || []).map(s => ({ value: s, label: s }))} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Sub BSR Category</div>
+                <Select size="small" placeholder="All Sub BSR Categories" value={filters.subBsrCategory || undefined} onChange={(v) => setFilters({ ...filters, subBsrCategory: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={(filterOptions.subBsrCategories || []).map(s => ({ value: s, label: s }))} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Manufacturer</div>
-                <Input size="small" placeholder="Search manufacturer..." value={filters.manufacturer} onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })} allowClear style={{ borderRadius: 8 }} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Manufacturer</div>
+                <Input size="small" placeholder="Search manufacturer..." value={filters.manufacturer} onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })} allowClear style={{ borderRadius: "var(--radius-md)" }} />
               </div>
             </div>
           </div>
@@ -2162,39 +2162,39 @@ const AsinManagerPage = (props) => {
 
           {/* QUICK FLAGS */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Quick Flags</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Quick Flags</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BuyBox</div>
-                <Select size="small" placeholder="All" value={filters.buyBoxWin || undefined} onChange={(v) => setFilters({ ...filters, buyBoxWin: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'true', label: 'Won (Own)' }, { value: 'false', label: 'Lost (Other)' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BuyBox</div>
+                <Select size="small" placeholder="All" value={filters.buyBoxWin || undefined} onChange={(v) => setFilters({ ...filters, buyBoxWin: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Won (Own)' }, { value: 'false', label: 'Lost (Other)' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>A+ Content</div>
-                <Select size="small" placeholder="All" value={filters.hasAplus || undefined} onChange={(v) => setFilters({ ...filters, hasAplus: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>A+ Content</div>
+                <Select size="small" placeholder="All" value={filters.hasAplus || undefined} onChange={(v) => setFilters({ ...filters, hasAplus: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Video</div>
-                <Select size="small" placeholder="All" value={filters.hasVideo || undefined} onChange={(v) => setFilters({ ...filters, hasVideo: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Video</div>
+                <Select size="small" placeholder="All" value={filters.hasVideo || undefined} onChange={(v) => setFilters({ ...filters, hasVideo: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Active Deal</div>
-                <Select size="small" placeholder="All" value={filters.hasDeal || undefined} onChange={(v) => setFilters({ ...filters, hasDeal: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Active Deal</div>
+                <Select size="small" placeholder="All" value={filters.hasDeal || undefined} onChange={(v) => setFilters({ ...filters, hasDeal: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Ads Active</div>
-                <Select size="small" placeholder="All" value={filters.ads || undefined} onChange={(v) => setFilters({ ...filters, ads: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Ads Active</div>
+                <Select size="small" placeholder="All" value={filters.ads || undefined} onChange={(v) => setFilters({ ...filters, ads: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Availability</div>
-                <Select size="small" placeholder="All" value={filters.availabilityStatus || undefined} onChange={(v) => setFilters({ ...filters, availabilityStatus: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'In Stock', label: 'In Stock' }, { value: 'Out of Stock', label: 'Out of Stock' }, { value: 'Available', label: 'Available' }, { value: 'Currently unavailable.', label: 'Unavailable' }, { value: 'ADD TO BAG', label: 'Add to Bag' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Availability</div>
+                <Select size="small" placeholder="All" value={filters.availabilityStatus || undefined} onChange={(v) => setFilters({ ...filters, availabilityStatus: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'In Stock', label: 'In Stock' }, { value: 'Out of Stock', label: 'Out of Stock' }, { value: 'Available', label: 'Available' }, { value: 'Currently unavailable.', label: 'Unavailable' }, { value: 'ADD TO BAG', label: 'Add to Bag' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Deal Type</div>
-                <Select size="small" placeholder="All" value={filters.dealAccessType || undefined} onChange={(v) => setFilters({ ...filters, dealAccessType: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'ALL', label: 'ALL' }, { value: 'PRIME', label: 'PRIME' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Deal Type</div>
+                <Select size="small" placeholder="All" value={filters.dealAccessType || undefined} onChange={(v) => setFilters({ ...filters, dealAccessType: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'ALL', label: 'ALL' }, { value: 'PRIME', label: 'PRIME' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Dispute</div>
-                <Select size="small" placeholder="All ASINs" value={filters.priceDispute || undefined} onChange={(v) => setFilters({ ...filters, priceDispute: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'true', label: 'Disputed Only' }, { value: 'false', label: 'Non-Disputed' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Dispute</div>
+                <Select size="small" placeholder="All ASINs" value={filters.priceDispute || undefined} onChange={(v) => setFilters({ ...filters, priceDispute: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Disputed Only' }, { value: 'false', label: 'Non-Disputed' }]} />
               </div>
             </div>
           </div>
@@ -2203,20 +2203,20 @@ const AsinManagerPage = (props) => {
 
           {/* TRENDS & HISTORY */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Performance Trends</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Performance Trends</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Trend</div>
-                <Select size="small" placeholder="All Trends" value={filters.bsrTrend || undefined} onChange={(v) => setFilters({ ...filters, bsrTrend: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'Grow', label: 'Growing' }, { value: 'Down', label: 'Down' }, { value: 'Stable', label: 'Stable' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Trend</div>
+                <Select size="small" placeholder="All Trends" value={filters.bsrTrend || undefined} onChange={(v) => setFilters({ ...filters, bsrTrend: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'Grow', label: 'Growing' }, { value: 'Down', label: 'Down' }, { value: 'Stable', label: 'Stable' }]} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Rating Trend</div>
-                <Select size="small" placeholder="All Trends" value={filters.ratingTrend || undefined} onChange={(v) => setFilters({ ...filters, ratingTrend: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: 'Grow', label: 'Growing' }, { value: 'Down', label: 'Down' }, { value: 'Stable', label: 'Stable' }]} />
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Rating Trend</div>
+                <Select size="small" placeholder="All Trends" value={filters.ratingTrend || undefined} onChange={(v) => setFilters({ ...filters, ratingTrend: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'Grow', label: 'Growing' }, { value: 'Down', label: 'Down' }, { value: 'Stable', label: 'Stable' }]} />
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>History Data Range</div>
-              <Select size="small" placeholder="Default: 14 Days" value={filters.historyDays || undefined} onChange={(v) => setFilters({ ...filters, historyDays: v || '' })} allowClear style={{ width: '100%', borderRadius: 8 }} options={[{ value: '1', label: 'Today Only' }, { value: '7', label: 'Last 7 Days' }, { value: '14', label: 'Last 14 Days' }, { value: '30', label: 'Last 30 Days' }, { value: '90', label: 'Last 90 Days' }]} />
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>History Data Range</div>
+              <Select size="small" placeholder="Default: 14 Days" value={filters.historyDays || undefined} onChange={(v) => setFilters({ ...filters, historyDays: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: '1', label: 'Today Only' }, { value: '7', label: 'Last 7 Days' }, { value: '14', label: 'Last 14 Days' }, { value: '30', label: 'Last 30 Days' }, { value: '90', label: 'Last 90 Days' }]} />
             </div>
           </div>
 
@@ -2224,27 +2224,27 @@ const AsinManagerPage = (props) => {
 
           {/* RANGES */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Metrics & Ranges</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Metrics & Ranges</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Range (₹)</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Range (₹)</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Input size="small" type="number" placeholder="Min" value={filters.minPrice} onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
-                  <Input size="small" type="number" placeholder="Max" value={filters.maxPrice} onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
+                  <Input size="small" type="number" placeholder="Min" value={filters.minPrice} onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
+                  <Input size="small" type="number" placeholder="Max" value={filters.maxPrice} onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Range</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Range</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Input size="small" type="number" placeholder="Min" value={filters.minBSR} onChange={(e) => setFilters({ ...filters, minBSR: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
-                  <Input size="small" type="number" placeholder="Max" value={filters.maxBSR} onChange={(e) => setFilters({ ...filters, maxBSR: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
+                  <Input size="small" type="number" placeholder="Min" value={filters.minBSR} onChange={(e) => setFilters({ ...filters, minBSR: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
+                  <Input size="small" type="number" placeholder="Max" value={filters.maxBSR} onChange={(e) => setFilters({ ...filters, maxBSR: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Rating Range</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Rating Range</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Input size="small" type="number" step="0.1" placeholder="Min" value={filters.minRating} onChange={(e) => setFilters({ ...filters, minRating: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
-                  <Input size="small" type="number" step="0.1" placeholder="Max" value={filters.maxRating} onChange={(e) => setFilters({ ...filters, maxRating: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
+                  <Input size="small" type="number" step="0.1" placeholder="Min" value={filters.minRating} onChange={(e) => setFilters({ ...filters, minRating: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
+                  <Input size="small" type="number" step="0.1" placeholder="Max" value={filters.maxRating} onChange={(e) => setFilters({ ...filters, maxRating: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
                 </div>
               </div>
             </div>
@@ -2254,8 +2254,8 @@ const AsinManagerPage = (props) => {
 
           {/* TAGS */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tags</div>
-            <Input.Search size="small" placeholder="Search tags..." value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} style={{ borderRadius: 8, marginBottom: 10 }} />
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tags</div>
+            <Input.Search size="small" placeholder="Search tags..." value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} style={{ borderRadius: "var(--radius-md)", marginBottom: 10 }} />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {filterOptions.tags
                 .filter(t => typeof t === 'string' && t.toLowerCase().includes(tagSearch.toLowerCase()))
@@ -2281,7 +2281,7 @@ const AsinManagerPage = (props) => {
 
           {/* AGE FILTER */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Listing Age</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Listing Age</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {[
                 { label: 'New (<30D)', value: '30' },
@@ -2301,10 +2301,10 @@ const AsinManagerPage = (props) => {
               ))}
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Release Date Range</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Release Date Range</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Input size="small" type="date" value={filters.minReleaseDate} onChange={(e) => setFilters({ ...filters, minReleaseDate: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
-                <Input size="small" type="date" value={filters.maxReleaseDate} onChange={(e) => setFilters({ ...filters, maxReleaseDate: e.target.value })} style={{ borderRadius: 8, flex: 1 }} />
+                <Input size="small" type="date" value={filters.minReleaseDate} onChange={(e) => setFilters({ ...filters, minReleaseDate: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
+                <Input size="small" type="date" value={filters.maxReleaseDate} onChange={(e) => setFilters({ ...filters, maxReleaseDate: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
               </div>
             </div>
           </div>
@@ -2312,8 +2312,8 @@ const AsinManagerPage = (props) => {
 
         {/* Footer */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid #f4f4f5', background: '#fafafa', display: 'flex', gap: 8, flexShrink: 0 }}>
-          <Button size="small" block onClick={resetAllFilters} style={{ borderRadius: 8, fontWeight: 600, height: 32 }}>Reset</Button>
-          <Button size="small" type="primary" block onClick={handleApplyFilters} style={{ borderRadius: 8, fontWeight: 600, height: 32, background: '#18181b', borderColor: '#18181b' }}>Apply Filters</Button>
+          <Button size="small" block onClick={resetAllFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32 }}>Reset</Button>
+          <Button size="small" type="primary" block onClick={handleApplyFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32, background: '#18181b', borderColor: '#18181b' }}>Apply Filters</Button>
         </div>
       </Drawer>
 
@@ -2353,7 +2353,7 @@ const AsinManagerPage = (props) => {
                 </span>
 
                 {/* Value */}
-                <span className="fw-bolder ms-1" style={{ fontSize: '11px', color: '#09090b' }}>
+                <span className="fw-bolder ms-1" style={{ fontSize: 'var(--font-size-xs)', color: '#09090b' }}>
                   {kpi.value}
                 </span>
 
@@ -2527,7 +2527,7 @@ const AsinManagerPage = (props) => {
           {/* Table Toolbar */}
           <div className="asin-toolbar border-bottom bg-white">
             <div className="asin-toolbar-left d-flex align-items-center gap-2 flex-grow-1" style={{ flexWrap: 'wrap', minWidth: 0 }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#27272a', letterSpacing: '0.02em', whiteSpace: 'nowrap' }} className="text-uppercase d-flex align-items-center gap-1">
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#27272a', letterSpacing: '0.02em', whiteSpace: 'nowrap' }} className="text-uppercase d-flex align-items-center gap-1">
                 Inventory
                 <span className="bg-light border text-secondary px-1.5 rounded-pill fw-semibold" style={{ fontSize: '10px', lineHeight: '18px' }}>
                   {pagination.total.toLocaleString()}
@@ -2672,7 +2672,7 @@ const AsinManagerPage = (props) => {
                       label: (
                         <div className="d-flex justify-content-between align-items-center w-100">
                           <span>BULK ACTIONS</span>
-                          {selectedIds.size === 0 && <Tag style={{ fontSize: '9px', borderRadius: '4px' }}>SELECT ROWS</Tag>}
+                          {selectedIds.size === 0 && <Tag style={{ fontSize: '9px', borderRadius: 'var(--radius-sm)' }}>SELECT ROWS</Tag>}
                         </div>
                       ),
                       children: [
@@ -2715,9 +2715,9 @@ const AsinManagerPage = (props) => {
                   icon={<MoreVertical size={14} />}
                   style={{
                     height: '32px',
-                    fontSize: '11px',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
-                    borderRadius: '8px'
+                    borderRadius: 'var(--radius-md)'
                   }}
                   className="d-flex align-items-center gap-1 shadow-sm"
                 >
@@ -2745,7 +2745,7 @@ const AsinManagerPage = (props) => {
                     { label: 'ASINs', value: 'asin' },
                     { label: 'Parents', value: 'parent' }
                   ]}
-                  style={{ borderRadius: '8px' }}
+                  style={{ borderRadius: 'var(--radius-md)' }}
                 />
                 <Button
                   icon={<RefreshCw size={14} className={syncing ? 'spin' : ''} />}
@@ -2753,9 +2753,9 @@ const AsinManagerPage = (props) => {
                   disabled={syncing}
                   style={{
                     height: '32px',
-                    fontSize: '11px',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
-                    borderRadius: '8px'
+                    borderRadius: 'var(--radius-md)'
                   }}
                   className="d-flex align-items-center gap-2 shadow-sm"
                 >
@@ -2778,7 +2778,7 @@ const AsinManagerPage = (props) => {
                           message.error({ content: 'Auto-tags failed: ' + err.message, key: 'auto-tags', duration: 4 });
                         }
                       }}
-                      style={{ height: '32px', fontSize: '11px', fontWeight: 600, borderRadius: '8px' }}
+                      style={{ height: '32px', fontSize: 'var(--font-size-xs)', fontWeight: 600, borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center gap-2 shadow-sm"
                     >
                       Auto Tags
@@ -2792,9 +2792,9 @@ const AsinManagerPage = (props) => {
                   icon={<ListChecks size={14} />}
                   style={{
                     height: '32px',
-                    fontSize: '11px',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
-                    borderRadius: '8px'
+                    borderRadius: 'var(--radius-md)'
                   }}
                   className="d-flex align-items-center gap-2 shadow-sm"
                 >
@@ -2813,9 +2813,9 @@ const AsinManagerPage = (props) => {
                     icon={<LayoutGrid size={14} />}
                     style={{
                       height: '32px',
-                      fontSize: '11px',
+                      fontSize: 'var(--font-size-xs)',
                       fontWeight: 600,
-                      borderRadius: '8px'
+                      borderRadius: 'var(--radius-md)'
                     }}
                     className="d-flex align-items-center gap-2 shadow-sm"
                   >
@@ -2840,7 +2840,7 @@ const AsinManagerPage = (props) => {
                       onClick={handleBulkCreateActions}
                       disabled={asins.length === 0 || syncing}
                       icon={<Zap size={14} style={{ color: '#D32F2F' }} />}
-                      style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center justify-content-center shadow-sm"
                     />
                   </Tooltip>
@@ -2851,7 +2851,7 @@ const AsinManagerPage = (props) => {
                     <Button
                       onClick={() => setShowExportModal(true)}
                       icon={<Download size={14} style={{ color: '#27272a' }} />}
-                      style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center justify-content-center shadow-sm"
                     />
                   </Tooltip>
@@ -2862,7 +2862,7 @@ const AsinManagerPage = (props) => {
                     <Button
                       onClick={() => setShowBulkImportModal(true)}
                       icon={<FileUp size={14} className="text-emerald-600" />}
-                      style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center justify-content-center shadow-sm"
                     />
                   </Tooltip>
@@ -2872,7 +2872,7 @@ const AsinManagerPage = (props) => {
                     <Button
                       onClick={() => setShowAddModal(true)}
                       icon={<Plus size={14} className="text-indigo-600" />}
-                      style={{ width: '32px', height: '32px', borderRadius: '8px' }}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
                       className="d-flex align-items-center justify-content-center shadow-sm ms-1"
                     />
                   </Tooltip>
@@ -2895,7 +2895,7 @@ const AsinManagerPage = (props) => {
                 <button
                   className="btn btn-sm btn-white border border-indigo-100 shadow-sm text-indigo-700 fw-bold rounded-2 d-flex align-items-center gap-1.5"
                   onClick={() => setShowBulkTagsModal(true)}
-                  style={{ fontSize: '11px' }}
+                  style={{ fontSize: 'var(--font-size-xs)' }}
                 >
                   <TagIcon size={12} /> Tag
                 </button>
@@ -2903,14 +2903,14 @@ const AsinManagerPage = (props) => {
                   className="btn btn-sm btn-white border border-indigo-100 shadow-sm text-indigo-700 fw-bold rounded-2 d-flex align-items-center gap-1.5"
                   onClick={handleBulkSyncSelected}
                   disabled={syncing}
-                  style={{ fontSize: '11px' }}
+                  style={{ fontSize: 'var(--font-size-xs)' }}
                 >
                   <RefreshCw size={12} className={syncing ? 'spin' : ''} /> Sync
                 </button>
                 <button
                   className="btn btn-sm btn-white border border-indigo-100 shadow-sm text-indigo-700 fw-bold rounded-2 d-flex align-items-center gap-1.5"
                   onClick={handleSelectedCreateActions}
-                  style={{ fontSize: '11px' }}
+                  style={{ fontSize: 'var(--font-size-xs)' }}
                 >
                   <Zap size={12} className="fill-indigo-700" /> Tasks
                 </button>
@@ -2918,14 +2918,14 @@ const AsinManagerPage = (props) => {
                   className="btn btn-sm btn-white border shadow-sm fw-bold rounded-2 d-flex align-items-center gap-1.5"
                   onClick={handleAiListingAnalysis}
                   disabled={aiAnalysisLoading}
-                  style={{ fontSize: '11px', borderColor: '#c4b5fd', color: '#6d28d9', backgroundColor: '#f5f3ff' }}
+                  style={{ fontSize: 'var(--font-size-xs)', borderColor: '#c4b5fd', color: '#6d28d9', backgroundColor: '#f5f3ff' }}
                 >
                   <Sparkles size={12} /> {aiAnalysisLoading ? 'Analyzing...' : 'AI Analyze'}
                 </button>
               </div>
               <button
                 className="btn btn-link text-indigo-600 fw-bold text-decoration-none ms-auto p-0"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: 'var(--font-size-xs)' }}
                 onClick={clearSelection}
               >
                 Deselect All
@@ -2944,7 +2944,7 @@ const AsinManagerPage = (props) => {
               </div>
               <button
                 className="btn btn-link text-danger text-decoration-none ms-auto fw-bold p-0"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: 'var(--font-size-xs)' }}
                 onClick={resetAllFilters}
               >
                 Clear All
@@ -3025,7 +3025,7 @@ const AsinManagerPage = (props) => {
                       colSpan={ordersExpanded ? (availableMonths.length + 1) : 1}
                       style={{ ...thStyle, background: '#f8fafc', color: '#334155', textAlign: 'center', borderBottom: '2px solid #cbd5e1', transition: 'all 0.3s ease' }}
                     >
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 700 }}>
+                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         {ordersExpanded ? (
                           <span>ORDERS</span>
                         ) : (
@@ -3072,7 +3072,7 @@ const AsinManagerPage = (props) => {
                   {visiblePriceTrendCount > 0 && (
                     <th colSpan={visiblePriceTrendCount}
                       style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', borderBottom: '2px solid #c7d2fe', transition: 'all 0.3s ease' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 700 }}>
+                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{priceTrendExpanded ? 'Price Trend' : 'Price'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setPriceTrendExpanded(!priceTrendExpanded); }}
@@ -3096,7 +3096,7 @@ const AsinManagerPage = (props) => {
                   {visibleBsrTrendCount > 0 && (
                     <th colSpan={visibleBsrTrendCount}
                       style={{ ...thStyle, background: '#f5f3ff', color: '#6d28d9', textAlign: 'center', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 700 }}>
+                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{bsrTrendExpanded ? 'SUB-BSR TREND' : 'Sub BSR'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setBsrTrendExpanded(!bsrTrendExpanded); }}
@@ -3122,7 +3122,7 @@ const AsinManagerPage = (props) => {
                     </th>
                   )}
                   {isVisible('ratingBreakdown') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 700 }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: '#fffbeb', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
                       DISTRIBUTION
                     </th>
                   )}
@@ -3130,7 +3130,7 @@ const AsinManagerPage = (props) => {
                   {visibleRatingTrendCount > 0 && (
                     <th colSpan={visibleRatingTrendCount}
                       style={{ ...thStyle, background: '#fffbeb', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 700 }}>
+                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{ratingTrendExpanded ? 'RATING TREND' : 'RT'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setRatingTrendExpanded(!ratingTrendExpanded); }}
@@ -3147,7 +3147,7 @@ const AsinManagerPage = (props) => {
                   {visibleReviewTrendCount > 0 && (
                     <th colSpan={visibleReviewTrendCount}
                       style={{ ...thStyle, background: '#fffbeb', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 700 }}>
+                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{reviewTrendExpanded ? 'REVIEWS TREND' : 'REV'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setReviewTrendExpanded(!reviewTrendExpanded); }}
@@ -3175,7 +3175,7 @@ const AsinManagerPage = (props) => {
                   {visibleImageTrendCount > 0 && (
                     <th colSpan={visibleImageTrendCount}
                       style={{ ...thStyle, background: '#fdf2f8', color: '#db2777', textAlign: 'center', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 700 }}>
+                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{imageTrendExpanded ? 'IMG TREND' : 'IMG'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setImageTrendExpanded(!imageTrendExpanded); }}
@@ -3600,7 +3600,7 @@ const AsinManagerPage = (props) => {
                             <div className="d-flex flex-column" style={{ overflow: 'hidden' }}>
                               <span style={{
                                 fontWeight: 500,
-                                color: '#4b5563',
+                                color: 'var(--text-secondary)',
                                 fontSize: '10.5px',
                                 whiteSpace: 'nowrap',
                                 textOverflow: 'ellipsis',
@@ -3626,7 +3626,7 @@ const AsinManagerPage = (props) => {
                                 fontSize: '10px',
                                 backgroundColor: (asin.titleScore || 0) >= 8.5 ? '#2E7D32' :
                                   (asin.titleScore || 0) >= 7.0 ? '#E65100' :
-                                    (asin.titleScore || 0) >= 5.0 ? '#C62828' : '#991b1b',
+                                    (asin.titleScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
                                 color: '#fff',
                                 minWidth: '28px'
                               }}
@@ -3648,7 +3648,7 @@ const AsinManagerPage = (props) => {
                                   fontSize: '10px',
                                   backgroundColor: (asin.bulletScore || 0) >= 8.5 ? '#2E7D32' :
                                     (asin.bulletScore || 0) >= 7.0 ? '#E65100' :
-                                      (asin.bulletScore || 0) >= 5.0 ? '#C62828' : '#991b1b',
+                                      (asin.bulletScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
                                   color: '#fff',
                                   minWidth: '28px'
                                 }}
@@ -3670,7 +3670,7 @@ const AsinManagerPage = (props) => {
                                   fontSize: '10px',
                                   backgroundColor: (asin.imageScore || 0) >= 8.5 ? '#2E7D32' :
                                     (asin.imageScore || 0) >= 7.0 ? '#E65100' :
-                                      (asin.imageScore || 0) >= 5.0 ? '#C62828' : '#991b1b',
+                                      (asin.imageScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
                                   color: '#fff',
                                   minWidth: '28px'
                                 }}
@@ -3692,7 +3692,7 @@ const AsinManagerPage = (props) => {
                                   fontSize: '10px',
                                   backgroundColor: (asin.descriptionScore || 0) >= 8.5 ? '#2E7D32' :
                                     (asin.descriptionScore || 0) >= 7.0 ? '#E65100' :
-                                      (asin.descriptionScore || 0) >= 5.0 ? '#C62828' : '#991b1b',
+                                      (asin.descriptionScore || 0) >= 5.0 ? '#C62828' : '#D32F2F',
                                   color: '#fff',
                                   minWidth: '28px'
                                 }}
@@ -3706,15 +3706,15 @@ const AsinManagerPage = (props) => {
                         )} */}
 
                         {/* {isVisible('lqs') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', background: '#f1f5f9', fontWeight: 700 }}>
+                          <td style={{ ...tdStyle, textAlign: 'center', background: '#f1f5f9', fontWeight: 600 }}>
                             {asin.lqs != null ? (
                               <span
                                 className="badge fw-bold"
                                 style={{
-                                  fontSize: '11px',
+                                  fontSize: 'var(--font-size-xs)',
                                   backgroundColor: (asin.lqs || 0) >= 8.5 || (asin.lqs || 0) >= 85 ? '#2E7D32' :
                                     (asin.lqs || 0) >= 7.0 || (asin.lqs || 0) >= 70 ? '#E65100' :
-                                      (asin.lqs || 0) >= 5.0 || (asin.lqs || 0) >= 50 ? '#C62828' : '#991b1b',
+                                      (asin.lqs || 0) >= 5.0 || (asin.lqs || 0) >= 50 ? '#C62828' : '#D32F2F',
                                   color: '#fff',
                                   padding: '3px 8px',
                                   minWidth: '36px'
@@ -3745,12 +3745,12 @@ const AsinManagerPage = (props) => {
                                 const textColor = isUnavailable ? '#C62828' : isInStock ? '#2E7D32' : '#334155';
                                 const borderColor = isUnavailable ? '#fecaca' : isInStock ? '#a7f3d0' : '#e2e8f0';
                                 return (
-                                  <Tooltip title={asin.availabilityStatus} placement="top" styles={{ root: { fontSize: 11 } }}>
+                                  <Tooltip title={asin.availabilityStatus} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                     <span className="badge" style={{
                                       backgroundColor: bgColor,
                                       color: textColor,
                                       border: `1px solid ${borderColor}`,
-                                      fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', maxWidth: '90px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'default'
+                                      fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 'var(--radius-sm)', maxWidth: '90px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'default'
                                     }}>
                                       {asin.availabilityStatus}
                                     </span>
@@ -3765,7 +3765,7 @@ const AsinManagerPage = (props) => {
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.Ads ? (
                               <div className="d-flex align-items-center justify-content-center gap-1" title="Advertising Active">
-                                <span className="badge d-flex align-items-center gap-1 shadow-sm" style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: '4px' }}>
+                                <span className="badge d-flex align-items-center gap-1 shadow-sm" style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
                                   <Megaphone size={10} />
                                   YES
                                 </span>
@@ -3778,7 +3778,7 @@ const AsinManagerPage = (props) => {
                         {isVisible('ads') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.hasGms ? (
-                              <span className="badge d-flex align-items-center justify-content-center gap-1 shadow-sm" style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: '4px' }}>
+                              <span className="badge d-flex align-items-center justify-content-center gap-1 shadow-sm" style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
                                 YES
                               </span>
                             ) : (
@@ -3801,7 +3801,7 @@ const AsinManagerPage = (props) => {
                                 transition: 'all 0.3s ease'
                               }}>
                                 {monthOrders > 0 ? (
-                                  <span className="text-zinc-600" style={{ fontSize: '11px' }}>
+                                  <span className="text-zinc-600" style={{ fontSize: 'var(--font-size-xs)' }}>
                                     {monthOrders.toLocaleString()}
                                   </span>
                                 ) : (
@@ -3825,7 +3825,7 @@ const AsinManagerPage = (props) => {
                               transition: 'all 0.3s ease'
                             }}>
                               {asin.totalOrders !== undefined && asin.totalOrders > 0 ? (
-                                <span className="fw-bold text-zinc-700" style={{ fontSize: '11px' }}>
+                                <span className="fw-bold text-zinc-700" style={{ fontSize: 'var(--font-size-xs)' }}>
                                   {asin.totalOrders.toLocaleString()}
                                 </span>
                               ) : (
@@ -3870,7 +3870,7 @@ const AsinManagerPage = (props) => {
                             ...getTransitionStyle(gmsRevenueExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
                             textAlign: 'center',
                             background: '#d1fae5',
-                            fontWeight: 700
+                            fontWeight: 600
                           }}>
                             <div style={{
                               width: 'auto',
@@ -3878,7 +3878,7 @@ const AsinManagerPage = (props) => {
                               transition: 'all 0.3s ease'
                             }}>
                               {(asin.totalOrders || 0) > 0 ? (
-                                <span className="fw-bold" style={{ fontSize: '11px', color: '#065f46' }}>
+                                <span className="fw-bold" style={{ fontSize: 'var(--font-size-xs)', color: '#065f46' }}>
                                   ₹{(asin.totalOrders || 0).toLocaleString('en-IN')}
                                 </span>
                               ) : (
@@ -3890,17 +3890,17 @@ const AsinManagerPage = (props) => {
                         {isVisible('dealBadge') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.dealBadge && asin.dealBadge !== 'No deal found' && asin.dealBadge !== '' && asin.dealStartTime && asin.dealEndTime && isDealActive(asin) ? (
-                              <Tooltip title={`${asin.dealBadge} — ${new Date(asin.dealStartTime).toLocaleDateString('en-IN')} to ${new Date(asin.dealEndTime).toLocaleDateString('en-IN')}`} placement="top" styles={{ root: { fontSize: 11 } }}>
+                              <Tooltip title={`${asin.dealBadge} — ${new Date(asin.dealStartTime).toLocaleDateString('en-IN')} to ${new Date(asin.dealEndTime).toLocaleDateString('en-IN')}`} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                 <span
                                   className="badge"
                                   style={{
                                     backgroundColor: '#fef2f2',
                                     color: '#C62828',
                                     border: '1px solid #fecaca',
-                                    fontWeight: 700,
+                                    fontWeight: 600,
                                     fontSize: '0.65rem',
                                     padding: '2px 6px',
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--radius-sm)',
                                     display: 'inline-block',
                                     maxWidth: '75px',
                                     overflow: 'hidden',
@@ -3942,7 +3942,7 @@ const AsinManagerPage = (props) => {
                                 backgroundColor: asin.dealAccessType === 'ALL' ? '#ecfdf5' : '#eff6ff',
                                 color: asin.dealAccessType === 'ALL' ? '#2E7D32' : '#0288D1',
                                 border: `1px solid ${asin.dealAccessType === 'ALL' ? '#a7f3d0' : '#bfdbfe'}`,
-                                fontWeight: 700, fontSize: '0.6rem', padding: '2px 5px', borderRadius: '4px'
+                                fontWeight: 600, fontSize: '0.6rem', padding: '2px 5px', borderRadius: 'var(--radius-sm)'
                               }}>
                                 {asin.dealAccessType}
                               </span>
@@ -3967,7 +3967,7 @@ const AsinManagerPage = (props) => {
 
                               return (
                                 <Tooltip title={
-                                  <div style={{ fontSize: 11 }}>
+                                  <div style={{ fontSize: 'var(--font-size-xs)' }}>
                                     <div><b>Seller:</b> {seller || 'Unknown'}</div>
                                     <div><b>Price:</b> ₹{price.toLocaleString()}</div>
                                     {mrp > 0 && <div><b>MRP:</b> ₹{mrp.toLocaleString()}</div>}
@@ -3975,12 +3975,12 @@ const AsinManagerPage = (props) => {
                                     {condition && <div><b>Condition:</b> {condition}</div>}
                                     {availability && <div><b>Avail:</b> {availability}</div>}
                                   </div>
-                                } placement="left" styles={{ root: { fontSize: 11 } }}>
+                                } placement="left" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                   <div className="d-flex flex-column gap-1">
                                     <span className="fw-bold text-zinc-800 text-truncate" style={{ fontSize: '10px' }} title={seller || 'Unknown'}>
                                       {seller || 'Unknown'}
                                     </span>
-                                    <span className="fw-bold text-indigo-600" style={{ fontSize: '11px' }}>
+                                    <span className="fw-bold text-indigo-600" style={{ fontSize: 'var(--font-size-xs)' }}>
                                       ₹{price.toLocaleString()}
                                     </span>
                                     {savings > 0 && (
@@ -3996,12 +3996,12 @@ const AsinManagerPage = (props) => {
                         )}
 
                         {isVisible('mrp') && (
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#6b7280', fontSize: '10.5px' }}>
+                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '10.5px' }}>
                             ₹{(asin.mrp || 0).toLocaleString()}
                           </td>
                         )}
                         {isVisible('price') && (
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, cursor: 'pointer' }}
+                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, cursor: 'pointer' }}
                             onClick={(e) => handleViewPrice(asin, e)}
                             title="View Price Trend Matrix">
                             <div className="d-flex flex-column align-items-end">
@@ -4009,7 +4009,7 @@ const AsinManagerPage = (props) => {
                                 const isDisputed = computeDynamicDispute(asin);
                                 return (
                                   <>
-                                    <span style={{ color: isDisputed ? '#C62828' : '#16a34a' }}>
+                                    <span style={{ color: isDisputed ? '#C62828' : '#2E7D32' }}>
                                       ₹{(asin.uploadedPrice || 0).toLocaleString()}
                                     </span>
                                     {isDisputed && (
@@ -4019,7 +4019,7 @@ const AsinManagerPage = (props) => {
                                         fontWeight: 800,
                                         backgroundColor: '#C62828',
                                         color: '#fff',
-                                        borderRadius: '4px',
+                                        borderRadius: 'var(--radius-sm)',
                                         textTransform: 'uppercase'
                                       }}>
                                         PRICE DISPUTE
@@ -4033,7 +4033,7 @@ const AsinManagerPage = (props) => {
                         )}
                         {isVisible('discountPercentage') && (
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            <span className="badge bg-danger bg-opacity-10 text-danger" style={{ fontWeight: 700, fontSize: '11px' }}>
+                            <span className="badge bg-danger bg-opacity-10 text-danger" style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
                               {asin.discountPercentage ? `${asin.discountPercentage}% OFF` : '-'}
                             </span>
                           </td>
@@ -4043,12 +4043,12 @@ const AsinManagerPage = (props) => {
                             {(() => {
                               const isDisputed = computeDynamicDispute(asin);
                               return (
-                                <Tooltip title={isDisputed ? 'Channel price differs from current price by >₹5' : 'No price dispute'} placement="top" styles={{ root: { fontSize: 11 } }}>
+                                <Tooltip title={isDisputed ? 'Channel price differs from current price by >₹5' : 'No price dispute'} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                   <span className="badge" style={{
                                     backgroundColor: isDisputed ? '#fef2f2' : '#ecfdf5',
                                     color: isDisputed ? '#C62828' : '#2E7D32',
                                     border: `1px solid ${isDisputed ? '#fecaca' : '#a7f3d0'}`,
-                                    fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px',
+                                    fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
                                     cursor: 'default'
                                   }}>
                                     {isDisputed ? 'DISPUTED' : 'No Dispute'}
@@ -4094,7 +4094,7 @@ const AsinManagerPage = (props) => {
                           <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer', background: '#f5f3ff1a' }}
                             onClick={(e) => handleViewBsr(asin, e)}>
                             <div className="d-flex flex-column align-items-center">
-                              <div style={{ fontWeight: 700, color: '#9C27B0', fontSize: '11px' }}>
+                              <div style={{ fontWeight: 600, color: '#9C27B0', fontSize: 'var(--font-size-xs)' }}>
                                 {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
                               </div>
                               {asin.bsr && asin.category && (
@@ -4124,7 +4124,7 @@ const AsinManagerPage = (props) => {
                                   <div className="d-flex align-items-center gap-1">
                                     <span style={{
                                       fontSize: '10px',
-                                      color: '#4b5563',
+                                      color: 'var(--text-secondary)',
                                       fontWeight: 600,
                                       whiteSpace: 'nowrap',
                                       overflow: 'hidden',
@@ -4146,7 +4146,7 @@ const AsinManagerPage = (props) => {
                                   {category && (
                                     <span style={{
                                       fontSize: '9px',
-                                      color: '#6b7280',
+                                      color: 'var(--text-secondary)',
                                       whiteSpace: 'nowrap',
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
@@ -4208,7 +4208,7 @@ const AsinManagerPage = (props) => {
                           </td>
                         )}
                         {isVisible('reviewCount') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', color: '#6b7280', fontWeight: 500 }}>
+                          <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 500 }}>
                             {asin.reviewCount !== null && asin.reviewCount !== undefined ? asin.reviewCount.toLocaleString() : '-'}
                           </td>
                         )}
@@ -4353,7 +4353,7 @@ const AsinManagerPage = (props) => {
                         )}
 
                         {isVisible('aplusDays') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, color: '#C62828' }}>
+                          <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#C62828' }}>
                             {asin.aplusAbsentSince && !asin.hasAplus
                               ? Math.floor((Date.now() - new Date(asin.aplusAbsentSince)) / (1000 * 60 * 60 * 24))
                               : '-'}
@@ -4457,7 +4457,7 @@ const AsinManagerPage = (props) => {
                 }
                 rowsPerPageOptions={[25, 50, 100, 200]}
                 sx={{
-                  fontSize: '11px',
+                  fontSize: 'var(--font-size-xs)',
                   minHeight: '36px',
                   '.MuiToolbar-root': {
                     minHeight: '36px',
@@ -4466,13 +4466,13 @@ const AsinManagerPage = (props) => {
                     paddingRight: '12px'
                   },
                   '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
-                    fontSize: '11px',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
-                    color: '#6b7280',
+                    color: 'var(--text-secondary)',
                     margin: 0
                   },
                   '.MuiTablePagination-select': {
-                    fontSize: '11px',
+                    fontSize: 'var(--font-size-xs)',
                     fontWeight: 600
                   },
                   '.MuiTablePagination-actions': {
@@ -4509,7 +4509,7 @@ const AsinManagerPage = (props) => {
           title={
             <div className="d-flex align-items-center gap-2">
               <PlusCircle size={18} className="text-primary" />
-              <span style={{ fontWeight: 700 }}>Add New ASINs</span>
+              <span style={{ fontWeight: 600 }}>Add New ASINs</span>
             </div>
           }
           open={showAddModal}
@@ -4523,7 +4523,7 @@ const AsinManagerPage = (props) => {
               type="primary"
               loading={syncing}
               onClick={handleSync}
-              style={{ fontWeight: 700 }}
+              style={{ fontWeight: 600 }}
             >
               {syncing ? 'Adding...' : 'Add ASINs'}
             </Button>
@@ -4538,18 +4538,18 @@ const AsinManagerPage = (props) => {
           <div className="py-2">
             <Form layout="vertical">
               <Form.Item
-                label={<span className="fw-bold text-zinc-600" style={{ fontSize: '11px' }}>ASIN LIST (COMMA SEPARATED)</span>}
+                label={<span className="fw-bold text-zinc-600" style={{ fontSize: 'var(--font-size-xs)' }}>ASIN LIST (COMMA SEPARATED)</span>}
               >
                 <Input.TextArea
                   value={newAsin}
                   onChange={(e) => setNewAsin(e.target.value)}
                   placeholder="B0XXXXXXX, B0YYYYYYY"
                   rows={4}
-                  style={{ borderRadius: '8px' }}
+                  style={{ borderRadius: 'var(--radius-md)' }}
                 />
               </Form.Item>
               <Form.Item
-                label={<span className="fw-bold text-zinc-600" style={{ fontSize: '11px' }}>SELECT SELLER</span>}
+                label={<span className="fw-bold text-zinc-600" style={{ fontSize: 'var(--font-size-xs)' }}>SELECT SELLER</span>}
               >
                 <InfiniteScrollSelect
                   fetchData={fetchSellerDropdownData}
@@ -4570,7 +4570,7 @@ const AsinManagerPage = (props) => {
                 <PlusCircle size={18} className="text-emerald-500" />
                 <span style={{ fontWeight: 800 }}>Create Task for Selected ASINs</span>
               </div>
-              <p className="m-0 mt-1 text-zinc-500 fw-medium" style={{ fontSize: '11px' }}>
+              <p className="m-0 mt-1 text-zinc-500 fw-medium" style={{ fontSize: 'var(--font-size-xs)' }}>
                 Assigning a custom task category-wise for {selectedIds.size} selected ASIN(s)
               </p>
             </div>
@@ -4586,7 +4586,7 @@ const AsinManagerPage = (props) => {
               type="primary"
               loading={loading}
               onClick={handleCreateManualTask}
-              style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 700 }}
+              style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 600 }}
             >
               {loading ? 'Creating...' : 'Create Task'}
             </Button>
@@ -4605,7 +4605,7 @@ const AsinManagerPage = (props) => {
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
                   placeholder="e.g., Update listing bullet points"
-                  style={{ borderRadius: '8px', padding: '8px 12px' }}
+                  style={{ borderRadius: 'var(--radius-md)', padding: '8px 12px' }}
                 />
               </Form.Item>
               <Form.Item label={<span className="fw-bold text-zinc-600 text-uppercase tracking-wider" style={{ fontSize: '10px' }}>Task Description</span>}>
@@ -4614,7 +4614,7 @@ const AsinManagerPage = (props) => {
                   onChange={(e) => setTaskDescription(e.target.value)}
                   placeholder="Describe the steps or requirements for this task..."
                   rows={3}
-                  style={{ borderRadius: '8px' }}
+                  style={{ borderRadius: 'var(--radius-md)' }}
                 />
               </Form.Item>
               <div className="row">
@@ -4658,7 +4658,7 @@ const AsinManagerPage = (props) => {
           title={
             <div className="d-flex align-items-center gap-2">
               <Upload size={18} className="text-emerald-600" />
-              <span style={{ fontWeight: 700 }}>Upload CSV</span>
+              <span style={{ fontWeight: 600 }}>Upload CSV</span>
             </div>
           }
           open={showUploadModal}
@@ -4673,7 +4673,7 @@ const AsinManagerPage = (props) => {
               loading={uploading}
               disabled={!selectedSellerId}
               onClick={() => document.querySelector('input[type="file"]')?.click()}
-              style={{ background: '#16a34a', borderColor: '#16a34a', fontWeight: 700 }}
+              style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 600 }}
             >
               {uploading ? 'Uploading...' : 'Import CSV'}
             </Button>
@@ -4683,7 +4683,7 @@ const AsinManagerPage = (props) => {
         >
           <div className="py-3">
             <Form layout="vertical">
-              <Form.Item label={<span className="fw-bold text-zinc-600" style={{ fontSize: '11px' }}>SELECT SELLER</span>}>
+              <Form.Item label={<span className="fw-bold text-zinc-600" style={{ fontSize: 'var(--font-size-xs)' }}>SELECT SELLER</span>}>
                 <InfiniteScrollSelect
                   fetchData={fetchSellerDropdownData}
                   value={selectedSellerId}
@@ -4691,12 +4691,12 @@ const AsinManagerPage = (props) => {
                   placeholder="Select Seller..."
                 />
               </Form.Item>
-              <Form.Item label={<span className="fw-bold text-zinc-600" style={{ fontSize: '11px' }}>CSV FILE</span>}>
+              <Form.Item label={<span className="fw-bold text-zinc-600" style={{ fontSize: 'var(--font-size-xs)' }}>CSV FILE</span>}>
                 <Input
                   type="file"
                   accept=".csv"
                   onChange={handleCsvUpload}
-                  style={{ borderRadius: '8px' }}
+                  style={{ borderRadius: 'var(--radius-md)' }}
                 />
               </Form.Item>
             </Form>
@@ -4769,16 +4769,16 @@ const AsinManagerPage = (props) => {
       {showAiAnalysisModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
           onClick={() => !aiAnalysisLoading && setShowAiAnalysisModal(false)}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '90%', maxWidth: 800, maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+          <div style={{ background: '#fff', borderRadius: "var(--radius-xl)", width: '90%', maxWidth: 800, maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #6d28d9, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'linear-gradient(135deg, #6d28d9, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Sparkles size={16} color="#fff" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>AI Listing Quality Analysis</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Amazon policy compliance & optimization recommendations</div>
+                  <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>AI Listing Quality Analysis</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>Amazon policy compliance & optimization recommendations</div>
                 </div>
               </div>
               <button onClick={() => setShowAiAnalysisModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#64748b', fontSize: 18 }}>×</button>
@@ -4788,24 +4788,24 @@ const AsinManagerPage = (props) => {
                 <div style={{ textAlign: 'center', padding: 40 }}>
                   <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: '#6d28d9', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
                   <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>AI is analyzing your listings against Amazon policies...</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>This may take 15-30 seconds per ASIN</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569' }}>AI is analyzing your listings against Amazon policies...</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: 4 }}>This may take 15-30 seconds per ASIN</div>
                 </div>
               )}
               {!aiAnalysisLoading && aiAnalysisResult && aiAnalysisResult.map((result, idx) => (
-                <div key={idx} style={{ marginBottom: 20, border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+                <div key={idx} style={{ marginBottom: 20, border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
                   {result.error ? (
                     <div style={{ padding: 20, background: '#fef2f2', color: '#C62828', fontSize: 12 }}>Error: {result.error}</div>
                   ) : (
                     <>
                       <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Score: {result.overallScore}/100</span>
-                          <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>{result.summary}</span>
+                          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>Score: {result.overallScore}/100</span>
+                          <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginLeft: 8 }}>{result.summary}</span>
                         </div>
                         <button onClick={() => handleAiCreateTasks(result.asinId)}
                           disabled={syncing}
-                          style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 6, background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                          style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '4px 12px', borderRadius: 6, background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer' }}>
                           {syncing ? 'Creating...' : 'Create Tasks'}
                         </button>
                       </div>
@@ -4814,11 +4814,11 @@ const AsinManagerPage = (props) => {
                           {result.issues.map((issue, i) => (
                             <div key={i} style={{ padding: '8px 12px', background: issue.severity === 'critical' ? '#fef2f2' : issue.severity === 'high' ? '#fffbeb' : '#f8fafc', borderLeft: `3px solid ${issue.severity === 'critical' ? '#D32F2F' : issue.severity === 'high' ? '#ED6C02' : '#1976D2'}`, borderRadius: 6, marginBottom: 8, fontSize: 12 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <span style={{ fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', fontSize: 10 }}>{issue.field} · {issue.severity}</span>
+                                <span style={{ fontWeight: 600, color: '#0f172a', textTransform: 'uppercase', fontSize: 10 }}>{issue.field} · {issue.severity}</span>
                                 <span style={{ fontSize: 10, fontWeight: 600, color: issue.priority === 'HIGH' ? '#C62828' : '#64748b' }}>{issue.priority}</span>
                               </div>
                               <div style={{ color: '#334155', marginBottom: 2 }}>{issue.issue}</div>
-                              <div style={{ color: '#2E7D32', fontSize: 11 }}>→ {issue.recommendation}</div>
+                              <div style={{ color: '#2E7D32', fontSize: 'var(--font-size-xs)' }}>→ {issue.recommendation}</div>
                               {issue.amazonPolicy && <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 2 }}>Policy: {issue.amazonPolicy}</div>}
                             </div>
                           ))}

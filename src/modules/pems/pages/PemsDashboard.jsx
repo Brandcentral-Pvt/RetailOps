@@ -16,12 +16,12 @@ const { RangePicker } = DatePicker;
 
 const STATUS_COLORS = {
   DRAFT: '#64748b', ASSIGNED: '#2563eb', ACCEPTED: '#9333ea', IN_PROGRESS: '#2563eb',
-  SUBMITTED: '#f59e0b', UNDER_REVIEW: '#9333ea', APPROVED: '#16a34a',
-  REJECTED: '#dc2626', REWORK: '#f59e0b', CANCELLED: '#94a3b8',
+  SUBMITTED: '#ED6C02', UNDER_REVIEW: '#9333ea', APPROVED: '#2E7D32',
+  REJECTED: '#D32F2F', REWORK: '#ED6C02', CANCELLED: '#94a3b8',
 };
 
-const PRIORITY_COLORS = { CRITICAL: '#dc2626', HIGH: '#f59e0b', MEDIUM: '#2563eb', LOW: '#64748b' };
-const SLA_COLORS = { WITHIN_SLA: '#16a34a', AT_RISK: '#f59e0b', BREACHED: '#dc2626' };
+const PRIORITY_COLORS = { CRITICAL: '#D32F2F', HIGH: '#ED6C02', MEDIUM: '#2563eb', LOW: '#64748b' };
+const SLA_COLORS = { WITHIN_SLA: '#2E7D32', AT_RISK: '#ED6C02', BREACHED: '#D32F2F' };
 
 function formatTime(iso) {
   if (!iso) return '-';
@@ -45,11 +45,11 @@ function KpiCard({ title, value, subtitle, color, icon, trend }) {
           <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1.2, marginTop: 4 }}>{value}</div>
           {subtitle && <Text style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{subtitle}</Text>}
         </div>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: `${color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, fontSize: 16 }}>{icon}</div>
+        <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: `${color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, fontSize: 'var(--font-size-lg)' }}>{icon}</div>
       </div>
       {trend !== undefined && (
         <div style={{ marginTop: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: trend >= 0 ? '#16a34a' : '#dc2626' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: trend >= 0 ? '#2E7D32' : '#D32F2F' }}>
             {trend >= 0 ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%
           </span>
           <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>vs last period</span>
@@ -65,9 +65,9 @@ function PipelineFunnel({ pipeline, total }) {
     { key: 'assigned', label: 'Assigned', color: '#2563eb' },
     { key: 'accepted', label: 'Accepted', color: '#9333ea' },
     { key: 'inProgress', label: 'In Progress', color: '#2563eb' },
-    { key: 'submitted', label: 'Submitted', color: '#f59e0b' },
+    { key: 'submitted', label: 'Submitted', color: '#ED6C02' },
     { key: 'underReview', label: 'Under Review', color: '#9333ea' },
-    { key: 'approved', label: 'Approved', color: '#16a34a' },
+    { key: 'approved', label: 'Approved', color: '#2E7D32' },
   ];
   const maxVal = Math.max(...stages.map(s => pipeline[s.key] || 0), 1);
   return (
@@ -79,12 +79,12 @@ function PipelineFunnel({ pipeline, total }) {
           const barWidth = maxVal > 0 ? (val / maxVal) * 100 : 0;
           return (
             <div key={stage.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Text style={{ fontSize: 11, width: 90, textAlign: 'right', color: '#475569', fontWeight: 500 }}>{stage.label}</Text>
-              <div style={{ flex: 1, height: 22, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                <div style={{ height: '100%', width: `${barWidth}%`, background: `${stage.color}20`, borderRadius: 4, transition: 'width 0.5s ease' }} />
-                <div style={{ height: '100%', width: `${barWidth}%`, background: stage.color, borderRadius: 4, position: 'absolute', top: 0, left: 0, opacity: 0.85, transition: 'width 0.5s ease' }} />
+              <Text style={{ fontSize: 'var(--font-size-xs)', width: 90, textAlign: 'right', color: '#475569', fontWeight: 500 }}>{stage.label}</Text>
+              <div style={{ flex: 1, height: 22, background: '#f1f5f9', borderRadius: "var(--radius-sm)", overflow: 'hidden', position: 'relative' }}>
+                <div style={{ height: '100%', width: `${barWidth}%`, background: `${stage.color}20`, borderRadius: "var(--radius-sm)", transition: 'width 0.5s ease' }} />
+                <div style={{ height: '100%', width: `${barWidth}%`, background: stage.color, borderRadius: "var(--radius-sm)", position: 'absolute', top: 0, left: 0, opacity: 0.85, transition: 'width 0.5s ease' }} />
               </div>
-              <Text style={{ fontSize: 12, fontWeight: 700, width: 40, textAlign: 'right', color: '#0f172a' }}>{val}</Text>
+              <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, width: 40, textAlign: 'right', color: '#0f172a' }}>{val}</Text>
               <Text style={{ fontSize: 10, color: '#94a3b8', width: 35, textAlign: 'right' }}>{pct}%</Text>
             </div>
           );
@@ -100,11 +100,11 @@ function StatusDistribution({ dist, total }) {
     { key: 'assigned', label: 'Assigned', color: '#2563eb' },
     { key: 'accepted', label: 'Accepted', color: '#9333ea' },
     { key: 'inProgress', label: 'In Progress', color: '#2563eb' },
-    { key: 'submitted', label: 'Submitted', color: '#f59e0b' },
+    { key: 'submitted', label: 'Submitted', color: '#ED6C02' },
     { key: 'underReview', label: 'Under Review', color: '#9333ea' },
-    { key: 'approved', label: 'Approved', color: '#16a34a' },
-    { key: 'rejected', label: 'Rejected', color: '#dc2626' },
-    { key: 'rework', label: 'Rework', color: '#f59e0b' },
+    { key: 'approved', label: 'Approved', color: '#2E7D32' },
+    { key: 'rejected', label: 'Rejected', color: '#D32F2F' },
+    { key: 'rework', label: 'Rework', color: '#ED6C02' },
   ];
   return (
     <Card size="small" title="Status Distribution" styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: 10 }}>
@@ -114,8 +114,8 @@ function StatusDistribution({ dist, total }) {
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
           return (
             <Tooltip key={item.key} title={`${item.label}: ${count} (${pct}%)`}>
-              <div style={{ padding: '6px 12px', borderRadius: 8, background: `${item.color}08`, border: `1px solid ${item.color}20`, minWidth: 80, textAlign: 'center', cursor: 'default' }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: item.color }}>{count}</div>
+              <div style={{ padding: '6px 12px', borderRadius: "var(--radius-md)", background: `${item.color}08`, border: `1px solid ${item.color}20`, minWidth: 80, textAlign: 'center', cursor: 'default' }}>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: item.color }}>{count}</div>
                 <div style={{ fontSize: 9, color: '#64748b', fontWeight: 600 }}>{item.label}</div>
               </div>
             </Tooltip>
@@ -128,22 +128,22 @@ function StatusDistribution({ dist, total }) {
 
 function RiskCenter({ risk }) {
   const items = [
-    { label: 'SLA Breached', value: risk.slaBreached || 0, color: '#dc2626', bg: '#fef2f2', severity: 'critical' },
-    { label: 'Overdue Tasks', value: risk.overdue || 0, color: '#dc2626', bg: '#fef2f2', severity: 'high' },
-    { label: 'Stale Reviews (>48h)', value: risk.staleReviews || 0, color: '#f59e0b', bg: '#fffbeb', severity: 'high' },
-    { label: 'Rejected Tasks', value: risk.rejected || 0, color: '#f59e0b', bg: '#fffbeb', severity: 'medium' },
-    { label: 'Rework Tasks', value: risk.rework || 0, color: '#f59e0b', bg: '#fffbeb', severity: 'medium' },
-    { label: 'High Priority Delays', value: risk.highPriorityDelays || 0, color: '#dc2626', bg: '#fef2f2', severity: 'critical' },
-    { label: 'SLA At Risk', value: risk.slaAtRisk || 0, color: '#f59e0b', bg: '#fffbeb', severity: 'low' },
+    { label: 'SLA Breached', value: risk.slaBreached || 0, color: '#D32F2F', bg: '#fef2f2', severity: 'critical' },
+    { label: 'Overdue Tasks', value: risk.overdue || 0, color: '#D32F2F', bg: '#fef2f2', severity: 'high' },
+    { label: 'Stale Reviews (>48h)', value: risk.staleReviews || 0, color: '#ED6C02', bg: '#fffbeb', severity: 'high' },
+    { label: 'Rejected Tasks', value: risk.rejected || 0, color: '#ED6C02', bg: '#fffbeb', severity: 'medium' },
+    { label: 'Rework Tasks', value: risk.rework || 0, color: '#ED6C02', bg: '#fffbeb', severity: 'medium' },
+    { label: 'High Priority Delays', value: risk.highPriorityDelays || 0, color: '#D32F2F', bg: '#fef2f2', severity: 'critical' },
+    { label: 'SLA At Risk', value: risk.slaAtRisk || 0, color: '#ED6C02', bg: '#fffbeb', severity: 'low' },
   ];
   return (
-    <Card size="small" title={<Space><WarningOutlined style={{ color: '#dc2626' }} /><Text strong style={{ fontSize: 13 }}>Risk Center</Text></Space>} styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: 10 }}>
+    <Card size="small" title={<Space><WarningOutlined style={{ color: '#D32F2F' }} /><Text strong style={{ fontSize: 13 }}>Risk Center</Text></Space>} styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
         {items.map(item => (
-          <div key={item.label} style={{ padding: '10px 12px', borderRadius: 8, background: item.bg, border: `1px solid ${item.color}15` }}>
+          <div key={item.label} style={{ padding: '10px 12px', borderRadius: "var(--radius-md)", background: item.bg, border: `1px solid ${item.color}15` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value}</div>
-              <Tag style={{ fontSize: 8, borderRadius: 4, margin: 0, background: item.color, color: '#fff', border: 'none' }}>{item.severity}</Tag>
+              <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: item.color }}>{item.value}</div>
+              <Tag style={{ fontSize: 8, borderRadius: "var(--radius-sm)", margin: 0, background: item.color, color: '#fff', border: 'none' }}>{item.severity}</Tag>
             </div>
             <div style={{ fontSize: 10, color: '#64748b', fontWeight: 500, marginTop: 2 }}>{item.label}</div>
           </div>
@@ -160,10 +160,10 @@ function ActivityFeed({ activities }) {
     SUBTASK_COMPLETED: <CheckCircleOutlined style={{ fontSize: 10 }} />,
     EVIDENCE_UPLOADED: <EditOutlined style={{ fontSize: 10 }} />,
   };
-  const actionColors = { CREATED: '#2563eb', STATUS_CHANGED: '#16a34a', SUBTASK_COMPLETED: '#16a34a', EVIDENCE_UPLOADED: '#9333ea' };
+  const actionColors = { CREATED: '#2563eb', STATUS_CHANGED: '#2E7D32', SUBTASK_COMPLETED: '#2E7D32', EVIDENCE_UPLOADED: '#9333ea' };
   return (
     <Card size="small" title={<Space><ClockCircleOutlined style={{ color: '#64748b' }} /><Text strong style={{ fontSize: 13 }}>Activity Feed</Text></Space>} styles={{ body: { padding: '8px 16px', maxHeight: 320, overflow: 'auto' } }} style={{ borderRadius: 10 }}>
-      {activities.length === 0 ? <Text type="secondary" style={{ fontSize: 11 }}>No recent activity</Text> : (
+      {activities.length === 0 ? <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>No recent activity</Text> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {activities.map(a => (
             <div key={a.Id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
@@ -171,7 +171,7 @@ function ActivityFeed({ activities }) {
                 {actionIcons[a.Action] || <SyncOutlined style={{ fontSize: 10 }} />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 11, color: '#334155' }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155' }}>
                   <Text strong>{a.ActorName || 'System'}</Text>{' '}
                   {a.Action.replace(/_/g, ' ').toLowerCase()}
                   {a.InstanceCode && <> <Text strong style={{ color: '#2563eb' }}>{a.InstanceCode}</Text></>}
@@ -256,18 +256,18 @@ export default function PemsDashboard() {
     {
       title: 'Task', key: 'task', width: 200, render: (_, r) => (
         <div>
-          <Text strong style={{ fontSize: 12, color: '#2563eb', cursor: 'pointer' }} onClick={() => navigate('/pems/tasks')}>{r.InstanceCode}</Text>
-          <Text style={{ fontSize: 11, display: 'block', color: '#334155', lineHeight: 1.3 }}>{r.Title || 'Untitled'}</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#2563eb', cursor: 'pointer' }} onClick={() => navigate('/pems/tasks')}>{r.InstanceCode}</Text>
+          <Text style={{ fontSize: 'var(--font-size-xs)', display: 'block', color: '#334155', lineHeight: 1.3 }}>{r.Title || 'Untitled'}</Text>
         </div>
       )
     },
     { title: 'Dept', dataIndex: 'Department', width: 100, render: (d) => <Tag style={{ fontSize: 9, borderRadius: 6, background: '#eff6ff', color: '#1d4ed8' }}>{d || '-'}</Tag> },
-    { title: 'Seller', dataIndex: 'SellerName', width: 100, render: (v) => <Text style={{ fontSize: 11 }}>{v || '-'}</Text> },
-    { title: 'Assignee', dataIndex: 'AssigneeName', width: 100, render: (v) => <Text style={{ fontSize: 11 }}>{v || '-'}</Text> },
+    { title: 'Seller', dataIndex: 'SellerName', width: 100, render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)' }}>{v || '-'}</Text> },
+    { title: 'Assignee', dataIndex: 'AssigneeName', width: 100, render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)' }}>{v || '-'}</Text> },
     { title: 'Status', dataIndex: 'Status', width: 100, render: (s) => <Tag style={{ fontSize: 9, borderRadius: 10, background: `${STATUS_COLORS[s]}15`, color: STATUS_COLORS[s], border: `1px solid ${STATUS_COLORS[s]}30`, fontWeight: 600 }}>{s}</Tag> },
     { title: 'Priority', dataIndex: 'Priority', width: 80, render: (p) => <Tag style={{ fontSize: 9, borderRadius: 6, background: `${PRIORITY_COLORS[p]}15`, color: PRIORITY_COLORS[p], border: `1px solid ${PRIORITY_COLORS[p]}25`, fontWeight: 600 }}>{p}</Tag> },
-    { title: 'Ach%', dataIndex: 'AchievementPct', width: 65, align: 'center', render: (v) => <Text style={{ fontSize: 11, fontWeight: 700, color: v >= 80 ? '#16a34a' : v >= 50 ? '#f59e0b' : '#dc2626' }}>{v || 0}%</Text> },
-    { title: 'Due', dataIndex: 'DueDate', width: 80, render: (d) => d ? <Text style={{ fontSize: 10, color: new Date(d) < new Date() ? '#dc2626' : '#64748b' }}>{new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</Text> : '-' },
+    { title: 'Ach%', dataIndex: 'AchievementPct', width: 65, align: 'center', render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: v >= 80 ? '#2E7D32' : v >= 50 ? '#ED6C02' : '#D32F2F' }}>{v || 0}%</Text> },
+    { title: 'Due', dataIndex: 'DueDate', width: 80, render: (d) => d ? <Text style={{ fontSize: 10, color: new Date(d) < new Date() ? '#D32F2F' : '#64748b' }}>{new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</Text> : '-' },
     { title: 'SLA', dataIndex: 'SLAStatus', width: 80, render: (s) => <Tag style={{ fontSize: 8, borderRadius: 6, background: `${SLA_COLORS[s] || '#64748b'}15`, color: SLA_COLORS[s] || '#64748b', border: `1px solid ${SLA_COLORS[s] || '#64748b'}25` }}>{s?.replace('_', ' ')}</Tag> },
     {
       title: 'Actions', key: 'actions', width: 80, align: 'right', render: (_, r) => (
@@ -279,19 +279,19 @@ export default function PemsDashboard() {
   ];
 
   const perfLeaderColumns = [
-    { title: 'Rank', key: 'rank', width: 45, render: (_, r) => <Text style={{ fontSize: 11, fontWeight: 700, color: r.rank <= 3 ? '#f59e0b' : '#64748b' }}>#{r.rank}</Text> },
+    { title: 'Rank', key: 'rank', width: 45, render: (_, r) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: r.rank <= 3 ? '#f59e0b' : '#64748b' }}>#{r.rank}</Text> },
     {
       title: 'Name', key: 'name', render: (_, r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 6, background: r.rank <= 3 ? '#fffbeb' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.rank <= 3 ? '#f59e0b' : '#64748b', fontWeight: 700, fontSize: 10 }}>{r.SellerName?.[0] || r.UserName?.[0] || '?'}</div>
-          <Text strong style={{ fontSize: 11 }}>{r.SellerName || r.UserName || '-'}</Text>
+          <div style={{ width: 26, height: 26, borderRadius: 6, background: r.rank <= 3 ? '#fffbeb' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.rank <= 3 ? '#f59e0b' : '#64748b', fontWeight: 600, fontSize: 10 }}>{r.SellerName?.[0] || r.UserName?.[0] || '?'}</div>
+          <Text strong style={{ fontSize: 'var(--font-size-xs)' }}>{r.SellerName || r.UserName || '-'}</Text>
         </div>
       )
     },
-    { title: 'Tasks', dataIndex: 'tasks', width: 50, align: 'center', render: (v) => <Text style={{ fontSize: 11, fontWeight: 600 }}>{v}</Text> },
-    { title: 'Done', dataIndex: 'completed', width: 50, align: 'center', render: (v) => <Text style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>{v}</Text> },
-    { title: 'Ach%', dataIndex: 'avgAchievement', width: 55, align: 'center', render: (v) => <Text style={{ fontSize: 10, fontWeight: 700, color: v >= 80 ? '#16a34a' : '#f59e0b' }}>{v}%</Text> },
-    { title: 'SLA%', key: 'sla', width: 55, align: 'center', render: (_, r) => <Text style={{ fontSize: 10, fontWeight: 700, color: r.slaCompliance >= 90 ? '#16a34a' : '#dc2626' }}>{r.slaCompliance}%</Text> },
+    { title: 'Tasks', dataIndex: 'tasks', width: 50, align: 'center', render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{v}</Text> },
+    { title: 'Done', dataIndex: 'completed', width: 50, align: 'center', render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#2E7D32' }}>{v}</Text> },
+    { title: 'Ach%', dataIndex: 'avgAchievement', width: 55, align: 'center', render: (v) => <Text style={{ fontSize: 10, fontWeight: 600, color: v >= 80 ? '#2E7D32' : '#ED6C02' }}>{v}%</Text> },
+    { title: 'SLA%', key: 'sla', width: 55, align: 'center', render: (_, r) => <Text style={{ fontSize: 10, fontWeight: 600, color: r.slaCompliance >= 90 ? '#2E7D32' : '#D32F2F' }}>{r.slaCompliance}%</Text> },
   ];
 
   if (loading && !summary) return <div style={{ textAlign: 'center', padding: 60 }}><Spinner /></div>;
@@ -334,19 +334,19 @@ export default function PemsDashboard() {
             <KpiCard title="Pending Reviews" value={kpi.pendingReview} icon={<EyeOutlined />} color="#9333ea" />
           </Col>
           <Col xs={12} sm={8} md={3} style={{ flex: '1 1 0' }}>
-            <KpiCard title="Approved" value={kpi.approved} icon={<CheckCircleOutlined />} color="#16a34a" />
+            <KpiCard title="Approved" value={kpi.approved} icon={<CheckCircleOutlined />} color="#2E7D32" />
           </Col>
           <Col xs={12} sm={8} md={3} style={{ flex: '1 1 0' }}>
-            <KpiCard title="Achievement %" value={`${kpi.avgAchievementPct || 0}%`} icon={<TrophyOutlined />} color="#f59e0b" />
+            <KpiCard title="Achievement %" value={`${kpi.avgAchievementPct || 0}%`} icon={<TrophyOutlined />} color="#ED6C02" />
           </Col>
           <Col xs={12} sm={8} md={3} style={{ flex: '1 1 0' }}>
-            <KpiCard title="Completion Rate" value={`${kpi.completionRate || 0}%`} icon={<CheckCircleOutlined />} color="#16a34a" />
+            <KpiCard title="Completion Rate" value={`${kpi.completionRate || 0}%`} icon={<CheckCircleOutlined />} color="#2E7D32" />
           </Col>
           <Col xs={12} sm={8} md={3} style={{ flex: '1 1 0' }}>
-            <KpiCard title="SLA Compliance" value={`${kpi.slaCompliance || 0}%`} icon={<ClockCircleOutlined />} color={kpi.slaCompliance >= 90 ? '#16a34a' : '#dc2626'} />
+            <KpiCard title="SLA Compliance" value={`${kpi.slaCompliance || 0}%`} icon={<ClockCircleOutlined />} color={kpi.slaCompliance >= 90 ? '#2E7D32' : '#D32F2F'} />
           </Col>
           <Col xs={12} sm={8} md={3} style={{ flex: '1 1 0' }}>
-            <KpiCard title="Overdue" value={kpi.overdue} icon={<WarningOutlined />} color="#dc2626" subtitle="Critical metric" />
+            <KpiCard title="Overdue" value={kpi.overdue} icon={<WarningOutlined />} color="#D32F2F" subtitle="Critical metric" />
           </Col>
         </Row>
 
@@ -360,16 +360,16 @@ export default function PemsDashboard() {
         <Card size="small" title="Department Performance" styles={{ body: { padding: 0 } }} style={{ borderRadius: 10, marginBottom: 14 }}>
           <Table dataSource={departments} size="small" rowKey="Department" pagination={false}
             columns={[
-              { title: 'Department', dataIndex: 'Department', width: 140, render: (d) => <Text strong style={{ fontSize: 12 }}>{d}</Text> },
+              { title: 'Department', dataIndex: 'Department', width: 140, render: (d) => <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{d}</Text> },
               { title: 'Tasks', dataIndex: 'totalTasks', width: 60, align: 'center' },
               { title: 'Open', dataIndex: 'openTasks', width: 55, align: 'center', render: (v) => <Text style={{ color: '#2563eb', fontWeight: 600 }}>{v}</Text> },
-              { title: 'Completed', dataIndex: 'completedTasks', width: 80, align: 'center', render: (v) => <Text style={{ color: '#16a34a', fontWeight: 700 }}>{v}</Text> },
+              { title: 'Completed', dataIndex: 'completedTasks', width: 80, align: 'center', render: (v) => <Text style={{ color: '#2E7D32', fontWeight: 600 }}>{v}</Text> },
               { title: 'Achiev%', dataIndex: 'avgAchievementPct', width: 80, render: (v) => <Tag color={v >= 80 ? 'success' : 'warning'} style={{ borderRadius: 6, fontSize: 10 }}>{v}%</Tag> },
-              { title: 'Completion', key: 'cr', width: 100, render: (_, r) => <Progress percent={r.completionRate} size="small" strokeColor={r.completionRate >= 80 ? '#16a34a' : '#f59e0b'} format={p => `${p}%`} /> },
-              { title: 'SLA%', dataIndex: 'slaCompliance', width: 80, render: (v) => <Text style={{ fontSize: 11, fontWeight: 700, color: v >= 90 ? '#16a34a' : '#dc2626' }}>{v}%</Text> },
+              { title: 'Completion', key: 'cr', width: 100, render: (_, r) => <Progress percent={r.completionRate} size="small" strokeColor={r.completionRate >= 80 ? '#2E7D32' : '#ED6C02'} format={p => `${p}%`} /> },
+              { title: 'SLA%', dataIndex: 'slaCompliance', width: 80, render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: v >= 90 ? '#2E7D32' : '#D32F2F' }}>{v}%</Text> },
               { title: 'Review', dataIndex: 'pendingReview', width: 60, align: 'center', render: (v) => v > 0 ? <Badge count={v} style={{ background: '#9333ea' }} /> : <Text type="secondary">0</Text> },
-              { title: 'Rework', dataIndex: 'rework', width: 55, align: 'center', render: (v) => v > 0 ? <Badge count={v} style={{ background: '#f59e0b' }} /> : <Text type="secondary">0</Text> },
-              { title: 'Overdue', dataIndex: 'overdueTasks', width: 60, align: 'center', render: (v) => v > 0 ? <Badge count={v} style={{ background: '#dc2626' }} /> : <Text type="secondary">0</Text> },
+              { title: 'Rework', dataIndex: 'rework', width: 55, align: 'center', render: (v) => v > 0 ? <Badge count={v} style={{ background: '#ED6C02' }} /> : <Text type="secondary">0</Text> },
+              { title: 'Overdue', dataIndex: 'overdueTasks', width: 60, align: 'center', render: (v) => v > 0 ? <Badge count={v} style={{ background: '#D32F2F' }} /> : <Text type="secondary">0</Text> },
             ]}
           />
         </Card>
@@ -386,8 +386,8 @@ export default function PemsDashboard() {
               <Table dataSource={topPerformers.topManagers} columns={perfLeaderColumns.map(c => c.dataIndex === 'SellerName' ? {
                 ...c, key: 'userName', render: (_, r) => (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 6, background: r.rank <= 3 ? '#fffbeb' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.rank <= 3 ? '#f59e0b' : '#64748b', fontWeight: 700, fontSize: 10 }}>{r.UserName?.[0] || '?'}</div>
-                    <Text strong style={{ fontSize: 11 }}>{r.UserName || '-'}</Text>
+                    <div style={{ width: 26, height: 26, borderRadius: 6, background: r.rank <= 3 ? '#fffbeb' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.rank <= 3 ? '#f59e0b' : '#64748b', fontWeight: 600, fontSize: 10 }}>{r.UserName?.[0] || '?'}</div>
+                    <Text strong style={{ fontSize: 'var(--font-size-xs)' }}>{r.UserName || '-'}</Text>
                   </div>
                 )
               } : c)} rowKey="UserId" size="small" pagination={false} />
@@ -397,7 +397,7 @@ export default function PemsDashboard() {
         </Row>
 
         {/* ═══ LIVE TASK QUEUE ═══ */}
-        <Card size="small" title={<Space><FireOutlined style={{ color: '#dc2626' }} /><Text strong style={{ fontSize: 13 }}>Live Task Queue</Text><Tag style={{ fontSize: 9, borderRadius: 10 }}>{liveTasks.length} tasks</Tag></Space>}
+        <Card size="small" title={<Space><FireOutlined style={{ color: '#D32F2F' }} /><Text strong style={{ fontSize: 13 }}>Live Task Queue</Text><Tag style={{ fontSize: 9, borderRadius: 10 }}>{liveTasks.length} tasks</Tag></Space>}
           styles={{ body: { padding: 0 } }} style={{ borderRadius: 10, marginBottom: 14 }}
           extra={<Button size="small" type="link" onClick={() => navigate('/pems/tasks')}>View All <RightOutlined style={{ fontSize: 10 }} /></Button>}>
           <Table dataSource={liveTasks} columns={liveTaskColumns} rowKey="Id" size="small" pagination={false} scroll={{ x: 1100 }}
@@ -417,20 +417,20 @@ export default function PemsDashboard() {
                     return (
                       <div key={w.AssignedTo}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <Text style={{ fontSize: 11, fontWeight: 500 }}>{w.AssigneeName || 'Unassigned'} <Text type="secondary" style={{ fontSize: 10 }}>({w.Department})</Text></Text>
-                          <Text style={{ fontSize: 11, fontWeight: 700 }}>{w.total} tasks</Text>
+                          <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>{w.AssigneeName || 'Unassigned'} <Text type="secondary" style={{ fontSize: 10 }}>({w.Department})</Text></Text>
+                          <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{w.total} tasks</Text>
                         </div>
-                        <div style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', height: 16, borderRadius: "var(--radius-sm)", overflow: 'hidden' }}>
                           <div style={{ width: `${(w.assigned / total) * 100}%`, background: '#2563eb', transition: 'width 0.3s' }} title={`Assigned: ${w.assigned}`} />
                           <div style={{ width: `${(w.inProgress / total) * 100}%`, background: '#9333ea', transition: 'width 0.3s' }} title={`In Progress: ${w.inProgress}`} />
-                          <div style={{ width: `${(w.review / total) * 100}%`, background: '#f59e0b', transition: 'width 0.3s' }} title={`Review: ${w.review}`} />
-                          <div style={{ width: `${(w.rework / total) * 100}%`, background: '#dc2626', transition: 'width 0.3s' }} title={`Rework: ${w.rework}`} />
+                          <div style={{ width: `${(w.review / total) * 100}%`, background: '#ED6C02', transition: 'width 0.3s' }} title={`Review: ${w.review}`} />
+                          <div style={{ width: `${(w.rework / total) * 100}%`, background: '#D32F2F', transition: 'width 0.3s' }} title={`Rework: ${w.rework}`} />
                         </div>
                       </div>
                     );
                   })}
                   <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
-                    {[{ label: 'Assigned', color: '#2563eb' }, { label: 'In Progress', color: '#9333ea' }, { label: 'Review', color: '#f59e0b' }, { label: 'Rework', color: '#dc2626' }].map(l => (
+                    {[{ label: 'Assigned', color: '#2563eb' }, { label: 'In Progress', color: '#9333ea' }, { label: 'Review', color: '#ED6C02' }, { label: 'Rework', color: '#D32F2F' }].map(l => (
                       <Space key={l.label} size={4}>
                         <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
                         <Text style={{ fontSize: 10, color: '#64748b' }}>{l.label}</Text>

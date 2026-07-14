@@ -9,7 +9,7 @@ function MiniTrend({ value, label }) {
   const isUp = value > 0;
   const isDown = value < 0;
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, color: isUp ? '#16a34a' : isDown ? '#dc2626' : '#94a3b8' }}>
+    <span style={{ fontSize: 10, fontWeight: 600, color: isUp ? '#2E7D32' : isDown ? '#D32F2F' : '#94a3b8' }}>
       {isUp ? '↑' : isDown ? '↓' : '—'} {Math.abs(value).toFixed(0)}%
       {label && <span style={{ color: '#94a3b8', fontWeight: 500 }}> {label}</span>}
     </span>
@@ -34,12 +34,12 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown }) {
     { key: 'all_tasks', title: 'All Tasks', value: kpi.total || 0, color: '#0f172a', icon: <BarChartOutlined />, trend: 8, spark: [80, 85, 92, 88, 95, 100, kpi.total || 0] },
     { key: 'my_open', title: 'My Open', value: kpi.active || 0, color: '#2563eb', icon: <ThunderboltOutlined />, trend: 12, spark: [3, 5, 4, 6, 8, 5, kpi.active || 0] },
     { key: 'pending_review', title: 'Pending Review', value: kpi.pendingReview || 0, color: '#9333ea', icon: <EyeOutlined />, trend: risk?.staleReviews > 0 ? -33 : null, spark: [2, 3, 1, 4, 2, 3, kpi.pendingReview || 0] },
-    { key: 'due_today', title: 'Due Today', value: 0, color: '#f59e0b', icon: <ClockCircleOutlined />, trend: null },
-    { key: 'overdue', title: 'Overdue', value: kpi.overdue || 0, color: '#dc2626', icon: <WarningOutlined />, trend: -8, spark: [5, 4, 3, 2, 1, 2, kpi.overdue || 0] },
-    { key: 'completed', title: 'Completed', value: kpi.approved || 0, color: '#16a34a', icon: <CheckCircleOutlined />, trend: 15, spark: [10, 12, 14, 11, 16, 18, kpi.approved || 0] },
-    { key: 'sla', title: 'SLA Compliance', value: `${kpi.slaCompliance || 100}%`, color: (kpi.slaCompliance || 100) >= 90 ? '#16a34a' : '#dc2626', icon: <SafetyCertificateOutlined />, trend: null },
+    { key: 'due_today', title: 'Due Today', value: 0, color: '#ED6C02', icon: <ClockCircleOutlined />, trend: null },
+    { key: 'overdue', title: 'Overdue', value: kpi.overdue || 0, color: '#D32F2F', icon: <WarningOutlined />, trend: -8, spark: [5, 4, 3, 2, 1, 2, kpi.overdue || 0] },
+    { key: 'completed', title: 'Completed', value: kpi.approved || 0, color: '#2E7D32', icon: <CheckCircleOutlined />, trend: 15, spark: [10, 12, 14, 11, 16, 18, kpi.approved || 0] },
+    { key: 'sla', title: 'SLA Compliance', value: `${kpi.slaCompliance || 100}%`, color: (kpi.slaCompliance || 100) >= 90 ? '#2E7D32' : '#D32F2F', icon: <SafetyCertificateOutlined />, trend: null },
     { key: 'dept_load', title: 'Dept Load', value: `${kpi.total || 0}`, color: '#0288d1', icon: <BarChartOutlined />, trend: null },
-    { key: 'health', title: 'Health Score', value: `${kpi.completionRate || 0}%`, color: (kpi.completionRate || 0) >= 80 ? '#16a34a' : '#f59e0b', icon: <TrophyOutlined />, trend: 5 },
+    { key: 'health', title: 'Health Score', value: `${kpi.completionRate || 0}%`, color: (kpi.completionRate || 0) >= 80 ? '#2E7D32' : '#ED6C02', icon: <TrophyOutlined />, trend: 5 },
   ];
 
   return (
@@ -49,7 +49,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown }) {
           <div
             onClick={() => onDrillDown?.(card.key)}
             style={{
-              padding: '10px 12px', borderRadius: 12, background: '#fff',
+              padding: '10px 12px', borderRadius: "var(--radius-lg)", background: '#fff',
               border: '1px solid #f1f5f9', cursor: 'pointer', transition: 'all 0.15s',
               position: 'relative', overflow: 'hidden',
             }}

@@ -112,20 +112,20 @@ const ProgressRing = ({ pct = 0, size = 56, color = '#1976D2' }) => {
 const AsinDetailTable = ({ action, config }) => {
   const asins = action.asins || [];
   if (asins.length === 0) return (
-    <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>
+    <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
       No ASINs attached to this task
     </div>
   );
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
         <thead>
           <tr style={{ background: config.bg, borderBottom: `1px solid ${config.border}` }}>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: config.color, width: '15%' }}>ASIN</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#475569', width: '40%' }}>Product Title</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#475569' }}>SKU</th>
-            <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: '#475569' }}>Issue</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: config.color, width: '15%' }}>ASIN</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569', width: '40%' }}>Product Title</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>SKU</th>
+            <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Issue</th>
           </tr>
         </thead>
         <tbody>
@@ -146,10 +146,10 @@ const AsinDetailTable = ({ action, config }) => {
                   <code style={{
                     background: config.bg, border: `1px solid ${config.border}`,
                     color: config.color, padding: '2px 7px', borderRadius: 6,
-                    fontSize: 11, fontWeight: 700, letterSpacing: '0.04em'
+                    fontSize: 'var(--font-size-xs)', fontWeight: 600, letterSpacing: '0.04em'
                   }}>{typeof code === 'string' ? code : JSON.stringify(code)}</code>
                 </td>
-                <td style={{ padding: '8px 12px', color: '#374151', maxWidth: 280 }}>
+                <td style={{ padding: '8px 12px', color: 'var(--text-primary)', maxWidth: 280 }}>
                   <span style={{
                     display: 'inline-block', maxWidth: '100%',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
@@ -160,7 +160,7 @@ const AsinDetailTable = ({ action, config }) => {
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     background: '#fef2f2', border: '1px solid #fecaca',
-                    color: '#D32F2F', fontSize: 10, fontWeight: 700,
+                    color: '#D32F2F', fontSize: 10, fontWeight: 600,
                     padding: '2px 8px', borderRadius: 10
                   }}>
                     <AlertTriangle size={9} />
@@ -215,14 +215,14 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
           minWidth: 170, flexShrink: 0
         }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 28, height: 28, borderRadius: "var(--radius-md)",
             background: config.bg, border: `1px solid ${config.border}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: config.color, flexShrink: 0
           }}>
             <TypeIcon size={14} strokeWidth={2.5} />
           </div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{config.label}</span>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>{config.label}</span>
         </div>
 
         {/* Progress bar */}
@@ -235,7 +235,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
               borderRadius: 10, transition: 'width 0.6s ease'
             }} />
           </div>
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>
             {isCompleted ? '100%' : status === 'IN_PROGRESS' ? '50%' : '0%'}
           </span>
         </div>
@@ -247,7 +247,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
           borderRadius: 10, padding: '3px 10px', flexShrink: 0
         }}>
           <Package size={11} color="#64748b" />
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>
+          <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569' }}>
             {asinCount} ASIN{asinCount !== 1 ? 's' : ''}
           </span>
         </div>
@@ -256,7 +256,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
           background: statusCfg.bg, border: `1px solid ${statusCfg.border}`,
-          color: statusCfg.color, fontSize: 10, fontWeight: 700,
+          color: statusCfg.color, fontSize: 10, fontWeight: 600,
           padding: '3px 10px', borderRadius: 10, flexShrink: 0,
           minWidth: 90, justifyContent: 'center'
         }}>
@@ -269,7 +269,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onStart && onStart(action)}
               title="Start Task"
-              style={{ padding: '4px 8px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#0288D1', borderRadius: 7, fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ padding: '4px 8px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#0288D1', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <Play size={10} fill="currentColor" /> Start
             </button>
@@ -278,7 +278,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onSubmitForReview && onSubmitForReview(action)}
               title="Submit for Review"
-              style={{ padding: '4px 8px', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#2E7D32', borderRadius: 7, fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ padding: '4px 8px', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#2E7D32', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <CheckCircle2 size={10} /> Submit
             </button>
@@ -286,7 +286,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
           {status === 'REVIEW' && isAdmin && (
             <button
               onClick={() => onReview && onReview(action)}
-              style={{ padding: '4px 8px', background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#9C27B0', borderRadius: 7, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+              style={{ padding: '4px 8px', background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#9C27B0', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
             >
               Review
             </button>
@@ -385,7 +385,7 @@ const BrandTaskCard = ({
   return (
     <div style={{
       background: '#ffffff',
-      borderRadius: 16,
+      borderRadius: "var(--radius-xl)",
       border: `1.5px solid ${stats.hasOverdue ? '#fecaca' : '#e2e8f0'}`,
       boxShadow: '0 2px 12px -4px rgba(0,0,0,0.08)',
       overflow: 'hidden',
@@ -425,7 +425,7 @@ const BrandTaskCard = ({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
+              width: 28, height: 28, borderRadius: "var(--radius-md)",
               background: `${cardColor}15`, border: `1px solid ${cardColor}30`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: cardColor, flexShrink: 0
@@ -449,12 +449,12 @@ const BrandTaskCard = ({
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             {marketplace && (
-              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>
                 {marketplace}
               </span>
             )}
             {seller?.managers?.length > 0 && (
-              <span style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Users size={11} />
                 {seller.managers.map(m => `${m.firstName || ''} ${m.lastName || ''}`.trim()).filter(Boolean).join(', ')}
               </span>
@@ -468,16 +468,16 @@ const BrandTaskCard = ({
             background: '#ffffff', border: '1.5px solid #e2e8f0',
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
           }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{stats.total}</div>
-            <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Tasks</div>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{stats.total}</div>
+            <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Tasks</div>
           </div>
 
           <div style={{
             background: '#ffffff', border: '1.5px solid #e2e8f0',
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
           }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#1976D2', lineHeight: 1 }}>{stats.totalAsins}</div>
-            <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ASINs</div>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#1976D2', lineHeight: 1 }}>{stats.totalAsins}</div>
+            <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ASINs</div>
           </div>
 
           {stats.inProgress > 0 && (
@@ -485,8 +485,8 @@ const BrandTaskCard = ({
               background: '#eff6ff', border: '1.5px solid #bfdbfe',
               borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
             }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#0288D1', lineHeight: 1 }}>{stats.inProgress}</div>
-              <div style={{ fontSize: 9, color: '#93c5fd', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Active</div>
+              <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0288D1', lineHeight: 1 }}>{stats.inProgress}</div>
+              <div style={{ fontSize: 9, color: '#93c5fd', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Active</div>
             </div>
           )}
 
@@ -495,8 +495,8 @@ const BrandTaskCard = ({
               background: '#ecfdf5', border: '1.5px solid #a7f3d0',
               borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
             }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#2E7D32', lineHeight: 1 }}>{stats.completed}</div>
-              <div style={{ fontSize: 9, color: '#6ee7b7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Done</div>
+              <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#2E7D32', lineHeight: 1 }}>{stats.completed}</div>
+              <div style={{ fontSize: 9, color: '#6ee7b7', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Done</div>
             </div>
           )}
         </div>
@@ -529,7 +529,7 @@ const BrandTaskCard = ({
                 <span key={action._id || action.id} style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   background: cfg.bg, border: `1px solid ${cfg.border}`,
-                  color: cfg.color, fontSize: 10, fontWeight: 700,
+                  color: cfg.color, fontSize: 10, fontWeight: 600,
                   padding: '3px 9px', borderRadius: 10
                 }}>
                   <cfg.icon size={9} strokeWidth={2.5} />

@@ -162,7 +162,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
     >
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
             {isEditMode ? 'Edit Task' : 'Create Task'}
           </span>
           <Tag color={isEditMode ? (action?.status === 'COMPLETED' ? 'green' : action?.status === 'REVIEW' ? 'purple' : 'blue') : 'blue'}>
@@ -199,7 +199,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
             label={<span style={labelStyle}>Description</span>}
             rules={[{ max: 1000, message: 'Maximum 1000 characters' }]}
           >
-            <TextArea rows={3} maxLength={1000} showCount placeholder="Describe the task..." style={{ borderRadius: 8, fontSize: 13 }} />
+            <TextArea rows={3} maxLength={1000} showCount placeholder="Describe the task..." style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }} />
           </Form.Item>
 
           <Row gutter={16}>
@@ -344,7 +344,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
                       value={p.value}
                       style={{
                         flex: 1, textAlign: 'center', height: 34, lineHeight: '32px',
-                        borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', fontWeight: 600,
                         borderColor: '#e2e8f0',
                       }}
                     >
@@ -411,7 +411,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
                   tagRender={(props) => {
                     const { label, closable, onClose } = props;
                     return (
-                      <Tag closable={closable} onClose={onClose} style={{ borderRadius: 6, fontSize: 11, margin: 2 }}>
+                      <Tag closable={closable} onClose={onClose} style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)', margin: 2 }}>
                         {label}
                       </Tag>
                     );
@@ -419,7 +419,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
                   maxTagCount={3}
                 />
               </Form.Item>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: -12 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: -12 }}>
                 {form.getFieldValue('linkedAsins')?.length || 0} ASINs linked
               </div>
             </Col>
@@ -465,7 +465,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
                 name="internalNotes"
                 label={<span style={labelStyle}>Internal Notes</span>}
               >
-                <TextArea rows={2} placeholder="Admin notes (not visible to assignees)" style={{ borderRadius: 8, fontSize: 13 }} />
+                <TextArea rows={2} placeholder="Admin notes (not visible to assignees)" style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }} />
               </Form.Item>
             </>
           )}

@@ -56,14 +56,14 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
       destroyOnHidden
     >
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1e293b' }}>Start Task</h3>
-        <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0 0' }}>{task.action || task.title || task.name}</p>
+        <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: '#1e293b' }}>Start Task</h3>
+        <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: '4px 0 0 0' }}>{task.action || task.title || task.name}</p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Block 1: Task Summary Card */}
         <div style={{ background: '#eff6ff', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: '#1e3a8a' }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', color: '#1e3a8a' }}>
             {task.action || task.title || task.name}
           </div>
 
@@ -95,14 +95,14 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
                 />
               )}
               {!isOverdue && !isDueToday && (
-                <span style={{ fontSize: 12, color: '#4b5563', fontWeight: 500 }}>
+                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', fontWeight: 500 }}>
                   Due {dayjs(dueDateVal).format('MMM D, YYYY')} ({dayjs(dueDateVal).fromNow()})
                 </span>
               )}
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#1e293b', borderTop: '1px solid #dbeafe', paddingTop: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--font-size-sm)', color: '#1e293b', borderTop: '1px solid #dbeafe', paddingTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ color: '#64748b', width: 80 }}>Assignee:</span>
               <Avatar size={18} icon={<UserOutlined />} style={{ background: '#0288D1' }} />
@@ -129,23 +129,23 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="startNote"
-            label={<span style={{ fontWeight: 600, fontSize: 13, color: '#334155' }}>Start Note (Optional)</span>}
+            label={<span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#334155' }}>Start Note (Optional)</span>}
           >
             <TextArea
               rows={2}
               maxLength={500}
               placeholder="Any initial notes or questions before starting?"
               showCount
-              style={{ borderRadius: 8 }}
+              style={{ borderRadius: "var(--radius-md)" }}
             />
           </Form.Item>
 
           <Form.Item
             name="estimatedCompletion"
-            label={<span style={{ fontWeight: 600, fontSize: 13, color: '#334155' }}>When do you expect to finish this?</span>}
+            label={<span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#334155' }}>When do you expect to finish this?</span>}
           >
             <DatePicker
-              style={{ width: '100%', borderRadius: 8 }}
+              style={{ width: '100%', borderRadius: "var(--radius-md)" }}
               disabledDate={(d) => d && d.isBefore(dayjs().startOf('day'))}
             />
           </Form.Item>
@@ -154,7 +154,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
             <Checkbox
               checked={acknowledged}
               onChange={(e) => setAcknowledged(e.target.checked)}
-              style={{ fontSize: 13 }}
+              style={{ fontSize: 'var(--font-size-sm)' }}
             >
               I understand what needs to be done and am ready to start
             </Checkbox>
@@ -174,7 +174,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
           style={{
             background: acknowledged ? 'linear-gradient(135deg, #1976D2, #9C27B0)' : '#cbd5e1',
             border: 'none',
-            borderRadius: 8,
+            borderRadius: "var(--radius-md)",
             height: 36,
             fontWeight: 600,
           }}

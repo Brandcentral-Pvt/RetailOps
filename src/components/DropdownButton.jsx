@@ -34,7 +34,7 @@ export const DropdownButton = () => {
             </Dropdown.Trigger>
 
             <Dropdown.Popover>
-                <div style={{ width: '280px', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ width: '280px', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
                     <div className="p-3 border-bottom bg-light bg-opacity-20" style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
                         <AvatarLabelGroup
                             size="md"

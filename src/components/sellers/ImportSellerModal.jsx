@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { FileUp, ShieldCheck, ChevronRight, RefreshCw, Inbox } from 'lucide-react';
 import { userApi } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
-import { Modal, Button, Upload, Typography, Space, Result, Alert } from 'antd';
+import { Modal, Button, Upload, Typography, Space, Alert, Tag } from 'antd';
+import { ModalHeader, ModalFooter } from './ModalShell';
+import styles from './SellerModals.module.css';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { Dragger } = Upload;
 
 const ImportSellerModal = ({ onClose, onImport }) => {
@@ -96,39 +98,18 @@ const ImportSellerModal = ({ onClose, onImport }) => {
     <Modal
       open={true}
       onCancel={onClose}
-      footer={[
-        <Button key="back" onClick={onClose} style={{ borderRadius: 8, fontWeight: 600 }}>
-          Abort
-        </Button>,
-        <Button 
-          key="submit" 
-          type="primary" 
-          disabled={!fileStats || isImporting} 
-          loading={isImporting} 
-          onClick={handleImportComplete}
-          style={{ borderRadius: 8, fontWeight: 700, background: '#0f172a', borderColor: '#0f172a' }}
-        >
-          {isImporting ? 'Syncing...' : 'Confirm Migration'}
-        </Button>
-      ]}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
-          <div style={{ padding: '8px', background: '#f1f5f9', color: '#64748b', borderRadius: 10, border: '1px solid #e2e8f0', display: 'flex' }}>
-            <FileUp size={20} />
-          </div>
-          <Title level={5} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.01em' }}>
-            Bulk Migration Pipeline
-          </Title>
-        </div>
-      }
-      styles={{
-        content: { borderRadius: 16, padding: '24px' },
-        header: { borderBottom: 'none', marginBottom: 24 },
-        footer: { borderTop: 'none', marginTop: 24, padding: '0 4px' }
-      }}
+      className={styles.modalContent}
+      closable={false}
+      footer={null}
       width={480}
       centered
+      destroyOnHidden
     >
+      <ModalHeader
+        icon={FileUp}
+        title="Bulk Migration Pipeline"
+        subtitle="Import sellers from a CSV manifest"
+      />
       {!fileStats ? (
         <Dragger
           accept=".csv"
@@ -140,21 +121,21 @@ const ImportSellerModal = ({ onClose, onImport }) => {
           style={{ 
             padding: '32px 24px', 
             background: '#fafafa', 
-            borderRadius: 16, 
-            border: '2px dashed #e2e8f0' 
+            borderRadius: "var(--radius-xl)", 
+            border: '2px dashed var(--border-light, #d9e6e9)' 
           }}
         >
           <p className="ant-upload-drag-icon">
             <div style={{ width: 64, height: 64, background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0' }}>
-              <FileUp size={32} style={{ color: '#0f172a' }} />
+              <FileUp size={32} style={{ color: 'var(--text-primary, #0f172a)' }} />
             </div>
           </p>
-          <Text strong style={{ fontSize: 16, display: 'block', marginTop: 16, color: '#0f172a' }}>Select Inventory Manifest</Text>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+          <Text strong style={{ fontSize: 'var(--font-size-lg)', display: 'block', marginTop: 16, color: 'var(--text-primary, #0f172a)' }}>Select Store File</Text>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginTop: 4 }}>
             Upload a .csv file containing store names, merchant IDs, and assigned managers.
           </Text>
           <Button 
-            style={{ marginTop: 24, borderRadius: 20, fontWeight: 700, padding: '0 24px', background: '#0f172a', color: '#fff' }}
+            style={{ marginTop: 24, borderRadius: 'var(--radius-full)', fontWeight: 600, padding: '0 24px', background: 'var(--text-primary, #0f172a)', color: '#fff' }}
           >
             {isUploading ? <RefreshCw size={14} className="spin" /> : <ChevronRight size={14} />}
             <span style={{ marginLeft: 8 }}>Browse manifests</span>
@@ -165,30 +146,37 @@ const ImportSellerModal = ({ onClose, onImport }) => {
           <Alert
             message={
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ padding: '8px', background: '#22c55e', color: '#fff', borderRadius: '50%', display: 'flex' }}>
+                <div style={{ padding: '8px', background: 'var(--text-success, #2E7D32)', color: '#fff', borderRadius: '50%', display: 'flex' }}>
                   <ShieldCheck size={18} />
                 </div>
                 <div>
                   <Text strong style={{ color: '#064e3b', display: 'block' }}>{fileStats.name}</Text>
-                  <Text style={{ color: '#064e3b', fontSize: 11, opacity: 0.8 }}>{fileStats.count} Valid store profiles identified</Text>
+                  <Text style={{ color: '#064e3b', fontSize: 'var(--font-size-xs)', opacity: 0.8 }}>{fileStats.count} Valid store profiles identified</Text>
                 </div>
               </div>
             }
             type="success"
-            style={{ borderRadius: 12, padding: 16, border: 'none', background: '#f0fdf4' }}
+            style={{ borderRadius: "var(--radius-lg)", padding: 16, border: 'none', background: 'var(--bg-success-subtle, #f0fdf4)' }}
           />
           
-          <div style={{ padding: 16, background: '#f8fafc', borderRadius: 12, border: '1px solid #f1f5f9' }}>
+          <div style={{ padding: 16, background: 'var(--bg-secondary, #f8fafc)', borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light, #d9e6e9)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text strong style={{ fontSize: 10, color: '#94a3b8', letterSpacing: '0.1em' }}>TARGET DATABASE</Text>
-              <Tag color="blue" style={{ borderRadius: 20, border: 'none', fontWeight: 700, fontSize: 10, padding: '0 8px' }}>Live Sync</Tag>
+              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', letterSpacing: '0.1em' }}>TARGET DATABASE</Text>
+              <Tag color="blue" style={{ borderRadius: 'var(--radius-full)', border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)', padding: '0 8px' }}>Live Sync</Tag>
             </div>
-            <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.5 }}>
-              Our sync agents will automatically allocate these stores to the respective managers and start scanning ASIN inventory.
+            <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
+              Our sync agents will automatically allocate these stores to the respective managers and start scanning product data.
             </Text>
           </div>
         </Space>
       )}
+      <ModalFooter
+        onCancel={onClose}
+        onConfirm={handleImportComplete}
+        confirmText={isImporting ? 'Syncing...' : 'Confirm Migration'}
+        loading={isImporting}
+        disabled={!fileStats}
+      />
     </Modal>
   );
 };

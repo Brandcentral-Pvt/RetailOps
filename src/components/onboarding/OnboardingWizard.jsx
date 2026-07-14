@@ -150,7 +150,7 @@ const OnboardingWizard = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '14px',
+                                    fontSize: 'var(--font-size-base)',
                                     fontWeight: 600,
                                     backgroundColor: step === currentStep
                                         ? 'var(--color-brand-600)'
@@ -196,8 +196,8 @@ const OnboardingWizard = () => {
                             <Zap size={32} style={{ color: 'var(--color-brand-600)' }} />
                         </div>
                         <h2 style={{
-                            fontSize: '24px',
-                            fontWeight: 700,
+                            fontSize: 'var(--font-size-2xl)',
+                            fontWeight: 600,
                             color: 'var(--color-text-primary)',
                             marginBottom: '12px'
                         }}>
@@ -212,7 +212,7 @@ const OnboardingWizard = () => {
                             Let's set up your first seller account
                         </h3>
                         <p style={{
-                            fontSize: '14px',
+                            fontSize: 'var(--font-size-base)',
                             color: 'var(--color-text-secondary)',
                             lineHeight: 1.6,
                             marginBottom: '32px'
@@ -251,8 +251,8 @@ const OnboardingWizard = () => {
                                 <Store size={24} style={{ color: 'var(--color-brand-600)' }} />
                             </div>
                             <h2 style={{
-                                fontSize: '20px',
-                                fontWeight: 700,
+                                fontSize: 'var(--font-size-xl)',
+                                fontWeight: 600,
                                 color: 'var(--color-text-primary)',
                                 marginBottom: '8px'
                             }}>
@@ -264,7 +264,7 @@ const OnboardingWizard = () => {
                             <div style={{ marginBottom: '20px' }}>
                                 <label style={{
                                     display: 'block',
-                                    fontSize: '13px',
+                                    fontSize: 'var(--font-size-sm)',
                                     fontWeight: 600,
                                     color: 'var(--color-text-muted)',
                                     marginBottom: '8px',
@@ -294,7 +294,7 @@ const OnboardingWizard = () => {
                                 <div className="col-md-6" style={{ marginBottom: '20px' }}>
                                     <label style={{
                                         display: 'block',
-                                        fontSize: '13px',
+                                        fontSize: 'var(--font-size-sm)',
                                         fontWeight: 600,
                                         color: 'var(--color-text-muted)',
                                         marginBottom: '8px',
@@ -311,7 +311,7 @@ const OnboardingWizard = () => {
                                             padding: '12px 16px',
                                             borderRadius: 'var(--radius-md)',
                                             border: '1px solid var(--color-border)',
-                                            fontSize: '14px',
+                                            fontSize: 'var(--font-size-base)',
                                             backgroundColor: 'var(--color-surface-1)',
                                             cursor: 'not-allowed'
                                         }}
@@ -322,7 +322,7 @@ const OnboardingWizard = () => {
                                 <div className="col-md-6" style={{ marginBottom: '20px' }}>
                                     <label style={{
                                         display: 'block',
-                                        fontSize: '13px',
+                                        fontSize: 'var(--font-size-sm)',
                                         fontWeight: 600,
                                         color: 'var(--color-text-muted)',
                                         marginBottom: '8px',
@@ -341,7 +341,7 @@ const OnboardingWizard = () => {
                                             padding: '12px 16px',
                                             borderRadius: 'var(--radius-md)',
                                             border: '1px solid var(--color-border)',
-                                            fontSize: '14px',
+                                            fontSize: 'var(--font-size-base)',
                                             backgroundColor: 'var(--color-surface-0)'
                                         }}
                                     />
@@ -354,7 +354,7 @@ const OnboardingWizard = () => {
                                     backgroundColor: 'var(--color-danger-50)',
                                     borderRadius: 'var(--radius-md)',
                                     color: 'var(--color-danger-600)',
-                                    fontSize: '13px',
+                                    fontSize: 'var(--font-size-sm)',
                                     marginBottom: '16px'
                                 }}>
                                     {error}
@@ -369,7 +369,7 @@ const OnboardingWizard = () => {
                                         background: 'none',
                                         border: 'none',
                                         color: 'var(--color-text-muted)',
-                                        fontSize: '14px',
+                                        fontSize: 'var(--font-size-base)',
                                         cursor: 'pointer'
                                     }}
                                 >
@@ -405,8 +405,8 @@ const OnboardingWizard = () => {
                                 <ShoppingCart size={24} style={{ color: 'var(--color-brand-600)' }} />
                             </div>
                             <h2 style={{
-                                fontSize: '20px',
-                                fontWeight: 700,
+                                fontSize: 'var(--font-size-xl)',
+                                fontWeight: 600,
                                 color: 'var(--color-text-primary)',
                                 marginBottom: '8px'
                             }}>
@@ -417,7 +417,7 @@ const OnboardingWizard = () => {
                         <div style={{ marginBottom: '16px' }}>
                             <label style={{
                                 display: 'block',
-                                fontSize: '13px',
+                                fontSize: 'var(--font-size-sm)',
                                 fontWeight: 600,
                                 color: 'var(--color-text-muted)',
                                 marginBottom: '8px',
@@ -436,14 +436,14 @@ const OnboardingWizard = () => {
                                     padding: '12px 16px',
                                     borderRadius: 'var(--radius-md)',
                                     border: '1px solid var(--color-border)',
-                                    fontSize: '14px',
+                                    fontSize: 'var(--font-size-base)',
                                     fontFamily: 'monospace',
                                     backgroundColor: 'var(--color-surface-0)',
                                     resize: 'vertical'
                                 }}
                             />
                             <p style={{
-                                fontSize: '12px',
+                                fontSize: 'var(--font-size-sm)',
                                 color: 'var(--color-text-muted)',
                                 marginTop: '8px'
                             }}>
@@ -457,7 +457,7 @@ const OnboardingWizard = () => {
                                 backgroundColor: 'var(--color-danger-50)',
                                 borderRadius: 'var(--radius-md)',
                                 color: 'var(--color-danger-600)',
-                                fontSize: '13px',
+                                fontSize: 'var(--font-size-sm)',
                                 marginBottom: '16px'
                             }}>
                                 {error}
@@ -472,7 +472,7 @@ const OnboardingWizard = () => {
                                     background: 'none',
                                     border: 'none',
                                     color: 'var(--color-text-muted)',
-                                    fontSize: '14px',
+                                    fontSize: 'var(--font-size-base)',
                                     cursor: 'pointer'
                                 }}
                             >
@@ -507,15 +507,15 @@ const OnboardingWizard = () => {
                             <Check size={32} style={{ color: '#fff' }} />
                         </div>
                         <h2 style={{
-                            fontSize: '24px',
-                            fontWeight: 700,
+                            fontSize: 'var(--font-size-2xl)',
+                            fontWeight: 600,
                             color: 'var(--color-text-primary)',
                             marginBottom: '8px'
                         }}>
                             You're all set!
                         </h2>
                         <p style={{
-                            fontSize: '14px',
+                            fontSize: 'var(--font-size-base)',
                             color: 'var(--color-text-secondary)',
                             marginBottom: '32px'
                         }}>
@@ -551,7 +551,7 @@ const OnboardingWizard = () => {
                                     }}
                                 >
                                     <BarChart3 size={24} style={{ color: 'var(--color-brand-600)' }} />
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                                         Dashboard
                                     </span>
                                 </button>
@@ -582,7 +582,7 @@ const OnboardingWizard = () => {
                                     }}
                                 >
                                     <Settings size={24} style={{ color: 'var(--color-brand-600)' }} />
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                                         Configure
                                     </span>
                                 </button>
@@ -613,7 +613,7 @@ const OnboardingWizard = () => {
                                     }}
                                 >
                                     <BarChart3 size={24} style={{ color: 'var(--color-brand-600)' }} />
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                                         Analytics
                                     </span>
                                 </button>

@@ -549,7 +549,7 @@ export default function GmsTrackerPage() {
           key: 'orderedUnits',
           width: 80,
           align: 'center',
-          render: (v) => <Text style={{ fontSize: 11, fontWeight: 600, color: '#0288D1' }}>{(v || 0).toLocaleString()}</Text>,
+          render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0288D1' }}>{(v || 0).toLocaleString()}</Text>,
           sorter: (a, b) => (a.orderedUnits || 0) - (b.orderedUnits || 0)
         }
       ];
@@ -630,7 +630,7 @@ export default function GmsTrackerPage() {
           key: 'orderedUnits',
           width: 80,
           align: 'center',
-          render: (v) => <Text style={{ fontSize: 11, fontWeight: 600, color: '#0288D1' }}>{(v || 0).toLocaleString()}</Text>,
+          render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0288D1' }}>{(v || 0).toLocaleString()}</Text>,
           sorter: (a, b) => (a.orderedUnits || 0) - (b.orderedUnits || 0)
         }
       ];
@@ -725,7 +725,7 @@ export default function GmsTrackerPage() {
                 const trend = getTrend(record, 'month', month.key);
                 if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
                 const isUp = trend >= 0;
-                return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 700 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
+                return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
               },
               sorter: (a, b) => (getTrend(a, 'month', month.key) || 0) - (getTrend(b, 'month', month.key) || 0)
             }
@@ -763,7 +763,7 @@ export default function GmsTrackerPage() {
                 width: 120,
                 render: (_, record) => {
                   const rev = record.weeklyRev[week.key] || 0;
-                  return rev ? <span style={{ fontWeight: 700, color: '#1976D2' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
+                  return rev ? <span style={{ fontWeight: 600, color: '#1976D2' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
                 },
                 sorter: (a, b) => (a.weeklyRev[week.key] || 0) - (b.weeklyRev[week.key] || 0)
               },
@@ -776,7 +776,7 @@ export default function GmsTrackerPage() {
                   const trend = getTrend(record, 'week', week.key);
                   if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
                   const isUp = trend >= 0;
-                  return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 700 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
+                  return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
                 },
                 sorter: (a, b) => (getTrend(a, 'week', week.key) || 0) - (getTrend(b, 'week', week.key) || 0)
               }
@@ -811,7 +811,7 @@ export default function GmsTrackerPage() {
 
             dayCols.push({
               title: <Tooltip title={`Trend: ${dayjs(prevDayStr).format('DD MMM')} → ${dayjs(currDayStr).format('DD MMM')}`}>
-                <span style={{ fontSize: 11, color: '#1976D2', fontWeight: 700, whiteSpace: 'nowrap' }}>▸ {trendLabel}</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: '#1976D2', fontWeight: 600, whiteSpace: 'nowrap' }}>▸ {trendLabel}</span>
               </Tooltip>,
               key: `dod-trend-${prevDayStr}-${currDayStr}`,
               align: 'center',
@@ -821,14 +821,14 @@ export default function GmsTrackerPage() {
                 const currRev = record.dailyRev[currDayStr] || 0;
 
                 if (!prevRev && !currRev) return <span style={{ color: '#94a3b8' }}>-</span>;
-                if (!prevRev) return <Tag color="success" style={{ border: 'none', fontWeight: 700, fontSize: 11 }}>NEW</Tag>;
+                if (!prevRev) return <Tag color="success" style={{ border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>NEW</Tag>;
 
                 const change = ((currRev - prevRev) / prevRev) * 100;
                 const isUp = change >= 0;
                 return (
                   <Tag
                     color={isUp ? 'success' : 'error'}
-                    style={{ border: 'none', fontWeight: 700, fontSize: 11, margin: 0 }}
+                    style={{ border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)', margin: 0 }}
                   >
                     {isUp ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
                   </Tag>
@@ -855,7 +855,7 @@ export default function GmsTrackerPage() {
           width: 120,
           render: (_, record) => {
             const rev = record.weeklyRev[week.key] || 0;
-            return rev ? <span style={{ fontWeight: 700, color: '#1976D2' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
+            return rev ? <span style={{ fontWeight: 600, color: '#1976D2' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
           },
           sorter: (a, b) => (a.weeklyRev[week.key] || 0) - (b.weeklyRev[week.key] || 0)
         });
@@ -870,7 +870,7 @@ export default function GmsTrackerPage() {
             const trend = getTrend(record, 'week', week.key);
             if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
             const isUp = trend >= 0;
-            return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 700 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
+            return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
           },
           sorter: (a, b) => (getTrend(a, 'week', week.key) || 0) - (getTrend(b, 'week', week.key) || 0)
         });
@@ -904,7 +904,7 @@ export default function GmsTrackerPage() {
           const trend = getTrend(record, 'month', month.key);
           if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
           const isUp = trend >= 0;
-          return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 700 }}>{isUp ? '▲' : '▼'} {trend.toFixed(1)}%</Tag>;
+          return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {trend.toFixed(1)}%</Tag>;
         },
         sorter: (a, b) => (getTrend(a, 'month', month.key) || 0) - (getTrend(b, 'month', month.key) || 0)
       });
@@ -971,7 +971,7 @@ export default function GmsTrackerPage() {
           }
         },
         grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-        legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', fontWeight: 600, markers: { radius: 3 } }
+        legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-xs)', fontWeight: 600, markers: { radius: 3 } }
       },
       series: [
         { name: 'Revenue', data: sortedDates.map(d => dailyData[d]) },
@@ -981,7 +981,7 @@ export default function GmsTrackerPage() {
     };
   }, [filteredData]);
 
-  const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
+  const btnStyle = { borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 };
 
   if (loading && gmsData.length === 0) {
     return <Spinner />;
@@ -1006,10 +1006,10 @@ export default function GmsTrackerPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60, flexWrap: 'wrap', gap: 8 }}>
         <Space orientation="vertical" size={2}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Text strong style={{ fontSize: 16, color: '#0f172a' }}>GMS Tracker</Text>
-            <Tag color="blue" style={{ border: 'none', fontWeight: 700, borderRadius: 4, fontSize: 10 }}>Interactive</Tag>
+            <Text strong style={{ fontSize: 'var(--font-size-lg)', color: '#0f172a' }}>GMS Tracker</Text>
+            <Tag color="blue" style={{ border: 'none', fontWeight: 600, borderRadius: "var(--radius-sm)", fontSize: 10 }}>Interactive</Tag>
           </div>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
             Spreadsheet-style horizontal matrix mapping Ordered Revenue across {viewLevel === 'seller' ? 'Sellers' : 'ASINs'}.
           </Text>
         </Space>
@@ -1055,8 +1055,8 @@ export default function GmsTrackerPage() {
           options={dbManagers.map(m => ({ label: [m.firstName, m.lastName].filter(Boolean).join(' ').trim() || m.email, value: m._id || m.id }))}
           style={{ minWidth: 200, maxWidth: 320 }} showSearch
           filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())} />
-        <Input.Search placeholder="Search ASIN, SKU, Parent, Title, Brand..." size="small" allowClear style={{ width: 260, borderRadius: 8 }}
-          prefix={<SearchOutlined style={{ color: '#94a3b8', fontSize: 12 }} />}
+        <Input.Search placeholder="Search ASIN, SKU, Parent, Title, Brand..." size="small" allowClear style={{ width: 260, borderRadius: "var(--radius-md)" }}
+          prefix={<SearchOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }} />}
           value={searchQuery} onChange={e => startFilterTransition(() => setSearchQuery(e.target.value))} />
       </div>
 
@@ -1065,7 +1065,7 @@ export default function GmsTrackerPage() {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <Col key={i} xs={12} sm={6} md={4} style={{ flex: '1 1 160px' }}>
-              <Card style={{ borderRadius: 12, border: '1px solid #d9e6e9', padding: 8 }}><Skeleton active paragraph={{ rows: 1 }} /></Card>
+              <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9', padding: 8 }}><Skeleton active paragraph={{ rows: 1 }} /></Card>
             </Col>
           ))}
         </Row>
@@ -1087,9 +1087,9 @@ export default function GmsTrackerPage() {
                 alignItems: 'center', gap: 8, padding: '0 12px'
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: kpi.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{kpi.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{kpi.value}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: trendColor }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: kpi.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{kpi.label}</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>{kpi.value}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: trendColor }}>
                   {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}%
                 </span>
               </div>
@@ -1100,9 +1100,9 @@ export default function GmsTrackerPage() {
 
       {/* REVENUE TREND CHART */}
       {filteredData.length > 0 && (
-        <Card style={{ borderRadius: 12, border: '1px solid #d9e6e9', marginBottom: 16 }} styles={{ body: { padding: '10px 14px' } }}>
+        <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9', marginBottom: 16 }} styles={{ body: { padding: '10px 14px' } }}>
           <div style={{ marginBottom: 8 }}>
-            <Text strong style={{ color: '#0f172a', fontSize: 13 }}>Revenue · Orders · Returns Trend</Text>
+            <Text strong style={{ color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Revenue · Orders · Returns Trend</Text>
           </div>
           <Chart
             options={chartSeries.options}
@@ -1114,11 +1114,11 @@ export default function GmsTrackerPage() {
       )}
 
       {/* DATA MATRIX TABLE */}
-      <Card style={{ borderRadius: 12, border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
+      <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
         <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text strong style={{ fontSize: 13, color: '#0f172a' }}>Spreadsheet Data Matrix</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Spreadsheet Data Matrix</Text>
           <Tooltip title="Horizontal breakdown of Ordered Revenue by Month, Week, and Day.">
-            <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 12 }} />
+            <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }} />
           </Tooltip>
         </div>
         {tableDataSource.length > 0 ? (
@@ -1166,17 +1166,17 @@ export default function GmsTrackerPage() {
         {isUploading ? (
           <div style={{ padding: '20px 10px', textAlign: 'center' }}>
             <Progress type="circle" percent={uploadProgress} strokeColor="#0f172a" />
-            <div style={{ marginTop: 16, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+            <div style={{ marginTop: 16, fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
               {uploadStatus}
             </div>
-            <div style={{ marginTop: 6, fontSize: 11, color: '#64748b' }}>
+            <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
               Please do not close this window while processing is running.
             </div>
           </div>
         ) : (
           <div style={{ padding: '4px 0' }}>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
                 1. ASSOCIATE DATE / MONTH FOR REPORT
               </div>
               <DatePicker
@@ -1192,7 +1192,7 @@ export default function GmsTrackerPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
                 2. SELECT FILE TO PARSE
               </div>
               <Upload.Dragger
@@ -1203,9 +1203,9 @@ export default function GmsTrackerPage() {
                 maxCount={1}
               >
                 <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
-                  <UploadOutlined style={{ color: '#1976D2', fontSize: 24 }} />
+                  <UploadOutlined style={{ color: '#1976D2', fontSize: 'var(--font-size-2xl)' }} />
                 </p>
-                <p className="ant-upload-text" style={{ fontSize: 11, fontWeight: 600, color: '#1e293b' }}>
+                <p className="ant-upload-text" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#1e293b' }}>
                   Click or drag GMS CSV/Excel report here
                 </p>
                 <p className="ant-upload-hint" style={{ fontSize: 10, color: '#64748b', padding: '0 8px' }}>
@@ -1215,7 +1215,7 @@ export default function GmsTrackerPage() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button onClick={() => { setIsUploadOpen(false); setFileList([]); }} style={{ borderRadius: 6, fontSize: 12, height: 32 }}>
+              <Button onClick={() => { setIsUploadOpen(false); setFileList([]); }} style={{ borderRadius: 6, fontSize: 'var(--font-size-sm)', height: 32 }}>
                 Cancel
               </Button>
             </div>
@@ -1238,10 +1238,10 @@ export default function GmsTrackerPage() {
               color: '#ffffff',
               boxShadow: '0 2px 6px rgba(79,70,229,0.2)'
             }}>
-              <DownloadOutlined style={{ fontSize: 14 }} />
+              <DownloadOutlined style={{ fontSize: 'var(--font-size-base)' }} />
             </div>
             <div>
-              <span style={{ fontWeight: 800, fontSize: 14, color: '#0f172a', display: 'block' }}>Export GMS Report</span>
+              <span style={{ fontWeight: 800, fontSize: 'var(--font-size-base)', color: '#0f172a', display: 'block' }}>Export GMS Report</span>
               <span style={{ fontSize: 10.5, fontWeight: 500, color: '#64748b', display: 'block', marginTop: 1 }}>Configure and download GMS matrix spreadsheets</span>
             </div>
           </div>
@@ -1256,8 +1256,8 @@ export default function GmsTrackerPage() {
         <div style={{ padding: '12px 0 4px 0' }}>
           {/* Level Switcher Option */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: 4, fontSize: 9 }}>01</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>01</span>
               EXPORT LEVEL
             </div>
             <Segmented
@@ -1275,8 +1275,8 @@ export default function GmsTrackerPage() {
 
           {/* Data Type */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: 4, fontSize: 9 }}>02</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>02</span>
               DATA GRANULARITY
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
@@ -1289,13 +1289,13 @@ export default function GmsTrackerPage() {
                   key={opt.key}
                   onClick={() => setExportDataType(opt.key)}
                   style={{
-                    padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                    padding: '8px 10px', borderRadius: "var(--radius-md)", cursor: 'pointer',
                     border: `1.5px solid ${exportDataType === opt.key ? '#1976D2' : '#e5e7eb'}`,
                     background: exportDataType === opt.key ? '#eff6ff' : '#fff',
                     transition: 'all 0.15s',
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 600, color: exportDataType === opt.key ? '#1976D2' : '#1e293b' }}>{opt.label}</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: exportDataType === opt.key ? '#1976D2' : '#1e293b' }}>{opt.label}</div>
                   <div style={{ fontSize: 10, color: '#64748b' }}>{opt.desc}</div>
                 </div>
               ))}
@@ -1304,8 +1304,8 @@ export default function GmsTrackerPage() {
 
           {/* File Format */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: 4, fontSize: 9 }}>03</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>03</span>
               FILE FORMAT
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -1317,13 +1317,13 @@ export default function GmsTrackerPage() {
                   key={opt.key}
                   onClick={() => setExportFileType(opt.key)}
                   style={{
-                    flex: 1, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center',
+                    flex: 1, padding: '8px 10px', borderRadius: "var(--radius-md)", cursor: 'pointer', textAlign: 'center',
                     border: `1.5px solid ${exportFileType === opt.key ? '#1976D2' : '#e5e7eb'}`,
                     background: exportFileType === opt.key ? '#eff6ff' : '#fff',
                     transition: 'all 0.15s',
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 600, color: exportFileType === opt.key ? '#1976D2' : '#1e293b' }}>{opt.label}</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: exportFileType === opt.key ? '#1976D2' : '#1e293b' }}>{opt.label}</div>
                   <div style={{ fontSize: 10, color: '#64748b' }}>{opt.desc}</div>
                 </div>
               ))}
@@ -1332,8 +1332,8 @@ export default function GmsTrackerPage() {
 
           {/* Date Filtering Options */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: 4, fontSize: 9 }}>02</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>02</span>
               DATE RANGE BREAKDOWN
             </div>
             <Radio.Group
@@ -1344,7 +1344,7 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportDateType === 'all' ? 'active' : ''}`} onClick={() => setExportDateType('all')}>
                 <Radio value="all">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>All Time Data</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>All Time Data</div>
                     <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Export all historical records available in the database</div>
                   </div>
                 </Radio>
@@ -1352,10 +1352,10 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportDateType === 'current' ? 'active' : ''}`} onClick={() => setExportDateType('current')}>
                 <Radio value="current">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>
                       Currently Filtered Range
                       {startDate && endDate && (
-                        <span style={{ color: '#1976D2', fontWeight: 700, marginLeft: 6, fontSize: 11 }}>
+                        <span style={{ color: '#1976D2', fontWeight: 600, marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>
                           ({dayjs(startDate).format('DD MMM YYYY')} - {dayjs(endDate).format('DD MMM YYYY')})
                         </span>
                       )}
@@ -1367,7 +1367,7 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportDateType === 'custom' ? 'active' : ''}`} onClick={() => setExportDateType('custom')}>
                 <Radio value="custom">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>Custom Range</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>Custom Range</div>
                     <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Define a custom date range window for the exported report</div>
                   </div>
                 </Radio>
@@ -1379,7 +1379,7 @@ export default function GmsTrackerPage() {
                 <RangePicker
                   value={exportCustomDates}
                   onChange={setExportCustomDates}
-                  style={{ width: '100%', borderRadius: 8, height: 36 }}
+                  style={{ width: '100%', borderRadius: "var(--radius-md)", height: 36 }}
                 />
               </div>
             )}
@@ -1387,8 +1387,8 @@ export default function GmsTrackerPage() {
 
           {/* Brand Filtering Options */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: 4, fontSize: 9 }}>03</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>03</span>
               BRAND / SELLER FILTER
             </div>
             <Radio.Group
@@ -1399,7 +1399,7 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportBrandType === 'all' ? 'active' : ''}`} onClick={() => setExportBrandType('all')}>
                 <Radio value="all">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>All Brands / Sellers</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>All Brands / Sellers</div>
                     <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Export records for all sellers and brands without filtering</div>
                   </div>
                 </Radio>
@@ -1407,10 +1407,10 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportBrandType === 'current' ? 'active' : ''}`} onClick={() => setExportBrandType('current')}>
                 <Radio value="current">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>
                       Currently Selected Page Brands
                       {selectedBrands.length > 0 && (
-                        <span style={{ color: '#1976D2', fontWeight: 700, marginLeft: 6, fontSize: 11 }}>
+                        <span style={{ color: '#1976D2', fontWeight: 600, marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>
                           ({selectedBrands.length} selected)
                         </span>
                       )}
@@ -1422,7 +1422,7 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportBrandType === 'custom' ? 'active' : ''}`} onClick={() => setExportBrandType('custom')}>
                 <Radio value="custom">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>Custom Selected Brands</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>Custom Selected Brands</div>
                     <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Manually choose one or more specific brands/sellers to export</div>
                   </div>
                 </Radio>
@@ -1436,7 +1436,7 @@ export default function GmsTrackerPage() {
                   placeholder="Select custom brands to export"
                   value={exportCustomBrands}
                   onChange={setExportCustomBrands}
-                  style={{ width: '100%', borderRadius: 8 }}
+                  style={{ width: '100%', borderRadius: "var(--radius-md)" }}
                   allowClear
                   maxTagCount="responsive"
                   showSearch
@@ -1449,14 +1449,14 @@ export default function GmsTrackerPage() {
 
           {/* Footer buttons */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
-            <Button onClick={() => setIsExportOpen(false)} style={{ borderRadius: 8, fontSize: 12, fontWeight: 600, height: 34 }}>
+            <Button onClick={() => setIsExportOpen(false)} style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', fontWeight: 600, height: 34 }}>
               Cancel
             </Button>
             <Button
               type="primary"
               icon={<DownloadOutlined />}
               onClick={handleExport}
-              style={{ borderRadius: 8, fontWeight: 600, fontSize: 12, height: 34 }}
+              style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 34 }}
             >
               Export to {exportFileType === 'csv' ? 'CSV' : 'Excel'}
             </Button>

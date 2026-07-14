@@ -33,7 +33,7 @@ const StepIndicator = ({ current }) => (
               background: done ? '#2E7D32' : active ? '#1976D2' : '#f1f5f9',
               color: done || active ? '#ffffff' : '#94a3b8',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, fontSize: 13,
+              fontWeight: 800, fontSize: 'var(--font-size-sm)',
               border: `2px solid ${done ? '#2E7D32' : active ? '#1976D2' : '#e2e8f0'}`,
               transition: 'all 0.3s',
               boxShadow: active ? '0 4px 12px -2px rgba(99,102,241,0.4)' : 'none'
@@ -41,7 +41,7 @@ const StepIndicator = ({ current }) => (
               {done ? <Check size={16} strokeWidth={2.5} /> : <StepIcon size={15} strokeWidth={2.5} />}
             </div>
             <span style={{
-              fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+              fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
               color: done ? '#2E7D32' : active ? '#1976D2' : '#94a3b8'
             }}>{step.label}</span>
           </div>
@@ -74,7 +74,7 @@ const Step1Brand = ({ sellers, selectedSeller, onSelect }) => {
   return (
     <div>
       <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Select Brand / Seller</h3>
-      <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>Choose the seller account to create brand-level optimization tasks for.</p>
+      <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 16 }}>Choose the seller account to create brand-level optimization tasks for.</p>
 
       <div style={{ position: 'relative', marginBottom: 12 }}>
         <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
@@ -82,13 +82,13 @@ const Step1Brand = ({ sellers, selectedSeller, onSelect }) => {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search brands..."
-          style={{ width: '100%', padding: '8px 10px 8px 30px', fontSize: 12, fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '8px 10px 8px 30px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
         />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8', fontSize: 12 }}>No brands found</div>
+          <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>No brands found</div>
         )}
         {filtered.map(seller => {
           const sid = seller._id || seller.id;
@@ -99,7 +99,7 @@ const Step1Brand = ({ sellers, selectedSeller, onSelect }) => {
               onClick={() => onSelect(seller)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
+                padding: '12px 16px', borderRadius: "var(--radius-lg)", cursor: 'pointer',
                 border: `2px solid ${isSelected ? '#1976D2' : '#e2e8f0'}`,
                 background: isSelected ? '#f5f3ff' : '#ffffff',
                 transition: 'all 0.2s'
@@ -117,8 +117,8 @@ const Step1Brand = ({ sellers, selectedSeller, onSelect }) => {
                 <Building2 size={18} strokeWidth={2.5} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{seller.name || 'Unknown'}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>{seller.name || 'Unknown'}</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
                   {seller.marketplace && <span>{seller.marketplace}</span>}
                   {seller.managers?.length > 0 && (
                     <span style={{ marginLeft: 8 }}>• {seller.managers.map(m => `${m.firstName || ''} ${m.lastName || ''}`.trim()).filter(Boolean).join(', ')}</span>
@@ -167,7 +167,7 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
   return (
     <div>
       <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Select ASINs</h3>
-      <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+      <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 12 }}>
         Choose which ASINs from <strong>{seller?.name}</strong> need optimization. ({selectedAsins.length} selected)
       </p>
 
@@ -178,13 +178,13 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search ASIN or title..."
-            style={{ width: '100%', padding: '7px 10px 7px 30px', fontSize: 12, fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '7px 10px 7px 30px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
         <button
           onClick={() => onSelectAll(filtered, !allSelected)}
           style={{
-            padding: '7px 14px', fontSize: 11, fontWeight: 700, borderRadius: 10, cursor: 'pointer',
+            padding: '7px 14px', fontSize: 'var(--font-size-xs)', fontWeight: 600, borderRadius: 10, cursor: 'pointer',
             border: `1.5px solid ${allSelected ? '#D32F2F' : '#1976D2'}`,
             background: allSelected ? '#fef2f2' : '#f5f3ff',
             color: allSelected ? '#D32F2F' : '#1976D2'
@@ -195,17 +195,17 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8', fontSize: 12 }}>
+        <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
           {sellerAsins.length === 0 ? `No ASINs found for ${seller?.name}` : 'No ASINs match search'}
         </div>
       ) : (
-        <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '8px 12px', width: 40, textAlign: 'center' }}></th>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#475569' }}>ASIN</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#475569' }}>Title</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>ASIN</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Title</th>
               </tr>
             </thead>
             <tbody>
@@ -235,7 +235,7 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
                       </div>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <code style={{ fontSize: 11, fontWeight: 700, color: '#1976D2', background: '#f0f0ff', padding: '2px 7px', borderRadius: 5 }}>
+                      <code style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#1976D2', background: '#f0f0ff', padding: '2px 7px', borderRadius: 5 }}>
                         {asin.asinCode || asin.asin || id}
                       </code>
                     </td>
@@ -263,7 +263,7 @@ const Step3Tasks = ({ selectedTypes, onToggle }) => {
   return (
     <div>
       <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Optimization Categories</h3>
-      <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+      <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 16 }}>
         Select which types of optimization this brand needs. One task will be created per selected category.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -276,7 +276,7 @@ const Step3Tasks = ({ selectedTypes, onToggle }) => {
               onClick={() => onToggle(type.key)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
+                padding: '14px 16px', borderRadius: "var(--radius-lg)", cursor: 'pointer',
                 border: `2px solid ${isSelected ? type.color : '#e2e8f0'}`,
                 background: isSelected ? type.bg : '#ffffff',
                 transition: 'all 0.2s', userSelect: 'none'
@@ -292,7 +292,7 @@ const Step3Tasks = ({ selectedTypes, onToggle }) => {
                 <TypeIcon size={17} strokeWidth={2} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? type.color : '#1e293b' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: isSelected ? type.color : '#1e293b' }}>
                   {type.label}
                 </div>
                 <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
@@ -323,19 +323,19 @@ const Step3Tasks = ({ selectedTypes, onToggle }) => {
 const Step4Assign = ({ users, sellers, formData, onChange }) => (
   <div>
     <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Assignment & Schedule</h3>
-    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>Assign tasks and set deadlines. These settings apply to all created tasks.</p>
+    <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 16 }}>Assign tasks and set deadlines. These settings apply to all created tasks.</p>
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Task title template */}
       <div>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <label style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Task Title Prefix
         </label>
         <input
           value={formData.titlePrefix}
           onChange={e => onChange('titlePrefix', e.target.value)}
           placeholder="e.g. Q3 Optimization —"
-          style={{ width: '100%', padding: '10px 12px', fontSize: 13, fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
         />
         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
           Tasks will be named: "{formData.titlePrefix || '[Prefix]'} — Title Optimization" etc.
@@ -344,7 +344,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
 
       {/* Priority */}
       <div>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <label style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Priority
         </label>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -358,7 +358,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
               key={p.key}
               onClick={() => onChange('priority', p.key)}
               style={{
-                flex: 1, padding: '8px 0', fontSize: 11, fontWeight: 700, borderRadius: 10, cursor: 'pointer',
+                flex: 1, padding: '8px 0', fontSize: 'var(--font-size-xs)', fontWeight: 600, borderRadius: 10, cursor: 'pointer',
                 border: `2px solid ${formData.priority === p.key ? p.color : '#e2e8f0'}`,
                 background: formData.priority === p.key ? p.bg : '#ffffff',
                 color: formData.priority === p.key ? p.color : '#64748b', transition: 'all 0.2s'
@@ -372,13 +372,13 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
 
       {/* Assigned To */}
       <div>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <label style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Assign To
         </label>
         <select
           value={formData.assignedTo}
           onChange={e => onChange('assignedTo', e.target.value)}
-          style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none' }}
         >
           <option value="">Unassigned</option>
           {users.map(u => (
@@ -391,7 +391,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
 
       {/* Deadline */}
       <div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           <Calendar size={11} /> Deadline
         </label>
         <DatePicker
@@ -407,7 +407,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
 
       {/* Description */}
       <div>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <label style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Notes / Instructions
         </label>
         <textarea
@@ -415,7 +415,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
           onChange={e => onChange('description', e.target.value)}
           placeholder="Add detailed instructions for the assignee..."
           rows={3}
-          style={{ width: '100%', padding: '10px 12px', fontSize: 12, borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#ffffff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
         />
       </div>
     </div>
@@ -432,38 +432,38 @@ const Step5Review = ({ seller, selectedAsins, selectedTypes, formData, asins }) 
   return (
     <div>
       <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Review & Create Tasks</h3>
-      <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+      <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 16 }}>
         <strong>{selectedTypes.length} tasks</strong> will be created for <strong>{seller?.name}</strong> with <strong>{selectedAsins.length} ASINs</strong> each.
       </p>
 
       {/* Summary card */}
-      <div style={{ background: '#f5f3ff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+      <div style={{ background: '#f5f3ff', border: '1.5px solid #ddd6fe', borderRadius: "var(--radius-lg)", padding: '14px 16px', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Brand</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{seller?.name}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Brand</div>
+            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 800, color: '#0f172a' }}>{seller?.name}</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Priority</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{formData.priority}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Priority</div>
+            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 800, color: '#0f172a' }}>{formData.priority}</div>
           </div>
           {formData.deadline && (
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Deadline</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{formData.deadline.toLocaleDateString()}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Deadline</div>
+              <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 800, color: '#0f172a' }}>{formData.deadline.toLocaleDateString()}</div>
             </div>
           )}
           {formData.assignedTo && (
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Assigned To</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>User selected</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#9C27B0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Assigned To</div>
+              <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 800, color: '#0f172a' }}>User selected</div>
             </div>
           )}
         </div>
       </div>
 
       {/* Tasks to be created */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+      <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
         Tasks to be created ({types.length})
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
@@ -473,16 +473,16 @@ const Step5Review = ({ seller, selectedAsins, selectedTypes, formData, asins }) 
             padding: '10px 14px', borderRadius: 10,
             background: cfg.bg, border: `1px solid ${cfg.border}`
           }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: `${cfg.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: `${cfg.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
               <cfg.icon size={14} strokeWidth={2} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>
                 {formData.titlePrefix ? `${formData.titlePrefix} — ` : ''}{cfg.label}
               </div>
               <div style={{ fontSize: 10, color: '#64748b' }}>{selectedAsins.length} ASINs attached</div>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, background: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, background: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: "var(--radius-md)" }}>
               PENDING
             </span>
           </div>
@@ -490,13 +490,13 @@ const Step5Review = ({ seller, selectedAsins, selectedTypes, formData, asins }) 
       </div>
 
       {/* ASIN preview */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+      <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
         ASINs Included ({asinDatas.length})
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 100, overflowY: 'auto' }}>
         {asinDatas.map((asin, i) => (
           <code key={i} style={{
-            fontSize: 11, fontWeight: 700, color: '#1976D2',
+            fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#1976D2',
             background: '#f0f0ff', border: '1px solid #c7d2fe',
             padding: '3px 8px', borderRadius: 6
           }}>
@@ -633,8 +633,8 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
                 <Building2 size={20} strokeWidth={2.5} />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Brand Task Wizard</h2>
-                <p style={{ margin: 0, fontSize: 11, color: '#9C27B0' }}>Create optimization tasks grouped by brand</p>
+                <h2 style={{ margin: 0, fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a' }}>Brand Task Wizard</h2>
+                <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: '#9C27B0' }}>Create optimization tasks grouped by brand</p>
               </div>
             </div>
             <button onClick={onClose} style={{ padding: 8, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', color: '#64748b', display: 'flex' }}>
@@ -647,7 +647,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, marginBottom: 16, fontSize: 12, color: '#D32F2F' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, marginBottom: 16, fontSize: 'var(--font-size-sm)', color: '#D32F2F' }}>
               <AlertCircle size={14} /> {error}
             </div>
           )}
@@ -671,7 +671,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: '9px 16px', background: '#ffffff', color: '#64748b',
               border: '1.5px solid #e2e8f0', borderRadius: 10,
-              fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+              fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
             <ChevronLeft size={14} /> {step > 1 ? 'Back' : 'Cancel'}
@@ -696,7 +696,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
                 padding: '9px 20px',
                 background: canNext() ? 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)' : '#f1f5f9',
                 color: canNext() ? '#ffffff' : '#94a3b8',
-                border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                border: 'none', borderRadius: 10, fontSize: 'var(--font-size-sm)', fontWeight: 600,
                 cursor: canNext() ? 'pointer' : 'not-allowed',
                 boxShadow: canNext() ? '0 4px 12px -2px rgba(99,102,241,0.4)' : 'none',
                 transition: 'all 0.2s'
@@ -713,7 +713,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
                 padding: '9px 20px',
                 background: saving ? '#f1f5f9' : 'linear-gradient(135deg, #2E7D32 0%, #2E7D32 100%)',
                 color: saving ? '#94a3b8' : '#ffffff',
-                border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                border: 'none', borderRadius: 10, fontSize: 'var(--font-size-sm)', fontWeight: 600,
                 cursor: saving ? 'not-allowed' : 'pointer',
                 boxShadow: saving ? 'none' : '0 4px 12px -2px rgba(16,185,129,0.4)',
                 transition: 'all 0.2s'

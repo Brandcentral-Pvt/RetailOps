@@ -15,11 +15,11 @@ export function LoadError({ message = 'Failed to load data', onRetry, style }) {
       marginBottom: 16,
       ...style 
     }}>
-      <WarningOutlined style={{ fontSize: 24, color: '#C62828', marginBottom: 8 }} />
-      <Text style={{ fontSize: 13, fontWeight: 600, color: '#C62828', display: 'block', marginBottom: 4 }}>
+      <WarningOutlined style={{ fontSize: 'var(--font-size-2xl)', color: '#C62828', marginBottom: 8 }} />
+      <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#C62828', display: 'block', marginBottom: 4 }}>
         {message}
       </Text>
-      <Text style={{ fontSize: 12, color: '#71717a', display: 'block', marginBottom: 12 }}>
+      <Text style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', display: 'block', marginBottom: 12 }}>
         Something went wrong while loading the data
       </Text>
       {onRetry && (
@@ -45,15 +45,15 @@ export function EmptyState({ title = 'No Data', description, action, icon: Icon,
       ...style 
     }}>
       {Icon && (
-        <div style={{ width: 56, height: 56, borderRadius: 12, background: '#f4f4f5', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+        <div style={{ width: 56, height: 56, borderRadius: "var(--radius-lg)", background: '#f4f4f5', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
           <Icon size={24} color="#a1a1aa" />
         </div>
       )}
-      <Text style={{ fontSize: 14, fontWeight: 600, color: '#18181b', display: 'block', marginBottom: 4 }}>
+      <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b', display: 'block', marginBottom: 4 }}>
         {title}
       </Text>
       {description && (
-        <Text style={{ fontSize: 12, color: '#71717a', display: 'block', marginBottom: 12 }}>
+        <Text style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', display: 'block', marginBottom: 12 }}>
           {description}
         </Text>
       )}

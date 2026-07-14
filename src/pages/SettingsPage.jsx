@@ -62,8 +62,8 @@ const SectionCard = ({ icon: Icon, iconColor = '#475569', title, children, extra
                         <Icon size={14} strokeWidth={2} />
                     </div>
                     <span style={{
-                        fontSize: 13,
-                        fontWeight: 700,
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: 600,
                         color: '#0f172a',
                         letterSpacing: '-0.01em'
                     }}>
@@ -80,8 +80,8 @@ const SectionCard = ({ icon: Icon, iconColor = '#475569', title, children, extra
 
 const FieldLabel = ({ children }) => (
     <div style={{
-        fontSize: 11,
-        fontWeight: 700,
+        fontSize: 'var(--font-size-xs)',
+        fontWeight: 600,
         color: '#475569',
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
@@ -93,7 +93,7 @@ const FieldLabel = ({ children }) => (
 
 const FieldHelp = ({ children }) => (
     <Text style={{
-        fontSize: 11,
+        fontSize: 'var(--font-size-xs)',
         display: 'block',
         marginTop: 5,
         color: '#94a3b8',
@@ -118,12 +118,12 @@ const ToggleRow = ({ title, description, checked, onChange }) => (
             <div style={{
                 fontWeight: 600,
                 color: '#0f172a',
-                fontSize: 13,
+                fontSize: 'var(--font-size-sm)',
                 marginBottom: 2
             }}>
                 {title}
             </div>
-            <div style={{ color: '#64748b', fontSize: 11, fontWeight: 500 }}>
+            <div style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>
                 {description}
             </div>
         </div>
@@ -204,7 +204,7 @@ const SettingsPage = () => {
                 message: 'Configuration Saved',
                 description: 'All settings have been updated successfully.',
                 placement: 'topRight',
-                icon: <CheckCircle2 size={20} style={{ color: '#15803d' }} />
+                icon: <CheckCircle2 size={20} style={{ color: '#2E7D32' }} />
             });
         } catch (error) {
             notificationApi.error({
@@ -410,14 +410,14 @@ const SettingsPage = () => {
                                         icon={<RefreshCw size={13} strokeWidth={2} className={testingOctoparse ? 'spin-animation' : ''} />}
                                         loading={testingOctoparse}
                                         onClick={handleTestOctoparse}
-                                        style={{ borderRadius: 6, fontWeight: 600, fontSize: 12, height: 34 }}
+                                        style={{ borderRadius: 6, fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 34 }}
                                     >
                                         Test Connection
                                     </Button>
                                     {testResult && (
                                         <Tag
                                             color={testResult.success ? 'success' : 'error'}
-                                            style={{ borderRadius: 4, padding: '3px 10px', border: 'none', fontWeight: 600, fontSize: 11 }}
+                                            style={{ borderRadius: "var(--radius-sm)", padding: '3px 10px', border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}
                                         >
                                             {testResult.message}
                                         </Tag>
@@ -429,7 +429,7 @@ const SettingsPage = () => {
 
                     {/* SMTP Configuration */}
                     <SectionCard icon={Mail} iconColor="#b91c1c" title="SMTP Configuration">
-                        <Paragraph style={{ color: '#64748b', fontSize: 12, marginBottom: 16 }}>
+                        <Paragraph style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', marginBottom: 16 }}>
                             Configure mail relay for outbound notifications, reports, and security alerts.
                         </Paragraph>
                         <Row gutter={[16, 16]}>
@@ -485,7 +485,7 @@ const SettingsPage = () => {
                                 <Button
                                     icon={<Send size={13} strokeWidth={2} />}
                                     onClick={() => setEmailModalVisible(true)}
-                                    style={{ borderRadius: 6, fontWeight: 600, fontSize: 12, height: 34 }}
+                                    style={{ borderRadius: 6, fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 34 }}
                                 >
                                     Send Test Email
                                 </Button>
@@ -514,7 +514,7 @@ const SettingsPage = () => {
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF9900', display: 'inline-block' }} />
-                                            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13 }}>Amazon</span>
+                                            <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Amazon</span>
                                         </div>
                                         <Switch
                                             size="small"
@@ -543,7 +543,7 @@ const SettingsPage = () => {
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0891b2', display: 'inline-block' }} />
-                                            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13 }}>AJIO</span>
+                                            <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>AJIO</span>
                                         </div>
                                         <Switch
                                             size="small"
@@ -579,7 +579,7 @@ const SettingsPage = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9C27B0', display: 'inline-block' }} />
-                                        <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 13 }}>Live Sync</span>
+                                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Live Sync</span>
                                     </div>
                                     <Switch
                                         size="small"
@@ -616,7 +616,7 @@ const SettingsPage = () => {
 
                     {/* Catalog Quality Thresholds */}
                     <SectionCard icon={Sliders} iconColor="#6d28d9" title="Catalog Quality Thresholds">
-                        <Paragraph style={{ color: '#64748b', fontSize: 12, marginBottom: 16 }}>
+                        <Paragraph style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', marginBottom: 16 }}>
                             Listing Quality Score (LQS) engine thresholds. ASINs below these values trigger automatic review alerts.
                         </Paragraph>
                         <Row gutter={[16, 16]}>
@@ -663,7 +663,7 @@ const SettingsPage = () => {
                     </SectionCard>
 
                     {/* Notifications */}
-                    <SectionCard icon={Bell} iconColor="#15803d" title="Notifications">
+                    <SectionCard icon={Bell} iconColor="#2E7D32" title="Notifications">
                         <Space orientation="vertical" size={10} style={{ width: '100%' }}>
                             <ToggleRow
                                 title="In-App Notifications"
@@ -688,17 +688,17 @@ const SettingsPage = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             <div>
                                 <div style={{
-                                    fontSize: 11, color: '#64748b', fontWeight: 600,
+                                    fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600,
                                     textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4
                                 }}>
                                     License Tier
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Enterprise</span>
+                                    <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>Enterprise</span>
                                     <Tag style={{
-                                        margin: 0, background: '#f0fdf4', color: '#15803d',
-                                        border: '1px solid #bbf7d0', fontWeight: 700, fontSize: 10,
-                                        borderRadius: 4, padding: '1px 8px', textTransform: 'uppercase'
+                                        margin: 0, background: '#f0fdf4', color: '#2E7D32',
+                                        border: '1px solid #bbf7d0', fontWeight: 600, fontSize: 10,
+                                        borderRadius: "var(--radius-sm)", padding: '1px 8px', textTransform: 'uppercase'
                                     }}>
                                         Active
                                     </Tag>
@@ -707,24 +707,24 @@ const SettingsPage = () => {
                             <Divider style={{ margin: '4px 0' }} />
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>API Usage</span>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>0 / 10</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>API Usage</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>0 / 10</span>
                                 </div>
                                 <Progress percent={0} strokeColor="#1e293b" showInfo={false} strokeWidth={6} style={{ margin: 0 }} />
                             </div>
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Catalog ASINs</span>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>6 / 1,000</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Catalog ASINs</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>6 / 1,000</span>
                                 </div>
-                                <Progress percent={0.6} strokeColor="#15803d" showInfo={false} strokeWidth={6} style={{ margin: 0 }} />
+                                <Progress percent={0.6} strokeColor="#2E7D32" showInfo={false} strokeWidth={6} style={{ margin: 0 }} />
                             </div>
                         </div>
                     </SectionCard>
 
                     {/* XPath Reference */}
                     <SectionCard icon={Terminal} title="XPath Reference">
-                        <Paragraph style={{ fontSize: 11, color: '#64748b', marginBottom: 14 }}>
+                        <Paragraph style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginBottom: 14 }}>
                             Standard extraction selectors for Octoparse configuration:
                         </Paragraph>
                         <List
@@ -733,7 +733,7 @@ const SettingsPage = () => {
                             renderItem={item => (
                                 <div style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 12 }}>{item.title}</span>
+                                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>{item.title}</span>
                                         <Tooltip title="Copy XPath">
                                             <Button
                                                 type="text"
@@ -778,7 +778,7 @@ const SettingsPage = () => {
 
             {/* SAVE FOOTER (Bottom of page) */}
             <div className="save-footer">
-                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500, marginRight: 'auto' }}>
+                <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 500, marginRight: 'auto' }}>
                     All changes require saving to take effect
                 </span>
                 <Button
@@ -786,7 +786,7 @@ const SettingsPage = () => {
                     style={{
                         borderRadius: 6,
                         fontWeight: 600,
-                        fontSize: 12,
+                        fontSize: 'var(--font-size-sm)',
                         height: 38,
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -804,7 +804,7 @@ const SettingsPage = () => {
                     style={{
                         background: '#1e293b',
                         borderColor: '#1e293b',
-                        fontSize: 12,
+                        fontSize: 'var(--font-size-sm)',
                         fontWeight: 600,
                         borderRadius: 6,
                         height: 38,
@@ -830,7 +830,7 @@ const SettingsPage = () => {
                         }}>
                             <Send size={14} strokeWidth={2} />
                         </div>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                        <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>
                             Test SMTP Configuration
                         </span>
                     </div>
@@ -841,7 +841,7 @@ const SettingsPage = () => {
                     <Button
                         key="cancel"
                         onClick={() => setEmailModalVisible(false)}
-                        style={{ borderRadius: 6, fontWeight: 600, fontSize: 12 }}
+                        style={{ borderRadius: 6, fontWeight: 600, fontSize: 'var(--font-size-sm)' }}
                     >
                         Cancel
                     </Button>,
@@ -852,7 +852,7 @@ const SettingsPage = () => {
                         onClick={handleSendTestEmail}
                         icon={<Send size={12} strokeWidth={2} />}
                         style={{
-                            borderRadius: 6, fontWeight: 600, fontSize: 12,
+                            borderRadius: 6, fontWeight: 600, fontSize: 'var(--font-size-sm)',
                             background: '#1e293b', borderColor: '#1e293b',
                             display: 'inline-flex', alignItems: 'center', gap: 6
                         }}
@@ -864,7 +864,7 @@ const SettingsPage = () => {
                 centered
             >
                 <div style={{ padding: '8px 0' }}>
-                    <Paragraph style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
+                    <Paragraph style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 14 }}>
                         Send a test email to verify SMTP relay configuration.
                     </Paragraph>
                     <FieldLabel>Recipient Email</FieldLabel>

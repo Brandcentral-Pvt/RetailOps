@@ -126,7 +126,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
         const formattedDate = format(new Date(record.createdAt), 'dd MMM yyyy, HH:mm');
         return (
           <Space orientation="vertical" size={4} style={{ width: '100%' }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#434343' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#434343' }}>
               <Clock size={12} className="me-1 text-muted" style={{ display: 'inline', verticalAlign: 'middle' }} />
               {formattedDate}
             </span>
@@ -140,7 +140,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
                   {(record.user.firstName || record.userName || 'U')[0].toUpperCase()}
                 </Avatar>
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
-                  <Typography.Text strong style={{ fontSize: '11px' }}>
+                  <Typography.Text strong style={{ fontSize: 'var(--font-size-xs)' }}>
                     {`${record.user.firstName || ''} ${record.user.lastName || ''}`.trim() || record.userName}
                   </Typography.Text>
                   <Typography.Text type="secondary" style={{ fontSize: '9px' }}>
@@ -150,7 +150,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
                 </div>
               </div>
             ) : (
-              <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: '#8c8c8c' }}>
                 <User size={12} className="me-1" style={{ display: 'inline', verticalAlign: 'middle' }} />
                 {record.userName}
               </span>
@@ -200,7 +200,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
             </Tag>
           ))}
           {record.addedTags?.length === 0 && record.removedTags?.length === 0 && (
-            <span style={{ color: '#bfbfbf', fontStyle: 'italic', fontSize: '11px' }}>No visible tag changes</span>
+            <span style={{ color: '#bfbfbf', fontStyle: 'italic', fontSize: 'var(--font-size-xs)' }}>No visible tag changes</span>
           )}
         </div>
       )
@@ -223,10 +223,10 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
       title={
         <Space>
           <History size={18} className="text-indigo-600" />
-          <Typography.Text strong style={{ fontSize: '16px' }}>
+          <Typography.Text strong style={{ fontSize: 'var(--font-size-lg)' }}>
             Tags Audit Trail
           </Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: '13px', fontWeight: 'normal' }}>
+          <Typography.Text type="secondary" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'normal' }}>
             (ASIN: {asinCode})
           </Typography.Text>
         </Space>
@@ -248,7 +248,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
             <Col span={18}>
               <Card
                 size="small"
-                title={<span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#8c8c8c', fontWeight: 'bold' }}>Current Tags</span>}
+                title={<span style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: '#8c8c8c', fontWeight: 'bold' }}>Current Tags</span>}
                 style={{ background: '#fafafa', height: '100%' }}
               >
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -265,7 +265,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
                             color: hex,
                             borderRadius: '6px',
                             padding: '2px 8px',
-                            fontSize: '11px',
+                            fontSize: 'var(--font-size-xs)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px'
@@ -277,7 +277,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
                       );
                     })
                   ) : (
-                    <Typography.Text type="secondary" italic style={{ fontSize: '12px' }}>
+                    <Typography.Text type="secondary" italic style={{ fontSize: 'var(--font-size-sm)' }}>
                       No tags assigned
                     </Typography.Text>
                   )}
@@ -287,7 +287,7 @@ const TagsHistoryModal = ({ isOpen, onClose, asinId, asinCode }) => {
             <Col span={6}>
               <Card
                 size="small"
-                title={<span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#ffffff', fontWeight: 'bold' }}>Total Changes</span>}
+                title={<span style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: '#ffffff', fontWeight: 'bold' }}>Total Changes</span>}
                 style={{ background: '#1976D2', color: '#ffffff', textAlign: 'center', height: '100%' }}
                 headStyle={{ borderBottom: 'none' }}
               >

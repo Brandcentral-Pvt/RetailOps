@@ -183,7 +183,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
             </div>
             <div>
               <h5 className="mb-0 fw-bold text-zinc-900">Bulk Tags Update</h5>
-              <span className="text-zinc-500" style={{ fontSize: '12px' }}>
+              <span className="text-zinc-500" style={{ fontSize: 'var(--font-size-sm)' }}>
                 <Package size={12} className="me-1" />
                 {selectedAsins.length} ASIN{selectedAsins.length !== 1 ? 's' : ''} selected
               </span>
@@ -205,13 +205,13 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
               <div className="d-flex align-items-center gap-2">
                 <div className={`rounded-circle d-flex align-items-center justify-content-center fw-bold`}
                   style={{ 
-                    width: '28px', height: '28px', fontSize: '12px',
+                    width: '28px', height: '28px', fontSize: 'var(--font-size-sm)',
                     background: step === s.num ? '#18181b' : step > s.num ? '#2E7D32' : '#f3f4f6',
                     color: step === s.num ? 'white' : step > s.num ? 'white' : '#9ca3af'
                   }}>
                   {step > s.num ? '✓' : s.num}
                 </div>
-                <span className={`fw-bold ${step >= s.num ? 'text-zinc-800' : 'text-zinc-400'}`} style={{ fontSize: '11px' }}>
+                <span className={`fw-bold ${step >= s.num ? 'text-zinc-800' : 'text-zinc-400'}`} style={{ fontSize: 'var(--font-size-xs)' }}>
                   {s.label}
                 </span>
               </div>
@@ -225,7 +225,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
           {step === 1 && (
             <div className="p-5">
               {/* Action Selection */}
-              <label className="fw-bold text-zinc-800 mb-3 d-block" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label className="fw-bold text-zinc-800 mb-3 d-block" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Choose Action
               </label>
               <div className="d-flex gap-3 mb-4">
@@ -240,7 +240,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                     onClick={() => { setAction(opt.value); setError(null); }}
                   >
                     <div className="mb-1">{opt.icon}</div>
-                    <div className="fw-bold" style={{ fontSize: '12px' }}>{opt.title}</div>
+                    <div className="fw-bold" style={{ fontSize: 'var(--font-size-sm)' }}>{opt.title}</div>
                     <div className="action-desc text-zinc-400" style={{ fontSize: '10px', marginTop: '2px' }}>{opt.desc}</div>
                   </button>
                 ))}
@@ -266,7 +266,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
               )}
 
               {/* Custom Tag Input */}
-              <label className="fw-bold text-zinc-800 mb-2 d-block" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label className="fw-bold text-zinc-800 mb-2 d-block" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Create Custom Tag
               </label>
               <div className="d-flex gap-2 mb-3">
@@ -277,10 +277,10 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                   value={customInput}
                   onChange={e => setCustomInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
-                  style={{ fontSize: '12px', height: '40px', border: '1.5px solid #e5e7eb' }}
+                  style={{ fontSize: 'var(--font-size-sm)', height: '40px', border: '1.5px solid #e5e7eb' }}
                 />
                 <button className="btn btn-dark d-flex align-items-center gap-1 rounded-3 px-4" onClick={addCustomTag}
-                  style={{ fontSize: '12px', background: '#18181b', whiteSpace: 'nowrap' }}>
+                  style={{ fontSize: 'var(--font-size-sm)', background: '#18181b', whiteSpace: 'nowrap' }}>
                   <Plus size={14} /> Add
                 </button>
               </div>
@@ -294,7 +294,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                   placeholder="Search predefined tags..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{ fontSize: '12px', height: '40px', border: '1.5px solid #e5e7eb' }}
+                  style={{ fontSize: 'var(--font-size-sm)', height: '40px', border: '1.5px solid #e5e7eb' }}
                 />
               </div>
 
@@ -315,7 +315,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                       const color = getTagColor(tag);
                       return (
                         <span key={idx} className="badge d-flex align-items-center gap-1.5 shadow-sm"
-                          style={{ backgroundColor: color.bg, color: color.text, border: 'none', fontSize: '10px', padding: '5px 12px', borderRadius: '8px', fontWeight: 700 }}>
+                          style={{ backgroundColor: color.bg, color: color.text, border: 'none', fontSize: '10px', padding: '5px 12px', borderRadius: 'var(--radius-md)', fontWeight: 600 }}>
                           <Tag size={10} className="opacity-70" />
                           {tag}
                           <X size={12} className="ms-1" style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))} />
@@ -356,21 +356,21 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                 <Layers size={40} className="text-indigo-600" />
               </div>
               <h5 className="fw-bold mb-2">Ready to Apply</h5>
-              <p className="text-zinc-500 mb-4" style={{ fontSize: '13px' }}>
+              <p className="text-zinc-500 mb-4" style={{ fontSize: 'var(--font-size-sm)' }}>
                 This will <strong>{action}</strong> the following tags {action === 'add' ? 'to' : action === 'remove' ? 'from' : 'on'} <strong>{selectedAsins.length} ASINs</strong>
               </p>
               <div className="d-flex flex-wrap gap-2 justify-content-center mb-4">
                 {selectedTags.map((tag, idx) => {
                   const color = getTagColor(tag);
                   return (
-                    <span key={idx} className="badge shadow-sm" style={{ backgroundColor: color.bg, color: color.text, border: 'none', fontSize: '12px', padding: '8px 16px', borderRadius: '10px', fontWeight: 700 }}>
+                    <span key={idx} className="badge shadow-sm" style={{ backgroundColor: color.bg, color: color.text, border: 'none', fontSize: 'var(--font-size-sm)', padding: '8px 16px', borderRadius: '10px', fontWeight: 600 }}>
                       {tag}
                     </span>
                   );
                 })}
               </div>
               {action === 'replace' && (
-                <div className="alert alert-warning rounded-3 text-start" style={{ fontSize: '12px' }}>
+                <div className="alert alert-warning rounded-3 text-start" style={{ fontSize: 'var(--font-size-sm)' }}>
                   <AlertCircle size={14} className="me-1" />
                   <strong>Replace</strong> will remove all existing tags and set only the selected ones.
                 </div>
@@ -387,16 +387,16 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
               <h5 className="fw-bold mb-2">Tags Updated!</h5>
               <div className="d-flex gap-4 justify-content-center mt-3">
                 <div className="text-center">
-                  <div className="fw-bold text-success" style={{ fontSize: '24px' }}>{result.updated}</div>
-                  <div className="text-zinc-400" style={{ fontSize: '11px' }}>Updated</div>
+                  <div className="fw-bold text-success" style={{ fontSize: 'var(--font-size-2xl)' }}>{result.updated}</div>
+                  <div className="text-zinc-400" style={{ fontSize: 'var(--font-size-xs)' }}>Updated</div>
                 </div>
                 <div className="text-center">
-                  <div className="fw-bold text-zinc-400" style={{ fontSize: '24px' }}>{result.skipped || 0}</div>
-                  <div className="text-zinc-400" style={{ fontSize: '11px' }}>Unchanged</div>
+                  <div className="fw-bold text-zinc-400" style={{ fontSize: 'var(--font-size-2xl)' }}>{result.skipped || 0}</div>
+                  <div className="text-zinc-400" style={{ fontSize: 'var(--font-size-xs)' }}>Unchanged</div>
                 </div>
                 <div className="text-center">
-                  <div className="fw-bold text-zinc-900" style={{ fontSize: '24px' }}>{result.total}</div>
-                  <div className="text-zinc-400" style={{ fontSize: '11px' }}>Total</div>
+                  <div className="fw-bold text-zinc-900" style={{ fontSize: 'var(--font-size-2xl)' }}>{result.total}</div>
+                  <div className="text-zinc-400" style={{ fontSize: 'var(--font-size-xs)' }}>Total</div>
                 </div>
               </div>
             </div>
@@ -405,48 +405,48 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
 
         {/* Error */}
         {error && (
-          <div className="px-5 py-2 bg-danger-subtle text-danger d-flex align-items-center gap-2" style={{ fontSize: '12px' }}>
+          <div className="px-5 py-2 bg-danger-subtle text-danger d-flex align-items-center gap-2" style={{ fontSize: 'var(--font-size-sm)' }}>
             <AlertCircle size={14} /> {error}
           </div>
         )}
 
         {/* Footer */}
         <div className="px-5 py-4 border-top bg-white d-flex justify-content-between align-items-center">
-          <span className="text-zinc-400" style={{ fontSize: '11px' }}>
+          <span className="text-zinc-400" style={{ fontSize: 'var(--font-size-xs)' }}>
             {selectedAsins.length} ASINs selected
           </span>
           <div className="d-flex gap-3">
             {step === 1 && (
               <>
-                <button className="btn btn-outline-secondary fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: '13px', height: '42px' }}>
+                <button className="btn btn-outline-secondary fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: 'var(--font-size-sm)', height: '42px' }}>
                   Cancel
                 </button>
                 <button 
                   className="btn btn-dark fw-bold rounded-3 px-5 d-flex align-items-center gap-2"
                   onClick={() => setStep(2)}
                   disabled={selectedTags.length === 0}
-                  style={{ fontSize: '13px', height: '42px', background: '#18181b' }}>
+                  style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
                   Review <ArrowRight size={14} />
                 </button>
               </>
             )}
             {step === 2 && (
               <>
-                <button className="btn btn-outline-secondary fw-bold rounded-3 px-4" onClick={() => setStep(1)} style={{ fontSize: '13px', height: '42px' }}>
+                <button className="btn btn-outline-secondary fw-bold rounded-3 px-4" onClick={() => setStep(1)} style={{ fontSize: 'var(--font-size-sm)', height: '42px' }}>
                   Back
                 </button>
                 <button 
                   className="btn btn-dark fw-bold rounded-3 px-5 d-flex align-items-center gap-2"
                   onClick={handleApply}
                   disabled={processing}
-                  style={{ fontSize: '13px', height: '42px', background: '#18181b' }}>
+                  style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
                   {processing ? <RefreshCw size={14} className="spin" /> : <Save size={14} />}
                   {processing ? 'Applying...' : 'Apply Tags'}
                 </button>
               </>
             )}
             {step === 3 && (
-              <button className="btn btn-dark fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: '13px', height: '42px', background: '#18181b' }}>
+              <button className="btn btn-dark fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
                 Done
               </button>
             )}

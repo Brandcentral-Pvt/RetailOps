@@ -468,7 +468,7 @@ const RolesPage = () => {
                         <Shield size={20} />
                     </div>
                     <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Fine-tune permission logic across hierarchical enterprise access tiers.</Text>
+                        <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>Fine-tune permission logic across hierarchical enterprise access tiers.</Text>
                     </div>
                 </Space>
                 <Button 
@@ -476,7 +476,7 @@ const RolesPage = () => {
                     icon={<Plus size={14} />} 
                     shape="round"
                     onClick={() => handleOpenRoleModal()}
-                    style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 700, fontSize: 12.5 }}
+                    style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 600, fontSize: 12 }}
                 >
                     Deploy Custom Role
                 </Button>
@@ -490,7 +490,7 @@ const RolesPage = () => {
                     <Col xs={12} sm={8}>
                         <Card className="kpi-stat-card" variant="borderless">
                             <Space align="start" size={16} style={{ width: '100%', justifyContent: 'space-between' }}>
-                                <Statistic title={<span style={{ color: '#64748b', fontSize: 11, fontWeight: 750, textTransform: 'uppercase' }}>Strategic Roles</span>} value={roles.length} styles={{ content: { color: '#0f172a', fontWeight: 800, fontSize: 22 } }} />
+                                <Statistic title={<span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Strategic Roles</span>} value={roles.length} styles={{ content: { color: '#0f172a', fontWeight: 800, fontSize: 22 } }} />
                                 <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Shield size={18} /></div>
                             </Space>
                         </Card>
@@ -498,7 +498,7 @@ const RolesPage = () => {
                     <Col xs={12} sm={8}>
                         <Card className="kpi-stat-card" variant="borderless">
                             <Space align="start" size={16} style={{ width: '100%', justifyContent: 'space-between' }}>
-                                <Statistic title={<span style={{ color: '#64748b', fontSize: 11, fontWeight: 750, textTransform: 'uppercase' }}>Secured Modules</span>} value={Object.keys(permissionsGrouped).length} styles={{ content: { color: '#9C27B0', fontWeight: 800, fontSize: 22 } }} />
+                                <Statistic title={<span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Secured Modules</span>} value={Object.keys(permissionsGrouped).length} styles={{ content: { color: '#9C27B0', fontWeight: 800, fontSize: 22 } }} />
                                 <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F5F3FF', color: '#9C27B0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Key size={18} /></div>
                             </Space>
                         </Card>
@@ -506,7 +506,7 @@ const RolesPage = () => {
                     <Col xs={24} sm={8}>
                         <Card className="kpi-stat-card" variant="borderless">
                             <Space align="start" size={16} style={{ width: '100%', justifyContent: 'space-between' }}>
-                                <Statistic title={<span style={{ color: '#64748b', fontSize: 11, fontWeight: 750, textTransform: 'uppercase' }}>Mapped Capabilities</span>} value={permissions.length} styles={{ content: { color: '#E65100', fontWeight: 800, fontSize: 22 } }} />
+                                <Statistic title={<span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Mapped Capabilities</span>} value={permissions.length} styles={{ content: { color: '#E65100', fontWeight: 800, fontSize: 22 } }} />
                                 <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF3C7', color: '#E65100', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Lock size={18} /></div>
                             </Space>
                         </Card>
@@ -514,7 +514,7 @@ const RolesPage = () => {
                 </Row>
 
                 {/* Secondary Nav and Sync Strip */}
-                <Card variant="borderless" styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
+                <Card variant="borderless" styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                         <Segmented
                             className="segmented-roles"
@@ -536,14 +536,14 @@ const RolesPage = () => {
                                     allowClear
                                     value={matrixSearch}
                                     onChange={e => setMatrixSearch(e.target.value)}
-                                    style={{ width: 240, borderRadius: 8 }}
+                                    style={{ width: 240, borderRadius: "var(--radius-md)" }}
                                 />
                                 <Button 
                                     type="primary"
                                     icon={<CheckCircle2 size={14} />}
                                     loading={savingMatrix}
                                     onClick={handleSaveMatrixPermissions}
-                                    style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 700, borderRadius: 8 }}
+                                    style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 600, borderRadius: "var(--radius-md)" }}
                                 >
                                     Commit & Sync Database
                                 </Button>
@@ -557,11 +557,11 @@ const RolesPage = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                         
                         {/* Info Disclaimer */}
-                        <div style={{ display: 'flex', gap: 12, background: '#eff6ff', border: '1px solid #bfdbfe', padding: 16, borderRadius: 16 }}>
+                        <div style={{ display: 'flex', gap: 12, background: '#eff6ff', border: '1px solid #bfdbfe', padding: 16, borderRadius: "var(--radius-xl)" }}>
                             <Info size={18} className="text-blue-600" style={{ marginTop: 2, flexShrink: 0 }} />
                             <div>
-                                <strong style={{ display: 'block', color: '#1e40af', fontSize: 13, marginBottom: 2 }}>Hierarchical Priority Architecture</strong>
-                                <p style={{ color: '#1e3a8a', margin: 0, fontSize: 12, lineHeight: 1.5 }}>
+                                <strong style={{ display: 'block', color: '#1e40af', fontSize: 'var(--font-size-sm)', marginBottom: 2 }}>Hierarchical Priority Architecture</strong>
+                                <p style={{ color: '#1e3a8a', margin: 0, fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
                                     Access scopes are regulated by technical priority thresholds. Highest priority (100) delegates administrative governance over core settings. Default configuration models operate under strict immutability protection.
                                 </p>
                             </div>
@@ -578,11 +578,11 @@ const RolesPage = () => {
                                     <div className="group-header-strip">
                                         <PriorityIcon size={16} style={{ color: '#1976D2', marginRight: 10 }} />
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: 13.5 }}>Priority Index {level}</span>
+                                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: 12 }}>Priority Index {level}</span>
                                             <Divider orientation="vertical" style={{ borderColor: '#cbd5e1', margin: 0 }} />
-                                            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{getPriorityDescription(levelNum)}</span>
+                                            <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 600 }}>{getPriorityDescription(levelNum)}</span>
                                         </div>
-                                        <Badge count={`${rolesInGroup.length} Roles`} style={{ backgroundColor: '#e0e7ff', color: '#1976D2', boxShadow: 'none', marginLeft: 'auto', fontWeight: 700, fontSize: 11 }} />
+                                        <Badge count={`${rolesInGroup.length} Roles`} style={{ backgroundColor: '#e0e7ff', color: '#1976D2', boxShadow: 'none', marginLeft: 'auto', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} />
                                     </div>
 
                                     <Row gutter={[16, 16]}>
@@ -634,19 +634,19 @@ const RolesPage = () => {
 
                                                         <div style={{ marginBottom: 12 }}>
                                                             <h4 style={{ margin: '0 0 4px 0', fontWeight: 800, color: '#0f172a', fontSize: 15 }}>{role.displayName}</h4>
-                                                            <code style={{ fontSize: 10, color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                                            <code style={{ fontSize: 10, color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontWeight: 600 }}>
                                                                 {role.name}
                                                             </code>
                                                         </div>
 
-                                                        <p style={{ color: '#64748b', fontSize: 12, lineHeight: 1.5, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: '0 0 20px 0' }}>
+                                                        <p style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: '0 0 20px 0' }}>
                                                             {role.description || 'Platform capabilities profile mapped to enterprise governance and operations access logs.'}
                                                         </p>
 
                                                         <Divider style={{ margin: '0 0 14px 0' }} />
 
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <Space size={6} style={{ color: '#1976D2', fontWeight: 700, fontSize: 12 }}>
+                                                            <Space size={6} style={{ color: '#1976D2', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                                                                 <Key size={12} />
                                                                 <span>{role.permissions?.length || 0} Rules Enabled</span>
                                                             </Space>
@@ -696,7 +696,7 @@ const RolesPage = () => {
                                                     <td colSpan={6} style={{ padding: '14px 16px', borderTop: '1px solid #e2e8f0' }}>
                                                         <Space size={8}>
                                                             <div style={{ display: 'flex', background: '#e0e7ff', padding: 5, borderRadius: 6, color: '#1976D2' }}><Shield size={12} /></div>
-                                                            <span style={{ fontWeight: 800, fontSize: 12.5, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#1e293b' }}>{category} Module Policies</span>
+                                                            <span style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#1e293b' }}>{category} Module Policies</span>
                                                         </Space>
                                                     </td>
                                                 </tr>
@@ -705,9 +705,9 @@ const RolesPage = () => {
                                                         <tr key={perm._id || perm.id}>
                                                             <td>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                                                    <span style={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}>{perm.displayName}</span>
-                                                                    <span style={{ color: '#64748b', fontSize: 11 }}>{perm.description || `Grants capability to execute '${perm.displayName}' triggers.`}</span>
-                                                                    <code style={{ alignSelf: 'flex-start', fontSize: 9.5, color: '#94a3b8', background: '#f8fafc', padding: '1px 4px', borderRadius: 4, border: '1px solid #f1f5f9', marginTop: 2 }}>
+                                                                    <span style={{ fontWeight: 600, fontSize: 12, color: '#334155' }}>{perm.displayName}</span>
+                                                                    <span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)' }}>{perm.description || `Grants capability to execute '${perm.displayName}' triggers.`}</span>
+                                                                    <code style={{ alignSelf: 'flex-start', fontSize: 9.5, color: '#94a3b8', background: '#f8fafc', padding: '1px 4px', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginTop: 2 }}>
                                                                         {perm.name}
                                                                     </code>
                                                                 </div>
@@ -759,7 +759,7 @@ const RolesPage = () => {
             <Modal
                 title={
                     <Space align="center" size={12}>
-                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: 8, display: 'flex' }}>
+                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: "var(--radius-md)", display: 'flex' }}>
                             <Shield size={16} />
                         </div>
                         <span style={{ fontWeight: 800 }}>{editingRole ? 'Modify Role Specifications' : 'Initialize Policy Blueprint'}</span>
@@ -778,7 +778,7 @@ const RolesPage = () => {
                         type="primary" 
                         shape="round" 
                         onClick={handleSaveRole}
-                        style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 700 }}
+                        style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 600 }}
                     >
                         {editingRole ? 'Save Definition' : 'Deploy Role'}
                     </Button>
@@ -787,56 +787,56 @@ const RolesPage = () => {
                 <div style={{ padding: '8px 0', maxHeight: '68vh', overflowY: 'auto', overflowX: 'hidden' }}>
                     
                     {/* Row 1: Core Attributes */}
-                    <Card variant="borderless" style={{ background: '#f8fafc', borderRadius: 16, border: '1px solid #e2e8f0', marginBottom: 24 }} styles={{ body: { padding: 16 } }}>
+                    <Card variant="borderless" style={{ background: '#f8fafc', borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', marginBottom: 24 }} styles={{ body: { padding: 16 } }}>
                         <Row gutter={[16, 16]}>
                             <Col span={8}>
-                                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Technical Unique Key</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Technical Unique Key</label>
                                 <Input 
                                     placeholder="e.g. support_tier_1" 
                                     disabled={editingRole?.isSystem}
                                     value={roleFormData.name}
                                     onChange={e => setRoleFormData({ ...roleFormData, name: e.target.value })}
-                                    style={{ borderRadius: 8 }}
+                                    style={{ borderRadius: "var(--radius-md)" }}
                                 />
                             </Col>
                             <Col span={8}>
-                                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Display Label *</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Display Label *</label>
                                 <Input 
                                     placeholder="e.g. Support Technician" 
                                     value={roleFormData.displayName}
                                     onChange={handleDisplayNameChange}
-                                    style={{ borderRadius: 8 }}
+                                    style={{ borderRadius: "var(--radius-md)" }}
                                 />
                             </Col>
                             <Col span={4}>
-                                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Priority Index</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Priority Index</label>
                                 <Input 
                                     type="number" min={0} max={100}
                                     value={roleFormData.level}
                                     onChange={e => setRoleFormData({ ...roleFormData, level: parseInt(e.target.value) || 0 })}
-                                    style={{ borderRadius: 8 }}
+                                    style={{ borderRadius: "var(--radius-md)" }}
                                 />
                             </Col>
                             <Col span={4}>
-                                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Color Scope</label>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#ffffff', border: '1px solid #d9d9d9', padding: '4px 8px', borderRadius: 8, height: 36 }}>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Color Scope</label>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#ffffff', border: '1px solid #d9d9d9', padding: '4px 8px', borderRadius: "var(--radius-md)", height: 36 }}>
                                     <input 
                                         type="color" 
                                         value={roleFormData.color} 
                                         onChange={e => setRoleFormData({ ...roleFormData, color: e.target.value })} 
                                         style={{ width: 24, height: 24, border: 'none', cursor: 'pointer', padding: 0, background: 'transparent' }} 
                                     />
-                                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b' }}>{roleFormData.color}</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: '#64748b' }}>{roleFormData.color}</span>
                                 </div>
                             </Col>
                             <Col span={24}>
-                                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Strategic Description</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Strategic Description</label>
                                 <TextArea 
                                     rows={2} 
                                     placeholder="Describe the scope of responsibilities assumed by entities of this role profile..."
                                     value={roleFormData.description}
                                     onChange={e => setRoleFormData({ ...roleFormData, description: e.target.value })}
-                                    style={{ borderRadius: 8 }}
+                                    style={{ borderRadius: "var(--radius-md)" }}
                                 />
                             </Col>
                         </Row>
@@ -844,9 +844,9 @@ const RolesPage = () => {
 
                     {/* Row 2: Permissions Selector Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                        <span style={{ fontWeight: 800, fontSize: 13.5, color: '#0f172a' }}>Access Control Boundary Scopes</span>
+                        <span style={{ fontWeight: 800, fontSize: 12, color: '#0f172a' }}>Access Control Boundary Scopes</span>
                         <Divider style={{ flex: 1, margin: 0 }} />
-                        <Badge count={`${selectedPermissions.length} Active Rules`} style={{ backgroundColor: '#1976D2', fontWeight: 750, fontSize: 11 }} />
+                        <Badge count={`${selectedPermissions.length} Active Rules`} style={{ backgroundColor: '#1976D2', fontWeight: 750, fontSize: 'var(--font-size-xs)' }} />
                     </div>
 
                     {/* Row 3: Two-Column Grid of Modules */}
@@ -862,13 +862,13 @@ const RolesPage = () => {
                                         <div className="header">
                                             <Space size={8}>
                                                 <div style={{ display: 'flex', background: '#e0e7ff', color: '#1976D2', padding: 5, borderRadius: 6 }}><CatIcon size={12} /></div>
-                                                <span style={{ fontWeight: 800, fontSize: 11.5, textTransform: 'uppercase', color: '#334155' }}>{cat} MODULE</span>
+                                                <span style={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', color: '#334155' }}>{cat} MODULE</span>
                                             </Space>
                                             <Button 
                                                 size="small" 
                                                 shape="round"
                                                 onClick={() => toggleAllPermissions(cat)}
-                                                style={{ fontSize: 10.5, fontWeight: 700 }}
+                                                style={{ fontSize: 10.5, fontWeight: 600 }}
                                                 icon={allSelected ? <X size={10} /> : <Check size={10} />}
                                             >
                                                 {allSelected ? 'De-Select' : 'All'} ({countSel})
@@ -885,7 +885,7 @@ const RolesPage = () => {
                                                     >
                                                         <div 
                                                             style={{ 
-                                                                width: 16, height: 16, borderRadius: 4, 
+                                                                width: 16, height: 16, borderRadius: "var(--radius-sm)", 
                                                                 border: `1.5px solid ${isSel ? '#1976D2' : '#cbd5e1'}`,
                                                                 background: isSel ? '#1976D2' : 'transparent',
                                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -895,7 +895,7 @@ const RolesPage = () => {
                                                             {isSel && <Check size={10} strokeWidth={3} className="text-white" />}
                                                         </div>
                                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                            <span style={{ fontSize: 12, fontWeight: 650, color: isSel ? '#312e81' : '#334155' }}>{p.displayName}</span>
+                                                            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 650, color: isSel ? '#312e81' : '#334155' }}>{p.displayName}</span>
                                                         </div>
                                                     </div>
                                                 );

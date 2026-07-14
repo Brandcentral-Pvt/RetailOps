@@ -244,7 +244,7 @@ const InfiniteScrollSelect = ({
                         {loading && options.length === 0 ? (
                             <div className="initial-loader" style={{ padding: '30px', textAlign: 'center' }}>
                                 <Loader2 size={20} className="spin text-zinc-400 mx-auto" />
-                                <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '8px' }}>Fetching sellers...</div>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: '#a1a1aa', marginTop: '8px' }}>Fetching sellers...</div>
                             </div>
                         ) : (
                             <>
@@ -271,7 +271,7 @@ const InfiniteScrollSelect = ({
                                 )}
 
                                 {!loading && options.length === 0 && (
-                                    <div className="no-results" style={{ padding: '20px', textAlign: 'center', fontSize: '11px', color: '#a1a1aa' }}>
+                                    <div className="no-results" style={{ padding: '20px', textAlign: 'center', fontSize: 'var(--font-size-xs)', color: '#a1a1aa' }}>
                                         No results found
                                     </div>
                                 )}

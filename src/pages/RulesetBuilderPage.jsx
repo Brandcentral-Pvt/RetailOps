@@ -321,42 +321,42 @@ const RulesetBuilderPage = () => {
       {/* Header */}
       <div style={{ padding: '16px 28px', borderBottom: '1px solid #f4f4f7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Button type="text" icon={<ArrowLeft size={16} />} onClick={() => navigate('/rule-sets')} style={{ borderRadius: 8 }} />
+          <Button type="text" icon={<ArrowLeft size={16} />} onClick={() => navigate('/rule-sets')} style={{ borderRadius: "var(--radius-md)" }} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#18181b' }}>
+              <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, margin: 0, color: '#18181b' }}>
                 {rulesetId ? 'Edit Ruleset' : 'Create Ruleset'}
               </h2>
               {ruleset.isActive ? (
-                <Tag color="success" style={{ borderRadius: 10, fontSize: 10, fontWeight: 700 }}>Active</Tag>
+                <Tag color="success" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600 }}>Active</Tag>
               ) : (
-                <Tag color="default" style={{ borderRadius: 10, fontSize: 10, fontWeight: 700 }}>Paused</Tag>
+                <Tag color="default" style={{ borderRadius: 10, fontSize: 10, fontWeight: 600 }}>Paused</Tag>
               )}
             </div>
-            <p style={{ fontSize: 11, color: '#71717a', margin: 0, marginTop: 2 }}>Define conditions and automated actions for your ASINs</p>
+            <p style={{ fontSize: 'var(--font-size-xs)', color: '#71717a', margin: 0, marginTop: 2 }}>Define conditions and automated actions for your ASINs</p>
           </div>
         </div>
         <Space size={8}>
           {rulesetId && (
             <>
               <Button icon={<Clock size={13} />} onClick={() => { setShowHistoryDrawer(true); loadHistory(); }}
-                style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>History</Button>
+                style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>History</Button>
               <Tooltip title={ruleset.isActive ? 'Pause' : 'Activate'}>
                 <Button icon={ruleset.isActive ? <PauseCircle size={13} /> : <PlayCircle size={13} />}
-                  onClick={handleToggle} style={{ borderRadius: 8, fontSize: 11, height: 32 }} />
+                  onClick={handleToggle} style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)', height: 32 }} />
               </Tooltip>
               <Tooltip title="Duplicate">
                 <Button icon={<Copy size={13} />} onClick={handleDuplicate}
-                  style={{ borderRadius: 8, fontSize: 11, height: 32 }} />
+                  style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)', height: 32 }} />
               </Tooltip>
               <Button icon={<PlayCircle size={13} />} loading={executing} onClick={handleExecute}
-                style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32, color: '#2E7D32', borderColor: '#2E7D32' }}>
+                style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, color: '#2E7D32', borderColor: '#2E7D32' }}>
                 Run Now
               </Button>
             </>
           )}
           <Button type="primary" loading={saving} onClick={handleSave}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>
             {rulesetId ? 'Save Changes' : 'Create Ruleset'}
           </Button>
         </Space>
@@ -366,28 +366,28 @@ const RulesetBuilderPage = () => {
         {/* Main Content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Settings Card */}
-          <Card style={{ borderRadius: 12, border: '1px solid #e4e4e7', marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Settings</div>
+          <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e4e4e7', marginBottom: 16 }} styles={{ body: { padding: '16px 20px' } }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Settings</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Name *</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Name *</div>
                 <Input size="small" placeholder="e.g. Low LQS Alert" value={ruleset.name}
-                  onChange={e => setRuleset({ ...ruleset, name: e.target.value })} style={{ borderRadius: 8 }} />
+                  onChange={e => setRuleset({ ...ruleset, name: e.target.value })} style={{ borderRadius: "var(--radius-md)" }} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Description</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Description</div>
                 <Input size="small" placeholder="Brief description..." value={ruleset.description}
-                  onChange={e => setRuleset({ ...ruleset, description: e.target.value })} style={{ borderRadius: 8 }} />
+                  onChange={e => setRuleset({ ...ruleset, description: e.target.value })} style={{ borderRadius: "var(--radius-md)" }} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Data Range</div>
-                <Select size="small" value={ruleset.usingDataFrom} style={{ width: '100%', borderRadius: 8 }}
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Data Range</div>
+                <Select size="small" value={ruleset.usingDataFrom} style={{ width: '100%', borderRadius: "var(--radius-md)" }}
                   onChange={v => setRuleset({ ...ruleset, usingDataFrom: v })}
                   options={DATE_RANGES} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Exclude</div>
-                <Select size="small" value={ruleset.excludeDays} style={{ width: '100%', borderRadius: 8 }}
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Exclude</div>
+                <Select size="small" value={ruleset.excludeDays} style={{ width: '100%', borderRadius: "var(--radius-md)" }}
                   onChange={v => setRuleset({ ...ruleset, excludeDays: v })}
                   options={EXCLUDE_OPTIONS} />
               </div>
@@ -397,14 +397,14 @@ const RulesetBuilderPage = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Switch size="small" checked={ruleset.isAutomated}
                   onChange={v => setRuleset({ ...ruleset, isAutomated: v })} />
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#52525b' }}>Auto-run</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b' }}>Auto-run</span>
               </div>
               {ruleset.isAutomated && (
                 <>
-                  <Select size="small" value={ruleset.runFrequency} style={{ width: 130, borderRadius: 8 }}
+                  <Select size="small" value={ruleset.runFrequency} style={{ width: 130, borderRadius: "var(--radius-md)" }}
                     onChange={v => setRuleset({ ...ruleset, runFrequency: v })}
                     options={FREQUENCY_OPTIONS} />
-                  <Select size="small" value={ruleset.runTime} style={{ width: 100, borderRadius: 8 }}
+                  <Select size="small" value={ruleset.runTime} style={{ width: 100, borderRadius: "var(--radius-md)" }}
                     onChange={v => setRuleset({ ...ruleset, runTime: v })}
                     options={TIME_OPTIONS.map(t => ({ value: t, label: t }))} />
                 </>
@@ -413,7 +413,7 @@ const RulesetBuilderPage = () => {
           </Card>
 
           {/* Rules */}
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
             Rules ({ruleset.rules.length})
           </div>
 
@@ -437,36 +437,36 @@ const RulesetBuilderPage = () => {
           ))}
 
           <Button type="dashed" block icon={<Plus size={13} />} onClick={addRule}
-            style={{ borderRadius: 8, height: 36, fontWeight: 600, fontSize: 11, marginTop: 4, borderStyle: 'dashed' }}>
+            style={{ borderRadius: "var(--radius-md)", height: 36, fontWeight: 600, fontSize: 'var(--font-size-xs)', marginTop: 4, borderStyle: 'dashed' }}>
             Add Rule
           </Button>
         </div>
 
         {/* Right Sidebar - Quick Info */}
         <div style={{ width: 260, flexShrink: 0 }}>
-          <Card style={{ borderRadius: 12, border: '1px solid #e4e4e7', marginBottom: 12 }} styles={{ body: { padding: '14px 16px' } }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Summary</div>
+          <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e4e4e7', marginBottom: 12 }} styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Summary</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#71717a' }}>Rules</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#18181b' }}>{ruleset.rules.length}</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: '#71717a' }}>Rules</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#18181b' }}>{ruleset.rules.length}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#71717a' }}>Data Range</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#18181b' }}>{ruleset.usingDataFrom}</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: '#71717a' }}>Data Range</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#18181b' }}>{ruleset.usingDataFrom}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#71717a' }}>Auto-run</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: ruleset.isAutomated ? '#2E7D32' : '#71717a' }}>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: '#71717a' }}>Auto-run</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: ruleset.isAutomated ? '#2E7D32' : '#71717a' }}>
                   {ruleset.isAutomated ? `${ruleset.runFrequency} at ${ruleset.runTime}` : 'Off'}
                 </span>
               </div>
             </div>
           </Card>
 
-          <Card style={{ borderRadius: 12, border: '1px solid #e4e4e7' }} styles={{ body: { padding: '14px 16px' } }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>How it works</div>
-            <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.6 }}>
+          <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e4e4e7' }} styles={{ body: { padding: '14px 16px' } }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>How it works</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#71717a', lineHeight: 1.6 }}>
               <p style={{ margin: '0 0 6px' }}>1. Define <b>conditions</b> that filter your ASINs</p>
               <p style={{ margin: '0 0 6px' }}>2. Set an <b>action</b> for each matching ASIN</p>
               <p style={{ margin: '0 0 6px' }}>3. Rules run top to bottom — first match wins</p>
@@ -489,7 +489,7 @@ const RulesetBuilderPage = () => {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#2E7D32' : '#C62828' }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#18181b' }}>
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b' }}>
                         {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
                       </span>
                     </div>
@@ -530,15 +530,15 @@ const RuleCard = ({
     <div style={{
       background: rule.isActive ? '#fff' : '#fafafa',
       border: `1px solid ${rule.isActive ? '#e4e4e7' : '#f4f4f5'}`,
-      borderRadius: 12, marginBottom: 10, overflow: 'hidden',
+      borderRadius: "var(--radius-lg)", marginBottom: 10, overflow: 'hidden',
       opacity: rule.isActive ? 1 : 0.65
     }}>
       {/* Rule Header */}
       <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f4f4f5', background: '#fafafa' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', minWidth: 20 }}>#{index + 1}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', minWidth: 20 }}>#{index + 1}</span>
           <Input size="small" value={rule.name} onChange={e => onUpdate({ name: e.target.value })}
-            style={{ width: 200, fontWeight: 600, fontSize: 12, borderRadius: 6, border: 'none', background: 'transparent', padding: 0 }}
+            style={{ width: 200, fontWeight: 600, fontSize: 'var(--font-size-sm)', borderRadius: 6, border: 'none', background: 'transparent', padding: 0 }}
             variant="borderless" />
         </div>
         <Space size={4}>
@@ -560,7 +560,7 @@ const RuleCard = ({
       <div style={{ padding: '12px 16px' }}>
         {/* Conditions */}
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
             Conditions ({rule.conditions.length})
           </div>
           {rule.conditions.map((cond, condIdx) => {
@@ -574,13 +574,13 @@ const RuleCard = ({
                     style={{ width: 55, borderRadius: 6 }}
                     options={[{ value: 'AND', label: 'AND' }, { value: 'OR', label: 'OR' }]} />
                 )}
-                {condIdx === 0 && <span style={{ fontSize: 11, fontWeight: 600, color: '#71717a', width: 55, textAlign: 'right' }}>IF</span>}
+                {condIdx === 0 && <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', width: 55, textAlign: 'right' }}>IF</span>}
 
                 <Select size="small" showSearch optionFilterProp="label" value={cond.attribute || undefined}
                   placeholder="Attribute" style={{ width: 170, borderRadius: 6 }}
                   onChange={v => onConditionChange(condIdx, { attribute: v })}
                   options={Object.entries(groupedAttrs).map(([group, attrs]) => ({
-                    label: <span style={{ fontWeight: 700, fontSize: 10, color: '#71717a' }}>{group}</span>,
+                    label: <span style={{ fontWeight: 600, fontSize: 10, color: '#71717a' }}>{group}</span>,
                     options: attrs.map(a => ({ value: a.value, label: `${a.label}${a.unit ? ` (${a.unit})` : ''}` }))
                   }))} />
 
@@ -625,22 +625,22 @@ const RuleCard = ({
             );
           })}
           <Button type="text" size="small" icon={<Plus size={12} />} onClick={onAddCondition}
-            style={{ fontSize: 11, fontWeight: 600, color: '#71717a' }}>
+            style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a' }}>
             Add Condition
           </Button>
         </div>
 
         {/* Action */}
         <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Action</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Action</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#71717a' }}>THEN</span>
+            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a' }}>THEN</span>
             <Select size="small" value={rule.action?.actionType}
               onChange={v => onActionChange({ actionType: v, value: '' })}
               style={{ width: 220, borderRadius: 6 }}
               options={actionTypes.map(a => ({
                 value: a.value,
-                label: <span style={{ fontSize: 11 }}>{a.label}</span>
+                label: <span style={{ fontSize: 'var(--font-size-xs)' }}>{a.label}</span>
               }))} />
 
             {selectedAction?.hasValue && (
@@ -657,7 +657,7 @@ const RuleCard = ({
                 style={{ width: 90, borderRadius: 6 }}
                 options={TASK_PRIORITIES.map(p => ({
                   value: p.value,
-                  label: <span style={{ color: p.color, fontWeight: 700, fontSize: 11 }}>{p.label}</span>
+                  label: <span style={{ color: p.color, fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>{p.label}</span>
                 }))} />
             ) : null}
 
@@ -677,7 +677,7 @@ const RuleCard = ({
                     style={{ width: 90, borderRadius: 6 }}
                     options={TASK_PRIORITIES.map(p => ({
                       value: p.value,
-                      label: <span style={{ color: p.color, fontWeight: 700, fontSize: 11 }}>{p.label}</span>
+                      label: <span style={{ color: p.color, fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>{p.label}</span>
                     }))} />
                 </div>
                 <div>

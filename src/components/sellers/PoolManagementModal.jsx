@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Modal, Button, Input, Space, Typography, Card, Statistic, Row, Col, Divider, message, Alert } from 'antd';
 import { Database, RefreshCw, Upload, Search, Activity, Trash2 } from 'lucide-react';
 import { marketSyncApi } from '../../services/api';
+import { ModalHeader, ModalFooter } from './ModalShell';
+import styles from './SellerModals.module.css';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -47,80 +49,47 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
 
   return (
     <Modal
-      title={
-        <Space>
-          <div style={{ 
-            padding: '8px', 
-            background: '#f8fafc', 
-            borderRadius: '8px', 
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Database size={18} className="text-indigo-600" />
-          </div>
-          <Text strong style={{ fontSize: '16px' }}>Octoparse Task Pool Management</Text>
-        </Space>
-      }
       open={true}
       onCancel={onClose}
-      footer={[
-        <Button key="close" onClick={onClose} shape="round">
-          Close
-        </Button>,
-        <Button 
-          key="sync" 
-          icon={<RefreshCw size={14} className={isSyncing ? 'spin' : ''} />} 
-          onClick={handleFullSync}
-          loading={isSyncing}
-          shape="round"
-          style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}
-        >
-          Sync from Octoparse
-        </Button>,
-        <Button 
-          key="submit" 
-          type="primary" 
-          icon={<Upload size={14} />} 
-          onClick={handleUpload}
-          loading={isSubmitting}
-          disabled={!taskIdsText.trim()}
-          shape="round"
-          style={{ background: '#18181b', borderColor: '#18181b' }}
-        >
-          Register to Pool
-        </Button>
-      ]}
       width={600}
-      className="modern-modal"
+      closable={false}
+      centered
+      destroyOnHidden
+      className={styles.modalContent}
+      footer={null}
+      styles={{ body: { padding: '16px 24px' } }}
     >
+      <ModalHeader
+        icon={Database}
+        title="Octoparse Task Pool Management"
+        subtitle="Manage task allocation and sync from Octoparse"
+      />
       <div style={{ padding: '8px 0' }}>
         <Row gutter={16} style={{ marginBottom: '24px' }}>
           <Col span={8}>
-            <Card variant="borderless" style={{ background: '#f8fafc', textAlign: 'center', borderRadius: '12px' }} styles={{ body: { padding: '16px' } }}>
+            <Card variant="borderless" style={{ background: 'var(--bg-secondary, #f8fafc)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
-                title={<Text strong style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Total Tasks</Text>} 
+                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase' }}>Total Tasks</Text>} 
                 value={stats.total} 
-                styles={{ content: { fontWeight: 800, color: '#1e293b' } }}
+                styles={{ content: { fontWeight: 700, color: 'var(--text-primary, #0f172a)' } }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card variant="borderless" style={{ background: '#f0fdf4', textAlign: 'center', borderRadius: '12px' }} styles={{ body: { padding: '16px' } }}>
+            <Card variant="borderless" style={{ background: 'var(--bg-success-subtle, #f0fdf4)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
-                title={<Text strong style={{ fontSize: '10px', color: '#166534', textTransform: 'uppercase' }}>Available</Text>} 
+                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: '#166534', textTransform: 'uppercase' }}>Available</Text>} 
                 value={stats.available} 
-                styles={{ content: { fontWeight: 800, color: '#15803d' } }}
+                styles={{ content: { fontWeight: 700, color: 'var(--text-success, #2E7D32)' } }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card variant="borderless" style={{ background: '#eff6ff', textAlign: 'center', borderRadius: '12px' }} styles={{ body: { padding: '16px' } }}>
+            <Card variant="borderless" style={{ background: 'var(--bg-info-subtle, #eff6ff)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
-                title={<Text strong style={{ fontSize: '10px', color: '#1e40af', textTransform: 'uppercase' }}>Assigned</Text>} 
+                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: '#1e40af', textTransform: 'uppercase' }}>Assigned</Text>} 
                 value={stats.assigned} 
-                styles={{ content: { fontWeight: 800, color: '#0288D1' } }}
+                styles={{ content: { fontWeight: 700, color: '#0288D1' } }}
               />
             </Card>
           </Col>
@@ -132,13 +101,13 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
           type="info"
           showIcon
           icon={<Activity size={18} />}
-          style={{ marginBottom: '20px', borderRadius: '12px' }}
+          style={{ marginBottom: '20px', borderRadius: 'var(--radius-lg)' }}
         />
 
         <div style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <Text strong style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase' }}>Manual Import Task IDs</Text>
-            <Text style={{ fontSize: '10px', color: '#94a3b8' }}>Supports multi-line paste</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase' }}>Manual Import Task IDs</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)' }}>Supports multi-line paste</Text>
           </div>
           <TextArea
             rows={6}
@@ -146,17 +115,36 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
             value={taskIdsText}
             onChange={(e) => setTaskIdsText(e.target.value)}
             style={{ 
-              borderRadius: '12px', 
-              fontSize: '11px', 
+              borderRadius: 'var(--radius-lg)', 
+              fontSize: 'var(--font-size-xs)', 
               fontFamily: 'monospace',
-              border: '1px solid #e2e8f0'
+              border: '1px solid var(--border-light, #d9e6e9)'
             }}
           />
-          <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: '8px' }}>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', marginTop: '8px' }}>
             Allocated tasks are automatically linked to new sellers during setup.
           </Text>
         </div>
       </div>
+
+      <ModalFooter
+        onCancel={onClose}
+        onConfirm={handleUpload}
+        confirmText="Register to Pool"
+        loading={isSubmitting}
+        disabled={!taskIdsText.trim()}
+        confirmIcon={<Upload size={14} />}
+        extra={
+          <Button
+            icon={<RefreshCw size={14} className={isSyncing ? 'spin' : ''} />}
+            onClick={handleFullSync}
+            loading={isSyncing}
+            className={styles.modalFooterCancel}
+          >
+            Sync from Octoparse
+          </Button>
+        }
+      />
     </Modal>
   );
 };

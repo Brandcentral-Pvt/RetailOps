@@ -39,7 +39,7 @@ const AIActionPanel = ({ suggestions, loading }) => {
                   >
                     {suggestion.type === 'STOCK' ? <AlertTriangle size={14} /> : suggestion.type === 'ADS' ? <TrendingUp size={14} /> : <Zap size={14} />}
                   </div>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{suggestion.title}</span>
+                  <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{suggestion.title}</span>
                 </div>
                 <span className="badge rounded-pill bg-light text-dark border smallest">+{suggestion.impactWeight}% IMPACT</span>
               </div>

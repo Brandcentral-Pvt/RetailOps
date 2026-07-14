@@ -41,7 +41,7 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
 
       {/* Task Name + ID + Seller */}
       <div style={{ minWidth: 0 }}>
-        <Text strong style={{ fontSize: 13, color: '#0f172a', display: 'block', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a', display: 'block', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {task.Title || 'Untitled'}
         </Text>
         <Text style={{ fontSize: 10, color: '#94a3b8' }}>{task.InstanceCode} · {task.SellerName || '-'}</Text>
@@ -51,12 +51,12 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {task.AssigneeName ? (
           <Space size={4}>
-            <div style={{ width: 22, height: 22, borderRadius: 6, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: 10, fontWeight: 700 }}>
+            <div style={{ width: 22, height: 22, borderRadius: 6, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: 10, fontWeight: 600 }}>
               {task.AssigneeName.charAt(0)}
             </div>
-            <Text style={{ fontSize: 11, color: '#334155' }}>{task.AssigneeName.split(' ')[0]}</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155' }}>{task.AssigneeName.split(' ')[0]}</Text>
           </Space>
-        ) : <Text style={{ fontSize: 11, color: '#d1d5db' }}>—</Text>}
+        ) : <Text style={{ fontSize: 'var(--font-size-xs)', color: '#d1d5db' }}>—</Text>}
       </div>
 
       {/* Priority */}
@@ -76,7 +76,7 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
       {/* Progress + Health */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Progress percent={pct} size="small" strokeColor={pct >= 80 ? '#16a34a' : pct >= 50 ? '#2563eb' : '#f59e0b'} style={{ width: 60, margin: 0 }} />
+          <Progress percent={pct} size="small" strokeColor={pct >= 80 ? '#2E7D32' : pct >= 50 ? '#2563eb' : '#ED6C02'} style={{ width: 60, margin: 0 }} />
           <Text style={{ fontSize: 10, fontWeight: 600, color: '#64748b' }}>{pct}%</Text>
         </div>
       </div>
@@ -86,9 +86,9 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
         {due ? (
           <Space size={4}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: due.color, flexShrink: 0 }} />
-            <Text style={{ fontSize: 11, fontWeight: 600, color: due.color }}>{due.text}</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: due.color }}>{due.text}</Text>
           </Space>
-        ) : <Text style={{ fontSize: 11, color: '#d1d5db' }}>—</Text>}
+        ) : <Text style={{ fontSize: 'var(--font-size-xs)', color: '#d1d5db' }}>—</Text>}
       </div>
 
       {/* Hover Quick Actions */}
@@ -96,21 +96,21 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
         <div onClick={e => e.stopPropagation()}
           style={{
             position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-            display: 'flex', gap: 2, padding: '3px 6px', borderRadius: 8,
+            display: 'flex', gap: 2, padding: '3px 6px', borderRadius: "var(--radius-md)",
             background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             zIndex: 10,
           }}>
-          <Tooltip title="View"><Button type="text" size="small" icon={<EyeOutlined />} onClick={() => onView(task)} style={{ fontSize: 12, color: '#64748b' }} /></Tooltip>
+          <Tooltip title="View"><Button type="text" size="small" icon={<EyeOutlined />} onClick={() => onView(task)} style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }} /></Tooltip>
           {nextStatuses.includes('SUBMITTED') && (
-            <Tooltip title="Submit"><Button type="text" size="small" icon={<CheckCircleOutlined />} onClick={() => onTransition(task, 'SUBMITTED')} style={{ fontSize: 12, color: '#2563eb' }} /></Tooltip>
+            <Tooltip title="Submit"><Button type="text" size="small" icon={<CheckCircleOutlined />} onClick={() => onTransition(task, 'SUBMITTED')} style={{ fontSize: 'var(--font-size-sm)', color: '#2563eb' }} /></Tooltip>
           )}
           {nextStatuses.includes('APPROVED') && (
-            <Tooltip title="Approve"><Button type="text" size="small" icon={<CheckCircleOutlined />} onClick={() => onReview(task, 'APPROVE')} style={{ fontSize: 12, color: '#16a34a' }} /></Tooltip>
+            <Tooltip title="Approve"><Button type="text" size="small" icon={<CheckCircleOutlined />} onClick={() => onReview(task, 'APPROVE')} style={{ fontSize: 'var(--font-size-sm)', color: '#2E7D32' }} /></Tooltip>
           )}
           {nextStatuses.includes('REJECTED') && (
-            <Tooltip title="Reject"><Button type="text" size="small" icon={<CloseCircleOutlined />} onClick={() => onReview(task, 'REJECT')} style={{ fontSize: 12, color: '#dc2626' }} /></Tooltip>
+            <Tooltip title="Reject"><Button type="text" size="small" icon={<CloseCircleOutlined />} onClick={() => onReview(task, 'REJECT')} style={{ fontSize: 'var(--font-size-sm)', color: '#D32F2F' }} /></Tooltip>
           )}
-          <Tooltip title="Edit"><Button type="text" size="small" icon={<EditOutlined />} style={{ fontSize: 12, color: '#94a3b8' }} /></Tooltip>
+          <Tooltip title="Edit"><Button type="text" size="small" icon={<EditOutlined />} style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }} /></Tooltip>
         </div>
       )}
     </div>
