@@ -1,6 +1,6 @@
 const { sql, getPool, generateId } = require('../database/db');
 const bcrypt = require('bcryptjs');
-const { sendAdminEmail } = require('../services/emailService');
+const emailService = require('../services/emailService');
 const { buildInClause } = require('../utils/sqlHelpers');
 
 /**
@@ -922,7 +922,7 @@ exports.sendEmailToUser = async (req, res) => {
       </div>
     `;
 
-    const result = await sendAdminEmail(to, finalSubject, finalHtml, 'RetailOps Super Admin');
+    const result = await emailService.send({ to, subject: finalSubject, html: finalHtml });
     
     res.json({ 
       success: true, 
@@ -975,7 +975,7 @@ exports.sendCredentials = async (req, res) => {
       invitedBy
     });
 
-    const result = await sendAdminEmail(user.Email, 'Your RetailOps Account Credentials', html, 'RetailOps');
+    const result = await emailService.send({ to: user.Email, subject: 'Your RetailOps Account Credentials', html });
     
     res.json({ 
       success: true, 
