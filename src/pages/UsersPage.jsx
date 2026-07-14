@@ -529,12 +529,35 @@ const UsersPage = () => {
                 supervisors: userFormData.supervisors
             };
 
+            let result;
             if (editingUser) {
-                await userApi.update(editingUser._id || editingUser.id, data);
+                result = await userApi.update(editingUser._id || editingUser.id, data);
                 messageApi.success('User updated successfully');
             } else {
-                await userApi.create(data);
+                result = await userApi.create(data);
                 messageApi.success('User created successfully');
+                
+                // Show option to send credentials
+                const newUserId = result?.data?._id || result?.data?.id;
+                const tempPassword = userFormData.password || '';
+                if (newUserId) {
+                    Modal.confirm({
+                        title: 'Send Credentials Email?',
+                        content: tempPassword 
+                            ? `Send login credentials to ${userFormData.email}?`
+                            : `Send login invitation to ${userFormData.email}? (User will set their own password)`,
+                        okText: 'Send Email',
+                        cancelText: 'Skip',
+                        onOk: async () => {
+                            try {
+                                await userApi.sendCredentials(newUserId, tempPassword || 'invitation');
+                                messageApi.success('Credentials email sent successfully');
+                            } catch (err) {
+                                messageApi.error('Failed to send credentials email');
+                            }
+                        }
+                    });
+                }
             }
             setShowUserModal(false);
             loadUsers();

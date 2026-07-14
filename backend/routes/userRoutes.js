@@ -14,7 +14,7 @@ router.get('/permissions', authenticate, userController.getGroupedPermissions);
 router.get('/', authenticate, requirePermission('users_view'), userController.getUsers);
 router.post('/', authenticate, requirePermission('users_manage'), validate('createUser'), userController.createUser);
 router.get('/:id', authenticate, userController.getUser);
-router.put('/:id', authenticate, requirePermission('users_manage'), userController.updateUser);
+router.put('/:id', authenticate, requirePermission('users_manage'), validate('updateUser'), userController.updateUser);
 router.delete('/:id', authenticate, requirePermission('users_manage'), userController.deleteUser);
 
 // User status and security
@@ -24,5 +24,8 @@ router.post('/:id/force-password-reset', authenticate, requirePermission('users_
 
 // Admin send email
 router.post('/send-email', authenticate, requirePermission('users_manage'), userController.sendEmailToUser);
+
+// Send credentials to user
+router.post('/:id/send-credentials', authenticate, requirePermission('users_manage'), userController.sendCredentials);
 
 module.exports = router;
