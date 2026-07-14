@@ -337,8 +337,11 @@ exports.getUser = async (req, res) => {
         assignedSellers: sellersResult.recordset,
         supervisors: (await pool.request()
           .input('uid', sql.VarChar, id)
-          .query('SELECT SupervisorId FROM UserSupervisors WHERE UserId = @uid')
-        ).recordset.map(s => s.SupervisorId),
+          .query(`SELECT U.Id, U.FirstName, U.LastName, U.Email
+                  FROM UserSupervisors US
+                  JOIN Users U ON US.SupervisorId = U.Id
+                  WHERE US.UserId = @uid`)
+        ).recordset.map(s => ({ _id: s.Id, id: s.Id, firstName: s.FirstName, lastName: s.LastName, email: s.Email })),
         preferences: u.Preferences ? JSON.parse(typeof u.Preferences === 'string' ? u.Preferences : '{}') : {}
       }
     });
@@ -575,6 +578,7 @@ exports.deleteUser = async (req, res) => {
     // Clean up related records
     await pool.request().input('id', sql.VarChar, id).query('DELETE FROM UserSellers WHERE UserId = @id');
     await pool.request().input('id', sql.VarChar, id).query('DELETE FROM UserSupervisors WHERE UserId = @id');
+    await pool.request().input('id', sql.VarChar, id).query('DELETE FROM UserBrandManagers WHERE UserId = @id OR ManagerId = @id');
     await pool.request().input('id', sql.VarChar, id).query('DELETE FROM Users WHERE Id = @id');
 
     res.json({ success: true, message: 'User deleted' });
@@ -817,8 +821,8 @@ async function getSubordinateIds(pool, userId) {
   try {
     const result = await pool.request()
       .input('uid', sql.VarChar, userId)
-      .query('SELECT SupervisorId FROM UserSupervisors WHERE UserId = @uid');
-    return result.recordset.map(r => r.SupervisorId);
+      .query('SELECT UserId FROM UserSupervisors WHERE SupervisorId = @uid');
+    return result.recordset.map(r => r.UserId);
   } catch {
     return [];
   }
@@ -835,7 +839,7 @@ exports.getManagers = async (req, res) => {
       SELECT U.Id, U.FirstName, U.LastName, U.Email, R.Name as RoleName, R.DisplayName as RoleDisplayName
       FROM Users U
       LEFT JOIN Roles R ON U.RoleId = R.Id
-      WHERE U.IsActive = 1
+      WHERE U.IsActive = 1 AND (R.Name LIKE '%manager%' OR R.Name LIKE '%admin%' OR R.Level >= 2)
     `);
 
     // Fetch assigned sellers for each manager
@@ -927,6 +931,59 @@ exports.sendEmailToUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Send email error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Send credentials email to user with password reset required
+ * POST /api/users/:id/send-credentials
+ */
+exports.sendCredentials = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { password } = req.body;
+    
+    if (!userId || !password) {
+      return res.status(400).json({ success: false, message: 'User ID and password required' });
+    }
+
+    const pool = await getPool();
+    const userResult = await pool.request()
+      .input('id', sql.VarChar, userId)
+      .query('SELECT Id, Email, FirstName, LastName FROM Users WHERE Id = @id');
+
+    if (userResult.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const user = userResult.recordset[0];
+    const userName = `${user.FirstName || ''} ${user.LastName || ''}`.trim() || 'User';
+    
+    // Get invited by name
+    let invitedBy = 'Administrator';
+    if (req.user) {
+      invitedBy = `${req.user.FirstName || ''} ${req.user.LastName || ''}`.trim() || req.user.Email || 'Administrator';
+    }
+
+    const welcomeTemplate = require('../emails/templates/auth/welcomeCredentials');
+    const html = welcomeTemplate({
+      userName,
+      email: user.Email,
+      password: password,
+      dashboardUrl: process.env.DASHBOARD_URL || 'https://data.brandcentral.in',
+      invitedBy
+    });
+
+    const result = await sendAdminEmail(user.Email, 'Your RetailOps Account Credentials', html, 'RetailOps');
+    
+    res.json({ 
+      success: true, 
+      message: 'Credentials email sent successfully',
+      data: { messageId: result.messageId, to: user.Email }
+    });
+  } catch (error) {
+    console.error('Send credentials error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
