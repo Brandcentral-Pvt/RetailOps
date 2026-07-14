@@ -540,15 +540,17 @@ const UsersPage = () => {
                 // Show option to send credentials
                 const newUserId = result?.data?._id || result?.data?.id;
                 const tempPassword = userFormData.password || '';
-                if (newUserId && tempPassword) {
+                if (newUserId) {
                     Modal.confirm({
                         title: 'Send Credentials Email?',
-                        content: `Send login credentials to ${userFormData.email}?`,
+                        content: tempPassword 
+                            ? `Send login credentials to ${userFormData.email}?`
+                            : `Send login invitation to ${userFormData.email}? (User will set their own password)`,
                         okText: 'Send Email',
                         cancelText: 'Skip',
                         onOk: async () => {
                             try {
-                                await userApi.sendCredentials(newUserId, tempPassword);
+                                await userApi.sendCredentials(newUserId, tempPassword || 'invitation');
                                 messageApi.success('Credentials email sent successfully');
                             } catch (err) {
                                 messageApi.error('Failed to send credentials email');
