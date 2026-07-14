@@ -2461,24 +2461,13 @@ const UsersPage = () => {
                 {/* EMAIL MODAL */}
                 <Modal
                     title={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: "var(--radius-md)",
-                                background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#0288D1'
-                            }}>
-                                <Mail size={18} strokeWidth={2} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0288D1, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Mail size={16} color="#fff" />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>
-                                    Send Email
-                                </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Send Email</div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>
                                     To: {emailUser?.firstName} {emailUser?.lastName}
                                 </div>
                             </div>
@@ -2490,61 +2479,91 @@ const UsersPage = () => {
                     destroyOnHidden
                     width={540}
                     footer={[
-                        <Button
-                            key="cancel"
-                            onClick={() => setShowEmailModal(false)}
-                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 36 }}
-                        >
+                        <Button key="cancel" onClick={() => setShowEmailModal(false)}
+                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 12, height: 36 }}>
                             Cancel
                         </Button>,
-                        <Button
-                            key="send"
-                            type="primary"
-                            loading={sendingEmail}
-                            onClick={handleSendEmailSubmit}
-                            icon={<Send size={14} strokeWidth={2} />}
-                            style={{
-                                borderRadius: "var(--radius-md)",
-                                fontWeight: 600,
-                                fontSize: 'var(--font-size-sm)',
-                                height: 36,
-                                background: 'linear-gradient(135deg, #0288D1, #1d4ed8)',
-                                border: 'none'
-                            }}
-                        >
+                        <Button key="send" type="primary" loading={sendingEmail} onClick={handleSendEmailSubmit}
+                            icon={<Send size={14} />}
+                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 12, height: 36, background: '#18181b' }}>
                             Send Email
                         </Button>
                     ]}
                 >
-                    <div style={{ padding: '12px 0' }}>
+                    <div style={{ padding: '8px 0' }}>
+                        {/* Email Type Selector */}
+                        <div style={{ marginBottom: 16 }}>
+                            <FieldLabel>Email Type</FieldLabel>
+                            <Select
+                                value={emailForm.type || 'custom'}
+                                onChange={val => {
+                                    if (val === 'credentials') {
+                                        setEmailForm({
+                                            type: 'credentials',
+                                            subject: 'Your RetailOps Account Credentials',
+                                            message: `Hi ${emailUser?.firstName},\n\nYour RetailOps account has been created. Below are your login credentials:\n\nEmail: ${emailUser?.email}\nPassword: [Temporary Password]\nDashboard: https://data.brandcentral.in\n\nPlease change your password after first login for security.\n\nBest regards,\nRetailOps Team`
+                                        });
+                                    } else if (val === 'welcome') {
+                                        setEmailForm({
+                                            type: 'welcome',
+                                            subject: 'Welcome to RetailOps',
+                                            message: `Hi ${emailUser?.firstName},\n\nWelcome to RetailOps! Your account has been set up and you're ready to start.\n\nHere's what you can do:\n- Access your dashboard at https://data.brandcentral.in\n- View and manage your assigned sellers\n- Track ASIN performance and analytics\n- Collaborate with your team\n\nIf you have any questions, feel free to reach out.\n\nBest regards,\nRetailOps Team`
+                                        });
+                                    } else {
+                                        setEmailForm({ ...emailForm, type: val });
+                                    }
+                                }}
+                                style={{ borderRadius: 8 }}
+                                options={[
+                                    { value: 'credentials', label: 'Send Credentials (with password)' },
+                                    { value: 'welcome', label: 'Welcome Email' },
+                                    { value: 'custom', label: 'Custom Message' }
+                                ]}
+                            />
+                        </div>
+
+                        {/* Recipient */}
                         <div style={{ marginBottom: 16 }}>
                             <FieldLabel>To</FieldLabel>
                             <Input
                                 value={emailUser?.email}
                                 disabled
                                 prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
-                                style={{ borderRadius: "var(--radius-md)", height: 38, background: '#f8fafc' }}
+                                style={{ borderRadius: 8, height: 40, background: '#f8fafc' }}
                             />
                         </div>
+
+                        {/* Subject */}
                         <div style={{ marginBottom: 16 }}>
                             <FieldLabel>Subject *</FieldLabel>
                             <Input
                                 placeholder="Enter subject"
                                 value={emailForm.subject}
                                 onChange={e => setEmailForm({ ...emailForm, subject: e.target.value })}
-                                style={{ borderRadius: "var(--radius-md)", height: 38 }}
+                                style={{ borderRadius: 8, height: 40 }}
                             />
                         </div>
+
+                        {/* Message */}
                         <div>
                             <FieldLabel>Message *</FieldLabel>
-                            <TextArea
-                                rows={6}
+                            <Input.TextArea
+                                rows={8}
                                 placeholder="Write your message..."
                                 value={emailForm.message}
                                 onChange={e => setEmailForm({ ...emailForm, message: e.target.value })}
-                                style={{ borderRadius: "var(--radius-md)" }}
+                                style={{ borderRadius: 8 }}
                             />
                         </div>
+
+                        {/* Info Note */}
+                        {emailForm.type === 'credentials' && (
+                            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fed7aa' }}>
+                                <Text style={{ fontSize: 11, color: '#92400e' }}>
+                                    ℹ️ This will send the user their login credentials. Make sure to set a temporary password when creating the user.
+                                </Text>
+                            </div>
+                        )}
                     </div>
                 </Modal>
 
