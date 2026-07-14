@@ -560,10 +560,10 @@ const UsersPage = () => {
                 messageApi.success('User created successfully');
 
                 const newUserId = result?.data?._id || result?.data?.id;
-                const tempPassword = userFormData.password || '';
-                if (newUserId && tempPassword) {
+                const actualPassword = userFormData.password || '';
+                if (newUserId) {
                     try {
-                        await userApi.sendCredentials(newUserId, tempPassword);
+                        await userApi.sendCredentials(newUserId, actualPassword);
                         messageApi.success('Credentials email sent');
                     } catch {
                         messageApi.warning('User created but credentials email failed');
@@ -590,10 +590,19 @@ const UsersPage = () => {
         }
         setSendingEmail(true);
         try {
-            const result = await userApi.sendEmail({
-                userId: emailUser._id || emailUser.id,
-                subject: emailForm.subject, message: emailForm.message
-            });
+            let result;
+            if (emailForm.type === 'credentials') {
+                // Send credentials email using the dedicated endpoint
+                const password = emailUser?.password || userFormData?.password || '';
+                result = await userApi.sendCredentials(emailUser._id || emailUser.id, password);
+            } else {
+                // Send custom email
+                result = await userApi.sendEmail({
+                    userId: emailUser._id || emailUser.id,
+                    subject: emailForm.subject, 
+                    message: emailForm.message
+                });
+            }
             if (result?.success) {
                 messageApi.success('Email sent successfully');
                 setShowEmailModal(false);
