@@ -130,7 +130,7 @@ const ScoreCard = ({ title, score: rawScore, grade, issues = [], recommendations
         ) : (
           <div style={{ padding: '8px 12px', background: C.successBg, borderRadius: "var(--radius-md)", border: `1px solid #dcfce7`, display: 'flex', alignItems: 'center', gap: 8 }}>
             <CheckCircle2 size={14} color={C.success} />
-            <Text strong style={{ color: '#2E7D32', fontSize: 'var(--font-size-xs)' }}>Fully Optimized!</Text>
+            <Text strong style={{ color: 'var(--text-success)', fontSize: 'var(--font-size-xs)' }}>Fully Optimized!</Text>
           </div>
         )}
       </div>

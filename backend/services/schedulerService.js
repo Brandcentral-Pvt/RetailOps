@@ -216,11 +216,11 @@ class SchedulerService {
             await this.refreshAgeTags();
         }, cronOptions);
 
-        // 5. Daily Auto-Tag Run: GMS Top 20 + New 20 + Age tags (Every day at 3 AM)
+        // 5. Daily Auto-Tag Run: Pareto 80/20 Contributors + Age tags (Every day at 3 AM)
         this.jobs.autoTags = cron.schedule('0 3 * * *', async () => {
             await this.runAutoTags();
         }, cronOptions);
-        console.log(`🔄 [Scheduler] Auto-Tags (GMS Top 20 + New 20) scheduled daily at 3:00 AM`);
+        console.log(`🔄 [Scheduler] Auto-Tags (Pareto 80/20 Contributors + Age) scheduled daily at 3:00 AM`);
     }
 
     async reschedule() {
@@ -355,7 +355,7 @@ class SchedulerService {
 
     async runAutoTags() {
         try {
-            console.log('🔄 [AutoTag] Starting daily full auto-tag run (GMS Top 20 + New 20 + Age)...');
+            console.log('🔄 [AutoTag] Starting daily full auto-tag run (Pareto 80/20 + Age)...');
             const pool = await getPool();
             const result = await AutoTagService.runAllAutoTags(pool);
             console.log(`✅ [AutoTag] Full run complete:`, JSON.stringify(result));
