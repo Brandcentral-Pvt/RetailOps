@@ -64,8 +64,8 @@ const getRoleColor = (roleName) => {
 // Field Label Component
 const FieldLabel = ({ children }) => (
     <div style={{
-        fontSize: 11,
-        fontWeight: 700,
+        fontSize: 'var(--font-size-xs)',
+        fontWeight: 600,
         color: '#475569',
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
@@ -92,7 +92,7 @@ const EnhancedAvatar = ({ firstName, lastName, size = 40, showStatus = false, is
                 justifyContent: 'center',
                 color: 'white',
                 fontSize: size * 0.4,
-                fontWeight: 700,
+                fontWeight: 600,
                 border: '2px solid white',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
                 letterSpacing: '0.02em',
@@ -132,7 +132,7 @@ const RoleBadge = ({ role }) => {
             padding: '4px 10px',
             background: `${color}15`,
             border: `1px solid ${color}30`,
-            borderRadius: 12,
+            borderRadius: "var(--radius-lg)",
             transition: 'all 0.2s ease',
             cursor: 'default'
         }}>
@@ -144,8 +144,8 @@ const RoleBadge = ({ role }) => {
                 boxShadow: `0 0 0 2px ${color}20`
             }} />
             <span style={{
-                fontSize: 11,
-                fontWeight: 700,
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: 600,
                 color: color,
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
@@ -165,7 +165,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
             flex: 1,
             background: 'white',
             border: '1px solid #f1f5f9',
-            borderRadius: 12,
+            borderRadius: "var(--radius-lg)",
             padding: 20,
             cursor: 'pointer',
             transition: 'all 0.2s ease',
@@ -204,10 +204,10 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
                     gap: 3,
                     padding: '3px 8px',
                     background: trend.positive ? '#dcfce7' : '#fee2e2',
-                    color: trend.positive ? '#15803d' : '#C62828',
+                    color: trend.positive ? '#2E7D32' : '#C62828',
                     borderRadius: 6,
                     fontSize: 10,
-                    fontWeight: 700
+                    fontWeight: 600
                 }}>
                     {trend.positive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                     {trend.value}
@@ -227,8 +227,8 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
         </div>
 
         <div style={{
-            fontSize: 11,
-            fontWeight: 700,
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 600,
             color: '#64748b',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
@@ -239,7 +239,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
 
         {subtitle && (
             <div style={{
-                fontSize: 12,
+                fontSize: 'var(--font-size-sm)',
                 color: '#94a3b8',
                 display: 'flex',
                 alignItems: 'center',
@@ -713,7 +713,7 @@ const UsersPage = () => {
                         />
                         <div>
                             <div style={{
-                                fontSize: 14,
+                                fontSize: 'var(--font-size-base)',
                                 fontWeight: 600,
                                 color: '#0f172a',
                                 marginBottom: 2,
@@ -722,7 +722,7 @@ const UsersPage = () => {
                                 {record.firstName} {record.lastName}
                             </div>
                             <div style={{
-                                fontSize: 12,
+                                fontSize: 'var(--font-size-sm)',
                                 color: '#64748b',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -756,7 +756,7 @@ const UsersPage = () => {
                 if (list.length === 0) {
                     return (
                         <span style={{
-                            fontSize: 11,
+                            fontSize: 'var(--font-size-xs)',
                             color: '#cbd5e1',
                             fontStyle: 'italic'
                         }}>—</span>
@@ -796,8 +796,8 @@ const UsersPage = () => {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     fontSize: 10,
-                                    fontWeight: 700,
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                    fontWeight: 600,
+                                    boxShadow: 'var(--shadow-sm)'
                                 }}>
                                     +{list.length - 3}
                                 </div>
@@ -823,7 +823,7 @@ const UsersPage = () => {
                         }}
                     />
                     <span style={{
-                        fontSize: 12,
+                        fontSize: 'var(--font-size-sm)',
                         fontWeight: 600,
                         color: isActive ? '#047857' : '#64748b',
                         transition: 'color 0.2s'
@@ -849,7 +849,7 @@ const UsersPage = () => {
                                 strokeWidth={2.5}
                             />
                             <span style={{
-                                fontSize: 12,
+                                fontSize: 'var(--font-size-sm)',
                                 color: lastActive.color,
                                 fontWeight: lastActive.isOnline ? 600 : 500
                             }}>
@@ -952,7 +952,7 @@ const UsersPage = () => {
                 padding: '12px 14px',
                 background: isChecked ? '#eff6ff' : '#ffffff',
                 border: `2px solid ${isChecked ? '#0288D1' : '#e2e8f0'}`,
-                borderRadius: 8,
+                borderRadius: "var(--radius-md)",
                 cursor: readOnly ? 'default' : 'pointer',
                 transition: 'all 0.2s ease'
             }}
@@ -973,18 +973,18 @@ const UsersPage = () => {
         >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
-                    width: 32, height: 32, borderRadius: 8,
+                    width: 32, height: 32, borderRadius: "var(--radius-md)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: isChecked ? (iconBg || '#0288D1') : '#f1f5f9',
                     color: isChecked ? '#ffffff' : '#64748b',
-                    fontSize: 11, fontWeight: 700,
+                    fontSize: 'var(--font-size-xs)', fontWeight: 600,
                     transition: 'all 0.2s'
                 }}>
                     {ItemIcon ? <ItemIcon size={14} /> : name?.charAt(0)?.toUpperCase()}
                 </div>
                 <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>{name}</div>
-                    {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{subtitle}</div>}
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>{name}</div>
+                    {subtitle && <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginTop: 1 }}>{subtitle}</div>}
                 </div>
             </div>
             <div style={{
@@ -1065,8 +1065,8 @@ const UsersPage = () => {
                                 marginBottom: 6
                             }}>
                                 <h2 style={{
-                                    fontSize: 20,
-                                    fontWeight: 700,
+                                    fontSize: 'var(--font-size-xl)',
+                                    fontWeight: 600,
                                     color: '#0f172a',
                                     margin: 0,
                                     letterSpacing: '-0.02em',
@@ -1078,9 +1078,9 @@ const UsersPage = () => {
                                     padding: '3px 10px',
                                     background: '#eef2ff',
                                     color: '#1976D2',
-                                    borderRadius: 12,
-                                    fontSize: 11,
-                                    fontWeight: 700,
+                                    borderRadius: "var(--radius-lg)",
+                                    fontSize: 'var(--font-size-xs)',
+                                    fontWeight: 600,
                                     letterSpacing: '0.02em',
                                     border: '1px solid #e0e7ff'
                                 }}>
@@ -1088,7 +1088,7 @@ const UsersPage = () => {
                                 </span>
                             </div>
                             <p style={{
-                                fontSize: 13,
+                                fontSize: 'var(--font-size-sm)',
                                 color: '#64748b',
                                 margin: 0,
                                 lineHeight: 1.5
@@ -1102,9 +1102,9 @@ const UsersPage = () => {
                                 icon={<RefreshCw size={14} />}
                                 onClick={loadUsers}
                                 style={{
-                                    borderRadius: 8,
+                                    borderRadius: "var(--radius-md)",
                                     fontWeight: 600,
-                                    fontSize: 13,
+                                    fontSize: 'var(--font-size-sm)',
                                     height: 38,
                                     paddingInline: 16,
                                     border: '1px solid #e2e8f0',
@@ -1121,9 +1121,9 @@ const UsersPage = () => {
                                     icon={<UserPlus size={14} />}
                                     onClick={() => handleOpenUserModal()}
                                     style={{
-                                        borderRadius: 8,
+                                        borderRadius: "var(--radius-md)",
                                         fontWeight: 600,
-                                        fontSize: 13,
+                                        fontSize: 'var(--font-size-sm)',
                                         height: 38,
                                         paddingInline: 18,
                                         background: 'linear-gradient(135deg, #1976D2, #1976D2)',
@@ -1142,9 +1142,9 @@ const UsersPage = () => {
                                     icon={<Plus size={14} />}
                                     onClick={() => handleOpenRoleModal()}
                                     style={{
-                                        borderRadius: 8,
+                                        borderRadius: "var(--radius-md)",
                                         fontWeight: 600,
-                                        fontSize: 13,
+                                        fontSize: 'var(--font-size-sm)',
                                         height: 38,
                                         paddingInline: 18,
                                         background: 'linear-gradient(135deg, #1976D2, #1976D2)',
@@ -1167,7 +1167,7 @@ const UsersPage = () => {
                     {/* Tab Switcher + Filters - FIXED ALIGNMENT */}
                     <div style={{
                         background: 'white',
-                        borderRadius: 12,
+                        borderRadius: "var(--radius-lg)",
                         border: '1px solid #e2e8f0',
                         padding: '14px 18px',
                         marginBottom: 20,
@@ -1190,7 +1190,7 @@ const UsersPage = () => {
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: 6,
-                                                fontSize: 13,
+                                                fontSize: 'var(--font-size-sm)',
                                                 fontWeight: 600,
                                                 padding: '2px 4px'
                                             }}>
@@ -1205,7 +1205,7 @@ const UsersPage = () => {
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: 6,
-                                                fontSize: 13,
+                                                fontSize: 'var(--font-size-sm)',
                                                 fontWeight: 600,
                                                 padding: '2px 4px'
                                             }}>
@@ -1218,7 +1218,7 @@ const UsersPage = () => {
                                 style={{
                                     background: '#f1f5f9',
                                     padding: 4,
-                                    borderRadius: 8
+                                    borderRadius: "var(--radius-md)"
                                 }}
                             />
 
@@ -1232,7 +1232,7 @@ const UsersPage = () => {
                                         onChange={e => setSearchText(e.target.value)}
                                         style={{
                                             width: 260,
-                                            borderRadius: 8,
+                                            borderRadius: "var(--radius-md)",
                                             height: 38
                                         }}
                                     />
@@ -1290,7 +1290,7 @@ const UsersPage = () => {
                                         allowClear
                                         value={permissionSearch}
                                         onChange={e => setPermissionSearch(e.target.value)}
-                                        style={{ width: 260, borderRadius: 8, height: 38 }}
+                                        style={{ width: 260, borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                     <Button
                                         type="primary"
@@ -1298,9 +1298,9 @@ const UsersPage = () => {
                                         loading={matrixSaving}
                                         onClick={handleSaveMatrixPermissions}
                                         style={{
-                                            borderRadius: 8,
+                                            borderRadius: "var(--radius-md)",
                                             fontWeight: 600,
-                                            fontSize: 13,
+                                            fontSize: 'var(--font-size-sm)',
                                             height: 38,
                                             paddingInline: 16,
                                             background: 'linear-gradient(135deg, #2E7D32, #2E7D32)',
@@ -1333,7 +1333,7 @@ const UsersPage = () => {
                                     style={{
                                         background: 'white',
                                         border: '1px solid #e2e8f0',
-                                        borderRadius: 12,
+                                        borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s ease',
@@ -1370,8 +1370,8 @@ const UsersPage = () => {
                                     {/* Content */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
+                                            fontSize: 'var(--font-size-xs)',
+                                            fontWeight: 600,
                                             color: '#64748b',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
@@ -1394,9 +1394,9 @@ const UsersPage = () => {
                                                 {totalRecordCount}
                                             </div>
                                             <div style={{
-                                                fontSize: 11,
+                                                fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 600,
-                                                color: '#15803d',
+                                                color: '#2E7D32',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: 2
@@ -1413,7 +1413,7 @@ const UsersPage = () => {
                                     style={{
                                         background: 'white',
                                         border: '1px solid #e2e8f0',
-                                        borderRadius: 12,
+                                        borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s ease',
@@ -1464,8 +1464,8 @@ const UsersPage = () => {
                                     {/* Content */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
+                                            fontSize: 'var(--font-size-xs)',
+                                            fontWeight: 600,
                                             color: '#64748b',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
@@ -1488,7 +1488,7 @@ const UsersPage = () => {
                                                 {activeCount}
                                             </div>
                                             <div style={{
-                                                fontSize: 11,
+                                                fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 600,
                                                 color: '#64748b'
                                             }}>
@@ -1503,7 +1503,7 @@ const UsersPage = () => {
                                     style={{
                                         background: 'white',
                                         border: '1px solid #e2e8f0',
-                                        borderRadius: 12,
+                                        borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s ease',
@@ -1540,8 +1540,8 @@ const UsersPage = () => {
                                     {/* Content */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
+                                            fontSize: 'var(--font-size-xs)',
+                                            fontWeight: 600,
                                             color: '#64748b',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
@@ -1565,7 +1565,7 @@ const UsersPage = () => {
                                             </div>
                                             {inactiveCount > 0 && (
                                                 <div style={{
-                                                    fontSize: 11,
+                                                    fontSize: 'var(--font-size-xs)',
                                                     fontWeight: 600,
                                                     color: '#C62828',
                                                     display: 'flex',
@@ -1585,7 +1585,7 @@ const UsersPage = () => {
                             <div style={{
                                 background: 'white',
                                 border: '1px solid #e2e8f0',
-                                borderRadius: 12,
+                                borderRadius: "var(--radius-lg)",
                                 overflow: 'hidden',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                             }}>
@@ -1601,7 +1601,7 @@ const UsersPage = () => {
                                         showSizeChanger: true,
                                         pageSizeOptions: ['10', '20', '50', '100'],
                                         showTotal: (total, range) => (
-                                            <span style={{ fontSize: 13, color: '#64748b' }}>
+                                            <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
                                                 Showing <strong>{range[0]}-{range[1]}</strong> of <strong>{total}</strong> users
                                             </span>
                                         ),
@@ -1625,21 +1625,21 @@ const UsersPage = () => {
                                                     <Users size={40} color="#cbd5e1" />
                                                 </div>
                                                 <div style={{
-                                                    fontSize: 16,
+                                                    fontSize: 'var(--font-size-lg)',
                                                     fontWeight: 600,
                                                     color: '#475569',
                                                     marginBottom: 6
                                                 }}>
                                                     No users found
                                                 </div>
-                                                <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16 }}>
+                                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', marginBottom: 16 }}>
                                                     Try adjusting your filters or add a new user
                                                 </div>
                                                 <Button
                                                     type="primary"
                                                     icon={<UserPlus size={14} />}
                                                     onClick={() => handleOpenUserModal()}
-                                                    style={{ borderRadius: 8 }}
+                                                    style={{ borderRadius: "var(--radius-md)" }}
                                                 >
                                                     Add User
                                                 </Button>
@@ -1656,7 +1656,7 @@ const UsersPage = () => {
                         Object.entries(filteredGroupedPermissions).map(([category, perms]) => (
                             <div key={category} style={{
                                 border: '1px solid #e2e8f0',
-                                borderRadius: 12,
+                                borderRadius: "var(--radius-lg)",
                                 overflow: 'hidden',
                                 marginBottom: 16,
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
@@ -1682,21 +1682,21 @@ const UsersPage = () => {
                                         <Shield size={14} style={{ color: '#1976D2' }} />
                                     </div>
                                     <span style={{
-                                        fontWeight: 700,
+                                        fontWeight: 600,
                                         color: '#0f172a',
-                                        fontSize: 13,
+                                        fontSize: 'var(--font-size-sm)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em'
                                     }}>
                                         {category}
                                     </span>
                                     <span style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#64748b',
                                         background: 'white',
                                         padding: '2px 10px',
-                                        borderRadius: 12,
+                                        borderRadius: "var(--radius-lg)",
                                         border: '1px solid #e2e8f0'
                                     }}>
                                         {perms.length} {perms.length === 1 ? 'permission' : 'permissions'}
@@ -1709,8 +1709,8 @@ const UsersPage = () => {
                                                 <th style={{
                                                     width: 240,
                                                     padding: '12px 20px',
-                                                    fontSize: 11,
-                                                    fontWeight: 700,
+                                                    fontSize: 'var(--font-size-xs)',
+                                                    fontWeight: 600,
                                                     color: '#475569',
                                                     textAlign: 'left',
                                                     background: '#fafbfc',
@@ -1723,8 +1723,8 @@ const UsersPage = () => {
                                                 {perms.map(p => (
                                                     <th key={p._id || p.id} style={{
                                                         padding: '12px 14px',
-                                                        fontSize: 11,
-                                                        fontWeight: 700,
+                                                        fontSize: 'var(--font-size-xs)',
+                                                        fontWeight: 600,
                                                         color: '#475569',
                                                         textAlign: 'center',
                                                         minWidth: 130,
@@ -1755,7 +1755,7 @@ const UsersPage = () => {
                                                     >
                                                         <td style={{
                                                             padding: '14px 20px',
-                                                            fontSize: 13,
+                                                            fontSize: 'var(--font-size-sm)',
                                                             fontWeight: 600,
                                                             color: '#0f172a',
                                                             background: '#fafbfc',
@@ -1857,7 +1857,7 @@ const UsersPage = () => {
                             <div style={{
                                 width: 36,
                                 height: 36,
-                                borderRadius: 8,
+                                borderRadius: "var(--radius-md)",
                                 background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1867,10 +1867,10 @@ const UsersPage = () => {
                                 <UserCheck size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
                                     {editingUser ? 'Edit User' : 'Add New User'}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
                                     {editingUser ? 'Update user information' : 'Create a new team member'}
                                 </div>
                             </div>
@@ -1889,7 +1889,7 @@ const UsersPage = () => {
                         <Button
                             key="cancel"
                             onClick={() => setShowUserModal(false)}
-                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 13, height: 36 }}
+                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 36 }}
                         >
                             Cancel
                         </Button>,
@@ -1898,9 +1898,9 @@ const UsersPage = () => {
                             type="primary"
                             onClick={handleSaveUser}
                             style={{
-                                borderRadius: 8,
+                                borderRadius: "var(--radius-md)",
                                 fontWeight: 600,
-                                fontSize: 13,
+                                fontSize: 'var(--font-size-sm)',
                                 height: 36,
                                 background: 'linear-gradient(135deg, #1976D2, #1976D2)',
                                 border: 'none'
@@ -1914,8 +1914,8 @@ const UsersPage = () => {
                         {/* Basic Info */}
                         <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
                             <div style={{
-                                fontSize: 11,
-                                fontWeight: 700,
+                                fontSize: 'var(--font-size-xs)',
+                                fontWeight: 600,
                                 color: '#475569',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
@@ -1934,7 +1934,7 @@ const UsersPage = () => {
                                         value={userFormData.firstName}
                                         onChange={e => setUserFormData({ ...userFormData, firstName: e.target.value })}
                                         placeholder="John"
-                                        style={{ borderRadius: 8, height: 38 }}
+                                        style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
                                 <Col span={12}>
@@ -1943,7 +1943,7 @@ const UsersPage = () => {
                                         value={userFormData.lastName}
                                         onChange={e => setUserFormData({ ...userFormData, lastName: e.target.value })}
                                         placeholder="Doe"
-                                        style={{ borderRadius: 8, height: 38 }}
+                                        style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
                                 <Col span={12}>
@@ -1955,7 +1955,7 @@ const UsersPage = () => {
                                         onChange={e => setUserFormData({ ...userFormData, email: e.target.value })}
                                         placeholder="user@example.com"
                                         prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
-                                        style={{ borderRadius: 8, height: 38 }}
+                                        style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
                                 <Col span={12}>
@@ -1965,7 +1965,7 @@ const UsersPage = () => {
                                         onChange={e => setUserFormData({ ...userFormData, phone: e.target.value })}
                                         placeholder="+91 12345 67890"
                                         prefix={<Phone size={14} style={{ color: '#94a3b8' }} />}
-                                        style={{ borderRadius: 8, height: 38 }}
+                                        style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
                                 {!editingUser && (
@@ -1976,7 +1976,7 @@ const UsersPage = () => {
                                             onChange={e => setUserFormData({ ...userFormData, password: e.target.value })}
                                             placeholder="Enter strong password"
                                             prefix={<Lock size={14} style={{ color: '#94a3b8' }} />}
-                                            style={{ borderRadius: 8, height: 38 }}
+                                            style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                         />
                                     </Col>
                                 )}
@@ -1986,8 +1986,8 @@ const UsersPage = () => {
                         {/* Role */}
                         <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
                             <div style={{
-                                fontSize: 11,
-                                fontWeight: 700,
+                                fontSize: 'var(--font-size-xs)',
+                                fontWeight: 600,
                                 color: '#475569',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
@@ -2000,7 +2000,7 @@ const UsersPage = () => {
                                 Role Assignment *
                             </div>
                             <Select
-                                style={{ width: '100%', borderRadius: 8 }}
+                                style={{ width: '100%', borderRadius: "var(--radius-md)" }}
                                 value={userFormData.role || undefined}
                                 onChange={handleUserRoleChange}
                                 placeholder="Select role"
@@ -2027,8 +2027,8 @@ const UsersPage = () => {
                             <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#475569',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
@@ -2040,12 +2040,12 @@ const UsersPage = () => {
                                         Supervisors
                                     </div>
                                     <span style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#1976D2',
                                         background: '#eef2ff',
                                         padding: '2px 10px',
-                                        borderRadius: 12
+                                        borderRadius: "var(--radius-lg)"
                                     }}>
                                         {userFormData.supervisors.length} selected
                                     </span>
@@ -2055,7 +2055,7 @@ const UsersPage = () => {
                                     placeholder="Search supervisors..."
                                     value={modalSearchSupervisor}
                                     onChange={e => setModalSearchSupervisor(e.target.value)}
-                                    style={{ borderRadius: 8, marginBottom: 10 }}
+                                    style={{ borderRadius: "var(--radius-md)", marginBottom: 10 }}
                                 />
                                 <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {filteredSupervisors.map(m => {
@@ -2077,7 +2077,7 @@ const UsersPage = () => {
                                         );
                                     })}
                                     {filteredSupervisors.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>
+                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
                                             No supervisors found
                                         </div>
                                     )}
@@ -2090,8 +2090,8 @@ const UsersPage = () => {
                             <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#475569',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
@@ -2103,12 +2103,12 @@ const UsersPage = () => {
                                         Brand Managers
                                     </div>
                                     <span style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#1976D2',
                                         background: '#eef2ff',
                                         padding: '2px 10px',
-                                        borderRadius: 12
+                                        borderRadius: "var(--radius-lg)"
                                     }}>
                                         {userFormData.brandManagers.length} linked
                                     </span>
@@ -2118,7 +2118,7 @@ const UsersPage = () => {
                                     placeholder="Search brand managers..."
                                     value={modalSearchBrandManager}
                                     onChange={e => setModalSearchBrandManager(e.target.value)}
-                                    style={{ borderRadius: 8, marginBottom: 10 }}
+                                    style={{ borderRadius: "var(--radius-md)", marginBottom: 10 }}
                                 />
                                 <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {filteredBrandManagers.map(m => {
@@ -2140,7 +2140,7 @@ const UsersPage = () => {
                                         );
                                     })}
                                     {filteredBrandManagers.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>
+                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
                                             No brand managers found
                                         </div>
                                     )}
@@ -2152,8 +2152,8 @@ const UsersPage = () => {
                         <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{
-                                    fontSize: 11,
-                                    fontWeight: 700,
+                                    fontSize: 'var(--font-size-xs)',
+                                    fontWeight: 600,
                                     color: '#475569',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.05em',
@@ -2165,12 +2165,12 @@ const UsersPage = () => {
                                     Assigned Brands
                                 </div>
                                 <span style={{
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    color: '#15803d',
+                                    fontSize: 'var(--font-size-xs)',
+                                    fontWeight: 600,
+                                    color: '#2E7D32',
                                     background: '#dcfce7',
                                     padding: '2px 10px',
-                                    borderRadius: 12
+                                    borderRadius: "var(--radius-lg)"
                                 }}>
                                     {(isListingTeam ? inheritedSellers : userFormData.assignedSellers).length} brands
                                 </span>
@@ -2180,10 +2180,10 @@ const UsersPage = () => {
                                 <div style={{
                                     background: '#eff6ff',
                                     border: '1px solid #bfdbfe',
-                                    borderRadius: 8,
+                                    borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
-                                    fontSize: 12,
+                                    fontSize: 'var(--font-size-sm)',
                                     color: '#1d4ed8',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -2197,10 +2197,10 @@ const UsersPage = () => {
                                 <div style={{
                                     background: '#fffbeb',
                                     border: '1px solid #fde68a',
-                                    borderRadius: 8,
+                                    borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
-                                    fontSize: 12,
+                                    fontSize: 'var(--font-size-sm)',
                                     color: '#92400e',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -2218,17 +2218,17 @@ const UsersPage = () => {
                                         placeholder="Search brands..."
                                         value={modalSearchSeller}
                                         onChange={e => setModalSearchSeller(e.target.value)}
-                                        style={{ borderRadius: 8, flex: 1 }}
+                                        style={{ borderRadius: "var(--radius-md)", flex: 1 }}
                                     />
                                     <Button
                                         onClick={() => setUserFormData({ ...userFormData, assignedSellers: sellers.map(s => s._id || s.id) })}
-                                        style={{ fontSize: 12, fontWeight: 600, borderRadius: 8 }}
+                                        style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: "var(--radius-md)" }}
                                     >
                                         Select All
                                     </Button>
                                     <Button
                                         onClick={() => setUserFormData({ ...userFormData, assignedSellers: [] })}
-                                        style={{ fontSize: 12, fontWeight: 600, borderRadius: 8 }}
+                                        style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: "var(--radius-md)" }}
                                     >
                                         Clear
                                     </Button>
@@ -2245,7 +2245,7 @@ const UsersPage = () => {
                                             isChecked={checked}
                                             readOnly={isListingTeam}
                                             icon={Store}
-                                            iconBg="#15803d"
+                                            iconBg="#2E7D32"
                                             name={s.name}
                                             subtitle={s.code || 'Brand'}
                                             onClick={() => {
@@ -2261,7 +2261,7 @@ const UsersPage = () => {
                                     );
                                 })}
                                 {filteredSellers.length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>
+                                    <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
                                         {isListingTeam ? 'Link brand managers to see brands' : 'No brands found'}
                                     </div>
                                 )}
@@ -2277,7 +2277,7 @@ const UsersPage = () => {
                             <div style={{
                                 width: 36,
                                 height: 36,
-                                borderRadius: 8,
+                                borderRadius: "var(--radius-md)",
                                 background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2287,10 +2287,10 @@ const UsersPage = () => {
                                 <Shield size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>
                                     {editingRole ? 'Edit Role' : 'Create New Role'}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
                                     {editingRole ? 'Modify role configuration' : 'Define a new role'}
                                 </div>
                             </div>
@@ -2305,7 +2305,7 @@ const UsersPage = () => {
                         <Button
                             key="cancel"
                             onClick={() => setShowRoleModal(false)}
-                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 13, height: 36 }}
+                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 36 }}
                         >
                             Cancel
                         </Button>,
@@ -2314,9 +2314,9 @@ const UsersPage = () => {
                             type="primary"
                             onClick={handleSaveRole}
                             style={{
-                                borderRadius: 8,
+                                borderRadius: "var(--radius-md)",
                                 fontWeight: 600,
-                                fontSize: 13,
+                                fontSize: 'var(--font-size-sm)',
                                 height: 36,
                                 background: 'linear-gradient(135deg, #1976D2, #1976D2)',
                                 border: 'none'
@@ -2334,7 +2334,7 @@ const UsersPage = () => {
                                 placeholder="e.g. analyst_l2"
                                 value={roleFormData.name}
                                 onChange={e => setRoleFormData({ ...roleFormData, name: e.target.value })}
-                                style={{ borderRadius: 8, height: 38 }}
+                                style={{ borderRadius: "var(--radius-md)", height: 38 }}
                             />
                         </div>
                         <div style={{ marginBottom: 16 }}>
@@ -2343,7 +2343,7 @@ const UsersPage = () => {
                                 placeholder="e.g. Senior Analyst"
                                 value={roleFormData.displayName}
                                 onChange={e => setRoleFormData({ ...roleFormData, displayName: e.target.value })}
-                                style={{ borderRadius: 8, height: 38 }}
+                                style={{ borderRadius: "var(--radius-md)", height: 38 }}
                             />
                         </div>
                         <Row gutter={12} style={{ marginBottom: 16 }}>
@@ -2355,7 +2355,7 @@ const UsersPage = () => {
                                     max={100}
                                     value={roleFormData.level}
                                     onChange={e => setRoleFormData({ ...roleFormData, level: parseInt(e.target.value) || 0 })}
-                                    style={{ borderRadius: 8, height: 38 }}
+                                    style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                 />
                             </Col>
                             <Col span={12}>
@@ -2370,10 +2370,10 @@ const UsersPage = () => {
                                             height: 38,
                                             padding: 4,
                                             cursor: 'pointer',
-                                            borderRadius: 8
+                                            borderRadius: "var(--radius-md)"
                                         }}
                                     />
-                                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748b' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
                                         {roleFormData.color}
                                     </span>
                                 </div>
@@ -2386,7 +2386,7 @@ const UsersPage = () => {
                                 placeholder="Describe role responsibilities..."
                                 value={roleFormData.description}
                                 onChange={e => setRoleFormData({ ...roleFormData, description: e.target.value })}
-                                style={{ borderRadius: 8 }}
+                                style={{ borderRadius: "var(--radius-md)" }}
                             />
                         </div>
                     </div>
@@ -2399,7 +2399,7 @@ const UsersPage = () => {
                             <div style={{
                                 width: 36,
                                 height: 36,
-                                borderRadius: 8,
+                                borderRadius: "var(--radius-md)",
                                 background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2409,10 +2409,10 @@ const UsersPage = () => {
                                 <Mail size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>
                                     Send Email
                                 </div>
-                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
                                     To: {emailUser?.firstName} {emailUser?.lastName}
                                 </div>
                             </div>
@@ -2427,7 +2427,7 @@ const UsersPage = () => {
                         <Button
                             key="cancel"
                             onClick={() => setShowEmailModal(false)}
-                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 13, height: 36 }}
+                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 36 }}
                         >
                             Cancel
                         </Button>,
@@ -2438,9 +2438,9 @@ const UsersPage = () => {
                             onClick={handleSendEmailSubmit}
                             icon={<Send size={14} strokeWidth={2} />}
                             style={{
-                                borderRadius: 8,
+                                borderRadius: "var(--radius-md)",
                                 fontWeight: 600,
-                                fontSize: 13,
+                                fontSize: 'var(--font-size-sm)',
                                 height: 36,
                                 background: 'linear-gradient(135deg, #0288D1, #1d4ed8)',
                                 border: 'none'
@@ -2457,7 +2457,7 @@ const UsersPage = () => {
                                 value={emailUser?.email}
                                 disabled
                                 prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
-                                style={{ borderRadius: 8, height: 38, background: '#f8fafc' }}
+                                style={{ borderRadius: "var(--radius-md)", height: 38, background: '#f8fafc' }}
                             />
                         </div>
                         <div style={{ marginBottom: 16 }}>
@@ -2466,7 +2466,7 @@ const UsersPage = () => {
                                 placeholder="Enter subject"
                                 value={emailForm.subject}
                                 onChange={e => setEmailForm({ ...emailForm, subject: e.target.value })}
-                                style={{ borderRadius: 8, height: 38 }}
+                                style={{ borderRadius: "var(--radius-md)", height: 38 }}
                             />
                         </div>
                         <div>
@@ -2476,7 +2476,7 @@ const UsersPage = () => {
                                 placeholder="Write your message..."
                                 value={emailForm.message}
                                 onChange={e => setEmailForm({ ...emailForm, message: e.target.value })}
-                                style={{ borderRadius: 8 }}
+                                style={{ borderRadius: "var(--radius-md)" }}
                             />
                         </div>
                     </div>
@@ -2509,15 +2509,15 @@ const UsersPage = () => {
                                         isOnline={formatLastActive(profileUser.lastSeen).isOnline}
                                     />
                                     <div>
-                                        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
+                                        <div style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>
                                             {profileUser.firstName} {profileUser.lastName}
                                         </div>
-                                        <div style={{ fontSize: 13, opacity: 0.9, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.9, display: 'flex', alignItems: 'center', gap: 6 }}>
                                             <Mail size={12} />
                                             {profileUser.email}
                                         </div>
                                         {profileUser.phone && (
-                                            <div style={{ fontSize: 13, opacity: 0.9, display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                            <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.9, display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                                                 <Phone size={12} />
                                                 {profileUser.phone}
                                             </div>
@@ -2531,8 +2531,8 @@ const UsersPage = () => {
                                 {/* Role Section */}
                                 <div style={{ marginBottom: 24 }}>
                                     <div style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#64748b',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
@@ -2549,8 +2549,8 @@ const UsersPage = () => {
                                 {/* Status */}
                                 <div style={{ marginBottom: 24 }}>
                                     <div style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#64748b',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
@@ -2567,7 +2567,7 @@ const UsersPage = () => {
                                             }}
                                         />
                                         <span style={{
-                                            fontSize: 14,
+                                            fontSize: 'var(--font-size-base)',
                                             fontWeight: 600,
                                             color: profileUser.isActive ? '#047857' : '#64748b'
                                         }}>
@@ -2579,8 +2579,8 @@ const UsersPage = () => {
                                 {/* Last Active */}
                                 <div style={{ marginBottom: 24 }}>
                                     <div style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
                                         color: '#64748b',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
@@ -2590,7 +2590,7 @@ const UsersPage = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <Clock size={14} style={{ color: '#64748b' }} />
-                                        <span style={{ fontSize: 14, color: '#0f172a' }}>
+                                        <span style={{ fontSize: 'var(--font-size-base)', color: '#0f172a' }}>
                                             {profileUser.lastSeen ? new Date(profileUser.lastSeen).toLocaleString() : 'Never logged in'}
                                         </span>
                                     </div>
@@ -2600,8 +2600,8 @@ const UsersPage = () => {
                                 {profileUser.supervisors && profileUser.supervisors.length > 0 && (
                                     <div style={{ marginBottom: 24 }}>
                                         <div style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
+                                            fontSize: 'var(--font-size-xs)',
+                                            fontWeight: 600,
                                             color: '#64748b',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
@@ -2617,15 +2617,15 @@ const UsersPage = () => {
                                                     gap: 10,
                                                     padding: 10,
                                                     background: '#fafbfc',
-                                                    borderRadius: 8,
+                                                    borderRadius: "var(--radius-md)",
                                                     border: '1px solid #f1f5f9'
                                                 }}>
                                                     <EnhancedAvatar firstName={s.firstName} lastName={s.lastName} size={32} />
                                                     <div>
-                                                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
                                                             {s.firstName} {s.lastName}
                                                         </div>
-                                                        <div style={{ fontSize: 11, color: '#64748b' }}>
+                                                        <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
                                                             {s.email}
                                                         </div>
                                                     </div>
@@ -2649,7 +2649,7 @@ const UsersPage = () => {
                                             setShowProfileDrawer(false);
                                             handleSendEmail(profileUser);
                                         }}
-                                        style={{ flex: 1, borderRadius: 8, fontWeight: 600 }}
+                                        style={{ flex: 1, borderRadius: "var(--radius-md)", fontWeight: 600 }}
                                     >
                                         Send Email
                                     </Button>
@@ -2662,7 +2662,7 @@ const UsersPage = () => {
                                         }}
                                         style={{
                                             flex: 1,
-                                            borderRadius: 8,
+                                            borderRadius: "var(--radius-md)",
                                             fontWeight: 600,
                                             background: 'linear-gradient(135deg, #1976D2, #1976D2)',
                                             border: 'none'

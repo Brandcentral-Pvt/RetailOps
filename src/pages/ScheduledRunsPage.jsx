@@ -55,7 +55,7 @@ import {
 } from 'antd';
 import { scheduledRunsApi, settingsApi } from '../services/api';
 import { formatDistanceToNow, format, differenceInMinutes, differenceInSeconds } from 'date-fns';
-import { SkeletonChart } from '../components/common/Skeleton';
+import { ChartSkeleton as SkeletonChart } from '../components/ui/skeleton';
 
 const Chart = lazy(() => import('react-apexcharts'));
 const { Title, Text } = Typography;
@@ -109,14 +109,14 @@ const MetricCard = ({ label, value, suffix, icon: Icon, trend, trendLabel, color
     <Card style={cardBase} styles={{ body: { padding: '20px 22px' } }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: tokens.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: tokens.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
                     {label}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <span style={{ fontSize: '30px', fontWeight: 800, color: color || tokens.text.primary, lineHeight: 1, letterSpacing: '-0.03em' }}>
                         {loading ? '—' : value}
                     </span>
-                    {suffix && <span style={{ fontSize: '13px', fontWeight: 600, color: tokens.text.tertiary }}>{suffix}</span>}
+                    {suffix && <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: tokens.text.tertiary }}>{suffix}</span>}
                 </div>
                 {trend !== undefined && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px' }}>
@@ -124,10 +124,10 @@ const MetricCard = ({ label, value, suffix, icon: Icon, trend, trendLabel, color
                             <ArrowUpRight size={13} style={{ color: tokens.semantic.success }} /> :
                             <ArrowDownRight size={13} style={{ color: tokens.semantic.error }} />
                         }
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: trend >= 0 ? tokens.semantic.success : tokens.semantic.error }}>
+                        <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: trend >= 0 ? tokens.semantic.success : tokens.semantic.error }}>
                             {Math.abs(trend)}%
                         </span>
-                        {trendLabel && <span style={{ fontSize: '11px', color: tokens.text.tertiary, marginLeft: '2px' }}>{trendLabel}</span>}
+                        {trendLabel && <span style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary, marginLeft: '2px' }}>{trendLabel}</span>}
                     </div>
                 )}
             </div>
@@ -160,8 +160,8 @@ const StatusDot = ({ status }) => {
 const SectionHeader = ({ title, subtitle, actions }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: tokens.text.primary, letterSpacing: '-0.01em' }}>{title}</div>
-            {subtitle && <div style={{ fontSize: '12px', color: tokens.text.tertiary, marginTop: '2px' }}>{subtitle}</div>}
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: tokens.text.primary, letterSpacing: '-0.01em' }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.tertiary, marginTop: '2px' }}>{subtitle}</div>}
         </div>
         {actions && <Space size="small">{actions}</Space>}
     </div>
@@ -271,19 +271,19 @@ const ScheduledRunsPage = () => {
     const ingestionChartOptions = {
         chart: { fontFamily: 'Inter, system-ui, sans-serif', toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent' },
         stroke: { width: [0, 2.5, 2.5], curve: 'smooth', dashArray: [0, 0, 4] },
-        plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+        plotOptions: { bar: { columnWidth: '45%', borderRadius: "var(--radius-sm)" } },
         colors: [tokens.brand.primary, tokens.semantic.success, tokens.semantic.warning],
         fill: { opacity: [0.9, 1, 1] },
         dataLabels: { enabled: false },
         labels: ingestionChart.categories,
         xaxis: { labels: { style: { colors: tokens.text.tertiary, fontSize: '10px' }, rotate: -45, rotateAlways: ingestionChart.categories.length > 10 } },
         yaxis: [
-            { title: { text: 'Records', style: { color: tokens.text.tertiary, fontSize: '11px', fontWeight: 600 } }, labels: { style: { colors: tokens.text.tertiary, fontSize: '10px' }, formatter: (v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } },
-            { opposite: true, title: { text: 'Duration (min)', style: { color: tokens.text.tertiary, fontSize: '11px', fontWeight: 600 } }, labels: { style: { colors: tokens.text.tertiary, fontSize: '10px' } } }
+            { title: { text: 'Records', style: { color: tokens.text.tertiary, fontSize: 'var(--font-size-xs)', fontWeight: 600 } }, labels: { style: { colors: tokens.text.tertiary, fontSize: '10px' }, formatter: (v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v } },
+            { opposite: true, title: { text: 'Duration (min)', style: { color: tokens.text.tertiary, fontSize: 'var(--font-size-xs)', fontWeight: 600 } }, labels: { style: { colors: tokens.text.tertiary, fontSize: '10px' } } }
         ],
         grid: { borderColor: tokens.borderLight, strokeDashArray: 3 },
-        tooltip: { shared: true, intersect: false, theme: 'light', style: { fontSize: '12px' } },
-        legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 600, markers: { radius: 3 } }
+        tooltip: { shared: true, intersect: false, theme: 'light', style: { fontSize: 'var(--font-size-sm)' } },
+        legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-sm)', fontWeight: 600, markers: { radius: 3 } }
     };
 
     const ingestionChartSeries = [
@@ -303,7 +303,7 @@ const ScheduledRunsPage = () => {
         chart: { type: 'donut', fontFamily: 'Inter, system-ui, sans-serif' },
         labels: ['Completed', 'Failed', 'Running'],
         colors: [tokens.semantic.success, tokens.semantic.error, tokens.semantic.warning],
-        legend: { position: 'bottom', fontSize: '12px', fontWeight: 600 },
+        legend: { position: 'bottom', fontSize: 'var(--font-size-sm)', fontWeight: 600 },
         dataLabels: { enabled: false },
         plotOptions: {
             pie: {
@@ -311,9 +311,9 @@ const ScheduledRunsPage = () => {
                     size: '74%',
                     labels: {
                         show: true,
-                        name: { fontSize: '12px', color: tokens.text.secondary },
-                        value: { fontSize: '22px', fontWeight: 700, color: tokens.text.primary },
-                        total: { show: true, label: 'Total', fontSize: '11px', fontWeight: 600, color: tokens.text.tertiary, formatter: () => runs.length }
+                        name: { fontSize: 'var(--font-size-sm)', color: tokens.text.secondary },
+                        value: { fontSize: '22px', fontWeight: 600, color: tokens.text.primary },
+                        total: { show: true, label: 'Total', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: tokens.text.tertiary, formatter: () => runs.length }
                     }
                 }
             }
@@ -343,7 +343,7 @@ const ScheduledRunsPage = () => {
         xaxis: { categories: sellerHealthChart.categories, labels: { style: { fontSize: '10px', colors: tokens.text.tertiary } } },
         yaxis: { labels: { style: { fontSize: '10px', colors: tokens.text.secondary, fontWeight: 500 } } },
         grid: { borderColor: tokens.borderLight, strokeDashArray: 3 },
-        legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', fontWeight: 600 }
+        legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-xs)', fontWeight: 600 }
     };
 
     const sellerHealthSeries = [
@@ -366,7 +366,7 @@ const ScheduledRunsPage = () => {
             width: 130,
             render: (id) => (
                 <div>
-                    <Text code style={{ fontSize: '11px', background: tokens.surfaceElevated, border: `1px solid ${tokens.borderLight}`, borderRadius: '4px', padding: '1px 6px' }}>
+                    <Text code style={{ fontSize: 'var(--font-size-xs)', background: tokens.surfaceElevated, border: `1px solid ${tokens.borderLight}`, borderRadius: 'var(--radius-sm)', padding: '1px 6px' }}>
                         {id?.substring(0, 10)}
                     </Text>
                 </div>
@@ -379,8 +379,8 @@ const ScheduledRunsPage = () => {
             width: 170,
             render: (t) => t ? (
                 <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: tokens.text.primary }}>{format(new Date(t), 'dd MMM yyyy')}</div>
-                    <div style={{ fontSize: '11px', color: tokens.text.tertiary }}>{format(new Date(t), 'HH:mm:ss')}</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: tokens.text.primary }}>{format(new Date(t), 'dd MMM yyyy')}</div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>{format(new Date(t), 'HH:mm:ss')}</div>
                 </div>
             ) : <Text type="secondary">—</Text>,
             sorter: (a, b) => new Date(a.StartTime || 0) - new Date(b.StartTime || 0),
@@ -398,7 +398,7 @@ const ScheduledRunsPage = () => {
                 return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Timer size={12} style={{ color: isRunning ? tokens.semantic.warning : tokens.text.tertiary }} />
-                        <Text style={{ fontSize: '13px', fontWeight: 500, color: isRunning ? tokens.semantic.warning : tokens.text.primary }}>
+                        <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: isRunning ? tokens.semantic.warning : tokens.text.primary }}>
                             {secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`}
                         </Text>
                     </div>
@@ -414,8 +414,8 @@ const ScheduledRunsPage = () => {
                 return (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                            <Text style={{ fontSize: '12px', fontWeight: 600, color: tokens.semantic.success }}>{(r.totalInserted || 0).toLocaleString()}</Text>
-                            <Text style={{ fontSize: '11px', color: tokens.text.tertiary }}>/ {(r.totalExpected || 0).toLocaleString()}</Text>
+                            <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: tokens.semantic.success }}>{(r.totalInserted || 0).toLocaleString()}</Text>
+                            <Text style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>/ {(r.totalExpected || 0).toLocaleString()}</Text>
                         </div>
                         <Progress percent={pct} size="small" showInfo={false} strokeColor={pct === 100 ? tokens.semantic.success : tokens.brand.primary} trailColor={tokens.borderLight} />
                     </div>
@@ -432,7 +432,7 @@ const ScheduledRunsPage = () => {
                     <StatusDot status={status} />
                     <Tag
                         style={{
-                            margin: 0, fontWeight: 600, fontSize: '11px', borderRadius: '6px', border: 'none',
+                            margin: 0, fontWeight: 600, fontSize: 'var(--font-size-xs)', borderRadius: '6px', border: 'none',
                             background: status === 'COMPLETED' ? tokens.semantic.successLight : status === 'FAILED' ? tokens.semantic.errorLight : tokens.semantic.warningLight,
                             color: status === 'COMPLETED' ? tokens.semantic.success : status === 'FAILED' ? tokens.semantic.error : tokens.semantic.warning
                         }}
@@ -461,11 +461,11 @@ const ScheduledRunsPage = () => {
                         width: 32, height: 32, borderRadius: tokens.radius.sm,
                         background: `linear-gradient(135deg, ${tokens.brand.primaryLight}, ${tokens.brand.primary}20)`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '12px', fontWeight: 700, color: tokens.brand.primary
+                        fontSize: 'var(--font-size-sm)', fontWeight: 600, color: tokens.brand.primary
                     }}>
                         {(text || '?')[0].toUpperCase()}
                     </div>
-                    <Text strong style={{ fontSize: '13px', color: tokens.text.primary }}>{text}</Text>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.primary }}>{text}</Text>
                 </div>
             ),
             sorter: (a, b) => (a.name || '').localeCompare(b.name || '')
@@ -477,7 +477,7 @@ const ScheduledRunsPage = () => {
             align: 'center',
             render: (_, r) => (
                 <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: tokens.text.primary }}>{r.totalRuns || 0}</div>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: tokens.text.primary }}>{r.totalRuns || 0}</div>
                     <div style={{ fontSize: '10px', color: tokens.text.tertiary }}>{r.completedRuns}✓ {r.failedRuns}✗</div>
                 </div>
             ),
@@ -492,8 +492,8 @@ const ScheduledRunsPage = () => {
                 return (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <Text style={{ fontSize: '12px', fontWeight: 600, color: tokens.text.primary }}>{(r.totalInserted || 0).toLocaleString()}</Text>
-                            <Text style={{ fontSize: '11px', color: tokens.text.tertiary }}>{pct}%</Text>
+                            <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: tokens.text.primary }}>{(r.totalInserted || 0).toLocaleString()}</Text>
+                            <Text style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>{pct}%</Text>
                         </div>
                         <Progress percent={pct} size="small" showInfo={false}
                             strokeColor={{ '0%': tokens.brand.primary, '100%': tokens.semantic.success }}
@@ -520,7 +520,7 @@ const ScheduledRunsPage = () => {
                     <Tooltip title={`${rate}% success rate`}>
                         <Progress type="circle" size={38} percent={rate} strokeWidth={8}
                             strokeColor={color}
-                            format={() => <span style={{ fontSize: '10px', fontWeight: 700, color }}>{rate}%</span>}
+                            format={() => <span style={{ fontSize: '10px', fontWeight: 600, color }}>{rate}%</span>}
                         />
                     </Tooltip>
                 );
@@ -531,20 +531,20 @@ const ScheduledRunsPage = () => {
             key: 'lastRun',
             width: 160,
             render: (_, r) => {
-                if (!r.lastRunDate) return <Text type="secondary" style={{ fontSize: '12px' }}>No runs</Text>;
+                if (!r.lastRunDate) return <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>No runs</Text>;
                 return (
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
                             <StatusDot status={r.lastRunStatus} />
                             <Tag style={{
-                                margin: 0, fontWeight: 600, fontSize: '10px', borderRadius: '4px', border: 'none', padding: '0 6px', lineHeight: '18px',
+                                margin: 0, fontWeight: 600, fontSize: '10px', borderRadius: 'var(--radius-sm)', border: 'none', padding: '0 6px', lineHeight: '18px',
                                 background: r.lastRunStatus === 'COMPLETED' ? tokens.semantic.successLight : r.lastRunStatus === 'FAILED' ? tokens.semantic.errorLight : tokens.semantic.warningLight,
                                 color: r.lastRunStatus === 'COMPLETED' ? tokens.semantic.success : r.lastRunStatus === 'FAILED' ? tokens.semantic.error : tokens.semantic.warning
                             }}>
                                 {r.lastRunStatus}
                             </Tag>
                         </div>
-                        <Text style={{ fontSize: '11px', color: tokens.text.tertiary }}>
+                        <Text style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>
                             {formatDistanceToNow(new Date(r.lastRunDate), { addSuffix: true })}
                         </Text>
                     </div>
@@ -559,7 +559,7 @@ const ScheduledRunsPage = () => {
             align: 'center',
             render: (_, r) => (
                 <Button type="text" size="small" onClick={() => handleViewLogs(r)}
-                    style={{ fontSize: '12px', fontWeight: 600, color: tokens.brand.primary, borderRadius: tokens.radius.sm }}
+                    style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: tokens.brand.primary, borderRadius: tokens.radius.sm }}
                     icon={<Eye size={13} />}
                 >
                     Logs
@@ -574,8 +574,8 @@ const ScheduledRunsPage = () => {
             key: 'amazon',
             label: (
                 <div style={{ padding: '4px 0' }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Amazon Pipeline</div>
-                    <div style={{ fontSize: '11px', color: tokens.text.tertiary }}>Scrape + clean all Amazon sellers</div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Amazon Pipeline</div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>Scrape + clean all Amazon sellers</div>
                 </div>
             ),
             onClick: () => Modal.confirm({
@@ -591,8 +591,8 @@ const ScheduledRunsPage = () => {
             key: 'ajio',
             label: (
                 <div style={{ padding: '4px 0' }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Ajio Pipeline</div>
-                    <div style={{ fontSize: '11px', color: tokens.text.tertiary }}>Scrape + clean all Ajio sellers</div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Ajio Pipeline</div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>Scrape + clean all Ajio sellers</div>
                 </div>
             ),
             onClick: () => Modal.confirm({
@@ -611,7 +611,7 @@ const ScheduledRunsPage = () => {
         {
             key: 'overview',
             label: (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: '13px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                     <BarChart3 size={15} /> Overview
                 </span>
             ),
@@ -673,7 +673,7 @@ const ScheduledRunsPage = () => {
                                     loading={loading}
                                     pagination={false}
                                     size="small"
-                                    style={{ fontSize: '13px' }}
+                                    style={{ fontSize: 'var(--font-size-sm)' }}
                                 />
                             </Card>
                         </Col>
@@ -684,7 +684,7 @@ const ScheduledRunsPage = () => {
         {
             key: 'runs',
             label: (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: '13px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                     <GitBranch size={15} /> Pipeline Runs
                     <Badge count={runs.filter(r => r.Status === 'RUNNING').length} size="small" style={{ backgroundColor: tokens.semantic.warning }} />
                 </span>
@@ -694,7 +694,7 @@ const ScheduledRunsPage = () => {
                     <div style={{ padding: '16px 20px', borderBottom: `1px solid ${tokens.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <Text strong style={{ fontSize: '15px', color: tokens.text.primary }}>Execution History</Text>
-                            <Text style={{ fontSize: '12px', color: tokens.text.tertiary, marginLeft: '12px' }}>{runs.length} total runs</Text>
+                            <Text style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.tertiary, marginLeft: '12px' }}>{runs.length} total runs</Text>
                         </div>
                         <Space size="small">
                             <Input
@@ -720,7 +720,7 @@ const ScheduledRunsPage = () => {
         {
             key: 'sellers',
             label: (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: '13px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                     <Layers size={15} /> Sellers
                     <Badge count={metrics.length} size="small" style={{ backgroundColor: tokens.brand.primary }} />
                 </span>
@@ -730,7 +730,7 @@ const ScheduledRunsPage = () => {
                     <div style={{ padding: '16px 20px', borderBottom: `1px solid ${tokens.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <Text strong style={{ fontSize: '15px', color: tokens.text.primary }}>Seller Telemetry</Text>
-                            <Text style={{ fontSize: '12px', color: tokens.text.tertiary, marginLeft: '12px' }}>{filteredMetrics.length} accounts</Text>
+                            <Text style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.tertiary, marginLeft: '12px' }}>{filteredMetrics.length} accounts</Text>
                         </div>
                         <Input
                             placeholder="Search seller..."
@@ -756,7 +756,7 @@ const ScheduledRunsPage = () => {
         {
             key: 'config',
             label: (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: '13px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                     <Sliders size={15} /> Configuration
                 </span>
             ),
@@ -769,8 +769,8 @@ const ScheduledRunsPage = () => {
                                 {/* Automation toggle */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: `1px solid ${tokens.borderLight}` }}>
                                     <div>
-                                        <Text strong style={{ fontSize: '13px', display: 'block', color: tokens.text.primary }}>Global Automation</Text>
-                                        <Text style={{ fontSize: '11px', color: tokens.text.tertiary }}>Master switch for all scheduled pipelines</Text>
+                                        <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', color: tokens.text.primary }}>Global Automation</Text>
+                                        <Text style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>Master switch for all scheduled pipelines</Text>
                                     </div>
                                     <Switch
                                         checked={scheduleConfig.automationEnabled}
@@ -782,10 +782,10 @@ const ScheduledRunsPage = () => {
                                 {/* Amazon */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: `1px solid ${tokens.borderLight}` }}>
                                     <div>
-                                        <Text strong style={{ fontSize: '13px', display: 'block', color: tokens.text.primary }}>Amazon Pipeline</Text>
-                                        <Text style={{ fontSize: '11px', color: tokens.text.tertiary }}>Daily scheduled ingestion</Text>
+                                        <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', color: tokens.text.primary }}>Amazon Pipeline</Text>
+                                        <Text style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>Daily scheduled ingestion</Text>
                                     </div>
-                                    <Tag style={{ margin: 0, fontWeight: 600, fontSize: '12px', borderRadius: tokens.radius.sm, background: tokens.semantic.infoLight, color: tokens.semantic.info, border: 'none' }}>
+                                    <Tag style={{ margin: 0, fontWeight: 600, fontSize: 'var(--font-size-sm)', borderRadius: tokens.radius.sm, background: tokens.semantic.infoLight, color: tokens.semantic.info, border: 'none' }}>
                                         <Clock size={11} style={{ marginRight: 4 }} />
                                         {scheduleConfig.scheduleTime || '00:01'} IST
                                     </Tag>
@@ -793,10 +793,10 @@ const ScheduledRunsPage = () => {
                                 {/* Ajio */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
                                     <div>
-                                        <Text strong style={{ fontSize: '13px', display: 'block', color: tokens.text.primary }}>Ajio Pipeline</Text>
-                                        <Text style={{ fontSize: '11px', color: tokens.text.tertiary }}>Currently disabled</Text>
+                                        <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', color: tokens.text.primary }}>Ajio Pipeline</Text>
+                                        <Text style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>Currently disabled</Text>
                                     </div>
-                                    <Tag style={{ margin: 0, fontWeight: 600, fontSize: '12px', borderRadius: tokens.radius.sm, background: tokens.borderLight, color: tokens.text.tertiary, border: 'none' }}>
+                                    <Tag style={{ margin: 0, fontWeight: 600, fontSize: 'var(--font-size-sm)', borderRadius: tokens.radius.sm, background: tokens.borderLight, color: tokens.text.tertiary, border: 'none' }}>
                                         <Clock size={11} style={{ marginRight: 4 }} />
                                         {scheduleConfig.ajioScheduleTime || '12:00'} IST
                                     </Tag>
@@ -828,9 +828,9 @@ const ScheduledRunsPage = () => {
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <item.icon size={14} style={{ color: tokens.text.tertiary }} />
-                                            <Text style={{ fontSize: '13px', color: tokens.text.secondary }}>{item.label}</Text>
+                                            <Text style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.secondary }}>{item.label}</Text>
                                         </div>
-                                        <Text strong style={{ fontSize: '13px', color: tokens.text.primary }}>{item.value}</Text>
+                                        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.primary }}>{item.value}</Text>
                                     </div>
                                 ))}
                             </div>
@@ -889,13 +889,13 @@ const ScheduledRunsPage = () => {
                 <div>
                     <div style={{
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+                        fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
                         color: tokens.brand.primary, background: tokens.brand.primaryLight,
                         padding: '3px 10px', borderRadius: '20px', marginBottom: '8px'
                     }}>
                         <Activity size={11} /> Automation Hub
                     </div>
-                    <Text style={{ fontSize: '13px', color: tokens.text.tertiary }}>
+                    <Text style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.tertiary }}>
                         Monitor ingestion pipelines, analyze seller performance, and manage automation schedules.
                     </Text>
                 </div>
@@ -989,8 +989,8 @@ const ScheduledRunsPage = () => {
             <Drawer
                 title={
                     <div>
-                        <div style={{ fontSize: '16px', fontWeight: 700, color: tokens.text.primary }}>Execution logs & Ingestion Yield</div>
-                        {selectedSeller && <div style={{ fontSize: '12px', color: tokens.text.tertiary, fontWeight: 500, marginTop: '2px' }}>{selectedSeller.name}</div>}
+                        <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: tokens.text.primary }}>Execution logs & Ingestion Yield</div>
+                        {selectedSeller && <div style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.tertiary, fontWeight: 500, marginTop: '2px' }}>{selectedSeller.name}</div>}
                     </div>
                 }
                 placement="right"
@@ -1018,22 +1018,22 @@ const ScheduledRunsPage = () => {
                                     }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                             <Tag style={{
-                                                margin: 0, fontWeight: 700, fontSize: '10px', borderRadius: '4px', border: 'none',
+                                                margin: 0, fontWeight: 600, fontSize: '10px', borderRadius: 'var(--radius-sm)', border: 'none',
                                                 background: isRunning ? tokens.semantic.warningLight : log.status === 'COMPLETED' ? tokens.semantic.successLight : tokens.semantic.errorLight,
                                                 color: isRunning ? tokens.semantic.warning : log.status === 'COMPLETED' ? tokens.semantic.success : tokens.semantic.error
                                             }}>
                                                 {log.status}
                                             </Tag>
-                                            <span style={{ fontSize: '11px', color: tokens.text.tertiary }}>
+                                            <span style={{ fontSize: 'var(--font-size-xs)', color: tokens.text.tertiary }}>
                                                 {formatDistanceToNow(new Date(log.startTime || log.createdAt), { addSuffix: true })}
                                             </span>
                                         </div>
-                                        <div style={{ fontSize: '12px', color: tokens.text.secondary, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', color: tokens.text.secondary, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <div><strong>Run ID:</strong> <Text code style={{ fontSize: '10.5px' }}>{log.runId?.substring(0, 12)}</Text></div>
                                             <div><strong>Started:</strong> {new Date(log.startTime || log.createdAt).toLocaleString()}</div>
                                             {log.endTime && <div><strong>Completed:</strong> {new Date(log.endTime).toLocaleString()}</div>}
                                             <Divider style={{ margin: '8px 0' }} />
-                                            <div style={{ fontSize: '13px' }}>
+                                            <div style={{ fontSize: 'var(--font-size-sm)' }}>
                                                 <Text strong style={{ color: tokens.semantic.success }}>{(log.count || 0).toLocaleString()}</Text> records ingested out of <Text strong>{(log.asinsCount || 0).toLocaleString()}</Text> expected.
                                             </div>
                                             {log.error && (

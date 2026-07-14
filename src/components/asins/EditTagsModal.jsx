@@ -405,7 +405,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
         title={
           <Space>
             <TagIcon size={18} className="text-indigo-600" />
-            <Typography.Text strong style={{ fontSize: '16px' }}>
+            <Typography.Text strong style={{ fontSize: 'var(--font-size-lg)' }}>
               {viewMode === 'assign' ? 'Edit ASIN Tags' : 'Manage Predefined Tags'}
             </Typography.Text>
           </Space>
@@ -439,15 +439,15 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* Subheader Metadata */}
           <div className="d-flex justify-content-between align-items-center bg-light p-2 rounded">
-            <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
               ASIN Code: <Typography.Text strong>{asin.asinCode}</Typography.Text>
             </Typography.Text>
 
             <Space>
               {loadingSummary ? (
-                <Typography.Text type="secondary" style={{ fontSize: '11px' }}>Loading summary...</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Loading summary...</Typography.Text>
               ) : summary?.recentChanges?.[0] ? (
-                <Typography.Text type="secondary" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Typography.Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   <Clock size={10} style={{ display: 'inline', verticalAlign: 'middle' }} />
                   <span>Last modified by:</span>
                   {summary.recentChanges[0].user?.avatar ? (
@@ -492,7 +492,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
             <>
               {/* Select component supporting tags mode */}
               <div style={{ width: '100%' }}>
-                <Typography.Paragraph strong style={{ marginBottom: '6px', fontSize: '12px' }}>
+                <Typography.Paragraph strong style={{ marginBottom: '6px', fontSize: 'var(--font-size-sm)' }}>
                   Selected ASIN Tags (Select existing or type and press Enter to create custom):
                 </Typography.Paragraph>
                 <Select
@@ -512,7 +512,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
                       label: (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                           <span>{tagName}</span>
-                          <span style={{ fontSize: '10px', color: '#8c8c8c', background: '#f5f5f5', padding: '2px 6px', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '10px', color: '#8c8c8c', background: '#f5f5f5', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
                             {category}
                           </span>
                         </div>
@@ -526,7 +526,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
 
               {/* Category Pills & Predefined Checkable Tags */}
               <div>
-                <Typography.Paragraph strong style={{ marginBottom: '8px', fontSize: '12px' }}>
+                <Typography.Paragraph strong style={{ marginBottom: '8px', fontSize: 'var(--font-size-sm)' }}>
                   Select Predefined Tags:
                 </Typography.Paragraph>
 
@@ -542,9 +542,9 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
                         onChange={() => setActiveCategory(cat)}
                         style={{
                           border: isCatSelected ? `1px solid ${colorHex}` : '1px solid #d9d9d9',
-                          borderRadius: '12px',
+                          borderRadius: 'var(--radius-lg)',
                           padding: '2px 10px',
-                          fontSize: '11px',
+                          fontSize: 'var(--font-size-xs)',
                           backgroundColor: isCatSelected ? `${colorHex}15` : '#ffffff',
                           color: isCatSelected ? colorHex : '#595959',
                           transition: 'all 0.2s'
@@ -581,7 +581,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
                           style={{
                             border: isSelected ? `1px solid ${colorHex}` : '1px solid #d9d9d9',
                             padding: '4px 10px',
-                            fontSize: '12px',
+                            fontSize: 'var(--font-size-sm)',
                             backgroundColor: isSelected ? `${colorHex}15` : '#ffffff',
                             color: isSelected ? colorHex : '#434343',
                             borderRadius: '6px',
@@ -644,7 +644,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
               {/* Predefined Tags Listing with Search Filter */}
               <div style={{ marginTop: '8px' }}>
                 <div className="d-flex justify-content-between align-items-center mb-2">
-                  <Typography.Text type="secondary" strong style={{ fontSize: '12px' }}>
+                  <Typography.Text type="secondary" strong style={{ fontSize: 'var(--font-size-sm)' }}>
                     Tags List ({filteredPredefinedTags.length})
                   </Typography.Text>
                   <div style={{ width: '220px' }}>

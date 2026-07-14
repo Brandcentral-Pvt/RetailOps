@@ -5,33 +5,14 @@ import {
     Target, Activity, Zap, Award, Users, ShoppingBag,
     DollarSign, Percent, Package, BarChart3, Sparkles
 } from 'lucide-react';
+import { formatIndianCurrencyShort, formatNumber } from './utils';
 
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-const formatIndianCurrency = (val) => {
-    if (val === undefined || val === null || isNaN(val)) return '₹0';
-    const num = Math.round(val);
-    const absNum = Math.abs(num);
-    if (absNum >= 10000000) return `₹${(num / 10000000).toFixed(2)}Cr`;
-    if (absNum >= 100000) return `₹${(num / 100000).toFixed(2)}L`;
-    if (absNum >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
-    return `₹${num.toLocaleString('en-IN')}`;
-};
-
-const formatNumber = (val) => {
-    if (val === undefined || val === null || isNaN(val)) return '0';
-    const num = Math.round(val);
-    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toLocaleString('en-IN');
-};
+const formatIndianCurrency = formatIndianCurrencyShort;
 
 // ═══════════════════════════════════════════════════════════════
 // PREMIUM SPARKLINE COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const PremiumSparkline = memo(({ data = [0], color = '#0288D1', height = 36 }) => {
+const PremiumSparkline = memo(({ data = [0], color = 'var(--color-info-blue, #0288D1)', height = 36 }) => {
     const width = 200;
     const chartData = data.length > 0 ? data : [0];
     const max = Math.max(...chartData);
@@ -118,8 +99,8 @@ const CircularProgress = memo(({ percent = 0, color = '#2E7D32', size = 60 }) =>
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 800,
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 700,
                 color: color
             }}>
                 {Math.round(percent)}%
@@ -139,15 +120,15 @@ const KpiCard = memo(({ card, isLast }) => {
     const trendVal = trend ? trend.split(' ')[0] : '';
     const hasPercent = trendVal.includes('%');
     const displayTrend = hasPercent ? `${isPositive ? '+' : '-'}${trendVal.replace(/[+-]/g, '')}` : trendVal;
-    const indicatorColor = isPositive ? '#22c55e' : '#D32F2F';
+    const indicatorColor = isPositive ? '#2E7D32' : '#D32F2F';
 
     return (
         <div
             className="kpi-premium-card"
             style={{
-                borderRadius: 8,
-                border: '1px solid #d9e6e9',
-                background: '#ffffff',
+                borderRadius: "var(--radius-md)",
+                border: '1px solid var(--border-light, #d9e6e9)',
+                background: 'var(--bg-primary, #fff)',
                 overflow: 'hidden',
                 height: 135,
                 display: 'flex',
@@ -158,22 +139,22 @@ const KpiCard = memo(({ card, isLast }) => {
         >
             <div style={{ padding: '12px 12px 6px 12px', display: 'flex', flexDirection: 'column', height: '100%', flexGrow: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#8c8e8f' }}>{label}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: indicatorColor }}>
+                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)' }}>{label}</span>
+                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: indicatorColor }}>
                         {displayTrend}
                     </span>
                 </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#121b1e', marginBottom: 6, fontFamily: 'system-ui, -apple-system' }}>
+                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary, #0f172a)', marginBottom: 6, fontFamily: 'system-ui, -apple-system' }}>
                     {value}
                 </div>
                 {subValue && (
-                    <div style={{ fontSize: 9.5, color: '#8c8e8f', fontWeight: 500, marginBottom: 4 }}>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 500, marginBottom: 4 }}>
                         {subValue}
                     </div>
                 )}
                 <div style={{ marginTop: 'auto', marginBottom: 4 }}>
                     {showProgress ? (
-                        <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: 5, background: 'var(--border-light, #d9e6e9)', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${Math.min(progressValue, 100)}%`, background: color, borderRadius: 3 }} />
                         </div>
                     ) : sparkline ? (
@@ -183,9 +164,9 @@ const KpiCard = memo(({ card, isLast }) => {
                     )}
                 </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #d9e6e9', padding: '6px 12px', background: '#ffffff' }}>
-                <span style={{ fontSize: 9.5, fontWeight: 600, color: '#8c8e8f', display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                    See more details <span style={{ fontSize: 8 }}>&gt;</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-light, #d9e6e9)', padding: '6px 12px', background: 'var(--bg-primary, #fff)' }}>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+                    See more details <span style={{ fontSize: 'var(--font-size-xs)' }}>&gt;</span>
                 </span>
             </div>
         </div>
@@ -227,7 +208,7 @@ const KpiStrip = ({
             trend: '+12.4% vs prior',
             isPositive: true,
             icon: <DollarSign size={16} strokeWidth={2.5} />,
-            color: '#0288D1',
+            color: 'var(--color-info-blue, #0288D1)',
             gradient: 'linear-gradient(135deg, #0288D1 0%, #0288D1 100%)',
             sparkline: sparklineData.adSales || defaultSparklines.adSales,
         },
@@ -238,7 +219,7 @@ const KpiStrip = ({
             trend: '+8.4% vs prior',
             isPositive: true,
             icon: <ShoppingBag size={16} strokeWidth={2.5} />,
-            color: '#0288D1',
+            color: 'var(--color-info-blue, #0288D1)',
             gradient: 'linear-gradient(135deg, #22d3ee 0%, #0288D1 100%)',
             sparkline: sparklineData.orders || defaultSparklines.orders,
         },
@@ -297,14 +278,14 @@ const KpiStrip = ({
             trend: achievementRate >= 100 ? 'Outperforming' : achievementRate >= 50 ? 'On Schedule' : 'Below Target',
             isPositive: achievementRate >= 50,
             icon: <Award size={16} strokeWidth={2.5} />,
-            color: achievementRate >= 100 ? '#2E7D32' : achievementRate >= 80 ? '#0288D1' : achievementRate >= 50 ? '#ED6C02' : '#D32F2F',
+            color: achievementRate >= 100 ? '#2E7D32' : achievementRate >= 80 ? 'var(--color-info-blue, #0288D1)' : achievementRate >= 50 ? '#ED6C02' : '#D32F2F',
             gradient: achievementRate >= 100
                 ? 'linear-gradient(135deg, #34d399 0%, #2E7D32 100%)'
                 : achievementRate >= 80
                     ? 'linear-gradient(135deg, #60a5fa 0%, #0288D1 100%)'
                     : achievementRate >= 50
                         ? 'linear-gradient(135deg, #fbbf24 0%, #E65100 100%)'
-                        : 'linear-gradient(135deg, #f87171 0%, #C62828 100%)',
+                        : 'linear-gradient(135deg, #f87171 0%, #D32F2F 100%)',
             showProgress: true,
             progressValue: achievementRate,
             accentLeft: false,
@@ -324,32 +305,6 @@ const KpiStrip = ({
 
     return (
         <>
-            <style>{`
-                .kpi-premium-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.1);
-                    border-color: #cbd0d4;
-                }
-                .kpi-section-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 12px;
-                }
-                .kpi-section-divider {
-                    flex: 1;
-                    height: 1px;
-                    background: linear-gradient(90deg, #d9e6e9 0%, transparent 100%);
-                }
-                @keyframes pulseGlow {
-                    0%, 100% { box-shadow: 0 0 0 0 rgba(251,79,64,0.4); }
-                    50% { box-shadow: 0 0 0 6px rgba(251,79,64,0); }
-                }
-                .kpi-live-indicator {
-                    animation: pulseGlow 2s ease-in-out infinite;
-                }
-            `}</style>
-
             {/* GROUP 1: MARKETPLACE METRICS */}
             <div style={{ marginBottom: 20 }}>
                 <div className="kpi-section-header">
@@ -357,16 +312,16 @@ const KpiStrip = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
                         padding: '5px 12px',
                         borderRadius: 20,
-                        border: '1px solid #fecaca'
+                        border: '1px solid var(--bg-danger-subtle, #fecaca)'
                     }}>
-                        <BarChart3 size={13} style={{ color: '#D32F2F' }} />
+                        <BarChart3 size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
                         <span style={{
-                            fontSize: 10,
-                            fontWeight: 800,
-                            color: '#C62828',
+                            fontSize: 'var(--font-size-xs)',
+                            fontWeight: 700,
+                            color: 'var(--text-danger, #D32F2F)',
                             textTransform: 'uppercase',
                             letterSpacing: '0.08em'
                         }}>
@@ -376,7 +331,7 @@ const KpiStrip = ({
                             width: 6,
                             height: 6,
                             borderRadius: '50%',
-                            background: '#D32F2F',
+                            background: 'var(--text-danger, #D32F2F)',
                             marginLeft: 4
                         }} />
                     </div>
@@ -405,16 +360,16 @@ const KpiStrip = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
                         padding: '5px 12px',
                         borderRadius: 20,
-                        border: '1px solid #fecaca'
+                        border: '1px solid var(--bg-danger-subtle, #fecaca)'
                     }}>
-                        <Target size={13} style={{ color: '#D32F2F' }} />
+                        <Target size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
                         <span style={{
-                            fontSize: 10,
-                            fontWeight: 800,
-                            color: '#C62828',
+                            fontSize: 'var(--font-size-xs)',
+                            fontWeight: 700,
+                            color: 'var(--text-danger, #D32F2F)',
                             textTransform: 'uppercase',
                             letterSpacing: '0.08em'
                         }}>
@@ -424,7 +379,7 @@ const KpiStrip = ({
                             width: 6,
                             height: 6,
                             borderRadius: '50%',
-                            background: '#D32F2F',
+                            background: 'var(--text-danger, #D32F2F)',
                             marginLeft: 4
                         }} />
                     </div>

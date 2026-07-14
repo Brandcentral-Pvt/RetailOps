@@ -1,0 +1,165 @@
+/* Dashboard shared styles */
+
+/* Card base */
+.card {
+  background: var(--bg-primary, #fff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border-light, #e5e7eb);
+  overflow: hidden;
+}
+
+/* Section headers */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.sectionLink {
+  font-size: var(--font-size-xs, 11px);
+  color: var(--text-brand, #1976D2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.sectionLink:hover {
+  opacity: 0.8;
+}
+
+/* Status dots */
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.statusDotSuccess { background: var(--text-success, #2E7D32); }
+.statusDotDanger { background: var(--text-danger, #D32F2F); }
+.statusDotWarning { background: var(--text-warning, #ED6C02); }
+.statusDotInfo { background: var(--text-brand, #1976D2); }
+
+/* KPI styles */
+.kpiLabel {
+  font-size: var(--font-size-xs, 11px);
+  font-weight: 600;
+  color: var(--text-secondary, #4B5563);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpiValue {
+  font-size: var(--font-size-xl, 20px);
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  line-height: 1.2;
+}
+
+.kpiTrend {
+  font-size: var(--font-size-xs, 11px);
+  font-weight: 500;
+}
+
+.kpiTrendUp { color: var(--text-success, #2E7D32); }
+.kpiTrendDown { color: var(--text-danger, #D32F2F); }
+.kpiTrendNeutral { color: var(--text-secondary, #4B5563); }
+
+/* Badge / chip */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-xs, 11px);
+  font-weight: 500;
+}
+
+.badgeSuccess {
+  composes: badge;
+  background: var(--bg-success-subtle, #E8F5E9);
+  color: var(--text-success, #2E7D32);
+}
+
+.badgeDanger {
+  composes: badge;
+  background: var(--bg-danger-subtle, #FFEBEE);
+  color: var(--text-danger, #D32F2F);
+}
+
+.badgeWarning {
+  composes: badge;
+  background: var(--bg-warning-subtle, #FFF3E0);
+  color: var(--text-warning, #ED6C02);
+}
+
+.badgeInfo {
+  composes: badge;
+  background: var(--bg-info-subtle, #E3F2FD);
+  color: var(--text-brand, #1976D2);
+}
+
+/* Grid layouts */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.grid3 {
+  display: grid;
+  grid-templateColumns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+/* Responsive grids */
+@media (max-width: 768px) {
+  .grid2, .grid3, .grid4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Empty state */
+.emptyState {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-tertiary, #9CA3AF);
+  font-size: var(--font-size-sm, 13px);
+}
+
+/* Spin animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Pulse animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}

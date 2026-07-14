@@ -66,7 +66,7 @@ const PageHeader = ({
                                             href={crumb.href}
                                             className="breadcrumb-link"
                                             style={{
-                                                fontSize: 11,
+                                                fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 600,
                                                 color: '#64748b',
                                                 textDecoration: 'none',
@@ -81,7 +81,7 @@ const PageHeader = ({
                                         </a>
                                     ) : (
                                         <span style={{
-                                            fontSize: 11,
+                                            fontSize: 'var(--font-size-xs)',
                                             fontWeight: isLast ? 700 : 600,
                                             color: isLast ? '#0f172a' : '#64748b',
                                             display: 'inline-flex',

@@ -191,7 +191,7 @@ const CommandPalette = () => {
             padding: '4px',
           }}
         >
-          <CloseOutlined style={{ fontSize: '14px' }} />
+          <CloseOutlined style={{ fontSize: 'var(--font-size-base)' }} />
         </button>
       </div>
 
@@ -202,7 +202,7 @@ const CommandPalette = () => {
               padding: '40px 20px',
               textAlign: 'center',
               color: '#8c8e8f',
-              fontSize: '13px',
+              fontSize: 'var(--font-size-sm)',
               fontFamily: 'Inter, sans-serif',
             }}
           >

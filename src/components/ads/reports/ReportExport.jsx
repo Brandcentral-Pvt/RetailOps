@@ -72,12 +72,12 @@ const ReportExport = ({ data = [], filters = {} }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 3, height: 14, background: '#2E7D32', borderRadius: 2 }} />
-          <Text strong style={{ fontSize: 13 }}>Export Report</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Export Report</Text>
         </div>
       }
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 12, color: '#71717a' }}>
+        <Text style={{ fontSize: 'var(--font-size-sm)', color: '#71717a' }}>
           Export {data.length} records in your preferred format
         </Text>
         <Dropdown menu={{ items: exportOptions }} trigger={['click']}>
@@ -85,7 +85,7 @@ const ReportExport = ({ data = [], filters = {} }) => {
             type="primary" 
             icon={exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
             loading={exporting}
-            style={{ borderRadius: 8, fontWeight: 600 }}
+            style={{ borderRadius: "var(--radius-md)", fontWeight: 600 }}
           >
             Export
           </Button>

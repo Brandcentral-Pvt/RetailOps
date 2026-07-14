@@ -53,8 +53,8 @@ const UserMenu = () => {
               size={40}
               style={{
                 background: 'linear-gradient(135deg, #1565C0, #1976D2)',
-                fontSize: '14px',
-                fontWeight: 700,
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 600,
                 fontFamily: 'Inter, sans-serif',
               }}
             >
@@ -63,8 +63,8 @@ const UserMenu = () => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: '13px',
-                  fontWeight: 700,
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 600,
                   color: '#0F172A',
                   fontFamily: 'Inter, sans-serif',
                   letterSpacing: '-0.2px',
@@ -74,7 +74,7 @@ const UserMenu = () => {
               </div>
               <div
                 style={{
-                  fontSize: '11px',
+                  fontSize: 'var(--font-size-xs)',
                   color: '#94A3B8',
                   fontFamily: 'Inter, sans-serif',
                   marginTop: '1px',
@@ -96,7 +96,7 @@ const UserMenu = () => {
                   border: '1px solid #90CAF9',
                   borderRadius: '100px',
                   fontSize: '9.5px',
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: '#1565C0',
                   fontFamily: 'Inter, sans-serif',
                   letterSpacing: '0.02em',
@@ -184,8 +184,8 @@ const UserMenu = () => {
           size={28}
           style={{
             background: 'linear-gradient(135deg, #1565C0, #1976D2)',
-            fontSize: '11px',
-            fontWeight: 700,
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 600,
             fontFamily: 'Inter, sans-serif',
           }}
         >

@@ -261,7 +261,7 @@ const DataTable = ({
   const isSearchEmpty = searchTerm && filteredAndSortedData.length === 0;
 
   return (
-    <div className={`enhanced-datatable border border-gray-100 bg-white overflow-hidden shadow-sm ${compact ? 'compact-mode' : ''}`} style={{ borderRadius: '8px', position: 'relative' }}>
+    <div className={`enhanced-datatable border border-gray-100 bg-white overflow-hidden shadow-sm ${compact ? 'compact-mode' : ''}`} style={{ borderRadius: 'var(--radius-md)', position: 'relative' }}>
       {/* Header */}
       {(!compact || showSearchBar) && (
         <div className="d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-gray-100">
@@ -337,7 +337,7 @@ const DataTable = ({
                       <label
                         key={col}
                         className="d-flex align-items-center gap-2 px-3 py-2 rounded-1 cursor-pointer transition-base"
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: 'var(--font-size-sm)' }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
@@ -493,7 +493,7 @@ const DataTable = ({
                       <td
                         key={colIdx}
                         className={`px-4 py-3 border-0 border-bottom border-light align-middle fw-600 ${isNumeric(item[col]) ? 'text-end tabular-nums' : 'text-start'}`}
-                        style={{ fontSize: '12px', color: '#1e293b' }}
+                        style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}
                       >
                         {customRenderers[col]
                           ? customRenderers[col](item)

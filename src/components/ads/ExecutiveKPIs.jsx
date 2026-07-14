@@ -83,14 +83,14 @@ const KPICard = ({
         
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <Text style={{ fontSize: 11, fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               {label}
             </Text>
             {Icon && <Icon size={14} color={color} />}
           </div>
           
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <Text style={{ fontSize: 22, fontWeight: 700, color: '#18181b' }}>
+            <Text style={{ fontSize: 22, fontWeight: 600, color: '#18181b' }}>
               {formatValue(value)}
             </Text>
             {change !== 0 && (
@@ -102,7 +102,7 @@ const KPICard = ({
                 fontWeight: 600,
                 color: isGood ? '#2E7D32' : '#C62828',
                 padding: '2px 6px',
-                borderRadius: 4,
+                borderRadius: "var(--radius-sm)",
                 background: isGood ? '#ecfdf5' : '#fef2f2'
               }}>
                 {isGood ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}

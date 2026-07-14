@@ -61,7 +61,7 @@ export function Spinner({
         {tip && (
           <div
             style={{
-              fontSize: 13,
+              fontSize: 'var(--font-size-sm)',
               color: '#71717A',
               fontWeight: 500,
               textAlign: 'center',
@@ -105,7 +105,7 @@ export function ContentSpinner({
         {tip && (
           <div
             style={{
-              fontSize: 12,
+              fontSize: 'var(--font-size-sm)',
               color: '#71717A',
               textAlign: 'center',
             }}
@@ -138,7 +138,7 @@ export function InlineSpinner({
       {tip && (
         <span
           style={{
-            fontSize: 12,
+            fontSize: 'var(--font-size-sm)',
             color: '#71717A',
             fontWeight: 500,
           }}
@@ -173,7 +173,7 @@ export function LoadingOverlay({
         style={{
           background: '#fff',
           padding: '28px 40px',
-          borderRadius: 12,
+          borderRadius: "var(--radius-lg)",
           boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
           display: 'flex',
           flexDirection: 'column',
@@ -185,7 +185,7 @@ export function LoadingOverlay({
 
         <div
           style={{
-            fontSize: 14,
+            fontSize: 'var(--font-size-base)',
             fontWeight: 500,
             color: '#52525B',
           }}
@@ -225,12 +225,12 @@ export function PageLoading({ message = 'Loading...' }) {
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      background: '#f8fafc' // Aligned layout background
+      background: 'var(--bg-secondary, #f8fafc)' // Aligned layout background
     }}>
       <Spin indicator={antIcon} size="large" />
       <div style={{
         marginTop: 16,
-        fontSize: 13,
+        fontSize: 'var(--font-size-sm)',
         color: '#64748b',
         fontWeight: 500
       }}>
@@ -248,7 +248,7 @@ export function CardLoading({ height = 200 }) {
       justifyContent: 'center',
       alignItems: 'center',
       background: '#f8fafc',
-      borderRadius: 8
+      borderRadius: "var(--radius-md)"
     }}>
       <Spin indicator={antIcon} />
     </div>
@@ -264,7 +264,7 @@ export function InlineLoading({ tip = 'Loading...' }) {
       padding: '8px 0'
     }}>
       <Spin indicator={antIconSmall} size="small" />
-      <span style={{ fontSize: 12, color: '#64748b' }}>{tip}</span>
+      <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>{tip}</span>
     </div>
   );
 }
@@ -277,7 +277,7 @@ export function TableLoading({ rows = 5 }) {
           height: 48,
           marginBottom: 8,
           background: '#f1f5f9',
-          borderRadius: 4,
+          borderRadius: "var(--radius-sm)",
           animation: 'pulse 1.5s ease-in-out infinite',
           animationDelay: `${i * 0.1}s`
         }} />
@@ -309,7 +309,7 @@ export const LoadingIndicator = ({ type = 'line-simple', size = 'md' }) => {
             height,
             width: '100%',
             backgroundColor: '#e2e8f0',
-            borderRadius: '4px',
+            borderRadius: 'var(--radius-sm)',
             overflow: 'hidden',
             position: 'relative',
           }}
@@ -322,7 +322,7 @@ export const LoadingIndicator = ({ type = 'line-simple', size = 'md' }) => {
               height: '100%',
               width: '40%',
               backgroundColor: '#1976D2',
-              borderRadius: '4px',
+              borderRadius: 'var(--radius-sm)',
               animation: 'loadingIndicatorSlide 1.5s ease-in-out infinite',
             }}
           />

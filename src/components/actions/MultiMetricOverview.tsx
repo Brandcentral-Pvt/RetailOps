@@ -18,7 +18,7 @@ import {
     AlertCircle
 } from 'lucide-react';
 import Card from '../common/Card';
-import { SkeletonKpiCard } from '../common/Skeleton';
+import { StatCardSkeleton as SkeletonKpiCard } from '../ui/skeleton';
 import EmptyState from '../common/EmptyState';
 import ErrorState from '../common/ErrorState';
 import { METRIC_CONFIG, MetricType, MetricOverview } from '../../models/growth.types';

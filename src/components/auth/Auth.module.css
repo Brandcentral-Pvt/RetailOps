@@ -1,0 +1,416 @@
+/* ═══════════════════════════════════════════
+   Auth Pages — Shared Styles
+   ═══════════════════════════════════════════ */
+
+/* ── Layout ── */
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.bgOrb1 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(25, 118, 210, 0.08) 0%, transparent 65%);
+  top: -200px;
+  left: -200px;
+  pointer-events: none;
+}
+
+.bgOrb2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(25, 118, 210, 0.06) 0%, transparent 65%);
+  bottom: -150px;
+  right: -100px;
+  pointer-events: none;
+}
+
+.container {
+  width: 100%;
+  max-width: 420px;
+  padding: 0 20px;
+  z-index: 1;
+}
+
+/* ── Logo ── */
+.logoWrap {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.logo {
+  height: 36px;
+  width: auto;
+}
+
+.logoFallback {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.logoFallbackDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-brand);
+}
+
+/* ── Card ── */
+.card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  position: relative;
+}
+
+.cardAccent {
+  height: 3px;
+  background: linear-gradient(90deg, var(--text-primary), var(--bg-brand), var(--text-primary));
+}
+
+.cardBody {
+  padding: 32px 28px 24px;
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.securityBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.securityText {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.copyright {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+/* ═══════════════════════════════════════════
+   Shared Form Elements
+   ═══════════════════════════════════════════ */
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.headerSubtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ── Primary Button ── */
+.authBtn {
+  height: 44px;
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+}
+
+/* ── Error Banner ── */
+.errorBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-danger-subtle);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-md);
+  color: var(--text-danger);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+/* ── Links ── */
+.authLink {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.authLink:hover {
+  color: var(--text-primary);
+}
+
+.authLinkPrimary {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.authLinkPrimary:hover {
+  opacity: 0.8;
+}
+
+/* ── Status Icons ── */
+.statusIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.statusIconSuccess {
+  composes: statusIcon;
+  background: var(--bg-success-subtle);
+}
+
+.statusIconError {
+  composes: statusIcon;
+  background: var(--bg-danger-subtle);
+}
+
+.statusIconInfo {
+  composes: statusIcon;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  background: var(--bg-info-subtle);
+}
+
+.statusTitle {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.statusBody {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.statusHint {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  display: block;
+  margin-top: 12px;
+}
+
+/* ── Spinner ── */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════
+   Login OTP
+   ═══════════════════════════════════════════ */
+
+.otpContainer {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.otpInput {
+  width: 44px;
+  height: 52px;
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  outline: none;
+  font-family: monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.15s;
+}
+
+.otpInput:focus {
+  border-color: var(--bg-brand);
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+}
+
+.otpInputFilled {
+  composes: otpInput;
+  border-color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.otpTimer {
+  display: block;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.otpTimerUrgent {
+  composes: otpTimer;
+  color: var(--text-danger);
+}
+
+.otpActions {
+  text-align: center;
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.otpActions button {
+  font-size: var(--font-size-sm);
+}
+
+/* ═══════════════════════════════════════════
+   Reset Password Strength
+   ═══════════════════════════════════════════ */
+
+.strengthBar {
+  margin-top: -8px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.strengthHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.strengthLabel {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.strengthValue {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+/* ── Requirements Grid ── */
+.requirements {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.requirementsTitle {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.requirementsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+}
+
+.requirementMet {
+  composes: requirement;
+  color: var(--text-success);
+}
+
+.requirementUnmet {
+  composes: requirement;
+  color: var(--text-secondary);
+}
+
+.requirementDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.requirementDotMet {
+  composes: requirementDot;
+  background: var(--text-success);
+}
+
+.requirementDotUnmet {
+  composes: requirementDot;
+  background: var(--border-medium);
+}
+
+/* ═══════════════════════════════════════════
+   Utility
+   ═══════════════════════════════════════════ */
+
+.textCenter { text-align: center; }
+.mt16 { margin-top: 16px; }
+.mt20 { margin-top: 20px; }
+.mb0 { margin-bottom: 0; }
+
+.flexCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

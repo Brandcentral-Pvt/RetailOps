@@ -9,7 +9,7 @@ function TrendArrow({ value }) {
   const isUp = value > 0;
   const isDown = value < 0;
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, color: isUp ? '#16a34a' : isDown ? '#dc2626' : '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+    <span style={{ fontSize: 10, fontWeight: 600, color: isUp ? '#2E7D32' : isDown ? '#D32F2F' : '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
       {isUp ? <ArrowUpOutlined style={{ fontSize: 9 }} /> : isDown ? <ArrowDownOutlined style={{ fontSize: 9 }} /> : <MinusOutlined style={{ fontSize: 9 }} />}
       {Math.abs(value).toFixed(0)}%
       <span style={{ color: '#94a3b8', fontWeight: 500 }}>vs yesterday</span>
@@ -20,7 +20,7 @@ function TrendArrow({ value }) {
 function GlassCard({ title, value, subtitle, color, icon: Icon, trend, onClick, active }) {
   return (
     <div onClick={onClick} style={{
-      padding: '14px 16px', borderRadius: 12, background: active ? `linear-gradient(135deg, ${color}08, ${color}04)` : '#fff',
+      padding: '14px 16px', borderRadius: "var(--radius-lg)", background: active ? `linear-gradient(135deg, ${color}08, ${color}04)` : '#fff',
       border: `1px solid ${active ? color + '30' : '#e5e7eb'}`,
       cursor: onClick ? 'pointer' : 'default', transition: 'all 0.2s ease',
       position: 'relative', overflow: 'hidden', flex: '1 1 0', minWidth: 150,
@@ -30,7 +30,7 @@ function GlassCard({ title, value, subtitle, color, icon: Icon, trend, onClick, 
         <div>
           <Text style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, display: 'block' }}>{title}</Text>
           <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginTop: 4, fontFamily: '-apple-system, system-ui, sans-serif' }}>{value}</div>
-          {subtitle && <Text style={{ fontSize: 11, color: subtitle.color || '#64748b', display: 'block', marginTop: 4, fontWeight: subtitle.bold ? 600 : 400 }}>{subtitle.text}</Text>}
+          {subtitle && <Text style={{ fontSize: 'var(--font-size-xs)', color: subtitle.color || '#64748b', display: 'block', marginTop: 4, fontWeight: subtitle.bold ? 600 : 400 }}>{subtitle.text}</Text>}
         </div>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${color}15, ${color}08)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
           <Icon size={18} />
@@ -51,10 +51,10 @@ export function ReviewExecutiveKpis({ data, loading }) {
   const kpis = [
     { title: 'Pending Reviews', value: data.pending || 0, color: '#7c3aed', icon: ClockCircleOutlined, subtitle: { text: `${data.pendingToday || 0} due today`, color: '#7c3aed' }, trend: data.pendingTrend },
     { title: 'Avg Review Time', value: `${data.avgReviewTime || 0}m`, color: '#2563eb', icon: EyeOutlined, subtitle: { text: 'Target: 15 min', color: '#64748b' }, trend: data.reviewTimeTrend },
-    { title: 'SLA Compliance', value: `${data.slaCompliance || 0}%`, color: (data.slaCompliance || 0) >= 95 ? '#16a34a' : '#dc2626', icon: SafetyCertificateOutlined, subtitle: { text: 'Target: 95%', color: '#64748b' }, trend: data.slaTrend },
-    { title: 'Rework Rate', value: `${data.reworkRate || 0}%`, color: (data.reworkRate || 0) <= 5 ? '#16a34a' : '#f59e0b', icon: WarningOutlined, subtitle: { text: 'Target: <5%', color: '#64748b' }, trend: data.reworkTrend },
-    { title: 'Critical Reviews', value: data.critical || 0, color: data.critical > 0 ? '#dc2626' : '#16a34a', icon: AlertOutlined, subtitle: { text: data.critical > 0 ? 'Needs attention' : 'No escalations', color: data.critical > 0 ? '#dc2626' : '#16a34a' } },
-    { title: 'Due Today', value: data.today || 0, color: (data.today || 0) > 0 ? '#f59e0b' : '#16a34a', icon: CalendarOutlined, subtitle: { text: (data.today || 0) > 0 ? 'Review now' : 'On track', color: '#64748b' } },
+    { title: 'SLA Compliance', value: `${data.slaCompliance || 0}%`, color: (data.slaCompliance || 0) >= 95 ? '#2E7D32' : '#D32F2F', icon: SafetyCertificateOutlined, subtitle: { text: 'Target: 95%', color: '#64748b' }, trend: data.slaTrend },
+    { title: 'Rework Rate', value: `${data.reworkRate || 0}%`, color: (data.reworkRate || 0) <= 5 ? '#2E7D32' : '#ED6C02', icon: WarningOutlined, subtitle: { text: 'Target: <5%', color: '#64748b' }, trend: data.reworkTrend },
+    { title: 'Critical Reviews', value: data.critical || 0, color: data.critical > 0 ? '#D32F2F' : '#2E7D32', icon: AlertOutlined, subtitle: { text: data.critical > 0 ? 'Needs attention' : 'No escalations', color: data.critical > 0 ? '#D32F2F' : '#2E7D32' } },
+    { title: 'Due Today', value: data.today || 0, color: (data.today || 0) > 0 ? '#ED6C02' : '#2E7D32', icon: CalendarOutlined, subtitle: { text: (data.today || 0) > 0 ? 'Review now' : 'On track', color: '#64748b' } },
   ];
 
   return (
@@ -70,7 +70,7 @@ function TrendIndicator({ value }) {
   const isDown = value < 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: isUp ? '#16a34a' : isDown ? '#dc2626' : '#94a3b8' }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: isUp ? '#2E7D32' : isDown ? '#D32F2F' : '#94a3b8' }}>
         {isUp ? '↑' : isDown ? '↓' : '—'} {Math.abs(value).toFixed(0)}%
       </span>
       <span style={{ fontSize: 10, color: '#94a3b8' }}>vs yesterday</span>

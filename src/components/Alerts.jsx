@@ -128,7 +128,7 @@ const AlertRow = memo(({ alert, onDismiss, showDismiss }) => {
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Message */}
         <Text style={{
-          fontSize: 12,
+          fontSize: 'var(--font-size-sm)',
           fontWeight: 600,
           color: '#1e293b',
           display: 'block',
@@ -140,7 +140,7 @@ const AlertRow = memo(({ alert, onDismiss, showDismiss }) => {
         {/* Sub-message if present */}
         {alert.description && (
           <Text style={{
-            fontSize: 11,
+            fontSize: 'var(--font-size-xs)',
             color: '#64748b',
             display: 'block',
             marginTop: 2,
@@ -162,10 +162,10 @@ const AlertRow = memo(({ alert, onDismiss, showDismiss }) => {
               color={cfg.tagColor}
               style={{
                 fontSize: 9,
-                fontWeight: 700,
+                fontWeight: 600,
                 padding: '0 5px',
                 lineHeight: '16px',
-                borderRadius: 4,
+                borderRadius: "var(--radius-sm)",
                 margin: 0,
                 textTransform: 'uppercase',
               }}
@@ -250,7 +250,7 @@ const Alerts = memo(({
           <div style={{
             width: 28,
             height: 28,
-            borderRadius: 8,
+            borderRadius: "var(--radius-md)",
             background: hasAlerts ? '#fee2e2' : '#f1f5f9',
             display: 'flex',
             alignItems: 'center',
@@ -261,7 +261,7 @@ const Alerts = memo(({
               : <BellOff size={14} color="#94a3b8" />
             }
           </div>
-          <Text strong style={{ fontSize: 13, color: '#0f172a' }}>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>
             {title}
           </Text>
           {hasAlerts && (
@@ -284,7 +284,7 @@ const Alerts = memo(({
             type="link"
             size="small"
             onClick={onDismissAll}
-            style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, padding: 0 }}
+            style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', fontWeight: 600, padding: 0 }}
           >
             Dismiss all
           </Button>
@@ -301,7 +301,7 @@ const Alerts = memo(({
                 key={type}
                 style={{
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: '2px 8px',
                   borderRadius: 20,
                   background: cfg.bg,
@@ -355,10 +355,10 @@ const Alerts = memo(({
           }}>
             <BellOff size={22} color="#94a3b8" />
           </div>
-          <Text style={{ fontSize: 13, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
+          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>
             All clear
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
             No active alerts at this time
           </Text>
         </div>

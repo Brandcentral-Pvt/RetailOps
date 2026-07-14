@@ -129,7 +129,7 @@ const ListView = ({
     };
 
     return (
-        <div className="list-view-container w-100" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="list-view-container w-100" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
             {/* Header */}
             <div className="list-view-header d-flex align-items-center bg-white border-bottom px-4 py-3 sticky-top" style={{ zIndex: 10 }}>
                 {options.selectable && <div style={{ width: '40px' }} />}
@@ -160,7 +160,7 @@ const ListView = ({
                             <div key={`skeleton-${i}`} className="list-row d-flex align-items-center px-4 py-3 border-bottom pulse">
                                 {columns.map((col, cIdx) => (
                                     <div key={cIdx} style={{ width: col.width || 'auto', flex: col.width ? 'none' : 1 }} className="pe-3">
-                                        <div className="skeleton-line" style={{ height: '14px', width: '80%', borderRadius: '4px', background: '#f1f5f9' }}></div>
+                                        <div className="skeleton-line" style={{ height: '14px', width: '80%', borderRadius: 'var(--radius-sm)', background: '#f1f5f9' }}></div>
                                     </div>
                                 ))}
                             </div>

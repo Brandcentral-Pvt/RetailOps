@@ -40,7 +40,7 @@ const MarketplaceComparison = ({ data = [] }) => {
       render: (name, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: record.color }} />
-          <Text style={{ fontSize: 13, fontWeight: 600 }}>{name}</Text>
+          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{name}</Text>
         </div>
       )
     },
@@ -49,14 +49,14 @@ const MarketplaceComparison = ({ data = [] }) => {
       dataIndex: 'spend',
       key: 'spend',
       align: 'right',
-      render: (val) => <Text style={{ fontSize: 12, fontWeight: 600 }}>₹{(val / 1000).toFixed(1)}K</Text>
+      render: (val) => <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>₹{(val / 1000).toFixed(1)}K</Text>
     },
     {
       title: 'Sales',
       dataIndex: 'sales',
       key: 'sales',
       align: 'right',
-      render: (val) => <Text style={{ fontSize: 12, fontWeight: 600, color: '#2E7D32' }}>₹{(val / 1000).toFixed(1)}K</Text>
+      render: (val) => <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#2E7D32' }}>₹{(val / 1000).toFixed(1)}K</Text>
     },
     {
       title: 'ACOS',
@@ -64,7 +64,7 @@ const MarketplaceComparison = ({ data = [] }) => {
       key: 'acos',
       align: 'center',
       render: (val) => (
-        <Tag color={val < 25 ? 'green' : val < 35 ? 'orange' : 'red'} style={{ borderRadius: 4 }}>
+        <Tag color={val < 25 ? 'green' : val < 35 ? 'orange' : 'red'} style={{ borderRadius: "var(--radius-sm)" }}>
           {val.toFixed(1)}%
         </Tag>
       )
@@ -75,7 +75,7 @@ const MarketplaceComparison = ({ data = [] }) => {
       key: 'roas',
       align: 'center',
       render: (val) => (
-        <Tag color={val > 3 ? 'green' : val > 2 ? 'orange' : 'red'} style={{ borderRadius: 4 }}>
+        <Tag color={val > 3 ? 'green' : val > 2 ? 'orange' : 'red'} style={{ borderRadius: "var(--radius-sm)" }}>
           {val.toFixed(2)}x
         </Tag>
       )
@@ -105,7 +105,7 @@ const MarketplaceComparison = ({ data = [] }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 3, height: 14, background: '#1976D2', borderRadius: 2 }} />
-          <Text strong style={{ fontSize: 13 }}>Marketplace Comparison</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Marketplace Comparison</Text>
         </div>
       }
     >
@@ -114,7 +114,7 @@ const MarketplaceComparison = ({ data = [] }) => {
         columns={columns} 
         pagination={false} 
         size="small"
-        style={{ borderRadius: 8 }}
+        style={{ borderRadius: "var(--radius-md)" }}
       />
     </Card>
   );

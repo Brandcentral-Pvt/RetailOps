@@ -42,7 +42,7 @@ const fmtCompact = (v) => {
 const TooltipBox = ({ active, payload, label, formatter }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#0f172a', color: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 11, minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+    <div style={{ background: '#0f172a', color: '#fff', borderRadius: "var(--radius-md)", padding: '8px 12px', fontSize: 'var(--font-size-xs)', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
       <div style={{ color: '#94a3b8', marginBottom: 4 }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -50,7 +50,7 @@ const TooltipBox = ({ active, payload, label, formatter }) => {
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color || p.stroke, display: 'inline-block' }} />
             <span style={{ color: '#cbd5e1' }}>{p.name}</span>
           </span>
-          <span style={{ fontWeight: 700 }}>{formatter ? formatter(p.value) : Number(p.value).toLocaleString('en-IN')}</span>
+          <span style={{ fontWeight: 600 }}>{formatter ? formatter(p.value) : Number(p.value).toLocaleString('en-IN')}</span>
         </div>
       ))}
     </div>
@@ -161,8 +161,8 @@ const SkuReport = () => {
 
   const acosBadge = (acos) => {
     const v = parseFloat(acos);
-    if (!v) return <span style={{ color: '#cbd5e1', fontSize: 11 }}>—</span>;
-    return <span style={{ fontSize: 11, fontWeight: 700, color: v < 15 ? '#2E7D32' : v < 25 ? '#E65100' : '#C62828', background: v < 15 ? '#ecfdf5' : v < 25 ? '#fffbeb' : '#fef2f2', padding: '2px 8px', borderRadius: 20 }}>{v}%</span>;
+    if (!v) return <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>—</span>;
+    return <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: v < 15 ? '#2E7D32' : v < 25 ? '#E65100' : '#C62828', background: v < 15 ? '#ecfdf5' : v < 25 ? '#fffbeb' : '#fef2f2', padding: '2px 8px', borderRadius: 20 }}>{v}%</span>;
   };
 
   const columns = [
@@ -170,22 +170,22 @@ const SkuReport = () => {
       sorter: (a, b) => (a.sku || '').localeCompare(b.sku || ''),
       render: (sku, record) => (
         <div>
-          <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#0f172a', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{sku}</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: "var(--radius-sm)", display: 'inline-block' }}>{sku}</span>
           <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, fontFamily: 'monospace' }}>{record.asin}</div>
         </div>
       ) },
     { title: 'Product', dataIndex: 'title', key: 'title', ellipsis: true,
       sorter: (a, b) => (a.title || '').localeCompare(b.title || ''),
-      render: (title) => <Text style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>{title || 'N/A'}</Text> },
+      render: (title) => <Text style={{ fontSize: 'var(--font-size-sm)', color: '#334155', fontWeight: 500 }}>{title || 'N/A'}</Text> },
     { title: 'Category', dataIndex: 'category', key: 'category', width: 120,
       sorter: (a, b) => (a.category || '').localeCompare(b.category || ''),
-      render: (cat) => <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{cat || 'General'}</span> },
+      render: (cat) => <span style={{ fontSize: 10, fontWeight: 600, color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: "var(--radius-sm)", textTransform: 'uppercase', letterSpacing: '0.03em' }}>{cat || 'General'}</span> },
     { title: 'Revenue', dataIndex: 'revenue', key: 'revenue', width: 120, align: 'right',
       sorter: (a, b) => a.revenue - b.revenue,
-      render: (v) => <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span> },
+      render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>{fmtCur(v)}</span> },
     { title: 'Units', dataIndex: 'units', key: 'units', width: 90, align: 'right',
       sorter: (a, b) => a.units - b.units,
-      render: (v) => <span style={{ fontSize: 12, fontWeight: 600, color: '#475569', fontVariantNumeric: 'tabular-nums' }}>{(v || 0).toLocaleString('en-IN')}</span> },
+      render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569', fontVariantNumeric: 'tabular-nums' }}>{(v || 0).toLocaleString('en-IN')}</span> },
     { title: 'CVR', dataIndex: 'conversion', key: 'cvr', width: 85, align: 'center',
       sorter: (a, b) => parseFloat(a.conversion) - parseFloat(b.conversion),
       render: (val) => { const v = parseFloat(val); return acosBadge(v >= 15 ? '0' : v >= 5 ? '16' : '26'); } },
@@ -196,8 +196,8 @@ const SkuReport = () => {
       sorter: (a, b) => parseFloat(a.roas) - parseFloat(b.roas),
       render: (v) => {
         const num = parseFloat(v);
-        if (!num) return <span style={{ color: '#cbd5e1', fontSize: 11 }}>—</span>;
-        return <span style={{ fontWeight: num >= 8 ? 700 : num >= 5 ? 600 : 500, fontSize: 12, color: num >= 8 ? '#2E7D32' : num >= 5 ? '#0f172a' : '#E65100' }}>{num}<span style={{ color: '#8c8e8f', fontWeight: 400, fontSize: 11, marginLeft: 1 }}>x</span></span>;
+        if (!num) return <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>—</span>;
+        return <span style={{ fontWeight: num >= 8 ? 700 : num >= 5 ? 600 : 500, fontSize: 'var(--font-size-sm)', color: num >= 8 ? '#2E7D32' : num >= 5 ? '#0f172a' : '#E65100' }}>{num}<span style={{ color: '#8c8e8f', fontWeight: 400, fontSize: 'var(--font-size-xs)', marginLeft: 1 }}>x</span></span>;
       } },
   ];
 
@@ -210,7 +210,7 @@ const SkuReport = () => {
 
       {/* TOOLBAR */}
       <div style={{ background: '#fff', padding: '12px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
-        <Input.Search placeholder="Search SKU, ASIN..." allowClear size="small" style={{ width: 220, borderRadius: 8 }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        <Input.Search placeholder="Search SKU, ASIN..." allowClear size="small" style={{ width: 220, borderRadius: "var(--radius-md)" }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         <Select placeholder="All Categories" size="small" allowClear showSearch optionFilterProp="label" style={{ minWidth: 160, maxWidth: 240 }} value={category !== 'all' ? category : undefined} onChange={v => setCategory(v || 'all')}
           options={[
             { value: 'General', label: 'General' }, { value: 'Clothing', label: 'Clothing' },
@@ -218,8 +218,8 @@ const SkuReport = () => {
           ]} />
         <Segmented size="small" value={view} onChange={setView}
           options={[{ label: 'Table', value: 'table' }, { label: 'Charts', value: 'charts' }]} />
-        <Button size="small" icon={<RefreshCw size={13} className={loading ? 'spin-animation' : ''} />} loading={loading} onClick={loadSkuData} style={{ borderRadius: 8, fontWeight: 600, fontSize: 11 }}>Refresh</Button>
-        <Button size="small" icon={<Download size={13} />} onClick={handleExport} style={{ borderRadius: 8, fontWeight: 600, fontSize: 11 }}>Export</Button>
+        <Button size="small" icon={<RefreshCw size={13} className={loading ? 'spin-animation' : ''} />} loading={loading} onClick={loadSkuData} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Refresh</Button>
+        <Button size="small" icon={<Download size={13} />} onClick={handleExport} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Export</Button>
       </div>
 
       {/* KPI STRIP */}
@@ -228,16 +228,16 @@ const SkuReport = () => {
           const pos = k.trend.startsWith('+') || parseFloat(k.trend) > 0;
           const good = k.inv ? !pos : pos;
           return (
-            <div key={i} style={{ minWidth: 140, flexShrink: 0, padding: '10px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, transition: 'all 0.2s' }}
+            <div key={i} style={{ minWidth: 140, flexShrink: 0, padding: '10px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: "var(--radius-md)", transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#e5e7eb'; }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: k.color, display: 'inline-block' }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k.label}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k.label}</span>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</div>
+              <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</div>
               <div style={{ marginTop: 6 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 20, color: good ? '#2E7D32' : '#C62828', background: good ? '#ecfdf5' : '#fef2f2' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: good ? '#2E7D32' : '#C62828', background: good ? '#ecfdf5' : '#fef2f2' }}>
                   {good ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                   {k.trend} <span style={{ color: '#8c8e8f', fontWeight: 500 }}>vs prev</span>
                 </span>
@@ -255,8 +255,8 @@ const SkuReport = () => {
               <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div>
-                    <Text strong style={{ fontSize: 13, color: '#0f172a' }}>Revenue vs Units</Text>
-                    <div style={{ fontSize: 11, color: '#8c8e8f', marginTop: 2 }}>Top 10 SKUs on current page</div>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Revenue vs Units</Text>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2 }}>Top 10 SKUs on current page</div>
                   </div>
                   <Tag color="blue" style={{ borderRadius: 20, fontSize: 10, fontWeight: 600, border: 'none' }}>Current Page</Tag>
                 </div>
@@ -272,15 +272,15 @@ const SkuReport = () => {
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 8 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#64748b' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#1e293b', display: 'inline-block' }} />Revenue</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#64748b' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#2E7D32', display: 'inline-block' }} />Units</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: '#64748b' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#1e293b', display: 'inline-block' }} />Revenue</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: '#64748b' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#2E7D32', display: 'inline-block' }} />Units</span>
                 </div>
               </Card>
             </Col>
             <Col xs={24} lg={8}>
               <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
-                <Text strong style={{ fontSize: 13, color: '#0f172a' }}>Category Distribution</Text>
-                <div style={{ fontSize: 11, color: '#8c8e8f', marginTop: 2, marginBottom: 8 }}>Revenue by category</div>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Category Distribution</Text>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2, marginBottom: 8 }}>Revenue by category</div>
                 <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -311,16 +311,16 @@ const SkuReport = () => {
           <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
             <div style={{ padding: '10px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <Text strong style={{ fontSize: 13, color: '#0f172a' }}>SKU Performance Ledger</Text>
-                <div style={{ fontSize: 11, color: '#8c8e8f', marginTop: 2 }}>Showing {data.length} of {totalCount} SKUs</div>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>SKU Performance Ledger</Text>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2 }}>Showing {data.length} of {totalCount} SKUs</div>
               </div>
-              <Tag style={{ borderRadius: 20, fontSize: 11, fontWeight: 600, color: '#475569', background: '#f1f5f9', border: 'none' }}>{totalCount.toLocaleString('en-IN')} SKUs</Tag>
+              <Tag style={{ borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', background: '#f1f5f9', border: 'none' }}>{totalCount.toLocaleString('en-IN')} SKUs</Tag>
             </div>
             <Table dataSource={data} columns={columns} rowKey={r => r.sku + r.asin} loading={loading} size="small"
               scroll={{ x: 900 }} bordered
               pagination={{ current: currentPage, pageSize, total: totalCount, onChange: (p, s) => { setCurrentPage(p); setPageSize(s); },
                 showSizeChanger: true, pageSizeOptions: ['10', '20', '50'], size: 'small',
-                showTotal: (t) => <span style={{ fontSize: 11, color: '#8c8e8f' }}>{t} SKUs</span> }}
+                showTotal: (t) => <span style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f' }}>{t} SKUs</span> }}
             />
           </Card>
         </div>

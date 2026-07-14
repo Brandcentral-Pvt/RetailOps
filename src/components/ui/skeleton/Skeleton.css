@@ -183,3 +183,21 @@
 /* ── Profile ───────────────────────────────────────────────────────────────── */
 .sk-profile__header { display: flex; gap: 24px; align-items: center; margin-bottom: 24px; }
 .sk-profile__info   { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Chart ────────────────────────────────────────────────────────────────── */
+.sk-chart {
+  width: 100%;
+  border-radius: 12px;
+  background: var(--sk-card-bg, #fff);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 20px;
+  overflow: hidden;
+}
+.sk-chart__bar {
+  width: 8%;
+  border-radius: 4px 4px 0 0;
+  background-color: var(--sk-base, #e8eaed);
+}

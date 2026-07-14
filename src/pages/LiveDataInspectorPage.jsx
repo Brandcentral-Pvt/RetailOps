@@ -65,7 +65,7 @@ export default function LiveDataInspectorPage() {
         dataIndex: key,
         key,
         width: key === 'title' ? 200 : 100,
-        render: (v) => v !== null && v !== undefined ? <Text style={{ fontSize: 11 }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
+        render: (v) => v !== null && v !== undefined ? <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
       };
     }),
   ];
@@ -75,15 +75,15 @@ export default function LiveDataInspectorPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginBottom: 16 }}>
         <Space>
-          <ThunderboltOutlined style={{ fontSize: 20, color: '#2563eb' }} />
+          <ThunderboltOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#2563eb' }} />
           <div>
             <Text strong style={{ fontSize: 18 }}>Live Data Inspector</Text>
-            <Text style={{ fontSize: 12, color: '#94a3b8', display: 'block' }}>Fetch real-time data from Amazon Creators API</Text>
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block' }}>Fetch real-time data from Amazon Creators API</Text>
           </div>
         </Space>
         <Space>
           {results.length > 0 && <Button icon={<DownloadOutlined />} onClick={handleExport} size="small">Export ({results.length} rows)</Button>}
-          {lastFetch && <Text style={{ fontSize: 11, color: '#94a3b8' }}>Last fetch: {lastFetch.toLocaleTimeString()}</Text>}
+          {lastFetch && <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>Last fetch: {lastFetch.toLocaleTimeString()}</Text>}
         </Space>
       </div>
 
@@ -92,13 +92,13 @@ export default function LiveDataInspectorPage() {
         <Col xs={24} md={10}>
           <Card size="small" title="ASIN Input" style={{ borderRadius: 10 }}>
             <div style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 11, fontWeight: 600, display: 'block', marginBottom: 4 }}>Enter ASINs (one per line or comma-separated)</Text>
+              <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Enter ASINs (one per line or comma-separated)</Text>
               <Input.TextArea
                 rows={6}
                 value={asinInput}
                 onChange={e => setAsinInput(e.target.value)}
                 placeholder={"B08FGPZNR6\nB09R9BGH3P\nB0D44SP9D7"}
-                style={{ borderRadius: 8, fontFamily: 'monospace', fontSize: 12 }}
+                style={{ borderRadius: "var(--radius-md)", fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}
               />
               <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
                 {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
@@ -106,24 +106,24 @@ export default function LiveDataInspectorPage() {
             </div>
 
             <Button type="primary" block onClick={handleFetch} loading={loading} icon={<ThunderboltOutlined />}
-              style={{ borderRadius: 8, fontWeight: 600, marginBottom: 12 }}>
+              style={{ borderRadius: "var(--radius-md)", fontWeight: 600, marginBottom: 12 }}>
               Fetch Live Data
             </Button>
 
             {/* Metrics Selection */}
-            <Text style={{ fontSize: 11, fontWeight: 600, display: 'block', marginBottom: 6 }}>Select Metrics to Fetch</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Select Metrics to Fetch</Text>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 300, overflow: 'auto' }}>
               <div style={{ padding: '4px 8px', borderRadius: 6, background: '#f8fafc', cursor: 'pointer', border: '1px solid #e5e7eb' }}
                 onClick={() => setSelectedMetrics(selectedMetrics.length === metrics.length ? [] : metrics.map(m => m.key))}>
                 <Checkbox checked={selectedMetrics.length === metrics.length} indeterminate={selectedMetrics.length > 0 && selectedMetrics.length < metrics.length}>
-                  <Text style={{ fontSize: 11, fontWeight: 600 }}>Select All ({selectedMetrics.length}/{metrics.length})</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Select All ({selectedMetrics.length}/{metrics.length})</Text>
                 </Checkbox>
               </div>
               {metrics.map(m => (
                 <div key={m.key} style={{ padding: '4px 8px', borderRadius: 6, background: '#fff', border: '1px solid #e5e7eb', cursor: 'pointer' }}
                   onClick={() => setSelectedMetrics(prev => prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key])}>
                   <Checkbox checked={selectedMetrics.includes(m.key)}>
-                    <Text style={{ fontSize: 11 }}>{m.label}</Text>
+                    <Text style={{ fontSize: 'var(--font-size-xs)' }}>{m.label}</Text>
                   </Checkbox>
                 </div>
               ))}
@@ -138,7 +138,7 @@ export default function LiveDataInspectorPage() {
               <Empty description="Enter ASINs and click Fetch to see results" style={{ padding: '40px 0' }} />
             ) : (
               <Table dataSource={results} columns={columns} rowKey="asin" size="small"
-                pagination={results.length > 20 ? { pageSize: 20, showTotal: t => <Text type="secondary" style={{ fontSize: 11 }}>{t} rows</Text> } : false}
+                pagination={results.length > 20 ? { pageSize: 20, showTotal: t => <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>{t} rows</Text> } : false}
                 scroll={{ x: 'max-content' }}
               />
             )}

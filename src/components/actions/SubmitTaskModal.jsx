@@ -23,7 +23,7 @@ const DIFFICULTY_TOOLTIPS = ['Very Easy', 'Easy', 'Moderate', 'Hard', 'Very Hard
 const SectionHeader = ({ title, icon }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, marginTop: 16 }}>
     {icon && <div style={{ width: 20, height: 20, borderRadius: 5, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>}
-    <span style={{ fontSize: 10, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
+    <span style={{ fontSize: 10, fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
   </div>
 );
 
@@ -148,11 +148,11 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 34, height: 34, borderRadius: 10, background: hasReviewer ? 'linear-gradient(135deg, #1976D2, #1976D2)' : 'linear-gradient(135deg, #2E7D32, #2E7D32)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${hasReviewer ? 'rgba(99,102,241,0.3)' : 'rgba(16,185,129,0.3)'}` }}>
-            {hasReviewer ? <SendOutlined style={{ fontSize: 14, color: '#fff' }} /> : <CheckCircleOutlined style={{ fontSize: 14, color: '#fff' }} />}
+            {hasReviewer ? <SendOutlined style={{ fontSize: 'var(--font-size-base)', color: '#fff' }} /> : <CheckCircleOutlined style={{ fontSize: 'var(--font-size-base)', color: '#fff' }} />}
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{hasReviewer ? 'Submit for Review' : 'Mark Complete'}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>{hasReviewer ? 'Submit for Review' : 'Mark Complete'}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: 1, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {task.title || task.action || task.name}
             </div>
           </div>
@@ -166,30 +166,30 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
           rules={[{ required: true, message: 'Please describe what you did' }]}>
           <TextArea rows={4} autoSize={{ minRows: 3, maxRows: 8 }}
             placeholder="Describe what you did, tools used, challenges faced..."
-            showCount maxLength={3000} style={{ borderRadius: 8 }} />
+            showCount maxLength={3000} style={{ borderRadius: "var(--radius-md)" }} />
         </Form.Item>
 
         {/* Outcome */}
         <SectionHeader title="Outcome & Results" />
         <Form.Item name="outcome" style={{ marginBottom: 8 }}>
-          <Input placeholder="e.g. ACoS reduced from 22% to 14%, 6 images uploaded" maxLength={500} style={{ borderRadius: 8 }} />
+          <Input placeholder="e.g. ACoS reduced from 22% to 14%, 6 images uploaded" maxLength={500} style={{ borderRadius: "var(--radius-md)" }} />
         </Form.Item>
         <Row gutter={10}>
           <Col span={12}>
             <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>Before</div>
             <Form.Item name="beforeValue" style={{ marginBottom: 8 }}>
-              <Input placeholder="e.g. ACoS 22%" maxLength={100} style={{ borderRadius: 8 }} />
+              <Input placeholder="e.g. ACoS 22%" maxLength={100} style={{ borderRadius: "var(--radius-md)" }} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>After</div>
             <Form.Item name="afterValue" style={{ marginBottom: 8 }}>
-              <Input placeholder="e.g. ACoS 14%" maxLength={100} style={{ borderRadius: 8 }} />
+              <Input placeholder="e.g. ACoS 14%" maxLength={100} style={{ borderRadius: "var(--radius-md)" }} />
             </Form.Item>
           </Col>
         </Row>
         <Form.Item name="metricsImproved" style={{ marginBottom: 0 }}>
-          <Select mode="tags" placeholder="Select or type metrics that improved" style={{ borderRadius: 8 }}>
+          <Select mode="tags" placeholder="Select or type metrics that improved" style={{ borderRadius: "var(--radius-md)" }}>
             {METRIC_PRESETS.map(m => <Option key={m} value={m}>{m}</Option>)}
           </Select>
         </Form.Item>
@@ -200,14 +200,14 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
           <Col span={8}>
             <Form.Item name="timeSpent" style={{ marginBottom: 8 }}>
               <InputNumber min={0.5} max={999} step={0.5} addonAfter="hrs" placeholder="0"
-                style={{ width: '100%', borderRadius: 8 }} />
+                style={{ width: '100%', borderRadius: "var(--radius-md)" }} />
             </Form.Item>
           </Col>
           <Col span={16}>
             <Form.Item name="difficulty" style={{ marginBottom: 8 }}>
               <Rate count={5} tooltips={DIFFICULTY_TOOLTIPS}
                 character={({ index, value }) =>
-                  index < value ? <FlagFilled style={{ fontSize: 14, color: '#ED6C02' }} /> : <FlagOutlined style={{ fontSize: 14, color: '#d4d4d8' }} />
+                  index < value ? <FlagFilled style={{ fontSize: 'var(--font-size-base)', color: '#ED6C02' }} /> : <FlagOutlined style={{ fontSize: 'var(--font-size-base)', color: '#d4d4d8' }} />
                 } />
             </Form.Item>
           </Col>
@@ -230,7 +230,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
         {links.map((link, idx) => (
           <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
             <Input size="small" prefix={<PaperClipOutlined style={{ color: '#a1a1aa' }} />} placeholder="https://..."
-              value={link} onChange={e => handleLinkChange(idx, e.target.value)} style={{ borderRadius: 8 }} />
+              value={link} onChange={e => handleLinkChange(idx, e.target.value)} style={{ borderRadius: "var(--radius-md)" }} />
             {links.length > 1 && (
               <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleRemoveLink(idx)}
                 style={{ flexShrink: 0 }} />
@@ -239,7 +239,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
         ))}
         {links.length < 5 && (
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleAddLink}
-            style={{ fontSize: 11, color: '#64748b', marginBottom: 8, padding: 0 }}>Add link</Button>
+            style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginBottom: 8, padding: 0 }}>Add link</Button>
         )}
 
         {/* Audio Recording */}
@@ -247,12 +247,12 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input ref={fileInputRef} type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleAudioSelect} />
             <Button size="small" icon={<SoundOutlined />} onClick={() => fileInputRef.current?.click()}
-              style={{ borderRadius: 8, fontSize: 11, border: '1px dashed #d4d4d8', color: '#64748b' }}>
+              style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)', border: '1px dashed #d4d4d8', color: '#64748b' }}>
               {audioFile ? 'Replace Audio' : 'Attach Audio'}
             </Button>
             {audioPreview && (
               <Tag closable onClose={() => { setAudioFile(null); setAudioPreview(null); setAudioTranscript(''); }}
-                style={{ borderRadius: 6, fontSize: 11, background: '#f0fdf4', color: '#2E7D32', border: '1px solid #a7f3d0' }}>
+                style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)', background: '#f0fdf4', color: '#2E7D32', border: '1px solid #a7f3d0' }}>
                 {audioPreview.name} ({audioPreview.size})
               </Tag>
             )}
@@ -261,28 +261,28 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
             <Input.TextArea size="small" rows={2} value={audioTranscript}
               onChange={e => setAudioTranscript(e.target.value)}
               placeholder="Audio transcript or notes (optional)"
-              style={{ borderRadius: 8, marginTop: 6 }} />
+              style={{ borderRadius: "var(--radius-md)", marginTop: 6 }} />
           )}
         </div>
 
         {/* Notes */}
         <SectionHeader title="Additional Notes" />
         <Form.Item name="reviewerNotes" style={{ marginBottom: 0 }}>
-          <TextArea rows={2} maxLength={500} placeholder="Any extra context for the reviewer..." showCount style={{ borderRadius: 8 }} />
+          <TextArea rows={2} maxLength={500} placeholder="Any extra context for the reviewer..." showCount style={{ borderRadius: "var(--radius-md)" }} />
         </Form.Item>
       </Form>
 
       {/* Footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: 14, marginTop: 16 }}>
-        <Text style={{ fontSize: 11, color: '#94a3b8' }}>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
           {hasReviewer ? 'Your submission will be sent to the reviewer for approval.' : 'Task will be marked as completed.'}
         </Text>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button onClick={onClose} disabled={submitting} style={{ borderRadius: 8, fontSize: 11, height: 32 }}>Cancel</Button>
+          <Button onClick={onClose} disabled={submitting} style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)', height: 32 }}>Cancel</Button>
           <Button type="primary" loading={submitting || audioUploading}
             onClick={handleConfirmSubmit}
             icon={hasReviewer ? <SendOutlined /> : <CheckCircleOutlined />}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32,
+            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32,
               background: hasReviewer ? '#1976D2' : '#2E7D32', borderColor: hasReviewer ? '#1976D2' : '#2E7D32' }}>
             {submitting ? 'Submitting...' : audioUploading ? 'Uploading audio...' : hasReviewer ? 'Submit for Review' : 'Mark Complete'}
         </Button>

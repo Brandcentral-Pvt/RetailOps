@@ -27,7 +27,7 @@ const TypeBadge = ({ type }) => {
   return (
     <span className="badge" style={{
       background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-      fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+      fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: "var(--radius-sm)",
       textTransform: 'uppercase', letterSpacing: '0.03em'
     }}>
       {type || 'ASIN'}
@@ -148,13 +148,13 @@ const RuleSetsPage = () => {
       render: (text, record) => (
         <div>
           <span 
-            style={{ fontWeight: 600, color: '#18181b', fontSize: 13, cursor: 'pointer', hoverColor: '#1976D2' }}
+            style={{ fontWeight: 600, color: '#18181b', fontSize: 'var(--font-size-sm)', cursor: 'pointer', hoverColor: '#1976D2' }}
             onClick={() => navigate(`/rule-sets/${record._id || record.id}`)}
           >
             {text}
           </span>
           {record.description && (
-            <div style={{ fontSize: 11, color: '#71717a', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }} title={record.description}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#71717a', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }} title={record.description}>
               {record.description}
             </div>
           )}
@@ -174,7 +174,7 @@ const RuleSetsPage = () => {
       width: '10%',
       render: (_, record) => {
         const rules = (() => { try { return JSON.parse(record.rules || '[]'); } catch { return []; } })();
-        return <span style={{ fontSize: 12, fontWeight: 500, color: '#3f3f46' }}>{rules.length} rules</span>;
+        return <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#3f3f46' }}>{rules.length} rules</span>;
       }
     },
     {
@@ -222,7 +222,7 @@ const RuleSetsPage = () => {
       key: 'totalRunCount',
       width: '8%',
       align: 'center',
-      render: (count) => <span style={{ fontSize: 12, fontWeight: 600, color: '#18181b' }}>{count || 0}</span>
+      render: (count) => <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b' }}>{count || 0}</span>
     },
     {
       title: 'Matched',
@@ -233,7 +233,7 @@ const RuleSetsPage = () => {
         let summary = {};
         try { summary = JSON.parse(record.lastRunSummary || '{}'); } catch {}
         return (
-          <span style={{ fontSize: 12, fontWeight: 700, color: (summary.totalMatched > 0) ? '#10b981' : '#71717a' }}>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: (summary.totalMatched > 0) ? '#10b981' : '#71717a' }}>
             {summary.totalMatched || 0}
           </span>
         );
@@ -245,7 +245,7 @@ const RuleSetsPage = () => {
       key: 'lastRunAt',
       width: '12%',
       render: (date) => (
-        <span style={{ fontSize: 11, color: '#71717a' }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: '#71717a' }}>
           {date ? formatTime(date) : 'Never'}
         </span>
       )
@@ -300,11 +300,11 @@ const RuleSetsPage = () => {
       <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>Automation Rules</h2>
-            <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 4 }}>Automated rules for listing quality, pricing, inventory alerts & task creation</p>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#18181b', margin: 0 }}>Automation Rules</h2>
+            <p style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', margin: 0, marginTop: 4 }}>Automated rules for listing quality, pricing, inventory alerts & task creation</p>
           </div>
           <Button type="primary" icon={<Plus size={13} />} onClick={() => navigate('/rule-sets/new')}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 }}>
+            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>
             Create Ruleset
           </Button>
         </div>
@@ -313,31 +313,31 @@ const RuleSetsPage = () => {
       <div style={{ padding: '16px 28px' }}>
         {/* KPI Strip */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#f4f4f5', borderRadius: 8, border: '1px solid #e4e4e7' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#f4f4f5', borderRadius: "var(--radius-md)", border: '1px solid #e4e4e7' }}>
+            <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Zap size={13} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#18181b' }}>{total}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#18181b' }}>{total}</div>
             </div>
           </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#ecfdf5', borderRadius: 8, border: '1px solid #d1fae5' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#ecfdf5', borderRadius: "var(--radius-md)", border: '1px solid #d1fae5' }}>
+            <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CheckCircle2 size={13} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#065f46' }}>{activeCount}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#065f46' }}>{activeCount}</div>
             </div>
           </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#0288D1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', borderRadius: "var(--radius-md)", border: '1px solid #bfdbfe' }}>
+            <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#0288D1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Activity size={13} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#0288D1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-run</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#1e40af' }}>{autoCount}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#0288D1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-run</div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#1e40af' }}>{autoCount}</div>
             </div>
           </div>
         </div>
@@ -347,8 +347,8 @@ const RuleSetsPage = () => {
           <Input prefix={<Search size={12} style={{ color: '#a1a1aa' }} />}
             placeholder="Search rulesets..." allowClear value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            size="small" style={{ width: 240, borderRadius: 8 }} />
-          <Select size="small" value={filterStatus} style={{ width: 120, borderRadius: 8 }}
+            size="small" style={{ width: 240, borderRadius: "var(--radius-md)" }} />
+          <Select size="small" value={filterStatus} style={{ width: 120, borderRadius: "var(--radius-md)" }}
             onChange={v => { setFilterStatus(v); setPage(1); }}
             options={[
               { value: 'all', label: 'All' },
@@ -361,15 +361,15 @@ const RuleSetsPage = () => {
         {loading ? (
           <Spinner />
         ) : filtered.length === 0 ? (
-          <div style={{ border: '1px solid #e4e4e7', borderRadius: 12, padding: '60px 24px', textAlign: 'center' }}>
+          <div style={{ border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: '60px 24px', textAlign: 'center' }}>
             <Empty description={
-              <span style={{ color: '#a1a1aa', fontSize: 12 }}>
+              <span style={{ color: '#a1a1aa', fontSize: 'var(--font-size-sm)' }}>
                 {searchQuery ? 'No rulesets match your search' : 'No rulesets yet — create your first automation rule'}
               </span>
             } />
             {!searchQuery && (
               <Button type="primary" icon={<Plus size={13} />} onClick={() => navigate('/rule-sets/new')}
-                style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32, marginTop: 8 }}>
+                style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, marginTop: 8 }}>
                 Create First Ruleset
               </Button>
             )}
@@ -382,7 +382,7 @@ const RuleSetsPage = () => {
               rowKey={(record) => record._id || record.id} 
               pagination={false} 
               size="middle"
-              style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 12, overflow: 'hidden' }}
+              style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}
             />
 
             {total > pageSize && (
@@ -408,7 +408,7 @@ const RuleSetsPage = () => {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#10b981' : '#ef4444' }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
                         {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
                       </span>
                     </div>

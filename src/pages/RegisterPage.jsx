@@ -30,8 +30,8 @@ const RegisterPage = () => {
   return (
     <AuthLayout>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#18181b' }}>Create Account</Title>
-        <Text style={{ fontSize: 13, color: '#71717a', display: 'block', marginTop: 4 }}>Enter your details to get started</Text>
+        <Title level={3} style={{ margin: 0, fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#18181b' }}>Create Account</Title>
+        <Text style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', display: 'block', marginTop: 4 }}>Enter your details to get started</Text>
       </div>
 
       <Form layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
@@ -58,7 +58,7 @@ const RegisterPage = () => {
       </Form>
 
       <div style={{ textAlign: 'center', marginTop: 20 }}>
-        <Text style={{ fontSize: 13, color: '#71717a' }}>
+        <Text style={{ fontSize: 'var(--font-size-sm)', color: '#71717a' }}>
           Already have an account? <Link to="/login" style={{ color: '#18181b', fontWeight: 600 }}>Sign In</Link>
         </Text>
       </div>

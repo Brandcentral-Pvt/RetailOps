@@ -177,15 +177,15 @@ const BrandTaskView = ({
             borderRadius: 10, padding: '8px 14px',
           }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
+              width: 28, height: 28, borderRadius: "var(--radius-md)",
               background: `${color}12`, display: 'flex', alignItems: 'center',
               justifyContent: 'center', color, flexShrink: 0
             }}>
               <Icon size={14} strokeWidth={2.5} />
             </div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</div>
-              <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+              <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</div>
+              <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
             </div>
           </div>
         ))}
@@ -200,7 +200,7 @@ const BrandTaskView = ({
               padding: '8px 16px',
               background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
               color: '#ffffff', border: 'none', borderRadius: 10,
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
               boxShadow: '0 4px 12px -2px rgba(99,102,241,0.4)',
               transition: 'all 0.2s',
               alignSelf: 'center'
@@ -226,7 +226,7 @@ const BrandTaskView = ({
             placeholder="Search brand or ASIN..."
             style={{
               width: '100%', padding: '7px 10px 7px 30px',
-              fontSize: 12, fontWeight: 600, borderRadius: 10,
+              fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10,
               border: '1.5px solid #e2e8f0', background: '#ffffff',
               outline: 'none', color: '#0f172a', boxSizing: 'border-box'
             }}
@@ -257,11 +257,11 @@ const BrandTaskView = ({
               onClick={() => setStatusFilter(pill.key)}
               style={{
                 padding: '5px 12px',
-                borderRadius: 16,
+                borderRadius: "var(--radius-xl)",
                 border: `1.5px solid ${statusFilter === pill.key ? pill.color : '#e2e8f0'}`,
                 background: statusFilter === pill.key ? `${pill.color}10` : '#ffffff',
                 color: statusFilter === pill.key ? pill.color : '#64748b',
-                fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                fontSize: 10, fontWeight: 600, cursor: 'pointer',
                 transition: 'all 0.2s',
                 boxShadow: statusFilter === pill.key ? `0 4px 10px -2px ${pill.color}30` : 'none'
               }}
@@ -287,10 +287,10 @@ const BrandTaskView = ({
             <Building2 size={32} color="#1976D2" strokeWidth={1.5} />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
               No Brand Tasks Found
             </div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, maxWidth: 320 }}>
+            <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 20, maxWidth: 320 }}>
               {actions.length === 0
                 ? 'Create your first brand-level optimization task to get started.'
                 : 'No tasks match the current filters. Try adjusting your search or filter.'}
@@ -302,8 +302,8 @@ const BrandTaskView = ({
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   padding: '10px 20px',
                   background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
-                  color: '#ffffff', border: 'none', borderRadius: 12,
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  color: '#ffffff', border: 'none', borderRadius: "var(--radius-lg)",
+                  fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
                   boxShadow: '0 4px 12px -2px rgba(99,102,241,0.4)'
                 }}
               >

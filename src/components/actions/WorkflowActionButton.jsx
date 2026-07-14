@@ -120,7 +120,7 @@ const WorkflowActionButton = ({
         disabled
         style={{
           height: size === 'small' ? 28 : 34,
-          borderRadius: 8,
+          borderRadius: "var(--radius-md)",
           fontSize: size === 'small' ? 11 : 13,
         }}
         icon={<LoadingOutlined />}
@@ -164,10 +164,10 @@ const WorkflowActionButton = ({
       <Tooltip
         title={
           <div>
-            <div style={{ fontWeight: 700, marginBottom: 4, color: '#fca5a5' }}>
+            <div style={{ fontWeight: 600, marginBottom: 4, color: '#fca5a5' }}>
               Rejected {rejectionCount} time{rejectionCount > 1 ? 's' : ''}
             </div>
-            <div style={{ fontSize: 11 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)' }}>
               Reason: {lastRejection.reason || 'No reason provided'}
             </div>
           </div>
@@ -176,7 +176,7 @@ const WorkflowActionButton = ({
       >
         <Tag
           style={{
-            fontSize: 10, borderRadius: 12, cursor: 'help',
+            fontSize: 10, borderRadius: "var(--radius-lg)", cursor: 'help',
             background: '#fef2f2', color: '#e11d48',
             border: '1px solid #fecdd3', padding: '0 6px',
           }}

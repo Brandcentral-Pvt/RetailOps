@@ -28,6 +28,8 @@ import { useSocket } from '../contexts/SocketContext';
 import SellerPageHeader from '../components/sellers/SellerPageHeader';
 import SellerStatsStrip from '../components/sellers/SellerStatsStrip';
 import SellerToolbar from '../components/sellers/SellerToolbar';
+import styles from './Sellers.module.css';
+import { PERMISSIONS } from '../constants/permissions';
 
 const AddSellerModal = lazy(() => import('../components/sellers/AddSellerModal'));
 const ImportSellerModal = lazy(() => import('../components/sellers/ImportSellerModal'));
@@ -41,7 +43,7 @@ const { Text } = Typography;
 
 // Marketplace-based avatar colors — all sellers of same marketplace get same color
 const MARKETPLACE_COLORS = {
-  'amazon.in': { gradient: 'linear-gradient(135deg, #1565C0, #1976D2)', color: '#1976D2', bg: '#E3F2FD' },
+  'amazon.in': { gradient: 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))', color: 'var(--text-brand, #1976D2)', bg: '#E3F2FD' },
   'ajio': { gradient: 'linear-gradient(135deg, #C2185B, #E91E63)', color: '#E91E63', bg: '#FCE4EC' },
   'myntra': { gradient: 'linear-gradient(135deg, #E65100, #FF5722)', color: '#FF5722', bg: '#FBE9E7' },
 };
@@ -126,9 +128,9 @@ const SellersPage = () => {
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
-  const canAccessAmazon = isAdmin || hasPermission('marketplace_amazon');
-  const canAccessAjio = isAdmin || hasPermission('marketplace_ajio');
-  const canAccessMyntra = isAdmin || hasPermission('marketplace_myntra');
+  const canAccessAmazon = isAdmin || hasPermission(PERMISSIONS.MARKETPLACE_AMAZON);
+  const canAccessAjio = isAdmin || hasPermission(PERMISSIONS.MARKETPLACE_AJIO);
+  const canAccessMyntra = isAdmin || hasPermission(PERMISSIONS.MARKETPLACE_MYNTRA);
 
   // Init marketplace filter once
   const marketplaceInitRef = useRef(false);
@@ -301,7 +303,8 @@ const SellersPage = () => {
       setSellers(prev => prev.map(s =>
         s._id === sellerId ? { ...s, _saving: false } : s
       ));
-    } catch {
+    } catch (e) {
+      console.error('Failed to update status:', e);
       // ③ Rollback
       setSellers(prev => prev.map(s =>
         s._id === sellerId ? { ...s, status: seller.status, _saving: false } : s
@@ -325,7 +328,8 @@ const SellersPage = () => {
         s._id === sellerId ? { ...s, _savingPriority: false } : s
       ));
       toastRef.current(newPriority ? 'Marked as High Priority' : 'Removed from High Priority', 'success');
-    } catch {
+    } catch (e) {
+      console.error('Failed to update priority:', e);
       setSellers(prev => prev.map(s =>
         s._id === sellerId ? { ...s, isPriority: seller.isPriority, _savingPriority: false } : s
       ));
@@ -343,6 +347,7 @@ const SellersPage = () => {
       await sellerApi.delete(sellerId);
       toastRef.current('Seller deleted.', 'success');
     } catch (error) {
+      console.error('Failed to delete seller:', error);
       // ② Rollback
       if (snapshot) setSellers(prev => [snapshot, ...prev]);
       setTotalItems(prev => prev + 1);
@@ -375,7 +380,7 @@ const SellersPage = () => {
       setShowAddModal(false);
       setEditingSeller(null);
     } catch (error) {
-      // Rollback edit
+      console.error('Failed to save seller:', error);
       if (editingSeller) {
         void loadSellers({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch, silent: true });
       }
@@ -400,6 +405,7 @@ const SellersPage = () => {
         return true;
       }
     } catch (error) {
+      console.error('Failed to import sellers:', error);
       toastRef.current(error.message || 'Check CSV format and try again.', 'error');
     }
     return false;
@@ -417,6 +423,7 @@ const SellersPage = () => {
       else setSellerAsins(prev => [...prev, ...(result.asins || [])]);
       setAsinPagination(result.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
     } catch (err) {
+      console.error('Failed to load ASINs:', err);
       if (pageNum === 1) setSellerAsins([]);
     } finally {
       setLoadingAsins(false);
@@ -446,6 +453,7 @@ const SellersPage = () => {
       toastRef.current(`Added ${asinData.asinCode}.`, 'success');
       await refreshAsinList(selectedSeller._id);
     } catch (error) {
+      console.error('Failed to add ASIN:', error);
       toastRef.current(error.message || 'Failed to add ASIN', 'error');
     }
   }, [selectedSeller, refreshAsinList]);
@@ -456,6 +464,7 @@ const SellersPage = () => {
       await asinApi.delete(asinId);
       await refreshAsinList(selectedSeller._id);
     } catch (error) {
+      console.error('Failed to delete ASIN:', error);
       toastRef.current('Failed to delete ASIN: ' + error.message, 'error');
     }
   }, [selectedSeller, refreshAsinList]);
@@ -466,6 +475,7 @@ const SellersPage = () => {
       await asinApi.update(asinId, { status: currentStatus === 'Active' ? 'Paused' : 'Active' });
       await refreshAsinList(selectedSeller._id);
     } catch (error) {
+      console.error('Failed to toggle ASIN status:', error);
       toastRef.current('Failed to toggle ASIN status: ' + error.message, 'error');
     }
   }, [selectedSeller, refreshAsinList]);
@@ -476,6 +486,7 @@ const SellersPage = () => {
       await asinApi.update(asinId, data);
       await refreshAsinList(selectedSeller._id);
     } catch (error) {
+      console.error('Failed to update ASIN:', error);
       toastRef.current('Failed to update ASIN: ' + error.message, 'error');
     }
   }, [selectedSeller, refreshAsinList]);
@@ -485,6 +496,12 @@ const SellersPage = () => {
       await marketSyncApi.syncAsin(asinId);
       toastRef.current('ASIN sync triggered!', 'success');
     } catch (error) {
+      console.error('Failed to sync ASIN:', error);
+      if (error?.response?.status === 429) {
+        console.error(`[429] Rate limit exceeded — retry after ${error.response.headers?.['retry-after'] || 60}s`);
+      } else if (error?.response?.status === 500) {
+        console.error('[500] Internal server error — sync service may be down');
+      }
       toastRef.current(error.message, 'error');
     }
   }, []);
@@ -497,6 +514,12 @@ const SellersPage = () => {
       if (res.success) toastRef.current(res.message || 'Sync triggered!', 'success');
       else toastRef.current(res.error || res.hint || 'Sync failed', 'error');
     } catch (error) {
+      console.error('Failed to sync seller:', error);
+      if (error?.response?.status === 429) {
+        console.error(`[429] Rate limit exceeded — retry after ${error.response.headers?.['retry-after'] || 60}s`);
+      } else if (error?.response?.status === 500) {
+        console.error('[500] Internal server error — sync worker may be overloaded');
+      }
       const msg = error.message || 'Sync failed';
       const hint = msg.includes('No sync method') ? 'Use Bulk Import for catalog data or configure Live Sync' : '';
       toastRef.current(hint ? `${msg}\n${hint}` : msg, 'error');
@@ -524,6 +547,12 @@ const SellersPage = () => {
         setLiveSyncStatuses(prev => ({ ...prev, [sellerId]: { status: 'ERROR', error: res.error } }));
       }
     } catch (error) {
+      console.error('Failed to start live sync:', error);
+      if (error?.response?.status === 429) {
+        console.error(`[429] Rate limit exceeded — too many live sync requests`);
+      } else if (error?.response?.status === 500) {
+        console.error('[500] Internal server error — PA-API service may be down');
+      }
       toastRef.current(error.message, 'error');
       setLiveSyncingIds(prev => { const n = new Set(prev); n.delete(sellerId); return n; });
       setLiveSyncStatuses(prev => ({ ...prev, [sellerId]: { status: 'ERROR', error: error.message } }));
@@ -607,11 +636,12 @@ const SellersPage = () => {
     try {
       await Promise.all(selectedSellerIds.map(async (id) => {
         try { await marketSyncApi.syncSellerAsins(id, false); ok++; }
-        catch { fail++; }
+        catch (e) { console.error(`Sync failed for seller ${id}:`, e); fail++; }
       }));
       toastRef.current(`Synced ${ok}.${fail ? ` ${fail} failed.` : ''}`, fail ? 'warning' : 'success');
       setSelectedSellerIds([]);
     } catch (err) {
+      console.error('Bulk sync failed:', err);
       toastRef.current(err.message, 'error');
     } finally {
       setBulkSyncing(false);
@@ -637,6 +667,12 @@ const SellersPage = () => {
         toastRef.current(res.error || 'Restart failed', 'error');
       }
     } catch (error) {
+      console.error('Failed to restart Octoparse:', error);
+      if (error?.response?.status === 429) {
+        console.error(`[429] Rate limit exceeded — too many restart requests`);
+      } else if (error?.response?.status === 500) {
+        console.error('[500] Internal server error — Octoparse service unreachable');
+      }
       toastRef.current(error.message || 'Restart failed', 'error');
     } finally {
       setGlobalSyncing(false);
@@ -674,6 +710,7 @@ const SellersPage = () => {
         setGlobalSyncing(false);
       }
     } catch (error) {
+      console.error('Failed to start global live sync:', error);
       toastRef.current(error.message, 'error');
       setGlobalSyncing(false);
     }
@@ -692,6 +729,7 @@ const SellersPage = () => {
       await marketSyncApi.ingestAllResults();
       toastRef.current('Global ingestion started.', 'info');
     } catch (error) {
+      console.error('Failed to start ingestion:', error);
       toastRef.current(error.message, 'error');
     } finally {
       setLoading(false);
@@ -706,12 +744,12 @@ const SellersPage = () => {
       'ajio': { label: 'AJIO', color: '#2C2C2C', bg: '#FAF5E8' },
       'myntra': { label: 'MYNTRA', color: '#FF356E', bg: '#FFFFFF' },
     };
-    const cfg = configs[m] || { label: (m || '??').toUpperCase().slice(0, 4), color: '#64748B', bg: '#F1F5F9' };
+    const cfg = configs[m] || { label: (m || '??').toUpperCase().slice(0, 4), color: 'var(--text-secondary, #64748b)', bg: 'var(--bg-secondary, #f8fafc)' };
     return (
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 8, fontWeight: 800, letterSpacing: '0.05em',
-        width: 'auto', height: 18, borderRadius: 4,
+        fontSize: 'var(--font-size-xs)', fontWeight: 700, letterSpacing: '0.05em',
+        width: 'auto', height: 18, borderRadius: "var(--radius-sm)",
         background: cfg.bg, color: cfg.color,
         border: `1px solid ${cfg.color}30`,
         padding: '0 8px',
@@ -723,7 +761,7 @@ const SellersPage = () => {
 
   const getStatusBadge = useCallback((status) => (
     <Tag color={status === 'Active' ? 'green' : 'default'} style={{
-      fontWeight: 700, textTransform: 'uppercase', fontSize: 10, borderRadius: 6, padding: '0 8px', lineHeight: '18px'
+      fontWeight: 600, textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-md, 8px)', padding: '0 8px', lineHeight: '18px'
     }}>
       {status?.toUpperCase() || 'UNKNOWN'}
     </Tag>
@@ -739,7 +777,7 @@ const SellersPage = () => {
         <Space size={4}>
           <Tooltip title="View ASINs">
             <Button type="text" size="small" icon={<Package size={14} />}
-              onClick={() => handleViewAsins(seller)} style={{ color: '#64748b' }} />
+              onClick={() => handleViewAsins(seller)} style={{ color: 'var(--text-secondary, #64748b)' }} />
           </Tooltip>
         </Space>
       );
@@ -750,23 +788,23 @@ const SellersPage = () => {
         {isGlobalUser && (
           <Tooltip title="Edit Details">
             <Button type="text" size="small" icon={<Edit3 size={14} />}
-              onClick={() => handleEditSeller(seller)} style={{ color: '#94A3B8' }} />
+              onClick={() => handleEditSeller(seller)} style={{ color: 'var(--text-muted, #94a3b8)' }} />
           </Tooltip>
         )}
         <Tooltip title="Manage Catalog">
           <Button type="text" size="small" icon={<Package size={14} />}
-            onClick={() => handleViewAsins(seller)} style={{ color: '#94A3B8' }} />
+            onClick={() => handleViewAsins(seller)} style={{ color: 'var(--text-muted, #94a3b8)' }} />
         </Tooltip>
         <Tooltip title="Catalog Sync">
           <Button type="text" size="small" icon={<FileUp size={14} />}
-            onClick={() => handleCatalogSync(seller)} style={{ color: '#94A3B8' }} />
+            onClick={() => handleCatalogSync(seller)} style={{ color: 'var(--text-muted, #94a3b8)' }} />
         </Tooltip>
         <Tooltip title="Sync Store">
           <Button type="text" size="small"
-            icon={<RefreshCw size={14} className={isSyncing ? 'spin' : ''} />}
+            icon={<RefreshCw size={14} className={isSyncing ? styles.spin : ''} />}
             loading={isSyncing}
             onClick={() => handleSyncSeller(seller._id)}
-            style={{ color: '#94A3B8' }} />
+            style={{ color: 'var(--text-muted, #94a3b8)' }} />
         </Tooltip>
         {seller.marketplace?.toLowerCase() === 'amazon.in' && (() => {
           const lsStatus = liveSyncStatuses[seller._id];
@@ -783,12 +821,12 @@ const SellersPage = () => {
                 onClick={() => handleLiveSync(seller._id)}
                 disabled={isLiveSyncing}
                 style={{
-                  borderRadius: 6,
-                  fontWeight: 700,
-                  fontSize: 10,
-                  background: isLiveSyncing ? '#90CAF9' : 'linear-gradient(135deg, #1565C0, #1976D2)',
-                  borderColor: isLiveSyncing ? '#90CAF9' : '#1565C0',
-                  color: isLiveSyncing ? '#1565C0' : '#fff',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  fontWeight: 600,
+                  fontSize: 'var(--font-size-xs)',
+                  background: isLiveSyncing ? '#90CAF9' : 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))',
+                  borderColor: isLiveSyncing ? '#90CAF9' : 'var(--text-brand-dark, #1565C0)',
+                  color: isLiveSyncing ? 'var(--text-brand-dark, #1565C0)' : '#fff',
                   boxShadow: isLiveSyncing ? 'none' : '0 1px 3px rgba(25,118,210,0.3)',
                   height: 26,
                   padding: '0 8px',
@@ -803,7 +841,7 @@ const SellersPage = () => {
           <Tooltip title={seller.isPriority ? 'Remove High Priority' : 'Set as High Priority'}>
             <Button
               type="text" size="small"
-              icon={<Star size={14} fill={seller.isPriority ? "#ED6C02" : "none"} stroke={seller.isPriority ? "#ED6C02" : "#64748b"} />}
+              icon={<Star size={14} fill={seller.isPriority ? "var(--text-warning, #ED6C02)" : "none"} stroke={seller.isPriority ? "var(--text-warning, #ED6C02)" : "var(--text-secondary, #64748b)"} />}
               onClick={() => handleTogglePriority(seller._id)}
               loading={seller._savingPriority}
             />
@@ -816,14 +854,14 @@ const SellersPage = () => {
             onClick={() => handleToggleStatus(seller._id)}
             loading={seller._saving}
             style={{
-              borderRadius: 6,
+              borderRadius: 'var(--radius-md, 8px)',
               ...(isActive
-                ? { color: '#64748b' }
-                : { background: '#2E7D32', borderColor: '#2E7D32', color: '#fff' })
+                ? { color: 'var(--text-secondary, #64748b)' }
+                : { background: 'var(--text-success, #2E7D32)', borderColor: 'var(--text-success, #2E7D32)', color: '#fff' })
             }}
           />
         </Tooltip>
-        {hasPermission('sellers_delete') && (
+        {hasPermission(PERMISSIONS.SELLER_DELETE) && (
           <Popconfirm
             title="Delete this seller?"
             description="All ASINs will also be permanently deleted."
@@ -833,7 +871,7 @@ const SellersPage = () => {
           >
             <Tooltip title="Delete Store">
               <Button type="text" size="small" danger
-                icon={<Trash2 size={14} />} style={{ color: '#D32F2F' }} />
+                icon={<Trash2 size={14} />} style={{ color: 'var(--text-danger, #D32F2F)' }} />
             </Tooltip>
           </Popconfirm>
         )}
@@ -848,27 +886,32 @@ const SellersPage = () => {
   // ── Table columns ──────────────────────────────────────────────────────
   const staticColumns = useMemo(() => [
     {
-      title: 'STORE DETAILS', dataIndex: 'name', key: 'name', width: 300,
+      title: 'STORE DETAILS', dataIndex: 'name', key: 'name', width: 320,
       sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
       render: (_, seller) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            width: 32, height: 32, borderRadius: "var(--radius-md)", flexShrink: 0,
             background: getMarketplaceColor(seller.marketplace).gradient,
             color: '#fff', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontWeight: 800, fontSize: 10
+            justifyContent: 'center', fontWeight: 700, fontSize: 'var(--font-size-xs)'
           }}>
             {seller.name?.slice(0, 3).toUpperCase() || 'SEL'}
           </div>
           <div style={{ lineHeight: 1.2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Text strong style={{ fontSize: 12.5, color: '#0F172A' }}>{seller.name}</Text>
-              {seller.isPriority && <Star size={12} fill="#ED6C02" stroke="#ED6C02" style={{ marginTop: '-2px' }} />}
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{seller.name}</Text>
+              {seller.isPriority && <Star size={12} fill="var(--text-warning, #ED6C02)" stroke="var(--text-warning, #ED6C02)" style={{ marginTop: '-2px' }} />}
             </div>
+            {seller.email && (
+              <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', display: 'block', marginTop: 1, lineHeight: 1.3 }}>
+                {seller.email}
+              </Text>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
               {getMarketplaceBadge(seller.marketplace)}
               {seller.sellerId && (
-                <Text style={{ fontSize: 9, fontFamily: 'monospace', background: '#F1F5F9', padding: '1px 4px', borderRadius: 4, color: '#94A3B8' }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', background: 'var(--bg-secondary, #f8fafc)', padding: '1px 4px', borderRadius: "var(--radius-sm)", color: 'var(--text-muted, #94a3b8)' }}>
                   {seller.sellerId}
                 </Text>
               )}
@@ -880,18 +923,18 @@ const SellersPage = () => {
     {
       title: 'ACCOUNT MANAGER', dataIndex: 'managers', key: 'managers', width: 220,
       render: (managers) => {
-        if (!managers?.length) return <Text type="secondary" italic style={{ fontSize: 10 }}>Unassigned</Text>;
+        if (!managers?.length) return <Text type="secondary" italic style={{ fontSize: 'var(--font-size-xs)' }}>Unassigned</Text>;
         return (
           <Space wrap size={2}>
             {managers.map((m) => (
               <span key={m._id} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: '#F1F5F9', padding: '2px 6px', borderRadius: 12, border: '1px solid #E5E7EB'
+                background: 'var(--bg-secondary, #f8fafc)', padding: '2px 6px', borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light, #d9e6e9)'
               }}>
-                <Avatar size={18} style={{ backgroundColor: '#D1D5DB', color: '#0F172A', fontSize: 9, fontWeight: 700 }}>
+                <Avatar size={18} style={{ backgroundColor: '#D1D5DB', color: 'var(--text-primary, #0f172a)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
                   {m.firstName?.charAt(0)}{m.lastName?.charAt(0)}
                 </Avatar>
-                <Text style={{ fontSize: 10.5, color: '#0F172A' }}>{m.firstName} {m.lastName}</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, #0f172a)' }}>{m.firstName} {m.lastName}</Text>
               </span>
             ))}
           </Space>
@@ -902,13 +945,13 @@ const SellersPage = () => {
       title: 'INVENTORY', dataIndex: 'totalAsins', key: 'totalAsins', width: 140,
       render: (total, seller) => (
         <Button type="link" onClick={() => handleViewAsins(seller)}
-          style={{ padding: 0, display: 'flex', alignItems: 'center', gap: 6, color: '#0F172A', height: 'auto' }}>
-          <div style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Package size={14} color="#94A3B8" />
+          style={{ padding: 0, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-primary, #0f172a)', height: 'auto' }}>
+          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', backgroundColor: 'var(--bg-secondary, #f8fafc)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Package size={14} color="var(--text-muted, #94a3b8)" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-            <Text strong style={{ fontSize: 11.5 }}>{total || 0} ASINs</Text>
-            <Text style={{ fontSize: 9, color: '#94A3B8' }}>
+            <Text strong style={{ fontSize: 'var(--font-size-xs)' }}>{total || 0} ASINs</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)' }}>
               Click to manage
             </Text>
           </div>
@@ -919,12 +962,12 @@ const SellersPage = () => {
       title: 'LAST ACTIVITY', dataIndex: 'lastScraped', key: 'lastScraped', width: 150,
       render: (lastScraped) => (
         <div style={{ lineHeight: 1.2 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Clock size={11} style={{ color: '#94A3B8' }} />
+          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Clock size={11} style={{ color: 'var(--text-muted, #94a3b8)' }} />
             {formatTimeAgo(lastScraped)}
           </div>
           {lastScraped && (
-            <div style={{ fontSize: 9, color: '#94A3B8', paddingLeft: 15 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', paddingLeft: 15 }}>
               {new Date(lastScraped).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
             </div>
           )}
@@ -1027,14 +1070,14 @@ const SellersPage = () => {
           borderBottom: '1px solid #EF9A9A',
           display: 'flex', alignItems: 'center', gap: 12
         }}>
-          <Zap size={14} className="spin" style={{ color: '#C62828' }} />
-          <Text style={{ color: '#C62828', fontSize: 12, fontWeight: 600 }}>
+          <Zap size={14} className={styles.spin} style={{ color: 'var(--text-danger, #D32F2F)' }} />
+          <Text style={{ color: 'var(--text-danger, #D32F2F)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
             Global Live Sync Running
           </Text>
           {globalSyncProgress.activeSyncs > 0 && (
             <Tag color="red">{globalSyncProgress.activeSyncs} sellers syncing</Tag>
           )}
-          <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+          <Text style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-xs)' }}>
             Updates appear within minutes. You can continue using the app.
           </Text>
         </div>
@@ -1042,13 +1085,12 @@ const SellersPage = () => {
 
       {/* ── Bulk action bar ───────────────────────────────────────── */}
       {selectedSellerIds.length > 0 && (
-        <div style={{
-          padding: '8px 24px', background: '#0F172A', color: '#fff',
+        <div className={styles.slideDown} style={{
+          padding: '8px 24px', background: 'var(--text-primary, #0f172a)', color: '#fff',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          animation: 'slideDown 0.2s ease-out'
         }}>
-          <Text strong style={{ color: '#fff', fontSize: 11 }}>
-            <Badge count={selectedSellerIds.length} style={{ backgroundColor: '#D32F2F', border: 'none', fontWeight: 800 }} /> Storefronts Selected
+          <Text strong style={{ color: '#fff', fontSize: 'var(--font-size-xs)' }}>
+            <Badge count={selectedSellerIds.length} style={{ backgroundColor: 'var(--text-danger, #D32F2F)', border: 'none', fontWeight: 700 }} /> Storefronts Selected
           </Text>
           <Space size={8}>
             <Popconfirm
@@ -1059,12 +1101,12 @@ const SellersPage = () => {
             >
               <Button size="small" type="primary" icon={<RefreshCw size={12} />}
                 loading={bulkSyncing}
-                style={{ borderRadius: 6, fontWeight: 600, background: '#C62828', borderColor: '#C62828' }}>
+                style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, background: 'var(--text-danger, #D32F2F)', borderColor: 'var(--text-danger, #D32F2F)' }}>
                 Sync Selected
               </Button>
             </Popconfirm>
             <Button size="small" type="text" onClick={() => setSelectedSellerIds([])}
-              style={{ color: '#94A3B8', fontSize: 11 }}>
+              style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-xs)' }}>
               Clear
             </Button>
           </Space>
@@ -1072,9 +1114,9 @@ const SellersPage = () => {
       )}
 
       {/* ── Table ─────────────────────────────────────────────────── */}
-      <div style={{ padding: '20px 24px', flex: 1, background: '#F1F5F9' }}>
+      <div style={{ padding: '20px 24px', flex: 1, background: 'var(--bg-secondary, #f8fafc)' }}>
         <Card styles={{ body: { padding: 0 } }}
-          style={{ borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+          style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light, #d9e6e9)', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
           <Table
             columns={columns}
             dataSource={sellers}
@@ -1082,7 +1124,7 @@ const SellersPage = () => {
             loading={loading}
             rowSelection={rowSelection}
             size="middle"
-            className="premium-seller-table"
+            className={styles.premiumSellerTable}
             pagination={{
               current: page,
               pageSize: limit,
@@ -1091,36 +1133,22 @@ const SellersPage = () => {
               pageSizeOptions: ['25', '50', '100'],
               onChange: (p, ps) => { setPage(p); setLimit(ps); },
               showTotal: (total, range) => (
-                <Text type="secondary" style={{ fontSize: 11, paddingLeft: 16 }}>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', paddingLeft: 16 }}>
                   Viewing {range[0]}-{range[1]} of {total} stores
                 </Text>
               ),
             }}
-            scroll={{ x: 1000 }}
+            scroll={{ x: 1120 }}
             locale={{
               emptyText: (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={<span style={{ fontWeight: 600, color: '#94A3B8', fontSize: 12 }}>No storefront entries match your current query.</span>}
+                  description={<span style={{ fontWeight: 600, color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-sm)' }}>No storefront entries match your current query.</span>}
                 />
               )
             }}
           />
         </Card>
       </div>
-
-      <style>{`
-        .spin { animation: spin 1.5s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .premium-seller-table .ant-table-thead > tr > th {
-          background: #F1F5F9 !important; font-size: 10px !important; color: #94A3B8 !important;
-          font-weight: 800 !important; letter-spacing: 0.1em !important;
-          padding: 14px 16px !important; border-bottom: 1px solid #E5E7EB !important;
-        }
-        .premium-seller-table .ant-table-row:hover > td { background: #fcfcfd !important; }
-        .premium-seller-table .ant-table-cell { padding: 12px 16px !important; border-bottom: 1px solid #E5E7EB !important; }
-        .premium-seller-table .ant-table-pagination { margin: 16px !important; }
-        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      `}</style>
 
       <Suspense fallback={null}>
         {showAddModal && (

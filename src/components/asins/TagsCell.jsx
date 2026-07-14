@@ -171,7 +171,7 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                             fontSize: '9px',
                             fontWeight: 600,
                             padding: '2px 7px',
-                            borderRadius: '4px',
+                            borderRadius: 'var(--radius-sm)',
                             whiteSpace: 'nowrap'
                         }}
                     >
@@ -229,7 +229,7 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                                             fontSize: '9px',
                                             fontWeight: 600,
                                             padding: '2px 7px',
-                                            borderRadius: '4px',
+                                            borderRadius: 'var(--radius-sm)',
                                             whiteSpace: 'nowrap',
                                             cursor: 'pointer',
                                             display: 'inline-flex',
@@ -258,7 +258,7 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                                         fontSize: '9px',
                                         fontWeight: 600,
                                         padding: '2px 6px',
-                                        borderRadius: '4px'
+                                        borderRadius: 'var(--radius-sm)'
                                     }}
                                 >
                                     +{tags.length - 2}

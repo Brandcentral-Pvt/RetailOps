@@ -19,7 +19,7 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
 
   return (
     <div className="kpi-card" style={{
-      borderRadius: 12,
+      borderRadius: "var(--radius-lg)",
       background: '#FFFFFF',
       border: '1px solid #E5E7EB',
       overflow: 'hidden',
@@ -40,7 +40,7 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
               padding: '3px 8px', borderRadius: 6,
               background: trendConfig.bg, color: trendConfig.textColor,
               border: `1px solid ${trendConfig.borderColor}`,
-              fontSize: 11, fontWeight: 700,
+              fontSize: 'var(--font-size-xs)', fontWeight: 600,
             }}>
               <TrendIcon size={12} strokeWidth={3} />
               {trend}%
@@ -50,15 +50,15 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
 
         <div>
           <div style={{
-            fontSize: 10, fontWeight: 700, color: '#64748B',
+            fontSize: 10, fontWeight: 600, color: '#64748B',
             textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4,
           }}>{title}</div>
           <div style={{
-            fontSize: 24, fontWeight: 800, color: '#111827',
+            fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: 'var(--text-primary)',
             letterSpacing: '-0.02em', lineHeight: 1.1,
           }}>{value}</div>
           {subtitle && (
-            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>{subtitle}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94A3B8', marginTop: 4 }}>{subtitle}</div>
           )}
         </div>
       </div>

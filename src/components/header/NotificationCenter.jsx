@@ -215,7 +215,7 @@ const NotificationCenter = () => {
           aria-label="Notifications"
         >
           <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-            <BellOutlined style={{ fontSize: '16px' }} />
+            <BellOutlined style={{ fontSize: 'var(--font-size-lg)' }} />
           </Badge>
         </button>
       </Tooltip>
@@ -231,7 +231,7 @@ const NotificationCenter = () => {
               <span>Notifications</span>
               {unreadCount > 0 && (
                 <span style={{
-                  background: '#1976D2', color: '#fff', fontSize: '10px', fontWeight: 700,
+                  background: '#1976D2', color: '#fff', fontSize: '10px', fontWeight: 600,
                   padding: '2px 7px', borderRadius: '100px', fontFamily: 'Inter, sans-serif',
                 }}>
                   {unreadCount} new
@@ -279,7 +279,7 @@ const NotificationCenter = () => {
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     description={
-                      <span style={{ color: '#94A3B8', fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>
+                      <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
                         You're all caught up
                       </span>
                     }
@@ -332,12 +332,12 @@ const NotificationCenter = () => {
                         onClick={(e) => { e.stopPropagation(); deleteOne(notif.id); }}
                         style={{
                           background: 'transparent', border: 'none', cursor: 'pointer',
-                          color: '#D1D5DB', padding: '4px', opacity: 0, transition: 'opacity 0.15s',
+                          color: 'var(--border-light)', padding: '4px', opacity: 0, transition: 'opacity 0.15s',
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                         onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
                       >
-                        <DeleteOutlined style={{ fontSize: '11px' }} />
+                        <DeleteOutlined style={{ fontSize: 'var(--font-size-xs)' }} />
                       </button>
                     </motion.div>
                   );

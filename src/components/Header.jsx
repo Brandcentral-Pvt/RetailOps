@@ -136,7 +136,7 @@ const NotificationItem = memo(({ raw, onRead, onClick }) => {
                     <Text type="secondary" style={{ fontSize: 10 }}>{time}</Text>
                 </div>
                 <div style={{
-                    fontSize: 12,
+                    fontSize: 'var(--font-size-sm)',
                     color: item.isRead ? '#64748b' : '#0f172a',
                     lineHeight: 1.4,
                     wordBreak: 'break-word',
@@ -176,14 +176,14 @@ const NotificationPanel = memo(({
             padding: '12px 16px',
             borderBottom: '1px solid #f1f5f9',
         }}>
-            <Text strong style={{ fontSize: 14, color: '#0f172a', letterSpacing: '-0.01em' }}>
+            <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#0f172a', letterSpacing: '-0.01em' }}>
                 System Broadcasts
             </Text>
             {unreadCount > 0 && (
                 <Button
                     type="link" size="small"
                     onClick={onMarkAllRead}
-                    style={{ padding: 0, height: 'auto', fontSize: 12, fontWeight: 600, color: '#0288D1' }}
+                    style={{ padding: 0, height: 'auto', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0288D1' }}
                 >
                     Clear All
                 </Button>
@@ -209,7 +209,7 @@ const NotificationPanel = memo(({
                     <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                         description={
-                            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
+                            <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 500 }}>
                                 No signals.
                             </span>
                         }
@@ -224,7 +224,7 @@ const NotificationPanel = memo(({
             <Button
                 type="link" block size="small"
                 onClick={onViewAll}
-                style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}
+                style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#475569' }}
             >
                 Open Full Alert Console
             </Button>
@@ -480,7 +480,7 @@ const Header = () => {
                         overlayClassName="global-notification-popover"
                         styles={{
                             content: {
-                                borderRadius: 12,
+                                borderRadius: "var(--radius-lg)",
                                 padding: '8px',
                                 boxShadow: '0 10px 32px -4px rgba(0,0,0,0.1)',
                             }
@@ -526,7 +526,7 @@ const Header = () => {
                         <div className="header-user-name fw-semibold" style={{ fontSize: 13, color: '#1f2937' }}>
                             {user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'}
                         </div>
-                        <div className="header-user-role" style={{ fontSize: 11, color: '#6b7280', textTransform: 'capitalize' }}>
+                        <div className="header-user-role" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
                             {user?.role?.displayName || user?.role?.name || 'User'}
                         </div>
                     </div>

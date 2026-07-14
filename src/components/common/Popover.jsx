@@ -89,7 +89,7 @@ const Popover = ({
                             position: 'absolute',
                             zIndex: 1050,
                             backgroundColor: '#fff',
-                            borderRadius: '12px',
+                            borderRadius: 'var(--radius-lg)',
                             padding: '12px',
                             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
                             border: '1px solid rgba(0,0,0,0.05)',
@@ -97,7 +97,7 @@ const Popover = ({
                             ...getPlacementStyles()
                         }}
                     >
-                        <div className="popover-content" style={{ fontSize: '13px', color: '#1e293b', lineHeight: '1.5' }}>
+                        <div className="popover-content" style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', lineHeight: '1.5' }}>
                             {content}
                         </div>
                         {/* Arrow */}

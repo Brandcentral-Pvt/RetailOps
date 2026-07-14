@@ -135,7 +135,7 @@ export default function LazyImage({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '11px',
+            fontSize: 'var(--font-size-xs)',
             color: '#9ca3af',
             background: '#f3f4f6',
           }}

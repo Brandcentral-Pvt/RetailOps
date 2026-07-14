@@ -16,7 +16,7 @@ const FilterChip = ({ label, value, onRemove }) => (
     style={{ 
       borderRadius: 6, 
       padding: '2px 8px', 
-      fontSize: 11,
+      fontSize: 'var(--font-size-xs)',
       fontWeight: 500,
       background: '#eff6ff',
       color: '#1976D2',
@@ -52,7 +52,7 @@ const AdsFilters = ({
           allowClear
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          style={{ width: 240, borderRadius: 8 }}
+          style={{ width: 240, borderRadius: "var(--radius-md)" }}
           size="small"
         />
         
@@ -70,7 +70,7 @@ const AdsFilters = ({
           value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
           onChange={handleDateChange}
           format="DD MMM YYYY"
-          style={{ borderRadius: 8, width: 200 }}
+          style={{ borderRadius: "var(--radius-md)", width: 200 }}
           size="small"
           presets={[
             { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
@@ -84,22 +84,22 @@ const AdsFilters = ({
           size="small" 
           icon={<Filter size={13} />}
           onClick={() => setIsExpanded(!isExpanded)}
-          style={{ borderRadius: 8 }}
+          style={{ borderRadius: "var(--radius-md)" }}
         >
           {isExpanded ? 'Less' : 'More'}
         </Button>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <Tooltip title="Save current filter as view">
-            <Button size="small" icon={<Save size={13} />} style={{ borderRadius: 8 }} />
+            <Button size="small" icon={<Save size={13} />} style={{ borderRadius: "var(--radius-md)" }} />
           </Tooltip>
-          <Button size="small" icon={<RefreshCw size={13} />} onClick={onRefresh} loading={loading} style={{ borderRadius: 8 }}>
+          <Button size="small" icon={<RefreshCw size={13} />} onClick={onRefresh} loading={loading} style={{ borderRadius: "var(--radius-md)" }}>
             Refresh
           </Button>
-          <Button size="small" icon={<Download size={13} />} style={{ borderRadius: 8 }}>
+          <Button size="small" icon={<Download size={13} />} style={{ borderRadius: "var(--radius-md)" }}>
             Export
           </Button>
-          <Button type="primary" size="small" icon={<Upload size={13} />} onClick={onImport} style={{ borderRadius: 8 }}>
+          <Button type="primary" size="small" icon={<Upload size={13} />} onClick={onImport} style={{ borderRadius: "var(--radius-md)" }}>
             Import
           </Button>
         </div>
@@ -173,7 +173,7 @@ const AdsFilters = ({
           {activeFilters.map((filter, i) => (
             <FilterChip key={i} label={filter.label} value={filter.value} onRemove={filter.onRemove} />
           ))}
-          <Button type="link" size="small" icon={<X size={12} />} style={{ fontSize: 11, padding: 0 }}>
+          <Button type="link" size="small" icon={<X size={12} />} style={{ fontSize: 'var(--font-size-xs)', padding: 0 }}>
             Clear all
           </Button>
         </div>

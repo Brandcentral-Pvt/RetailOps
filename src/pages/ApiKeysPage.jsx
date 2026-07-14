@@ -19,7 +19,7 @@ const CATEGORY_COLORS = {
 /* ─── Sub-components ───────────────────────────────────────────── */
 const Toggle = ({ enabled }) => (
     <div style={{
-        width: 44, height: 24, borderRadius: 12,
+        width: 44, height: 24, borderRadius: "var(--radius-lg)",
         background: enabled ? '#4F46E5' : '#CBD5E1',
         position: 'relative', flexShrink: 0,
     }}>
@@ -36,7 +36,7 @@ const Toggle = ({ enabled }) => (
 
 const CategoryPill = ({ label, color }) => (
     <span style={{
-        fontSize: 11, fontWeight: 700, padding: '3px 8px',
+        fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '3px 8px',
         borderRadius: 6,
         background: color + '18',
         color,
@@ -201,7 +201,7 @@ return (
             </div>
 
             {/* Security notice */}
-            <Alert color="primary" className="d-flex align-items-center gap-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#EEF2FF', color: '#3730A3' }}>
+            <Alert color="primary" className="d-flex align-items-center gap-3 border-0 shadow-sm" style={{ borderRadius: 'var(--radius-lg)', backgroundColor: '#EEF2FF', color: '#3730A3' }}>
                 <span className="fs-4">🔒</span>
                 <span className="small">
                     <strong>Secure Storage:</strong> All keys are stored in the backend database.
@@ -211,7 +211,7 @@ return (
             </Alert>
 
             {/* Main Content Card */}
-            <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: '16px' }}>
+            <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
                 <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <div>
                         <h5 className="mb-1 fw-bold text-dark">Configured Integrations</h5>
@@ -320,7 +320,7 @@ return (
             </div>
 
             {/* Add / Edit Modal */}
-            <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} centered size="md" contentClassName="border-0 shadow-lg" style={{ borderRadius: '16px' }}>
+            <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} centered size="md" contentClassName="border-0 shadow-lg" style={{ borderRadius: 'var(--radius-xl)' }}>
                 <ModalHeader toggle={() => setModalOpen(false)} className="border-0 pb-0 pt-4 px-4">
                     <span className="fw-bold h5 mb-0 text-dark">
                         {editingKey ? 'Edit API Integration' : 'Add New Integration'}
@@ -342,7 +342,7 @@ return (
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 required
                                 className="border-0 bg-light px-3 py-2"
-                                style={{ borderRadius: '8px' }}
+                                style={{ borderRadius: 'var(--radius-md)' }}
                             />
                         </FormGroup>
                         <FormGroup className="mb-3">
@@ -355,7 +355,7 @@ return (
                                 required
                                 disabled={!!editingKey}
                                 className="border-0 bg-light px-3 py-2"
-                                style={{ borderRadius: '8px' }}
+                                style={{ borderRadius: 'var(--radius-md)' }}
                             />
                         </FormGroup>
                         <FormGroup className="mb-3">
@@ -365,7 +365,7 @@ return (
                                 value={formData.category}
                                 onChange={e => setFormData({ ...formData, category: e.target.value })}
                                 className="border-0 bg-light px-3 py-2"
-                                style={{ borderRadius: '8px' }}
+                                style={{ borderRadius: 'var(--radius-md)' }}
                             >
                                 <option>Scraping</option>
                                 <option>Amazon Data</option>
@@ -383,7 +383,7 @@ return (
                                 onChange={e => setFormData({ ...formData, value: e.target.value })}
                                 required={!editingKey}
                                 className="border-0 bg-light px-3 py-2"
-                                style={{ borderRadius: '8px' }}
+                                style={{ borderRadius: 'var(--radius-md)' }}
                             />
                         </FormGroup>
                         <FormGroup className="mb-0">
@@ -395,7 +395,7 @@ return (
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                                 className="border-0 bg-light px-3 py-2"
-                                style={{ borderRadius: '8px' }}
+                                style={{ borderRadius: 'var(--radius-md)' }}
                             />
                         </FormGroup>
                     </ModalBody>

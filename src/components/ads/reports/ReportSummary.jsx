@@ -36,21 +36,21 @@ const ReportMetricCard = ({
       minWidth: 150
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <Text style={{ fontSize: 11, fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>{label}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>{label}</Text>
         {Icon && <Icon size={14} color={color || '#71717a'} />}
       </div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#18181b', marginBottom: 4 }}>
+      <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>
         {formatValue(current)}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {isStable ? (
-          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#f4f4f5', color: '#71717a', border: 'none' }}>
+          <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: '#f4f4f5', color: '#71717a', border: 'none' }}>
             <Minus size={10} /> Stable
           </Tag>
         ) : (
           <Tag style={{ 
             fontSize: 9, 
-            borderRadius: 4, 
+            borderRadius: "var(--radius-sm)", 
             background: isGood ? '#ecfdf5' : '#fef2f2', 
             color: isGood ? '#2E7D32' : '#C62828',
             border: 'none'

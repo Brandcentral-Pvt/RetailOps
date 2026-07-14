@@ -19,7 +19,7 @@ const TaskBoard = ({ tasks, loading }) => {
       extra={<button className="btn btn-sm btn-zinc-900 border-0 shadow-sm smallest px-3" style={{ borderRadius: 'var(--radius-full)', backgroundColor: '#18181B', color: '#fff' }}>VIEW ALL</button>}
     >
       <div className="table-responsive" style={{ minHeight: '400px' }}>
-        <table className="table table-hover align-middle mb-0" style={{ fontSize: '13px' }}>
+        <table className="table table-hover align-middle mb-0" style={{ fontSize: 'var(--font-size-sm)' }}>
           <thead className="table-light text-muted text-uppercase" style={{ fontSize: '10px', letterSpacing: '0.05em' }}>
             <tr>
               <th className="ps-0 border-0">Action Item</th>

@@ -46,7 +46,7 @@ const DateRangeSelector = () => {
   const content = (
     <div style={{ width: 340, fontFamily: 'Inter, sans-serif' }}>
       <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid #f4f5f7' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
           Quick ranges
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
@@ -64,7 +64,7 @@ const DateRangeSelector = () => {
                   borderColor: isActive ? '#D32F2F' : 'transparent',
                   background: isActive ? '#fff0f0' : 'transparent',
                   color: isActive ? '#d94033' : '#545657',
-                  fontSize: 12,
+                  fontSize: 'var(--font-size-sm)',
                   fontWeight: isActive ? 600 : 500,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -81,7 +81,7 @@ const DateRangeSelector = () => {
         </div>
       </div>
       <div style={{ padding: '12px 14px' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: '#8c8e8f', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
           Custom range
         </div>
           <RangePicker
@@ -117,7 +117,7 @@ const DateRangeSelector = () => {
       styles={{
         container: {
           padding: 0,
-          borderRadius: 12,
+          borderRadius: "var(--radius-lg)",
           boxShadow: '0 12px 40px -8px rgba(18,27,30,0.18)',
         }
       }}
@@ -126,7 +126,7 @@ const DateRangeSelector = () => {
         <CalendarOutlined className="date-range-icon" />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
           <span className="date-range-preset-label">{currentPreset ? currentPreset.label : 'Custom'}</span>
-          <span style={{ lineHeight: 1.2, fontSize: 11.5 }}>{formatRange()}</span>
+          <span style={{ lineHeight: 1.2, fontSize: 11 }}>{formatRange()}</span>
         </div>
         <DownOutlined style={{ fontSize: 9, color: '#8c8e8f' }} />
       </button>

@@ -387,8 +387,8 @@ const ExportAsinModal = ({
           <Space size={12}>
             <div className="drawer-icon"><Download size={17} /></div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>Export Center</div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Configure and download your product data</div>
+              <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>Export Center</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: 1 }}>Configure and download your product data</div>
             </div>
           </Space>
           {step === 1 && (
@@ -409,7 +409,7 @@ const ExportAsinModal = ({
       }
       footer={step === 1 && activeTab === 'export' ? (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
             {selectedFields.length} fields · {exportType === 'selected' ? `${selectedIds.length} items` : 'filtered view'} · {exportFormat.toUpperCase()}
           </Text>
           <Space>
@@ -528,8 +528,8 @@ const ExportAsinModal = ({
                           options={sellerOptions}
                           optionRender={opt => opt.data.meta ? (
                             <div style={{ lineHeight: 1.35 }}>
-                              <div style={{ fontSize: 13, fontWeight: 600 }}>{opt.data.meta.name}</div>
-                              <div style={{ fontSize: 11, color: '#94a3b8' }}>{opt.data.meta.sellerId} · {opt.data.meta.marketplace}</div>
+                              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{opt.data.meta.name}</div>
+                              <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{opt.data.meta.sellerId} · {opt.data.meta.marketplace}</div>
                             </div>
                           ) : (
                             <Text strong style={{ color: '#0288D1' }}><ListChecks size={12} style={{ marginRight: 5 }} />Select All Sellers</Text>
@@ -545,7 +545,7 @@ const ExportAsinModal = ({
                           <div className="field-label">Active filters on this export</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                             {activeFilterTags.map(b => (
-                              <AntTag key={b.key} color={b.color} style={{ fontSize: 11, margin: 0 }}>{b.label}</AntTag>
+                              <AntTag key={b.key} color={b.color} style={{ fontSize: 'var(--font-size-xs)', margin: 0 }}>{b.label}</AntTag>
                             ))}
                           </div>
                         </div>
@@ -560,7 +560,7 @@ const ExportAsinModal = ({
                     <div className="step-dot">2</div>
                     <span className="card-title">Data Fields</span>
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <AntTag color="blue" style={{ borderRadius: 12, fontSize: 11, margin: 0, padding: '0 8px' }}>
+                      <AntTag color="blue" style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', margin: 0, padding: '0 8px' }}>
                         {selectedFields.length} / {ALL_ASIN_FIELDS.length}
                       </AntTag>
                       <Button
@@ -644,7 +644,7 @@ const ExportAsinModal = ({
                       </Row>
                     )}
                     {visibleFields.length === 0 && (
-                      <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8', fontSize: 13 }}>
+                      <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
                         No fields match "{fieldSearch}"
                       </div>
                     )}
@@ -679,13 +679,13 @@ const ExportAsinModal = ({
                       </Radio.Group>
                       {dateOption === 'custom' && (
                         <RangePicker
-                          style={{ width: '100%', marginTop: 10, borderRadius: 8 }}
+                          style={{ width: '100%', marginTop: 10, borderRadius: "var(--radius-md)" }}
                           value={customDateRange}
                           onChange={setCustomDateRange}
                         />
                       )}
                       {isHistoricalRange && (
-                        <AntTag color="orange" style={{ marginTop: 8, fontSize: 11 }}>
+                        <AntTag color="orange" style={{ marginTop: 8, fontSize: 'var(--font-size-xs)' }}>
                           Historical mode — exports day-by-day snapshot data
                         </AntTag>
                       )}
@@ -743,7 +743,7 @@ const ExportAsinModal = ({
                     <Title level={4} style={{ margin: '18px 0 4px' }}>
                       {exportProgress >= 100 ? 'Download Starting…' : 'Generating Your Export'}
                     </Title>
-                    <Text type="secondary" style={{ fontSize: 13 }}>{getProgressLabel(exportProgress)}</Text>
+                    <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>{getProgressLabel(exportProgress)}</Text>
                     <div className="progress-summary">
                       <span>{selectedFields.length} fields</span>
                       <span className="psep">·</span>
@@ -751,7 +751,7 @@ const ExportAsinModal = ({
                       <span className="psep">·</span>
                       <span>{exportFormat.toUpperCase()}</span>
                     </div>
-                    <Text type="secondary" style={{ fontSize: 11, marginTop: 10, display: 'block' }}>
+                    <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', marginTop: 10, display: 'block' }}>
                       Keep this window open while the file is being prepared
                     </Text>
                   </>
