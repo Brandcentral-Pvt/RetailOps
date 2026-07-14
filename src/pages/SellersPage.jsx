@@ -1,5 +1,4 @@
 import { Spinner } from "@/components/Spinner";
-// pages/SellersPage.tsx — complete fixed version with optimistic updates
 
 import React, {
   useState, useEffect, useMemo, useCallback,
@@ -8,19 +7,17 @@ import React, {
 import { useDebounce } from '../hooks/useDebounce';
 import { sellerApi, userApi, asinApi, marketSyncApi } from '../services/api';
 import {
-  Table, Button, Select, Space,
+  Table, Button, Space,
   Tag, Typography, Tooltip, Avatar, Empty,
-  Divider, Badge, Card, Popconfirm
+  Badge, Card, Popconfirm
 } from 'antd';
 import {
   Package, FileUp,
   Clock, Trash2, Play, Pause,
   RefreshCw, Edit3, Star, Zap
 } from 'lucide-react';
-import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { LoadError } from '@/components/LoadError';
-import { SellersSkeleton } from '@/components/ui/PageSkeletons';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useHeader } from '../contexts/HeaderContext';
@@ -78,6 +75,11 @@ const SellersPage = () => {
     return role === 'brand manager';
   }, [currentUser?.role]);
 
+  const canViewEmail = useMemo(() => {
+    const role = (currentUser?.role?.name || '').toString().toLowerCase();
+    return role === 'super_admin' || role === 'admin' || role === 'operation manager' || role === 'operation_manager';
+  }, [currentUser?.role]);
+
   // ── Data state ─────────────────────────────────────────────────────────
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,9 +126,13 @@ const SellersPage = () => {
 
   // Stable toast ref
   const toastRef = useRef(addToast);
-  useEffect(() => { toastRef.current = addToast; });
+  useEffect(() => { toastRef.current = addToast; }, [addToast]);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+
+  // Always-current filter state for socket handlers and intervals
+  const filterStateRef = useRef({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch });
+  useEffect(() => { filterStateRef.current = { page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch }; });
 
   const canAccessAmazon = isAdmin || hasPermission(PERMISSIONS.MARKETPLACE_AMAZON);
   const canAccessAjio = isAdmin || hasPermission(PERMISSIONS.MARKETPLACE_AJIO);
@@ -192,8 +198,11 @@ const SellersPage = () => {
 
       setSellers(list);
       setTotalItems(total);
+      setError(null);
     } catch (error) {
+      console.error('Failed to load sellers:', error);
       toastRef.current('Network error: Could not connect to data service', 'error');
+      setError('Failed to load sellers');
       setSellers([]);
     } finally {
       if (!silent) setLoading(false);
@@ -237,39 +246,35 @@ const SellersPage = () => {
 
   useEffect(() => {
     if (!socket) return;
-    const handler = () => {
-      void loadSellersRef.current({
-        page, limit, activeTab, marketplaceFilter, statusFilter,
-        search: debouncedSearch, silent: true
-      });
+    const handleSellersUpdated = () => {
+      void loadSellersRef.current({ ...filterStateRef.current, silent: true });
     };
-    socket.on('SELLERS_UPDATED', handler);
-    return () => socket.off('SELLERS_UPDATED', handler);
-  }, [socket]); // socket only
+    socket.on('SELLERS_UPDATED', handleSellersUpdated);
+    return () => socket.off('SELLERS_UPDATED', handleSellersUpdated);
+  }, [socket]);
 
   // Listen for live sync ASIN updates
   useEffect(() => {
     if (!socket) return;
-    const handleAsinsUpdated = (data) => {
-      void loadSellersRef.current({
-        page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter,
-        search: debouncedSearch, silent: true
-      });
+    const handleAsinsUpdated = () => {
+      void loadSellersRef.current({ ...filterStateRef.current, silent: true });
     };
-    socket.on('ASINS_UPDATED', handleAsinsUpdated);
-    socket.on('liveSync:completed', (data) => {
+    const handleLiveSyncCompleted = (data) => {
       toastRef.current(`Live sync complete: ${data.updatedAsins} ASINs updated in ${(data.duration / 1000).toFixed(1)}s`, 'success');
-    });
-    socket.on('liveSyncAll:completed', (data) => {
+    };
+    const handleLiveSyncAllCompleted = (data) => {
       toastRef.current(`Global sync complete: ${data.success} sellers, ${data.totalAsinsUpdated} ASINs in ${(data.duration / 1000).toFixed(1)}s`, 'success');
       setGlobalSyncing(false);
-    });
+    };
+    socket.on('ASINS_UPDATED', handleAsinsUpdated);
+    socket.on('liveSync:completed', handleLiveSyncCompleted);
+    socket.on('liveSyncAll:completed', handleLiveSyncAllCompleted);
     return () => {
       socket.off('ASINS_UPDATED', handleAsinsUpdated);
-      socket.off('liveSync:completed');
-      socket.off('liveSyncAll:completed');
+      socket.off('liveSync:completed', handleLiveSyncCompleted);
+      socket.off('liveSyncAll:completed', handleLiveSyncAllCompleted);
     };
-  }, [socket, page, limit, activeTab, marketplaceFilter, statusFilter, debouncedSearch]);
+  }, [socket]);
 
   // Pool stats
   const fetchPoolStats = useCallback(async () => {
@@ -289,59 +294,57 @@ const SellersPage = () => {
 
   // ── OPTIMISTIC: Toggle status (instant — no refetch) ──────────────────
   const handleToggleStatus = useCallback(async (sellerId) => {
-    const seller = sellers.find(s => s._id === sellerId);
-    if (!seller) return;
-    const newStatus = seller.status === 'Active' ? 'Paused' : 'Active';
-
-    // ① Instant UI
-    setSellers(prev => prev.map(s =>
-      s._id === sellerId ? { ...s, status: newStatus, _saving: true } : s
-    ));
-    try {
-      await sellerApi.update(sellerId, { status: newStatus });
-      // ② Confirm
-      setSellers(prev => prev.map(s =>
-        s._id === sellerId ? { ...s, _saving: false } : s
-      ));
-    } catch (e) {
-      console.error('Failed to update status:', e);
-      // ③ Rollback
-      setSellers(prev => prev.map(s =>
-        s._id === sellerId ? { ...s, status: seller.status, _saving: false } : s
-      ));
-      toastRef.current('Failed to update status', 'error');
-    }
-  }, [sellers]);
+    let previousStatus;
+    // ① Instant UI — read current state from prev
+    setSellers(prev => {
+      const seller = prev.find(s => s._id === sellerId);
+      if (!seller) return prev;
+      previousStatus = seller.status;
+      const newStatus = seller.status === 'Active' ? 'Paused' : 'Active';
+      // Fire API call outside setState (async)
+      sellerApi.update(sellerId, { status: newStatus })
+        .then(() => {
+          setSellers(p => p.map(s => s._id === sellerId ? { ...s, _saving: false } : s));
+        })
+        .catch((e) => {
+          console.error('Failed to update status:', e);
+          setSellers(p => p.map(s => s._id === sellerId ? { ...s, status: previousStatus, _saving: false } : s));
+          toastRef.current('Failed to update status', 'error');
+        });
+      return prev.map(s => s._id === sellerId ? { ...s, status: newStatus, _saving: true } : s);
+    });
+  }, []);
 
   // ── OPTIMISTIC: Toggle Priority ─────────────────────────────────────────
   const handleTogglePriority = useCallback(async (sellerId) => {
-    const seller = sellers.find(s => s._id === sellerId);
-    if (!seller) return;
-    const newPriority = !seller.isPriority;
-
-    setSellers(prev => prev.map(s =>
-      s._id === sellerId ? { ...s, isPriority: newPriority, _savingPriority: true } : s
-    ));
-    try {
-      await sellerApi.update(sellerId, { isPriority: newPriority });
-      setSellers(prev => prev.map(s =>
-        s._id === sellerId ? { ...s, _savingPriority: false } : s
-      ));
-      toastRef.current(newPriority ? 'Marked as High Priority' : 'Removed from High Priority', 'success');
-    } catch (e) {
-      console.error('Failed to update priority:', e);
-      setSellers(prev => prev.map(s =>
-        s._id === sellerId ? { ...s, isPriority: seller.isPriority, _savingPriority: false } : s
-      ));
-      toastRef.current('Failed to update priority', 'error');
-    }
-  }, [sellers]);
+    let previousPriority;
+    setSellers(prev => {
+      const seller = prev.find(s => s._id === sellerId);
+      if (!seller) return prev;
+      previousPriority = seller.isPriority;
+      const newPriority = !seller.isPriority;
+      sellerApi.update(sellerId, { isPriority: newPriority })
+        .then(() => {
+          setSellers(p => p.map(s => s._id === sellerId ? { ...s, _savingPriority: false } : s));
+          toastRef.current(newPriority ? 'Marked as High Priority' : 'Removed from High Priority', 'success');
+        })
+        .catch((e) => {
+          console.error('Failed to update priority:', e);
+          setSellers(p => p.map(s => s._id === sellerId ? { ...s, isPriority: previousPriority, _savingPriority: false } : s));
+          toastRef.current('Failed to update priority', 'error');
+        });
+      return prev.map(s => s._id === sellerId ? { ...s, isPriority: newPriority, _savingPriority: true } : s);
+    });
+  }, []);
 
   // ── OPTIMISTIC: Delete seller (instant — no refetch) ──────────────────
   const handleDeleteSeller = useCallback(async (sellerId) => {
-    const snapshot = sellers.find(s => s._id === sellerId);
+    let snapshot;
     // ① Remove instantly
-    setSellers(prev => prev.filter(s => s._id !== sellerId));
+    setSellers(prev => {
+      snapshot = prev.find(s => s._id === sellerId);
+      return prev.filter(s => s._id !== sellerId);
+    });
     setTotalItems(prev => prev - 1);
     try {
       await sellerApi.delete(sellerId);
@@ -353,7 +356,7 @@ const SellersPage = () => {
       setTotalItems(prev => prev + 1);
       toastRef.current('Failed to delete: ' + error.message, 'error');
     }
-  }, [sellers]);
+  }, []);
 
   // ── OPTIMISTIC: Add / Edit seller ─────────────────────────────────────
   const handleAddSeller = useCallback(async (sellerData) => {
@@ -438,12 +441,16 @@ const SellersPage = () => {
 
   // ASIN mutations — patch seller's asin count locally, no full reload
   const refreshAsinList = useCallback(async (sellerId) => {
-    const result = await asinApi.getBySeller(sellerId, { page: 1, limit: 50 });
-    setSellerAsins(result.asins || []);
-    setAsinPagination(result.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
-    setSellers(prev => prev.map(s =>
-      s._id === sellerId ? { ...s, totalAsins: result.pagination?.total ?? s.totalAsins } : s
-    ));
+    try {
+      const result = await asinApi.getBySeller(sellerId, { page: 1, limit: 50 });
+      setSellerAsins(result.asins || []);
+      setAsinPagination(result.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 });
+      setSellers(prev => prev.map(s =>
+        s._id === sellerId ? { ...s, totalAsins: result.pagination?.total ?? s.totalAsins } : s
+      ));
+    } catch (err) {
+      console.error('Failed to refresh ASINs:', err);
+    }
   }, []);
 
   const handleAddAsin = useCallback(async (asinData) => {
@@ -611,7 +618,7 @@ const SellersPage = () => {
               toastRef.current('Live sync complete.', 'success');
             }
             // Refresh seller list to show updated metrics
-            void loadSellers({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch, silent: true });
+            void loadSellersRef.current({ ...filterStateRef.current, silent: true });
           }
         } catch (e) {
           console.error('Live sync poll error:', e);
@@ -638,7 +645,7 @@ const SellersPage = () => {
         try { await marketSyncApi.syncSellerAsins(id, false); ok++; }
         catch (e) { console.error(`Sync failed for seller ${id}:`, e); fail++; }
       }));
-      toastRef.current(`Synced ${ok}.${fail ? ` ${fail} failed.` : ''}`, fail ? 'warning' : 'success');
+      toastRef.current(`Synced ${ok}${fail ? `, ${fail} failed` : ''}`, fail ? 'warning' : 'success');
       setSelectedSellerIds([]);
     } catch (err) {
       console.error('Bulk sync failed:', err);
@@ -687,6 +694,7 @@ const SellersPage = () => {
       if (res.success) {
         toastRef.current('Global live sync started for all brands', 'success');
         // Start polling for status
+        if (globalSyncPollRef.current) clearInterval(globalSyncPollRef.current);
         globalSyncPollRef.current = setInterval(async () => {
           try {
             const status = await marketSyncApi.getLiveSyncAllStatus();
@@ -699,7 +707,7 @@ const SellersPage = () => {
               clearInterval(globalSyncPollRef.current);
               setGlobalSyncing(false);
               toastRef.current('Global live sync completed!', 'success');
-              loadSellers({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch, silent: true });
+              void loadSellersRef.current({ ...filterStateRef.current, silent: true });
             }
           } catch (e) {
             console.error('Global sync poll error:', e);
@@ -903,7 +911,7 @@ const SellersPage = () => {
               <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{seller.name}</Text>
               {seller.isPriority && <Star size={12} fill="var(--text-warning, #ED6C02)" stroke="var(--text-warning, #ED6C02)" style={{ marginTop: '-2px' }} />}
             </div>
-            {seller.email && (
+            {seller.email && canViewEmail && (
               <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', display: 'block', marginTop: 1, lineHeight: 1.3 }}>
                 {seller.email}
               </Text>

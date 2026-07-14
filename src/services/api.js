@@ -588,6 +588,9 @@ export const userApi = {
   },
   sendEmail: async (data) => {
     return api.post('/users/send-email', data);
+  },
+  sendCredentials: async (userId, password) => {
+    return api.post(`/users/${userId}/send-credentials`, { password });
   }
 };
 
