@@ -1,0 +1,32 @@
+---
+description: Next.js stack conventions and token-discipline rules
+globs: ["**/*.tsx", "**/*.ts", "**/*.jsx", "**/*.js"]
+alwaysApply: true
+---
+
+# Tooling Configuration — Obolus Compression Layer
+- This workspace runs the Obolus local MCP server for context compression. All `.tsx`/`.ts`/`.jsx`/`.js` file reads go through `read_optimized_skeleton` and `read_function_body`. This is mandatory — do not fall back to native file-reading/search tools (`read_file`, `grep`, etc.), including if Obolus appears slow or unresponsive.
+- `read_optimized_skeleton` maps route/component structure — exported signatures, props/types, Server/Client Component boundaries. Function/component bodies return collapsed as placeholders, e.g. `// [Body hidden by Obolus to save tokens. Use read_function_body tool to view]`. Treat the skeleton as sufficient for navigation and planning.
+- Use `read_function_body` to inspect or edit a specific component's, handler's, or hook's implementation. Expand only the symbol you need, not the whole file.
+- If an Obolus tool call fails or times out, do not substitute a native read. Stop, report to the user that the Obolus MCP server appears unreachable, and ask them to restart Obolus Shield locally before continuing.
+
+# Stack
+- App Router (`app/`) only. Never Pages Router patterns/APIs.
+- TypeScript strict mode. No new `.js` files unless the existing file is already `.js`.
+- Server Components by default. `"use client"` only at the smallest leaf needing state/effects/refs/browser APIs — never at layout/page level "just in case."
+- Tailwind utility classes only. No CSS Modules/styled-components/inline `style={}` unless the file already uses that pattern.
+- Data fetching: native `fetch` + Next.js cache directives (`cache`, `revalidate`, `tags`). No `axios`/`swr`/`react-query` unless already a dependency.
+- Routing/metadata/loading/error states follow file convention (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`) — no hand-rolled alternatives.
+
+# Output Discipline
+- No restating App Router routing rules, release notes, or React fundamentals in chat — apply silently in code.
+- Diff/patch for existing files; full file only on first creation.
+- Import shared types from `types.ts`/`lib/` — don't redeclare.
+- No opening `next.config.js`/`tailwind.config.js`/`tsconfig.json` unless the task changes one.
+- No best-practice explanations or folder-structure walkthroughs — just the diff.
+- Call `read_function_body` only when editing or verifying a specific hidden implementation — not preemptively.
+
+# Scope
+- Context = current route segment (`app/<segment>/`) + direct shared deps (`components/`, `lib/`, `types/`). No unrelated route segments.
+- UI-only change → don't open API route handlers, middleware, or `lib/db` unless data flow is explicitly touched.
+- Single component/handler fix → skeleton-read the file, expand only the target symbol via `read_function_body`, not the whole route segment.

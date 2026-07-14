@@ -6,23 +6,25 @@ import React, {
 } from 'react';
 import {
   Table, Button, Input, Space, Tag, Typography,
-  Tooltip, Modal, Badge, Row, Col, Progress,
+  Tooltip, Modal, Badge, Row, Col, Progress, Popover,
   Empty, Divider, Popconfirm
 } from 'antd';
 import {
-  Package, X, RefreshCw, FileJson, Plus, Database,
+  Package, RefreshCw, Plus, Database,
   CheckCircle2, PauseCircle, Eye, Edit3, Trash2,
   AlertCircle, FileSpreadsheet
 } from 'lucide-react';
-import { asinApi, marketSyncApi } from '../../services/api';
+import { asinApi } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import { ModalHeader, ModalFooter } from './ModalShell';
+import styles from './SellerModals.module.css';
 
 // ─── Lazy sub-modals ──────────────────────────────────────────────────────────
 const AddBulkAsinModal = lazy(() => import('./AddBulkAsinModal'));
 const EditAsinModal = lazy(() => import('./EditAsinModal'));
 const AsinDetailsModal = lazy(() => import('./AsinDetailsModal'));
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -61,7 +63,6 @@ const SellerAsinsModal = memo(({
 
   // Refs for file inputs — avoids document.getElementById
   const catalogInputRef = useRef(null);
-  const octoparseInputRef = useRef(null);
 
   const totalAsins = seller?.totalAsins ?? pagination?.total ?? 0;
 
@@ -224,29 +225,6 @@ const SellerAsinsModal = memo(({
     }
   }, [seller._id, addToast, onRefresh, startProgress, stopProgress]);
 
-  const handleOctoparseUpload = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.json')) {
-      addToast('Please upload a JSON file.', 'error');
-      e.target.value = '';
-      return;
-    }
-
-    startProgress(10);
-    try {
-      const result = await marketSyncApi.uploadOctoparseJson(file, seller._id);
-      addToast(result?.message || 'JSON data processed successfully.', 'success');
-      await onRefresh?.();
-    } catch (error) {
-      addToast(error.message || 'Failed to process JSON', 'error');
-    } finally {
-      stopProgress();
-      e.target.value = '';
-    }
-  }, [seller._id, addToast, onRefresh, startProgress, stopProgress]);
-
   // ── ASIN sub-modal handlers ────────────────────────────────────────────
 
   const handleEditAsin = useCallback((asin) => {
@@ -299,6 +277,30 @@ const SellerAsinsModal = memo(({
 
   const columns = useMemo(() => [
     {
+      title: '',
+      key: 'image',
+      width: 56,
+      render: (_, record) => (
+        record.imageUrl ? (
+          <Popover
+            content={<img src={record.imageUrl} alt={record.asinCode} style={{ maxWidth: 300, maxHeight: 300, borderRadius: 'var(--radius-md)' }} />}
+            trigger="hover"
+            placement="right"
+          >
+            <img
+              src={record.imageUrl}
+              alt={record.asinCode}
+              style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, #d9e6e9)', cursor: 'pointer' }}
+            />
+          </Popover>
+        ) : (
+          <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, #d9e6e9)', background: 'var(--bg-secondary, #f8fafc)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Package size={16} style={{ color: 'var(--text-muted, #94a3b8)' }} />
+          </div>
+        )
+      ),
+    },
+    {
       title: 'IDENTIFIER',
       dataIndex: 'asinCode',
       key: 'asinCode',
@@ -306,9 +308,9 @@ const SellerAsinsModal = memo(({
       sorter: (a, b) => (a.asinCode || '').localeCompare(b.asinCode || ''),
       render: (text, record) => (
         <div>
-          <Text strong code style={{ fontSize: 12, color: '#18181b' }}>{text}</Text>
+          <Text strong code style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{text}</Text>
           {record.lastScraped && (
-            <div style={{ fontSize: 9, color: '#a1a1aa', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', marginTop: 2 }}>
               Synced {new Date(record.lastScraped).toLocaleDateString()}
             </div>
           )}
@@ -321,13 +323,13 @@ const SellerAsinsModal = memo(({
       width: 250,
       render: (_, record) => (
         <div>
-          <Text strong style={{ fontSize: 11, color: '#27272a' }}>
+          <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, #27272a)' }}>
             {record.sku || 'UNASSIGNED-SKU'}
           </Text>
           <div style={{ maxWidth: 280, marginTop: 2 }}>
             <Text
               type="secondary"
-              style={{ fontSize: 10 }}
+              style={{ fontSize: 'var(--font-size-xs)' }}
               ellipsis={{ tooltip: record.title || 'Loading title...' }}
             >
               {record.title || 'Loading title from marketplace...'}
@@ -344,33 +346,20 @@ const SellerAsinsModal = memo(({
       render: (_, record) => (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Text strong style={{ fontSize: 12, color: '#18181b' }}>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>
               ₹{record.currentPrice?.toLocaleString() || '0'}
             </Text>
             {record.buyBoxWin && (
-              <Tag color="gold" style={{ fontSize: 8, padding: '0 4px', margin: 0, lineHeight: '16px' }}>
+              <Tag color="gold" style={{ fontSize: 'var(--font-size-xs)', padding: '0 4px', margin: 0, lineHeight: '16px' }}>
                 WINNER
               </Tag>
             )}
           </div>
-          <Text type="secondary" style={{ fontSize: 10 }}>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
             Rank: #{record.bsr || 'N/A'}
           </Text>
         </div>
       ),
-    },
-    {
-      title: 'INVENTORY',
-      dataIndex: 'stockLevel',
-      key: 'stockLevel',
-      width: 100,
-      align: 'center',
-      sorter: (a, b) => (a.stockLevel || 0) - (b.stockLevel || 0),
-      render: (value) => {
-        if (!value || value === 0) return <Tag color="error" style={{ margin: 0 }}>0</Tag>;
-        if (value <= 20) return <Tag color="warning" style={{ margin: 0 }}>{value}</Tag>;
-        return <Tag color="default" style={{ margin: 0 }}>{value}</Tag>;
-      },
     },
     {
       title: 'STATUS',
@@ -384,15 +373,15 @@ const SellerAsinsModal = memo(({
           size="small"
           icon={
             status === 'Active'
-              ? <CheckCircle2 size={14} color="#2E7D32" />
-              : <PauseCircle size={14} color="#a1a1aa" />
+              ? <CheckCircle2 size={14} color="var(--text-success, #2E7D32)" />
+              : <PauseCircle size={14} color="var(--text-muted, #94a3b8)" />
           }
           onClick={() => onToggleStatus(record._id, status)}
           style={{
-            fontWeight: 700,
-            fontSize: 10,
+            fontWeight: 600,
+            fontSize: 'var(--font-size-xs)',
             textTransform: 'uppercase',
-            color: status === 'Active' ? '#2E7D32' : '#a1a1aa',
+            color: status === 'Active' ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, #94a3b8)',
           }}
         >
           {status}
@@ -469,86 +458,57 @@ const SellerAsinsModal = memo(({
       footer={null}
       closable={false}
       destroyOnHidden
+      className={styles.modalContent}
       style={{ top: 20 }}
       styles={{
         body: {
           padding: 0,
           maxHeight: '85vh',
           overflow: 'hidden',
-          borderRadius: 20,
+          borderRadius: 'var(--radius-lg)',
         },
       }}
     >
       <div style={{ height: '85vh', display: 'flex', flexDirection: 'column' }}>
 
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fff',
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-        }}>
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Space size={16} align="start">
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  flexShrink: 0,
-                  background: 'linear-gradient(135deg, #18181b, #27272a)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        <ModalHeader
+          icon={Package}
+          title={`Product Catalog — ${seller?.name ?? 'Unknown Store'}`}
+          subtitle={
+            <Space size={8} style={{ marginTop: 2 }}>
+              {seller?.marketplace && (
+                <Tag style={{
+                  background: 'var(--bg-secondary, #f4f4f5)',
+                  border: '1px solid var(--border-light, #d9e6e9)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  fontSize: 'var(--font-size-xs)',
                 }}>
-                  <Package size={22} color="#fff" strokeWidth={2.5} />
-                </div>
-                <div>
-                  <Title level={4} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em' }}>
-                    ASIN Inventory — {seller?.name ?? 'Unknown Store'}
-                  </Title>
-                  <Space size={8} style={{ marginTop: 4 }}>
-                    {seller?.marketplace && (
-                      <Tag style={{
-                        background: '#f4f4f5',
-                        border: '1px solid #e4e4e7',
-                        borderRadius: 6,
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        fontSize: 10,
-                      }}>
-                        {seller.marketplace}
-                      </Tag>
-                    )}
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      <Badge status="processing" />
-                      {' '}{totalAsins.toLocaleString()} ASINs Tracked
-                    </Text>
-                  </Space>
-                </div>
-              </Space>
-            </Col>
-            <Col>
-              <Space>
-                <Tooltip title="Refresh">
-                  <Button icon={<RefreshCw size={15} />} onClick={onRefresh} loading={loading} />
-                </Tooltip>
-                <Tooltip title="Close">
-                  <Button type="text" icon={<X size={18} />} onClick={onClose} />
-                </Tooltip>
-              </Space>
-            </Col>
-          </Row>
-        </div>
+                  {seller.marketplace}
+                </Tag>
+              )}
+              <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
+                <Badge status="processing" />
+                {' '}{totalAsins.toLocaleString()} Products
+              </Text>
+            </Space>
+          }
+          extra={
+            <Tooltip title="Refresh">
+              <Button icon={<RefreshCw size={15} />} onClick={onRefresh} loading={loading} />
+            </Tooltip>
+          }
+          onClose={onClose}
+          sticky
+        />
 
         {/* ── Bulk Action Bar ────────────────────────────────────── */}
         {selectedIds.size > 0 && (
           <div style={{
             padding: '10px 24px',
-            background: '#18181b',
+            background: 'var(--text-primary, #0f172a)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -557,10 +517,10 @@ const SellerAsinsModal = memo(({
             zIndex: 9,
           }}>
             <Space>
-              <Tag color="blue" style={{ fontSize: 11, fontWeight: 700 }}>
+              <Tag color="blue" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
                 {selectedIds.size} Selected
               </Tag>
-              <Text style={{ color: '#a1a1aa', fontSize: 12 }}>
+              <Text style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-sm)' }}>
                 Bulk actions for selected ASINs
               </Text>
             </Space>
@@ -571,7 +531,7 @@ const SellerAsinsModal = memo(({
                 icon={<CheckCircle2 size={13} />}
                 onClick={() => handleBulkStatusUpdate('Active')}
                 loading={isSubmitting}
-                style={{ background: '#2E7D32', borderColor: '#2E7D32', fontWeight: 600 }}
+                style={{ background: 'var(--text-success, #2E7D32)', borderColor: 'var(--text-success, #2E7D32)', fontWeight: 600 }}
               >
                 Mark Active
               </Button>
@@ -580,7 +540,7 @@ const SellerAsinsModal = memo(({
                 icon={<PauseCircle size={13} />}
                 onClick={() => handleBulkStatusUpdate('Paused')}
                 loading={isSubmitting}
-                style={{ background: '#E65100', borderColor: '#E65100', color: '#fff', fontWeight: 600 }}
+                style={{ background: 'var(--color-warning, #E65100)', borderColor: 'var(--color-warning, #E65100)', color: '#fff', fontWeight: 600 }}
               >
                 Mark Paused
               </Button>
@@ -604,7 +564,7 @@ const SellerAsinsModal = memo(({
               <Button
                 size="small"
                 onClick={() => setSelectedIds(new Set())}
-                style={{ color: '#a1a1aa' }}
+                style={{ color: 'var(--text-muted, #94a3b8)' }}
               >
                 Clear
               </Button>
@@ -616,8 +576,8 @@ const SellerAsinsModal = memo(({
         {isSubmitting && (
           <div style={{
             padding: '6px 24px',
-            borderBottom: '1px solid #f0f0f0',
-            background: '#fafafa',
+            borderBottom: '1px solid var(--border-light, #f0f0f0)',
+            background: 'var(--bg-secondary, #fafafa)',
           }}>
             <Progress percent={submitProgress} size="small" status="active" showInfo={false} />
           </div>
@@ -626,8 +586,8 @@ const SellerAsinsModal = memo(({
         {/* ── Toolbar ────────────────────────────────────────────── */}
         <div style={{
           padding: '10px 24px',
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fff',
+          borderBottom: '1px solid var(--border-light, #f0f0f0)',
+          background: 'var(--bg-primary, #fff)',
         }}>
           <Row justify="space-between" align="middle" gutter={[12, 8]}>
             <Col>
@@ -660,22 +620,6 @@ const SellerAsinsModal = memo(({
                   Bulk ASIN/SKU Sync
                 </Button>
 
-                <input
-                  ref={octoparseInputRef}
-                  type="file"
-                  style={{ display: 'none' }}
-                  accept=".json"
-                  onChange={handleOctoparseUpload}
-                />
-                <Button
-                  size="small"
-                  icon={<FileJson size={13} />}
-                  onClick={() => octoparseInputRef.current?.click()}
-                  disabled={isSubmitting}
-                >
-                  Data Ingest
-                </Button>
-
                 <Divider orientation="vertical" />
 
                 <Button
@@ -692,7 +636,7 @@ const SellerAsinsModal = memo(({
                   type="primary"
                   icon={<Plus size={13} />}
                   onClick={() => setShowAddAsinModal(true)}
-                  style={{ background: '#18181b', borderColor: '#18181b', fontWeight: 700 }}
+                  style={{ background: 'var(--text-primary, #0f172a)', borderColor: 'var(--text-primary, #0f172a)', fontWeight: 600 }}
                 >
                   Add ASIN(s)
                 </Button>
@@ -709,21 +653,21 @@ const SellerAsinsModal = memo(({
             rowKey="_id"
             loading={loading}
             rowSelection={rowSelection}
-            scroll={{ x: 900 }}
+            scroll={{ x: 860 }}
             size="small"
             pagination={false}
             style={{ marginTop: 8 }}
             locale={{
               emptyText: (
                 <Empty
-                  image={<Database size={48} style={{ color: '#d4d4d8' }} />}
+                  image={<Database size={48} style={{ color: 'var(--text-muted, #d4d4d8)' }} />}
                   description={
                     <div>
-                      <Text strong style={{ color: '#71717a', display: 'block', fontSize: 13, marginBottom: 6 }}>
-                        No ASINs tracked for this store
+                      <Text strong style={{ color: 'var(--text-secondary, #71717a)', display: 'block', fontSize: 'var(--font-size-sm)', marginBottom: 6 }}>
+                        No products tracked for this store
                       </Text>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        Add your product catalog manually or via CSV/JSON.
+                      <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
+                        Add your product catalog manually or via CSV.
                       </Text>
                     </div>
                   }
@@ -738,14 +682,14 @@ const SellerAsinsModal = memo(({
           <div style={{
             padding: 16,
             textAlign: 'center',
-            borderTop: '1px solid #f0f0f0',
-            background: '#fff',
+            borderTop: '1px solid var(--border-light, #f0f0f0)',
+            background: 'var(--bg-primary, #fff)',
           }}>
             <Button
               size="large"
               onClick={onLoadMore}
               loading={loading}
-              style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase', borderRadius: 8 }}
+              style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', borderRadius: "var(--radius-md)" }}
             >
               {loading
                 ? 'Loading…'
@@ -756,34 +700,18 @@ const SellerAsinsModal = memo(({
         )}
 
         {/* ── Footer ────────────────────────────────────────────── */}
-        <div style={{
-          padding: '12px 24px',
-          borderTop: '1px solid #f0f0f0',
-          background: '#fafafa',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <Text type="secondary" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AlertCircle size={13} />
-            Select multiple records to perform batch operations
-          </Text>
-          <Button
-            type="primary"
-            size="large"
-            onClick={onClose}
-            style={{
-              background: '#18181b',
-              borderColor: '#18181b',
-              fontWeight: 700,
-              fontSize: 11,
-              textTransform: 'uppercase',
-              borderRadius: 8,
-            }}
-          >
+        <ModalFooter
+          extra={
+            <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertCircle size={13} />
+              Select multiple records to perform batch operations
+            </Text>
+          }
+        >
+          <Button onClick={onClose}>
             Close Panel
           </Button>
-        </div>
+        </ModalFooter>
       </div>
 
       {/* ── Sub-modals ─────────────────────────────────────────────── */}

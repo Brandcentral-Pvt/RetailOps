@@ -157,9 +157,9 @@ export default function TaskInstancesPage() {
           <LiveActivityFeed compact />
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadInstances} loading={loading} size="small" style={{ borderRadius: 8 }}>Refresh</Button>
-          <Button icon={<DownloadOutlined />} size="small" style={{ borderRadius: 8 }} onClick={() => { exportTasksToExcel(instances); message.success('Exported tasks to Excel'); }}>Export</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openWizard} style={{ borderRadius: 8, fontWeight: 600, background: '#2563eb', borderColor: '#2563eb' }}>New Task</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadInstances} loading={loading} size="small" style={{ borderRadius: "var(--radius-md)" }}>Refresh</Button>
+          <Button icon={<DownloadOutlined />} size="small" style={{ borderRadius: "var(--radius-md)" }} onClick={() => { exportTasksToExcel(instances); message.success('Exported tasks to Excel'); }}>Export</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openWizard} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: '#2563eb', borderColor: '#2563eb' }}>New Task</Button>
         </Space>
       </div>
 
@@ -172,7 +172,7 @@ export default function TaskInstancesPage() {
           <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, flex: 1 }}>
             {QUICK_VIEWS.map(qv => (
               <div key={qv.key} onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
-                style={{ padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: quickView === qv.key ? 700 : 500,
+                style={{ padding: '5px 14px', borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: quickView === qv.key ? 700 : 500,
                   background: quickView === qv.key ? '#2563eb' : '#fff', color: quickView === qv.key ? '#fff' : '#475569',
                   border: `1px solid ${quickView === qv.key ? '#2563eb' : '#e5e7eb'}`,
                   cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s', userSelect: 'none' }}>
@@ -184,8 +184,8 @@ export default function TaskInstancesPage() {
             <Segmented size="small" value={viewMode} onChange={setViewMode} options={[
               { label: 'List', value: 'list' }, { label: 'Board', value: 'board' }, { label: 'Calendar', value: 'calendar' },
             ]} />
-            <Input prefix={<SearchOutlined style={{ fontSize: 12 }} />} placeholder="Search tasks, sellers, ASINs..." value={search} onChange={e => setSearch(e.target.value)} onPressEnter={() => loadInstances()} style={{ width: 240, borderRadius: 8 }} size="small" />
-            <Button icon={<FilterOutlined />} onClick={() => setShowFilterPanel(!showFilterPanel)} size="small" type={Object.values(filters).some(v => v) ? 'primary' : 'default'} style={{ borderRadius: 8 }}>
+            <Input prefix={<SearchOutlined style={{ fontSize: 'var(--font-size-sm)' }} />} placeholder="Search tasks, sellers, ASINs..." value={search} onChange={e => setSearch(e.target.value)} onPressEnter={() => loadInstances()} style={{ width: 240, borderRadius: "var(--radius-md)" }} size="small" />
+            <Button icon={<FilterOutlined />} onClick={() => setShowFilterPanel(!showFilterPanel)} size="small" type={Object.values(filters).some(v => v) ? 'primary' : 'default'} style={{ borderRadius: "var(--radius-md)" }}>
               Filters {Object.values(filters).filter(v => v).length > 0 && <Badge count={Object.values(filters).filter(v => v).length} size="small" style={{ marginLeft: 4 }} />}
             </Button>
           </div>
@@ -218,7 +218,7 @@ export default function TaskInstancesPage() {
         {selectedIds.size > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: '#eff6ff', borderRadius: 10, marginBottom: 12, border: '1px solid #bfdbfe' }}>
             <Checkbox checked={selectedIds.size === instances.length} onChange={toggleSelectAll}>
-              <Text strong style={{ fontSize: 11, color: '#1e40af' }}>{selectedIds.size} selected</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: '#1e40af' }}>{selectedIds.size} selected</Text>
             </Checkbox>
             <div style={{ flex: 1 }} />
             <Space size={4}>
@@ -227,7 +227,7 @@ export default function TaskInstancesPage() {
               <Button size="small" danger style={{ borderRadius: 6 }}>Reject</Button>
               <Button size="small" style={{ borderRadius: 6 }} icon={<DownloadOutlined />}>Export</Button>
             </Space>
-            <Button size="small" type="text" onClick={() => setSelectedIds(new Set())} style={{ color: '#dc2626' }}>Clear</Button>
+            <Button size="small" type="text" onClick={() => setSelectedIds(new Set())} style={{ color: '#D32F2F' }}>Clear</Button>
           </div>
         )}
 
@@ -244,12 +244,12 @@ export default function TaskInstancesPage() {
                 {/* Table Header */}
                 <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,2fr) 120px 90px 100px 130px 100px', alignItems: 'center', padding: '8px 14px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc' }}>
                   <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
-                  <Text style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Task</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Assignee</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Priority</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Status</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Progress</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Due</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Task</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Assignee</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Priority</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Status</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Progress</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Due</Text>
                 </div>
 
                 {/* Mobile cards for small screens */}
@@ -265,8 +265,8 @@ export default function TaskInstancesPage() {
                 ) : instances.length === 0 ? (
                   <Empty description={
                     <Space direction="vertical" size={4}>
-                      <Text style={{ fontSize: 14, fontWeight: 600 }}>No tasks found</Text>
-                      <Text style={{ fontSize: 12, color: '#94a3b8' }}>{quickView !== 'ALL' ? 'Try a different view' : 'Create your first task to get started'}</Text>
+                      <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600 }}>No tasks found</Text>
+                      <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>{quickView !== 'ALL' ? 'Try a different view' : 'Create your first task to get started'}</Text>
                     </Space>
                   } style={{ padding: 60 }} />
                 ) : (
@@ -289,10 +289,10 @@ export default function TaskInstancesPage() {
                 {/* Pagination */}
                 {instances.length > 0 && (
                   <div style={{ padding: '8px 14px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{pagination.total} tasks</Text>
+                    <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>{pagination.total} tasks</Text>
                     <Space>
                       <Button size="small" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} icon={<LeftOutlined />} />
-                      <Text style={{ fontSize: 11, fontWeight: 600 }}>Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit) || 1}</Text>
+                      <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit) || 1}</Text>
                       <Button size="small" disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} icon={<RightOutlined />} />
                     </Space>
                   </div>
@@ -315,45 +315,45 @@ export default function TaskInstancesPage() {
           <Button onClick={() => setWizardStep(Math.max(0, wizardStep - 1))} disabled={wizardStep === 0}>Back</Button>
           <Space>
             {wizardStep < 4 ? <Button type="primary" onClick={handleWizardNext} style={{ background: '#2563eb' }}>Next</Button> :
-              <Button type="primary" onClick={handleCreateTask} loading={creating} style={{ background: '#16a34a' }}>Create</Button>}
+              <Button type="primary" onClick={handleCreateTask} loading={creating} style={{ background: '#2E7D32' }}>Create</Button>}
           </Space>
         </div>}
       >
         <div style={{ marginBottom: 20 }}>
           {['Basic Info', 'Assignments', 'Performance', 'Timeline', 'Preview'].map((s, i) => (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 16, fontSize: 11, fontWeight: wizardStep === i ? 700 : 400, color: wizardStep === i ? '#2563eb' : '#94a3b8' }}>
-              <span style={{ width: 20, height: 20, borderRadius: '50%', background: wizardStep >= i ? '#2563eb' : '#e5e7eb', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{i + 1}</span>
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 16, fontSize: 'var(--font-size-xs)', fontWeight: wizardStep === i ? 700 : 400, color: wizardStep === i ? '#2563eb' : '#94a3b8' }}>
+              <span style={{ width: 20, height: 20, borderRadius: '50%', background: wizardStep >= i ? '#2563eb' : '#e5e7eb', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600 }}>{i + 1}</span>
               {s}
             </span>
           ))}
         </div>
         {wizardStep === 0 && (
           <Space direction="vertical" size={14} style={{ width: '100%' }}>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Template *</Text><Select placeholder="Select template" value={wizardData.templateId} onChange={v => { const t = templates.find(x => x.Id === v); setWizardData(d => ({ ...d, templateId: v, department: t?.Department, priority: t?.Priority, frequency: t?.Frequency, target: t?.DefaultTarget })); }} showSearch optionFilterProp="label" style={{ width: '100%' }} options={templates.map(t => ({ value: t.Id, label: `${t.TaskCode} — ${t.Name}` }))} /></div>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Task Name *</Text><Input value={wizardData.title} onChange={e => setWizardData(d => ({ ...d, title: e.target.value }))} placeholder="Enter task name" style={{ borderRadius: 8 }} /></div>
-            <Row gutter={12}><Col span={12}><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Department</Text><Select value={wizardData.department} onChange={v => setWizardData(d => ({ ...d, department: v }))} style={{ width: '100%' }} options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))} /></Col><Col span={12}><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Priority</Text><Select value={wizardData.priority} onChange={v => setWizardData(d => ({ ...d, priority: v }))} style={{ width: '100%' }} options={Object.entries(PRIORITIES).map(([k, v]) => ({ value: k, label: v.label }))} /></Col></Row>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Template *</Text><Select placeholder="Select template" value={wizardData.templateId} onChange={v => { const t = templates.find(x => x.Id === v); setWizardData(d => ({ ...d, templateId: v, department: t?.Department, priority: t?.Priority, frequency: t?.Frequency, target: t?.DefaultTarget })); }} showSearch optionFilterProp="label" style={{ width: '100%' }} options={templates.map(t => ({ value: t.Id, label: `${t.TaskCode} — ${t.Name}` }))} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Task Name *</Text><Input value={wizardData.title} onChange={e => setWizardData(d => ({ ...d, title: e.target.value }))} placeholder="Enter task name" style={{ borderRadius: "var(--radius-md)" }} /></div>
+            <Row gutter={12}><Col span={12}><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Department</Text><Select value={wizardData.department} onChange={v => setWizardData(d => ({ ...d, department: v }))} style={{ width: '100%' }} options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))} /></Col><Col span={12}><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Priority</Text><Select value={wizardData.priority} onChange={v => setWizardData(d => ({ ...d, priority: v }))} style={{ width: '100%' }} options={Object.entries(PRIORITIES).map(([k, v]) => ({ value: k, label: v.label }))} /></Col></Row>
           </Space>
         )}
         {wizardStep === 1 && (
           <Space direction="vertical" size={14} style={{ width: '100%' }}>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Seller</Text><Select placeholder="Select seller" value={wizardData.sellerId} onChange={v => { const s = sellers.find(x => x.Id === v); setWizardData(d => ({ ...d, sellerId: v, sellerName: s?.Name })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={sellers.map(s => ({ value: s.Id, label: s.Name }))} /></div>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Brand Manager</Text><Select placeholder="Select assignee" value={wizardData.assignedTo} onChange={v => { const m = managers.find(x => x.Id === v); setWizardData(d => ({ ...d, assignedTo: v, assigneeName: m?.FullName })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={managers.map(m => ({ value: m.Id, label: m.FullName }))} /></div>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Reviewer</Text><Select placeholder="Select reviewer" value={wizardData.reviewerId} onChange={v => { const r = reviewers.find(x => x.Id === v); setWizardData(d => ({ ...d, reviewerId: v, reviewerName: r?.FullName })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={reviewers.map(r => ({ value: r.Id, label: r.FullName }))} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Seller</Text><Select placeholder="Select seller" value={wizardData.sellerId} onChange={v => { const s = sellers.find(x => x.Id === v); setWizardData(d => ({ ...d, sellerId: v, sellerName: s?.Name })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={sellers.map(s => ({ value: s.Id, label: s.Name }))} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Brand Manager</Text><Select placeholder="Select assignee" value={wizardData.assignedTo} onChange={v => { const m = managers.find(x => x.Id === v); setWizardData(d => ({ ...d, assignedTo: v, assigneeName: m?.FullName })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={managers.map(m => ({ value: m.Id, label: m.FullName }))} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Reviewer</Text><Select placeholder="Select reviewer" value={wizardData.reviewerId} onChange={v => { const r = reviewers.find(x => x.Id === v); setWizardData(d => ({ ...d, reviewerId: v, reviewerName: r?.FullName })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={reviewers.map(r => ({ value: r.Id, label: r.FullName }))} /></div>
           </Space>
         )}
         {wizardStep === 2 && (
           <Space direction="vertical" size={14} style={{ width: '100%' }}>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Target</Text><Input value={wizardData.target} onChange={e => setWizardData(d => ({ ...d, target: Number(e.target.value) }))} placeholder="Enter numeric target" style={{ borderRadius: 8 }} /></div>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Frequency</Text><Select value={wizardData.frequency} onChange={v => setWizardData(d => ({ ...d, frequency: v }))} style={{ width: '100%' }} options={FREQUENCIES.map(f => ({ value: f.value, label: f.label }))} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Target</Text><Input value={wizardData.target} onChange={e => setWizardData(d => ({ ...d, target: Number(e.target.value) }))} placeholder="Enter numeric target" style={{ borderRadius: "var(--radius-md)" }} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Frequency</Text><Select value={wizardData.frequency} onChange={v => setWizardData(d => ({ ...d, frequency: v }))} style={{ width: '100%' }} options={FREQUENCIES.map(f => ({ value: f.value, label: f.label }))} /></div>
           </Space>
         )}
         {wizardStep === 3 && (
           <Space direction="vertical" size={14} style={{ width: '100%' }}>
-            <div><Text style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Due Date</Text><DatePicker value={wizardData.dueDate} onChange={v => setWizardData(d => ({ ...d, dueDate: v }))} style={{ width: '100%' }} /></div>
+            <div><Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Due Date</Text><DatePicker value={wizardData.dueDate} onChange={v => setWizardData(d => ({ ...d, dueDate: v }))} style={{ width: '100%' }} /></div>
           </Space>
         )}
         {wizardStep === 4 && (
-          <Card size="small" style={{ borderRadius: 8 }}><Descriptions size="small" column={2} bordered>
+          <Card size="small" style={{ borderRadius: "var(--radius-md)" }}><Descriptions size="small" column={2} bordered>
             <Descriptions.Item label="Template" span={2}>{templates.find(t => t.Id === wizardData.templateId)?.Name || '-'}</Descriptions.Item>
             <Descriptions.Item label="Name" span={2}>{wizardData.title || '-'}</Descriptions.Item>
             <Descriptions.Item label="Department">{wizardData.department || '-'}</Descriptions.Item>

@@ -10,7 +10,8 @@
 
 /* ==========================================================================
    CSS Variables - Design System
-/* CSS Variables — Now sourced from src/styles/tokens.css */
+   CSS Variables — Now sourced from src/styles/tokens.css
+   ========================================================================== */
 
 /* Animations */
 @keyframes pulse-green {
@@ -1319,44 +1320,7 @@ a:hover {
   color: var(--color-info);
 }
 
-/* ==========================================================================
-   Table Styles
-   ========================================================================== */
-.table {
-  width: 100%;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-  vertical-align: top;
-  border-collapse: collapse;
-}
-
-.table th,
-.table td {
-  padding: 0.875rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  font-size: var(--font-size-sm);
-}
-
-.table thead th {
-  font-weight: 600;
-  color: var(--text-primary);
-  background-color: var(--color-gray-50);
-  border-bottom: 2px solid var(--border-color);
-  white-space: nowrap;
-}
-
-.table tbody tr {
-  transition: background-color var(--transition-fast);
-}
-
-.table tbody tr:hover {
-  background-color: var(--color-gray-50);
-}
-
-.table-sm th,
-.table-sm td {
-  padding: 0.5rem 0.75rem;
-}
+/* Table Styles — defined in App.css */
 
 /* ==========================================================================
    Loading Spinner
@@ -1508,16 +1472,7 @@ a:hover {
   visibility: hidden !important;
 }
 
-/* ==========================================================================
-   KPI Components
-   ========================================================================== */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-  perspective: 1000px;
-}
+/* KPI Components — base .kpi-grid defined in App.css */
 
 .kpi-card {
   position: relative;
@@ -1566,24 +1521,7 @@ a:hover {
   border-bottom: 1px solid var(--border-color);
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.page-title i {
-  font-size: 1.25rem;
-  color: var(--color-primary);
-}
-
-.page-content {
-  padding: 0;
-}
+/* .page-title, .page-title i, .page-content — defined in App.css */
 
 /* ==========================================================================
    Chart Container Styles
@@ -1619,17 +1557,6 @@ a:hover {
 /* ==========================================================================
    Responsive Utilities
    ========================================================================== */
-@media (max-width: 768px) {
-  :root {
-    --font-size-3xl: 1.75rem;
-    --font-size-2xl: 1.375rem;
-    --font-size-xl: 1.125rem;
-  }
-
-  .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 
 /* ==========================================================================
    Horizontal Filters Component Styles
@@ -1776,10 +1703,6 @@ a:hover {
     --font-size-3xl: 1.75rem;
     --font-size-2xl: 1.375rem;
     --font-size-xl: 1.125rem;
-  }
-
-  .kpi-grid {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -2775,59 +2698,9 @@ a:hover {
    Standardized UI Components (Enterprise Grade)
    ========================================================================== */
 
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  border-radius: var(--border-radius);
-  transition: all var(--transition-base);
-  cursor: pointer;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.75rem;
-  font-size: var(--font-size-xs);
-}
-
-.btn-primary {
-  background-color: var(--color-secondary);
-  color: var(--color-white);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--color-secondary-light);
-  transform: translateY(-1px);
-}
-
+/* Buttons — base .btn, .btn-sm, .btn-primary, .btn-secondary, .btn-danger, .btn:disabled defined in App.css */
 .btn-primary:active {
   transform: translateY(0);
-}
-
-.btn-secondary {
-  background-color: var(--color-white);
-  border-color: var(--border-color);
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: var(--color-gray-50);
-  border-color: var(--color-gray-300);
-}
-
-.btn-danger {
-  background-color: var(--color-error);
-  color: var(--color-white);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background-color: var(--bc-red-600);
 }
 
 .btn-ghost {
@@ -2840,25 +2713,7 @@ a:hover {
   color: var(--text-primary);
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Form Elements */
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
+/* Form Elements — .form-group, .form-label defined in App.css */
 
 .form-input,
 .form-select,

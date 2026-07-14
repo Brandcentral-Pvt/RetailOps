@@ -169,8 +169,8 @@ const AlertsPage = () => {
             content: 'Are you sure you want to clear the active unread queue?',
             okText: 'Acknowledge All',
             cancelText: 'Cancel',
-            okButtonProps: { type: 'primary', style: { borderRadius: 8, backgroundColor: '#1976D2', borderColor: '#1976D2' } },
-            cancelButtonProps: { style: { borderRadius: 8 } },
+            okButtonProps: { type: 'primary', style: { borderRadius: "var(--radius-md)", backgroundColor: '#1976D2', borderColor: '#1976D2' } },
+            cancelButtonProps: { style: { borderRadius: "var(--radius-md)" } },
             icon: <CheckCircle style={{ color: '#2E7D32', marginRight: 8 }} size={22} />,
             async onOk() {
                 try {
@@ -253,8 +253,8 @@ const AlertsPage = () => {
             okText: 'Delete Selected',
             okType: 'danger',
             cancelText: 'Cancel',
-            okButtonProps: { style: { borderRadius: 8 } },
-            cancelButtonProps: { style: { borderRadius: 8 } },
+            okButtonProps: { style: { borderRadius: "var(--radius-md)" } },
+            cancelButtonProps: { style: { borderRadius: "var(--radius-md)" } },
             async onOk() {
                 setActionLoading(true);
                 try {
@@ -375,12 +375,12 @@ const AlertsPage = () => {
         <ConfigProvider
             theme={{
                 token: {
-                    borderRadius: 12,
+                    borderRadius: "var(--radius-lg)",
                     colorPrimary: '#1976D2'
                 }
             }}
         >
-            <div style={{ padding: '24px 20px', maxWidth: 1200, margin: '0 auto', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+            <div style={{ padding: '24px 20px', maxWidth: 1200, margin: '0 auto', minHeight: '100vh', backgroundColor: 'var(--bg-secondary)' }}>
                 {/* Dash Indicator */}
                 {loading && (
                     <div style={{ 
@@ -399,11 +399,11 @@ const AlertsPage = () => {
                 {/* Top Header Segment */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
                     <div>
-                        <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.025em', color: '#111827', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.025em', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 12 }}>
                             <Bell style={{ color: '#1976D2' }} size={26} />
                             Operational Alerts
                         </Title>
-                        <Text style={{ fontSize: 13.5, color: '#4b5563', fontWeight: 500 }}>
+                        <Text style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
                             Real-time monitoring array mapping system triggers, background tasks, and chat notifications.
                         </Text>
                     </div>
@@ -413,7 +413,7 @@ const AlertsPage = () => {
                             onClick={() => fetchNotifications(true)} 
                             icon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
                             disabled={loading}
-                            style={{ borderRadius: '8px', height: 38, fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            style={{ borderRadius: 'var(--radius-md)', height: 38, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
                             Sync Data
                         </Button>
@@ -421,7 +421,7 @@ const AlertsPage = () => {
                             type="primary" 
                             onClick={acknowledgeAll} 
                             disabled={stats.unreadCount === 0 || actionLoading}
-                            style={{ borderRadius: '8px', height: 38, fontWeight: 700, backgroundColor: '#1976D2', borderColor: '#1976D2', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)' }}
+                            style={{ borderRadius: 'var(--radius-md)', height: 38, fontWeight: 600, backgroundColor: '#1976D2', borderColor: '#1976D2', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)' }}
                         >
                             Mark All As Read
                         </Button>
@@ -438,7 +438,7 @@ const AlertsPage = () => {
                     ].map((stat, idx) => (
                         <Col xs={12} md={6} key={idx}>
                             <Card variant="borderless" style={{ 
-                                borderRadius: 16, 
+                                borderRadius: "var(--radius-xl)", 
                                 boxShadow: '0 4px 18px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.01)',
                                 border: '1px solid #f3f4f6',
                                 backgroundColor: '#fff',
@@ -446,12 +446,12 @@ const AlertsPage = () => {
                             }} styles={{ body: { padding: '24px' } }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <div>
-                                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', marginBottom: 6 }}>
+                                        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: 6 }}>
                                             {stat.label}
                                         </div>
                                         <Statistic 
                                             value={stat.value}
-                                            valueStyle={{ fontWeight: 800, fontSize: 30, color: '#111827', letterSpacing: '-0.02em', lineHeight: 1 }}
+                                            valueStyle={{ fontWeight: 800, fontSize: 30, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}
                                         />
                                     </div>
                                     <div style={{ 
@@ -475,10 +475,10 @@ const AlertsPage = () => {
 
                 {/* Filtering Workspace Panel */}
                 <Card variant="borderless" style={{ 
-                    borderRadius: 16, 
+                    borderRadius: "var(--radius-xl)", 
                     boxShadow: '0 4px 18px rgba(0,0,0,0.02)', 
                     border: '1px solid #f3f4f6',
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'var(--bg-primary)',
                     marginBottom: 16
                 }} styles={{ body: { padding: '16px 20px' } }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -490,7 +490,7 @@ const AlertsPage = () => {
                                 ]}
                                 value={filters.unreadOnly}
                                 onChange={(v) => setFilters(prev => ({ ...prev, unreadOnly: v }))}
-                                style={{ borderRadius: '8px', padding: 2, backgroundColor: '#f3f4f6' }}
+                                style={{ borderRadius: 'var(--radius-md)', padding: 2, backgroundColor: 'var(--bg-tertiary)' }}
                             />
 
                             <Segmented
@@ -503,7 +503,7 @@ const AlertsPage = () => {
                                 ]}
                                 value={filters.type}
                                 onChange={(v) => setFilters(prev => ({ ...prev, type: v }))}
-                                style={{ borderRadius: '8px', padding: 2, backgroundColor: '#f3f4f6' }}
+                                style={{ borderRadius: 'var(--radius-md)', padding: 2, backgroundColor: 'var(--bg-tertiary)' }}
                             />
                         </Space>
 
@@ -513,7 +513,7 @@ const AlertsPage = () => {
                             allowClear
                             value={filters.searchTerm}
                             onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                            style={{ width: 280, borderRadius: '8px', height: 38 }}
+                            style={{ width: 280, borderRadius: 'var(--radius-md)', height: 38 }}
                         />
                     </div>
                 </Card>
@@ -521,7 +521,7 @@ const AlertsPage = () => {
                 {/* Main Broadcast Stack */}
                 <Spin spinning={loading}>
                     <Card variant="borderless" style={{ 
-                        borderRadius: 16, 
+                        borderRadius: "var(--radius-xl)", 
                         border: '1px solid #f3f4f6', 
                         boxShadow: '0 4px 18px rgba(0,0,0,0.02)', 
                         backgroundColor: '#fff',
@@ -533,8 +533,8 @@ const AlertsPage = () => {
                                     image={Empty.PRESENTED_IMAGE_SIMPLE} 
                                     description={
                                         <div style={{ marginTop: 8 }}>
-                                            <Text strong style={{ color: '#374151', fontSize: 15 }}>Static Matrix Channel</Text>
-                                            <Paragraph style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0 0' }}>
+                                            <Text strong style={{ color: 'var(--text-primary)', fontSize: 15 }}>Static Matrix Channel</Text>
+                                            <Paragraph style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
                                                 No active incident logs detected inside selected metrics.
                                             </Paragraph>
                                         </div>
@@ -557,7 +557,7 @@ const AlertsPage = () => {
                                         indeterminate={selectedIds.size > 0 && !isAllSelected}
                                         onChange={toggleSelectAll}
                                     />
-                                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563' }}>
+                                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                                         {selectedIds.size > 0 ? `Selected ${selectedIds.size} items` : 'Select All'}
                                     </span>
                                 </div>
@@ -624,9 +624,9 @@ const AlertsPage = () => {
                                                             )}
                                                         </Space>
                                                         
-                                                        <Space size={4} style={{ color: '#9ca3af', fontSize: 11.5 }}>
+                                                        <Space size={4} style={{ color: '#9ca3af', fontSize: 11 }}>
                                                             <Calendar size={12} />
-                                                            <Text type="secondary" style={{ fontSize: 11.5, fontWeight: 550 }}>
+                                                            <Text type="secondary" style={{ fontSize: 11, fontWeight: 550 }}>
                                                                 {formatTimestamp(item.createdAt)}
                                                             </Text>
                                                         </Space>
@@ -635,7 +635,7 @@ const AlertsPage = () => {
                                                     <Text 
                                                         strong={!item.isRead} 
                                                         style={{ 
-                                                            fontSize: 13.5, 
+                                                            fontSize: 12, 
                                                             color: item.isRead ? '#4b5563' : '#111827',
                                                             fontWeight: item.isRead ? 450 : 600,
                                                             lineHeight: 1.5,
@@ -660,7 +660,7 @@ const AlertsPage = () => {
                                                                     style={{ 
                                                                         backgroundColor: '#f0fdf4', 
                                                                         border: '1px solid #dcfce7',
-                                                                        borderRadius: 8,
+                                                                        borderRadius: "var(--radius-md)",
                                                                         width: 32,
                                                                         height: 32,
                                                                         display: 'flex',
@@ -689,7 +689,7 @@ const AlertsPage = () => {
                                                                     style={{ 
                                                                         backgroundColor: '#fef2f2', 
                                                                         border: '1px solid #fee2e2',
-                                                                        borderRadius: 8,
+                                                                        borderRadius: "var(--radius-md)",
                                                                         width: 32,
                                                                         height: 32,
                                                                         display: 'flex',
@@ -718,7 +718,7 @@ const AlertsPage = () => {
                         left: '50%',
                         transform: 'translateX(-50%)',
                         backgroundColor: '#1f2937',
-                        borderRadius: '12px',
+                        borderRadius: 'var(--radius-lg)',
                         padding: '12px 20px',
                         display: 'flex',
                         alignItems: 'center',
@@ -727,7 +727,7 @@ const AlertsPage = () => {
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
                         animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
                     }}>
-                        <span style={{ color: '#fff', fontSize: '13px', fontWeight: 650 }}>
+                        <span style={{ color: '#fff', fontSize: 'var(--font-size-sm)', fontWeight: 650 }}>
                             {selectedIds.size} alert{selectedIds.size > 1 ? 's' : ''} selected
                         </span>
                         

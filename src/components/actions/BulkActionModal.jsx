@@ -141,10 +141,10 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
       <Modal open={isOpen} onCancel={resetAndClose} footer={null} width={480} centered destroyOnHidden>
         <div style={{ padding: '40px 24px', textAlign: 'center' }}>
           <LockOutlined style={{ fontSize: 40, color: '#cbd5e1', display: 'block', marginBottom: 16 }} />
-          <Text strong style={{ fontSize: 16, color: '#1e293b', display: 'block', marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 'var(--font-size-lg)', color: '#1e293b', display: 'block', marginBottom: 8 }}>
             Admin Only Feature
           </Text>
-          <Text style={{ fontSize: 13, color: '#94a3b8', display: 'block', marginBottom: 24 }}>
+          <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block', marginBottom: 24 }}>
             You need admin or super admin permissions to perform bulk operations.
           </Text>
           <Button onClick={resetAndClose} style={MODAL_STYLES.cancelBtn}>Close</Button>
@@ -166,10 +166,10 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
     >
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
             Bulk Actions
           </span>
-          <Badge count={`${taskCount} tasks selected`} style={{ background: '#1976D2', borderRadius: 6, fontSize: 11, fontWeight: 600 }} />
+          <Badge count={`${taskCount} tasks selected`} style={{ background: '#1976D2', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }} />
         </Space>
       </div>
 
@@ -177,7 +177,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
         {taskCount > 0 && (
           <div style={{
             maxHeight: 200, overflowY: 'auto', marginBottom: 16,
-            border: '1px solid #e2e8f0', borderRadius: 8, padding: '4px 0',
+            border: '1px solid #e2e8f0', borderRadius: "var(--radius-md)", padding: '4px 0',
           }}>
             {selectedTasks.map((task, i) => {
               const st = getStatusStyle(task.status);
@@ -187,20 +187,20 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
                   padding: '6px 12px',
                   borderBottom: i < taskCount - 1 ? '1px solid #f1f5f9' : 'none',
                 }}>
-                  <Tag style={{ borderRadius: 4, fontSize: 10, fontWeight: 600, color: st.color, background: st.bg, border: `1px solid ${st.border}`, margin: 0, flexShrink: 0 }}>
+                  <Tag style={{ borderRadius: "var(--radius-sm)", fontSize: 10, fontWeight: 600, color: st.color, background: st.bg, border: `1px solid ${st.border}`, margin: 0, flexShrink: 0 }}>
                     {task.status}
                   </Tag>
-                  <Text style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <Text style={{ fontSize: 'var(--font-size-sm)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {task.title || 'Untitled'}
                   </Text>
-                  <Tag style={{ borderRadius: 4, fontSize: 10, flexShrink: 0, margin: 0 }}>
+                  <Tag style={{ borderRadius: "var(--radius-sm)", fontSize: 10, flexShrink: 0, margin: 0 }}>
                     {task.priority || 'MEDIUM'}
                   </Tag>
                 </div>
               );
             })}
             <div style={{ padding: '6px 12px', borderTop: '1px solid #f1f5f9' }}>
-              <Text style={{ fontSize: 11, color: '#94a3b8' }}>All {taskCount} task{taskCount > 1 ? 's' : ''} will be affected</Text>
+              <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>All {taskCount} task{taskCount > 1 ? 's' : ''} will be affected</Text>
             </div>
           </div>
         )}
@@ -221,16 +221,16 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
                     display: 'flex', alignItems: 'center', width: '100%',
                     padding: '10px 14px', margin: 0,
                     border: `1px solid ${actionType === action.value ? '#1976D2' : '#e2e8f0'}`,
-                    borderRadius: 8,
+                    borderRadius: "var(--radius-md)",
                     background: actionType === action.value ? '#eef2ff' : 'white',
                     height: 'auto',
                   }}
                 >
                   <Space size={10}>
-                    <span style={{ color: actionType === action.value ? '#1976D2' : '#64748b', fontSize: 16 }}>
+                    <span style={{ color: actionType === action.value ? '#1976D2' : '#64748b', fontSize: 'var(--font-size-lg)' }}>
                       {action.icon}
                     </span>
-                    <Text strong style={{ fontSize: 13, color: actionType === action.value ? '#1976D2' : '#374151' }}>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: actionType === action.value ? '#1976D2' : '#374151' }}>
                       {action.label}
                     </Text>
                   </Space>
@@ -276,7 +276,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
               {PRIORITY_OPTIONS.map(p => (
                 <Radio.Button key={p.value} value={p.value} style={{
                   flex: 1, textAlign: 'center', height: 34, lineHeight: '32px',
-                  borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600,
                 }}>
                   {p.label}
                 </Radio.Button>
@@ -335,11 +335,11 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
         )}
 
         {actionType === 'DELETE' && (
-          <div style={{ background: '#fef2f2', borderRadius: 8, padding: 12, border: '1px solid #fecdd3', marginBottom: 16 }}>
+          <div style={{ background: '#fef2f2', borderRadius: "var(--radius-md)", padding: 12, border: '1px solid #fecdd3', marginBottom: 16 }}>
             <Space orientation="vertical" size={8}>
               <Space>
                 <DeleteOutlined style={{ color: '#D32F2F' }} />
-                <Text style={{ color: '#e11d48', fontWeight: 600, fontSize: 13 }}>
+                <Text style={{ color: '#e11d48', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                   Delete {taskCount} task{taskCount > 1 ? 's' : ''}
                 </Text>
               </Space>
@@ -347,13 +347,13 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
                 type="error"
                 showIcon
                 message={`This will permanently delete ${taskCount} task${taskCount > 1 ? 's' : ''}. This cannot be undone.`}
-                style={{ fontSize: 12, borderRadius: 6, padding: '6px 12px' }}
+                style={{ fontSize: 'var(--font-size-sm)', borderRadius: 6, padding: '6px 12px' }}
               />
               <Checkbox
                 checked={confirmDelete}
                 onChange={e => setConfirmDelete(e.target.checked)}
               >
-                <Text style={{ fontSize: 12, color: '#e11d48' }}>
+                <Text style={{ fontSize: 'var(--font-size-sm)', color: '#e11d48' }}>
                   I understand this will permanently delete {taskCount} task{taskCount > 1 ? 's' : ''}
                 </Text>
               </Checkbox>
@@ -370,7 +370,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
           loading={submitting}
           disabled={!actionType}
           style={{
-            height: 36, borderRadius: 8, fontWeight: 600,
+            height: 36, borderRadius: "var(--radius-md)", fontWeight: 600,
             background: actionType === 'DELETE' ? '#D32F2F' : '#1976D2',
             border: 'none',
             boxShadow: actionType === 'DELETE' ? '0 2px 8px rgba(239,68,68,0.3)' : '0 2px 8px rgba(99,102,241,0.3)',

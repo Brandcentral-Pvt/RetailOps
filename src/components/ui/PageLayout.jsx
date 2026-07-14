@@ -2,13 +2,13 @@ import React from 'react';
 import { Spin, Empty, Result, Skeleton, Button } from 'antd';
 import { LoadingOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 
-const antIcon = <LoadingOutlined style={{ fontSize: 24, color: '#4F46E5' }} spin />;
+const antIcon = <LoadingOutlined style={{ fontSize: 'var(--font-size-2xl)', color: '#4F46E5' }} spin />;
 
 export function PageHeader({ title, subtitle, icon, actions, breadcrumbs }) {
   return (
     <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
       {breadcrumbs && (
-        <div style={{ fontSize: 11, color: '#a1a1aa', marginBottom: 8 }}>
+        <div style={{ fontSize: 'var(--font-size-xs)', color: '#a1a1aa', marginBottom: 8 }}>
           {breadcrumbs.map((b, i) => (
             <span key={i}>{b}{i < breadcrumbs.length - 1 && ' / '}</span>
           ))}
@@ -22,8 +22,8 @@ export function PageHeader({ title, subtitle, icon, actions, breadcrumbs }) {
             </div>
           )}
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>{title}</h2>
-            {subtitle && <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 2 }}>{subtitle}</p>}
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#18181b', margin: 0 }}>{title}</h2>
+            {subtitle && <p style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', margin: 0, marginTop: 2 }}>{subtitle}</p>}
           </div>
         </div>
         {actions && <div style={{ display: 'flex', gap: 8 }}>{actions}</div>}
@@ -41,10 +41,10 @@ export function PageLoading({ message = 'Loading...' }) {
       justifyContent: 'center', 
       alignItems: 'center',
       background: '#fff',
-      borderRadius: 12
+      borderRadius: "var(--radius-lg)"
     }}>
       <Spin indicator={antIcon} size="large" />
-      <div style={{ marginTop: 16, fontSize: 13, color: '#71717a', fontWeight: 500 }}>{message}</div>
+      <div style={{ marginTop: 16, fontSize: 'var(--font-size-sm)', color: '#71717a', fontWeight: 500 }}>{message}</div>
     </div>
   );
 }
@@ -57,7 +57,7 @@ export function PageError({ message = 'Failed to load', onRetry }) {
       justifyContent: 'center', 
       alignItems: 'center',
       background: '#fff',
-      borderRadius: 12,
+      borderRadius: "var(--radius-lg)",
       padding: 40
     }}>
       <Result
@@ -65,7 +65,7 @@ export function PageError({ message = 'Failed to load', onRetry }) {
         title="Unable to Load"
         subTitle={message}
         extra={onRetry && (
-          <Button type="primary" icon={<ReloadOutlined />} onClick={onRetry} style={{ borderRadius: 8 }}>
+          <Button type="primary" icon={<ReloadOutlined />} onClick={onRetry} style={{ borderRadius: "var(--radius-md)" }}>
             Retry
           </Button>
         )}
@@ -82,15 +82,15 @@ export function PageEmpty({ title = 'No Data', description, action, icon }) {
       justifyContent: 'center', 
       alignItems: 'center',
       background: '#fff',
-      borderRadius: 12,
+      borderRadius: "var(--radius-lg)",
       padding: 40
     }}>
       <Empty
         image={icon || Empty.PRESENTED_IMAGE_SIMPLE}
         description={
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#18181b', marginBottom: 4 }}>{title}</div>
-            {description && <div style={{ fontSize: 12, color: '#71717a' }}>{description}</div>}
+            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>{title}</div>
+            {description && <div style={{ fontSize: 'var(--font-size-sm)', color: '#71717a' }}>{description}</div>}
           </div>
         }
         extra={action}
@@ -101,7 +101,7 @@ export function PageEmpty({ title = 'No Data', description, action, icon }) {
 
 export function CardSkeleton({ rows = 3, style }) {
   return (
-    <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: '1px solid #e4e4e7', ...style }}>
+    <div style={{ padding: 20, background: '#fff', borderRadius: "var(--radius-lg)", border: '1px solid #e4e4e7', ...style }}>
       <Skeleton active paragraph={{ rows }} />
     </div>
   );
@@ -109,7 +109,7 @@ export function CardSkeleton({ rows = 3, style }) {
 
 export function TableSkeleton({ rows = 5, style }) {
   return (
-    <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: '1px solid #e4e4e7', ...style }}>
+    <div style={{ padding: 20, background: '#fff', borderRadius: "var(--radius-lg)", border: '1px solid #e4e4e7', ...style }}>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} style={{ 
           display: 'flex', 
@@ -117,10 +117,10 @@ export function TableSkeleton({ rows = 5, style }) {
           padding: '12px 0', 
           borderBottom: i < rows - 1 ? '1px solid #f4f4f5' : 'none'
         }}>
-          <Skeleton.Input active size="small" style={{ width: 40, borderRadius: 4 }} />
-          <Skeleton.Input active size="small" style={{ flex: 1, borderRadius: 4 }} />
-          <Skeleton.Input active size="small" style={{ width: 100, borderRadius: 4 }} />
-          <Skeleton.Input active size="small" style={{ width: 80, borderRadius: 4 }} />
+          <Skeleton.Input active size="small" style={{ width: 40, borderRadius: "var(--radius-sm)" }} />
+          <Skeleton.Input active size="small" style={{ flex: 1, borderRadius: "var(--radius-sm)" }} />
+          <Skeleton.Input active size="small" style={{ width: 100, borderRadius: "var(--radius-sm)" }} />
+          <Skeleton.Input active size="small" style={{ width: 80, borderRadius: "var(--radius-sm)" }} />
         </div>
       ))}
     </div>
@@ -137,7 +137,7 @@ export function InlineLoading({ tip = 'Loading...' }) {
       padding: '40px 0'
     }}>
       <Spin indicator={antIcon} size="small" />
-      <span style={{ fontSize: 13, color: '#71717a' }}>{tip}</span>
+      <span style={{ fontSize: 'var(--font-size-sm)', color: '#71717a' }}>{tip}</span>
     </div>
   );
 }

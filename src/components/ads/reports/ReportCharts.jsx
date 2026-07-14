@@ -39,7 +39,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
   const barOptions = useMemo(() => ({
     chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Inter, system-ui, sans-serif' },
     colors: COLORS,
-    plotOptions: { bar: { columnWidth: '60%', borderRadius: 4 } },
+    plotOptions: { bar: { columnWidth: '60%', borderRadius: "var(--radius-sm)" } },
     dataLabels: { enabled: false },
     xaxis: { 
       categories: chartData.labels,
@@ -84,7 +84,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
   const stackedOptions = useMemo(() => ({
     chart: { type: 'bar', stacked: true, toolbar: { show: false }, fontFamily: 'Inter, system-ui, sans-serif' },
     colors: COLORS,
-    plotOptions: { bar: { columnWidth: '60%', borderRadius: 4 } },
+    plotOptions: { bar: { columnWidth: '60%', borderRadius: "var(--radius-sm)" } },
     dataLabels: { enabled: false },
     xaxis: { 
       categories: chartData.labels,
@@ -113,7 +113,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 3, height: 14, background: '#4F46E5', borderRadius: 2 }} />
-            <Text strong style={{ fontSize: 13 }}>Performance Trends</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Performance Trends</Text>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <Segmented 

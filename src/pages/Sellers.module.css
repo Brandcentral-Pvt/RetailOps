@@ -1,0 +1,52 @@
+/* ═══════════════════════════════════════════════════════════════
+   Sellers.module.css — SellersPage styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Spin animation (used by refresh/sync icons) ── */
+.spin {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Slide-down entrance animation ── */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.slideDown {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* ── Premium seller table overrides ── */
+.premiumSellerTable :global(.ant-table-thead) > tr > th {
+  background: var(--bg-secondary, #f8fafc) !important;
+  font-size: var(--font-size-xs) !important;
+  color: var(--text-muted, #94a3b8) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--border-light, #d9e6e9) !important;
+}
+
+.premiumSellerTable :global(.ant-table-row):hover > td {
+  background: var(--bg-secondary, #f8fafc) !important;
+}
+
+.premiumSellerTable :global(.ant-table-cell) {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--border-light, #d9e6e9) !important;
+}
+
+.premiumSellerTable :global(.ant-table-pagination) {
+  margin: 16px !important;
+}

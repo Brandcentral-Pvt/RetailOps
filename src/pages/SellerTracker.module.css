@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════════════════════
+   SellerTracker.module.css — SellerAsinTrackerPage styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Page layout ── */
+.tracker {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+/* ── Seller card hover states ── */
+.sellerCard:hover {
+  background: var(--color-surface-1) !important;
+  border-color: var(--color-border-strong) !important;
+}
+
+.sellerCard.active:hover {
+  background: var(--color-surface-2) !important;
+}
+
+/* ── Row hover states ── */
+.timelineItemRow:hover,
+.taskItemRow:hover {
+  border-color: var(--color-border-strong) !important;
+}
+
+/* ── Quick action buttons ── */
+.quickAction:hover {
+  background: var(--color-surface-1) !important;
+  border-color: var(--color-border-strong) !important;
+}
+
+/* ── Tab overrides ── */
+.trackerTabs :global(.ant-tabs-tab) {
+  font-weight: 600 !important;
+  font-size: var(--font-size-sm) !important;
+  padding: 12px 0 !important;
+  color: var(--text-muted, #94a3b8) !important;
+}
+
+.trackerTabs :global(.ant-tabs-tab-active) {
+  color: var(--text-primary, #0f172a) !important;
+}
+
+.trackerTabs :global(.ant-tabs-tab-active) :global(.ant-tabs-tab-btn) {
+  color: var(--text-primary, #0f172a) !important;
+}
+
+.trackerTabs :global(.ant-tabs-ink-bar) {
+  background: var(--text-brand, #1976D2) !important;
+  height: 2px !important;
+}
+
+/* ── ASIN table overrides ── */
+.asinTable :global(.ant-table-thead) > tr > th {
+  background: var(--color-surface-1) !important;
+  font-size: var(--font-size-xs) !important;
+  font-weight: 700 !important;
+  color: var(--text-secondary, #64748b) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.asinTable :global(.ant-table-tbody) > tr > td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--color-surface-1) !important;
+}
+
+/* ── Spin animation (reuse existing from index.css) ── */
+.spinAnimation {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

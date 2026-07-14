@@ -8,7 +8,7 @@ const GoalControlCenter = ({ goalData, loading }) => {
       <div className="row g-3 mb-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="col-md-4">
-            <div className="glass-card p-3 h-100 placeholder-glow" style={{ borderRadius: '16px', minHeight: '120px' }}>
+            <div className="glass-card p-3 h-100 placeholder-glow" style={{ borderRadius: 'var(--radius-xl)', minHeight: '120px' }}>
               <div className="placeholder col-6 mb-2"></div>
               <div className="placeholder col-8"></div>
             </div>

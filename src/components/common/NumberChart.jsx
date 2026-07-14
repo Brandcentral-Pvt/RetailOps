@@ -20,7 +20,7 @@ const NumberChart = ({
     const DeltaIcon = deltaConfig.icon;
 
     return (
-        <div className="glass-card hover-lift p-2 px-3 h-100" style={{ borderRadius: '16px' }}>
+        <div className="glass-card hover-lift p-2 px-3 h-100" style={{ borderRadius: 'var(--radius-xl)' }}>
             <div className="d-flex justify-content-between align-items-start mb-1">
                 <div
                     className="d-flex align-items-center justify-content-center"
@@ -53,7 +53,7 @@ const NumberChart = ({
                 <div className="text-muted smallest fw-700 text-uppercase tracking-wider mb-1" style={{ fontSize: '9px' }}>
                     {label}
                 </div>
-                <div className="h5 fw-800 mb-0" style={{ letterSpacing: '-0.02em', color: '#111827' }}>
+                <div className="h5 fw-800 mb-0" style={{ letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
                     {value}
                 </div>
                 {subtitle && (

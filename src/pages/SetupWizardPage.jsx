@@ -188,36 +188,36 @@ const SetupWizardPage = () => {
       </Text>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: 12 }}>
-          <div style={{ background: '#e0e7ff', padding: 8, borderRadius: 8, color: '#1976D2', display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
+          <div style={{ background: '#e0e7ff', padding: 8, borderRadius: "var(--radius-md)", color: '#1976D2', display: 'flex' }}>
             <Lock size={18} />
           </div>
           <div>
-            <Text strong style={{ fontSize: 14 }}>Secure Credentials</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-base)' }}>Secure Credentials</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12.5 }}>Update your temporary password to a secure permanent credential.</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>Update your temporary password to a secure permanent credential.</Text>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: 12 }}>
-          <div style={{ background: '#ecfeff', padding: 8, borderRadius: 8, color: '#0288D1', display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
+          <div style={{ background: '#ecfeff', padding: 8, borderRadius: "var(--radius-md)", color: '#0288D1', display: 'flex' }}>
             <Shield size={18} />
           </div>
           <div>
-            <Text strong style={{ fontSize: 14 }}>Security Guidelines</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-base)' }}>Security Guidelines</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12.5 }}>Review standard operating safety tips to avoid account compromise.</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>Review standard operating safety tips to avoid account compromise.</Text>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: 12 }}>
-          <div style={{ background: '#f0fdf4', padding: 8, borderRadius: 8, color: '#2E7D32', display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
+          <div style={{ background: '#f0fdf4', padding: 8, borderRadius: "var(--radius-md)", color: '#2E7D32', display: 'flex' }}>
             <FileCheck size={18} />
           </div>
           <div>
-            <Text strong style={{ fontSize: 14 }}>Platform Policies</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-base)' }}>Platform Policies</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12.5 }}>Accept service terms, data privacy practices, and user compliance requirements.</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>Accept service terms, data privacy practices, and user compliance requirements.</Text>
           </div>
         </div>
       </div>
@@ -261,9 +261,9 @@ const SetupWizardPage = () => {
           }
         ].map((tip, i) => (
           <Col span={12} key={i}>
-            <div style={{ height: '100%', border: '1px solid #e2e8f0', background: '#fff', borderRadius: 12, padding: 18 }}>
-              <Text strong style={{ display: 'block', fontSize: 14, marginBottom: 8, color: '#0f172a' }}>{tip.title}</Text>
-              <Text type="secondary" style={{ fontSize: 12.5, lineHeight: '1.5' }}>{tip.desc}</Text>
+            <div style={{ height: '100%', border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 18 }}>
+              <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', marginBottom: 8, color: '#0f172a' }}>{tip.title}</Text>
+              <Text type="secondary" style={{ fontSize: 12, lineHeight: '1.5' }}>{tip.desc}</Text>
             </div>
           </Col>
         ))}
@@ -287,38 +287,38 @@ const SetupWizardPage = () => {
           showIcon
           closable
           onClose={() => setError('')}
-          style={{ marginBottom: 16, borderRadius: 8 }}
+          style={{ marginBottom: 16, borderRadius: "var(--radius-md)" }}
         />
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, border: '1px solid #e2e8f0', background: '#fff', borderRadius: 12, padding: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 24 }}>
         {/* Current Password */}
         <div>
-          <Text strong style={{ fontSize: 13, color: '#334155', display: 'block', marginBottom: 6 }}>Current Temporary Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>Current Temporary Password</Text>
           <Input.Password
             value={passwordForm.current}
             onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })}
             placeholder="Enter temporary password"
             size="large"
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: "var(--radius-md)" }}
           />
         </div>
 
         {/* New Password */}
         <div>
-          <Text strong style={{ fontSize: 13, color: '#334155', display: 'block', marginBottom: 6 }}>New Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>New Password</Text>
           <Input.Password
             value={passwordForm.newPw}
             onChange={e => setPasswordForm({ ...passwordForm, newPw: e.target.value })}
             placeholder="Create strong password"
             size="large"
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: "var(--radius-md)" }}
           />
           {passwordForm.newPw && (
-            <div style={{ marginTop: 8, background: '#f8fafc', padding: 8, borderRadius: 8 }}>
+            <div style={{ marginTop: 8, background: '#f8fafc', padding: 8, borderRadius: "var(--radius-md)" }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontSize: 11, color: '#64748b' }}>Strength:</Text>
-                <Text style={{ fontSize: 11, fontWeight: 600, color: pwStrength.color }}>{pwStrength.label}</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>Strength:</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: pwStrength.color }}>{pwStrength.label}</Text>
               </div>
               <Progress percent={pwStrength.percent} strokeColor={pwStrength.color} showInfo={false} size="small" strokeWidth={4} />
             </div>
@@ -327,25 +327,25 @@ const SetupWizardPage = () => {
 
         {/* Confirm Password */}
         <div>
-          <Text strong style={{ fontSize: 13, color: '#334155', display: 'block', marginBottom: 6 }}>Confirm Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>Confirm Password</Text>
           <Input.Password
             value={passwordForm.confirm}
             onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
             placeholder="Re-enter new password"
             size="large"
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: "var(--radius-md)" }}
           />
           {passwordForm.confirm && passwordForm.newPw !== passwordForm.confirm && (
-            <Text type="danger" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>Passwords do not match</Text>
+            <Text type="danger" style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginTop: 4 }}>Passwords do not match</Text>
           )}
         </div>
 
         {/* Password Requirements */}
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-          <Text strong style={{ fontSize: 12, color: '#475569', display: 'block', marginBottom: 8 }}>Password Requirements</Text>
+        <div style={{ background: '#f8fafc', padding: 12, borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#475569', display: 'block', marginBottom: 8 }}>Password Requirements</Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
             {pwRequirements.map((req, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: req.met ? '#2E7D32' : '#64748b' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: req.met ? '#2E7D32' : '#64748b' }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: req.met ? '#2E7D32' : '#cbd5e1' }} />
                 <span>{req.text}</span>
               </div>
@@ -395,35 +395,35 @@ const SetupWizardPage = () => {
             showIcon
             closable
             onClose={() => setError('')}
-            style={{ marginBottom: 16, borderRadius: 8 }}
+            style={{ marginBottom: 16, borderRadius: "var(--radius-md)" }}
           />
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Policy Collapse Accordion */}
-          <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+          <div style={{ border: '1px solid #d9d9d9', borderRadius: "var(--radius-md)", overflow: 'hidden', background: '#fff' }}>
             <div style={{ padding: '12px 16px', background: '#fafafa', borderBottom: '1px solid #d9d9d9' }}>
-              <Text strong style={{ fontSize: 13, color: '#262626' }}>Document Viewer</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#262626' }}>Document Viewer</Text>
             </div>
             
             <div style={{ maxHeight: 220, overflowY: 'auto', padding: 16 }}>
               <div style={{ marginBottom: 20 }}>
-                <Text strong style={{ display: 'block', fontSize: 14, color: '#0f172a', marginBottom: 6 }}>1. Terms of Service</Text>
-                <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: '#0f172a', marginBottom: 6 }}>1. Terms of Service</Text>
+                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
                   {policyTexts.tos}
                 </div>
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <Text strong style={{ display: 'block', fontSize: 14, color: '#0f172a', marginBottom: 6 }}>2. Privacy Policy</Text>
-                <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: '#0f172a', marginBottom: 6 }}>2. Privacy Policy</Text>
+                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
                   {policyTexts.privacy}
                 </div>
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <Text strong style={{ display: 'block', fontSize: 14, color: '#0f172a', marginBottom: 6 }}>3. User Compliance & Responsibilities</Text>
-                <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: '#0f172a', marginBottom: 6 }}>3. User Compliance & Responsibilities</Text>
+                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
                   {policyTexts.responsibilities}
                 </div>
               </div>
@@ -431,32 +431,32 @@ const SetupWizardPage = () => {
           </div>
 
           {/* Individual accept Checkboxes */}
-          <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: 8, padding: 16 }}>
+          <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-md)", padding: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, tos: !policies.tos })}>
                 <input type="checkbox" checked={policies.tos} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
                 <div>
-                  <Text strong style={{ fontSize: 13, color: '#0f172a' }}>I agree to the Terms of Service</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>I agree to the Terms of Service</Text>
                   <br />
-                  <Text type="secondary" style={{ fontSize: 11 }}>Read section 1 in the document viewer above.</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Read section 1 in the document viewer above.</Text>
                 </div>
               </div>
               
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, privacy: !policies.privacy })}>
                 <input type="checkbox" checked={policies.privacy} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
                 <div>
-                  <Text strong style={{ fontSize: 13, color: '#0f172a' }}>I accept the Privacy Policy</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>I accept the Privacy Policy</Text>
                   <br />
-                  <Text type="secondary" style={{ fontSize: 11 }}>Read section 2 in the document viewer above.</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Read section 2 in the document viewer above.</Text>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, responsibilities: !policies.responsibilities })}>
                 <input type="checkbox" checked={policies.responsibilities} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
                 <div>
-                  <Text strong style={{ fontSize: 13, color: '#0f172a' }}>I understand and agree to User Responsibilities</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>I understand and agree to User Responsibilities</Text>
                   <br />
-                  <Text type="secondary" style={{ fontSize: 11 }}>Read section 3 in the document viewer above.</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Read section 3 in the document viewer above.</Text>
                 </div>
               </div>
             </div>
@@ -491,20 +491,20 @@ const SetupWizardPage = () => {
             <CheckCircle2 size={36} color="#2E7D32" />
           </div>
           
-          <Title level={2} style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px' }}>
+          <Title level={2} style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600, margin: '0 0 8px' }}>
             Account Setup Completed!
           </Title>
-          <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 24 }}>
+          <Text type="secondary" style={{ fontSize: 'var(--font-size-base)', display: 'block', marginBottom: 24 }}>
             Congratulations, your credentials and privacy agreements have been successfully updated.
           </Text>
 
-          <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: 12, padding: 20, textAlign: 'left', marginBottom: 16 }}>
-            <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 11, textTransform: 'uppercase', color: '#64748b', letterSpacing: 0.5 }}>
+          <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 20, textAlign: 'left', marginBottom: 16 }}>
+            <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: '#64748b', letterSpacing: 0.5 }}>
               Setup Summary
             </Title>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {items.map(item => (
-                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid #f1f5f9', paddingBottom: 6 }}>
+                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', borderBottom: '1px solid #f1f5f9', paddingBottom: 6 }}>
                   <Text type="secondary">{item.label}</Text>
                   <Text strong>{item.children}</Text>
                 </div>
@@ -558,10 +558,10 @@ const SetupWizardPage = () => {
           {/* Sidebar - Steps */}
           <div className="wizard-sidebar">
             <div className="sidebar-header">
-              <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
+              <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#0f172a' }}>
                 Account Setup
               </Title>
-              <Text style={{ fontSize: 12, color: '#64748b', display: 'block', marginTop: 4 }}>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', display: 'block', marginTop: 4 }}>
                 Complete all steps to continue
               </Text>
             </div>
@@ -618,12 +618,12 @@ const SetupWizardPage = () => {
               <div className="help-card">
                 <Info size={14} color="#1976D2" />
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#0f172a' }}>
+                  <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>
                     Need help?
                   </div>
                   <a
                     href="mailto:support@brandcentral.in"
-                    style={{ fontSize: 11, color: '#1976D2' }}
+                    style={{ fontSize: 'var(--font-size-xs)', color: '#1976D2' }}
                   >
                     Contact support
                   </a>

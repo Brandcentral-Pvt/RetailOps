@@ -14,7 +14,7 @@ const Unauthorized = () => {
             height: 'calc(100vh - 64px)',
             textAlign: 'center',
             padding: '20px',
-            backgroundColor: '#f9fafb'
+            backgroundColor: 'var(--bg-secondary)'
         }}>
             <div style={{
                 width: '80px',
@@ -32,15 +32,15 @@ const Unauthorized = () => {
             <h1 style={{ 
                 fontSize: '30px', 
                 fontWeight: '800',
-                color: '#111827',
+                color: 'var(--text-primary)',
                 marginBottom: '12px' 
             }}>
                 Access Denied
             </h1>
             
             <p style={{ 
-                fontSize: '16px', 
-                color: '#6b7280', 
+                fontSize: 'var(--font-size-lg)', 
+                color: 'var(--text-secondary)', 
                 marginBottom: '32px', 
                 maxWidth: '420px',
                 lineHeight: '1.5'
@@ -58,12 +58,12 @@ const Unauthorized = () => {
                         gap: '8px',
                         padding: '10px 20px',
                         backgroundColor: 'white',
-                        color: '#374151',
+                        color: 'var(--text-primary)',
                         border: '1px solid #d1d5db',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius-md)',
                         cursor: 'pointer',
                         fontWeight: '600',
-                        fontSize: '14px',
+                        fontSize: 'var(--font-size-base)',
                         transition: 'all 0.2s'
                     }}
                 >
@@ -81,10 +81,10 @@ const Unauthorized = () => {
                         backgroundColor: '#1976D2',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius-md)',
                         cursor: 'pointer',
                         fontWeight: '600',
-                        fontSize: '14px',
+                        fontSize: 'var(--font-size-base)',
                         transition: 'all 0.2s'
                     }}
                 >

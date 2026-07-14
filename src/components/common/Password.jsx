@@ -33,9 +33,9 @@ const Password = ({
                     value={value}
                     onChange={(e) => onChange && onChange(e.target.value)}
                     style={{
-                        borderRadius: '12px',
+                        borderRadius: 'var(--radius-lg)',
                         backgroundColor: '#fff',
-                        fontSize: '13px',
+                        fontSize: 'var(--font-size-sm)',
                         borderWidth: '1px',
                         borderColor: '#e2e8f0'
                     }}

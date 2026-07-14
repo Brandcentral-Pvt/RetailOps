@@ -103,8 +103,8 @@ const ColumnVisibilityPanel = ({
             <Layout size={18} className="text-zinc-600" />
           </div>
           <div>
-            <Title level={5} style={{ margin: 0, fontSize: '16px' }}>Column Visibility</Title>
-            <Text type="secondary" style={{ fontSize: '12px' }}>Configure your dashboard workspace</Text>
+            <Title level={5} style={{ margin: 0, fontSize: 'var(--font-size-lg)' }}>Column Visibility</Title>
+            <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>Configure your dashboard workspace</Text>
           </div>
         </div>
       }
@@ -134,10 +134,10 @@ const ColumnVisibilityPanel = ({
       footer={
         <div className="px-3 py-3 d-flex align-items-center justify-content-between bg-zinc-50 rounded-top-4 border-top">
           <div className="d-flex flex-column">
-            <Text strong style={{ fontSize: '13px' }}>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>
               {localVisibleColumns.length} Columns
             </Text>
-            <Text type="secondary" style={{ fontSize: '11px' }}>selected for display</Text>
+            <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>selected for display</Text>
           </div>
           <Space>
             <Button onClick={onClose}>Cancel</Button>
@@ -240,7 +240,7 @@ const ColumnVisibilityPanel = ({
 
       {/* Action Header */}
       <div className="px-4 py-2 bg-zinc-50 border-bottom d-flex align-items-center justify-content-between">
-        <Text type="secondary" style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {categoryFilter} Fields ({filteredColumns.length})
         </Text>
         <Space size={16}>
@@ -249,7 +249,7 @@ const ColumnVisibilityPanel = ({
             size="small" 
             onClick={handleSelectAllFiltered}
             className="p-0 text-primary"
-            style={{ fontSize: '11px' }}
+            style={{ fontSize: 'var(--font-size-xs)' }}
           >
             Select All
           </Button>
@@ -259,7 +259,7 @@ const ColumnVisibilityPanel = ({
             danger
             onClick={handleDeselectAllFiltered}
             className="p-0"
-            style={{ fontSize: '11px' }}
+            style={{ fontSize: 'var(--font-size-xs)' }}
           >
             Clear All
           </Button>
@@ -287,7 +287,7 @@ const ColumnVisibilityPanel = ({
                     onChange={() => handleToggle(col.key)}
                   />
                   <div className="d-flex flex-column">
-                    <Text strong={isVisible} style={{ fontSize: '13px', color: isVisible ? '#1e293b' : '#64748b' }}>
+                    <Text strong={isVisible} style={{ fontSize: 'var(--font-size-sm)', color: isVisible ? '#1e293b' : '#64748b' }}>
                       {col.label}
                     </Text>
                     <Text type="secondary" style={{ fontSize: '10px' }}>

@@ -66,18 +66,18 @@ function relativeTime(dateStr) {
 }
 
 function renderMetadata(metadata) {
-    if (!metadata) return <Text type="secondary" style={{ fontSize: 12 }}>No additional data.</Text>;
+    if (!metadata) return <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>No additional data.</Text>;
     let data = metadata;
     if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch { return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: 8, fontSize: 11 }}>{data}</pre>; }
+        try { data = JSON.parse(data); } catch { return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{data}</pre>; }
     }
-    if (typeof data !== 'object') return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: 8, fontSize: 11 }}>{String(data)}</pre>;
+    if (typeof data !== 'object') return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{String(data)}</pre>;
     return (
         <Descriptions bordered size="small" column={1}>
             {Object.entries(data).map(([key, value]) => (
                 <Descriptions.Item key={key} label={key.charAt(0).toUpperCase() + key.slice(1)}>
                     {typeof value === 'object' ? (
-                        <pre style={{ margin: 0, fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(value, null, 2)}</pre>
+                        <pre style={{ margin: 0, fontSize: 'var(--font-size-xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(value, null, 2)}</pre>
                     ) : String(value)}
                 </Descriptions.Item>
             ))}
@@ -196,7 +196,7 @@ const ActivityLog = () => {
                 return (
                     <Tag style={{
                         background: `${s.color}10`, color: s.color, border: `1px solid ${s.color}25`,
-                        borderRadius: 8, fontWeight: 600, fontSize: 10, padding: '3px 10px',
+                        borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 10, padding: '3px 10px',
                         display: 'inline-flex', alignItems: 'center', gap: 5, textTransform: 'uppercase', letterSpacing: '0.03em'
                     }}>
                         {s.icon} {s.label}
@@ -209,10 +209,10 @@ const ActivityLog = () => {
             key: 'details',
             render: (_, r) => (
                 <div style={{ cursor: 'pointer' }} onClick={() => { setSelectedLog(r); setDetailOpen(true); }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a', marginBottom: 2 }}>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a', marginBottom: 2 }}>
                         {r.entityTitle || r.entityType || 'System Activity'}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', lineHeight: 1.4, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.description || 'No description'}
                     </div>
                 </div>
@@ -244,14 +244,14 @@ const ActivityLog = () => {
                 return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
-                            width: 26, height: 26, borderRadius: 8,
+                            width: 26, height: 26, borderRadius: "var(--radius-md)",
                             background: isSystem ? 'linear-gradient(135deg, #1976D2, #1976D2)' : 'linear-gradient(135deg, #9C27B0, #d946ef)',
-                            color: '#fff', fontWeight: 700, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
                             {name.charAt(0)}
                         </div>
                         <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{name}</div>
+                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>{name}</div>
                             {email && <div style={{ fontSize: 10, color: '#94a3b8' }}>{email}</div>}
                         </div>
                     </div>
@@ -265,7 +265,7 @@ const ActivityLog = () => {
             sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
             render: (_, r) => (
                 <Tooltip title={formatTime(r.createdAt)}>
-                    <div style={{ fontSize: 12, color: '#475569', fontWeight: 500 }}>{relativeTime(r.createdAt)}</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#475569', fontWeight: 500 }}>{relativeTime(r.createdAt)}</div>
                 </Tooltip>
             )
         },
@@ -288,7 +288,7 @@ const ActivityLog = () => {
         {
             title: 'Time', dataIndex: 'CreatedAt', key: 'CreatedAt', width: 150,
             sorter: (a, b) => new Date(a.CreatedAt) - new Date(b.CreatedAt),
-            render: (v) => <span style={{ fontSize: 12, color: '#475569' }}>{formatTime(v)}</span>
+            render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: '#475569' }}>{formatTime(v)}</span>
         },
         {
             title: 'User', key: 'user', width: 180,
@@ -297,9 +297,9 @@ const ActivityLog = () => {
                 const initial = (r.FirstName || r.Email || 'U')[0].toUpperCase();
                 return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: 8, background: '#1976D2', color: '#fff', fontWeight: 700, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initial}</div>
+                        <div style={{ width: 26, height: 26, borderRadius: "var(--radius-md)", background: '#1976D2', color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initial}</div>
                         <div>
-                            <div style={{ fontSize: 12, fontWeight: 600 }}>{name}</div>
+                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{name}</div>
                             <div style={{ fontSize: 10, color: '#94a3b8' }}>{r.Email}</div>
                         </div>
                     </div>
@@ -317,13 +317,13 @@ const ActivityLog = () => {
         {
             title: 'Status', dataIndex: 'Status', key: 'Status', width: 90,
             render: (v) => (
-                <Tag style={{ borderRadius: 6, fontWeight: 600, fontSize: 10, background: v === 'SUCCESS' ? '#dcfce7' : '#fee2e2', color: v === 'SUCCESS' ? '#16a34a' : '#C62828', border: `1px solid ${v === 'SUCCESS' ? '#bbf7d0' : '#fecaca'}` }}>
+                <Tag style={{ borderRadius: 6, fontWeight: 600, fontSize: 10, background: v === 'SUCCESS' ? '#dcfce7' : '#fee2e2', color: v === 'SUCCESS' ? '#2E7D32' : '#C62828', border: `1px solid ${v === 'SUCCESS' ? '#bbf7d0' : '#fecaca'}` }}>
                     {v}
                 </Tag>
             )
         },
-        { title: 'Reason', dataIndex: 'Reason', key: 'Reason', width: 160, ellipsis: true, render: (v) => <span style={{ fontSize: 12, color: v ? '#475569' : '#d4d4d8' }}>{v || '—'}</span> },
-        { title: 'IP', dataIndex: 'IpAddress', key: 'IpAddress', width: 120, render: (v) => <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b' }}>{v || '—'}</span> },
+        { title: 'Reason', dataIndex: 'Reason', key: 'Reason', width: 160, ellipsis: true, render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: v ? '#475569' : '#d4d4d8' }}>{v || '—'}</span> },
+        { title: 'IP', dataIndex: 'IpAddress', key: 'IpAddress', width: 120, render: (v) => <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: '#64748b' }}>{v || '—'}</span> },
     ];
 
     return (
@@ -333,16 +333,16 @@ const ActivityLog = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', margin: 0 }}>
                                 {activeTab === 'activity' ? 'Activity Log' : 'OTP Audit'}
                             </h2>
                             {activeTab === 'activity' && total > 0 && (
-                                <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                                     {total.toLocaleString()} events
                                 </span>
                             )}
                         </div>
-                        <p style={{ fontSize: 13, color: '#64748b', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
+                        <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
                             {activeTab === 'activity' ? 'Track system events, user actions, and automation logs.' : 'OTP verification attempts and security events.'}
                         </p>
                     </div>
@@ -351,12 +351,12 @@ const ActivityLog = () => {
                             value={activeTab}
                             onChange={setActiveTab}
                             options={[
-                                { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}><Activity size={12} /> System Logs</span>, value: 'activity' },
-                                { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}><Shield size={12} /> OTP Audit</span>, value: 'otp' },
+                                { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--font-size-sm)', fontWeight: 600 }}><Activity size={12} /> System Logs</span>, value: 'activity' },
+                                { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--font-size-sm)', fontWeight: 600 }}><Shield size={12} /> OTP Audit</span>, value: 'otp' },
                             ]}
                         />
                         <Button icon={<RefreshCw size={13} />} onClick={activeTab === 'activity' ? fetchLogs : () => fetchOtpLogs(1)} loading={loading || otpLoading}
-                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32, border: '1px solid #e2e8f0' }}>
+                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, border: '1px solid #e2e8f0' }}>
                             Refresh
                         </Button>
                     </div>
@@ -371,36 +371,36 @@ const ActivityLog = () => {
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                             <Input prefix={<Search size={13} style={{ color: '#94a3b8' }} />} size="small" allowClear
                                 placeholder="Search events..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                                style={{ width: 240, borderRadius: 8 }} />
+                                style={{ width: 240, borderRadius: "var(--radius-md)" }} />
                             <Select size="small" value={filterType} onChange={v => { setFilterType(v); setPage(1); }}
-                                style={{ width: 150, borderRadius: 8 }}
+                                style={{ width: 150, borderRadius: "var(--radius-md)" }}
                                 options={[
                                     { value: 'ALL', label: 'All Events' },
                                     ...IMPORTANT_TYPES.map(t => ({ value: t, label: TYPE_STYLES[t]?.label || t }))
                                 ]} />
                             <RangePicker size="small" value={dateRange} onChange={v => { setDateRange(v); setPage(1); }}
-                                style={{ width: 230, borderRadius: 8 }} />
+                                style={{ width: 230, borderRadius: "var(--radius-md)" }} />
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-                                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>Show all</span>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 500 }}>Show all</span>
                                 <input type="checkbox" checked={showAllEvents}
                                     onChange={e => { setShowAllEvents(e.target.checked); setPage(1); }}
                                     style={{ accentColor: '#1976D2' }} />
                             </div>
                             {hasFilters && (
-                                <Button size="small" danger onClick={clearFilters} style={{ borderRadius: 6, fontSize: 11 }}>Clear</Button>
+                                <Button size="small" danger onClick={clearFilters} style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)' }}>Clear</Button>
                             )}
                         </div>
 
                         {/* Table */}
-                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                             <Table className="activity-table" columns={columns} dataSource={logs} rowKey={r => r._id || Math.random().toString()}
                                 loading={loading} size="small" scroll={{ x: 'max-content' }}
                                 pagination={{
                                     current: page, pageSize, total,
                                     showSizeChanger: true, pageSizeOptions: ['25', '50', '100'],
                                     showTotal: (t, range) => (
-                                        <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
-                                            Showing <span style={{ fontWeight: 700, color: '#0f172a' }}>{range[0]}-{range[1]}</span> of <span style={{ fontWeight: 700, color: '#0f172a' }}>{t.toLocaleString()}</span> events
+                                        <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 500 }}>
+                                            Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{range[0]}-{range[1]}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{t.toLocaleString()}</span> events
                                         </span>
                                     ),
                                     onChange: (p, ps) => { setPage(p); if (ps !== pageSize) setPageSize(ps); }
@@ -415,16 +415,16 @@ const ActivityLog = () => {
                     <>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                             <Select size="small" allowClear placeholder="Action" value={otpActionFilter || undefined}
-                                onChange={v => setOtpActionFilter(v || '')} style={{ width: 140, borderRadius: 8 }}
+                                onChange={v => setOtpActionFilter(v || '')} style={{ width: 140, borderRadius: "var(--radius-md)" }}
                                 options={[{ value: 'OTP_SENT', label: 'Sent' }, { value: 'OTP_VERIFIED', label: 'Verified' }, { value: 'OTP_FAILED', label: 'Failed' }]} />
                             <Input prefix={<Search size={12} />} size="small" placeholder="Email..." allowClear value={otpEmailFilter}
-                                onChange={e => setOtpEmailFilter(e.target.value)} style={{ width: 200, borderRadius: 8 }} />
+                                onChange={e => setOtpEmailFilter(e.target.value)} style={{ width: 200, borderRadius: "var(--radius-md)" }} />
                         </div>
-                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
                             <Table className="activity-table" columns={otpColumns} dataSource={otpLogs} rowKey={r => r.Id || r.id}
                                 loading={otpLoading} size="small" scroll={{ x: 'max-content' }}
                                 pagination={{ current: otpPage, pageSize: 20, total: otpTotal, onChange: fetchOtpLogs,
-                                    showTotal: t => <span style={{ fontSize: 12, color: '#64748b' }}>{t} records</span> }} />
+                                    showTotal: t => <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>{t} records</span> }} />
                         </div>
                     </>
                 )}
@@ -434,16 +434,16 @@ const ActivityLog = () => {
             <Modal open={detailOpen} onCancel={() => setDetailOpen(false)} centered width={620} destroyOnHidden
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #1976D2, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'linear-gradient(135deg, #1976D2, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Activity size={15} style={{ color: '#fff' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Event Details</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{selectedLog?.type || 'Activity'}</div>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Event Details</div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{selectedLog?.type || 'Activity'}</div>
                         </div>
                     </div>
                 }
-                footer={<Button type="primary" onClick={() => setDetailOpen(false)} style={{ borderRadius: 8, fontWeight: 600, fontSize: 11 }}>Close</Button>}
+                footer={<Button type="primary" onClick={() => setDetailOpen(false)} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Close</Button>}
             >
                 {selectedLog && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -455,18 +455,18 @@ const ActivityLog = () => {
                             <Descriptions.Item label="Time" span={2}>{formatTime(selectedLog.createdAt)}</Descriptions.Item>
                             <Descriptions.Item label="User" span={2}>
                                 {selectedLog.user?.firstName ? `${selectedLog.user.firstName} ${selectedLog.user.lastName || ''}` : 'System'}
-                                {selectedLog.user?.email && <Text type="secondary" style={{ marginLeft: 6, fontSize: 11 }}>({selectedLog.user.email})</Text>}
+                                {selectedLog.user?.email && <Text type="secondary" style={{ marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>({selectedLog.user.email})</Text>}
                             </Descriptions.Item>
                         </Descriptions>
                         <div>
-                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.05em' }}>Description</Text>
-                            <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, lineHeight: 1.6, color: '#1e293b' }}>
+                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Description</Text>
+                            <div style={{ padding: 14, background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, color: '#1e293b' }}>
                                 {selectedLog.description || 'No description available.'}
                             </div>
                         </div>
                         <div>
-                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.05em' }}>Metadata</Text>
-                            <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: 8, border: '1px solid #f1f5f9' }}>
+                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Metadata</Text>
+                            <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: "var(--radius-md)", border: '1px solid #f1f5f9' }}>
                                 {renderMetadata(selectedLog.metadata)}
                             </div>
                         </div>

@@ -17,7 +17,7 @@ const Breadcrumbs = ({ items = [], className = '' }) => {
                                     <Link
                                         to={typeof item.route === 'object' ? item.route.path || '/' : item.route}
                                         className="d-flex align-items-center text-decoration-none transition-base hover-opacity"
-                                        style={{ color: '#64748b', fontSize: '13px', fontWeight: 500 }}
+                                        style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
                                     >
                                         {Icon && <Icon size={14} className="me-2" strokeWidth={2.5} />}
                                         <span>{item.label}</span>
@@ -25,7 +25,7 @@ const Breadcrumbs = ({ items = [], className = '' }) => {
                                 ) : (
                                     <div
                                         className="d-flex align-items-center"
-                                        style={{ color: isLast ? '#111827' : '#64748b', fontSize: '13px', fontWeight: isLast ? 700 : 500 }}
+                                        style={{ color: isLast ? '#111827' : '#64748b', fontSize: 'var(--font-size-sm)', fontWeight: isLast ? 700 : 500 }}
                                     >
                                         {Icon && <Icon size={14} className="me-2" strokeWidth={2.5} />}
                                         <span>{item.label}</span>

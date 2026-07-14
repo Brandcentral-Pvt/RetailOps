@@ -80,7 +80,7 @@ const OctoparseAutomationToggle = () => {
             </div>
             <div>
               <h6 className="mb-1 fw-bold text-zinc-900">Automation</h6>
-              <p className="mb-0 text-zinc-500" style={{ fontSize: '13px' }}>
+              <p className="mb-0 text-zinc-500" style={{ fontSize: 'var(--font-size-sm)' }}>
                 {enabled
                   ? 'Auto-scraping is active — new ASINs will be synced automatically'
                   : 'Auto-scraping is paused — manual sync required for all ASINs'}
@@ -110,7 +110,7 @@ const OctoparseAutomationToggle = () => {
                 ? 'bg-success-subtle text-success'
                 : 'bg-danger-subtle text-danger'
               }`}
-            style={{ fontSize: '12px' }}
+            style={{ fontSize: 'var(--font-size-sm)' }}
           >
             {message.type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
             {message.text}
@@ -121,7 +121,7 @@ const OctoparseAutomationToggle = () => {
         <div className="px-4 pb-4 pt-2 border-top bg-zinc-50">
           <div className="d-flex align-items-center gap-2 mt-3">
             <RefreshCw size={12} className="text-zinc-400" />
-            <span className="text-zinc-500" style={{ fontSize: '11px' }}>
+            <span className="text-zinc-500" style={{ fontSize: 'var(--font-size-xs)' }}>
               {enabled
                 ? 'Octoparse will automatically inject URLs and start scraping when new ASINs are added'
                 : 'You can still manually trigger syncs from the ASIN Manager page'}

@@ -177,6 +177,23 @@ export function ProfileSkeleton({ className = '' }) {
   );
 }
 
+// ─── ChartSkeleton ────────────────────────────────────────────────────────
+export function ChartSkeleton({ height = 280, className = '' }) {
+  const barHeights = [60, 80, 45, 90, 70, 55, 85, 65, 75, 50, 95, 60];
+
+  return (
+    <div className={`sk-chart ${className}`} style={{ height: `${height}px` }}>
+      {barHeights.map((h, i) => (
+        <div
+          key={i}
+          className="sk-chart__bar"
+          style={{ height: `${h}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── Re-export base Skeleton ─────────────────────────────────────────────────
 export { default as Skeleton } from './Skeleton.jsx';
 export { default } from './Skeleton.jsx';

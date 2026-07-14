@@ -206,7 +206,7 @@ export default function AdsManagerPage() {
     return { series, yaxis, colors };
   }, [chartConfigMetrics, globalChartData]);
 
-  const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
+  const btnStyle = { borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 };
 
   if (loading && !data.length) return <Spinner />;
 
@@ -218,14 +218,14 @@ export default function AdsManagerPage() {
       <InsightPanel data={data} />
 
       {/* FILTERS & CONTROLS */}
-      <Card size="small" style={{ borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 16px' } }}>
+      <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 16px' } }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Input.Search
             placeholder="Search ASIN, SKU..."
             allowClear
             onSearch={setSearchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: 220, borderRadius: 8 }}
+            style={{ width: 220, borderRadius: "var(--radius-md)" }}
             size="small"
           />
           <Segmented value={groupBy} onChange={setGroupBy}
@@ -236,7 +236,7 @@ export default function AdsManagerPage() {
             value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
             onChange={handleDateChange}
             format="DD MMM YYYY"
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: "var(--radius-md)" }}
             size="small"
             presets={[
               { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },
@@ -246,7 +246,7 @@ export default function AdsManagerPage() {
             ]}
           />
           <Button size="small" icon={<Filter size={13} />} onClick={() => setShowFilters(!showFilters)}
-            style={{ borderRadius: 8, fontWeight: 600, fontSize: 11 }}>
+            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
             {showFilters ? 'Less' : 'More'}
           </Button>
 
@@ -332,18 +332,18 @@ export default function AdsManagerPage() {
 
       {/* CHART */}
       {showDashboardCharts && (
-        <Card size="small" style={{ borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 14px' } }}>
+        <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 14px' } }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 3, height: 14, background: '#1976D2', borderRadius: 2 }} />
-              <Text strong style={{ color: '#0f172a', fontSize: 13 }}>Campaign Trends</Text>
+              <Text strong style={{ color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Campaign Trends</Text>
             </div>
             <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics} style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics" maxTagCount="responsive" options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))} />
           </div>
           <div style={{ height: 320 }}>
             {dynamicChartState.series.length > 0 ? (
-              <Chart height="100%" type="line" series={dynamicChartState.series} options={{ chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' }, stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' }, colors: dynamicChartState.colors, dataLabels: { enabled: false }, xaxis: { categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } } }, yaxis: dynamicChartState.yaxis, grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }, legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 700, fontSize: '10px' }, tooltip: { shared: true, intersect: false, theme: 'light' } }} />
-            ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 12 }}>Select metrics to view chart</div>}
+              <Chart height="100%" type="line" series={dynamicChartState.series} options={{ chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' }, stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' }, colors: dynamicChartState.colors, dataLabels: { enabled: false }, xaxis: { categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } } }, yaxis: dynamicChartState.yaxis, grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }, legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 600, fontSize: '10px' }, tooltip: { shared: true, intersect: false, theme: 'light' } }} />
+            ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>Select metrics to view chart</div>}
           </div>
         </Card>
       )}
@@ -353,13 +353,13 @@ export default function AdsManagerPage() {
         size="small"
         title={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Campaign Performance Details</span>
+            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>Campaign Performance Details</span>
             <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20 }}>
-              Showing <span style={{ color: '#0f172a', fontWeight: 700 }}>{data.length}</span> of <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
+              Showing <span style={{ color: '#0f172a', fontWeight: 600 }}>{data.length}</span> of <span style={{ color: '#0f172a', fontWeight: 600 }}>{totalCount}</span>
             </span>
           </div>
         }
-        style={{ borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
+        style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
         styles={{ body: { padding: 0 } }}
       >
         <AdsTable

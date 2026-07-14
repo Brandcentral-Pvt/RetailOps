@@ -305,7 +305,7 @@ const AdvancedDateRangePicker = ({
                     <div className="picker-sidebar">
                         <div className="sidebar-preset-header" style={{ 
                             padding: '12px 20px', 
-                            fontSize: '12px', 
+                            fontSize: 'var(--font-size-sm)', 
                             fontWeight: '600', 
                             color: '#9ca3af', 
                             textTransform: 'uppercase',

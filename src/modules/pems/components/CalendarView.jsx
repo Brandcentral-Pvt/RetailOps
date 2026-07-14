@@ -53,7 +53,7 @@ export default function CalendarView({ instances, onView, loading }) {
       {/* Weekday headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
         {WEEKDAYS.map(d => (
-          <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#94a3b8', padding: '4px 0' }}>{d}</div>
+          <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#94a3b8', padding: '4px 0' }}>{d}</div>
         ))}
       </div>
 
@@ -77,8 +77,8 @@ export default function CalendarView({ instances, onView, loading }) {
               cursor: tasks.length > 0 ? 'pointer' : 'default',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                <Text style={{ fontSize: 11, fontWeight: isToday ? 800 : 500, color: isToday ? '#2563eb' : '#475569' }}>{day}</Text>
-                {overdueCount > 0 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />}
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: isToday ? 800 : 500, color: isToday ? '#2563eb' : '#475569' }}>{day}</Text>
+                {overdueCount > 0 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D32F2F' }} />}
               </div>
               {tasks.slice(0, 3).map(task => {
                 const cfg = WORKFLOW_STATUSES[task.Status] || {};
@@ -108,7 +108,7 @@ export default function CalendarView({ instances, onView, loading }) {
       <div style={{ display: 'flex', gap: 12, marginTop: 8, justifyContent: 'center' }}>
         {[
           { label: 'Today', color: '#2563eb' },
-          { label: 'Overdue', color: '#dc2626' },
+          { label: 'Overdue', color: '#D32F2F' },
           { label: 'Tasks', color: '#64748b' },
         ].map(l => (
           <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

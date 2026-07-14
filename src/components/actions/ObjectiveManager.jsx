@@ -165,7 +165,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
     <>
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
             {isEditMode ? 'Edit Objective' : 'Create Objective'}
           </span>
         </Space>
@@ -174,7 +174,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
       <div style={{ ...MODAL_STYLES.bodyStyle, maxHeight: '70vh', overflowY: 'auto' }}>
         <Row gutter={24}>
           <Col span={13}>
-            <Text strong style={{ fontSize: 13, color: '#1e293b', display: 'block', marginBottom: 16 }}>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 16 }}>
               Objective Details
             </Text>
             <Form form={form} layout="vertical" scrollToFirstError>
@@ -193,7 +193,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                 name="description"
                 label={<span style={labelStyle}>Description</span>}
               >
-                <TextArea rows={3} placeholder="Describe the objective..." style={{ borderRadius: 8, fontSize: 13 }} />
+                <TextArea rows={3} placeholder="Describe the objective..." style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }} />
               </Form.Item>
 
               <Form.Item
@@ -236,7 +236,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                       {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map(p => (
                         <Radio.Button key={p} value={p} style={{
                           flex: 1, textAlign: 'center', height: 34, lineHeight: '32px',
-                          borderRadius: 6, fontSize: 11, fontWeight: 600,
+                          borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600,
                         }}>
                           {p.charAt(0) + p.slice(1).toLowerCase()}
                         </Radio.Button>
@@ -250,30 +250,30 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
 
           <Col span={11}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text strong style={{ fontSize: 13, color: '#1e293b' }}>Key Results</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>Key Results</Text>
               <Button
                 size="small"
                 icon={<PlusOutlined />}
                 onClick={addKeyResult}
                 disabled={keyResults.length >= 10}
-                style={{ borderRadius: 6, fontSize: 12, height: 28 }}
+                style={{ borderRadius: 6, fontSize: 'var(--font-size-sm)', height: 28 }}
               >
                 Add KR
               </Button>
             </div>
 
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginBottom: 12 }}>
               {keyResults.length} / 10 key results
             </div>
 
             {keyResults.length === 0 ? (
               <Card
                 styles={{ body: { padding: '20px 16px', textAlign: 'center' } }}
-                style={{ borderRadius: 8, border: '1px dashed #e2e8f0', background: '#fafbfc' }}
+                style={{ borderRadius: "var(--radius-md)", border: '1px dashed #e2e8f0', background: '#fafbfc' }}
               >
                 <Empty
                   image={<FlagOutlined style={{ fontSize: 32, color: '#cbd5e1' }} />}
-                  description={<Text style={{ fontSize: 12, color: '#94a3b8' }}>Add at least one key result to measure progress</Text>}
+                  description={<Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>Add at least one key result to measure progress</Text>}
                 >
                   <Button size="small" icon={<PlusOutlined />} onClick={addKeyResult} style={{ borderRadius: 6, marginTop: 8 }}>
                     Add First Key Result
@@ -287,13 +287,13 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                     key={i}
                     size="small"
                     style={{
-                      borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 8,
+                      borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', marginBottom: 8,
                       boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                     }}
                     styles={{ body: { padding: '12px' } }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <Text style={{ fontSize: 11, fontWeight: 600, color: '#1976D2' }}>KR #{i + 1}</Text>
+                      <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#1976D2' }}>KR #{i + 1}</Text>
                       {keyResults.length > 1 && (
                         <Button
                           type="text"
@@ -312,7 +312,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                         placeholder="e.g. Increase revenue by 20%"
                         value={kr.title}
                         onChange={e => updateKeyResult(i, 'title', e.target.value)}
-                        style={{ ...inputStyle, height: 32, fontSize: 12 }}
+                        style={{ ...inputStyle, height: 32, fontSize: 'var(--font-size-sm)' }}
                       />
                     </div>
 
@@ -322,7 +322,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                         placeholder="e.g. 20% or £50,000"
                         value={kr.targetMetric}
                         onChange={e => updateKeyResult(i, 'targetMetric', e.target.value)}
-                        style={{ ...inputStyle, height: 32, fontSize: 12 }}
+                        style={{ ...inputStyle, height: 32, fontSize: 'var(--font-size-sm)' }}
                       />
                     </div>
 

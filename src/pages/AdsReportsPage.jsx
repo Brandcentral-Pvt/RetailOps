@@ -48,7 +48,7 @@ const AdsReportsPage = () => {
     }
   };
 
-  const btnStyle = { borderRadius: 8, fontWeight: 600, fontSize: 11, height: 32 };
+  const btnStyle = { borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 };
 
   if (loading && !data.length) return <Spinner />;
 
@@ -59,8 +59,8 @@ const AdsReportsPage = () => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#18181b', margin: 0 }}>Ads Reports</h2>
-          <p style={{ fontSize: 12, color: '#71717a', margin: 0, marginTop: 4 }}>Comprehensive advertising analytics and insights</p>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#18181b', margin: 0 }}>Ads Reports</h2>
+          <p style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', margin: 0, marginTop: 4 }}>Comprehensive advertising analytics and insights</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Segmented 
@@ -77,7 +77,7 @@ const AdsReportsPage = () => {
             value={startDate && endDate ? [dayjs(startDate), dayjs(endDate)] : null}
             onChange={handleDateChange}
             format="DD MMM YYYY"
-            style={{ borderRadius: 8, width: 220 }}
+            style={{ borderRadius: "var(--radius-md)", width: 220 }}
             size="small"
             presets={[
               { label: 'Last 7 Days', value: [dayjs().subtract(6, 'day'), dayjs()] },

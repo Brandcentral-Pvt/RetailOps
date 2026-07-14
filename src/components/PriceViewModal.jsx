@@ -21,7 +21,7 @@ const C = {
   borderLight: '#f0f0f3',
   bg: '#f4f5f7',
   white: '#fff',
-  success: '#22c55e',
+  success: '#2E7D32',
   successBg: '#f0fdf4',
   warning: '#ED6C02',
   warningBg: '#fffbeb',
@@ -429,15 +429,15 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 32 }}>
           <Space size={12}>
-            <div style={{ background: C.primaryLight, padding: 8, borderRadius: 8, color: C.primary, display: 'flex' }}>
+            <div style={{ background: C.primaryLight, padding: 8, borderRadius: "var(--radius-md)", color: C.primary, display: 'flex' }}>
               <IndianRupee size={18} />
             </div>
             <div>
               <Text strong style={{ fontSize: 15, color: C.dark }}>Price Dynamics Matrix</Text>
               <Space size={8} style={{ marginTop: 2 }}>
                 <Badge count={totalCount.toLocaleString()} style={{ backgroundColor: C.border, color: C.text, fontSize: 10, fontWeight: 600, boxShadow: 'none' }} overflowCount={999999} />
-                <Text type="secondary" style={{ fontSize: 11 }}>·</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>Avg Market Price: ₹{stats.avgPrice.toLocaleString()}</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>·</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Avg Market Price: ₹{stats.avgPrice.toLocaleString()}</Text>
               </Space>
             </div>
           </Space>
@@ -448,10 +448,10 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
               </button>
               {showExportMenu && !exporting && (
                 <div className="position-absolute bg-white border rounded-lg shadow-xl p-1" style={{ top: '100%', right: 0, zIndex: 100, marginTop: 4, minWidth: 160 }}>
-                  <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('excel')} style={{ fontSize: 11, border: 'none', background: 'transparent' }}>
+                  <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('excel')} style={{ fontSize: 'var(--font-size-xs)', border: 'none', background: 'transparent' }}>
                     <FileText size={14} style={{ color: C.success }} /> Export Excel (.xlsx)
                   </button>
-                  <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('csv')} style={{ fontSize: 11, border: 'none', background: 'transparent' }}>
+                  <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('csv')} style={{ fontSize: 'var(--font-size-xs)', border: 'none', background: 'transparent' }}>
                     <FileText size={14} color="#0288D1" /> Export CSV (.csv)
                   </button>
                 </div>
@@ -474,7 +474,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
           <Search size={13} className="position-absolute top-50 start-0 translate-middle-y ms-2.5 text-zinc-400" style={{ marginLeft: 10 }} />
           <input className="form-control form-control-sm ps-5 rounded-3" placeholder="Search ASIN, SKU..." value={localSearch}
             onChange={e => setLocalSearch(e.target.value)}
-            style={{ fontSize: 11, height: 30, border: `1.5px solid ${C.border}`, borderRadius: 6, paddingLeft: 28 }} />
+            style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, borderRadius: 6, paddingLeft: 28 }} />
         </div>
 
         <div style={{ width: 180 }}>
@@ -489,12 +489,12 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
         <div className="d-flex align-items-center gap-1">
           <Calendar size={12} style={{ color: C.textSecondary }} />
           <input type="date" className="form-control form-control-sm rounded-3"
-            style={{ fontSize: 11, height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
+            style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
             value={dateRange.startDate}
             onChange={e => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
           <span style={{ color: C.border }}>–</span>
           <input type="date" className="form-control form-control-sm rounded-3"
-            style={{ fontSize: 11, height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
+            style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
             value={dateRange.endDate}
             onChange={e => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
         </div>
@@ -524,7 +524,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
         )}
 
         {loading && (
-          <span className="d-flex align-items-center gap-1 ms-auto" style={{ fontSize: 11, color: C.textSecondary }}>
+          <span className="d-flex align-items-center gap-1 ms-auto" style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
             <Loader2 size={13} className="animate-spin" /> Updating...
           </span>
         )}
@@ -533,16 +533,16 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
       {/* APPLIED FILTERS BADGES */}
       {filterBadges.length > 0 && (
         <div className="px-3 py-1.5 d-flex align-items-center flex-wrap gap-1.5" style={{ background: C.bg, borderBottom: `1px solid ${C.borderLight}` }}>
-          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSecondary, marginRight: 4 }}>Context</span>
+          <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSecondary, marginRight: 4 }}>Context</span>
           {filterBadges.map(b => (
-            <div key={b.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: C.white, border: `1px solid ${C.border}`, color: C.text }}>
+            <div key={b.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: "var(--radius-sm)", fontSize: 10, fontWeight: 600, background: C.white, border: `1px solid ${C.border}`, color: C.text }}>
               {b.icon}{b.label}
               <button className="btn btn-link p-0" onClick={b.onRemove} style={{ color: C.textSecondary, lineHeight: 1, border: 'none', background: 'transparent', cursor: 'pointer' }}>
                 <X size={10} />
               </button>
             </div>
           ))}
-          <button className="btn btn-link p-0 ms-auto" onClick={resetAllFilters} style={{ fontSize: 9, fontWeight: 700, color: C.danger, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          <button className="btn btn-link p-0 ms-auto" onClick={resetAllFilters} style={{ fontSize: 9, fontWeight: 600, color: C.danger, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer' }}>
             CLEAR ALL
           </button>
         </div>
@@ -550,7 +550,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
 
       {showFilters && (
         <div className="px-3 py-2 d-flex gap-3 align-items-center flex-shrink-0" style={{ background: C.bg, borderBottom: `1px solid ${C.borderLight}` }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: C.textSecondary }}>Price Range:</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: C.textSecondary }}>Price Range:</span>
           <div className="d-flex align-items-center gap-1 bg-white p-1 rounded-2 border" style={{ borderColor: C.border }}>
             <input type="number" className="inp-sm border-0" placeholder="Min" value={filterPriceRange.min}
               onChange={e => setFilterPriceRange(prev => ({ ...prev, min: e.target.value }))} />
@@ -614,12 +614,12 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
                 <td style={{ position: 'sticky', left: 36, background: idx % 2 === 0 ? '#fff' : '#fafafa', zIndex: 20, textAlign: 'center', color: C.textSecondary }}>{idx + 1}</td>
                 <td style={{ position: 'sticky', left: 72, background: idx % 2 === 0 ? '#fff' : '#fafafa', zIndex: 20 }}>
                   <a href={`https://www.amazon.in/dp/${item.asinCode}`} target="_blank" rel="noopener noreferrer"
-                    style={{ color: C.primary, fontWeight: 600, fontSize: 11, textDecoration: 'none' }}>
+                    style={{ color: C.primary, fontWeight: 600, fontSize: 'var(--font-size-xs)', textDecoration: 'none' }}>
                     {item.asinCode}
                   </a>
                 </td>
                 <td style={{ maxWidth: 120, fontSize: 10, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.sku || ''}>{item.sku || '—'}</td>
-                <td className="text-end fw-bold price-cell" style={{ fontSize: 11 }}>
+                <td className="text-end fw-bold price-cell" style={{ fontSize: 'var(--font-size-xs)' }}>
                   <div className="d-flex flex-column align-items-end">
                     <span style={{ color: C.success }}>₹{(item.uploadedPrice || item.currentPrice || 0).toLocaleString()}</span>
                     {item.uploadedPrice > 0 && item.currentPrice > 0 && Math.abs(item.uploadedPrice - item.currentPrice) > 0.01 && (
@@ -629,7 +629,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
                 </td>
                 <td className="text-center">
                   {item.discountPercent > 0
-                    ? <Tag color="error" style={{ fontSize: 10, border: 'none', fontWeight: 700 }}>-{item.discountPercent}%</Tag>
+                    ? <Tag color="error" style={{ fontSize: 10, border: 'none', fontWeight: 600 }}>-{item.discountPercent}%</Tag>
                     : <span style={{ color: C.border }}>—</span>}
                 </td>
                 {item.dateValues.map((dv, di) => {
@@ -643,7 +643,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
                 })}
                 <td className="text-center" style={{ background: C.warningBg, borderLeft: `1px solid ${C.border}` }}>
                   {item.woWChange !== 0 ? (
-                    <span className={`d-inline-flex align-items-center gap-1 fw-bold ${item.wowTrend === 'up' ? 'up' : 'dn'}`} style={{ fontSize: 11 }}>
+                    <span className={`d-inline-flex align-items-center gap-1 fw-bold ${item.wowTrend === 'up' ? 'up' : 'dn'}`} style={{ fontSize: 'var(--font-size-xs)' }}>
                       {item.wowTrend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                       {Math.abs(item.woWPercent).toFixed(1)}%
                     </span>
@@ -670,10 +670,10 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
 
       {/* FOOTER */}
       <div className="px-3 py-2 d-flex justify-content-between align-items-center flex-shrink-0 border-top" style={{ background: C.bg }}>
-        <span style={{ fontSize: 11, color: C.textSecondary, fontWeight: 500 }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary, fontWeight: 500 }}>
           Showing {asins.length.toLocaleString()} of {totalCount.toLocaleString()} ASINs
         </span>
-        <span style={{ fontSize: 11, color: C.textSecondary }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
           {loading ? 'Fetching...' : hasMore ? 'Scroll for more' : 'End of records'}
         </span>
       </div>

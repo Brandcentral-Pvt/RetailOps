@@ -11,8 +11,8 @@ const { Text } = Typography;
 
 const ACTION_CONFIG = {
   CREATED: { icon: <ThunderboltOutlined style={{ fontSize: 9 }} />, color: '#2563eb', bg: '#eff6ff' },
-  STATUS_CHANGED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: '#16a34a', bg: '#f0fdf4' },
-  SUBTASK_COMPLETED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: '#16a34a', bg: '#f0fdf4' },
+  STATUS_CHANGED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: '#2E7D32', bg: '#f0fdf4' },
+  SUBTASK_COMPLETED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: '#2E7D32', bg: '#f0fdf4' },
   EVIDENCE_UPLOADED: { icon: <EditOutlined style={{ fontSize: 9 }} />, color: '#9333ea', bg: '#f5f3ff' },
 };
 
@@ -62,11 +62,11 @@ export default function LiveActivityFeed({ compact = false }) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: "var(--radius-md)", background: '#f8fafc', border: '1px solid #f1f5f9' }}>
       <div style={{ width: 20, height: 20, borderRadius: 5, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
         {cfg.icon}
       </div>
-      <Text style={{ fontSize: 11, color: '#334155', flex: 1 }}>
+      <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155', flex: 1 }}>
         <Text strong>{current.ActorName || 'System'}</Text>{' '}
         {current.Action.replace(/_/g, ' ').toLowerCase()}
         {current.InstanceCode && <> <Text strong style={{ color: '#2563eb' }}>{current.InstanceCode}</Text></>}

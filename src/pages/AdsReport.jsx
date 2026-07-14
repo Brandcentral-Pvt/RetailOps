@@ -274,7 +274,7 @@ const efficiencyMetrics = useMemo(() => {
         axisBorder: { show: false }, axisTicks: { show: false },
         labels: { style: { colors: '#64748b', fontSize: '10px' }, rotate: -45, rotateAlways: dates.length > 14 }
       },
-      legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', fontWeight: 600, labels: { colors: '#64748b' } },
+      legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-xs)', fontWeight: 600, labels: { colors: '#64748b' } },
       tooltip: { theme: 'light' },
       markers: { size: 3, strokeWidth: 0, hover: { size: 5 } },
       dataLabels: { enabled: false },
@@ -336,8 +336,8 @@ const efficiencyMetrics = useMemo(() => {
             stroke: { curve: 'smooth', width: [0, 2] },
             plotOptions: { bar: { borderRadius: 3, columnWidth: '50%' } },
             yaxis: [
-              { title: { text: 'Clicks', style: { color: '#64748b', fontSize: '11px' } }, labels: { style: { colors: '#64748b' }, formatter: v => fmtNum(v) } },
-              { opposite: true, title: { text: 'Impressions', style: { color: '#64748b', fontSize: '11px' } }, labels: { style: { colors: '#64748b' }, formatter: v => fmt(v, '') } }
+              { title: { text: 'Clicks', style: { color: '#64748b', fontSize: 'var(--font-size-xs)' } }, labels: { style: { colors: '#64748b' }, formatter: v => fmtNum(v) } },
+              { opposite: true, title: { text: 'Impressions', style: { color: '#64748b', fontSize: 'var(--font-size-xs)' } }, labels: { style: { colors: '#64748b' }, formatter: v => fmt(v, '') } }
             ], xaxis: base.xaxis
           },
           series: [
@@ -545,7 +545,7 @@ const efficiencyMetrics = useMemo(() => {
             <div className="d-flex flex-column">
               <div className="d-flex align-items-center gap-2">
                 {isDaily ? (
-                  <span className="text-zinc-500 fw-600" style={{ fontSize: '11px' }}>{formatDateShort(row.date)}</span>
+                  <span className="text-zinc-500 fw-600" style={{ fontSize: 'var(--font-size-xs)' }}>{formatDateShort(row.date)}</span>
                 ) : (
                   <>
                     <span className={`asin-cell ${!isChild ? 'fw-700' : 'fw-500 text-zinc-600'}`}>{row.asin}</span>
@@ -574,7 +574,7 @@ const efficiencyMetrics = useMemo(() => {
       case 'acos': {
         const val = v || 0;
         const cls = val === 0 ? '' : val <= 15 ? 'acos-green' : val <= 30 ? 'acos-amber' : 'acos-red';
-        return <span className={cls} style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{val === 0 ? '—' : `${val.toFixed(1)}%`}</span>;
+        return <span className={cls} style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{val === 0 ? '—' : `${val.toFixed(1)}%`}</span>;
       }
       default: return v || '—';
     }
@@ -621,7 +621,7 @@ const efficiencyMetrics = useMemo(() => {
             <div className="d-flex gap-2">
               <button
                 className={`btn btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all border shadow-sm ${compareMode ? 'btn-primary border-primary' : 'btn-white border-zinc-200 text-zinc-600'}`}
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: 'var(--font-size-xs)' }}
                 onClick={() => setCompareMode(!compareMode)}
               >
                 <Activity size={14} className="me-1" /> Compare
@@ -629,7 +629,7 @@ const efficiencyMetrics = useMemo(() => {
 
               <button
                 className="btn btn-white btn-sm rounded-pill px-3 py-1.5 fw-bold transition-all border shadow-sm text-zinc-600"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: 'var(--font-size-xs)' }}
                 onClick={() => fileRef.current.click()}
                 disabled={loading}
               >
@@ -735,7 +735,7 @@ const efficiencyMetrics = useMemo(() => {
                 options={{
                   labels: budgetDist.labels,
                   colors: ['#f1f5f9', '#94a3b8', '#0f172a', '#1976D2'],
-                  legend: { position: 'bottom', fontSize: '11px', fontWeight: 600, labels: { colors: '#64748b' } },
+                  legend: { position: 'bottom', fontSize: 'var(--font-size-xs)', fontWeight: 600, labels: { colors: '#64748b' } },
                   dataLabels: { enabled: false },
                   stroke: { width: 0 },
                   plotOptions: { pie: { donut: { size: '80%', labels: { show: true, total: { show: true, label: 'TOTAL ASINS', color: '#64748b', fontSize: '10px', formatter: () => data.length } } } } },
@@ -926,7 +926,7 @@ const efficiencyMetrics = useMemo(() => {
             <div className="ads-drawer-header">
               <div className="d-flex align-items-center gap-3">
                 <div className="d-flex align-items-center gap-2">
-                  <span className="fw-700 text-dark tabular-nums" style={{ fontSize: '16px' }}>{drawerAsin}</span>
+                  <span className="fw-700 text-dark tabular-nums" style={{ fontSize: 'var(--font-size-lg)' }}>{drawerAsin}</span>
                   <button className="btn btn-white border-0 p-1" onClick={() => copyAsin(drawerAsin)}>
                     {copiedAsin ? <Check size={12} className="text-success" /> : <Copy size={12} className="text-muted" />}
                   </button>

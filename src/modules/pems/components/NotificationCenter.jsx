@@ -14,12 +14,12 @@ const { Text } = Typography;
 
 const TYPE_CONFIG = {
   TASK_ASSIGNED: { icon: <ClockCircleOutlined />, color: '#2563eb', bg: '#eff6ff' },
-  TASK_ACCEPTED: { icon: <CheckCircleOutlined />, color: '#16a34a', bg: '#f0fdf4' },
+  TASK_ACCEPTED: { icon: <CheckCircleOutlined />, color: '#2E7D32', bg: '#f0fdf4' },
   TASK_SUBMITTED: { icon: <EyeOutlined />, color: '#9333ea', bg: '#f5f3ff' },
-  TASK_APPROVED: { icon: <CheckCircleOutlined />, color: '#16a34a', bg: '#f0fdf4' },
-  TASK_REJECTED: { icon: <CloseCircleOutlined />, color: '#dc2626', bg: '#fef2f2' },
-  SLA_WARNING: { icon: <WarningOutlined />, color: '#f59e0b', bg: '#fffbeb' },
-  SLA_BREACH: { icon: <ThunderboltOutlined />, color: '#dc2626', bg: '#fef2f2' },
+  TASK_APPROVED: { icon: <CheckCircleOutlined />, color: '#2E7D32', bg: '#f0fdf4' },
+  TASK_REJECTED: { icon: <CloseCircleOutlined />, color: '#D32F2F', bg: '#fef2f2' },
+  SLA_WARNING: { icon: <WarningOutlined />, color: '#ED6C02', bg: '#fffbeb' },
+  SLA_BREACH: { icon: <ThunderboltOutlined />, color: '#D32F2F', bg: '#fef2f2' },
   REVIEW_ASSIGNED: { icon: <EyeOutlined />, color: '#9333ea', bg: '#f5f3ff' },
 };
 
@@ -95,7 +95,7 @@ export default function NotificationCenter() {
             type="text"
             icon={<BellOutlined />}
             onClick={() => setOpen(!open)}
-            style={{ fontSize: 16, color: unreadCount > 0 ? '#2563eb' : '#64748b' }}
+            style={{ fontSize: 'var(--font-size-lg)', color: unreadCount > 0 ? '#2563eb' : '#64748b' }}
           />
         </Badge>
       </Tooltip>
@@ -106,14 +106,14 @@ export default function NotificationCenter() {
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
           <div style={{
             position: 'fixed', top: 48, right: 24, width: 360, maxHeight: 480,
-            background: '#fff', borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
+            background: '#fff', borderRadius: "var(--radius-lg)", boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
             border: '1px solid #e5e7eb', zIndex: 1000, overflow: 'hidden',
           }}>
             {/* Header */}
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text strong style={{ fontSize: 13 }}>Notifications</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Notifications</Text>
               {unreadCount > 0 && (
-                <Button type="text" size="small" icon={<CheckOutlined />} onClick={markAllAsRead} style={{ fontSize: 11, color: '#2563eb' }}>
+                <Button type="text" size="small" icon={<CheckOutlined />} onClick={markAllAsRead} style={{ fontSize: 'var(--font-size-xs)', color: '#2563eb' }}>
                   Mark all read
                 </Button>
               )}
@@ -144,16 +144,16 @@ export default function NotificationCenter() {
                       <div style={{
                         width: 28, height: 28, borderRadius: 7,
                         background: cfg.bg, display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', color: cfg.color, fontSize: 12, flexShrink: 0,
+                        justifyContent: 'center', color: cfg.color, fontSize: 'var(--font-size-sm)', flexShrink: 0,
                       }}>
                         {cfg.icon}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ fontSize: 12, fontWeight: n.IsRead ? 400 : 600, color: '#334155', display: 'block' }}>
+                        <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: n.IsRead ? 400 : 600, color: '#334155', display: 'block' }}>
                           {n.Title}
                         </Text>
                         {n.Message && (
-                          <Text style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {n.Message}
                           </Text>
                         )}

@@ -151,11 +151,11 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
 
     const getStatusTag = (status) => {
         const s = String(status || 'PENDING').toUpperCase();
-        if (s === 'COMPLETED') return <Tag color="success" style={{ borderRadius: '12px', fontWeight: 600 }}>COMPLETED</Tag>;
-        if (s === 'IN_PROGRESS') return <Tag color="processing" style={{ borderRadius: '12px', fontWeight: 600 }}>IN PROGRESS</Tag>;
-        if (s === 'REVIEW') return <Tag color="magenta" style={{ borderRadius: '12px', fontWeight: 600 }}>REVIEW</Tag>;
-        if (s === 'PENDING') return <Tag color="warning" style={{ borderRadius: '12px', fontWeight: 600 }}>PENDING</Tag>;
-        return <Tag color="error" style={{ borderRadius: '12px', fontWeight: 600 }}>{s}</Tag>;
+        if (s === 'COMPLETED') return <Tag color="success" style={{ borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>COMPLETED</Tag>;
+        if (s === 'IN_PROGRESS') return <Tag color="processing" style={{ borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>IN PROGRESS</Tag>;
+        if (s === 'REVIEW') return <Tag color="magenta" style={{ borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>REVIEW</Tag>;
+        if (s === 'PENDING') return <Tag color="warning" style={{ borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>PENDING</Tag>;
+        return <Tag color="error" style={{ borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>{s}</Tag>;
     };
 
     const columns = [
@@ -167,7 +167,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Text strong style={{ color: '#1e293b' }}>{record.title}</Text>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '300px' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: '2px', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '300px' }}>
                         {record.description}
                     </div>
                 </div>
@@ -178,7 +178,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
             dataIndex: 'type',
             key: 'type',
             render: (type) => (
-                <Tag style={{ textTransform: 'capitalize', borderRadius: '4px', background: '#f1f5f9', color: '#475569', border: 'none' }}>
+                <Tag style={{ textTransform: 'capitalize', borderRadius: 'var(--radius-sm)', background: '#f1f5f9', color: '#475569', border: 'none' }}>
                     {type?.toLowerCase().replace('_', ' ')}
                 </Tag>
             )
@@ -189,7 +189,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
             render: (_, record) => (
                 <div>
                     <div style={{ fontWeight: 600, color: '#334155' }}>{record.sellerId?.name || '--'}</div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{record.sellerId?.marketplace}</div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{record.sellerId?.marketplace}</div>
                 </div>
             )
         },
@@ -202,13 +202,13 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
                 return (
                     <Space size={4} wrap>
                         {asinsList.slice(0, 2).map((asin, i) => (
-                            <Tag key={asin._id || asin.id || i} style={{ margin: 0, fontSize: '11px', borderRadius: '4px' }}>
+                            <Tag key={asin._id || asin.id || i} style={{ margin: 0, fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)' }}>
                                 {asin.asinCode || asin.asin || asin}
                             </Tag>
                         ))}
                         {asinsList.length > 2 && (
                             <Tooltip title={asinsList.slice(2).map(a => a.asinCode || a.asin || a).join(', ')}>
-                                <Tag style={{ cursor: 'help', margin: 0, fontSize: '11px', borderRadius: '4px' }}>+{asinsList.length - 2}</Tag>
+                                <Tag style={{ cursor: 'help', margin: 0, fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)' }}>+{asinsList.length - 2}</Tag>
                             </Tooltip>
                         )}
                     </Space>
@@ -224,7 +224,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
                 if (!firstName) return <Text type="secondary">Unassigned</Text>;
                 return (
                     <Space size={8}>
-                        <Avatar size={24} style={{ backgroundColor: '#0288D1', fontSize: '11px' }}>
+                        <Avatar size={24} style={{ backgroundColor: '#0288D1', fontSize: 'var(--font-size-xs)' }}>
                             {firstName.charAt(0).toUpperCase()}
                         </Avatar>
                         <span>{firstName} {lastName}</span>
@@ -320,7 +320,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
             {!isEmbedded && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', padding: '24px 24px 0 24px' }}>
                     <div>
-                        <Title level={3} style={{ margin: 0, fontWeight: 700 }}>Task Operations</Title>
+                        <Title level={3} style={{ margin: 0, fontWeight: 600 }}>Task Operations</Title>
                         <Text type="secondary">Flat execution view for all tactical actions</Text>
                     </div>
                     <Button
@@ -340,7 +340,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
             <Card 
                 styles={{ body: { padding: '16px' } }} 
                 variant="borderless" 
-                style={{ marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', borderRadius: '12px' }}
+                style={{ marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', borderRadius: 'var(--radius-lg)' }}
             >
                 <Space size={16} style={{ width: '100%' }}>
                     <Input
@@ -348,7 +348,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
                         prefix={<Search size={16} style={{ color: '#94a3b8' }} />}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: 350, borderRadius: '8px' }}
+                        style={{ width: 350, borderRadius: 'var(--radius-md)' }}
                         size="large"
                         allowClear
                     />
@@ -370,7 +370,7 @@ const TasksOperationsPage = ({ isEmbedded = false }) => {
             </Card>
 
             {/* Responsive Operational Datatable */}
-            <div className="card border-0 shadow-sm overflow-hidden flex-fill" style={{ borderRadius: '16px', background: '#ffffff' }}>
+            <div className="card border-0 shadow-sm overflow-hidden flex-fill" style={{ borderRadius: 'var(--radius-xl)', background: '#ffffff' }}>
                 <Table
                     dataSource={filteredActions}
                     columns={columns}

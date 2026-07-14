@@ -10,9 +10,9 @@ const COLUMN_CONFIG = [
   { key: 'ASSIGNED', label: 'Assigned', color: '#2563eb', bg: '#eff6ff' },
   { key: 'ACCEPTED', label: 'Accepted', color: '#9333ea', bg: '#f5f3ff' },
   { key: 'IN_PROGRESS', label: 'In Progress', color: '#2563eb', bg: '#eff6ff' },
-  { key: 'SUBMITTED', label: 'Submitted', color: '#f59e0b', bg: '#fffbeb' },
+  { key: 'SUBMITTED', label: 'Submitted', color: '#ED6C02', bg: '#fffbeb' },
   { key: 'UNDER_REVIEW', label: 'Under Review', color: '#9333ea', bg: '#f5f3ff' },
-  { key: 'APPROVED', label: 'Approved', color: '#16a34a', bg: '#f0fdf4' },
+  { key: 'APPROVED', label: 'Approved', color: '#2E7D32', bg: '#f0fdf4' },
 ];
 
 function TaskCard({ task, onView }) {
@@ -25,7 +25,7 @@ function TaskCard({ task, onView }) {
     <div
       onClick={() => onView(task)}
       style={{
-        padding: '10px 12px', borderRadius: 8, background: '#fff',
+        padding: '10px 12px', borderRadius: "var(--radius-md)", background: '#fff',
         border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.15s',
         marginBottom: 6,
       }}
@@ -34,17 +34,17 @@ function TaskCard({ task, onView }) {
     >
       {/* Title + ID */}
       <div style={{ marginBottom: 6 }}>
-        <Text strong style={{ fontSize: 12, color: '#0f172a', display: 'block', lineHeight: 1.3 }}>{task.Title || 'Untitled'}</Text>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a', display: 'block', lineHeight: 1.3 }}>{task.Title || 'Untitled'}</Text>
         <Text style={{ fontSize: 10, color: '#94a3b8' }}>{task.InstanceCode} · {task.SellerName || '-'}</Text>
       </div>
 
       {/* Meta row */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
         {task.Priority && (
-          <Tag style={{ fontSize: 8, borderRadius: 4, background: prCfg.bg, color: prCfg.color, border: 'none', padding: '1px 5px', margin: 0, lineHeight: '14px' }}>{task.Priority}</Tag>
+          <Tag style={{ fontSize: 8, borderRadius: "var(--radius-sm)", background: prCfg.bg, color: prCfg.color, border: 'none', padding: '1px 5px', margin: 0, lineHeight: '14px' }}>{task.Priority}</Tag>
         )}
         {task.AssigneeName && (
-          <Tag style={{ fontSize: 8, borderRadius: 4, background: '#f1f5f9', color: '#475569', border: 'none', padding: '1px 5px', margin: 0, lineHeight: '14px' }}>
+          <Tag style={{ fontSize: 8, borderRadius: "var(--radius-sm)", background: '#f1f5f9', color: '#475569', border: 'none', padding: '1px 5px', margin: 0, lineHeight: '14px' }}>
             {task.AssigneeName.split(' ')[0]}
           </Tag>
         )}
@@ -55,7 +55,7 @@ function TaskCard({ task, onView }) {
       </div>
 
       {/* Progress */}
-      <Progress percent={pct} size="small" strokeColor={pct >= 80 ? '#16a34a' : pct >= 50 ? '#2563eb' : '#f59e0b'}
+      <Progress percent={pct} size="small" strokeColor={pct >= 80 ? '#2E7D32' : pct >= 50 ? '#2563eb' : '#ED6C02'}
         format={() => <Text style={{ fontSize: 9, color: '#64748b' }}>{pct}%</Text>}
         style={{ margin: 0, marginBottom: 4 }} />
 
@@ -91,7 +91,7 @@ export default function BoardView({ instances, onView, loading }) {
           <div style={{ padding: '8px 12px', background: col.bg, borderRadius: '8px 8px 0 0', border: `1px solid ${col.color}20`, borderBottom: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space size={6}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
-              <Text strong style={{ fontSize: 11, color: col.color }}>{col.label}</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: col.color }}>{col.label}</Text>
             </Space>
             <Tag style={{ fontSize: 9, borderRadius: 10, background: col.color + '20', color: col.color, border: 'none' }}>{grouped[col.key]?.length || 0}</Tag>
           </div>
@@ -103,7 +103,7 @@ export default function BoardView({ instances, onView, loading }) {
             ))}
             {(grouped[col.key] || []).length === 0 && (
               <div style={{ padding: '20px 10px', textAlign: 'center' }}>
-                <Text style={{ fontSize: 11, color: '#94a3b8' }}>No tasks</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>No tasks</Text>
               </div>
             )}
           </div>

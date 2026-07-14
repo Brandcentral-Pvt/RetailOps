@@ -10,7 +10,7 @@ const QuickActions = () => {
   return (
     <Tooltip
       title={
-        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 'var(--font-size-xs)' }}>
           <div style={{ fontWeight: 600, marginBottom: '2px' }}>
             {isSyncing ? 'Syncing...' : 'Sync data'}
           </div>

@@ -15,7 +15,7 @@ const C = {
   primary: '#D32F2F', primaryLight: '#fce8e6', dark: '#121b1e',
   text: '#27272a', textSecondary: '#71717a', border: '#e4e4e7',
   borderLight: '#f0f0f3', bg: '#f4f5f7', white: '#fff',
-  success: '#22c55e', successBg: '#f0fdf4',
+  success: '#2E7D32', successBg: '#f0fdf4',
   warning: '#ED6C02', warningBg: '#fffbeb',
   danger: '#D32F2F', dangerBg: '#fef2f2',
 };
@@ -309,15 +309,15 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 32 }}>
           <Space size={12}>
-            <div style={{ background: C.warningBg, padding: 8, borderRadius: 8, color: C.warning, display: 'flex' }}>
+            <div style={{ background: C.warningBg, padding: 8, borderRadius: "var(--radius-md)", color: C.warning, display: 'flex' }}>
               <Star size={18} />
             </div>
             <div>
               <Text strong style={{ fontSize: 15, color: C.dark }}>Rating Analytics Matrix</Text>
               <Space size={8} style={{ marginTop: 2 }}>
                 <Badge count={totalCount.toLocaleString()} style={{ backgroundColor: C.border, color: C.text, fontSize: 10, fontWeight: 600, boxShadow: 'none' }} overflowCount={999999} />
-                <Text type="secondary" style={{ fontSize: 11 }}>·</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>Live Data Streamed from DB</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>·</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Live Data Streamed from DB</Text>
               </Space>
             </div>
           </Space>
@@ -327,10 +327,10 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
             </button>
             {showExportMenu && !exporting && (
               <div className="position-absolute bg-white border rounded-lg shadow-xl p-1" style={{ top: '100%', right: 0, zIndex: 100, marginTop: 4, minWidth: 160 }}>
-                <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('excel')} style={{ fontSize: 11, border: 'none', background: 'transparent' }}>
+                <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('excel')} style={{ fontSize: 'var(--font-size-xs)', border: 'none', background: 'transparent' }}>
                   <FileText size={14} style={{ color: C.success }} /> Export Excel (.xlsx)
                 </button>
-                <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('csv')} style={{ fontSize: 11, border: 'none', background: 'transparent' }}>
+                <button className="btn btn-sm btn-ghost d-flex align-items-center gap-3 w-100 text-start py-2 px-3" onClick={() => exportAllData('csv')} style={{ fontSize: 'var(--font-size-xs)', border: 'none', background: 'transparent' }}>
                   <FileText size={14} color="#0288D1" /> Export CSV (.csv)
                 </button>
               </div>
@@ -351,7 +351,7 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
           <Search size={13} className="position-absolute top-50 start-0 translate-middle-y ms-2.5 text-zinc-400" style={{ marginLeft: 10 }} />
           <input className="form-control form-control-sm ps-5 rounded-3" placeholder="Filter ASIN, SKU..." value={localSearch}
             onChange={e => setLocalSearch(e.target.value)}
-            style={{ fontSize: 11, height: 30, border: `1.5px solid ${C.border}`, borderRadius: 6, paddingLeft: 28 }} />
+            style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, borderRadius: 6, paddingLeft: 28 }} />
         </div>
         <div style={{ width: 180 }}>
           <InfiniteScrollSelect fetchData={fetchSellerDropdownData} value={currentSellerId}
@@ -361,11 +361,11 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
         <div className="d-flex align-items-center gap-1">
           <Calendar size={12} style={{ color: C.textSecondary }} />
           <input type="date" className="form-control form-control-sm rounded-3"
-            style={{ fontSize: 11, height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
+            style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
             value={dateRange.startDate} onChange={e => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
           <span style={{ color: C.border }}>–</span>
           <input type="date" className="form-control form-control-sm rounded-3"
-            style={{ fontSize: 11, height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
+            style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
             value={dateRange.endDate} onChange={e => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
         </div>
         <div className="d-flex gap-1 flex-wrap">
@@ -389,7 +389,7 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
           </button>
         )}
         {loading && (
-          <span className="d-flex align-items-center gap-1 ms-auto" style={{ fontSize: 11, color: C.textSecondary }}>
+          <span className="d-flex align-items-center gap-1 ms-auto" style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
             <Loader2 size={13} className="animate-spin" /> Synchronizing...
           </span>
         )}
@@ -397,16 +397,16 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
 
       {filterBadges.length > 0 && (
         <div className="px-3 py-1.5 d-flex align-items-center flex-wrap gap-1.5" style={{ background: C.bg, borderBottom: `1px solid ${C.borderLight}` }}>
-          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSecondary, marginRight: 4 }}>Context</span>
+          <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSecondary, marginRight: 4 }}>Context</span>
           {filterBadges.map(b => (
-            <div key={b.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: C.white, border: `1px solid ${C.border}`, color: C.text }}>
+            <div key={b.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: "var(--radius-sm)", fontSize: 10, fontWeight: 600, background: C.white, border: `1px solid ${C.border}`, color: C.text }}>
               {b.icon}{b.label}
               <button className="btn btn-link p-0" onClick={b.onRemove} style={{ color: C.textSecondary, lineHeight: 1, border: 'none', background: 'transparent', cursor: 'pointer' }}>
                 <X size={10} />
               </button>
             </div>
           ))}
-          <button className="btn btn-link p-0 ms-auto" onClick={resetAllFilters} style={{ fontSize: 9, fontWeight: 700, color: C.danger, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          <button className="btn btn-link p-0 ms-auto" onClick={resetAllFilters} style={{ fontSize: 9, fontWeight: 600, color: C.danger, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer' }}>
             CLEAR ALL
           </button>
         </div>
@@ -414,15 +414,15 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
 
       {showFilters && (
         <div className="px-3 py-2 d-flex gap-3 align-items-center flex-shrink-0" style={{ background: C.bg, borderBottom: `1px solid ${C.borderLight}` }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: C.textSecondary }}>Rating Range:</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: C.textSecondary }}>Rating Range:</span>
           <div className="d-flex align-items-center gap-1 bg-white p-1 rounded-2 border" style={{ borderColor: C.border }}>
             <input type="number" step="0.1" className="inp-sm border-0" placeholder="Min" value={filterRatingRange.min}
               onChange={e => setFilterRatingRange(prev => ({ ...prev, min: e.target.value }))}
-              style={{ fontSize: 11, height: 28, border: 'none', borderRadius: 6, padding: '2px 10px', width: 80, outline: 'none' }} />
+              style={{ fontSize: 'var(--font-size-xs)', height: 28, border: 'none', borderRadius: 6, padding: '2px 10px', width: 80, outline: 'none' }} />
             <span style={{ color: C.border }}>/</span>
             <input type="number" step="0.1" className="inp-sm border-0" placeholder="Max" value={filterRatingRange.max}
               onChange={e => setFilterRatingRange(prev => ({ ...prev, max: e.target.value }))}
-              style={{ fontSize: 11, height: 28, border: 'none', borderRadius: 6, padding: '2px 10px', width: 80, outline: 'none' }} />
+              style={{ fontSize: 'var(--font-size-xs)', height: 28, border: 'none', borderRadius: 6, padding: '2px 10px', width: 80, outline: 'none' }} />
           </div>
         </div>
       )}
@@ -474,21 +474,21 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
                 <td style={{ position: 'sticky', left: 36, background: idx % 2 === 0 ? '#fff' : '#fafafa', zIndex: 20, textAlign: 'center', color: C.textSecondary }}>{idx + 1}</td>
                 <td style={{ position: 'sticky', left: 72, background: idx % 2 === 0 ? '#fff' : '#fafafa', zIndex: 20 }}>
                   <a href={item.marketplace === 'ajio' ? (item.pageUrl || `https://www.ajio.com/p/${item.asinCode}`) : item.marketplace === 'myntra' ? (item.pageUrl || 'https://www.myntra.com') : `https://www.amazon.in/dp/${item.asinCode}`}
-                    target="_blank" rel="noopener noreferrer" style={{ color: C.primary, fontWeight: 600, fontSize: 11, textDecoration: 'none' }}>
+                    target="_blank" rel="noopener noreferrer" style={{ color: C.primary, fontWeight: 600, fontSize: 'var(--font-size-xs)', textDecoration: 'none' }}>
                     {item.asinCode}
                   </a>
                 </td>
                 <td style={{ maxWidth: 120, fontSize: 10, color: C.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.sku || ''}>{item.sku || '—'}</td>
                 <td className="text-center">
                   {item.currentRating > 0 ? (
-                    <div className="d-inline-flex align-items-center gap-1 px-2 py-0.5 rounded-2 fw-bold" style={{ fontSize: 11, background: C.warningBg, color: C.warning, border: `1px solid #fde68a` }}>
+                    <div className="d-inline-flex align-items-center gap-1 px-2 py-0.5 rounded-2 fw-bold" style={{ fontSize: 'var(--font-size-xs)', background: C.warningBg, color: C.warning, border: `1px solid #fde68a` }}>
                       <Star size={11} color={C.warning} /> {item.currentRating.toFixed(1)}
                     </div>
                   ) : <span style={{ color: C.border }}>—</span>}
                 </td>
                 <td className="text-center">
                   {item.reviewCount > 0 ? (
-                    <span className="d-inline-flex align-items-center gap-1.5 fw-semibold" style={{ fontSize: 11, color: C.textSecondary }}>
+                    <span className="d-inline-flex align-items-center gap-1.5 fw-semibold" style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
                       <MessageSquare size={12} style={{ color: C.textSecondary }} /> {item.reviewCount.toLocaleString()}
                     </span>
                   ) : <span style={{ color: C.border }}>—</span>}
@@ -531,14 +531,14 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
 
       <div className="px-3 py-2 d-flex justify-content-between align-items-center flex-shrink-0 border-top" style={{ background: C.bg }}>
         <div className="d-flex align-items-center gap-3">
-          <span style={{ fontSize: 11, color: C.textSecondary, fontWeight: 500 }}>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary, fontWeight: 500 }}>
             Showing {asins.length.toLocaleString()} of {totalCount.toLocaleString()} records
           </span>
           {selectedIds.size > 0 && (
             <Badge count={`${selectedIds.size} Selected`} style={{ backgroundColor: C.primary, fontSize: 10, fontWeight: 600, border: 'none' }} overflowCount={999999} />
           )}
         </div>
-        <span style={{ fontSize: 11, color: C.textSecondary }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
           {loading ? 'Fetching records...' : hasMore ? 'Scroll down to load more' : 'All historical records loaded'}
         </span>
       </div>

@@ -273,13 +273,13 @@ const TeamManagementPage = () => {
           <Space>
             <Avatar
               size={36}
-              style={{ background: avatarColor(fullName), fontWeight: 700, fontSize: 13 }}
+              style={{ background: avatarColor(fullName), fontWeight: 600, fontSize: 'var(--font-size-sm)' }}
             >
               {initials(fullName).toUpperCase() || '?'}
             </Avatar>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{fullName}</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>{fullName}</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
                 <MailOutlined style={{ marginRight: 4 }} />{email}
               </div>
             </div>
@@ -354,12 +354,12 @@ const TeamManagementPage = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <Avatar
           size={28}
-          style={{ background: avatarColor(team.name || team._id), fontWeight: 700, fontSize: 11, flexShrink: 0 }}
+          style={{ background: avatarColor(team.name || team._id), fontWeight: 600, fontSize: 'var(--font-size-xs)', flexShrink: 0 }}
         >
           {initials(team.name || 'T').toUpperCase() || 'T'}
         </Avatar>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, color: activeTeam?._id === team._id ? '#1976D2' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: activeTeam?._id === team._id ? '#1976D2' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
             {team.name || 'Unnamed Team'}
           </div>
           <div style={{ fontSize: 10, color: '#94a3b8' }}>{team._memberCount || 0} members</div>
@@ -386,7 +386,7 @@ const TeamManagementPage = () => {
         >
           <div style={{ padding: '16px 14px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <Text style={{ fontWeight: 700, fontSize: 11, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <Text style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Teams
               </Text>
               <Tooltip title="Create Team">
@@ -405,7 +405,7 @@ const TeamManagementPage = () => {
             ) : teams.length === 0 ? (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={<span style={{ fontSize: 11 }}>No teams yet</span>}
+                description={<span style={{ fontSize: 'var(--font-size-xs)' }}>No teams yet</span>}
                 style={{ paddingTop: 20 }}
               />
             ) : (
@@ -419,7 +419,7 @@ const TeamManagementPage = () => {
                       alignItems: 'center',
                       gap: 10,
                       padding: '10px 10px',
-                      borderRadius: 8,
+                      borderRadius: "var(--radius-md)",
                       cursor: 'pointer',
                       background: activeTeam?._id === team._id ? '#eef2ff' : 'transparent',
                       border: activeTeam?._id === team._id ? '1px solid #c7d2fe' : '1px solid transparent',
@@ -428,12 +428,12 @@ const TeamManagementPage = () => {
                   >
                     <Avatar
                       size={32}
-                      style={{ background: avatarColor(team.name || team._id), fontWeight: 700, fontSize: 12, flexShrink: 0 }}
+                      style={{ background: avatarColor(team.name || team._id), fontWeight: 600, fontSize: 'var(--font-size-sm)', flexShrink: 0 }}
                     >
                       {(initials(team.name || 'T').toUpperCase() || 'T')[0]}
                     </Avatar>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 12.5, color: activeTeam?._id === team._id ? '#1976D2' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 600, fontSize: 12, color: activeTeam?._id === team._id ? '#1976D2' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {team.name || 'Unnamed Team'}
                       </div>
                       <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
@@ -464,7 +464,7 @@ const TeamManagementPage = () => {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => { teamForm.resetFields(); setCreateTeamOpen(true); }}
-                    style={{ background: '#1976D2', borderColor: '#1976D2', borderRadius: 8, fontWeight: 600 }}
+                    style={{ background: '#1976D2', borderColor: '#1976D2', borderRadius: "var(--radius-md)", fontWeight: 600 }}
                   >
                     Create Team
                   </Button>
@@ -476,7 +476,7 @@ const TeamManagementPage = () => {
               {/* ── Team Header ── */}
               <Card
                 bordered={false}
-                style={{ borderRadius: 12, marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}
+                style={{ borderRadius: "var(--radius-lg)", marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}
                 styles={{ body: { padding: '20px 24px' } }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
@@ -486,7 +486,7 @@ const TeamManagementPage = () => {
                       style={{
                         background: avatarColor(activeTeam.name || activeTeam._id),
                         fontWeight: 800,
-                        fontSize: 20,
+                        fontSize: 'var(--font-size-xl)',
                         flexShrink: 0
                       }}
                     >
@@ -496,7 +496,7 @@ const TeamManagementPage = () => {
                       <Space align="center">
                         <Tag color="success" icon={<CheckCircleOutlined />}>Active</Tag>
                       </Space>
-                      <Paragraph type="secondary" style={{ margin: '4px 0 0 0', fontSize: 13 }}>
+                      <Paragraph type="secondary" style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-sm)' }}>
                         {activeTeam.description || 'No description provided.'}
                       </Paragraph>
                     </div>
@@ -512,7 +512,7 @@ const TeamManagementPage = () => {
                         });
                         setEditTeamOpen(true);
                       }}
-                      style={{ borderRadius: 8, fontWeight: 600 }}
+                      style={{ borderRadius: "var(--radius-md)", fontWeight: 600 }}
                     >
                       Team Settings
                     </Button>
@@ -520,7 +520,7 @@ const TeamManagementPage = () => {
                       type="primary"
                       icon={<UserAddOutlined />}
                       onClick={() => { memberForm.resetFields(); setAddMemberOpen(true); }}
-                      style={{ borderRadius: 8, fontWeight: 700, background: '#1976D2', borderColor: '#1976D2' }}
+                      style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: '#1976D2', borderColor: '#1976D2' }}
                     >
                       Add Member
                     </Button>
@@ -532,34 +532,34 @@ const TeamManagementPage = () => {
                 <Row gutter={16}>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Members</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Members</span>}
                       value={members.length}
                       prefix={<TeamOutlined style={{ color: '#1976D2', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
                     />
                   </Col>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Team Leads</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Team Leads</span>}
                       value={teamLeads}
                       prefix={<CrownOutlined style={{ color: '#ED6C02', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
                     />
                   </Col>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Operators</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Operators</span>}
                       value={members.length - teamLeads}
                       prefix={<UserOutlined style={{ color: '#2E7D32', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
                     />
                   </Col>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sellers Mapped</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sellers Mapped</span>}
                       value={sellersCount}
                       prefix={<BankOutlined style={{ color: '#0891b2', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
                     />
                   </Col>
                 </Row>
@@ -568,12 +568,12 @@ const TeamManagementPage = () => {
               {/* ── Members Table ── */}
               <Card
                 bordered={false}
-                style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}
+                style={{ borderRadius: "var(--radius-lg)", boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}
                 styles={{ body: { padding: 0 } }}
               >
                 {/* Table Header */}
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text strong style={{ fontSize: 14, color: '#0f172a' }}>
+                  <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#0f172a' }}>
                     <TeamOutlined style={{ marginRight: 8, color: '#1976D2' }} />
                     Members ({members.length})
                   </Text>
@@ -583,7 +583,7 @@ const TeamManagementPage = () => {
                     value={searchText}
                     onChange={e => setSearchText(e.target.value)}
                     allowClear
-                    style={{ width: 240, borderRadius: 8 }}
+                    style={{ width: 240, borderRadius: "var(--radius-md)" }}
                   />
                 </div>
 
@@ -594,7 +594,7 @@ const TeamManagementPage = () => {
                   loading={membersLoading}
                   pagination={false}
                   locale={{ emptyText: <Empty description="No members in this team" style={{ padding: 32 }} /> }}
-                  style={{ borderRadius: 12 }}
+                  style={{ borderRadius: "var(--radius-lg)" }}
                 />
               </Card>
             </>
@@ -611,14 +611,14 @@ const TeamManagementPage = () => {
         onOk={handleCreateTeam}
         okText="Create Team"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2', borderRadius: 8, fontWeight: 700 } }}
-        cancelButtonProps={{ style: { borderRadius: 8 } }}
+        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
+        cancelButtonProps={{ style: { borderRadius: "var(--radius-md)" } }}
         title={
           <Space>
             <Avatar size={32} style={{ background: '#1976D2' }} icon={<TeamOutlined />} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Create New Team</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>Set up a new operational workspace team</div>
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Create New Team</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>Set up a new operational workspace team</div>
             </div>
           </Space>
         }
@@ -629,23 +629,23 @@ const TeamManagementPage = () => {
         <Form form={teamForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="name"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Team Name</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Team Name</span>}
             rules={[{ required: true, message: 'Team name is required' }]}
           >
             <Input
               prefix={<TeamOutlined style={{ color: '#94a3b8' }} />}
               placeholder="e.g. Amazon SEO Ops"
-              style={{ borderRadius: 8, height: 40 }}
+              style={{ borderRadius: "var(--radius-md)", height: 40 }}
             />
           </Form.Item>
           <Form.Item
             name="description"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Description</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Description</span>}
           >
             <TextArea
               placeholder="Describe team responsibilities..."
               rows={3}
-              style={{ borderRadius: 8 }}
+              style={{ borderRadius: "var(--radius-md)" }}
             />
           </Form.Item>
         </Form>
@@ -662,8 +662,8 @@ const TeamManagementPage = () => {
           <Space>
             <Avatar size={32} style={{ background: '#0891b2' }} icon={<SettingOutlined />} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Team Settings</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>Modify team name, description, or delete</div>
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Team Settings</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>Modify team name, description, or delete</div>
             </div>
           </Space>
         }
@@ -674,23 +674,23 @@ const TeamManagementPage = () => {
         <Form form={teamForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="name"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Team Name</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Team Name</span>}
             rules={[{ required: true, message: 'Team name is required' }]}
           >
             <Input
               prefix={<TeamOutlined style={{ color: '#94a3b8' }} />}
               placeholder="Team name"
-              style={{ borderRadius: 8, height: 40 }}
+              style={{ borderRadius: "var(--radius-md)", height: 40 }}
             />
           </Form.Item>
           <Form.Item
             name="description"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Description</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Description</span>}
           >
             <TextArea
               placeholder="Describe team responsibilities..."
               rows={3}
-              style={{ borderRadius: 8 }}
+              style={{ borderRadius: "var(--radius-md)" }}
             />
           </Form.Item>
         </Form>
@@ -705,18 +705,18 @@ const TeamManagementPage = () => {
             okButtonProps={{ danger: true, loading: deleting }}
             onConfirm={handleDeleteTeam}
           >
-            <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8 }}>
+            <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: "var(--radius-md)" }}>
               Delete Team
             </Button>
           </Popconfirm>
 
           <Space>
-            <Button onClick={() => setEditTeamOpen(false)} style={{ borderRadius: 8 }}>Cancel</Button>
+            <Button onClick={() => setEditTeamOpen(false)} style={{ borderRadius: "var(--radius-md)" }}>Cancel</Button>
             <Button
               type="primary"
               loading={saving}
               onClick={handleUpdateTeam}
-              style={{ borderRadius: 8, fontWeight: 700, background: '#1976D2', borderColor: '#1976D2' }}
+              style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: '#1976D2', borderColor: '#1976D2' }}
             >
               Save Changes
             </Button>
@@ -733,14 +733,14 @@ const TeamManagementPage = () => {
         onOk={handleAddMember}
         okText="Add Member"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#2E7D32', borderColor: '#2E7D32', borderRadius: 8, fontWeight: 700 } }}
-        cancelButtonProps={{ style: { borderRadius: 8 } }}
+        okButtonProps={{ style: { background: '#2E7D32', borderColor: '#2E7D32', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
+        cancelButtonProps={{ style: { borderRadius: "var(--radius-md)" } }}
         title={
           <Space>
             <Avatar size={32} style={{ background: '#2E7D32' }} icon={<UserAddOutlined />} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Add Team Member</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>Add a platform user to this team</div>
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Add Team Member</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>Add a platform user to this team</div>
             </div>
           </Space>
         }
@@ -751,14 +751,14 @@ const TeamManagementPage = () => {
         <Form form={memberForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="userId"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Select User</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Select User</span>}
             rules={[{ required: true, message: 'Please select a user' }]}
           >
             <Select
               showSearch
               placeholder="Search users..."
               optionFilterProp="label"
-              style={{ borderRadius: 8 }}
+              style={{ borderRadius: "var(--radius-md)" }}
               options={availableUsers.map(u => ({
                 value: u._id,
                 label: `${u.firstName || ''} ${u.lastName || ''} (${u.email})`,
@@ -770,10 +770,10 @@ const TeamManagementPage = () => {
 
           <Form.Item
             name="role"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Team Role</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Team Role</span>}
             initialValue="member"
           >
-            <Select style={{ borderRadius: 8 }}>
+            <Select style={{ borderRadius: "var(--radius-md)" }}>
               <Select.Option value="member">
                 <Space><UserOutlined style={{ color: '#1976D2' }} />Member</Space>
               </Select.Option>
@@ -788,16 +788,16 @@ const TeamManagementPage = () => {
               name="resourceAccess"
               label={
                 <div>
-                  <span style={{ fontWeight: 600, color: '#374151' }}>Seller Access</span>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>Leave empty to grant full access to all sellers</div>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Seller Access</span>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', fontWeight: 400 }}>Leave empty to grant full access to all sellers</div>
                 </div>
               }
             >
               <Checkbox.Group style={{ width: '100%' }}>
-                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: "var(--radius-md)", padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {sellers.map(s => (
                     <Checkbox key={s._id} value={s._id}>
-                      <span style={{ fontSize: 12, fontWeight: 500 }}>{s.name}</span>
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{s.name}</span>
                     </Checkbox>
                   ))}
                 </div>
@@ -816,14 +816,14 @@ const TeamManagementPage = () => {
         onOk={handleSaveMember}
         okText="Save Changes"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2', borderRadius: 8, fontWeight: 700 } }}
-        cancelButtonProps={{ style: { borderRadius: 8 } }}
+        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
+        cancelButtonProps={{ style: { borderRadius: "var(--radius-md)" } }}
         title={
           <Space>
             <Avatar size={32} style={{ background: '#1976D2' }} icon={<EditOutlined />} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Edit Member Access</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Edit Member Access</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>
                 {selectedMember ? `${selectedMember.firstName || selectedMember.FirstName || ''} ${selectedMember.lastName || selectedMember.LastName || ''}`.trim() || 'Member' : 'Member'}
               </div>
             </div>
@@ -845,9 +845,9 @@ const TeamManagementPage = () => {
         >
           <Form.Item
             name="role"
-            label={<span style={{ fontWeight: 600, color: '#374151' }}>Team Role</span>}
+            label={<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Team Role</span>}
           >
-            <Select style={{ borderRadius: 8 }}>
+            <Select style={{ borderRadius: "var(--radius-md)" }}>
               <Select.Option value="member">
                 <Space><UserOutlined style={{ color: '#1976D2' }} />Member</Space>
               </Select.Option>
@@ -862,16 +862,16 @@ const TeamManagementPage = () => {
               name="resourceAccess"
               label={
                 <div>
-                  <span style={{ fontWeight: 600, color: '#374151' }}>Seller Access</span>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>Leave empty for full access</div>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Seller Access</span>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', fontWeight: 400 }}>Leave empty for full access</div>
                 </div>
               }
             >
               <Checkbox.Group style={{ width: '100%' }}>
-                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: "var(--radius-md)", padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {sellers.map(s => (
                     <Checkbox key={s._id} value={s._id}>
-                      <span style={{ fontSize: 12, fontWeight: 500 }}>{s.name}</span>
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{s.name}</span>
                     </Checkbox>
                   ))}
                 </div>

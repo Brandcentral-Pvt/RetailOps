@@ -38,7 +38,7 @@ const PerformanceChart = ({ chartData, loading }) => {
       show: true,
       position: 'top',
       horizontalAlign: 'right',
-      fontSize: '11px',
+      fontSize: 'var(--font-size-xs)',
       fontWeight: 600,
     },
     colors: [CHART_COLORS[0], CHART_COLORS[1]], // Plan (Blue), Actual (Purple/Orange)

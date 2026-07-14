@@ -123,7 +123,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
     },
     yaxis: {
       labels: { 
-        style: { fontSize: '10px', fontWeight: 700, colors: '#475569' },
+        style: { fontSize: '10px', fontWeight: 600, colors: '#475569' },
         formatter: (val) => val?.toLocaleString()
       }
     },
@@ -320,7 +320,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
                         yaxis: { 
                           reversed: true,
                           labels: { 
-                            style: { fontSize: '10px', fontWeight: 700, colors: '#2E7D32' },
+                            style: { fontSize: '10px', fontWeight: 600, colors: '#2E7D32' },
                             formatter: (val) => `#${val?.toLocaleString()}`
                           }
                         }

@@ -125,13 +125,13 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
         const activeSchema = schemas[activeTab][marketplace];
 
         return (
-            <div className="bg-blue-50 border border-blue-100 rounded-3 p-3 mb-3" style={{ fontSize: '12px' }}>
+            <div className="bg-blue-50 border border-blue-100 rounded-3 p-3 mb-3" style={{ fontSize: 'var(--font-size-sm)' }}>
                 <span className="fw-bold text-blue-900 d-block mb-2">
                     {activeTab === 'octoparse' ? 'Expected JSON Structure (Task Output):' : `Required Schema (${marketplace === 'ajio' ? 'Ajio' : 'Amazon Marketplace'}):`}
                 </span>
                 <div className="d-flex flex-wrap gap-2">
                     {activeSchema.map(col => (
-                        <div key={col} style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{col}</div>
+                        <div key={col} style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{col}</div>
                     ))}
                 </div>
                 {activeTab === 'catalog' && marketplace === 'ajio' && (
@@ -163,7 +163,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                         </div>
                         <div>
                             <h6 className="mb-0 fw-bold text-zinc-900">Inventory Bulk Import</h6>
-                            <span className="text-zinc-500" style={{ fontSize: '11px' }}>Process Product Manifests</span>
+                            <span className="text-zinc-500" style={{ fontSize: 'var(--font-size-xs)' }}>Process Product Manifests</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="btn btn-ghost p-1 rounded-circle border-0">
@@ -176,35 +176,35 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                     <button
                         className={`flex-grow-1 py-2 border-0 rounded-2 fw-bold transition-all ${activeTab === 'catalog' ? 'bg-zinc-100 text-zinc-900' : 'bg-transparent text-zinc-400 hover-bg-zinc-50'}`}
                         onClick={() => { setActiveTab('catalog'); setMarketplace('amazon'); setFile(null); setResult(null); setError(null); }}
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: 'var(--font-size-sm)' }}
                     >
                         Catalog Sync
                     </button>
                     <button
                         className={`flex-grow-1 py-2 border-0 rounded-2 fw-bold transition-all ${activeTab === 'ajio_catalog' ? 'bg-zinc-100 text-zinc-900' : 'bg-transparent text-zinc-400 hover-bg-zinc-50'}`}
                         onClick={() => { setActiveTab('ajio_catalog'); setMarketplace('ajio'); setFile(null); setResult(null); setError(null); }}
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: 'var(--font-size-sm)' }}
                     >
                         Ajio Catalog
                     </button>
                     <button
                         className={`flex-grow-1 py-2 border-0 rounded-2 fw-bold transition-all ${activeTab === 'tags' ? 'bg-zinc-100 text-zinc-900' : 'bg-transparent text-zinc-400 hover-bg-zinc-50'}`}
                         onClick={() => { setActiveTab('tags'); setFile(null); setResult(null); setError(null); }}
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: 'var(--font-size-sm)' }}
                     >
                         Tags Import
                     </button>
                     <button
                         className={`flex-grow-1 py-2 border-0 rounded-2 fw-bold transition-all ${activeTab === 'global' ? 'bg-zinc-100 text-zinc-900' : 'bg-transparent text-zinc-400 hover-bg-zinc-50'}`}
                         onClick={() => { setActiveTab('global'); setFile(null); setResult(null); setError(null); }}
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: 'var(--font-size-sm)' }}
                     >
                         Global Upload
                     </button>
                     <button
                         className={`flex-grow-1 py-2 border-0 rounded-2 fw-bold transition-all ${activeTab === 'octoparse' ? 'bg-zinc-100 text-zinc-900' : 'bg-transparent text-zinc-400 hover-bg-zinc-50'}`}
                         onClick={() => { setActiveTab('octoparse'); setFile(null); setResult(null); setError(null); }}
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: 'var(--font-size-sm)' }}
                     >
                         Octoparse JSON
                     </button>
@@ -217,7 +217,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             type="button"
                             onClick={() => setMarketplace('amazon')}
                             className={`flex-grow-1 py-2 border-0 rounded-2 d-flex align-items-center justify-content-center gap-2 transition-all ${marketplace === 'amazon' ? 'bg-white shadow-sm text-zinc-900 fw-bold' : 'bg-transparent text-zinc-500'}`}
-                            style={{ fontSize: '12px' }}
+                            style={{ fontSize: 'var(--font-size-sm)' }}
                         >
                             <img src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" style={{ height: '12px', width: 'auto', objectFit: 'contain', filter: marketplace === 'amazon' ? 'none' : 'grayscale(100%) brightness(50%)' }} alt="Amazon" />
                         </button>
@@ -225,7 +225,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             type="button"
                             onClick={() => setMarketplace('ajio')}
                             className={`flex-grow-1 py-2 border-0 rounded-2 d-flex align-items-center justify-content-center gap-2 transition-all ${marketplace === 'ajio' ? 'bg-white shadow-sm text-zinc-900 fw-bold' : 'bg-transparent text-zinc-500'}`}
-                            style={{ fontSize: '12px' }}
+                            style={{ fontSize: 'var(--font-size-sm)' }}
                         >
                             <img src="https://cdn.brandfetch.io/id78Xj7CCR/w/820/h/238/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1776791426160" style={{ height: '14px', width: 'auto', objectFit: 'contain', filter: marketplace === 'ajio' ? 'none' : 'grayscale(100%) brightness(50%)' }} alt="Ajio" />
                         </button>
@@ -237,7 +237,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                     {/* Seller Selector */}
                     {activeTab !== 'global' && (
                         <div className="mb-3">
-                            <label className="fw-bold mb-1 text-zinc-700 d-flex align-items-center gap-1" style={{ fontSize: '12px' }}>
+                            <label className="fw-bold mb-1 text-zinc-700 d-flex align-items-center gap-1" style={{ fontSize: 'var(--font-size-sm)' }}>
                                 <Store size={14} className="text-zinc-400" /> 
                                 {activeTab === 'catalog' ? 'Target Seller (Fallback)' : 'Target Seller'}
                             </label>
@@ -245,7 +245,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                                 className="form-select"
                                 value={selectedSellerId}
                                 onChange={(e) => setSelectedSellerId(e.target.value)}
-                                style={{ fontSize: '13px', borderRadius: '8px' }}
+                                style={{ fontSize: 'var(--font-size-sm)', borderRadius: 'var(--radius-md)' }}
                             >
                                 <option value="">Select a {marketplace === 'ajio' ? 'Ajio' : 'Amazon'} seller...</option>
                                 {sellers
@@ -265,7 +265,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                                 if (marketplace === 'ajio') return m === 'ajio';
                                 return m === 'amazon.in' || m === 'amazon' || !m;
                             }).length === 0 && (
-                                <div className="mt-1 text-danger" style={{ fontSize: '11px' }}>
+                                <div className="mt-1 text-danger" style={{ fontSize: 'var(--font-size-xs)' }}>
                                     No {marketplace === 'ajio' ? 'Ajio' : 'Amazon'} sellers found. Please check your account.
                                 </div>
                             )}
@@ -276,8 +276,8 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                     {activeTab === 'octoparse' && (
                         <div className="mb-3 p-3 rounded-3 border bg-zinc-50 d-flex align-items-center justify-content-between">
                             <div>
-                                <div className="fw-bold text-zinc-900" style={{ fontSize: '13px' }}>Auto-Discovery</div>
-                                <div className="text-zinc-500" style={{ fontSize: '11px' }}>Create new ASINs if not found in database</div>
+                                <div className="fw-bold text-zinc-900" style={{ fontSize: 'var(--font-size-sm)' }}>Auto-Discovery</div>
+                                <div className="text-zinc-500" style={{ fontSize: 'var(--font-size-xs)' }}>Create new ASINs if not found in database</div>
                             </div>
                             <div className="form-check form-switch m-0">
                                 <input 
@@ -312,8 +312,8 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                                 <div className="d-flex align-items-center justify-content-center gap-2 py-2">
                                     <div className="p-2 bg-emerald-100 text-emerald-600 rounded-circle"><Check size={18} /></div>
                                     <div className="text-start">
-                                        <div className="fw-bold text-zinc-800" style={{ fontSize: '13px' }}>{file.name}</div>
-                                        <div className="text-zinc-400" style={{ fontSize: '11px' }}>{(file.size/1024).toFixed(1)} KB</div>
+                                        <div className="fw-bold text-zinc-800" style={{ fontSize: 'var(--font-size-sm)' }}>{file.name}</div>
+                                        <div className="text-zinc-400" style={{ fontSize: 'var(--font-size-xs)' }}>{(file.size/1024).toFixed(1)} KB</div>
                                     </div>
                                     <button type="button" className="btn btn-ghost ms-2 p-1 text-zinc-400" onClick={() => setFile(null)}>
                                         <X size={14} />
@@ -322,8 +322,8 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             ) : (
                                 <label htmlFor="bulk-file-input" className="w-100 h-100 cursor-pointer m-0 py-2">
                                     <Upload size={28} className="text-zinc-400 mb-2" />
-                                    <p className="text-zinc-600 mb-0 fw-semibold" style={{ fontSize: '13px' }}>Choose {activeTab === 'octoparse' ? 'JSON' : 'Excel/CSV'} file</p>
-                                    <p className="text-zinc-400 mb-0" style={{ fontSize: '11px' }}>Click or drag file here</p>
+                                    <p className="text-zinc-600 mb-0 fw-semibold" style={{ fontSize: 'var(--font-size-sm)' }}>Choose {activeTab === 'octoparse' ? 'JSON' : 'Excel/CSV'} file</p>
+                                    <p className="text-zinc-400 mb-0" style={{ fontSize: 'var(--font-size-xs)' }}>Click or drag file here</p>
                                 </label>
                             )}
                         </div>
@@ -332,7 +332,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
 
                     {/* PROPER SOLID COLOUR BADGES AND ALERTS */}
                     {result && (
-                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: '13px', background: '#2E7D32', border: '1px solid #047857', animation: 'fadeIn 0.2s ease-out' }}>
+                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: 'var(--font-size-sm)', background: '#2E7D32', border: '1px solid #047857', animation: 'fadeIn 0.2s ease-out' }}>
                             <div className="d-flex align-items-center gap-2 fw-bold mb-3">
                                 <div className="bg-white rounded-circle p-0.5 d-flex"><Check size={14} className="text-emerald-700" /></div>
                                 <span>{result.message || 'Import Operation Successful'}</span>
@@ -340,17 +340,17 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             
                             <div className="d-flex flex-wrap gap-2">
                                 {result.updated >= 0 && (
-                                    <div style={{ background: '#fff', color: '#065f46', padding: '4px 10px', borderRadius: '6px', fontWeight: 800, fontSize: '11px', border: '1px solid #a7f3d0' }}>
+                                    <div style={{ background: '#fff', color: '#065f46', padding: '4px 10px', borderRadius: '6px', fontWeight: 800, fontSize: 'var(--font-size-xs)', border: '1px solid #a7f3d0' }}>
                                         UPDATED: {result.updated}
                                     </div>
                                 )}
                                 {result.created >= 0 && (
-                                    <div style={{ background: '#fff', color: '#065f46', padding: '4px 10px', borderRadius: '6px', fontWeight: 800, fontSize: '11px', border: '1px solid #a7f3d0' }}>
+                                    <div style={{ background: '#fff', color: '#065f46', padding: '4px 10px', borderRadius: '6px', fontWeight: 800, fontSize: 'var(--font-size-xs)', border: '1px solid #a7f3d0' }}>
                                         CREATED: {result.created}
                                     </div>
                                 )}
                                 {result.skipped >= 0 && (
-                                    <div style={{ background: '#fff', color: '#854d0e', padding: '4px 10px', borderRadius: '6px', fontWeight: 800, fontSize: '11px', border: '1px solid #fef08a' }}>
+                                    <div style={{ background: '#fff', color: '#854d0e', padding: '4px 10px', borderRadius: '6px', fontWeight: 800, fontSize: 'var(--font-size-xs)', border: '1px solid #fef08a' }}>
                                         SKIPPED: {result.skipped}
                                     </div>
                                 )}
@@ -358,8 +358,8 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             
                             {result.errors && result.errors.length > 0 && (
                                 <div className="mt-3 pt-2 border-top border-white border-opacity-20">
-                                    <div className="fw-bold text-white mb-1" style={{ fontSize: '11px' }}>ISSUE LOG (First 5):</div>
-                                    <ul className="ps-3 mb-0" style={{ color: '#ecfdf5', fontSize: '11px' }}>
+                                    <div className="fw-bold text-white mb-1" style={{ fontSize: 'var(--font-size-xs)' }}>ISSUE LOG (First 5):</div>
+                                    <ul className="ps-3 mb-0" style={{ color: '#ecfdf5', fontSize: 'var(--font-size-xs)' }}>
                                         {result.errors.slice(0, 5).map((err, idx) => (
                                             <li key={idx} className="mb-0.5">{err.asin || 'Row'}: {err.reason || err}</li>
                                         ))}
@@ -370,7 +370,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                     )}
 
                     {error && (
-                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: '13px', background: '#C62828', border: '1px solid #b91c1c', animation: 'fadeIn 0.2s ease-out' }}>
+                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: 'var(--font-size-sm)', background: '#C62828', border: '1px solid #D32F2F', animation: 'fadeIn 0.2s ease-out' }}>
                             <div className="d-flex align-items-center gap-2 fw-bold">
                                 <AlertCircle size={16} />
                                 <span>{error}</span>
@@ -384,7 +384,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             type="button"
                             className="btn btn-light border flex-grow-1 d-flex align-items-center justify-content-center gap-2"
                             onClick={handleDownloadTemplate}
-                            style={{ borderRadius: '8px', fontSize: '13px', fontWeight: 500 }}
+                            style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
                         >
                             <FileDown size={15} />
                             Download Template
@@ -394,7 +394,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             className="btn btn-dark flex-grow-1 d-flex align-items-center justify-content-center gap-2"
                             onClick={handleUpload}
                             disabled={!file || uploading}
-                            style={{ borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#18181b' }}
+                            style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)', fontWeight: 600, background: '#18181b' }}
                         >
                             {uploading ? (
                                 <><RefreshCw size={15} className="spin" /> Processing...</>
