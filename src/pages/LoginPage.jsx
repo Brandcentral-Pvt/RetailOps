@@ -166,6 +166,8 @@ const LoginPage = () => {
         navigate('/setup-wizard');
         return;
       }
+      // Normal login — navigate immediately to trigger ProtectedRoute loading state
+      navigate('/');
     } catch (err) {
       let msg = err.message || 'An unexpected error occurred';
       if (msg.includes('fetch') || msg.includes('network')) msg = 'Unable to connect to the server.';

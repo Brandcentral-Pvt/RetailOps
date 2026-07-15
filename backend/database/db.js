@@ -15,7 +15,7 @@ const config = {
         enableArithAbort: true,
         useUTC: false
     },
-    requestTimeout: 120000,
+    requestTimeout: 600000, // 10 minutes for heavy aggregation queries
     connectionTimeout: 60000,
     cancelTimeout: 10000,
     pool: {

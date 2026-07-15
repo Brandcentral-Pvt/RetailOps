@@ -73,6 +73,7 @@ const FileManagerPage = lazy(() => import('./pages/FileManagerPage'));
 const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
 const WebhookSettingsPage = lazy(() => import('./pages/WebhookSettingsPage'));
 const SetupWizardPage = lazy(() => import('./pages/SetupWizardPage'));
+const KeywordResearchPage = lazy(() => import('./pages/KeywordResearchPage'));
 
 // Layout wrapper — flex row: Sidebar takes its own width, content fills the rest
 function AppLayout({ children }) {
@@ -93,16 +94,16 @@ function AppLayout({ children }) {
   );
 }
 
-import Spinner from './components/Spinner';
+import { PageLoading } from './components/Spinner';
 
 function AppRoutes() {
   const { isAuthenticated, loading, bootstrapping } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
 
-  if (loading || onboardingLoading) return <Spinner fullPage />;
+  if (loading || onboardingLoading) return <PageLoading message="Checking authentication..." />;
 
   return (
-    <Suspense fallback={<Spinner fullPage />}>
+    <Suspense fallback={<PageLoading message="Loading..." />}>
       <RouteProgress />
       {showWizard && <OnboardingWizard />}
       <GlobalNotificationListener />
@@ -130,6 +131,7 @@ function AppRoutes() {
                   <Route path="/month-wise-report" element={<ProtectedRoute permission="monthlyreport_view"><MonthWiseReport /></ProtectedRoute>} />
                   <Route path="/ads-report" element={<ProtectedRoute permission="adsreport_view"><AdsReport /></ProtectedRoute>} />
                   <Route path="/asin-tracker" element={<ProtectedRoute permission="asinmanager_view"><AsinManagerPage /></ProtectedRoute>} />
+                  <Route path="/keyword-research" element={<ProtectedRoute><KeywordResearchPage /></ProtectedRoute>} />
                   <Route path="/ads-manager" element={<ProtectedRoute permission="adsreport_view"><AdsManagerPage /></ProtectedRoute>} />
                   <Route path="/gms-tracker" element={<ProtectedRoute permission="gms_tracker_view"><GmsTrackerPage /></ProtectedRoute>} />
                   <Route path="/profit-loss" element={<ProtectedRoute permission="pnlreport_view"><ProfitLossPage /></ProtectedRoute>} />

@@ -167,85 +167,82 @@ class AutoTagService {
      * @returns {Promise<object>} { updated, total, brandCount, details }
      */
     static async computeParetoContributorTags(pool, months = 3) {
-        const result = await pool.request()
-            .input('months', sql.Int, months)
-            .query(`
-                WITH GmsAgg AS (
-                    SELECT
-                        g.Asin as AsinCode,
-                        SUM(ISNULL(g.OrderedRevenue, 0)) as TotalGms
-                    FROM GmsDailyPerformance g WITH (NOLOCK)
-                    WHERE g.Date >= DATEADD(MONTH, -@months, CAST(dbo.GetEnvDate() AS DATE))
-                    GROUP BY g.Asin
-                ),
-                AsinGms AS (
-                    SELECT
-                        a.Id,
-                        a.AsinCode,
-                        a.Tags,
-                        a.Brand,
-                        agg.TotalGms
-                    FROM Asins a WITH (NOLOCK)
-                    INNER JOIN GmsAgg agg ON a.AsinCode = agg.AsinCode
-                    WHERE a.Status = 'Active'
-                        AND a.Brand IS NOT NULL AND a.Brand <> ''
-                        AND agg.TotalGms > 0
-                ),
-                WithPct AS (
-                    SELECT *,
-                        SUM(TotalGms) OVER (PARTITION BY Brand) as BrandTotalGms,
-                        ROUND(CAST(TotalGms AS FLOAT) / NULLIF(SUM(TotalGms) OVER (PARTITION BY Brand), 0) * 100, 2) as PctContribution
-                    FROM AsinGms
-                ),
-                Cumulative AS (
-                    SELECT *,
-                        COUNT(*) OVER (PARTITION BY Brand) as AsinCount,
-                        SUM(PctContribution) OVER (
-                            PARTITION BY Brand
-                            ORDER BY TotalGms DESC
-                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-                        ) as CumPct
-                    FROM WithPct
-                )
-                SELECT
-                    Id, AsinCode, Tags, Brand,
-                    TotalGms, BrandTotalGms, PctContribution, CumPct, AsinCount,
-                    CASE
-                        WHEN AsinCount = 1 THEN 'Top 80% Contributor'
-                        WHEN CumPct <= 80 THEN 'Top 80% Contributor'
-                        ELSE 'Bottom 20% Contributor'
-                    END as ParetoTag
-                FROM Cumulative
-                ORDER BY Brand, TotalGms DESC
+        // Step 1: Get ASIN-level 3-month GMS grouped by brand, sorted descending
+        const req = pool.request();
+        req.input('months', sql.Int, months);
+        const result = await req.query(`
+                SELECT a.Id, a.AsinCode, a.Tags, a.Brand,
+                    CAST(SUM(ISNULL(g.OrderedRevenue, 0)) AS FLOAT) as TotalGms
+                FROM GmsDailyPerformance g WITH (NOLOCK)
+                INNER JOIN Asins a WITH (NOLOCK) ON g.Asin = a.AsinCode
+                WHERE g.Date >= DATEADD(MONTH, -@months, CAST(dbo.GetEnvDate() AS DATE))
+                    AND a.Status = 'Active'
+                    AND a.Brand IS NOT NULL AND a.Brand <> ''
+                GROUP BY a.Id, a.AsinCode, a.Tags, a.Brand
+                HAVING SUM(ISNULL(g.OrderedRevenue, 0)) > 0
+                ORDER BY a.Brand, SUM(ISNULL(g.OrderedRevenue, 0)) DESC
             `);
+
+        // Step 2: Process in JavaScript — group by brand, compute Pareto in memory
+        const brandGroups = {};
+        for (const row of result.recordset) {
+            if (!brandGroups[row.Brand]) brandGroups[row.Brand] = [];
+            brandGroups[row.Brand].push(row);
+        }
 
         let updated = 0;
         const brandMap = {};
+        const BATCH_SIZE = 100;
+        let updateBatch = [];
 
-        for (const row of result.recordset) {
-            let tags = [];
-            try { tags = JSON.parse(row.Tags || '[]'); } catch { tags = []; }
-
-            // Remove old Pareto tags
-            tags = tags.filter(t => t !== 'Top 80% Contributor' && t !== 'Bottom 20% Contributor');
-            tags.push(row.ParetoTag);
-
-            await pool.request()
-                .input('id', sql.VarChar, row.Id)
-                .input('tags', sql.NVarChar, JSON.stringify(tags))
-                .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
-            updated++;
-
-            // Aggregate stats per brand
-            if (!brandMap[row.Brand]) {
-                brandMap[row.Brand] = { topCount: 0, bottomCount: 0, brandTotalGms: row.BrandTotalGms };
-            }
-            if (row.ParetoTag === 'Top 80% Contributor') {
-                brandMap[row.Brand].topCount++;
-            } else {
-                brandMap[row.Brand].bottomCount++;
-            }
+        async function flushBatch() {
+            if (updateBatch.length === 0) return;
+            await Promise.all(updateBatch.map(item =>
+                pool.request()
+                    .input('id', sql.VarChar, item.id)
+                    .input('tags', sql.NVarChar, JSON.stringify(item.tags))
+                    .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id')
+            ));
+            updated += updateBatch.length;
+            updateBatch = [];
         }
+
+        for (const [brand, asins] of Object.entries(brandGroups)) {
+            const brandTotal = asins.reduce((sum, a) => sum + a.TotalGms, 0);
+            if (brandTotal <= 0) continue;
+
+            let cumPct = 0;
+            let topCount = 0;
+            let bottomCount = 0;
+
+            for (const asin of asins) {
+                const pct = Math.round((asin.TotalGms / brandTotal) * 10000) / 100;
+                cumPct = Math.round((cumPct + pct) * 100) / 100;
+
+                const isSingleAsin = asins.length === 1;
+                const tag = isSingleAsin || cumPct <= 80
+                    ? 'Top 80% Contributor'
+                    : 'Bottom 20% Contributor';
+
+                if (tag === 'Top 80% Contributor') topCount++;
+                else bottomCount++;
+
+                let tags = [];
+                try { tags = JSON.parse(asin.Tags || '[]'); } catch { tags = []; }
+                tags = tags.filter(t => t !== 'Top 80% Contributor' && t !== 'Bottom 20% Contributor');
+                tags.push(tag);
+
+                updateBatch.push({ id: asin.Id, tags });
+
+                if (updateBatch.length >= BATCH_SIZE) {
+                    await flushBatch();
+                }
+            }
+
+            brandMap[brand] = { topCount, bottomCount, brandTotalGms: brandTotal };
+        }
+
+        await flushBatch();
 
         const details = Object.entries(brandMap).map(([brand, stats]) => ({
             brand,
@@ -261,30 +258,237 @@ class AutoTagService {
     }
 
     /**
+     * Remove stale "Top 20 By GMS" tags from all ASINs.
+     * Must be called BEFORE computeTop20ByGmsTags.
+     * @param {object} pool
+     * @returns {Promise<number>} count of tags removed
+     */
+    static async clearStaleTop20ByGmsTags(pool) {
+        const result = await pool.request()
+            .query(`
+                SELECT Id, Tags FROM Asins
+                WHERE Tags LIKE '%Top 20 By GMS%'
+            `);
+        let cleared = 0;
+        for (const row of result.recordset) {
+            let tags = [];
+            try { tags = JSON.parse(row.Tags || '[]'); } catch { continue; }
+            const filtered = tags.filter(t => t !== 'Top 20 By GMS');
+            if (filtered.length !== tags.length) {
+                await pool.request()
+                    .input('id', sql.VarChar, row.Id)
+                    .input('tags', sql.NVarChar, JSON.stringify(filtered))
+                    .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
+                cleared++;
+            }
+        }
+        return cleared;
+    }
+
+    /**
+     * Compute "Top 20 By GMS" tags per brand.
+     * From the set of ASINs tagged as "Top 80% Contributor",
+     * picks the top 20 by GMS and tags them with "Top 20 By GMS".
+     * @param {object} pool - Database connection pool
+     * @param {number} months - Lookback window (default 3)
+     * @returns {Promise<object>} { updated, total, brandCount }
+     */
+    static async computeTop20ByGmsTags(pool, months = 3) {
+        const result = await pool.request()
+            .input('months', sql.Int, months)
+            .query(`
+                SELECT a.Id, a.AsinCode, a.Tags, a.Brand,
+                    CAST(SUM(ISNULL(g.OrderedRevenue, 0)) AS FLOAT) as TotalGms
+                FROM GmsDailyPerformance g WITH (NOLOCK)
+                INNER JOIN Asins a WITH (NOLOCK) ON g.Asin = a.AsinCode
+                WHERE g.Date >= DATEADD(MONTH, -@months, CAST(dbo.GetEnvDate() AS DATE))
+                    AND a.Status = 'Active'
+                    AND a.Tags LIKE '%Top 80% Contributor%'
+                    AND a.Brand IS NOT NULL AND a.Brand <> ''
+                GROUP BY a.Id, a.AsinCode, a.Tags, a.Brand
+                HAVING SUM(ISNULL(g.OrderedRevenue, 0)) > 0
+                ORDER BY a.Brand, SUM(ISNULL(g.OrderedRevenue, 0)) DESC
+            `);
+
+        const brandGroups = {};
+        for (const row of result.recordset) {
+            if (!brandGroups[row.Brand]) brandGroups[row.Brand] = [];
+            brandGroups[row.Brand].push(row);
+        }
+
+        let updated = 0;
+        const BATCH_SIZE = 100;
+        let updateBatch = [];
+
+        async function flushBatch() {
+            if (updateBatch.length === 0) return;
+            await Promise.all(updateBatch.map(item =>
+                pool.request()
+                    .input('id', sql.VarChar, item.id)
+                    .input('tags', sql.NVarChar, JSON.stringify(item.tags))
+                    .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id')
+            ));
+            updated += updateBatch.length;
+            updateBatch = [];
+        }
+
+        for (const [brand, asins] of Object.entries(brandGroups)) {
+            const top20 = asins.slice(0, 20);
+            for (const asin of top20) {
+                let tags = [];
+                try { tags = JSON.parse(asin.Tags || '[]'); } catch { tags = []; }
+                if (!tags.includes('Top 20 By GMS')) {
+                    tags.push('Top 20 By GMS');
+                    updateBatch.push({ id: asin.Id, tags });
+                    if (updateBatch.length >= BATCH_SIZE) {
+                        await flushBatch();
+                    }
+                }
+            }
+        }
+
+        await flushBatch();
+
+        return {
+            updated,
+            total: result.recordset.length,
+            brandCount: Object.keys(brandGroups).length
+        };
+    }
+
+    /**
+     * Remove stale "Price Dispute" tags from all ASINs.
+     * Must be called BEFORE computePriceDisputeTags.
+     * @param {object} pool
+     * @returns {Promise<number>} count of tags removed
+     */
+    static async clearStalePriceDisputeTags(pool) {
+        const result = await pool.request()
+            .query(`
+                SELECT Id, Tags FROM Asins
+                WHERE Tags LIKE '%Price Dispute%'
+            `);
+        let cleared = 0;
+        for (const row of result.recordset) {
+            let tags = [];
+            try { tags = JSON.parse(row.Tags || '[]'); } catch { continue; }
+            const filtered = tags.filter(t => t !== 'Price Dispute');
+            if (filtered.length !== tags.length) {
+                await pool.request()
+                    .input('id', sql.VarChar, row.Id)
+                    .input('tags', sql.NVarChar, JSON.stringify(filtered))
+                    .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
+                cleared++;
+            }
+        }
+        return cleared;
+    }
+
+    /**
+     * Compute "Price Dispute" tags.
+     * Tags Active ASINs where |UploadedPrice - CurrentPrice| > 5 and no proper deal badge.
+     * @param {object} pool - Database connection pool
+     * @returns {Promise<object>} { updated, total }
+     */
+    static async computePriceDisputeTags(pool) {
+        const PROPER_DEAL_RE = /^(lightning|limited time deal|best deal|prime exclusive|subscribe.?and.?save|deal of the day|coupon)$/i;
+
+        const result = await pool.request()
+            .query(`
+                SELECT Id, Tags, UploadedPrice, CurrentPrice, DealBadge
+                FROM Asins
+                WHERE Status = 'Active'
+                    AND UploadedPrice > 0 AND CurrentPrice > 0
+                    AND ABS(UploadedPrice - CurrentPrice) > 5
+            `);
+
+        let updated = 0;
+        const BATCH_SIZE = 100;
+        let updateBatch = [];
+
+        async function flushBatch() {
+            if (updateBatch.length === 0) return;
+            await Promise.all(updateBatch.map(item =>
+                pool.request()
+                    .input('id', sql.VarChar, item.id)
+                    .input('tags', sql.NVarChar, JSON.stringify(item.tags))
+                    .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id')
+            ));
+            updated += updateBatch.length;
+            updateBatch = [];
+        }
+
+        for (const row of result.recordset) {
+            const hasProperDeal = row.DealBadge && PROPER_DEAL_RE.test((row.DealBadge || '').trim());
+            if (hasProperDeal) continue;
+
+            let tags = [];
+            try { tags = JSON.parse(row.Tags || '[]'); } catch { tags = []; }
+            if (!tags.includes('Price Dispute')) {
+                tags.push('Price Dispute');
+                updateBatch.push({ id: row.Id, tags });
+                if (updateBatch.length >= BATCH_SIZE) {
+                    await flushBatch();
+                }
+            }
+        }
+
+        await flushBatch();
+
+        return { updated, total: result.recordset.length };
+    }
+
+    /**
      * Run all auto-tag computations in sequence.
+     * Order: clear stale → Pareto 80/20 → Top 20 By GMS → Price Dispute → Age tags
      * @param {object} pool
      * @returns {Promise<object>} summary
      */
     static async runAllAutoTags(pool) {
         console.log('[AutoTag] Starting full auto-tag run...');
+        const results = {};
 
-        // Clear stale Pareto tags first
-        const stalePareto = await this.clearStaleParetoTags(pool);
-        console.log(`[AutoTag] Cleared ${stalePareto} stale Pareto tags`);
+        try {
+            // 1. Clear all stale auto-tags
+            results.clearedPareto = await this.clearStaleParetoTags(pool);
+            console.log(`[AutoTag] Cleared ${results.clearedPareto} stale Pareto tags`);
+            results.clearedTop20 = await this.clearStaleTop20ByGmsTags(pool);
+            console.log(`[AutoTag] Cleared ${results.clearedTop20} stale Top 20 By GMS tags`);
+            results.clearedPriceDispute = await this.clearStalePriceDisputeTags(pool);
+            console.log(`[AutoTag] Cleared ${results.clearedPriceDispute} stale Price Dispute tags`);
 
-        // Compute Pareto 80/20 contributor tags
-        const pareto = await this.computeParetoContributorTags(pool, 3);
-        console.log(`[AutoTag] Pareto 80/20: ${pareto.updated} updated across ${pareto.brandCount} brands`);
+            // 2. Compute Pareto 80/20 contributor tags
+            const pareto = await this.computeParetoContributorTags(pool, 3);
+            console.log(`[AutoTag] Pareto 80/20: ${pareto.updated} updated across ${pareto.brandCount} brands`);
 
-        // Update age tags for all ASINs
-        const ageResult = await this.batchUpdateAgeTags(pool);
-        console.log(`[AutoTag] Age tags: ${ageResult.updated} updated, ${ageResult.skipped} skipped`);
+            // 3. Compute Top 20 By GMS tags (from within Top 80% Contributor set)
+            const top20 = await this.computeTop20ByGmsTags(pool, 3);
+            console.log(`[AutoTag] Top 20 By GMS: ${top20.updated} updated across ${top20.brandCount} brands`);
 
-        return {
-            pareto,
-            ageTags: ageResult,
-            cleared: { pareto: stalePareto }
-        };
+            // 4. Compute Price Dispute tags
+            const priceDispute = await this.computePriceDisputeTags(pool);
+            console.log(`[AutoTag] Price Dispute: ${priceDispute.updated} updated out of ${priceDispute.total} candidates`);
+
+            // 5. Update age tags for all ASINs (runs last so it preserves all other tags)
+            const age = await this.batchUpdateAgeTags(pool);
+            console.log(`[AutoTag] Age tags: ${age.updated} updated, ${age.skipped} skipped`);
+
+            results.pareto = pareto;
+            results.top20ByGms = top20;
+            results.priceDispute = priceDispute;
+            results.ageTags = age;
+            results.cleared = {
+                pareto: results.clearedPareto,
+                top20ByGms: results.clearedTop20,
+                priceDispute: results.clearedPriceDispute
+            };
+
+        } catch (err) {
+            console.error('[AutoTag] Fatal error during auto-tag run:', err);
+            throw err;
+        }
+
+        return results;
     }
 
     /**

@@ -76,324 +76,19 @@ const EditTagsModal = lazy(() => import('../components/asins/EditTagsModal'));
 const BulkImportModal = lazy(() => import('../components/asins/BulkImportModal'));
 import TagsCell from '../components/asins/TagsCell';
 import BulkTagsModal from '../components/asins/BulkTagsModal';
+import TrendBadge from '../components/asins/TrendBadge';
 import { useColumnVisibility, ALL_COLUMNS, COLUMN_CATEGORIES } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
+import {
+  generateHistoryStructure,
+  generateHistoryStructureFromDates,
+  getWeekNumber,
+  normalizeDateStr,
+  getWeekHistoryBadge,
+  getReviewTrendStatus
+} from '../utils/asinHistory.jsx';
 
 import Popover from '../components/common/Popover';
-
-// Helper to generate tiered structure for history columns
-const generateHistoryStructure = (history) => {
-  if (!history || history.length === 0) return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
-
-  // 1. Group by Week
-  const groups = {};
-  [...history].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(item => {
-    // Extract week label (e.g., "W45" from "W45-2024")
-    const weekLabel = item.week ? item.week.split('-')[0] : 'W?';
-    if (!groups[weekLabel]) groups[weekLabel] = [];
-    groups[weekLabel].push(item);
-  });
-
-  // 2. Format structure for rendering
-  return Object.keys(groups).map(week => ({
-    label: week,
-    dates: groups[week].map(d => ({
-      raw: d.date,
-      label: new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-    }))
-  }));
-};
-
-// Helper to generate history structure from actual availability (Oldest to Newer)
-const generateHistoryStructureFromDates = (sortedDates) => {
-  if (!sortedDates || sortedDates.length === 0) return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
-
-  // Limit to most recent 7 unique days available in the data
-  const recentDates = sortedDates.slice(-7);
-
-  return [{
-    label: 'Current Week',
-    dates: recentDates.map(dateStr => {
-      const date = new Date(`${dateStr}T00:00:00Z`);
-      return {
-        raw: dateStr,
-        label: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-      };
-    })
-  }];
-};
-
-// Helper to get week number from date
-const getWeekNumber = (date) => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-};
-
-// Helper to normalize dates to YYYY-MM-DD string without timezone offset
-const normalizeDateStr = (dateInput) => {
-  if (!dateInput) return '';
-  if (typeof dateInput === 'string') {
-    return dateInput.substring(0, 10);
-  }
-  try {
-    return new Date(dateInput).toISOString().split('T')[0];
-  } catch (e) {
-    return '';
-  }
-};
-
-// Helper function for week history badges
-const getWeekHistoryBadge = (value, type, uploadedPrice = 0) => {
-  if (value === undefined || value === null || value === '') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-
-  if (type === 'price') {
-    return (
-      <div className="d-flex flex-column align-items-center justify-content-center">
-        <span style={{
-          fontWeight: 600,
-          color: 'var(--text-success)',
-          fontSize: '10.5px',
-          lineHeight: 1
-        }}>
-          ₹{value.toLocaleString()}
-        </span>
-      </div>
-    );
-  } else if (type === 'number') {
-    return <span style={{ fontWeight: 600, color: 'var(--text-brand)', fontSize: '10.5px' }}>#{value.toLocaleString()}</span>;
-  } else if (type === 'rating') {
-    return <span style={{ fontWeight: 600, color: 'var(--text-warning)', fontSize: '10.5px' }}>{value.toFixed(1)}</span>;
-  } else if (type === 'subBsr') {
-    const clean = String(value).replace(/[^0-9]/g, '');
-    if (!clean) return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-    const num = parseInt(clean, 10);
-    if (isNaN(num)) return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-    return <span style={{ fontWeight: 600, color: 'var(--color-secondary)', fontSize: '10px' }}>#{num.toLocaleString()}</span>;
-  }
-  return value;
-};
-
-// Trend Badge Component
-const TrendBadge = ({ status }) => {
-  if (!status || status === 'Stable') return (
-    <div className="d-flex align-items-center gap-1 text-zinc-400" style={{ fontSize: '10px', fontWeight: 600 }}>
-      <Activity size={10} />
-      <span>Stable</span>
-    </div>
-  );
-
-  if (status === 'Grow') {
-    return (
-      <div className="d-flex align-items-center gap-1 text-emerald-600" style={{ fontSize: '10px', fontWeight: 600 }}>
-        <TrendingUp size={10} />
-        <span>GROW</span>
-      </div>
-    );
-  }
-
-  if (status === 'Down') {
-    return (
-      <div className="d-flex align-items-center gap-1 text-red-500" style={{ fontSize: '10px', fontWeight: 600 }}>
-        <TrendingDown size={10} />
-        <span>DOWN</span>
-      </div>
-    );
-  }
-
-  return <span style={{ fontSize: '10px' }}>{status}</span>;
-};
-
-const getReviewTrendStatus = (asin) => {
-  if (asin.reviewTrendStatus) return asin.reviewTrendStatus;
-
-  let history = [];
-  try {
-    history = asin.History ? (typeof asin.History === 'string' ? JSON.parse(asin.History) : asin.History) : [];
-  } catch (e) {
-    history = [];
-  }
-
-  if (!Array.isArray(history) || history.length < 2) return 'Stable';
-
-  const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
-  const currentReviews = asin.reviewCount || sortedHistory[sortedHistory.length - 1]?.reviews || sortedHistory[sortedHistory.length - 1]?.reviewCount || 0;
-
-  const prevPoints = sortedHistory.slice(0, -1).filter(h => (h.reviews || h.reviewCount || 0) > 0);
-  if (prevPoints.length === 0) return 'Stable';
-
-  const baselineReviews = prevPoints[prevPoints.length - 1].reviews || prevPoints[prevPoints.length - 1].reviewCount || 0;
-
-  if (currentReviews < baselineReviews) return 'Down';
-  if (currentReviews > baselineReviews) return 'Grow';
-  return 'Stable';
-};
-
-// Extended demo ASIN data with date stamps and 8 weeks of history
-const demoAsins = [
-  {
-    id: '1',
-    asinCode: 'B07XYZ123',
-    sku: 'SKU-WE-001',
-    title: 'Wireless Bluetooth Earbuds Pro with Noise Cancellation',
-    imageUrl: 'https://placehold.co/100x100?text=Earbuds',
-    brand: 'AudioTech',
-    category: 'Electronics',
-    currentPrice: 2499,
-    bsr: 1250,
-    rating: 4.5,
-    reviewCount: 1250,
-    buyBoxWin: true,
-    couponDetails: '₹100 Off',
-    dealDetails: 'Lightning Deal',
-    totalOffers: 15,
-    imagesCount: 7,
-    hasAplus: true,
-    descLength: 520,
-    lqs: 85,
-    status: 'Active',
-    weekHistory: [
-      { week: 'W48-2024', date: '2024-12-01', price: 2399, bsr: 1400, rating: 4.4, reviews: 1180, hasAplus: true },
-      { week: 'W49-2024', date: '2024-12-08', price: 2499, bsr: 1350, rating: 4.4, reviews: 1200, hasAplus: true },
-      { week: 'W50-2024', date: '2024-12-15', price: 2499, bsr: 1300, rating: 4.5, reviews: 1215, hasAplus: true },
-      { week: 'W51-2024', date: '2024-12-22', price: 2599, bsr: 1280, rating: 4.5, reviews: 1225, hasAplus: true },
-      { week: 'W52-2024', date: '2024-12-29', price: 2499, bsr: 1250, rating: 4.5, reviews: 1235, hasAplus: true },
-      { week: 'W01-2025', date: '2025-01-05', price: 2399, bsr: 1220, rating: 4.5, reviews: 1240, hasAplus: true },
-      { week: 'W02-2025', date: '2025-01-12', price: 2499, bsr: 1200, rating: 4.5, reviews: 1245, hasAplus: true },
-      { week: 'W03-2025', date: '2025-01-19', price: 2499, bsr: 1250, rating: 4.5, reviews: 1250, hasAplus: true },
-    ],
-  },
-  {
-    id: '2',
-    asinCode: 'B07ABC456',
-    sku: 'SKU-SW-002',
-    title: 'Smart Watch Elite - Fitness Tracker with GPS',
-    imageUrl: 'https://placehold.co/100x100?text=Watch',
-    brand: 'FitGear',
-    category: 'Electronics',
-    currentPrice: 8999,
-    bsr: 890,
-    rating: 4.2,
-    reviewCount: 890,
-    buyBoxWin: true,
-    couponDetails: 'None',
-    dealDetails: 'None',
-    totalOffers: 8,
-    imagesCount: 5,
-    hasAplus: true,
-    descLength: 480,
-    lqs: 72,
-    status: 'Active',
-    weekHistory: [
-      { week: 'W48-2024', date: '2024-12-01', price: 8799, bsr: 950, rating: 4.1, reviews: 820 },
-      { week: 'W49-2024', date: '2024-12-08', price: 8999, bsr: 920, rating: 4.1, reviews: 835 },
-      { week: 'W50-2024', date: '2024-12-15', price: 9199, bsr: 900, rating: 4.2, reviews: 850 },
-      { week: 'W51-2024', date: '2024-12-22', price: 8999, bsr: 910, rating: 4.2, reviews: 860 },
-      { week: 'W52-2024', date: '2024-12-29', price: 8799, bsr: 895, rating: 4.2, reviews: 870 },
-      { week: 'W01-2025', date: '2025-01-05', price: 8999, bsr: 890, rating: 4.2, reviews: 880 },
-      { week: 'W02-2025', date: '2025-01-12', price: 9199, bsr: 885, rating: 4.2, reviews: 885 },
-      { week: 'W03-2025', date: '2025-01-19', price: 8999, bsr: 890, rating: 4.2, reviews: 890 },
-    ],
-  },
-  {
-    id: '3',
-    asinCode: 'B07DEF789',
-    sku: 'SKU-YM-003',
-    title: 'Premium Yoga Mat - Non-Slip Exercise Mat',
-    imageUrl: 'https://placehold.co/100x100?text=Yoga',
-    brand: 'FitLife',
-    category: 'Sports',
-    currentPrice: 1299,
-    bsr: 3200,
-    rating: 4.8,
-    reviewCount: 3200,
-    buyBoxWin: true,
-    couponDetails: '₹50 Off',
-    dealDetails: 'None',
-    totalOffers: 22,
-    imagesCount: 6,
-    hasAplus: false,
-    descLength: 280,
-    lqs: 68,
-    status: 'Active',
-    weekHistory: [
-      { week: 'W48-2024', date: '2024-12-01', price: 1199, bsr: 3500, rating: 4.7, reviews: 3050 },
-      { week: 'W49-2024', date: '2024-12-08', price: 1299, bsr: 3400, rating: 4.7, reviews: 3080 },
-      { week: 'W50-2024', date: '2024-12-15', price: 1299, bsr: 3350, rating: 4.7, reviews: 3100 },
-      { week: 'W51-2024', date: '2024-12-22', price: 1399, bsr: 3300, rating: 4.7, reviews: 3120 },
-      { week: 'W52-2024', date: '2024-12-29', price: 1299, bsr: 3250, rating: 4.8, reviews: 3140 },
-      { week: 'W01-2025', date: '2025-01-05', price: 1199, bsr: 3220, rating: 4.8, reviews: 3160 },
-      { week: 'W02-2025', date: '2025-01-12', price: 1299, bsr: 3210, rating: 4.8, reviews: 3180 },
-      { week: 'W03-2025', date: '2025-01-19', price: 1299, bsr: 3200, rating: 4.8, reviews: 3200 },
-    ],
-  },
-  {
-    id: '4',
-    asinCode: 'B07GHI012',
-    sku: 'SKU-KT-004',
-    title: 'Kitchen Scale Digital - Precision Food Scale',
-    imageUrl: 'https://placehold.co/100x100?text=Scale',
-    brand: 'HomeChef',
-    category: 'Home & Kitchen',
-    currentPrice: 799,
-    bsr: 4500,
-    rating: 4.3,
-    reviewCount: 4500,
-    buyBoxWin: false,
-    couponDetails: 'None',
-    dealDetails: 'None',
-    totalOffers: 35,
-    imagesCount: 8,
-    hasAplus: true,
-    descLength: 420,
-    lqs: 78,
-    status: 'Active',
-    weekHistory: [
-      { week: 'W48-2024', date: '2024-12-01', price: 699, bsr: 4800, rating: 4.2, reviews: 4300 },
-      { week: 'W49-2024', date: '2024-12-08', price: 799, bsr: 4700, rating: 4.2, reviews: 4350 },
-      { week: 'W50-2024', date: '2024-12-15', price: 849, bsr: 4650, rating: 4.3, reviews: 4400 },
-      { week: 'W51-2024', date: '2024-12-22', price: 799, bsr: 4600, rating: 4.3, reviews: 4420 },
-      { week: 'W52-2024', date: '2024-12-29', price: 749, bsr: 4550, rating: 4.3, reviews: 4440 },
-      { week: 'W01-2025', date: '2025-01-05', price: 799, bsr: 4520, rating: 4.3, reviews: 4460 },
-      { week: 'W02-2025', date: '2025-01-12', price: 849, bsr: 4510, rating: 4.3, reviews: 4480 },
-      { week: 'W03-2025', date: '2025-01-19', price: 799, bsr: 4500, rating: 4.3, reviews: 4500 },
-    ],
-  },
-  {
-    id: '5',
-    asinCode: 'B07JKL345',
-    sku: 'SKU-SP-005',
-    title: 'Security Camera 1080P - Wireless Home Security',
-    imageUrl: 'https://placehold.co/100x100?text=Camera',
-    brand: 'SecureHome',
-    category: 'Electronics',
-    currentPrice: 3499,
-    bsr: 1850,
-    rating: 4.1,
-    reviewCount: 1850,
-    buyBoxWin: true,
-    couponDetails: '₹200 Off',
-    dealDetails: 'Prime Deal',
-    totalOffers: 12,
-    imagesCount: 9,
-    hasAplus: true,
-    descLength: 680,
-    lqs: 82,
-    status: 'Active',
-    weekHistory: [
-      { week: 'W48-2024', date: '2024-12-01', price: 3299, bsr: 2000, rating: 4.0, reviews: 1750 },
-      { week: 'W49-2024', date: '2024-12-08', price: 3499, bsr: 1950, rating: 4.0, reviews: 1770 },
-      { week: 'W50-2024', date: '2024-12-15', price: 3699, bsr: 1900, rating: 4.1, reviews: 1790 },
-      { week: 'W51-2024', date: '2024-12-22', price: 3499, bsr: 1880, rating: 4.1, reviews: 1805 },
-      { week: 'W52-2024', date: '2024-12-29', price: 3299, bsr: 1860, rating: 4.1, reviews: 1820 },
-      { week: 'W01-2025', date: '2025-01-05', price: 3499, bsr: 1855, rating: 4.1, reviews: 1830 },
-      { week: 'W02-2025', date: '2025-01-12', price: 3699, bsr: 1852, rating: 4.1, reviews: 1840 },
-      { week: 'W03-2025', date: '2025-01-19', price: 3499, bsr: 1850, rating: 4.1, reviews: 1850 },
-    ],
-  },
-];
 
 const AsinManagerPage = (props) => {
   const { isAdmin, isGlobalUser, hasPermission } = useAuth();
@@ -554,18 +249,16 @@ const AsinManagerPage = (props) => {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
   };
 
-  const visibleLQSCount = useMemo(() => ['titleScore', 'bulletScore', 'imageScore', 'descriptionScore', 'lqs'].filter(isVisible).length, [isVisible]);
   const visibleOrdersCount = useMemo(() => {
     if (!isVisible('totalOrders')) return 0;
     return ordersExpanded ? availableMonths.length + 1 : 1;
   }, [isVisible, ordersExpanded, availableMonths]);
 
   const hasSecondHeaderRow = useMemo(() => {
-    if (visibleLQSCount > 0) return true;
     if (ordersExpanded && isVisible('totalOrders')) return true;
     if (isVisible('priceTrend') || isVisible('bsrTrend') || isVisible('ratingTrend') || isVisible('reviewTrend') || isVisible('imageTrend')) return true;
     return false;
-  }, [visibleLQSCount, ordersExpanded, isVisible]);
+  }, [ordersExpanded, isVisible]);
   const visiblePriceTrendCount = useMemo(() => {
     if (!isVisible('priceTrend')) return 0;
     return visibleHistoryCols;
@@ -1691,6 +1384,18 @@ const AsinManagerPage = (props) => {
     }
   };
 
+  const handleToggleAsinStatus = async (asinId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'Active' ? 'Paused' : 'Active';
+      await asinApi.update(asinId, { status: newStatus });
+      message.success(`ASIN ${newStatus === 'Active' ? 'activated' : 'deactivated'} successfully.`);
+      loadData();
+    } catch (error) {
+      console.error('Failed to toggle ASIN status:', error);
+      message.error('Failed to toggle status: ' + error.message);
+    }
+  };
+
   const handleCreateTasks = async (asinId, asinCode) => {
     try {
       const confirmed = await new Promise(resolve => {
@@ -2098,15 +1803,6 @@ const AsinManagerPage = (props) => {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
-  };
-
-  const actionBtnStyle = {
-    padding: '1px 6px',
-    fontSize: '9px',
-    fontWeight: '700',
-    height: '18px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--border-light)'
   };
 
   return (
@@ -2662,7 +2358,7 @@ const AsinManagerPage = (props) => {
                 </Button>
 
                 {hasPermission('asinmanager_manage') && (
-                  <Tooltip title="Auto-tag: Pareto 80/20 Contributors, Age tags">
+                  <Tooltip title="Auto-tag: Pareto 80/20, Top 20 By GMS, Price Dispute, Age tags">
                     <Button
                       icon={<Sparkles size={14} />}
                       onClick={async () => {
@@ -2670,11 +2366,15 @@ const AsinManagerPage = (props) => {
                           message.loading({ content: 'Running auto-tags...', key: 'auto-tags' });
                           const res = await asinApi.runAutoTags();
                           if (res.success) {
-                            const pareto = res.data?.pareto || {};
+                            const d = res.data || {};
+                            const pareto = d.pareto || {};
+                            const top20 = d.top20ByGms || {};
+                            const pd = d.priceDispute || {};
+                            const age = d.ageTags || {};
                             message.success({
-                              content: `Auto-tags complete. Pareto: ${pareto.updated || 0} ASINs across ${pareto.brandCount || 0} brands`,
+                              content: `Auto-tags done. Pareto: ${pareto.updated || 0} | Top20: ${top20.updated || 0} | PriceDispute: ${pd.updated || 0} | Age: ${age.updated || 0}`,
                               key: 'auto-tags',
-                              duration: 4
+                              duration: 5
                             });
                             loadData(pagination.page);
                           }
@@ -2909,14 +2609,6 @@ const AsinManagerPage = (props) => {
                   )}
                   {isVisible('tags') && <th rowSpan={2} style={{ ...thStyle, width: '100px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>TAGS</th>}
 
-                  {/* LQS columns disabled per user request
-                  {visibleLQSCount > 0 && (
-                    <th colSpan={visibleLQSCount} style={{ ...thStyle, background: 'var(--bg-secondary)', color: '#1e293b', textAlign: 'center', borderBottom: '1px solid var(--border-light)' }}>
-                      LISTING QUALITY (LQS)
-                    </th>
-                  )}
-                  */}
-
                   {/* ===== DEAL & MANUFACTURER COLUMNS (Slate Palette) ===== */}
                   {isVisible('manufacturer') && <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>MANUFACTURER</th>}
                   {isVisible('availabilityStatus') && <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>AVAILABILITY</th>}
@@ -3115,14 +2807,6 @@ const AsinManagerPage = (props) => {
                 </tr>
 
                 <tr>
-                  {/* LQS sub-columns disabled per user request
-                  {isVisible('titleScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Title Quality Score">TTL</th>}
-                  {isVisible('bulletScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Bullet Points Score">BLT</th>}
-                  {isVisible('imageScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Image Quality Score">IMG</th>}
-                  {isVisible('descriptionScore') && <th style={{ ...thStyle, width: '45px', textAlign: 'center', background: 'var(--bg-secondary)' }} title="Description Score">DSC</th>}
-                  {isVisible('lqs') && <th style={{ ...thStyle, width: '50px', textAlign: 'center', background: 'var(--bg-secondary)', fontWeight: 800 }} title="Overall LQS Score">TOTAL</th>}
-                  */}
-
                   {/* Orders Expanded Monthly Columns */}
                   {ordersExpanded && isVisible('totalOrders') && availableMonths.map((month, idx) => (
                     <th key={`ord-m-${idx}`} style={{
@@ -3520,117 +3204,6 @@ const AsinManagerPage = (props) => {
                             <TagsCell asin={asin} onRefresh={loadData} />
                           </td>
                         )}
-                        {/* ===== LISTING QUALITY SCORES ===== */}
-                        {/* {isVisible('titleScore') && (
-                        <td style={{ ...tdStyle, textAlign: 'center', background: '#fafafa' }}>
-                          {asin.titleScore != null ? (
-                            <span
-                              className="badge fw-bold"
-                              style={{
-                                fontSize: '10px',
-                                backgroundColor: (asin.titleScore || 0) >= 8.5 ? 'var(--text-success)' :
-                                  (asin.titleScore || 0) >= 7.0 ? 'var(--text-warning)' :
-                                    (asin.titleScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
-                                color: '#fff',
-                                minWidth: '28px'
-                              }}
-                            >
-                              {typeof asin.titleScore === 'number' ? (asin.titleScore > 10 ? (asin.titleScore / 10).toFixed(1) : asin.titleScore.toFixed(1)) : (parseFloat(asin.titleScore || 0) > 10 ? (parseFloat(asin.titleScore || 0) / 10).toFixed(1) : parseFloat(asin.titleScore || 0).toFixed(1))}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
-                          )}
-                        </td>
-                      )} */}
-
-                        {/* {isVisible('bulletScore') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', background: '#fafafa' }}>
-                            {asin.bulletScore != null ? (
-                              <span
-                                className="badge fw-bold"
-                                style={{
-                                  fontSize: '10px',
-                                  backgroundColor: (asin.bulletScore || 0) >= 8.5 ? 'var(--text-success)' :
-                                    (asin.bulletScore || 0) >= 7.0 ? 'var(--text-warning)' :
-                                      (asin.bulletScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
-                                  color: '#fff',
-                                  minWidth: '28px'
-                                }}
-                              >
-                                {typeof asin.bulletScore === 'number' ? (asin.bulletScore > 10 ? (asin.bulletScore / 10).toFixed(1) : asin.bulletScore.toFixed(1)) : (parseFloat(asin.bulletScore || 0) > 10 ? (parseFloat(asin.bulletScore || 0) / 10).toFixed(1) : parseFloat(asin.bulletScore || 0).toFixed(1))}
-                              </span>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
-                            )}
-                          </td>
-                        )} */}
-
-                        {/* {isVisible('imageScore') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', background: '#fafafa' }}>
-                            {asin.imageScore != null ? (
-                              <span
-                                className="badge fw-bold"
-                                style={{
-                                  fontSize: '10px',
-                                  backgroundColor: (asin.imageScore || 0) >= 8.5 ? 'var(--text-success)' :
-                                    (asin.imageScore || 0) >= 7.0 ? 'var(--text-warning)' :
-                                      (asin.imageScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
-                                  color: '#fff',
-                                  minWidth: '28px'
-                                }}
-                              >
-                                {typeof asin.imageScore === 'number' ? (asin.imageScore > 10 ? (asin.imageScore / 10).toFixed(1) : asin.imageScore.toFixed(1)) : (parseFloat(asin.imageScore || 0) > 10 ? (parseFloat(asin.imageScore || 0) / 10).toFixed(1) : parseFloat(asin.imageScore || 0).toFixed(1))}
-                              </span>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
-                            )}
-                          </td>
-                        )} */}
-
-                        {/* {isVisible('descriptionScore') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', background: '#fafafa' }}>
-                            {asin.descriptionScore != null ? (
-                              <span
-                                className="badge fw-bold"
-                                style={{
-                                  fontSize: '10px',
-                                  backgroundColor: (asin.descriptionScore || 0) >= 8.5 ? 'var(--text-success)' :
-                                    (asin.descriptionScore || 0) >= 7.0 ? 'var(--text-warning)' :
-                                      (asin.descriptionScore || 0) >= 5.0 ? 'var(--text-danger)' : 'var(--text-danger)',
-                                  color: '#fff',
-                                  minWidth: '28px'
-                                }}
-                              >
-                                {typeof asin.descriptionScore === 'number' ? (asin.descriptionScore > 10 ? (asin.descriptionScore / 10).toFixed(1) : asin.descriptionScore.toFixed(1)) : (parseFloat(asin.descriptionScore || 0) > 10 ? (parseFloat(asin.descriptionScore || 0) / 10).toFixed(1) : parseFloat(asin.descriptionScore || 0).toFixed(1))}
-                              </span>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
-                            )}
-                          </td>
-                        )} */}
-
-                        {/* {isVisible('lqs') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', background: 'var(--bg-secondary)', fontWeight: 600 }}>
-                            {asin.lqs != null ? (
-                              <span
-                                className="badge fw-bold"
-                                style={{
-                                  fontSize: 'var(--font-size-xs)',
-                                  backgroundColor: (asin.lqs || 0) >= 8.5 || (asin.lqs || 0) >= 85 ? 'var(--text-success)' :
-                                    (asin.lqs || 0) >= 7.0 || (asin.lqs || 0) >= 70 ? 'var(--text-warning)' :
-                                      (asin.lqs || 0) >= 5.0 || (asin.lqs || 0) >= 50 ? 'var(--text-danger)' : 'var(--text-danger)',
-                                  color: '#fff',
-                                  padding: '3px 8px',
-                                  minWidth: '36px'
-                                }}
-                              >
-                                {typeof asin.lqs === 'number' ? (asin.lqs > 10 ? (asin.lqs / 10).toFixed(1) : asin.lqs.toFixed(1)) : (parseFloat(asin.lqs || 0) > 10 ? (parseFloat(asin.lqs || 0) / 10).toFixed(1) : parseFloat(asin.lqs || 0).toFixed(1))}
-                              </span>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
-                            )}
-                          </td>
-                        )} */}
                         {isVisible('manufacturer') && (
                           <td style={{ ...tdStyle, textAlign: 'left' }}>
                             <span style={{ fontSize: '10px', color: 'var(--text-secondary)', maxWidth: '110px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={asin.manufacturer || ''}>
@@ -4294,16 +3867,15 @@ const AsinManagerPage = (props) => {
                                   key: 'sync',
                                   label: 'Sync Marketplace',
                                   icon: <RefreshCw size={14} className="text-emerald-500" />,
-                                  onClick: () => handleSyncAsin(asin._id)
+                                    onClick: () => handleIndividualScrape(asin._id)
                                 },
                                 {
-                                  key: 'edit',
-                                  label: 'Edit ASIN',
-                                  icon: <Edit3 size={14} className="text-amber-500" />,
-                                  onClick: () => {
-                                    setEditingAsin(asin);
-                                    setShowEditModal(true);
-                                  }
+                                    key: 'edit',
+                                    label: 'Edit ASIN',
+                                    icon: <Edit3 size={14} className="text-amber-500" />,
+                                    onClick: () => {
+                                        setActiveEditAsin(asin);
+                                    }
                                 },
                                 {
                                   key: 'toggle',
