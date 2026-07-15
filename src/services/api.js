@@ -2061,3 +2061,25 @@ export const gmsApi = {
     return res.json();
   }
 };
+
+export const keywordApi = {
+  search: async (params = {}) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    const res = await fetch(`${API_BASE}/keywords/search?${query}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Keyword search failed');
+    return res.json();
+  },
+
+  getCategories: async () => {
+    const res = await fetch(`${API_BASE}/keywords/categories`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch categories');
+    return res.json();
+  }
+};

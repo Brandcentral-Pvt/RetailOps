@@ -10,11 +10,14 @@ class CreatorsApiCredentials {
     }
 
     _loadFromEnv() {
+        const apiVersion = process.env.LIVE_SYNC_CLIENT_VERSION || '3.2';
+
         // Primary credentials (always loaded)
         const primary = {
             id: 'primary',
             clientId: process.env.LIVE_SYNC_CLIENT_ID,
             clientSecret: process.env.LIVE_SYNC_CLIENT_SECRET,
+            version: apiVersion,
             partnerTag: process.env.LIVE_SYNC_PARTNER_TAG,
             marketplace: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
             successCount: 0,
@@ -29,6 +32,7 @@ class CreatorsApiCredentials {
             id: 'secondary',
             clientId: process.env.CREATORS_API_CLIENT_ID_2,
             clientSecret: process.env.CREATORS_API_CLIENT_SECRET_2,
+            version: apiVersion,
             partnerTag: process.env.LIVE_SYNC_PARTNER_TAG,
             marketplace: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
             successCount: 0,

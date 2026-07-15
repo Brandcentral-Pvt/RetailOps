@@ -1,5 +1,5 @@
-const axios = require('axios');
 const { sql, getPool } = require('../database/db');
+const CreatorsApiSdk = require('../lib/creatorsapi-sdk/index');
 const SystemLogService = require('./SystemLogService');
 const notificationController = require('../controllers/notificationController');
 const listingQualityService = require('./listingQualityService');
@@ -9,42 +9,52 @@ const EventEmitter = require('events');
 class LiveDataSyncService extends EventEmitter {
     constructor() {
         super();
-        
+
         this._config = {
-            _t: 'https://api.amazon.co.uk/auth/o2/token',
-            _b: 'https://creatorsapi.amazon',
-            maxPerRequest: 20,             // Increased: 10→20 items per API call (Amazon allows up to 20)
-            concurrency: 2,               // Parallel sellers (2 concurrent, each with own rate limiter)
-            requestDelay: 600,            // Reduced: 600ms between batches per credential (2 keys = 2 req/s effective)
-            sellerDelay: 500,             // Reduced: 500ms between sellers (parallelism handles throughput)
+            maxPerRequest: 10,             // Amazon API allows max 10 ASINs per request
+            concurrency: 1,               // One seller at a time
+            requestDelay: 1100,            // 1.1s between requests (API limit = 1 TPS)
+            sellerDelay: 2000,            // 2s between sellers
             maxRetries: 3,
             retryDelay: 3000,
-            rateLimitPerSecond: 1,        // Per-credential rate (doubled with 2 keys)
-            maxConcurrency: 3,            // Max parallel seller syncs
+            rateLimitPerSecond: 1,        // API rate = 1 TPS per account
+            tpdLimit: 8600,               // Daily limit = 8640 TPD, leave 40 buffer
+            maxConcurrency: 1,            // One seller at a time
         };
-        
-        this._tokens = new Map();
+
+        this._sdkClients = new Map();          // credId -> DefaultApi instance (cached SDK client)
+        this._lastRequestTime = 0;             // Global last request timestamp (1 TPS per account)
+        this._tpdCounters = new Map();         // credId -> daily request count
+        this._tpdDate = null;                  // Today's date (YYYY-MM-DD) to reset counters
+        this._credThrottledUntil = new Map();  // credId -> timestamp when throttling ends
         this.activeSyncs = new Map();
         this._globalSyncRunning = false;
-        this._lastRequestTime = 0;
-        this._rateLimitQueue = Promise.resolve();  // Serialized queue
     }
-    
-    // Rate limiter — serialized via promise chain (token bucket: 1 req/sec)
+
+    // Rate limiter — strict 1 req/sec (API limit = 1 TPS per account)
     async _rateLimit() {
+        const minInterval = 1100;
         const now = Date.now();
         const elapsed = now - this._lastRequestTime;
-        const minInterval = 1000 / this._config.rateLimitPerSecond;
         if (elapsed < minInterval) {
             await this._delay(minInterval - elapsed);
         }
         this._lastRequestTime = Date.now();
     }
 
-    // Adjust rate from API response header (dynamic token bucket)
-    _updateRateFromHeader(headers) {
+    // Track TPD per credential and optionally adjust rate from API header
+    _updateRateFromHeader(headers, credId) {
+        const today = new Date().toISOString().split('T')[0];
+        if (this._tpdDate !== today) {
+            this._tpdDate = today;
+            this._tpdCounters.clear();
+        }
+        if (credId) {
+            this._tpdCounters.set(credId, (this._tpdCounters.get(credId) || 0) + 1);
+        }
+
         const limit = parseFloat(headers['x-amzn-ratelimit-limit']);
-        if (limit && limit > 0) {
+        if (limit && limit > 0 && limit < this._config.rateLimitPerSecond) {
             this._config.rateLimitPerSecond = limit;
             this._config.requestDelay = Math.ceil(1000 / limit) + 100;
             console.log(`📊 Rate limit updated from API: ${limit} req/s (delay: ${this._config.requestDelay}ms)`);
@@ -52,33 +62,40 @@ class LiveDataSyncService extends EventEmitter {
     }
 
     // ============================================
-    // Internal: Get global credentials from env
+    // Internal: Get or create cached SDK client per credential
     // ============================================
-    _getCredentials() {
-        const CreatorsApiCredentials = require('./creatorsApiCredentials');
-        const cred = CreatorsApiCredentials.get();
-        
-        if (!cred.clientId || !cred.clientSecret) {
-            throw new Error('Live Sync credentials not configured.');
-        }
-        
-        return { _cid: cred.clientId, _cs: cred.clientSecret, _pt: cred.partnerTag, _mk: cred.marketplace, _credRef: cred };
+    _getSdkApi(credId) {
+        const cached = this._sdkClients.get(credId);
+        if (cached) return cached;
+
+        const Credentials = require('./creatorsApiCredentials');
+        const cred = Credentials.credentials.find(c => c.id === credId);
+        if (!cred) throw new Error(`Credential '${credId}' not found`);
+
+        const { ApiClient, DefaultApi } = CreatorsApiSdk;
+        const apiClient = new ApiClient();
+        apiClient.credentialId = cred.clientId;
+        apiClient.credentialSecret = cred.clientSecret;
+        apiClient.version = cred.version;
+        const api = new DefaultApi(apiClient);
+        this._sdkClients.set(credId, api);
+        return api;
     }
-    
+
     // ============================================
     // 🚀 MAIN: Live Sync for Seller (Public Method)
     // ============================================
     async syncSellerLiveData(sellerId, options = {}) {
         const startTime = Date.now();
         const sellerIdStr = sellerId.toString();
-        
+
         if (this.activeSyncs.has(sellerIdStr)) {
-            return { 
+            return {
                 error: 'Live sync already in progress for this seller',
                 status: 'IN_PROGRESS'
             };
         }
-        
+
         const stats = {
             sellerId: sellerIdStr,
             syncType: 'LIVE',
@@ -89,16 +106,13 @@ class LiveDataSyncService extends EventEmitter {
             errors: [],
             duration: 0
         };
-        
+
         this.activeSyncs.set(sellerIdStr, stats);
-        
+
         try {
             const pool = await getPool();
-            
-            // 1. Get global credentials from env
-            const creds = this._getCredentials();
-            
-            // 2. Get ALL active ASINs
+
+            // 1. Get ALL active ASINs
             const asinsResult = await pool.request()
                 .input('sellerId', sql.VarChar, sellerIdStr)
                 .query(`
@@ -109,78 +123,69 @@ class LiveDataSyncService extends EventEmitter {
                     AND AsinCode IS NOT NULL
                     ORDER BY AsinCode
                 `);
-            
+
             const allAsins = asinsResult.recordset;
             stats.totalAsins = allAsins.length;
-            
+
             if (allAsins.length === 0) {
                 throw new Error('No active ASINs found for this seller');
             }
-            
+
             console.log(`Live sync: Seller ${sellerIdStr} - ${allAsins.length} ASINs`);
-            
+
             this.emit('liveSync:started', {
                 sellerId: sellerIdStr,
                 totalAsins: allAsins.length
             });
-            
-            // 3. Get token (global, not per-seller)
-            const { token } = await this._getToken(creds);
-            
-            // 4. Process batches SEQUENTIALLY — token bucket = 1 req/sec
+
+            // 2. Create batches
             const batches = this._createBatches(allAsins, this._config.maxPerRequest);
             const totalBatches = batches.length;
-            
-            let processed = 0;
-            let consecutiveFailures = 0;
-            
-            for (let index = 0; index < totalBatches; index++) {
-                // Check abort flag
-                if (this._globalSyncAborted) {
-                    console.log(`🚫 [LiveSync] Global sync aborted, stopping after batch ${index}/${totalBatches}`);
-                    break;
-                }
-                
-                const batch = batches[index];
-                try {
-                    await this._processBatch(sellerIdStr, batch, token, creds, stats);
-                    processed++;
-                    consecutiveFailures = 0;
-                    
-                    const progress = Math.round((processed / totalBatches) * 100);
-                    this.emit('liveSync:progress', {
-                        sellerId: sellerIdStr,
-                        progress,
-                        processed,
-                        total: totalBatches
-                    });
 
-                    // Delay after each batch to respect rate limits
-                    await this._delay(this._config.requestDelay);
-                } catch (e) {
-                    stats.errors.push({ batch: index, error: e.message });
-                    consecutiveFailures++;
-                    
-                    // Track ASINs from failed batches
+            // 3. Process batches SEQUENTIALLY (Amazon API: 1 TPS per account)
+            let completedCount = 0;
+
+            for (const batch of batches) {
+                if (this._globalSyncAborted) break;
+
+                const credId = this._selectBestCred();
+                if (!credId) {
+                    console.error(`⛔ No available credential (all throttled or TPD exhausted)`);
                     for (const asinRecord of batch) {
                         stats.failedCount++;
                         stats.failedAsinCodes.push(asinRecord.AsinCode);
                     }
-                    
-                    // Exponential backoff on consecutive failures (2s → 4s → 8s → 16s)
-                    const backoff = Math.min(this._config.requestDelay * Math.pow(2, consecutiveFailures), 16000);
-                    console.log(`  ⏳ Batch ${index + 1}/${totalBatches} failed, backing off ${(backoff / 1000).toFixed(0)}s (streak: ${consecutiveFailures})`);
-                    await this._delay(backoff);
+                    continue;
+                }
+
+                try {
+                    await this._processBatch(sellerIdStr, batch, credId, stats);
+                    completedCount++;
+
+                    const progress = Math.round((completedCount / totalBatches) * 100);
+                    this.emit('liveSync:progress', {
+                        sellerId: sellerIdStr,
+                        progress,
+                        processed: completedCount,
+                        total: totalBatches
+                    });
+                } catch (e) {
+                    stats.errors.push({ batch: completedCount, error: e.message });
+                    for (const asinRecord of batch) {
+                        stats.failedCount++;
+                        stats.failedAsinCodes.push(asinRecord.AsinCode);
+                    }
+                    console.log(`  ⏳ Batch failed: ${e.message}`);
                 }
             }
             stats.duration = Date.now() - startTime;
-            
+
             console.log(`Live sync complete: Seller ${sellerIdStr}`, {
                 success: stats.successCount,
                 failed: stats.failedCount,
                 duration: `${(stats.duration / 1000).toFixed(2)}s`
             });
-            
+
             // 5. Post-sync actions (may take time for LQS analysis)
             try {
                 await this._triggerPostSync(sellerIdStr, allAsins);
@@ -188,10 +193,10 @@ class LiveDataSyncService extends EventEmitter {
                 console.error(`Post-sync actions failed for seller ${sellerIdStr}:`, postSyncErr.message);
                 // Don't fail the whole sync for post-sync errors
             }
-            
+
             // 6. Log sync
             await this._logSync(sellerIdStr, stats);
-            
+
             // 7. Emit socket event for real-time UI updates
             try {
                 const SocketService = require('./socketService');
@@ -213,28 +218,28 @@ class LiveDataSyncService extends EventEmitter {
                     console.warn('⚠️ SocketService not initialized, skipping socket emission');
                 }
             } catch (e) { console.error('Socket emission error:', e.message); }
-            
+
             // 8. If there are failed ASINs, schedule auto-retry after 10s (was 30s)
             if (stats.failedAsinCodes.length > 0) {
                 const failedCodes = [...stats.failedAsinCodes];
                 console.log(`🔄 Scheduling re-sync for ${failedCodes.length} failed ASINs in 10s...`);
-                
+
                 setTimeout(async () => {
                     try {
-                        await this._resyncFailedAsins(sellerIdStr, failedCodes, creds);
+                        await this._resyncFailedAsins(sellerIdStr, failedCodes);
                     } catch (reSyncErr) {
                         console.error(`Re-sync of failed ASINs error:`, reSyncErr.message);
                     }
                 }, 10000);
             }
-            
+
             // 9. Notify users about sync results
             await this._notifySyncResult(sellerIdStr, stats);
-            
+
             stats.completedAt = new Date().toISOString();
             stats.status = 'COMPLETED';
             this.emit('liveSync:completed', stats);
-            
+
             return {
                 success: true,
                 sellerId: sellerIdStr,
@@ -245,29 +250,29 @@ class LiveDataSyncService extends EventEmitter {
                 duration: stats.duration,
                 completedAt: stats.completedAt
             };
-            
+
         } catch (error) {
             stats.fatalError = error.message;
             stats.status = 'FAILED';
             console.error(`Live sync failed for seller ${sellerIdStr}:`, error);
-            
+
             this.emit('liveSync:failed', { sellerId: sellerIdStr, error: error.message });
-            
+
             throw new Error(`Live sync failed: ${error.message}`);
-            
+
         } finally {
             // Always clean up after ALL operations complete (success or failure)
             this.activeSyncs.delete(sellerIdStr);
         }
     }
-    
+
     // ============================================
     // GLOBAL: Sync All Sellers (parallel batching)
     // ============================================
     async syncAllSellers(options = {}) {
         const { concurrency = this._config.maxConcurrency, sellerIds = null, maxRetries = 2 } = options;
         const startTime = Date.now();
-        
+
         // Prevent duplicate global sync
         if (this._globalSyncRunning) {
             return { error: 'Global live sync already in progress', status: 'IN_PROGRESS' };
@@ -379,180 +384,217 @@ class LiveDataSyncService extends EventEmitter {
             this._globalSyncRunning = false;
         }
     }
-    
-    // ============================================
-    // Internal: Get Token (global, cached)
-    // ============================================
-    async _getToken(creds) {
+
+    _getAvailableCredIds() {
         const CreatorsApiCredentials = require('./creatorsApiCredentials');
-        const cred = CreatorsApiCredentials.get();
-        const cached = this._tokens.get(cred.id);
-        
-        if (cached && Date.now() < cached.exp) {
-            return { token: cached.t, credId: cred.id };
-        }
-        
-        const params = new URLSearchParams();
-        params.append('grant_type', 'client_credentials');
-        params.append('client_id', cred.clientId);
-        params.append('client_secret', cred.clientSecret);
-        params.append('scope', 'creatorsapi::default');
-        
-        const response = await axios.post(this._config._t, params, {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            timeout: 10000
-        });
-        
-        this._tokens.set(cred.id, {
-            t: response.data.access_token,
-            exp: Date.now() + (response.data.expires_in * 1000) - 120000
-        });
-        
-        CreatorsApiCredentials.markSuccess(cred);
-        return { token: response.data.access_token, credId: cred.id };
+        return CreatorsApiCredentials.credentials
+            .filter(c => c.clientId && c.clientSecret && c.consecutiveErrors < 5)
+            .map(c => c.id);
     }
 
-    // Force-rotate: clear all token caches and get a fresh one from a different credential
-    async _rotateToken() {
-        this._tokens.clear();
-        return await this._getToken(null);
+    _getCredInfo(credId) {
+        const CreatorsApiCredentials = require('./creatorsApiCredentials');
+        const cred = CreatorsApiCredentials.credentials.find(c => c.id === credId);
+        if (!cred) throw new Error(`Credential '${credId}' not found`);
+        return {
+            marketplace: cred.marketplace || 'www.amazon.in',
+            partnerTag: cred.partnerTag,
+        };
     }
-    
+
+    _selectBestCred() {
+        const CreatorsApiCredentials = require('./creatorsApiCredentials');
+        const healthy = CreatorsApiCredentials.credentials
+            .filter(c => c.clientId && c.clientSecret && c.consecutiveErrors < 5);
+        if (healthy.length === 0) return null;
+
+        // Prefer non-throttled credentials, then least TPD usage
+        const now = Date.now();
+        let best = null;
+        let bestTpd = Infinity;
+
+        for (const cred of healthy) {
+            if (this._credThrottledUntil.get(cred.id) === Infinity) continue; // TPD exhausted permanently
+            if ((this._credThrottledUntil.get(cred.id) || 0) > now) continue; // Temporarily throttled
+
+            const tpd = this._tpdCounters.get(cred.id) || 0;
+            if (tpd < bestTpd) {
+                bestTpd = tpd;
+                best = cred.id;
+            }
+        }
+
+        return best;
+    }
+
+    _isCredThrottled(credId) {
+        const until = this._credThrottledUntil.get(credId);
+        if (!until) return false;
+        if (until === Infinity) return true;
+        return Date.now() < until;
+    }
+
     // ============================================
     // Internal: Process Batch
     // ============================================
-    async _processBatch(sellerId, batch, token, creds, stats, retry = 0) {
-        try {
-            const codes = batch.map(a => a.AsinCode);
-            
-            // Rate limit before API call
-            await this._rateLimit();
-            
-            const response = await axios.post(
-                `${this._config._b}/catalog/v1/getItems`,
-                {
-                    itemIds: codes,
-                    itemIdType: 'ASIN',
-                    marketplace: creds._mk || 'www.amazon.in',
-                    partnerTag: creds._pt,
-                    resources: this._getResources()
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'x-marketplace': creds._mk || 'www.amazon.in'
-                    },
-                    timeout: 30000
-                }
-            );
-            
-            // Dynamic rate limit from API response
-            this._updateRateFromHeader(response.headers);
-            
-            const items = response.data.itemsResult?.items || [];
+    async _processBatch(sellerId, batch, credId, stats) {
+        const codes = batch.map(a => a.AsinCode);
+        let lastError = null;
 
-            // Build error map from API response
-            // Amazon returns errors like: { code: "ItemNotAccessible", message: "The ItemId B0xxx is not accessible..." }
-            // The ASIN may be in err.asin, err.itemId, err.resourceId, or embedded in the message text
-            const apiErrors = response.data.errors || [];
-            const errorMap = new Map();
-            for (const err of apiErrors) {
-                let asin = err.asin || err.itemId || err.resourceId;
-                // Extract ASIN from message if not in a field (e.g. "The ItemId B0DQTBRZRV is not accessible...")
-                if (!asin && err.message) {
-                    const match = err.message.match(/(?:ItemId|ASIN|Item)\s+(B[A-Z0-9]{9,})/i);
-                    if (match) asin = match[1];
+        for (let attempt = 0; attempt <= this._config.maxRetries; attempt++) {
+            try {
+                if (this._isCredThrottled(credId)) {
+                    const throttledCred = this._selectBestCred();
+                    if (throttledCred && throttledCred !== credId) {
+                        console.log(`   Credential '${credId}' throttled, switching to '${throttledCred}'`);
+                        return this._processBatch(sellerId, batch, throttledCred, stats);
+                    }
+                    throw new Error(`Credential '${credId}' is throttled — waiting`);
                 }
-                if (asin) errorMap.set(asin, err.message || err.errorType || err.code || 'API error');
-            }
 
-            const savePromises = batch.map(async (asinRecord) => {
-                try {
-                    const item = items.find(i => i.asin === asinRecord.AsinCode);
-                    if (!item) {
-                        const reason = errorMap.get(asinRecord.AsinCode) || 'Not returned by API';
-                        stats.errors.push({ asin: asinRecord.AsinCode, error: reason });
-                        
+                // Check TPD limit before making request
+                const tpdCount = this._tpdCounters.get(credId) || 0;
+                if (tpdCount >= this._config.tpdLimit) {
+                    this._credThrottledUntil.set(credId, Infinity);
+                    console.warn(`⛔ Credential '${credId}' reached TPD limit (${tpdCount}/${this._config.tpdLimit})`);
+                    const fallbackCred = this._selectBestCred();
+                    if (fallbackCred && fallbackCred !== credId) {
+                        return this._processBatch(sellerId, batch, fallbackCred, stats);
+                    }
+                    throw new Error(`All credentials exhausted TPD limit`);
+                }
+
+                const credInfo = this._getCredInfo(credId);
+                const api = this._getSdkApi(credId);
+
+                // Strict 1 req/s rate limit (per account)
+                await this._rateLimit();
+
+                const { GetItemsRequestContent } = CreatorsApiSdk;
+                const request = new GetItemsRequestContent();
+                request.partnerTag = credInfo.partnerTag;
+                request.itemIds = codes;
+                request.resources = this._getResources();
+
+                const { data, response } = await api.getItems(credInfo.marketplace, request);
+
+                // Track TPD from successful request
+                this._updateRateFromHeader(response.headers, credId);
+
+                const items = data.itemsResult?.items || [];
+
+                const apiErrors = response.data.errors || [];
+                const errorMap = new Map();
+                for (const err of apiErrors) {
+                    let asin = err.asin || err.itemId || err.resourceId;
+                    if (!asin && err.message) {
+                        const match = err.message.match(/(?:ItemId|ASIN|Item)\s+(B[A-Z0-9]{9,})/i);
+                        if (match) asin = match[1];
+                    }
+                    if (asin) errorMap.set(asin, err.message || err.errorType || err.code || 'API error');
+                }
+
+                const savePromises = batch.map(async (asinRecord) => {
+                    try {
+                        const item = items.find(i => i.asin === asinRecord.AsinCode);
+                        if (!item) {
+                            const reason = errorMap.get(asinRecord.AsinCode) || 'Not returned by API';
+                            stats.errors.push({ asin: asinRecord.AsinCode, error: reason });
+
+                            stats.failedCount++;
+                            stats.failedAsinCodes.push(asinRecord.AsinCode);
+                            return;
+                        }
+
+                        await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord);
+                        stats.successCount++;
+                    } catch (e) {
                         stats.failedCount++;
                         stats.failedAsinCodes.push(asinRecord.AsinCode);
-                        return;
+                        stats.errors.push({ asin: asinRecord.AsinCode, error: e.message });
                     }
-                    
-                    await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord);
-                    stats.successCount++;
-                } catch (e) {
-                    stats.failedCount++;
-                    stats.failedAsinCodes.push(asinRecord.AsinCode);
-                    stats.errors.push({ asin: asinRecord.AsinCode, error: e.message });
-                }
-            });
-            
-            await Promise.all(savePromises);
-            
-        } catch (error) {
-            // Log full API error for diagnostics
-            if (error.response) {
-                const body = typeof error.response.data === 'string'
-                    ? error.response.data.substring(0, 500)
-                    : JSON.stringify(error.response.data || {}).substring(0, 500);
-                console.error(`❌ [LiveSync] API ${error.response.status} for batch [${codes?.slice(0, 3).join(', ')}...]: ${body}`);
-            }
+                });
 
-            // 429: Rate limited — rotate to different credential and respect Retry-After
-            if (error.response?.status === 429 && retry < this._config.maxRetries) {
-                const retryAfterSec = parseInt(error.response.headers['retry-after'] || '0', 10);
-                const backoff = retryAfterSec > 0
-                    ? retryAfterSec * 1000
-                    : this._config.retryDelay * Math.pow(2, retry + 1);
-                console.warn(`⏳ [429] Rate limited. Rotating credential, backing off ${(backoff / 1000).toFixed(0)}s (attempt ${retry + 1}/${this._config.maxRetries})`);
-                await this._delay(backoff);
-                const { token: newToken } = await this._rotateToken();
-                CreatorsApiCredentials.markFailed(CreatorsApiCredentials.get(), '429');
-                return this._processBatch(sellerId, batch, newToken, creds, stats, retry + 1);
+                await Promise.all(savePromises);
+                return; // Success
+
+            } catch (error) {
+                lastError = error;
+                const status = error.status || error.response?.status;
+
+                // SDK errors carry status at top level; body and headers via response
+                const resp = error.response || {};
+                if (error.body || resp.body) {
+                    const body = JSON.stringify(error.body || resp.body || {}).substring(0, 500);
+                    console.error(`❌ [LiveSync] API ${status} for batch [${codes?.slice(0, 3).join(', ')}...]: ${body}`);
+                }
+
+                // 429: Throttle this credential, try the other one
+                if (status === 429) {
+                    const retryAfterSec = parseInt((resp.headers || {})['retry-after'] || '0', 10);
+                    const backoffMs = retryAfterSec > 0
+                        ? retryAfterSec * 1000
+                        : Math.min(10000 * Math.pow(2, attempt), 80000);
+
+                    this._credThrottledUntil.set(credId, Date.now() + backoffMs);
+                    console.warn(`⏳ [429] Throttled '${credId}' for ${(backoffMs / 1000).toFixed(0)}s (attempt ${attempt + 1})`);
+
+                    const fallbackCred = this._selectBestCred();
+                    if (fallbackCred && fallbackCred !== credId) {
+                        console.log(`   Switching to '${fallbackCred}' for retry`);
+                        await this._delay(2000);
+                        return this._processBatch(sellerId, batch, fallbackCred, stats);
+                    }
+                    // All credentials throttled — wait for the shortest throttle to expire
+                    const minUntil = Math.min(...Array.from(this._credThrottledUntil.values()).filter(t => t !== Infinity));
+                    const wait = Math.min(Math.max(minUntil - Date.now(), 1000), 120000);
+                    console.log(`   All credentials throttled, waiting ${(wait / 1000).toFixed(0)}s...`);
+                    await this._delay(wait);
+                    continue;
+                }
+
+                // 401/400: Rotate token and try the other credential
+                if ((status === 401 || status === 400) && attempt < this._config.maxRetries) {
+                    this._sdkClients.delete(credId);
+                    console.warn(`🔄 [${status}] Rotating credential '${credId}', trying fallback (attempt ${attempt + 1})`);
+                    const fallbackCred = this._selectBestCred();
+                    if (fallbackCred && fallbackCred !== credId) {
+                        await this._delay(this._config.retryDelay);
+                        return this._processBatch(sellerId, batch, fallbackCred, stats);
+                    }
+                    await this._delay(this._config.retryDelay);
+                    continue;
+                }
             }
-            
-            // 401: Token expired — rotate credential and retry
-            if (error.response?.status === 401 && retry < this._config.maxRetries) {
-                const { token: newToken } = await this._rotateToken();
-                return this._processBatch(sellerId, batch, newToken, creds, stats, retry + 1);
-            }
-            
-            // 400: Sometimes means expired token (Amazon quirk)
-            if (error.response?.status === 400 && retry < this._config.maxRetries) {
-                const { token: newToken } = await this._rotateToken();
-                console.warn(`🔄 [400] Retrying with fresh token (attempt ${retry + 1}/${this._config.maxRetries})`);
-                await this._delay(this._config.retryDelay);
-                return this._processBatch(sellerId, batch, newToken, creds, stats, retry + 1);
-            }
-            
-            throw error;
         }
+
+        // All retries exhausted
+        if (lastError) throw lastError;
     }
 
     // Mark an ASIN as not accessible via API (permanent failure)
-    
+
     // ============================================
     // 🔥 KEY: Update ALL Fields EXCEPT A+ and Rating Breakdown
     // ============================================
     async _updateAsinFromLiveSync(asinId, sellerId, item, asinRecord = null) {
         const pool = await getPool();
         const transaction = new sql.Transaction(pool);
-        
+
         try {
             await transaction.begin();
-            
+
             const extracted = this._extractFields(item);
-            
+
             // Price Dispute Calculation — read UploadedPrice from DB record (passed from batch query)
             const uploadedPrice = asinRecord?.UploadedPrice || 0;
             const currentPrice = extracted.priceAmount || 0;
             const dealBadge = extracted.dealBadge || '';
-            
+
             // Any deal badge present → suppress dispute (deals change prices frequently)
             // Includes: Lightning Deal, Limited Time Deal, Prime Day, Coupon, % off, Ends in, etc.
             const hasDeal = dealBadge && dealBadge !== 'No deal found' && dealBadge.trim().length > 0;
-            
+
             let priceDispute = false;
             if (uploadedPrice > 0 && currentPrice > 0) {
                 const priceDiff = Math.abs(uploadedPrice - currentPrice);
@@ -560,11 +602,11 @@ class LiveDataSyncService extends EventEmitter {
                     priceDispute = true;
                 }
             }
-            
+
             // ⚠️ Update ALL fields EXCEPT:
             // - HasAplus, AplusContent, AplusModuleCount (from Octoparse)
             // - RatingBreakdown (from Octoparse)
-            
+
             await new sql.Request(transaction)
                 .input('asinId', sql.VarChar, asinId)
                 .input('title', sql.NVarChar(sql.MAX), extracted.title)
@@ -581,6 +623,7 @@ class LiveDataSyncService extends EventEmitter {
                 .input('mainCategory', sql.NVarChar, extracted.mainCategory)
                 .input('subCategory', sql.NVarChar, extracted.subCategory)
                 .input('categoryPath', sql.NVarChar(500), extracted.categoryPath)
+                .input('brand', sql.NVarChar, extracted.brand)
                 .input('seller', sql.NVarChar, extracted.seller)
                 .input('sellerId', sql.NVarChar, extracted.sellerId)
                 .input('availability', sql.NVarChar, extracted.availability)
@@ -610,6 +653,8 @@ class LiveDataSyncService extends EventEmitter {
                         CurrentPrice = @currentPrice,
                         Mrp = @mrp,
                         Category = @mainCategory,
+                        SubCategory = @subCategory,
+                        Brand = @brand,
                         BSR = @mainBSR,
                         SubBSR = @subBSR,
                         SubBSRCategory = @subBSRCategory,
@@ -647,7 +692,7 @@ class LiveDataSyncService extends EventEmitter {
                         AvailabilityStatus = @availability
                     WHERE Id = @asinId
                 `);
-            
+
             // Insert into AsinHistory
             await new sql.Request(transaction)
                 .input('asinId', sql.VarChar, asinId)
@@ -673,50 +718,50 @@ class LiveDataSyncService extends EventEmitter {
                         @source
                     )
                 `);
-            
+
             await transaction.commit();
-            
+
         } catch (error) {
             await transaction.rollback();
             throw error;
         }
     }
-    
+
     // ============================================
     // Internal: Extract Fields from API response
     // Maps the actual Creators API JSON response format
     // ============================================
     _extractFields(item) {
         // ── Buy Box / Listing (Creators API uses offersV2.listings) ─────
-        const listing = item.offersV2?.listings?.find(l => l.isBuyBoxWinner) 
-                     || item.offersV2?.listings?.[0]
-                     || item.buyBoxes?.find(b => b.isBuyBoxWinner) 
-                     || item.buyBoxes?.[0];
-        
+        const listing = item.offersV2?.listings?.find(l => l.isBuyBoxWinner)
+            || item.offersV2?.listings?.[0]
+            || item.buyBoxes?.find(b => b.isBuyBoxWinner)
+            || item.buyBoxes?.[0];
+
         // ── Price (Creators API: offersV2.listings[].price.money.amount) ─
         const priceMoney = listing?.price?.money;
         const savingBasis = listing?.price?.savingBasis?.money;
         const savings = listing?.price?.savings;
-        
-        const priceAmount = priceMoney?.amount 
-                         || listing?.priceAmount 
-                         || this._parsePrice(item.price);
-        const mrpAmount = savingBasis?.amount 
-                       || listing?.mrpAmount 
-                       || this._parsePrice(item.mrp);
-        const discountPercent = savings?.percentage 
-                             || this._parseDiscount(item.discount);
-        
+
+        const priceAmount = priceMoney?.amount
+            || listing?.priceAmount
+            || this._parsePrice(item.price);
+        const mrpAmount = savingBasis?.amount
+            || listing?.mrpAmount
+            || this._parsePrice(item.mrp);
+        const discountPercent = savings?.percentage
+            || this._parseDiscount(item.discount);
+
         // ── BSR (Creators API: rankings array format) ─────────────────────
         // API returns: ["#467556 in Unknown", "#578 in Washer Floor Trays"]
         // First = main BSR (website-wide), Second = sub BSR (category-specific)
         const rankings = item.rankings || [];
         const browseNodes = item.browseNodeInfo?.browseNodes || [];
-        
+
         let mainBSR = null;
         let subBSR = null;
         let subBSRCategory = null;
-        
+
         // Primary: Parse from rankings array (most reliable)
         if (rankings.length >= 2) {
             mainBSR = this._parseBSR(rankings[0]);
@@ -725,12 +770,12 @@ class LiveDataSyncService extends EventEmitter {
         } else if (rankings.length === 1) {
             mainBSR = this._parseBSR(rankings[0]);
         }
-        
+
         // Fallback: Use browseNodeInfo.websiteSalesRank for main BSR
         if (!mainBSR && item.browseNodeInfo?.websiteSalesRank?.salesRank) {
             mainBSR = item.browseNodeInfo.websiteSalesRank.salesRank;
         }
-        
+
         // Fallback: Use browseNodes for sub BSR
         if (!subBSR && browseNodes.length > 1) {
             for (const node of browseNodes) {
@@ -740,137 +785,182 @@ class LiveDataSyncService extends EventEmitter {
                 }
             }
         }
-        
+
         // ── Category ────────────────────────────────────────────────────
         const categoryPath = item.category || browseNodes[0]?.contextFreeName || '';
         const pathParts = categoryPath.split(/[›>]/).filter(Boolean);
-        
+
         // ── Customer Reviews ────────────────────────────────────────────
         const customerReviews = item.customerReviews || {};
         const rating = this._parseRating(customerReviews.starRating);
         const reviewCount = this._parseReviewCount(customerReviews.count);
-        
+
         // ── Images (Creators API: images.primary.large.url) ─────────────
-        const primaryImage = item.images?.primary?.large?.url 
-                          || item.images?.primary?.medium?.url
-                          || item.images?.primary?.small?.url
-                          || item.mainImage 
-                          || null;
+        const primaryImage = item.images?.primary?.large?.url
+            || item.images?.primary?.medium?.url
+            || item.images?.primary?.small?.url
+            || item.mainImage
+            || null;
         const variantImages = (item.images?.variants || []).map(v => v?.large?.url || v?.medium?.url || v?.url).filter(Boolean)
-                          || item.variantImages 
-                          || [];
-        
+            || item.variantImages
+            || [];
+
         // ── Deals (Creators API: from listing.dealDetails, NOT item.deals) ──
         const listingDealDetails = listing?.dealDetails || null;
-        
+
         // Fallback: item.deals array (Octoparse format or alternative API)
         const itemDeals = item.deals || [];
         const itemDeal = Array.isArray(itemDeals) && itemDeals.length > 0 ? itemDeals[0] : null;
-        
+
         // Use listing.dealDetails if present, else item.deals[0]
         const activeDeal = listingDealDetails || itemDeal;
         const hasDeal = !!(activeDeal && (
-            activeDeal.badge || activeDeal.type || activeDeal.hasDeal || 
-            activeDeal.dealType || activeDeal.dealBadge || 
+            activeDeal.badge || activeDeal.type || activeDeal.hasDeal ||
+            activeDeal.dealType || activeDeal.dealBadge ||
             (activeDeal.startDate && activeDeal.endDate) ||
             (activeDeal.startTime && activeDeal.endTime)
         ));
-        
+
         // ── Manufacturer ──────────────────────────────────────────────
-        const manufacturer = item.itemInfo?.byLineInfo?.manufacturer?.displayValue 
-                           || item.itemInfo?.byLineInfo?.brand?.displayValue
-                           || null;
-        
+        const manufacturer = item.itemInfo?.byLineInfo?.manufacturer?.displayValue
+            || item.itemInfo?.byLineInfo?.brand?.displayValue
+            || null;
+
         // ── Deal details with dates ──────────────────────────────────
         const dealBadge = (activeDeal?.badge || activeDeal?.type || activeDeal?.dealType || activeDeal?.dealBadge || null);
-        
+
         let dealStartTime = null;
         let dealEndTime = null;
-        
+
         if (hasDeal) {
             dealStartTime = activeDeal?.startDate ? new Date(activeDeal.startDate)
-                          : activeDeal?.startTime ? new Date(activeDeal.startTime)
-                          : null;
+                : activeDeal?.startTime ? new Date(activeDeal.startTime)
+                    : null;
             dealEndTime = activeDeal?.endDate ? new Date(activeDeal.endDate)
-                        : activeDeal?.endTime ? new Date(activeDeal.endTime)
-                        : null;
+                : activeDeal?.endTime ? new Date(activeDeal.endTime)
+                    : null;
         }
-        
+
         const dealAccessType = activeDeal?.accessType || null;
         const dealPercentClaimed = activeDeal?.percentClaimed != null ? `${activeDeal.percentClaimed}%` : null;
-        
+
         // ── Availability ────────────────────────────────────────────
-        const availability = listing?.availability?.message 
-                           || listing?.availability?.type 
-                           || item.stock?.status 
-                           || 'Unknown';
-        
+        const availability = listing?.availability?.message
+            || listing?.availability?.type
+            || item.stock?.status
+            || 'Unknown';
+
+        const buyBoxes = (item.offersV2?.listings || item.buyBoxes || []).map(l => ({
+            buyBoxNumber: l.buyBoxNumber || 1,
+            isBuyBoxWinner: l.isBuyBoxWinner || false,
+            seller: l.merchantInfo?.name || l.seller || null,
+            sellerId: l.merchantInfo?.id || l.sellerId || null,
+            price: l.price?.money?.displayAmount || l.price,
+            priceAmount: l.price?.money?.amount || l.priceAmount,
+            currency: l.price?.money?.currency || l.currency || 'INR',
+            mrp: l.price?.savingBasis?.money?.displayAmount || l.mrp,
+            mrpAmount: l.price?.savingBasis?.money?.amount || l.mrpAmount,
+            savingsAmount: l.price?.savings?.money?.amount || l.savingsAmount,
+            savingsPercentage: l.price?.savings?.percentage || l.savingsPercentage,
+            condition: l.condition,
+            conditionSub: l.condition?.subCondition || null,
+            availability: l.availability?.type || l.availability,
+            availabilityType: l.availabilityType,
+            maxOrderQuantity: l.maxOrderQuantity,
+            minOrderQuantity: l.minOrderQuantity,
+            violatesMAP: l.violatesMAP || false,
+            loyaltyPoints: l.loyaltyPoints?.points || null,
+            type: l.type
+        }));
+
+        const buyBoxWinner = buyBoxes.find(b => b.isBuyBoxWinner) || buyBoxes[0];
+
+        // ── New SDK fields ─────────────────────────────────────────
+        const pi = item.itemInfo?.productInfo || {};
+        const byLine = item.itemInfo?.byLineInfo || {};
+
+        const brand = byLine.brand?.displayValue || null;
+        const detailPageURL = item.detailPageURL || null;
+        const score = item.score || null;
+        const variationAttributes = (item.variationAttributes || []).map(v => ({
+            name: v.name || null,
+            value: v.value || null
+        }));
+        const externalIds = item.itemInfo?.externalIds || null;
+        const color = pi.color?.displayValue || null;
+        const size = pi.size?.displayValue || null;
+        const releaseDate = pi.releaseDate?.displayValue || null;
+        const unitCount = pi.unitCount?.value != null ? pi.unitCount.value : null;
+        const isAdultProduct = pi.isAdultProduct?.value === true;
+
+        const classifications = item.itemInfo?.classifications || null;
+        const contentInfo = item.itemInfo?.contentInfo || null;
+        const contentRating = item.itemInfo?.contentRating || null;
+        const techInfo = item.itemInfo?.technicalInfo || null;
+
+        // Build structured external IDs
+        const extIds = externalIds ? {
+            upcs: externalIds.upcs?.displayValues || [],
+            eans: externalIds.eans?.displayValues || [],
+            isbns: externalIds.isbns?.displayValues || []
+        } : null;
+
         return {
             title: item.itemInfo?.title?.displayValue || item.productName || null,
             parentAsin: item.parentASIN || item.parentAsin || null,
-            priceAmount: priceAmount,
-            mrpAmount: mrpAmount,
-            discountPercent: discountPercent,
-            availability: availability,
+            priceAmount,
+            mrpAmount,
+            discountPercent,
+            availability,
             seller: listing?.merchantInfo?.name || listing?.seller || null,
             sellerId: listing?.merchantInfo?.id || listing?.sellerId || null,
-            rating: rating,
-            reviewCount: reviewCount,
+            rating,
+            reviewCount,
             mainCategory: pathParts[0] || null,
             subCategory: pathParts[pathParts.length - 1] || null,
-            categoryPath: categoryPath,
-            mainBSR: mainBSR,
-            subBSR: subBSR,
-            subBSRCategory: subBSRCategory,
+            categoryPath,
+            mainBSR,
+            subBSR,
+            subBSRCategory,
             mainImage: primaryImage,
             imageCount: variantImages.length + (primaryImage ? 1 : 0),
             bulletPoints: item.itemInfo?.features?.displayValues || item.bulletPoints || [],
             bulletPointCount: item.itemInfo?.features?.displayValues?.length || item.bulletPointsCount || item.bulletPoints?.length || 0,
-            hasDeal: hasDeal,
+            hasDeal,
             dealType: dealBadge,
-            dealStartTime: dealStartTime,
-            dealEndTime: dealEndTime,
-            dealAccessType: dealAccessType,
-            dealPercentClaimed: dealPercentClaimed,
-            manufacturer: manufacturer,
-            variantImages: variantImages,
+            dealStartTime,
+            dealEndTime,
+            dealAccessType,
+            dealPercentClaimed,
+            manufacturer,
+            brand,
+            variantImages,
             dimensions: item.dimensions || null,
-            buyBoxes: (item.offersV2?.listings || item.buyBoxes || []).map(l => ({
-                buyBoxNumber: l.buyBoxNumber || 1,
-                isBuyBoxWinner: l.isBuyBoxWinner || false,
-                seller: l.merchantInfo?.name || l.seller || null,
-                sellerId: l.merchantInfo?.id || l.sellerId || null,
-                price: l.price?.money?.displayAmount || l.price,
-                priceAmount: l.price?.money?.amount || l.priceAmount,
-                currency: l.price?.money?.currency || l.currency || 'INR',
-                mrp: l.price?.savingBasis?.money?.displayAmount || l.mrp,
-                mrpAmount: l.price?.savingBasis?.money?.amount || l.mrpAmount,
-                savingsAmount: l.price?.savings?.money?.amount || l.savingsAmount,
-                savingsPercentage: l.price?.savings?.percentage || l.savingsPercentage,
-                condition: l.condition,
-                availability: l.availability?.type || l.availability,
-                availabilityType: l.availabilityType,
-                maxOrderQuantity: l.maxOrderQuantity,
-                minOrderQuantity: l.minOrderQuantity,
-                violatesMAP: l.violatesMAP || false,
-                type: l.type
-            }))
+            buyBoxes,
+            soldBy: buyBoxWinner?.seller || listing?.merchantInfo?.name || null,
+            soldBySec: buyBoxes.find(b => !b.isBuyBoxWinner && b.seller)?.seller || null,
+            buyBoxWin: buyBoxes.some(b => b.isBuyBoxWinner),
+            allOffers: buyBoxes.map(b => ({
+                seller: b.seller,
+                price: b.priceAmount || 0,
+                isBuyBoxWinner: b.isBuyBoxWinner
+            })),
+            detailPageURL,
+            score,
+            variationAttributes,
+            externalIds: extIds,
+            color,
+            size,
+            releaseDate,
+            unitCount,
+            isAdultProduct,
+            classifications,
+            contentInfo,
+            contentRating,
+            technicalInfo: techInfo
         };
-
-        // Derive SoldBy and AllOffers from buyBoxes
-        const buyBoxWinner = extracted.buyBoxes.find(b => b.isBuyBoxWinner) || extracted.buyBoxes[0];
-        extracted.soldBy = buyBoxWinner?.seller || extracted.seller || null;
-        extracted.soldBySec = extracted.buyBoxes.find(b => !b.isBuyBoxWinner && b.seller)?.seller || null;
-        extracted.buyBoxWin = extracted.buyBoxes.some(b => b.isBuyBoxWinner);
-        extracted.allOffers = extracted.buyBoxes.map(b => ({
-            seller: b.seller,
-            price: b.priceAmount || 0,
-            isBuyBoxWinner: b.isBuyBoxWinner
-        }));
-
-        return extracted;
     }
-    
+
     // Parse BSR from ranking string like "#367 in Unknown"
     _parseBSR(rankStr) {
         if (!rankStr) return null;
@@ -878,14 +968,14 @@ class LiveDataSyncService extends EventEmitter {
         if (!match) return null;
         return parseInt(match[1].replace(/,/g, ''), 10) || null;
     }
-    
+
     // Parse category name from ranking string like "#578 in Washer Floor Trays"
     _parseBSRCategory(rankStr) {
         if (!rankStr) return null;
         const match = rankStr.match(/in\s+(.+)$/);
         return match ? match[1].trim() : null;
     }
-    
+
     // Parse price from "₹599.00" format
     _parsePrice(priceStr) {
         if (!priceStr) return null;
@@ -893,14 +983,14 @@ class LiveDataSyncService extends EventEmitter {
         const match = priceStr.replace(/,/g, '').match(/([\d.]+)/);
         return match ? parseFloat(match[1]) : null;
     }
-    
+
     // Parse discount from "-88%" format
     _parseDiscount(discountStr) {
         if (!discountStr) return null;
         const match = discountStr.match(/(-?\d+)/);
         return match ? Math.abs(parseInt(match[1], 10)) : null;
     }
-    
+
     // Parse rating from Amazon API response (can be number, string, or object with value)
     _parseRating(ratingData) {
         if (!ratingData) return null;
@@ -913,7 +1003,7 @@ class LiveDataSyncService extends EventEmitter {
         if (ratingData.starRating !== undefined) return parseFloat(ratingData.starRating) || null;
         return null;
     }
-    
+
     // Parse review count from Amazon API response (can be number, string, or object with value)
     _parseReviewCount(countData) {
         if (!countData) return null;
@@ -927,21 +1017,35 @@ class LiveDataSyncService extends EventEmitter {
         if (countData.count !== undefined) return Math.round(parseFloat(countData.count)) || null;
         return null;
     }
-    
+
     _getResources() {
         return [
             'itemInfo.title',
             'itemInfo.features',
             'itemInfo.productInfo',
             'itemInfo.byLineInfo',
+            'itemInfo.classifications',
+            'itemInfo.contentInfo',
+            'itemInfo.contentRating',
+            'itemInfo.externalIds',
+            'itemInfo.manufactureInfo',
+            'itemInfo.technicalInfo',
+            'itemInfo.tradeInInfo',
+            'images.primary.small',
+            'images.primary.medium',
             'images.primary.large',
+            'images.primary.highRes',
+            'images.variants.small',
+            'images.variants.medium',
             'images.variants.large',
+            'images.variants.highRes',
             'offersV2.listings.price',
             'offersV2.listings.availability',
             'offersV2.listings.condition',
             'offersV2.listings.merchantInfo',
             'offersV2.listings.dealDetails',
             'offersV2.listings.isBuyBoxWinner',
+            'offersV2.listings.loyaltyPoints',
             'offersV2.listings.type',
             'customerReviews.count',
             'customerReviews.starRating',
@@ -952,7 +1056,7 @@ class LiveDataSyncService extends EventEmitter {
             'parentASIN'
         ];
     }
-    
+
     async _triggerPostSync(sellerId, allAsins) {
         try {
             console.log(`Running post-sync operations for seller: ${sellerId}`);
@@ -963,7 +1067,7 @@ class LiveDataSyncService extends EventEmitter {
                     console.error(`LQS analysis failed for ASIN ${asin.Id}:`, e.message);
                 }
             }
-            
+
             // Rulesets/Alerts engine execution if present
             try {
                 if (rulesetEngineService && typeof rulesetEngineService.runForSeller === 'function') {
@@ -976,7 +1080,7 @@ class LiveDataSyncService extends EventEmitter {
             console.error('Post-sync actions failed:', e);
         }
     }
-    
+
     async _logSync(sellerId, stats) {
         try {
             // Fetch seller name for human-readable log
@@ -990,7 +1094,7 @@ class LiveDataSyncService extends EventEmitter {
                     sellerName = nameResult.recordset[0].Name;
                 }
             } catch (e) { /* use sellerId as fallback */ }
-            
+
             await SystemLogService.log({
                 type: 'LIVE_SYNC',
                 entityType: 'SELLER',
@@ -1007,7 +1111,7 @@ class LiveDataSyncService extends EventEmitter {
     // ============================================
     // Re-sync only failed ASINs (called after main sync)
     // ============================================
-    async _resyncFailedAsins(sellerId, failedCodes, creds) {
+    async _resyncFailedAsins(sellerId, failedCodes) {
         const pool = await getPool();
         const startTime = Date.now();
         const stats = {
@@ -1039,15 +1143,21 @@ class LiveDataSyncService extends EventEmitter {
                 return;
             }
 
-            const token = await this._getToken(creds);
             const batches = this._createBatches(asinsToRetry, this._config.maxPerRequest);
 
             for (const batch of batches) {
+                const credId = this._selectBestCred();
+                if (!credId) {
+                    console.log(`⛔ Re-sync: No available credential (all throttled or TPD exhausted), skipping remaining`);
+                    stats.failedCount += batch.length;
+                    batch.forEach(a => stats.failedAsinCodes.push(a.AsinCode));
+                    continue;
+                }
                 try {
-                    await this._processBatch(sellerId, batch, token, creds, stats);
-                    await this._delay(this._config.requestDelay);
+                    await this._processBatch(sellerId, batch, credId, stats);
                 } catch (e) {
                     stats.errors.push({ error: e.message });
+                    batch.forEach(a => stats.failedAsinCodes.push(a.AsinCode));
                 }
             }
             stats.duration = Date.now() - startTime;
@@ -1149,7 +1259,7 @@ class LiveDataSyncService extends EventEmitter {
         try {
             const pool = await getPool();
             const users = await pool.request().query('SELECT Id FROM Users WHERE IsActive = 1');
-            
+
             for (const user of users.recordset) {
                 await notificationController.createNotification(
                     user.Id,
@@ -1163,7 +1273,7 @@ class LiveDataSyncService extends EventEmitter {
             console.error('Failed to send admin notifications:', e.message);
         }
     }
-    
+
     _createBatches(items, size) {
         const batches = [];
         for (let i = 0; i < items.length; i += size) {
@@ -1171,7 +1281,7 @@ class LiveDataSyncService extends EventEmitter {
         }
         return batches;
     }
-    
+
     _delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }

@@ -7,7 +7,7 @@ import {
     Target, TrendingUp, Calendar, PieChart,
     Settings, Activity, FileText, Layers,
     ShoppingBag, Zap, Bell, FolderOpen,
-    MessageSquare, ChevronRight, Store, KeyRound, Database, Map, ListTodo, GitBranch, LayoutTemplate, Clock, BarChart2, ScanSearch, Warehouse, Webhook, ClipboardList, CheckSquare, UserCheck, LineChart, RefreshCcw
+    MessageSquare, ChevronRight, Store, KeyRound, Database, Map, ListTodo, GitBranch, LayoutTemplate, Clock, BarChart2, ScanSearch, Warehouse, Webhook, ClipboardList, CheckSquare, UserCheck, LineChart, RefreshCcw, Search
 } from 'lucide-react';
 
 export function useNavigationItems() {
@@ -106,6 +106,16 @@ export function useNavigationItems() {
                     label: 'Ads Manager',
                     path: '/ads-manager',
                     icon: BarChart3,
+                    section: 'catalog',
+                }
+            ),
+            guard(
+                isAdmin || isGlobalUser || isCatalogManager,
+                {
+                    key: 'keyword-research',
+                    label: 'Keyword Research',
+                    path: '/keyword-research',
+                    icon: Search,
                     section: 'catalog',
                 }
             ),
