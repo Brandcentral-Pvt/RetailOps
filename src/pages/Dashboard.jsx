@@ -109,7 +109,7 @@ const Dashboard = () => {
 
     const marketplaceCategory = useMemo(() => orch.dashboardRaw?.category || [], [orch.dashboardRaw]);
 
-    if (loading && !isHydrated) return <Spinner />;
+    if (loading && !isHydrated) return <Spinner tip="Loading your dashboard data..." minHeight={400} />;
 
     return (
         <>

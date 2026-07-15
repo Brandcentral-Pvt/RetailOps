@@ -10,7 +10,9 @@ const DEFAULT_TAGS = [
     'A+ Content Missing', 'Low LQS', 'BuyBox Lost', 'Price Drop',
     'New Launch', 'Seasonal', 'Clearance', 'Replenishment',
     'Ad Active', 'No Ads', 'Review Alert', 'Competitor Alert',
-    'MAP Violation', 'Hijacker Alert', 'Inventory Low', 'Out of Stock'
+    'MAP Violation', 'Hijacker Alert', 'Inventory Low', 'Out of Stock',
+    'Price Dispute',
+    'Top 80% Contributor', 'Bottom 20% Contributor', 'Top 20 By GMS',
 ];
 
 const TagsCell = ({ asin, onUpdate, onRefresh }) => {
@@ -134,25 +136,31 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
         ? DEFAULT_TAGS.filter(t => t.toLowerCase().includes(search.toLowerCase()))
         : DEFAULT_TAGS;
 
-    // Determine display colors based on tag type — light bg + colored text + border
+    // Determine display colors based on tag type — vibrant pill colors
     const getTagColor = (tag) => {
         const t = tag.toLowerCase();
+        if (t.includes('top 20 by gms') || t.includes('top 80% contributor'))
+            return { bg: '#fefce8', color: '#92400e', border: '#facc15' };
+        if (t.includes('bottom 20% contributor'))
+            return { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' };
         if (t.includes('best') || t.includes('high margin') || t.includes('won') || t.includes('high potential'))
-            return { bg: '#ecfdf5', color: '#2E7D32', border: '#a7f3d0' };
+            return { bg: '#ecfdf5', color: '#166534', border: '#86efac' };
         if (t.includes('low') || t.includes('lost') || t.includes('alert') || t.includes('missing') || t.includes('hijacker') || t.includes('violation'))
-            return { bg: '#fef2f2', color: '#C62828', border: '#fecaca' };
+            return { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' };
+        if (t.includes('price dispute'))
+            return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
         if (t.includes('optim') || t.includes('drop') || t.includes('map') || t.includes('inventory') || t.includes('out of stock'))
-            return { bg: '#fffbeb', color: '#E65100', border: '#fde68a' };
+            return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
         if (t.includes('new 20') || t.includes('ad active') || t.includes('seasonal') || t.includes('growth') || t.includes('trending'))
-            return { bg: '#eff6ff', color: '#0288D1', border: '#bfdbfe' };
+            return { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' };
         if (t.includes('gms top 20'))
-            return { bg: '#fffbeb', color: '#d97706', border: '#fcd34d' };
+            return { bg: '#fffbeb', color: '#b45309', border: '#fcd34d' };
         if (t.includes('< 60 days'))
-            return { bg: '#ecfdf5', color: '#059669', border: '#a7f3d0' };
+            return { bg: '#ecfdf5', color: '#166534', border: '#86efac' };
         if (t.includes('days') || t.includes('phase') || t.includes('mature') || t.includes('veteran') || t.includes('legacy') || t.includes('established'))
-            return { bg: '#f5f3ff', color: '#9C27B0', border: '#ddd6fe' };
+            return { bg: '#f5f3ff', color: '#7c3aed', border: '#ddd6fe' };
         if (t.includes('clearance') || t.includes('replenishment') || t.includes('discontinued'))
-            return { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' };
+            return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
         return { bg: '#f4f4f5', color: '#52525b', border: '#e4e4e7' };
     };
 
@@ -170,9 +178,10 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                             border: `1px solid ${color.border}`,
                             fontSize: '9px',
                             fontWeight: 600,
-                            padding: '2px 7px',
-                            borderRadius: 'var(--radius-sm)',
-                            whiteSpace: 'nowrap'
+                            padding: '2px 10px',
+                            borderRadius: '999px',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                         }}
                     >
                         {tag}
@@ -228,13 +237,14 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                                             border: `1px solid ${color.border}`,
                                             fontSize: '9px',
                                             fontWeight: 600,
-                                            padding: '2px 7px',
-                                            borderRadius: 'var(--radius-sm)',
+                                            padding: '2px 10px',
+                                            borderRadius: '999px',
                                             whiteSpace: 'nowrap',
                                             cursor: 'pointer',
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            gap: 3
+                                            gap: 3,
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                         }}
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -257,8 +267,9 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                                         border: '1px solid #e4e4e7',
                                         fontSize: '9px',
                                         fontWeight: 600,
-                                        padding: '2px 6px',
-                                        borderRadius: 'var(--radius-sm)'
+                                        padding: '2px 10px',
+                                        borderRadius: '999px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                     }}
                                 >
                                     +{tags.length - 2}
@@ -270,14 +281,16 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                         </>
                     )}
 
-                    {/* History Button */}
+                    {/* View/Edit Tags button */}
                     <button
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', marginLeft: 'auto', color: '#cbd5e1', opacity: tags.length > 0 ? 1 : 0, transition: 'opacity 0.2s' }}
                         onClick={(e) => {
                             e.stopPropagation();
-                            setHistoryVisible(true);
+                            if (hasPermission('asinmanager_manage')) {
+                                setShowEditModal(true);
+                            }
                         }}
-                        title="View Tags History"
+                        title="View & Edit Tags"
                     >
                         <Eye size={11} />
                     </button>
@@ -294,6 +307,15 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
                         onUpdate?.(asinId, newTags);
                         onRefresh?.();
                     }}
+                />
+            )}
+
+            {historyVisible && (
+                <TagsHistoryModal
+                    isOpen={historyVisible}
+                    onClose={() => setHistoryVisible(false)}
+                    asinId={asin._id || asin.Id}
+                    asinCode={asin.AsinCode || asin.asinCode}
                 />
             )}
         </div>
