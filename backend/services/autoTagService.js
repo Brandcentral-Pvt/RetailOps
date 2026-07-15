@@ -167,85 +167,82 @@ class AutoTagService {
      * @returns {Promise<object>} { updated, total, brandCount, details }
      */
     static async computeParetoContributorTags(pool, months = 3) {
+        // Step 1: Get ASIN-level 3-month GMS grouped by brand, sorted descending
         const result = await pool.request()
             .input('months', sql.Int, months)
             .query(`
-                WITH GmsAgg AS (
-                    SELECT
-                        g.Asin as AsinCode,
-                        SUM(ISNULL(g.OrderedRevenue, 0)) as TotalGms
-                    FROM GmsDailyPerformance g WITH (NOLOCK)
-                    WHERE g.Date >= DATEADD(MONTH, -@months, CAST(dbo.GetEnvDate() AS DATE))
-                    GROUP BY g.Asin
-                ),
-                AsinGms AS (
-                    SELECT
-                        a.Id,
-                        a.AsinCode,
-                        a.Tags,
-                        a.Brand,
-                        agg.TotalGms
-                    FROM Asins a WITH (NOLOCK)
-                    INNER JOIN GmsAgg agg ON a.AsinCode = agg.AsinCode
-                    WHERE a.Status = 'Active'
-                        AND a.Brand IS NOT NULL AND a.Brand <> ''
-                        AND agg.TotalGms > 0
-                ),
-                WithPct AS (
-                    SELECT *,
-                        SUM(TotalGms) OVER (PARTITION BY Brand) as BrandTotalGms,
-                        ROUND(CAST(TotalGms AS FLOAT) / NULLIF(SUM(TotalGms) OVER (PARTITION BY Brand), 0) * 100, 2) as PctContribution
-                    FROM AsinGms
-                ),
-                Cumulative AS (
-                    SELECT *,
-                        COUNT(*) OVER (PARTITION BY Brand) as AsinCount,
-                        SUM(PctContribution) OVER (
-                            PARTITION BY Brand
-                            ORDER BY TotalGms DESC
-                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-                        ) as CumPct
-                    FROM WithPct
-                )
-                SELECT
-                    Id, AsinCode, Tags, Brand,
-                    TotalGms, BrandTotalGms, PctContribution, CumPct, AsinCount,
-                    CASE
-                        WHEN AsinCount = 1 THEN 'Top 80% Contributor'
-                        WHEN CumPct <= 80 THEN 'Top 80% Contributor'
-                        ELSE 'Bottom 20% Contributor'
-                    END as ParetoTag
-                FROM Cumulative
-                ORDER BY Brand, TotalGms DESC
+                SELECT a.Id, a.AsinCode, a.Tags, a.Brand,
+                    CAST(SUM(ISNULL(g.OrderedRevenue, 0)) AS FLOAT) as TotalGms
+                FROM GmsDailyPerformance g WITH (NOLOCK)
+                INNER JOIN Asins a WITH (NOLOCK) ON g.Asin = a.AsinCode
+                WHERE g.Date >= DATEADD(MONTH, -@months, CAST(dbo.GetEnvDate() AS DATE))
+                    AND a.Status = 'Active'
+                    AND a.Brand IS NOT NULL AND a.Brand <> ''
+                GROUP BY a.Id, a.AsinCode, a.Tags, a.Brand
+                HAVING SUM(ISNULL(g.OrderedRevenue, 0)) > 0
+                ORDER BY a.Brand, SUM(ISNULL(g.OrderedRevenue, 0)) DESC
             `);
+
+        // Step 2: Process in JavaScript — group by brand, compute Pareto in memory
+        const brandGroups = {};
+        for (const row of result.recordset) {
+            if (!brandGroups[row.Brand]) brandGroups[row.Brand] = [];
+            brandGroups[row.Brand].push(row);
+        }
 
         let updated = 0;
         const brandMap = {};
+        const BATCH_SIZE = 100;
+        let updateBatch = [];
 
-        for (const row of result.recordset) {
-            let tags = [];
-            try { tags = JSON.parse(row.Tags || '[]'); } catch { tags = []; }
-
-            // Remove old Pareto tags
-            tags = tags.filter(t => t !== 'Top 80% Contributor' && t !== 'Bottom 20% Contributor');
-            tags.push(row.ParetoTag);
-
-            await pool.request()
-                .input('id', sql.VarChar, row.Id)
-                .input('tags', sql.NVarChar, JSON.stringify(tags))
-                .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
-            updated++;
-
-            // Aggregate stats per brand
-            if (!brandMap[row.Brand]) {
-                brandMap[row.Brand] = { topCount: 0, bottomCount: 0, brandTotalGms: row.BrandTotalGms };
+        async function flushBatch() {
+            if (updateBatch.length === 0) return;
+            for (const item of updateBatch) {
+                await pool.request()
+                    .input('id', sql.VarChar, item.id)
+                    .input('tags', sql.NVarChar, JSON.stringify(item.tags))
+                    .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
             }
-            if (row.ParetoTag === 'Top 80% Contributor') {
-                brandMap[row.Brand].topCount++;
-            } else {
-                brandMap[row.Brand].bottomCount++;
-            }
+            updated += updateBatch.length;
+            updateBatch = [];
         }
+
+        for (const [brand, asins] of Object.entries(brandGroups)) {
+            const brandTotal = asins.reduce((sum, a) => sum + a.TotalGms, 0);
+            if (brandTotal <= 0) continue;
+
+            let cumPct = 0;
+            let topCount = 0;
+            let bottomCount = 0;
+
+            for (const asin of asins) {
+                const pct = Math.round((asin.TotalGms / brandTotal) * 10000) / 100;
+                cumPct = Math.round((cumPct + pct) * 100) / 100;
+
+                const isSingleAsin = asins.length === 1;
+                const tag = isSingleAsin || cumPct <= 80
+                    ? 'Top 80% Contributor'
+                    : 'Bottom 20% Contributor';
+
+                if (tag === 'Top 80% Contributor') topCount++;
+                else bottomCount++;
+
+                let tags = [];
+                try { tags = JSON.parse(asin.Tags || '[]'); } catch { tags = []; }
+                tags = tags.filter(t => t !== 'Top 80% Contributor' && t !== 'Bottom 20% Contributor');
+                tags.push(tag);
+
+                updateBatch.push({ id: asin.Id, tags });
+
+                if (updateBatch.length >= BATCH_SIZE) {
+                    await flushBatch();
+                }
+            }
+
+            brandMap[brand] = { topCount, bottomCount, brandTotalGms: brandTotal };
+        }
+
+        await flushBatch();
 
         const details = Object.entries(brandMap).map(([brand, stats]) => ({
             brand,
