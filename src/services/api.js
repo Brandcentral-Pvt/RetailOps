@@ -2075,11 +2075,35 @@ export const keywordApi = {
     return res.json();
   },
 
+  batchSearch: async (payload = {}) => {
+    const res = await fetch(`${API_BASE}/keywords/batch-search`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Batch search failed');
+    return res.json();
+  },
+
   getCategories: async () => {
     const res = await fetch(`${API_BASE}/keywords/categories`, {
       headers: { ...getAuthHeader() }
     });
     if (!res.ok) throw new Error('Failed to fetch categories');
+    return res.json();
+  }
+};
+
+export const keywordAnalysisApi = {
+  analyze: async (params = {}) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
+    const query = new URLSearchParams(cleanParams).toString();
+    const res = await fetch(`${API_BASE}/keyword-analysis/analyze?${query}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Keyword analysis failed');
     return res.json();
   }
 };
