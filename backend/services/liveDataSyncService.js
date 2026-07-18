@@ -655,7 +655,6 @@ class LiveDataSyncService extends EventEmitter {
                         CurrentPrice = @currentPrice,
                         Mrp = @mrp,
                         Category = @mainCategory,
-                        SubCategory = @subCategory,
                         Brand = @brand,
                         BSR = @mainBSR,
                         SubBSR = @subBSR,
