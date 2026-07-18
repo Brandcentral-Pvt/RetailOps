@@ -67,6 +67,7 @@ class KeywordResearchService {
             'itemInfo.features',
             'itemInfo.productInfo',
             'itemInfo.byLineInfo',
+            'itemInfo.classifications',
             'images.primary.large',
             'images.primary.medium',
             'offersV2.listings.price',
@@ -99,9 +100,20 @@ class KeywordResearchService {
             try {
                 await this._rateLimit();
 
-                const { data } = await api.searchItems(marketplace, {
+                const raw = await api.searchItems(marketplace, {
                     searchItemsRequestContent: request,
                 });
+
+                if (!raw || typeof raw !== 'object') {
+                    console.error(`[KW Search] Unexpected response type for "${keywords}":`, typeof raw, raw);
+                    throw new Error(`SDK returned unexpected type: ${typeof raw}`);
+                }
+
+                const data = raw.data || raw;
+                if (!data || typeof data !== 'object') {
+                    console.error(`[KW Search] No data in response for "${keywords}":`, JSON.stringify(raw).substring(0, 500));
+                    throw new Error(`SDK returned empty response`);
+                }
 
                 const searchResult = data.searchResult || {};
                 const items = (searchResult.items || []).map(item => this._extractItem(item));
@@ -138,6 +150,38 @@ class KeywordResearchService {
         }
 
         throw lastError || new Error('Search failed after retries');
+    }
+
+    async batchSearchItems(keywordsArray, params = {}) {
+        const results = [];
+        const totalKeywords = keywordsArray.length;
+
+        for (let i = 0; i < totalKeywords; i++) {
+            const kw = keywordsArray[i].trim();
+            if (!kw) continue;
+
+            console.log(`[KW Batch] ${i + 1}/${totalKeywords}: "${kw}"`);
+            try {
+                const result = await this.searchItems({ ...params, keywords: kw });
+                results.push({
+                    keyword: kw,
+                    ...result,
+                });
+            } catch (err) {
+                console.error(`[KW Batch] Failed for "${kw}": ${err.message}`);
+                results.push({
+                    keyword: kw,
+                    items: [],
+                    totalResultCount: 0,
+                    searchRefinements: null,
+                    error: err.message,
+                    itemPage: params.itemPage || 1,
+                    itemCount: params.itemCount || 10,
+                });
+            }
+        }
+
+        return { results, totalKeywords: results.length };
     }
 
     _extractItem(item) {

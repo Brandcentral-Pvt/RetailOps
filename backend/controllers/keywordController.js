@@ -48,6 +48,42 @@ exports.search = async (req, res) => {
     }
 };
 
+exports.batchSearch = async (req, res) => {
+    try {
+        const { keywords: keywordsStr, ...rest } = req.body;
+
+        if (!keywordsStr || !keywordsStr.trim()) {
+            return res.status(400).json({ success: false, error: 'Keywords are required' });
+        }
+
+        const keywordsArray = keywordsStr.split('\n').filter(k => k.trim());
+        if (keywordsArray.length === 0) {
+            return res.status(400).json({ success: false, error: 'At least one keyword is required' });
+        }
+
+        if (keywordsArray.length > 20) {
+            return res.status(400).json({ success: false, error: 'Maximum 20 keywords per batch' });
+        }
+
+        const params = {
+            searchIndex: rest.searchIndex || undefined,
+            brand: rest.brand || undefined,
+            minPrice: rest.minPrice ? Number(rest.minPrice) : undefined,
+            maxPrice: rest.maxPrice ? Number(rest.maxPrice) : undefined,
+            minReviewsRating: rest.minReviewsRating ? Number(rest.minReviewsRating) : undefined,
+            itemCount: Math.min(Math.max(Number(rest.itemCount) || 10, 1), 50),
+            itemPage: Math.max(Number(rest.itemPage) || 1, 1),
+            marketplace: rest.marketplace || 'www.amazon.in',
+        };
+
+        const result = await keywordResearchService.batchSearchItems(keywordsArray, params);
+        res.json({ success: true, ...result });
+    } catch (error) {
+        console.error('[KeywordController] Batch search error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 exports.getCategories = async (req, res) => {
     const categories = [
         { value: 'All', label: 'All Categories' },
