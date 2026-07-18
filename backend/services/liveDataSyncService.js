@@ -476,14 +476,16 @@ class LiveDataSyncService extends EventEmitter {
                 request.itemIds = codes;
                 request.resources = this._getResources();
 
-                const { data, response } = await api.getItems(credInfo.marketplace, request);
+                const response_and_data = await api.getItemsWithHttpInfo(credInfo.marketplace, request);
+                const data = response_and_data.data;
+                const response = response_and_data.response;
 
                 // Track TPD from successful request
                 this._updateRateFromHeader(response.headers, credId);
 
                 const items = data.itemsResult?.items || [];
 
-                const apiErrors = response.data.errors || [];
+                const apiErrors = data.errors || [];
                 const errorMap = new Map();
                 for (const err of apiErrors) {
                     let asin = err.asin || err.itemId || err.resourceId;
