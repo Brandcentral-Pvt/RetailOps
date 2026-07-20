@@ -54,7 +54,7 @@ const TargetVsAchievementDashboard = lazy(() => import('./pages/TargetVsAchievem
 const TargetCreationPage = lazy(() => import('./pages/TargetCreationPage'));
 const RevenueCalculatorPage = lazy(() => import('./pages/RevenueCalculatorPage'));
 const TemplateManagerPage = lazy(() => import('./pages/TemplateManagerPage'));
-const TasksPage = lazy(() => import('./pages/TasksPage'));
+
 const PemsDashboard = lazy(() => import('./modules/pems/pages/PemsDashboard'));
 const TaskTemplatesPage = lazy(() => import('./modules/pems/pages/TaskTemplatesPage'));
 const TaskInstancesPage = lazy(() => import('./modules/pems/pages/TaskInstancesPage'));
@@ -163,7 +163,7 @@ function AppRoutes() {
                   <Route path="/target-achievement/dashboard" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievementDashboard /></ProtectedRoute>} />
                   <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />
                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
-                  <Route path="/tasks" element={<ProtectedRoute permission="tasks_view"><TasksPage /></ProtectedRoute>} />
+                  <Route path="/tasks" element={<Navigate to="/pems/tasks" replace />} />
                   <Route path="/pems/dashboard" element={<ProtectedRoute permission="tasks_view"><PemsDashboard /></ProtectedRoute>} />
                   <Route path="/pems/templates" element={<ProtectedRoute permission="tasks_manage"><TaskTemplatesPage /></ProtectedRoute>} />
                   <Route path="/pems/templates/:id" element={<ProtectedRoute permission="tasks_manage"><TemplateDetailPage /></ProtectedRoute>} />
