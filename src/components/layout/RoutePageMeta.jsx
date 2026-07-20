@@ -31,7 +31,7 @@ const routeMeta = {
   '/seller-tracker': { title: 'Seller Tracker', breadcrumbs: [{ label: 'Workspace' }, { label: 'Seller Tracker' }] },
   '/activity-log': { title: 'Activity Log', breadcrumbs: [{ label: 'Workspace' }, { label: 'Activity Log' }] },
   '/revenue-calculator': { title: 'Revenue Calculator', breadcrumbs: [{ label: 'Workspace' }, { label: 'Revenue Calculator' }] },
-  '/tasks': { title: 'Optimization Tasks', breadcrumbs: [{ label: 'Workspace' }, { label: 'Tasks' }] },
+
   '/webhooks': { title: 'Webhook & Notifications', breadcrumbs: [{ label: 'Workspace' }, { label: 'Webhooks' }] },
   '/profile': { title: 'Profile', breadcrumbs: [{ label: 'Workspace' }, { label: 'Profile' }] },
   '/chat': { title: 'Chat', breadcrumbs: [{ label: 'Workspace' }, { label: 'Chat' }] },
