@@ -24,6 +24,11 @@ exports.getSummary = async (req, res) => {
     if (priority) { where += ' AND Priority = @priority'; req_.input('priority', sql.VarChar, priority); }
     if (dateFrom) { where += ' AND CreatedAt >= @dateFrom'; req_.input('dateFrom', sql.DateTime2, new Date(dateFrom)); }
     if (dateTo) { where += ' AND CreatedAt <= @dateTo'; req_.input('dateTo', sql.DateTime2, new Date(dateTo)); }
+    // Default to last 90 days if no date range provided — prevents full table scan
+    if (!dateFrom && !dateTo) {
+      where += ' AND CreatedAt >= @defaultDateFrom';
+      req_.input('defaultDateFrom', sql.DateTime2, new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
+    }
 
     // Main aggregate query
     const agg = await req_.query(`
@@ -70,9 +75,11 @@ exports.getSummary = async (req, res) => {
     const kpi = agg.recordset[0];
 
     // Department performance (single query)
+    const deptDateFrom = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const deptDateTo = dateTo ? new Date(dateTo) : new Date();
     const deptResult = await pool.request()
-      .input('dateFrom', sql.DateTime2, dateFrom ? new Date(dateFrom) : new Date('2000-01-01'))
-      .input('dateTo', sql.DateTime2, dateTo ? new Date(dateTo) : new Date('2100-01-01'))
+      .input('dateFrom', sql.DateTime2, deptDateFrom)
+      .input('dateTo', sql.DateTime2, deptDateTo)
       .query(`
         SELECT Department,
           COUNT(*) as totalTasks,
