@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Drawer, Typography, Space, Tag, Button, Descriptions, Row, Col, Progress, Card, Timeline, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Switch, InputNumber, Modal } from 'antd';
+import { Drawer, Typography, Space, Tag, Button, Descriptions, Row, Col, Progress, Card, Timeline, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, ArrowRightOutlined,
   FileTextOutlined, UploadOutlined, CommentOutlined, EditOutlined,
@@ -47,6 +47,7 @@ function MetricCard({ label, value, color, subtext }) {
 
 export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const { user: currentUser } = useAuth();
+  const { message } = App.useApp();
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -60,6 +61,21 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
   // Comment
   const [newComment, setNewComment] = useState('');
+  const [comments, setComments] = useState([]);
+
+  const handleSendComment = () => {
+    const text = newComment.trim();
+    if (!text) return;
+    const comment = {
+      id: `c_${Date.now()}`,
+      text,
+      author: 'You',
+      createdAt: new Date().toISOString(),
+    };
+    setComments(prev => [comment, ...prev]);
+    setNewComment('');
+    message.success('Comment added');
+  };
 
   const loadTask = useCallback(async () => {
     if (!taskId) return;
@@ -268,12 +284,26 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
           <div style={{ padding: '12px 14px', borderRadius: "var(--radius-md)", border: '1px solid #e5e7eb', background: '#f8fafc' }}>
             <Input.TextArea rows={2} value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add a comment... (@mention, attach files)" style={{ borderRadius: "var(--radius-md)", background: '#fff' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-              <Button type="primary" size="small" icon={<SendOutlined />} disabled={!newComment.trim()} style={{ borderRadius: 6, background: '#2563eb' }}>Comment</Button>
+              <Button type="primary" size="small" icon={<SendOutlined />} disabled={!newComment.trim()} onClick={handleSendComment} style={{ borderRadius: 6, background: '#2563eb' }}>Comment</Button>
             </div>
           </div>
-          <div style={{ padding: '20px 0', textAlign: 'center' }}>
-            <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>Comments will appear here as team members collaborate.</Text>
-          </div>
+          {comments.length === 0 ? (
+            <div style={{ padding: '20px 0', textAlign: 'center' }}>
+              <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>Comments will appear here as team members collaborate.</Text>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {comments.map(c => (
+                <div key={c.id} style={{ padding: '10px 12px', borderRadius: "var(--radius-md)", border: '1px solid #e5e7eb', background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 600, color: '#0f172a' }}>{c.author}</Text>
+                    <Text style={{ fontSize: 10, color: '#94a3b8' }}>{new Date(c.createdAt).toLocaleString()}</Text>
+                  </div>
+                  <Text style={{ fontSize: 12, color: '#334155', whiteSpace: 'pre-wrap' }}>{c.text}</Text>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ),
     },

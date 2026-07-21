@@ -6,6 +6,7 @@ const hierarchyService = require('../services/hierarchyService');
 const AIService = require('../services/AIService');
 const WebhookService = require('../services/WebhookService');
 const { buildInClause } = require('../utils/sqlHelpers');
+const { sendSseEvent } = require('../utils/sse');
 
 // Expose getPool for route handlers
 exports.getPool = getPool;
@@ -162,13 +163,14 @@ exports.bulkCreateFromAnalysis = async (req, res) => {
 // ============================================
 exports.getActions = async (req, res) => {
     try {
-        const { status, priority, assignedTo, stage } = req.query;
+        const { status, priority, assignedTo, stage, page = 1, limit = 500 } = req.query;
         const pool = await getPool();
         const userRole = req.user.role?.name || req.user.role;
         const roleClean = String(userRole || '').toLowerCase();
         const isGlobalUser = ['admin', 'super admin', 'super_admin', 'superadmin', 'operational_manager'].includes(roleClean);
         let whereClauses = [];
 
+        const filterReq = pool.request();
         if (status) {
             filterReq.input('filterStatus', sql.NVarChar, status);
             whereClauses.push('Status = @filterStatus');
@@ -182,7 +184,6 @@ exports.getActions = async (req, res) => {
             whereClauses.push('AssignedTo = @filterAssignedTo');
         }
         // Data isolation for non-global users
-        const filterReq = pool.request();
         if (!isGlobalUser) {
             const subordinateIds = await hierarchyService.getSubordinateIds(req.user.Id || req.user._id);
             const teamIds = [req.user.Id, ...subordinateIds];
@@ -198,6 +199,11 @@ exports.getActions = async (req, res) => {
         }
 
         const whereSql = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
+        const offsetVal = Math.max(0, (parseInt(page) - 1) * parseInt(limit));
+        const limitVal = Math.min(1000, Math.max(1, parseInt(limit) || 500));
+
+        filterReq.input('offsetVal', sql.Int, offsetVal);
+        filterReq.input('limitVal', sql.Int, limitVal);
 
         const actionsResult = await filterReq
             .query(`
@@ -216,15 +222,12 @@ exports.getActions = async (req, res) => {
                 FROM Actions a
                 LEFT JOIN Users ua ON a.AssignedTo = ua.Id
                 LEFT JOIN Sellers s ON a.SellerId = s.Id
-                LEFT JOIN FirstUserSeller us ON a.SellerId = us.SellerId OR (a.SellerId IS NULL AND a.Asins IS NOT NULL AND EXISTS (
-                    SELECT 1 FROM Asins asin 
-                    WHERE asin.SellerId = us.SellerId 
-                    AND a.Asins LIKE '%' + asin.Id + '%'
-                ))
+                LEFT JOIN FirstUserSeller us ON a.SellerId = us.SellerId
                 LEFT JOIN Users uas ON us.UserId = uas.Id
                 LEFT JOIN Users uc ON a.CreatedBy = uc.Id
                 ${whereSql}
                 ORDER BY a.CreatedAt DESC
+                OFFSET @offsetVal ROWS FETCH NEXT @limitVal ROWS ONLY
             `);
 
         const actions = actionsResult.recordset.map(a => ({
@@ -260,7 +263,7 @@ exports.getActions = async (req, res) => {
         res.json({ success: true, data: actions });
     } catch (error) {
         console.error('GET /actions error:', error.message);
-        res.status(200).json({ success: true, data: [], message: 'Database currently unavailable' });
+        if (!res.headersSent) res.status(500).json({ success: false, data: [], message: error.message });
     }
 };
 
@@ -290,11 +293,7 @@ exports.getAction = async (req, res) => {
                 FROM Actions a
                 LEFT JOIN Users ua ON a.AssignedTo = ua.Id
                 LEFT JOIN Sellers s ON a.SellerId = s.Id
-                LEFT JOIN FirstUserSeller us ON a.SellerId = us.SellerId OR (a.SellerId IS NULL AND a.Asins IS NOT NULL AND EXISTS (
-                    SELECT 1 FROM Asins asin 
-                    WHERE asin.SellerId = us.SellerId 
-                    AND a.Asins LIKE '%' + asin.Id + '%'
-                ))
+                LEFT JOIN FirstUserSeller us ON a.SellerId = us.SellerId
                 LEFT JOIN Users uas ON us.UserId = uas.Id
                 LEFT JOIN Users uc ON a.CreatedBy = uc.Id
                 WHERE a.Id = @id
@@ -949,12 +948,5 @@ module.exports = {
     createGoalTemplate: exports.createGoalTemplate,
     updateGoalTemplate: exports.updateGoalTemplate,
     deleteGoalTemplate: exports.deleteGoalTemplate,
-    // Additional endpoints
-    startAction: exports.startAction,
-    submitReview: exports.submitReview,
-    reviewAction: exports.reviewAction,
-    completeTask: exports.completeTask,
-    uploadAudio: exports.uploadAudio,
-    getActionHistory: exports.getActionHistory,
     getActionInstructions: exports.getActionInstructions
 };

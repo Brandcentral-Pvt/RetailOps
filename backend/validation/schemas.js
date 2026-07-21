@@ -112,6 +112,7 @@ const schemas = {
     name: Joi.string().min(2).max(100).required(),
     marketplace: Joi.string().required(),
     sellerId: Joi.string().max(30).optional().allow('', null),
+    email: Joi.string().email().optional().allow('', null),
     isActive: Joi.boolean().optional(),
     status: Joi.string().optional(),
     isPriority: Joi.boolean().optional(),
