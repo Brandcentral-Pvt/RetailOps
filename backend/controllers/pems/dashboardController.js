@@ -24,6 +24,11 @@ exports.getSummary = async (req, res) => {
     if (priority) { where += ' AND Priority = @priority'; req_.input('priority', sql.VarChar, priority); }
     if (dateFrom) { where += ' AND CreatedAt >= @dateFrom'; req_.input('dateFrom', sql.DateTime2, new Date(dateFrom)); }
     if (dateTo) { where += ' AND CreatedAt <= @dateTo'; req_.input('dateTo', sql.DateTime2, new Date(dateTo)); }
+    // Default to last 90 days if no date range provided — prevents full table scan
+    if (!dateFrom && !dateTo) {
+      where += ' AND CreatedAt >= @defaultDateFrom';
+      req_.input('defaultDateFrom', sql.DateTime2, new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
+    }
 
     // Main aggregate query
     const agg = await req_.query(`
@@ -69,26 +74,22 @@ exports.getSummary = async (req, res) => {
 
     const kpi = agg.recordset[0];
 
-    // Department performance (single query)
-    const deptResult = await pool.request()
-      .input('dateFrom', sql.DateTime2, dateFrom ? new Date(dateFrom) : new Date('2000-01-01'))
-      .input('dateTo', sql.DateTime2, dateTo ? new Date(dateTo) : new Date('2100-01-01'))
-      .query(`
-        SELECT Department,
-          COUNT(*) as totalTasks,
-          SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as completedTasks,
-          SUM(CASE WHEN Status IN ('ASSIGNED','ACCEPTED','IN_PROGRESS','REWORK') THEN 1 ELSE 0 END) as openTasks,
-          SUM(CASE WHEN SLAStatus = 'BREACHED' THEN 1 ELSE 0 END) as slaBreached,
-          SUM(CASE WHEN DueDate < dbo.GetEnvDate() AND Status NOT IN ('APPROVED','CANCELLED') THEN 1 ELSE 0 END) as overdueTasks,
-          SUM(CASE WHEN Status IN ('SUBMITTED','UNDER_REVIEW') THEN 1 ELSE 0 END) as pendingReview,
-          SUM(CASE WHEN Status = 'REWORK' THEN 1 ELSE 0 END) as rework,
-          ISNULL(AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END), 0) as avgAchievementPct,
-          ISNULL(AVG(ProgressPct), 0) as avgProgress
-        FROM PemsTaskInstances
-        WHERE CreatedAt >= @dateFrom AND CreatedAt <= @dateTo
-        GROUP BY Department
-        ORDER BY completedTasks DESC
-      `);
+    // Department performance — reuse same filter context as KPI query
+    const deptResult = await req_.query(`
+      SELECT Department,
+        COUNT(*) as totalTasks,
+        SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as completedTasks,
+        SUM(CASE WHEN Status IN ('ASSIGNED','ACCEPTED','IN_PROGRESS','REWORK') THEN 1 ELSE 0 END) as openTasks,
+        SUM(CASE WHEN SLAStatus = 'BREACHED' THEN 1 ELSE 0 END) as slaBreached,
+        SUM(CASE WHEN DueDate < dbo.GetEnvDate() AND Status NOT IN ('APPROVED','CANCELLED') THEN 1 ELSE 0 END) as overdueTasks,
+        SUM(CASE WHEN Status IN ('SUBMITTED','UNDER_REVIEW') THEN 1 ELSE 0 END) as pendingReview,
+        SUM(CASE WHEN Status = 'REWORK' THEN 1 ELSE 0 END) as rework,
+        ISNULL(AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END), 0) as avgAchievementPct,
+        ISNULL(AVG(ProgressPct), 0) as avgProgress
+      FROM PemsTaskInstances ${where}
+      GROUP BY Department
+      ORDER BY completedTasks DESC
+    `);
 
     const departments = deptResult.recordset.map(d => ({
       ...d,

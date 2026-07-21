@@ -176,16 +176,6 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'workflows',
-                    label: 'Workflows & Tasks',
-                    path: '/tasks',
-                    icon: ListTodo,
-                    section: 'automation',
-                }
-            ),
-            guard(
-                isAdmin || isGlobalUser || hasPermission('tasks_view'),
-                {
                     key: 'pems-dashboard',
                     label: 'PEMS Dashboard',
                     path: '/pems/dashboard',
@@ -206,10 +196,10 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'pems-instances',
-                    label: 'Task Execution',
+                    key: 'tasks',
+                    label: 'Tasks',
                     path: '/pems/tasks',
-                    icon: CheckSquare,
+                    icon: ListTodo,
                     section: 'automation',
                 }
             ),

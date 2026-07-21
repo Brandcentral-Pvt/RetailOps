@@ -1,13 +1,74 @@
-import React, { useMemo, useState, memo } from 'react';
+import React, { useMemo, useState, memo, useEffect, useRef } from 'react';
 import { Card, Tooltip, Segmented } from 'antd';
 import { Link } from 'react-router-dom';
 import {
     Trophy,
     Package, ArrowUpRight, BarChart3, Star,
-    ChevronRight, Search, Filter, Eye, ShoppingBag
+    ChevronRight, Search, Filter, Eye, ShoppingBag, Loader2
 } from 'lucide-react';
 import { formatNumber, formatCurrency } from './utils';
 import AsinRow from './AsinRow';
+
+const BATCH_SIZE = 30;
+
+// ═══════════════════════════════════════════════════════════════
+// INTERNAL: Infinite-scroll product list (keyed to reset on filter change)
+// ═══════════════════════════════════════════════════════════════
+const ProductList = memo(({ products, maxValue, sortBy }) => {
+    const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+    const sentinelRef = useRef(null);
+
+    const visibleProducts = useMemo(() => products.slice(0, visibleCount), [products, visibleCount]);
+    const hasMore = visibleCount < products.length;
+
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore) {
+                    setVisibleCount(prev => Math.min(prev + BATCH_SIZE, products.length));
+                }
+            },
+            { rootMargin: '100px' }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, products.length]);
+
+    if (products.length === 0) return null;
+
+    return (
+        <>
+            {visibleProducts.map((product, idx) => (
+                <AsinRow
+                    key={product.asin + idx}
+                    product={product}
+                    rank={idx + 1}
+                    maxValue={maxValue}
+                    sortBy={sortBy}
+                />
+            ))}
+            <div ref={sentinelRef} style={{ height: 1, width: '100%', visibility: 'hidden' }} />
+            {hasMore && (
+                <div style={{
+                    textAlign: 'center',
+                    padding: '16px 0',
+                    color: 'var(--text-secondary, #64748b)',
+                    fontSize: 'var(--font-size-xs)',
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                }}>
+                    <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                    Loading more products...
+                </div>
+            )}
+        </>
+    );
+});
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -45,8 +106,7 @@ const TopAsinsCard = ({ products = [] }) => {
             .sort((a, b) => {
                 if (sortBy === 'revenue') return b.revenue - a.revenue;
                 return b.units - a.units;
-            })
-            .slice(0, 200);
+            });
     }, [processedProducts, sortBy, searchText]);
 
     // Stats
@@ -72,7 +132,7 @@ const TopAsinsCard = ({ products = [] }) => {
                     border: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
                     background: 'var(--bg-primary, #fff)',
-                    minHeight: 850,
+                    height: 820,
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column'
@@ -296,7 +356,7 @@ const TopAsinsCard = ({ products = [] }) => {
                         flex: 1,
                         overflowY: 'auto',
                         padding: '14px 20px',
-                        minHeight: 200
+                        minHeight: 0
                     }}
                 >
                     {sortedProducts.length === 0 ? (
@@ -304,7 +364,7 @@ const TopAsinsCard = ({ products = [] }) => {
                             padding: '40px 12px',
                             textAlign: 'center',
                             background: 'var(--bg-secondary, #f8fafc)',
-                                border: '1px dashed var(--border-light, var(--border-light, #d9e6e9))',
+                            border: '1px dashed var(--border-light, var(--border-light, #d9e6e9))',
                             borderRadius: "var(--radius-lg)",
                             margin: 'auto'
                         }}>
@@ -326,20 +386,17 @@ const TopAsinsCard = ({ products = [] }) => {
                             </div>
                             <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>
                                 {searchText
-                                    ? `Try different search keywords`
+                                    ? 'Try different search keywords'
                                     : 'Top selling ASINs will appear here'}
                             </div>
                         </div>
                     ) : (
-                        sortedProducts.map((product, idx) => (
-                            <AsinRow
-                                key={product.asin + idx}
-                                product={product}
-                                rank={idx + 1}
-                                maxValue={maxValue}
-                                sortBy={sortBy}
-                            />
-                        ))
+                        <ProductList
+                            key={`${sortBy}-${searchText}`}
+                            products={sortedProducts}
+                            maxValue={maxValue}
+                            sortBy={sortBy}
+                        />
                     )}
                 </div>
 
@@ -377,10 +434,10 @@ const TopAsinsCard = ({ products = [] }) => {
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
                                 color: '#E65100',
-background: 'var(--bg-warning-subtle, #fffbeb)',
-                        padding: '3px 9px',
-                        borderRadius: "var(--radius-lg)",
-                        border: '1px solid var(--bg-warning-subtle, #fde68a)',
+                                background: 'var(--bg-warning-subtle, #fffbeb)',
+                                padding: '3px 9px',
+                                borderRadius: "var(--radius-lg)",
+                                border: '1px solid var(--bg-warning-subtle, #fde68a)',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',

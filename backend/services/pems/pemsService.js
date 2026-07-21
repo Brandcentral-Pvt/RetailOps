@@ -300,6 +300,22 @@ async function getInstances(filters = {}) {
 
   const instances = result.recordset.map(r => ({ ...r, Tags: safeParse(r.Tags, []), Attachments: safeParse(r.Attachments, []) }));
 
+  if (filters.includeSubtasks === 'true' && instances.length > 0) {
+    const ids = instances.map(r => r.Id);
+    const idPlaceholders = ids.map((_, i) => `@id${i}`).join(',');
+    const req2 = pool.request();
+    ids.forEach((id, i) => req2.input(`id${i}`, sql.VarChar, id));
+    const subResult = await req2.query(`
+      SELECT * FROM PemsSubTasks WHERE TaskInstanceId IN (${idPlaceholders}) ORDER BY SortOrder
+    `);
+    const subMap = {};
+    subResult.recordset.forEach(st => {
+      if (!subMap[st.TaskInstanceId]) subMap[st.TaskInstanceId] = [];
+      subMap[st.TaskInstanceId].push(st);
+    });
+    instances.forEach(inst => { inst.subTasks = subMap[inst.Id] || []; });
+  }
+
   return { instances, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
@@ -351,7 +367,10 @@ async function getInstanceById(id) {
 
 async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details) {
   const pool = await getPool();
-  const instance = await getInstanceById(taskInstanceId);
+  const instanceResult = await pool.request()
+    .input('id', sql.VarChar, taskInstanceId)
+    .query('SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances WHERE Id = @id');
+  const instance = instanceResult.recordset[0];
   if (!instance) throw new Error('Task instance not found');
 
   if (!canTransition(instance.Status, toStatus)) {
@@ -821,35 +840,49 @@ async function getReviewerPerformance(filters = {}) {
 
 async function checkEscalations() {
   const pool = await getPool();
-  const result = await pool.request().query(`
-    SELECT Id, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Status, SLAStatus, Title
-    FROM PemsTaskInstances
-    WHERE Status NOT IN ('APPROVED', 'CANCELLED')
-    AND DueDate IS NOT NULL
-  `);
-
+  const BATCH_SIZE = 500;
+  let offset = 0;
   let escalated = 0;
-  for (const task of result.recordset) {
-    const { getEscalationLevel } = require('./workflowEngine');
-    const level = getEscalationLevel(task.DueDate, task.SLAHours);
-    if (!level) continue;
 
-    const newSlaStatus = calculateSLAStatus(task.DueDate, task.SLAHours);
-    if (newSlaStatus !== task.SLAStatus) {
-      await pool.request().input('id', sql.VarChar, task.Id).input('sla', sql.VarChar, newSlaStatus)
-        .query('UPDATE PemsTaskInstances SET SLAStatus = @sla WHERE Id = @id');
+  while (true) {
+    const batch = await pool.request()
+      .input('offset', sql.Int, offset)
+      .input('limit', sql.Int, BATCH_SIZE)
+      .query(`
+        SELECT Id, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Status, SLAStatus, Title
+        FROM PemsTaskInstances
+        WHERE Status NOT IN ('APPROVED', 'CANCELLED')
+        AND DueDate IS NOT NULL
+        ORDER BY Id
+        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+      `);
+
+    if (batch.recordset.length === 0) break;
+
+    for (const task of batch.recordset) {
+      const { getEscalationLevel } = require('./workflowEngine');
+      const level = getEscalationLevel(task.DueDate, task.SLAHours);
+      if (!level) continue;
+
+      const newSlaStatus = calculateSLAStatus(task.DueDate, task.SLAHours);
+      if (newSlaStatus !== task.SLAStatus) {
+        await pool.request().input('id', sql.VarChar, task.Id).input('sla', sql.VarChar, newSlaStatus)
+          .query('UPDATE PemsTaskInstances SET SLAStatus = @sla WHERE Id = @id');
+      }
+
+      if (level === 'assignee' && task.AssignedTo) {
+        await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_WARNING', title: `SLA Warning: ${task.Title}`, message: `Task due in less than 24 hours`, actionUrl: `/pems/tasks?id=${task.Id}` });
+      }
+      if (level === 'reviewer' && task.ReviewerId) {
+        await createNotification({ taskInstanceId: task.Id, userId: task.ReviewerId, type: 'SLA_WARNING', title: `SLA Urgent: ${task.Title}`, message: `Task due in less than 12 hours, review needed`, actionUrl: `/pems/tasks?id=${task.Id}` });
+      }
+      if (level === 'manager' || level === 'admin') {
+        await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_BREACH', title: `SLA BREACHED: ${task.Title}`, message: `Task has breached its SLA deadline`, actionUrl: `/pems/tasks?id=${task.Id}` });
+      }
+      escalated++;
     }
 
-    if (level === 'assignee' && task.AssignedTo) {
-      await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_WARNING', title: `SLA Warning: ${task.Title}`, message: `Task due in less than 24 hours`, actionUrl: `/pems/tasks?id=${task.Id}` });
-    }
-    if (level === 'reviewer' && task.ReviewerId) {
-      await createNotification({ taskInstanceId: task.Id, userId: task.ReviewerId, type: 'SLA_WARNING', title: `SLA Urgent: ${task.Title}`, message: `Task due in less than 12 hours, review needed`, actionUrl: `/pems/tasks?id=${task.Id}` });
-    }
-    if (level === 'manager' || level === 'admin') {
-      await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_BREACH', title: `SLA BREACHED: ${task.Title}`, message: `Task has breached its SLA deadline`, actionUrl: `/pems/tasks?id=${task.Id}` });
-    }
-    escalated++;
+    offset += BATCH_SIZE;
   }
   return { escalated };
 }
