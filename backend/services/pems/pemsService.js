@@ -300,6 +300,22 @@ async function getInstances(filters = {}) {
 
   const instances = result.recordset.map(r => ({ ...r, Tags: safeParse(r.Tags, []), Attachments: safeParse(r.Attachments, []) }));
 
+  if (filters.includeSubtasks === 'true' && instances.length > 0) {
+    const ids = instances.map(r => r.Id);
+    const idPlaceholders = ids.map((_, i) => `@id${i}`).join(',');
+    const req2 = pool.request();
+    ids.forEach((id, i) => req2.input(`id${i}`, sql.VarChar, id));
+    const subResult = await req2.query(`
+      SELECT * FROM PemsSubTasks WHERE TaskInstanceId IN (${idPlaceholders}) ORDER BY SortOrder
+    `);
+    const subMap = {};
+    subResult.recordset.forEach(st => {
+      if (!subMap[st.TaskInstanceId]) subMap[st.TaskInstanceId] = [];
+      subMap[st.TaskInstanceId].push(st);
+    });
+    instances.forEach(inst => { inst.subTasks = subMap[inst.Id] || []; });
+  }
+
   return { instances, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 

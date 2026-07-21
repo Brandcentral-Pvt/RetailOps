@@ -1,6 +1,6 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress, Modal, Segmented, Checkbox, Empty, App, Spin, Drawer, Row, Col, Collapse, Avatar, Badge, Divider } from 'antd';
+import { Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress, Modal, Segmented, Checkbox, Empty, App, Spin, Drawer, Row, Col, Collapse, Avatar, Badge, Divider, DatePicker, Descriptions } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined,
   ClockCircleOutlined, FileTextOutlined, UploadOutlined, CommentOutlined,
@@ -299,8 +299,9 @@ export default function TaskInstancesPage() {
     if (filters.priority) p.priority = filters.priority;
     if (filters.status) p.status = filters.status;
     if (filters.frequency) p.frequency = filters.frequency;
+    if (viewMode === 'seller') p.includeSubtasks = 'true';
     return p;
-  }, [quickView, filters, search, pagination.page, pagination.limit, currentUser]);
+  }, [quickView, filters, search, pagination.page, pagination.limit, currentUser, viewMode]);
 
   const loadInstances = useCallback(async () => {
     setLoading(true);
@@ -321,9 +322,9 @@ export default function TaskInstancesPage() {
       if (sumRes.success) setSummary(sumRes.data);
     } catch { message.error('Failed to load tasks'); }
     finally { setLoading(false); }
-  }, [buildParams, quickView, filters]);
+  }, [buildParams, quickView, filters, viewMode]);
 
-  useEffect(() => { loadInstances(); }, [quickView, filters, search, pagination.page]);
+  useEffect(() => { loadInstances(); }, [quickView, filters, search, pagination.page, viewMode]);
 
   const openWorkspace = (task) => { setWorkspaceTaskId(task.Id); setWorkspaceOpen(true); };
 
@@ -354,6 +355,92 @@ export default function TaskInstancesPage() {
   const toggleSelect = (id) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const kpi = summary?.kpi || {};
+
+  /* ── SELLER TASKS VIEW (PEMS) ── */
+  const renderSellerTasksView = () => {
+    if (instances.length === 0) return <Empty description="No tasks found" style={{ padding: 60 }} />;
+
+    const grouped = {};
+    instances.forEach(task => {
+      const key = task.SellerName || 'Unassigned';
+      if (!grouped[key]) grouped[key] = { sellerName: key, sellerId: task.SellerId, tasks: [] };
+      grouped[key].tasks.push(task);
+    });
+
+    const groups = Object.values(grouped).sort((a, b) => a.sellerName.localeCompare(b.sellerName));
+
+    return (
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        {groups.map(group => {
+          const total = group.tasks.length;
+          const done = group.tasks.filter(t => t.Status === 'APPROVED').length;
+          const inProg = group.tasks.filter(t => t.Status === 'IN_PROGRESS' || t.Status === 'ESCALATED').length;
+          const color = getSellerColor(group.sellerName);
+          return (
+            <Card key={group.sellerId || group.sellerName} style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden' }} styles={{ body: { padding: 0 } }}>
+              <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${color}10, #ffffff)`, borderBottom: '1px solid #f1f5f9', borderLeft: `4px solid ${color}` }}>
+                <Row align="middle" gutter={16}>
+                  <Col><Avatar size={36} style={{ background: color, fontSize: 15, fontWeight: 600 }}>{getSellerInitial(group.sellerName)}</Avatar></Col>
+                  <Col flex={1}>
+                    <Space size={8} wrap>
+                      <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#1e293b' }}>{group.sellerName}</Text>
+                      <Tag style={{ borderRadius: "var(--radius-lg)", background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>{total} tasks</Tag>
+                      {inProg > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", background: '#eef2ff', color: '#1976D2', border: '1px solid #c7d2fe' }}>{inProg} in progress</Tag>}
+                    </Space>
+                  </Col>
+                  <Col>
+                    <Space size={16} align="center">
+                      <Space size={8}>
+                        <Badge color="#2E7D32" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{done}</Text>} />
+                        <Badge color="#1976D2" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{inProg}</Text>} />
+                      </Space>
+                      <Progress percent={total === 0 ? 0 : Math.round((done / total) * 100)} size="small" style={{ width: 100, margin: 0 }} strokeColor={color} railColor="#f1f5f9" format={p => <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{p}%</Text>} />
+                    </Space>
+                  </Col>
+                </Row>
+              </div>
+              <div style={{ padding: '4px 12px' }}>
+                <Collapse ghost items={group.tasks.map(task => {
+                  return {
+                    key: task.Id,
+                    label: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', cursor: 'pointer' }}>
+                        <div style={{ flex: 1 }}>
+                          <Space size={6}>
+                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", margin: 0, background: WORKFLOW_STATUSES[task.Status]?.bg || '#f1f5f9', color: WORKFLOW_STATUSES[task.Status]?.color || '#64748b', border: 'none' }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
+                            <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#1e293b' }}>{task.Title}</Text>
+                            <Text style={{ fontSize: 10, color: '#94a3b8' }}>{task.InstanceCode}</Text>
+                          </Space>
+                        </div>
+                        <Tag style={{ fontSize: 10, borderRadius: "var(--radius-lg)" }} color={PRIORITIES[task.Priority]?.antColor || 'default'}>{task.Priority}</Tag>
+                        <Text style={{ fontSize: 10, color: '#94a3b8', whiteSpace: 'nowrap' }}>{task.DueDate ? dayjs(task.DueDate).format('DD MMM') : '-'}</Text>
+                        <Button type="text" size="small" icon={<EyeOutlined />} onClick={e => { e.stopPropagation(); openWorkspace(task); }} style={{ color: '#94a3b8' }} />
+                      </div>
+                    ),
+                    children: (() => {
+                      const items = task.subTasks || [];
+                      if (items.length === 0) return <div style={{ padding: '8px 12px 8px 16px' }}><Text style={{ fontSize: 11, color: '#94a3b8' }}>No sub-tasks</Text></div>;
+                      return (
+                        <div style={{ padding: '4px 12px 8px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {items.map(st => (
+                            <div key={st.Id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: "var(--radius-sm)", background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: st.IsCompleted ? '#2E7D32' : '#94a3b8' }} />
+                              <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155', flex: 1 }}>{st.Title}</Text>
+                              <Tag style={{ fontSize: 9, borderRadius: "var(--radius-lg)", background: st.IsCompleted ? '#ecfdf5' : '#f1f5f9', color: st.IsCompleted ? '#2E7D32' : '#64748b', border: 'none' }}>{st.IsCompleted ? 'Done' : 'Pending'}</Tag>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()
+                  };
+                })} />
+              </div>
+            </Card>
+          );
+        })}
+      </Space>
+    );
+  };
 
   /* ── OKR SELLER VIEW ── */
   const sellerGroups = useMemo(() => buildSellerHierarchy(objectives, allActions, okrSellers), [objectives, allActions, okrSellers]);
@@ -586,8 +673,8 @@ export default function TaskInstancesPage() {
             ))}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <Segmented size="small" value={viewMode} onChange={(v) => { setViewMode(v); if (v === 'objectives') loadOkrData(); }} options={[
-              { label: 'List', value: 'list' }, { label: 'Board', value: 'board' }, { label: 'Calendar', value: 'calendar' }, { label: 'Objectives', value: 'objectives' },
+             <Segmented size="small" value={viewMode} onChange={(v) => { setViewMode(v); if (v === 'objectives') loadOkrData(); }} options={[
+              { label: 'List', value: 'list' }, { label: 'Board', value: 'board' }, { label: 'Calendar', value: 'calendar' }, { label: 'Seller', value: 'seller' }, { label: 'Objectives', value: 'objectives' },
             ]} />
             <Input prefix={<SearchOutlined style={{ fontSize: 'var(--font-size-sm)' }} />} placeholder="Search tasks, sellers, ASINs..." value={search} onChange={e => setSearch(e.target.value)} onPressEnter={() => loadInstances()} style={{ width: 240, borderRadius: "var(--radius-md)" }} size="small" />
             <Button icon={<FilterOutlined />} onClick={() => setShowFilterPanel(!showFilterPanel)} size="small" type={Object.values(filters).some(v => v) ? 'primary' : 'default'} style={{ borderRadius: "var(--radius-md)" }}>
@@ -662,6 +749,8 @@ export default function TaskInstancesPage() {
                 </Card>
                 {okrLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> : renderSellerView()}
               </div>
+            ) : viewMode === 'seller' ? (
+              renderSellerTasksView()
             ) : viewMode === 'board' ? (
               <BoardView instances={instances} loading={loading} onView={openWorkspace} />
             ) : viewMode === 'calendar' ? (
@@ -708,8 +797,7 @@ export default function TaskInstancesPage() {
                         selected={selectedIds.has(task.Id)}
                         onSelect={toggleSelect}
                         onView={openWorkspace}
-                        onTransition={(t, s) => setWorkspaceTaskId(t.Id) || setWorkspaceOpen(true)}
-                        onReview={(t, d) => setWorkspaceTaskId(t.Id) || setWorkspaceOpen(true)}
+                        onRefresh={loadInstances}
                       />
                     ))}
                   </div>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Tag, Button, Badge, Space, Progress, Divider } from 'antd';
+import { Typography, Button, Badge, Space, Divider } from 'antd';
 import {
   ClockCircleOutlined, EyeOutlined, WarningOutlined,
   ThunderboltOutlined, ReloadOutlined, CheckCircleOutlined,
   CalendarOutlined, ArrowRightOutlined
 } from '@ant-design/icons';
 import pemsApi from '../services/pemsApi';
-import { WORKFLOW_STATUSES, SLA_STATUSES, PRIORITIES } from '../constants';
+import { WORKFLOW_STATUSES, PRIORITIES } from '../constants';
 import { calculateHealth, getDueDateLabel, isOverdue } from '../utils/taskHealth';
 import dayjs from 'dayjs';
 

@@ -50,14 +50,9 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
   };
 
   const btnStyle = (s) => {
-    const isStart = s === 'IN_PROGRESS';
-    const isSubmit = s === 'SUBMITTED';
-    const isApprove = s === 'APPROVED';
-    const isReject = s === 'REJECTED' || s === 'CANCELLED';
-    if (isApprove) return { background: '#2E7D32', borderColor: '#2E7D32', color: '#fff' };
-    if (isReject) return { background: '#D32F2F', borderColor: '#D32F2F', color: '#fff' };
-    if (isStart) return { background: '#1976D2', borderColor: '#1976D2', color: '#fff' };
-    if (isSubmit) return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
+    if (s === 'IN_PROGRESS') return { background: '#1976D2', borderColor: '#1976D2', color: '#fff' };
+    if (s === 'SUBMITTED') return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
+    if (s === 'CANCELLED') return { background: '#D32F2F', borderColor: '#D32F2F', color: '#fff' };
     return { background: '#fff', borderColor: '#d1d5db', color: '#374151' };
   };
 
@@ -143,22 +138,33 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
             <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => onView(task)}
               style={{ fontSize: 13, color: '#94a3b8', padding: '0 4px' }} />
           </Tooltip>
-          {nextStatuses.map(s => {
-            const cfg = WORKFLOW_STATUSES[s];
-            const label = cfg?.label || s;
+          {nextStatuses.filter(s => s === 'IN_PROGRESS' || s === 'SUBMITTED').map(s => {
+            const btnLabel = s === 'IN_PROGRESS' ? 'Start' : 'Submit';
             return (
               <Button
                 key={s}
                 size="small"
-                icon={s === 'IN_PROGRESS' ? <PlayCircleOutlined /> : s === 'APPROVED' ? <CheckCircleOutlined /> : s === 'REJECTED' || s === 'CANCELLED' ? <CloseCircleOutlined /> : <ArrowRightOutlined />}
+                icon={s === 'IN_PROGRESS' ? <PlayCircleOutlined /> : <ArrowRightOutlined />}
                 loading={transitioning === s}
                 onClick={() => handleClick(s)}
                 style={{ borderRadius: 6, fontWeight: 600, fontSize: 11, height: 26, padding: '0 8px', ...btnStyle(s) }}
               >
-                {label}
+                {btnLabel}
               </Button>
             );
           })}
+          {task.Status === 'IN_PROGRESS' && (
+            <Button
+              key="CANCELLED"
+              size="small"
+              icon={<CloseCircleOutlined />}
+              loading={transitioning === 'CANCELLED'}
+              onClick={() => handleTransition('CANCELLED')}
+              style={{ borderRadius: 6, fontWeight: 600, fontSize: 11, height: 26, padding: '0 8px', ...btnStyle('CANCELLED') }}
+            >
+              Stop
+            </Button>
+          )}
         </div>
       </div>
 
