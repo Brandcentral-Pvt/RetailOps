@@ -1,13 +1,16 @@
 const pemsService = require('../../services/pems/pemsService');
 const { WORKFLOW_STATUSES, FREQUENCIES, CATEGORIES, PRIORITIES } = require('../../services/pems/workflowEngine');
 
+function getUserId(req) { return req.user?.Id || req.user?._id; }
+function getUserName(req) { return (`${req.user?.FirstName || ''} ${req.user?.LastName || ''}`).trim() || req.user?.Email; }
+
 // ═══════════════════════════════════════════════════════
 // TEMPLATES
 // ═══════════════════════════════════════════════════════
 
 exports.createTemplate = async (req, res) => {
   try {
-    const result = await pemsService.createTemplate({ ...req.body, createdBy: req.user?.id });
+    const result = await pemsService.createTemplate({ ...req.body, createdBy: getUserId(req) });
     res.json({ success: true, data: result });
   } catch (err) {
     console.error('createTemplate error:', err);
@@ -108,7 +111,7 @@ exports.transitionStatus = async (req, res) => {
     const { toStatus, details } = req.body;
     const result = await pemsService.transitionStatus(
       req.params.id, toStatus,
-      req.user?.id, req.user?.name || req.user?.email, req.user?.role,
+      getUserId(req), getUserName(req) || req.user?.email, req.user?.role,
       details
     );
     res.json({ success: true, data: result });
@@ -135,7 +138,7 @@ exports.updateAchievement = async (req, res) => {
 
 exports.completeSubTask = async (req, res) => {
   try {
-    await pemsService.completeSubTask(req.params.subTaskId, req.user?.id, req.user?.name || req.user?.email);
+    await pemsService.completeSubTask(req.params.subTaskId, getUserId(req), getUserName(req) || req.user?.email);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -144,7 +147,7 @@ exports.completeSubTask = async (req, res) => {
 
 exports.completeActivity = async (req, res) => {
   try {
-    await pemsService.completeActivity(req.params.activityId, req.user?.id, req.user?.name || req.user?.email);
+    await pemsService.completeActivity(req.params.activityId, getUserId(req), getUserName(req) || req.user?.email);
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -159,8 +162,8 @@ exports.uploadEvidence = async (req, res) => {
   try {
     const result = await pemsService.uploadEvidence({
       ...req.body,
-      uploadedBy: req.user?.id,
-      uploadedByName: req.user?.name || req.user?.email,
+      uploadedBy: getUserId(req),
+      uploadedByName: getUserName(req) || req.user?.email,
     });
     res.json({ success: true, data: result });
   } catch (err) {
@@ -176,15 +179,15 @@ exports.submitReview = async (req, res) => {
   try {
     const result = await pemsService.submitReview({
       ...req.body,
-      reviewerId: req.user?.id,
-      reviewerName: req.user?.name || req.user?.email,
+      reviewerId: getUserId(req),
+      reviewerName: getUserName(req) || req.user?.email,
     });
 
     // Auto-transition based on decision
     if (req.body.decision === 'APPROVE') {
-      await pemsService.transitionStatus(req.body.taskInstanceId, 'APPROVED', req.user?.id, req.user?.name, req.user?.role, req.body.feedback);
+      await pemsService.transitionStatus(req.body.taskInstanceId, 'APPROVED', getUserId(req), getUserName(req), req.user?.role, req.body.feedback);
     } else {
-      await pemsService.transitionStatus(req.body.taskInstanceId, 'REJECTED', req.user?.id, req.user?.name, req.user?.role, req.body.feedback);
+      await pemsService.transitionStatus(req.body.taskInstanceId, 'REJECTED', getUserId(req), getUserName(req), req.user?.role, req.body.feedback);
     }
 
     res.json({ success: true, data: result });
@@ -232,7 +235,7 @@ exports.refreshSLA = async (req, res) => {
 
 exports.getNotifications = async (req, res) => {
   try {
-    const userId = req.user?.id || req.query.userId;
+    const userId = getUserId(req) || req.query.userId;
     if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
     const unreadOnly = req.query.unreadOnly === 'true';
     const notifications = await pemsService.getNotifications(userId, unreadOnly);
@@ -254,7 +257,7 @@ exports.markNotificationRead = async (req, res) => {
 
 exports.markAllNotificationsRead = async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = getUserId(req);
     await pemsService.markAllRead(userId);
     res.json({ success: true });
   } catch (err) {

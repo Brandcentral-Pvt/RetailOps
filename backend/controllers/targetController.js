@@ -366,10 +366,10 @@ exports.getTargets = async (req, res) => {
             });
         }
 
-        res.json({ success: true, data: enrichedTargets });
+        if (!res.headersSent) res.json({ success: true, data: enrichedTargets });
     } catch (e) {
         console.error("getTargets error:", e);
-        res.status(500).json({ success: false, message: e.message });
+        if (!res.headersSent) res.status(500).json({ success: false, message: e.message });
     }
 };
 

@@ -39,15 +39,7 @@ const upload = multer({
     }
 });
 
-// --- Simple SSE clients list ---
-const sseClients = [];
-
-function sendSseEvent(eventName, data) {
-    const payload = `data: ${JSON.stringify({ event: eventName, data })}\n\n`;
-    sseClients.forEach(res => {
-        try { res.write(payload); } catch (e) { }
-    });
-}
+const { sendSseEvent, addSseClient, removeSseClient } = require('../utils/sse');
 
 // Action routes
 router.get('/', protect, requireAnyPermission(['actions_view', 'actions_manage']), actionController.getActions);
@@ -84,10 +76,9 @@ router.get('/stream', protect, (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders && res.flushHeaders();
     res.write('data: "connected"\n\n');
-    sseClients.push(res);
+    addSseClient(res);
     req.on('close', () => {
-        const idx = sseClients.indexOf(res);
-        if (idx !== -1) sseClients.splice(idx, 1);
+        removeSseClient(res);
     });
 });
 

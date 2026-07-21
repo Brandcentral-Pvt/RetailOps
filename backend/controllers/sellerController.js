@@ -463,9 +463,9 @@ exports.createSeller = async (req, res) => {
     // Fetch back the full seller with managers for complete response
     const createdResult = await pool.request()
       .input('id', sql.VarChar, id)
-      .query('SELECT Id as _id, Name as name, Marketplace as marketplace, SellerId as sellerId, IsActive as status, IsPriority as isPriority, CreatedAt as createdAt, UpdatedAt as updatedAt FROM Sellers WHERE Id = @id');
+      .query('SELECT Id as _id, Name as name, Email as email, Marketplace as marketplace, SellerId as sellerId, IsActive as status, IsPriority as isPriority, CreatedAt as createdAt, UpdatedAt as updatedAt FROM Sellers WHERE Id = @id');
 
-    const createdSeller = createdResult.recordset[0] || { _id: id, name, marketplace, sellerId, status };
+    const createdSeller = createdResult.recordset[0] || { _id: id, name, marketplace, sellerId, email: email || '', status };
     createdSeller.status = createdSeller.status ? 'Active' : 'Inactive';
 
     // Enrich with managers
