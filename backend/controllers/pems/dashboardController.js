@@ -74,28 +74,22 @@ exports.getSummary = async (req, res) => {
 
     const kpi = agg.recordset[0];
 
-    // Department performance (single query)
-    const deptDateFrom = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const deptDateTo = dateTo ? new Date(dateTo) : new Date();
-    const deptResult = await pool.request()
-      .input('dateFrom', sql.DateTime2, deptDateFrom)
-      .input('dateTo', sql.DateTime2, deptDateTo)
-      .query(`
-        SELECT Department,
-          COUNT(*) as totalTasks,
-          SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as completedTasks,
-          SUM(CASE WHEN Status IN ('ASSIGNED','ACCEPTED','IN_PROGRESS','REWORK') THEN 1 ELSE 0 END) as openTasks,
-          SUM(CASE WHEN SLAStatus = 'BREACHED' THEN 1 ELSE 0 END) as slaBreached,
-          SUM(CASE WHEN DueDate < dbo.GetEnvDate() AND Status NOT IN ('APPROVED','CANCELLED') THEN 1 ELSE 0 END) as overdueTasks,
-          SUM(CASE WHEN Status IN ('SUBMITTED','UNDER_REVIEW') THEN 1 ELSE 0 END) as pendingReview,
-          SUM(CASE WHEN Status = 'REWORK' THEN 1 ELSE 0 END) as rework,
-          ISNULL(AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END), 0) as avgAchievementPct,
-          ISNULL(AVG(ProgressPct), 0) as avgProgress
-        FROM PemsTaskInstances
-        WHERE CreatedAt >= @dateFrom AND CreatedAt <= @dateTo
-        GROUP BY Department
-        ORDER BY completedTasks DESC
-      `);
+    // Department performance — reuse same filter context as KPI query
+    const deptResult = await req_.query(`
+      SELECT Department,
+        COUNT(*) as totalTasks,
+        SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as completedTasks,
+        SUM(CASE WHEN Status IN ('ASSIGNED','ACCEPTED','IN_PROGRESS','REWORK') THEN 1 ELSE 0 END) as openTasks,
+        SUM(CASE WHEN SLAStatus = 'BREACHED' THEN 1 ELSE 0 END) as slaBreached,
+        SUM(CASE WHEN DueDate < dbo.GetEnvDate() AND Status NOT IN ('APPROVED','CANCELLED') THEN 1 ELSE 0 END) as overdueTasks,
+        SUM(CASE WHEN Status IN ('SUBMITTED','UNDER_REVIEW') THEN 1 ELSE 0 END) as pendingReview,
+        SUM(CASE WHEN Status = 'REWORK' THEN 1 ELSE 0 END) as rework,
+        ISNULL(AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END), 0) as avgAchievementPct,
+        ISNULL(AVG(ProgressPct), 0) as avgProgress
+      FROM PemsTaskInstances ${where}
+      GROUP BY Department
+      ORDER BY completedTasks DESC
+    `);
 
     const departments = deptResult.recordset.map(d => ({
       ...d,

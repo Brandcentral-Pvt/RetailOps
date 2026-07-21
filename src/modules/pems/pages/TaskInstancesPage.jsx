@@ -670,7 +670,7 @@ export default function TaskInstancesPage() {
               /* LIST VIEW */
               <Card size="small" style={{ borderRadius: 10 }} styles={{ body: { padding: 0 } }}>
                 {/* Table Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,2fr) 120px 90px 100px 130px 100px', alignItems: 'center', padding: '8px 14px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,2fr) 120px 90px 110px 100px 90px minmax(150px, auto)', alignItems: 'center', padding: '8px 16px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc', gap: 12 }}>
                   <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Task</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Assignee</Text>
@@ -678,6 +678,7 @@ export default function TaskInstancesPage() {
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Status</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Progress</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Due</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', textAlign: 'right' }}>Actions</Text>
                 </div>
 
                 {/* Mobile cards for small screens */}

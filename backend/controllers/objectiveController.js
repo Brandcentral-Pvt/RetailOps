@@ -208,6 +208,7 @@ exports.deleteObjective = async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
+        await pool.request().input('id', sql.VarChar, id).query("DELETE FROM KeyResults WHERE ObjectiveId = @id");
         await pool.request().input('id', sql.VarChar, id).query("DELETE FROM Objectives WHERE Id = @id");
         res.json({ success: true, message: 'Objective deleted' });
     } catch (error) {

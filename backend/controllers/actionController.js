@@ -6,6 +6,7 @@ const hierarchyService = require('../services/hierarchyService');
 const AIService = require('../services/AIService');
 const WebhookService = require('../services/WebhookService');
 const { buildInClause } = require('../utils/sqlHelpers');
+const { sendSseEvent } = require('../utils/sse');
 
 // Expose getPool for route handlers
 exports.getPool = getPool;
@@ -262,7 +263,7 @@ exports.getActions = async (req, res) => {
         res.json({ success: true, data: actions });
     } catch (error) {
         console.error('GET /actions error:', error.message);
-        res.status(200).json({ success: true, data: [], message: 'Database currently unavailable' });
+        if (!res.headersSent) res.status(500).json({ success: false, data: [], message: error.message });
     }
 };
 
@@ -292,11 +293,7 @@ exports.getAction = async (req, res) => {
                 FROM Actions a
                 LEFT JOIN Users ua ON a.AssignedTo = ua.Id
                 LEFT JOIN Sellers s ON a.SellerId = s.Id
-                LEFT JOIN FirstUserSeller us ON a.SellerId = us.SellerId OR (a.SellerId IS NULL AND a.Asins IS NOT NULL AND EXISTS (
-                    SELECT 1 FROM Asins asin 
-                    WHERE asin.SellerId = us.SellerId 
-                    AND a.Asins LIKE '%' + asin.Id + '%'
-                ))
+                LEFT JOIN FirstUserSeller us ON a.SellerId = us.SellerId
                 LEFT JOIN Users uas ON us.UserId = uas.Id
                 LEFT JOIN Users uc ON a.CreatedBy = uc.Id
                 WHERE a.Id = @id
@@ -951,12 +948,5 @@ module.exports = {
     createGoalTemplate: exports.createGoalTemplate,
     updateGoalTemplate: exports.updateGoalTemplate,
     deleteGoalTemplate: exports.deleteGoalTemplate,
-    // Additional endpoints
-    startAction: exports.startAction,
-    submitReview: exports.submitReview,
-    reviewAction: exports.reviewAction,
-    completeTask: exports.completeTask,
-    uploadAudio: exports.uploadAudio,
-    getActionHistory: exports.getActionHistory,
     getActionInstructions: exports.getActionInstructions
 };
