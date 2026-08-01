@@ -4,11 +4,11 @@ import { Card, Table, Button, Input, Tag, Space, Typography, Progress, Empty, Ap
 import {
   ReloadOutlined, SearchOutlined, CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined,
   EyeOutlined, WarningOutlined, ClockCircleOutlined, SafetyCertificateOutlined, CalendarOutlined,
-  AuditOutlined, DownloadOutlined, RightOutlined, DownOutlined, MinusOutlined
+  AuditOutlined, DownloadOutlined, RightOutlined, DownOutlined, MinusOutlined, FileTextOutlined
 } from '@ant-design/icons';
 import pemsApi from '../services/pemsApi';
 import { WORKFLOW_STATUSES, SLA_STATUSES, PRIORITIES, DEPARTMENTS } from '../constants';
-import { calculateHealth, getDueDateLabel, isOverdue } from '../utils/taskHealth';
+import { getDueDateLabel, isOverdue } from '../utils/taskHealth';
 import { hasPermission } from '../utils/rbac';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ReviewExecutiveKpis } from '../components/ReviewExecutiveKpis';
@@ -41,17 +41,29 @@ export default function ReviewQueuePage() {
     try {
       const params = { page: pagination.page, limit: pagination.limit };
       if (search) params.search = search;
-      if (quickView === 'CRITICAL') params.priority = 'CRITICAL';
-      else if (quickView === 'HIGH_PRIORITY') params.priority = 'HIGH';
-      else if (quickView !== 'OVERDUE') { params.status = 'UNDER_REVIEW'; }
+      if (quickView === 'MY_REVIEWS') {
+        params.status = 'SUBMITTED,UNDER_REVIEW';
+        if (currentUser?.id) params.reviewerId = currentUser.id;
+      } else if (quickView === 'CRITICAL') {
+        params.status = 'SUBMITTED,UNDER_REVIEW';
+        params.priority = 'CRITICAL';
+      } else if (quickView === 'HIGH_PRIORITY') {
+        params.status = 'SUBMITTED,UNDER_REVIEW';
+        params.priority = 'HIGH';
+      } else if (quickView === 'OVERDUE') {
+        params.status = 'SUBMITTED,UNDER_REVIEW';
+      } else {
+        params.status = 'SUBMITTED,UNDER_REVIEW';
+      }
 
       const [instRes, sumRes] = await Promise.all([
         pemsApi.getInstances(params),
         pemsApi.getDashboardSummary(),
       ]);
 
+      let data = [];
       if (instRes.success) {
-        let data = instRes.instances || [];
+        data = instRes.instances || [];
         if (quickView === 'OVERDUE') data = data.filter(t => isOverdue(t));
         setInstances(data);
         setPagination(instRes.pagination);
@@ -60,21 +72,20 @@ export default function ReviewQueuePage() {
       if (sumRes.success) {
         const kpi = sumRes.data?.kpi || {};
         const risk = sumRes.data?.risk || {};
-        const now = new Date();
         setKpiData({
           pending: kpi.pendingReview || 0,
-          critical: data?.filter(t => t.Priority === 'CRITICAL').length || 0,
+          critical: data.filter(t => t.Priority === 'CRITICAL').length,
           overdue: risk.overdue || 0,
           slaCompliance: kpi.slaCompliance || 100,
-          today: data?.filter(t => t.DueDate && dayjs(t.DueDate).isSame(dayjs(), 'day') && !['APPROVED', 'CANCELLED'].includes(t.Status)).length || 0,
+          today: data.filter(t => t.DueDate && dayjs(t.DueDate).isSame(dayjs(), 'day') && !['APPROVED', 'CANCELLED'].includes(t.Status)).length,
           pendingTrend: 12, reviewTimeTrend: -8, slaTrend: 2, reworkTrend: -15,
         });
       }
-    } catch (err) { message.error('Failed to load review queue'); }
+    } catch { message.error('Failed to load review queue'); }
     finally { setLoading(false); }
   }, [quickView, search, pagination.page, pagination.limit]);
 
-  useEffect(() => { loadInstances(); }, [quickView, pagination.page]);
+  useEffect(() => { loadInstances(); }, [quickView, search, pagination.page]);
 
   const openWorkspace = (task) => { setWorkspaceTaskId(task.Id); setWorkspaceOpen(true); };
 
@@ -87,7 +98,7 @@ export default function ReviewQueuePage() {
       }
       message.success(`Approved ${selectedIds.size} tasks`);
       setSelectedIds(new Set()); loadInstances();
-    } catch (err) { message.error('Bulk approve failed'); }
+    } catch { message.error('Bulk approve failed'); }
   };
 
   const toggleSelect = (id) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -151,10 +162,7 @@ export default function ReviewQueuePage() {
 
   // Expandable row content
   const expandedRowRender = (record) => {
-    const health = calculateHealth(record);
     const dueLabel = getDueDateLabel(record);
-    const subTasks = record.subtasks || [];
-
     return (
       <div style={{ padding: '12px 20px', background: '#f8fafc', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
         {/* Task Info */}
@@ -190,18 +198,14 @@ export default function ReviewQueuePage() {
         {/* Subtasks */}
         <div>
           <Text style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Sub Tasks</Text>
-          {(record.subtasks || []).slice(0, 4).map(st => {
-            const done = st.activities?.filter(a => a.IsCompleted).length || 0;
-            const total = st.activities?.length || 0;
-            return (
-              <div key={st.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginBottom: 3 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 10, color: '#334155' }}>{st.Title}</Text>
-                  {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 10 }} /> : <ClockCircleOutlined style={{ color: '#94a3b8', fontSize: 10 }} />}
-                </div>
+          {(record.subtasks || []).slice(0, 4).map(st => (
+            <div key={st.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginBottom: 3 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 10, color: '#334155' }}>{st.Title}</Text>
+                {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 10 }} /> : <ClockCircleOutlined style={{ color: '#94a3b8', fontSize: 10 }} />}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     );

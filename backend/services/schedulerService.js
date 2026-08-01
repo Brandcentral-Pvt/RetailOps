@@ -5,6 +5,9 @@ const { syncSellerFromKeepaInternal } = require('../controllers/sellerAsinTracke
 const AutoTagService = require('./autoTagService');
 const SystemLogService = require('./SystemLogService');
 const WebhookService = require('./WebhookService');
+const queueService = require('./queueService');
+const { QUEUES } = require('../jobs/queueDefinitions');
+const logger = require('../utils/logger');
 
 /**
  * Scheduler Service
@@ -14,7 +17,7 @@ class SchedulerService {
     constructor() {
         this.jobs = {};
         this.ensureTablesExist().catch(err => {
-            console.error('❌ ScheduledRuns table verification failed on startup:', err.message);
+            logger.error('❌ ScheduledRuns table verification failed on startup:', err.message);
         });
     }
 
@@ -24,15 +27,15 @@ class SchedulerService {
     async init() {
         try {
             await this.scheduleJobs();
-            console.log('✅ Background tasks successfully initialized.');
+            logger.info('✅ Background tasks successfully initialized.');
             
             // Check completed tasks and recover status on startup
-            await this.runOctoparseTaskRecovery().catch(err => console.error('Recovery failed:', err.message));
+            await this.runOctoparseTaskRecovery().catch(err => logger.error('Recovery failed:', err.message));
             
             // Resume any interrupted active scheduled runs
-            await this.resumeInterruptedRuns().catch(err => console.error('Resume failed:', err.message));
+            await this.resumeInterruptedRuns().catch(err => logger.error('Resume failed:', err.message));
         } catch (error) {
-            console.error('❌ Scheduler initialization error:', error.message);
+            logger.error('❌ Scheduler initialization error:', error.message);
         }
     }
 
@@ -72,8 +75,7 @@ class SchedulerService {
         let liveSyncTime = '06:00';
         let liveSyncConcurrency = 3;
 
-        console.log('--------------------------------------------------------');
-        console.log('📡 [SCHEDULER CONFIG LOADED FROM DATABASE SETTINGS]');
+        logger.info('[SCHEDULER CONFIG] Loading from database settings');
 
         try {
             const pool = await getPool();
@@ -113,10 +115,9 @@ class SchedulerService {
             console.warn('⚠️ [Scheduler] Could not query SystemSettings:', dbErr.message);
         }
 
-        console.log(`⏰ DB -> Amazon Nightly Schedule: ${scheduleTime} (Enabled: ${amazonEnabled})`);
-        console.log(`⏰ DB -> Ajio Nightly Schedule  : ${ajioScheduleTime} (Enabled: ${ajioEnabled})`);
-        console.log(`🌍 DB -> Scheduler Timezone   : ${automationTimezone}`);
-        console.log('--------------------------------------------------------');
+        logger.info(`Amazon schedule: ${scheduleTime} (enabled: ${amazonEnabled})`);
+        logger.info(`Ajio schedule: ${ajioScheduleTime} (enabled: ${ajioEnabled})`);
+        logger.info(`Timezone: ${automationTimezone}`);
 
         const cronOptions = {
             scheduled: true,
@@ -132,15 +133,14 @@ class SchedulerService {
             }
 
             this.jobs.enterprisePipeline = cron.schedule(amazonCronExpr, async () => {
-                console.log('⏰ [Cron] Triggering Daily Amazon Enterprise Pipeline...');
-                await this.runEnterprisePipeline('amazon');
+                logger.info(`Cron triggering Amazon pipeline`);
+                await queueService.add(QUEUES.PIPELINE_RUN, { marketplace: 'amazon', options: {} });
             }, cronOptions);
-            console.log(`🏢 Amazon Enterprise Pipeline scheduled at ${scheduleTime} in ${automationTimezone} (${amazonCronExpr})`);
+            logger.info(`Amazon Enterprise Pipeline scheduled at ${scheduleTime} in ${automationTimezone}`);
         } else {
-            console.log('🛑 [Scheduler] Amazon Automation is DISABLED.');
+            logger.info('Amazon Automation is DISABLED');
         }
 
-        // 2. Ajio Enterprise Pipeline
         if (ajioEnabled) {
             let ajioCronExpr = '0 0 * * *';
             if (ajioScheduleTime && ajioScheduleTime.includes(':')) {
@@ -149,15 +149,15 @@ class SchedulerService {
             }
 
             this.jobs.enterpriseAjioPipeline = cron.schedule(ajioCronExpr, async () => {
-                console.log('⏰ [Cron] Triggering Daily Ajio Enterprise Pipeline...');
-                await this.runEnterprisePipeline('ajio');
+                logger.info(`Cron triggering Ajio pipeline`);
+                await queueService.add(QUEUES.PIPELINE_RUN, { marketplace: 'ajio', options: {} });
             }, cronOptions);
-            console.log(`🏢 Ajio Enterprise Pipeline scheduled at ${ajioScheduleTime} in ${automationTimezone} (${ajioCronExpr})`);
+            logger.info(`Ajio Enterprise Pipeline scheduled at ${ajioScheduleTime} in ${automationTimezone}`);
         } else {
-            console.log('🛑 [Scheduler] Ajio Automation is DISABLED.');
+            logger.info('Ajio Automation is DISABLED');
         }
 
-        console.log(`⚡ DB -> Live Sync Schedule: ${liveSyncTime} (Enabled: ${liveSyncEnabled}, Concurrency: ${liveSyncConcurrency})`);
+        logger.info(`Live Sync schedule: ${liveSyncTime} (enabled: ${liveSyncEnabled}, concurrency: ${liveSyncConcurrency})`);
         
         if (liveSyncEnabled) {
             let liveSyncCronExpr = '0 6 * * *';
@@ -167,25 +167,18 @@ class SchedulerService {
             }
             
             this.jobs.liveDataSync = cron.schedule(liveSyncCronExpr, async () => {
-                console.log('⚡ [Cron] Triggering Daily Live Data Sync...');
-                try {
-                    const liveSyncService = require('./liveDataSyncService');
-                    // Use concurrency=1 for reliable sequential processing with retries
-                    const result = await liveSyncService.syncAllSellers({ concurrency: 1, maxRetries: 2 });
-                    console.log('⚡ [Cron] Live Sync completed:', result.summary || result);
-                } catch (err) {
-                    console.error('⚡ [Cron] Live Sync failed:', err.message);
-                }
+                logger.info('Cron triggering Live Data Sync');
+                await queueService.add(QUEUES.MARKET_SYNC, { type: 'live', sellerId: '*', options: { concurrency: 1, maxRetries: 2 } });
             }, cronOptions);
-            console.log(`⚡ Live Data Sync scheduled at ${liveSyncTime} in ${automationTimezone} (${liveSyncCronExpr})`);
+            logger.info(`Live Data Sync scheduled at ${liveSyncTime} in ${automationTimezone}`);
         } else {
-            console.log('🛑 [Scheduler] Live Data Sync is DISABLED.');
+            logger.info('🛑 [Scheduler] Live Data Sync is DISABLED.');
         }
 
         // 4. Database Integrity Repair (Every 6 hours)
         this.jobs.integrityRepair = cron.schedule('0 */6 * * *', async () => {
-            console.log('🕒 Starting Global Database Integrity Repair Check...');
-            console.log('ℹ️ Repair task skipped (Refactoring in progress)');
+            logger.info('🕒 Starting Global Database Integrity Repair Check...');
+            logger.info('ℹ️ Repair task skipped (Refactoring in progress)');
         }, cronOptions);
 
         // 4. Automated Weekly Database Backup (Every Sunday at 00:00)
@@ -193,43 +186,43 @@ class SchedulerService {
             this.jobs.weeklyBackup.stop();
         }
         this.jobs.weeklyBackup = cron.schedule('0 0 * * 0', async () => {
-            console.log('🕒 [Cron] Starting Automated Weekly Database Backup...');
+            logger.info('🕒 [Cron] Starting Automated Weekly Database Backup...');
             try {
-                const { exec } = require('child_process');
+                const { execFile } = require('child_process');
                 const path = require('path');
                 const backupScript = path.join(__dirname, '../backup_db.cjs');
-                exec(`node "${backupScript}"`, (error, stdout, stderr) => {
+                execFile('node', [backupScript], (error, stdout, stderr) => {
                     if (error) {
-                        console.error('❌ Weekly backup failed:', error.message);
+                        logger.error('Weekly backup failed:', error.message);
                         return;
                     }
-                    console.log('✅ Weekly database backup completed successfully.');
+                    logger.info('Weekly database backup completed successfully.');
                 });
             } catch (err) {
-                console.error('❌ Error executing weekly backup:', err.message);
+                logger.error('Error executing weekly backup:', err.message);
             }
         }, cronOptions);
-        console.log(`🕒 Database Weekly Backup scheduled (Sundays at 00:00) in ${automationTimezone}`);
+        logger.info(`🕒 Database Weekly Backup scheduled (Sundays at 00:00) in ${automationTimezone}`);
 
-        // 4. Daily Age Tag Refresh (Every day at 2 AM)
         this.jobs.ageTagRefresh = cron.schedule('0 2 * * *', async () => {
-            await this.refreshAgeTags();
+            logger.info('Cron triggering age tag refresh');
+            await queueService.add(QUEUES.AUTO_TAG, { type: 'age' });
         }, cronOptions);
 
-        // 5. Daily Auto-Tag Run: Pareto 80/20 Contributors + Age tags (Every day at 3 AM)
         this.jobs.autoTags = cron.schedule('0 3 * * *', async () => {
-            await this.runAutoTags();
+            logger.info('Cron triggering full auto-tag run');
+            await queueService.add(QUEUES.AUTO_TAG, { type: 'full' });
         }, cronOptions);
-        console.log(`🔄 [Scheduler] Auto-Tags (Pareto 80/20 Contributors + Age) scheduled daily at 3:00 AM`);
+        logger.info('Auto-Tags scheduled daily at 3:00 AM');
     }
 
     async reschedule() {
-        console.log('🔄 [Scheduler] Settings updated, rescheduling all jobs...');
+        logger.info('🔄 [Scheduler] Settings updated, rescheduling all jobs...');
         await this.scheduleJobs();
     }
 
     async runOctoparseTaskRecovery() {
-        console.log('🔄 [RECOVERY] Starting Octoparse task status check on startup...');
+        logger.info('🔄 [RECOVERY] Starting Octoparse task status check on startup...');
         
         try {
             const pool = await getPool();
@@ -239,7 +232,7 @@ class SchedulerService {
             });
             const sellers = sellersResult.recordset;
 
-            console.log(`🔄 [RECOVERY] Found ${sellers.length} sellers - running with concurrency limit...`);
+            logger.info(`🔄 [RECOVERY] Found ${sellers.length} sellers - running with concurrency limit...`);
             
             const CONCURRENCY_LIMIT = 3;
             const results = [];
@@ -250,25 +243,25 @@ class SchedulerService {
                 const batchResults = await Promise.all(batch.map(async (seller) => {
                     try {
                         const taskId = seller.OctoparseId;
-                        // console.log(`🔄 [RECOVERY] Checking task ${taskId} for seller ${seller.Name}...`);
+                        // logger.info(`🔄 [RECOVERY] Checking task ${taskId} for seller ${seller.Name}...`);
                         
                         const status = await MarketSyncService.getStatus(taskId);
                     
                         if (!status) {
-                            console.log(`⚠️ [RECOVERY] Could not get status for task ${taskId}`);
+                            logger.info(`⚠️ [RECOVERY] Could not get status for task ${taskId}`);
                             return { seller, success: false, reason: 'No status' };
                         }
 
                         const normalized = MarketSyncService.normalizeStatus(status);
                         // Octoparse status can be numbers (1: Running, 0: Stopped)
                         if (normalized === 'COMPLETED' || normalized === 'STOPPED' || normalized === 'IDLE') {
-                            console.log(`📥 [RECOVERY] Fetching data for completed/idle task ${taskId}...`);
+                            logger.info(`📥 [RECOVERY] Fetching data for completed/idle task ${taskId}...`);
                             
                             const rawData = await MarketSyncService.retrieveResults(taskId);
                             if (rawData && rawData.length > 0) {
                                 const processedCount = await MarketSyncService.processBatchResults(seller.Id, rawData);
                                 const updated = processedCount?.updatedCount !== undefined ? processedCount.updatedCount : 0;
-                                console.log(`✅ [RECOVERY] Saved ${updated} ASINs for seller ${seller.Name}`);
+                                logger.info(`✅ [RECOVERY] Saved ${updated} ASINs for seller ${seller.Name}`);
                                 
                                 // Clean up the task data so it doesn't get extracted again
                                 await MarketSyncService.clearTaskData(taskId).catch(() => {});
@@ -278,7 +271,7 @@ class SchedulerService {
                         }
                         return { seller, success: true, status: normalized };
                     } catch (err) {
-                        console.error(`❌ [RECOVERY] Failed to check task for seller ${seller.Name}:`, err.message);
+                        logger.error(`❌ [RECOVERY] Failed to check task for seller ${seller.Name}:`, err.message);
                         return { seller, success: false, error: err.message };
                     }
                 }));
@@ -286,15 +279,15 @@ class SchedulerService {
                 results.push(...batchResults);
             }
             
-            console.log(`✅ [RECOVERY] Initial check completed: ${results.filter(r => r.success).length}/${sellers.length} sellers`);
+            logger.info(`✅ [RECOVERY] Initial check completed: ${results.filter(r => r.success).length}/${sellers.length} sellers`);
         } catch (error) {
-            console.error('❌ [RECOVERY] Critical error:', error.message);
+            logger.error('❌ [RECOVERY] Critical error:', error.message);
         }
     }
 
     async resumeInterruptedRuns() {
         try {
-            console.log('🔄 [RESUME] Checking for interrupted scheduled runs...');
+            logger.info('🔄 [RESUME] Checking for interrupted scheduled runs...');
             const pool = await getPool();
             const activeRunsResult = await executeWithRetry(async () => {
                 return await pool.request()
@@ -303,11 +296,11 @@ class SchedulerService {
             
             const activeRun = activeRunsResult.recordset[0];
             if (!activeRun) {
-                console.log('ℹ️ [RESUME] No interrupted scheduled runs to resume.');
+                logger.info('ℹ️ [RESUME] No interrupted scheduled runs to resume.');
                 return;
             }
 
-            console.log(`🏢 [RESUME] Found interrupted scheduled run: ${activeRun.Id} (Started at: ${activeRun.StartTime})`);
+            logger.info(`🏢 [RESUME] Found interrupted scheduled run: ${activeRun.Id} (Started at: ${activeRun.StartTime})`);
             
             let details = [];
             if (activeRun.Details) {
@@ -329,39 +322,39 @@ class SchedulerService {
                 if (mkt === 'ajio') marketplace = 'ajio';
             }
 
-            console.log(`🏢 [RESUME] Resuming ${marketplace} pipeline for run ${activeRun.Id} in background...`);
+            logger.info(`🏢 [RESUME] Resuming ${marketplace} pipeline for run ${activeRun.Id} in background...`);
             
             // Resume the pipeline in the background
             this.runEnterprisePipeline(marketplace, { resumeRunId: activeRun.Id, existingDetails: details }).catch(err => {
-                console.error(`❌ Interrupted pipeline resume failed in background:`, err.message);
+                logger.error(`❌ Interrupted pipeline resume failed in background:`, err.message);
             });
 
         } catch (err) {
-            console.error('❌ [RESUME] Error in resumeInterruptedRuns:', err.message);
+            logger.error('❌ [RESUME] Error in resumeInterruptedRuns:', err.message);
         }
     }
 
     async refreshAgeTags() {
         try {
-            // console.log('🔄 [AutoTag] Starting daily age tag refresh...');
+            // logger.info('🔄 [AutoTag] Starting daily age tag refresh...');
             const pool = await getPool();
             const result = await AutoTagService.batchUpdateAgeTags(pool);
-            console.log(`✅ [AutoTag] Refresh complete: ${result.updated} updated, ${result.skipped} skipped`);
+            logger.info(`✅ [AutoTag] Refresh complete: ${result.updated} updated, ${result.skipped} skipped`);
             return result;
         } catch (error) {
-            console.error('❌ [AutoTag] Refresh failed:', error.message);
+            logger.error('❌ [AutoTag] Refresh failed:', error.message);
         }
     }
 
     async runAutoTags() {
         try {
-            console.log('🔄 [AutoTag] Starting daily full auto-tag run (Pareto 80/20 + Age)...');
+            logger.info('🔄 [AutoTag] Starting daily full auto-tag run (Pareto 80/20 + Age)...');
             const pool = await getPool();
             const result = await AutoTagService.runAllAutoTags(pool);
-            console.log(`✅ [AutoTag] Full run complete:`, JSON.stringify(result));
+            logger.info(`✅ [AutoTag] Full run complete:`, JSON.stringify(result));
             return result;
         } catch (error) {
-            console.error('❌ [AutoTag] Full run failed:', error.message);
+            logger.error('❌ [AutoTag] Full run failed:', error.message);
         }
     }
 
@@ -447,9 +440,9 @@ class SchedulerService {
                     CREATE INDEX IX_WebhookLogs_CreatedAt ON WebhookLogs(CreatedAt);
                 END
             `);
-            console.log('✅ ScheduledRuns, TaskTemplates, GoalTemplates, Webhooks, WebhookLogs tables verified/created successfully.');
+            logger.info('✅ ScheduledRuns, TaskTemplates, GoalTemplates, Webhooks, WebhookLogs tables verified/created successfully.');
         } catch (err) {
-            console.error('❌ Failed to ensure required database tables exist:', err.message);
+            logger.error('❌ Failed to ensure required database tables exist:', err.message);
         }
     }
 
@@ -480,7 +473,7 @@ class SchedulerService {
                 });
             }
         } catch (err) {
-            console.error(`❌ Failed to update ScheduledRuns details for run ${runId}:`, err.message);
+            logger.error(`❌ Failed to update ScheduledRuns details for run ${runId}:`, err.message);
         }
     }
 
@@ -492,7 +485,7 @@ class SchedulerService {
         const details = isResuming ? (options.existingDetails || []) : [];
         const startTime = new Date();
 
-        console.log(`🏢 [ENTERPRISE] ${isResuming ? 'Resuming' : 'Starting'} full ${marketplace} automation pipeline (Dynamic worker pool with concurrency limit)...`);
+        logger.info(`🏢 [ENTERPRISE] ${isResuming ? 'Resuming' : 'Starting'} full ${marketplace} automation pipeline (Dynamic worker pool with concurrency limit)...`);
 
         try {
             const pool = await getPool();
@@ -512,11 +505,11 @@ class SchedulerService {
                 });
 
                 // 1. FIRST: Stop all active tasks to ensure a fresh state
-                console.log(`🏢 [ENTERPRISE] Phase 1: Stopping all active Octoparse ${marketplace} tasks...`);
+                logger.info(`🏢 [ENTERPRISE] Phase 1: Stopping all active Octoparse ${marketplace} tasks...`);
                 await MarketSyncService.stopAllActiveTasks(marketplace);
                 await new Promise(r => setTimeout(r, 15000)); // Allow time for stop commands to propagate
             } else {
-                console.log(`🏢 [ENTERPRISE] Phase 1 (Resuming): Skipping stop commands to preserve running tasks.`);
+                logger.info(`🏢 [ENTERPRISE] Phase 1 (Resuming): Skipping stop commands to preserve running tasks.`);
             }
 
             const queryStr = isAjio
@@ -547,7 +540,7 @@ class SchedulerService {
             const pendingSellers = sellers.filter(s => !completedSellers.has(s.Id));
 
             if (pendingSellers.length === 0) {
-                console.log(`🏢 [ENTERPRISE] All sellers already completed in run ${runId}. Completing run.`);
+                logger.info(`🏢 [ENTERPRISE] All sellers already completed in run ${runId}. Completing run.`);
                 await this.updateRunDetails(runId, details, 'COMPLETED', true);
                 return { success: true, totalSellers: sellers.length, successful };
             }
@@ -578,7 +571,7 @@ class SchedulerService {
                 return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
             });
 
-            console.log(`🏢 [ENTERPRISE] Sorted ${pendingSellers.length} tasks in configured order: small first and large in ends.`);
+            logger.info(`🏢 [ENTERPRISE] Sorted ${pendingSellers.length} tasks in configured order: small first and large in ends.`);
 
             let CONCURRENCY_LIMIT = 10;
             if (!isAjio) {
@@ -593,7 +586,7 @@ class SchedulerService {
                 } catch(e) {}
             }
 
-            console.log(`🏢 [ENTERPRISE] Found ${sellers.length} sellers total (${pendingSellers.length} pending). Processing with concurrency limit of ${CONCURRENCY_LIMIT}.`);
+            logger.info(`🏢 [ENTERPRISE] Found ${sellers.length} sellers total (${pendingSellers.length} pending). Processing with concurrency limit of ${CONCURRENCY_LIMIT}.`);
             
             let currentIndex = 0;
 
@@ -603,7 +596,7 @@ class SchedulerService {
                     const seller = pendingSellers[index];
                     if (!seller) break;
 
-                    console.log(`🚀 [ENTERPRISE] Worker starting seller: ${seller.Name} (${index + 1} of ${pendingSellers.length})...`);
+                    logger.info(`🚀 [ENTERPRISE] Worker starting seller: ${seller.Name} (${index + 1} of ${pendingSellers.length})...`);
                     await SystemLogService.log({
                         type: 'AUTOMATION_TASK',
                         entityType: 'SELLER',
@@ -638,13 +631,13 @@ class SchedulerService {
                         const taskId = seller.OctoparseId;
 
                         // Check status of task on Octoparse cloud first
-                        console.log(`🔍 [ENTERPRISE] Checking status of active task ${taskId} for ${seller.Name}...`);
+                        logger.info(`🔍 [ENTERPRISE] Checking status of active task ${taskId} for ${seller.Name}...`);
                         const status = await MarketSyncService.getStatus(taskId).catch(() => null);
                         const normalized = MarketSyncService.normalizeStatus(status);
 
                         let syncResult;
                         if (normalized === 'RUNNING') {
-                            console.log(`📡 [ENTERPRISE] Task is already running on Octoparse cloud. Joining active execution...`);
+                            logger.info(`📡 [ENTERPRISE] Task is already running on Octoparse cloud. Joining active execution...`);
                             // Poll and ingest results from the already running execution
                             const count = await MarketSyncService.pollAndAutomate(seller.Id, taskId, { 
                                 fullSync: true,
@@ -653,7 +646,7 @@ class SchedulerService {
                             syncResult = { success: true, count, asinsCount: activeAsinsCount };
                         } else {
                             // Clear previous data from Octoparse cloud before starting
-                            console.log(`🧹 [ENTERPRISE] First run compulsory: Clearing previous data for ${seller.Name}...`);
+                            logger.info(`🧹 [ENTERPRISE] First run compulsory: Clearing previous data for ${seller.Name}...`);
                             await MarketSyncService.clearTaskData(taskId).catch(() => {});
                             
                             // Trigger sync and await complete scrape + polling
@@ -672,7 +665,7 @@ class SchedulerService {
                         }
                         successful++;
                         completedSellers.add(seller.Id);
-                        console.log(`✅ [ENTERPRISE] Successfully completed and exported data for ${seller.Name}!`);
+                        logger.info(`✅ [ENTERPRISE] Successfully completed and exported data for ${seller.Name}!`);
                         await SystemLogService.log({
                             type: 'AUTOMATION_TASK',
                             entityType: 'SELLER',
@@ -683,7 +676,7 @@ class SchedulerService {
                     } catch (err) {
                         sellerStat.status = 'FAILED';
                         sellerStat.error = err.message;
-                        console.error(`❌ [ENTERPRISE] Failed for ${seller.Name}:`, err.message);
+                        logger.error(`❌ [ENTERPRISE] Failed for ${seller.Name}:`, err.message);
                         await SystemLogService.log({
                             type: 'AUTOMATION_TASK',
                             entityType: 'SELLER',
@@ -718,11 +711,11 @@ class SchedulerService {
             await Promise.all(workers);
 
             // After completed, stop all active tasks completely as requested
-            console.log(`🏢 [ENTERPRISE] Stopping all active ${marketplace} tasks after pipeline completion to prevent concurrency...`);
+            logger.info(`🏢 [ENTERPRISE] Stopping all active ${marketplace} tasks after pipeline completion to prevent concurrency...`);
             await MarketSyncService.stopAllActiveTasks(marketplace).catch(() => {});
             
             // RUN SELF-HEALING IMMEDIATELY AFTER ALL SELLERS ARE PROCESSED
-            console.log(`🏢 [ENTERPRISE] Phase 2: Running Self-Healing after main pipeline completes...`);
+            logger.info(`🏢 [ENTERPRISE] Phase 2: Running Self-Healing after main pipeline completes...`);
             await this.runMissingDataRecovery();
 
             const totalDurationSecs = Math.round((Date.now() - startTime) / 1000);
@@ -732,7 +725,7 @@ class SchedulerService {
                 duration: `${totalDurationSecs}s`
             };
 
-            console.log('🏢 [ENTERPRISE] Pipeline fully completed:', result);
+            logger.info('🏢 [ENTERPRISE] Pipeline fully completed:', result);
             await this.updateRunDetails(runId, details, 'COMPLETED', true);
 
             // Create notification for admin
@@ -751,7 +744,7 @@ class SchedulerService {
                     );
                 }
             } catch (notifErr) {
-                console.error('Failed to create notification:', notifErr.message);
+                logger.error('Failed to create notification:', notifErr.message);
             }
 
             // Pabbly webhook — report.asin_sync_complete
@@ -767,7 +760,7 @@ class SchedulerService {
 
             return result;
         } catch (error) {
-            console.error('🏢 [ENTERPRISE] Pipeline failed:', error.message);
+            logger.error('🏢 [ENTERPRISE] Pipeline failed:', error.message);
             await this.updateRunDetails(runId, details, 'FAILED', true);
             return { success: false, error: error.message };
         }
@@ -779,7 +772,7 @@ class SchedulerService {
      */
     async runMissingDataRecovery() {
         try {
-            console.log('🔍 [MISSING DATA] Starting concurrent recovery for incomplete ASINs...');
+            logger.info('🔍 [MISSING DATA] Starting concurrent recovery for incomplete ASINs...');
             const pool = await getPool();
             const sellersResult = await pool.request().query("SELECT Id, Name FROM Sellers WHERE IsActive = 1 AND LastScrapedAt IS NOT NULL AND OctoparseId IS NOT NULL AND OctoparseId != ''");
             const sellers = sellersResult.recordset;
@@ -801,7 +794,7 @@ class SchedulerService {
                         });
                         if (result) totalTriggered++;
                     } catch (err) {
-                        console.error(`❌ [MISSING DATA] Failed for ${seller.Name}:`, err.message);
+                        logger.error(`❌ [MISSING DATA] Failed for ${seller.Name}:`, err.message);
                     }
                 }));
 
@@ -812,11 +805,11 @@ class SchedulerService {
             }
 
             const duration = Math.round((Date.now() - startTime) / 1000);
-            console.log(`✅ [MISSING DATA] Recovery cycle completed. Triggered ${totalTriggered} sellers in ${duration}s`);
+            logger.info(`✅ [MISSING DATA] Recovery cycle completed. Triggered ${totalTriggered} sellers in ${duration}s`);
             
             return { success: true, triggered: totalTriggered, duration };
         } catch (error) {
-            console.error('❌ [MISSING DATA] Critical failure:', error.message);
+            logger.error('❌ [MISSING DATA] Critical failure:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -827,7 +820,7 @@ class SchedulerService {
             const sellersResult = await pool.request().query("SELECT * FROM Sellers WHERE IsActive = 1");
             const sellers = sellersResult.recordset;
 
-            console.log(`[Scheduler] syncing ${sellers.length} sellers...`);
+            logger.info(`[Scheduler] syncing ${sellers.length} sellers...`);
 
             const { createNotification } = require('../controllers/notificationController');
             const adminsResult = await pool.request()
@@ -838,7 +831,7 @@ class SchedulerService {
                 try {
                     const result = await syncSellerFromKeepaInternal(seller);
                     if (result.added > 0) {
-                        console.log(`[Scheduler] ✅ Added ${result.added} new ASINs for ${seller.Name}`);
+                        logger.info(`[Scheduler] ✅ Added ${result.added} new ASINs for ${seller.Name}`);
 
                         for (const admin of admins) {
                             await createNotification(
@@ -851,13 +844,13 @@ class SchedulerService {
                         }
                     }
                 } catch (err) {
-                    console.error(`[Scheduler] ❌ Failed to sync seller ${seller.Name}:`, err.message);
+                    logger.error(`[Scheduler] ❌ Failed to sync seller ${seller.Name}:`, err.message);
                 }
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
-            console.log('[Scheduler] Scheduled Keepa sync completed.');
+            logger.info('[Scheduler] Scheduled Keepa sync completed.');
         } catch (error) {
-            console.error('[Scheduler] Critical sync error:', error.message);
+            logger.error('[Scheduler] Critical sync error:', error.message);
         }
     }
 
@@ -868,23 +861,23 @@ class SchedulerService {
                 .query("SELECT * FROM Sellers WHERE IsActive = 1 AND OctoparseId IS NOT NULL AND OctoparseId != ''");
             const sellers = sellersResult.recordset;
 
-            console.log(`[Scheduler] 🚀 Starting Nightly Octoparse Sync for ${sellers.length} sellers...`);
+            logger.info(`[Scheduler] 🚀 Starting Nightly Octoparse Sync for ${sellers.length} sellers...`);
 
             const BATCH_SIZE = 5;
             for (let i = 0; i < sellers.length; i += BATCH_SIZE) {
                 const batch = sellers.slice(i, i + BATCH_SIZE);
                 await Promise.all(batch.map(async (seller) => {
                     try {
-                        console.log(`[Scheduler] 🤖 Launching sync for ${seller.Name}...`);
+                        logger.info(`[Scheduler] 🤖 Launching sync for ${seller.Name}...`);
                         await MarketSyncService.syncSellerAsinsToOctoparse(seller.Id, { triggerScrape: true });
                     } catch (err) {
-                        console.error(`[Scheduler] ❌ Failed to trigger Octoparse for seller ${seller.Name}:`, err.message);
+                        logger.error(`[Scheduler] ❌ Failed to trigger Octoparse for seller ${seller.Name}:`, err.message);
                     }
                 }));
                 if (i + BATCH_SIZE < sellers.length) await new Promise(resolve => setTimeout(resolve, 5000));
             }
         } catch (error) {
-            console.error('[Scheduler] Critical Octoparse Trigger error:', error.message);
+            logger.error('[Scheduler] Critical Octoparse Trigger error:', error.message);
         }
     }
 
@@ -901,18 +894,18 @@ class SchedulerService {
                     if (rawData && rawData.length > 0) {
                         const batchResult = await MarketSyncService.processBatchResults(seller.Id, rawData);
                         const updated = batchResult?.updatedCount !== undefined ? batchResult.updatedCount : (batchResult || 0);
-                        console.log(`[Scheduler] ✅ Successfully bulk-linked ${updated} results for ${seller.Name}`);
+                        logger.info(`[Scheduler] ✅ Successfully bulk-linked ${updated} results for ${seller.Name}`);
                         
                         // Clean up the task data so it doesn't get extracted again
                         await MarketSyncService.clearTaskData(seller.OctoparseId).catch(() => {});
                     }
                 } catch (err) {
-                    console.error(`[Scheduler] ❌ Failed to fetch result for ${seller.Name}:`, err.message);
+                    logger.error(`[Scheduler] ❌ Failed to fetch result for ${seller.Name}:`, err.message);
                 }
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
         } catch (error) {
-            console.error('[Scheduler] Critical Octoparse Fetch error:', error.message);
+            logger.error('[Scheduler] Critical Octoparse Fetch error:', error.message);
         }
     }
 
