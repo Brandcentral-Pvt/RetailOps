@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RetailOps.Api/RetailOps.Api.csproj" />
+  <Project Path="RetailOps.Application/RetailOps.Application.csproj" />
+  <Project Path="RetailOps.Domain/RetailOps.Domain.csproj" />
+  <Project Path="RetailOps.Infrastructure/RetailOps.Infrastructure.csproj" />
+</Solution>
