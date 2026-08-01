@@ -2,8 +2,7 @@ const requiredEnvVars = [
   'DB_USER',
   'DB_PASSWORD',
   'DB_SERVER',
-  'JWT_SECRET',
-  'JWT_REFRESH_SECRET'
+  'JWT_SECRET'
 ];
 
 const missing = requiredEnvVars.filter(key => !process.env[key]);
@@ -11,6 +10,11 @@ if (missing.length > 0) {
   console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
   console.error('Copy backend/.env.example to backend/.env and fill in your values');
   process.exit(1);
+}
+
+if (!process.env.JWT_REFRESH_SECRET) {
+  console.warn('⚠️ JWT_REFRESH_SECRET not set — falling back to JWT_SECRET. Add JWT_REFRESH_SECRET to backend/.env for a dedicated refresh-token signing key.');
+  process.env.JWT_REFRESH_SECRET = process.env.JWT_SECRET;
 }
 
 module.exports = {
