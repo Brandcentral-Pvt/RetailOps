@@ -2,6 +2,7 @@ const sql = require('mssql');
 const path = require('path');
 const { randomUUID } = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const logger = require('../utils/logger');
 
 const config = {
     user: process.env.DB_USER,
@@ -10,12 +11,12 @@ const config = {
     database: process.env.DB_NAME,
     port: parseInt(process.env.DB_PORT),
     options: {
-        encrypt: false,
-        trustServerCertificate: true,
+        encrypt: true,
+        trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
         enableArithAbort: true,
         useUTC: false
     },
-    requestTimeout: 600000, // 10 minutes for heavy aggregation queries
+    requestTimeout: 600000,
     connectionTimeout: 60000,
     cancelTimeout: 10000,
     pool: {
@@ -25,66 +26,79 @@ const config = {
     }
 };
 
+const readerConfig = process.env.DB_READER_SERVER ? {
+    user: process.env.DB_READER_USER || process.env.DB_USER,
+    password: process.env.DB_READER_PASSWORD || process.env.DB_PASSWORD,
+    server: process.env.DB_READER_SERVER,
+    database: process.env.DB_READER_NAME || process.env.DB_NAME,
+    port: parseInt(process.env.DB_READER_PORT || process.env.DB_PORT),
+    options: {
+        encrypt: true,
+        trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
+        enableArithAbort: true,
+        useUTC: false
+    },
+    requestTimeout: 300000,
+    connectionTimeout: 30000,
+    cancelTimeout: 10000,
+    pool: {
+        max: parseInt(process.env.DB_READER_POOL_MAX || '100'),
+        min: parseInt(process.env.DB_READER_POOL_MIN || '10'),
+        idleTimeoutMillis: 10000
+    }
+} : null;
+
 let poolPromise = null;
+let readerPoolPromise = null;
+
+async function initUdf(pool) {
+    const tz = process.env.AUTOMATION_TIMEZONE || 'Asia/Kolkata';
+    const d = new Date();
+    const utcStr = d.toLocaleString('en-US', { timeZone: 'UTC' });
+    const locStr = d.toLocaleString('en-US', { timeZone: tz });
+    const offsetMins = Math.round((new Date(locStr) - new Date(utcStr)) / 60000);
+
+    try {
+        const checkResult = await pool.request().query(
+            `SELECT OBJECT_ID(N'dbo.GetEnvDate', N'FN') AS FuncId`
+        );
+        if (!checkResult.recordset[0]?.FuncId) {
+            await pool.request().query(`
+                CREATE FUNCTION dbo.GetEnvDate()
+                RETURNS DATETIME2 AS BEGIN
+                    RETURN DATEADD(minute, ${offsetMins}, GETUTCDATE())
+                END
+            `);
+        } else {
+            try {
+                await pool.request().query(`
+                    ALTER FUNCTION dbo.GetEnvDate()
+                    RETURNS DATETIME2 AS BEGIN
+                        RETURN DATEADD(minute, ${offsetMins}, GETUTCDATE())
+                    END
+                `);
+            } catch (alterErr) {
+                if (!alterErr.message.includes('referenced by object')) throw alterErr;
+                logger.warn('dbo.GetEnvDate exists with constraints — using existing definition');
+            }
+        }
+    } catch (err) {
+        if (!err.message.includes('referenced by object')) {
+            logger.error('SQL UDF setup warning', { error: err.message });
+        }
+    }
+}
 
 function getPool() {
     if (!poolPromise) {
         poolPromise = new sql.ConnectionPool(config)
             .connect()
             .then(async pool => {
-                // Dynamically calculate TZ offset in minutes
-                const tz = process.env.AUTOMATION_TIMEZONE || 'Asia/Kolkata';
-                const d = new Date();
-                const utcStr = d.toLocaleString('en-US', { timeZone: 'UTC' });
-                const locStr = d.toLocaleString('en-US', { timeZone: tz });
-                const offsetMins = Math.round((new Date(locStr) - new Date(utcStr)) / 60000);
-                
-                // Inject the Global Env Date UDF - check if exists first to avoid constraint issues
-                try {
-                    const checkResult = await pool.request().query(`
-                        SELECT OBJECT_ID(N'dbo.GetEnvDate', N'FN') AS FuncId
-                    `);
-                    
-                    if (!checkResult.recordset[0]?.FuncId) {
-                        // Function doesn't exist, create it
-                        await pool.request().query(`
-                            CREATE FUNCTION dbo.GetEnvDate()
-                            RETURNS DATETIME2
-                            AS
-                            BEGIN
-                                RETURN DATEADD(minute, ${offsetMins}, GETUTCDATE())
-                            END
-                        `);
-                    } else {
-                        // Function exists, try to alter but continue if constrained
-                        try {
-                            await pool.request().query(`
-                                ALTER FUNCTION dbo.GetEnvDate()
-                                RETURNS DATETIME2
-                                AS
-                                BEGIN
-                                    RETURN DATEADD(minute, ${offsetMins}, GETUTCDATE())
-                                END
-                            `);
-                        } catch (alterErr) {
-                            // Function is likely bound by a constraint - use existing definition
-                            if (!alterErr.message.includes('referenced by object')) {
-                                throw alterErr;
-                            }
-                            console.log('ℹ️  dbo.GetEnvDate exists with constraints - using existing definition');
-                        }
-                    }
-                } catch (err) {
-                    // Only log but don't throw - existing function can still be used
-                    if (!err.message.includes('referenced by object')) {
-                        console.error('❌ SQL UDF setup warning:', err.message);
-                    }
-                }
-                
+                await initUdf(pool);
                 return pool;
             })
             .catch(err => {
-                console.error('❌ SQL Connection Pool Error:', err.message);
+                logger.error('SQL Connection Pool Error', { error: err.message });
                 poolPromise = null;
                 throw err;
             });
@@ -92,42 +106,44 @@ function getPool() {
     return poolPromise;
 }
 
+function getReader() {
+    if (!readerConfig) return getPool();
+    if (!readerPoolPromise) {
+        readerPoolPromise = new sql.ConnectionPool(readerConfig)
+            .connect()
+            .then(async pool => {
+                await initUdf(pool);
+                return pool;
+            })
+            .catch(err => {
+                logger.warn('SQL Reader Pool failed — falling back to primary', { error: err.message });
+                readerPoolPromise = null;
+                return getPool();
+            });
+    }
+    return readerPoolPromise;
+}
+
 async function query(text, params = []) {
     const pool = await getPool();
     const request = pool.request();
-    
-    // Add parameters if any
     if (params && params.length > 0) {
-        params.forEach((p, i) => {
-            request.input(`param${i}`, p);
-        });
+        params.forEach((p, i) => request.input(`param${i}`, p));
     }
-    
     return request.query(text);
 }
 
-/**
- * Generate a UUID for SQL Server ID fields
- * Uses crypto.randomUUID() for UUID format, then removes dashes to fit VARCHAR(24)
- * Falls back to timestamp-based ID if UUID generation fails
- */
 function generateId() {
     try {
-        // crypto.randomUUID() generates format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-        // We need to remove dashes and take first 24 chars
         const uuid = randomUUID().replace(/-/g, '');
         return uuid.substring(0, 24);
     } catch (err) {
-        // Fallback: timestamp + random hex
         const timestamp = Date.now().toString(36);
         const random = Math.random().toString(36).substring(2, 12);
         return (timestamp + random).substring(0, 24);
     }
 }
 
-/**
- * Execute a database query with deadlock retry logic.
- */
 async function executeWithRetry(queryFn, maxRetries = 5, retryDelayMs = 250) {
     let retries = 0;
     while (true) {
@@ -145,7 +161,7 @@ async function executeWithRetry(queryFn, maxRetries = 5, retryDelayMs = 250) {
             if ((isDeadlock || isConnectionError) && retries < maxRetries) {
                 const jitter = Math.floor(Math.random() * 200);
                 const delay = (retryDelayMs * Math.pow(2, retries)) + jitter;
-                console.warn(`[DB] Transient error detected (${isDeadlock ? 'Deadlock' : 'Connection'}). Retrying transaction in ${delay}ms... (Attempt ${retries + 1} of ${maxRetries})`);
+                logger.warn(`DB transient error (${isDeadlock ? 'Deadlock' : 'Connection'}). Retry ${retries + 1}/${maxRetries} in ${delay}ms`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 retries++;
             } else {
@@ -158,6 +174,7 @@ async function executeWithRetry(queryFn, maxRetries = 5, retryDelayMs = 250) {
 module.exports = {
     sql,
     getPool,
+    getReader,
     query,
     generateId,
     executeWithRetry
