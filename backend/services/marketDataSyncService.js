@@ -58,7 +58,8 @@ const {
     parseRatingBreakdown,
     computeRatingFromBreakdown,
     safeParseRatingBreakdown,
-    detectAplusContent
+    detectAplusContent,
+    hasAplusSignal
 } = require('../utils/marketDataParser');
 
 // Amazon India Top-Level Categories for BSR classification
@@ -1992,6 +1993,11 @@ class MarketDataSyncService {
 
             const isAjio = asin.sellerMarketplace && asin.sellerMarketplace.toLowerCase() === 'ajio';
 
+            // Whether the scrape captured ANY A+ column value (incl. explicit
+            // "absent"). When false, the scrape carried no A+ data at all and we
+            // must preserve existing A+ state instead of wiping it.
+            const aplusSignalPresent = hasAplusSignal(rawData);
+
             if (isAjio) {
                 // --- Ajio Specific Parsing Logic (Robust Mode) ---
                 price = this._cleanPrice(this._getFromRaw(rawData, ['ASP (Gross)', 'ASP', 'asp', 'price', 'currentPrice'], 0));
@@ -2073,9 +2079,13 @@ class MarketDataSyncService {
                 if (hasAplus) {
                     aplusPresentSince = aplusPresentSince || now;
                     aplusAbsentSince = null;
-                } else {
+                } else if (aplusSignalPresent) {
                     aplusAbsentSince = aplusAbsentSince || now;
                     aplusPresentSince = null;
+                }
+                // else: scrape carried no A+ signal — keep existing A+ state
+                if (!aplusSignalPresent) {
+                    hasAplus = asin.HasAplus === 1 || asin.HasAplus === true;
                 }
 
                 // Rating & Reviews
@@ -2164,9 +2174,13 @@ class MarketDataSyncService {
                 if (hasAplus) {
                     aplusPresentSince = aplusPresentSince || now;
                     aplusAbsentSince = null;
-                } else {
+                } else if (aplusSignalPresent) {
                     aplusAbsentSince = aplusAbsentSince || now;
                     aplusPresentSince = null;
+                }
+                // else: scrape carried no A+ signal — keep existing A+ state
+                if (!aplusSignalPresent) {
+                    hasAplus = asin.HasAplus === 1 || asin.HasAplus === true;
                 }
 
                 soldBy = this._extractSellerFromRaw(rawData) || asin.SoldBy || '';
@@ -2418,8 +2432,12 @@ class MarketDataSyncService {
             // A+ is still present but the scrape didn't carry the raw HTML.
             if (hasAplus) {
                 if (!aplusContent && asin.AplusContent) aplusContent = asin.AplusContent;
-            } else {
+            } else if (aplusSignalPresent) {
                 aplusContent = null;
+            } else if (!aplusContent && asin.AplusContent) {
+                // No A+ signal captured by the scrape at all: keep existing
+                // AplusContent untouched rather than treating it as "absent".
+                aplusContent = asin.AplusContent;
             }
             let aplusModuleCount = 0;
             if (hasAplus && aplusContent && typeof aplusContent === 'string') {
@@ -2439,6 +2457,8 @@ class MarketDataSyncService {
                     if (matches) matches.forEach(m => moduleMatches.add(m.toLowerCase()));
                 }
                 aplusModuleCount = moduleMatches.size || (aplusContent.length > 300 ? 1 : 0);
+            } else if (!aplusSignalPresent && asin.AplusModuleCount) {
+                aplusModuleCount = asin.AplusModuleCount;
             }
 
             const updates = {
