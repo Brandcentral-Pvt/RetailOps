@@ -3,6 +3,7 @@ const { sql, getPool } = require('../database/db');
 const config = require('../config/env');
 const tokenBlacklist = require('../services/tokenBlacklistService');
 const { isGlobalUserRole } = require('../utils/roleUtils');
+const eventBus = require('../services/eventBus');
 
 /**
  * SQL-based Authentication Middleware
@@ -165,7 +166,10 @@ exports.requirePermission = (permissionName) => {
     if (req.user.role?.name === 'admin' || req.user.role?.Name === 'admin' || req.user.role?.name === 'super_admin' || req.user.role?.Name === 'super_admin') return next();
 
     const hasPerm = await req.user.hasPermission(permissionName);
-    if (!hasPerm) return res.status(403).json({ success: false, message: 'Missing required permission' });
+    if (!hasPerm) {
+      eventBus.emit(eventBus.EVENTS.PERMISSION_DENIED, { userId: req.user?.Id, permission: permissionName, url: req.originalUrl, ip: req.ip });
+      return res.status(403).json({ success: false, message: 'Missing required permission' });
+    }
     next();
   };
 };

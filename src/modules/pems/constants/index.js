@@ -92,3 +92,89 @@ export const AUTO_ASSIGN_STRATEGIES = [
   { value: 'department_based', label: 'Department Based' },
   { value: 'round_robin', label: 'Round Robin' },
 ];
+
+export const DLY_TASK_CODES = {
+  'DLY-001': { label: 'Price Mismatch Detection', category: 'PRICING', icon: 'DollarOutlined' },
+  'DLY-002': { label: 'BuyBox Loss Alert', category: 'PRICING', icon: 'ShoppingCartOutlined' },
+  'DLY-003': { label: 'Competitor Price Drop', category: 'PRICING', icon: 'ArrowDownOutlined' },
+  'DLY-004': { label: 'New Listing Creation', category: 'LISTING', icon: 'FileTextOutlined' },
+  'DLY-005': { label: 'Listing Quality Audit', category: 'LISTING', icon: 'SafetyCertificateOutlined' },
+  'DLY-006': { label: 'Image Compliance Check', category: 'LISTING', icon: 'EyeOutlined' },
+  'DLY-007': { label: 'Content Optimization', category: 'LISTING', icon: 'EditOutlined' },
+  'DLY-008': { label: 'Stock Replenishment Alert', category: 'INVENTORY', icon: 'WarningOutlined' },
+  'DLY-009': { label: 'Inventory Accuracy Check', category: 'INVENTORY', icon: 'CheckCircleOutlined' },
+  'DLY-010': { label: 'Overstock Clearance', category: 'INVENTORY', icon: 'ArrowDownOutlined' },
+  'DLY-011': { label: 'Ad Spend Anomaly', category: 'ADS', icon: 'BarChartOutlined' },
+  'DLY-012': { label: 'Campaign Performance Review', category: 'ADS', icon: 'RiseOutlined' },
+  'DLY-013': { label: 'Compliance Documentation', category: 'COMPLIANCE', icon: 'FileTextOutlined' },
+  'DLY-014': { label: 'Regulatory Update Check', category: 'COMPLIANCE', icon: 'SafetyCertificateOutlined' },
+};
+
+export const TASK_ISSUE_SOURCES = {
+  PRICING: [
+    { value: 'marketplace_glitch', label: 'Marketplace Glitch' },
+    { value: 'brand_pricing_error', label: 'Brand Pricing Error' },
+    { value: 'competitor_action', label: 'Competitor Action' },
+    { value: 'system_calculation', label: 'System Calculation Error' },
+  ],
+  LISTING: [
+    { value: 'missing_content', label: 'Missing Content' },
+    { value: 'image_non_compliant', label: 'Image Non-Compliant' },
+    { value: 'brand_guideline', label: 'Brand Guideline Change' },
+    { value: 'ai_quality_flag', label: 'AI Quality Flag' },
+  ],
+  INVENTORY: [
+    { value: 'vendor_delay', label: 'Vendor Delay' },
+    { value: 'warehouse_miscount', label: 'Warehouse Miscount' },
+    { value: 'supply_chain', label: 'Supply Chain Disruption' },
+    { value: 'forecast_error', label: 'Forecast Error' },
+  ],
+  ADS: [
+    { value: 'budget_cap', label: 'Budget Cap Hit' },
+    { value: 'bid_adjustment', label: 'Bid Adjustment Needed' },
+    { value: 'targeting_issue', label: 'Targeting Issue' },
+  ],
+  COMPLIANCE: [
+    { value: 'document_expired', label: 'Document Expired' },
+    { value: 'regulation_change', label: 'Regulation Change' },
+    { value: 'certification_missing', label: 'Certification Missing' },
+  ],
+  GENERAL: [
+    { value: 'manual_review', label: 'Manual Review Required' },
+    { value: 'system_error', label: 'System Error' },
+    { value: 'other', label: 'Other' },
+  ],
+};
+
+export const CATEGORY_METRIC_CONFIG = {
+  PRICING: {
+    compareLabel: 'Live Price vs Approved ASP',
+    metrics: ['SellingPrice', 'StandardPrice'],
+    badge: { icon: 'DollarOutlined', color: '#0891B2' },
+  },
+  LISTING: {
+    compareLabel: 'AI Health Score (Actual vs Target)',
+    metrics: ['AIHealthScore', 'TargetScore'],
+    badge: { icon: 'SafetyCertificateOutlined', color: '#2563EB' },
+  },
+  INVENTORY: {
+    compareLabel: 'Available Stock vs Min Threshold',
+    metrics: ['AvailableStock', 'MinStockThreshold'],
+    badge: { icon: 'WarningOutlined', color: '#7C3AED' },
+  },
+  ADS: {
+    compareLabel: 'Actual Spend vs Budget',
+    metrics: ['ActualSpend', 'Budget'],
+    badge: { icon: 'BarChartOutlined', color: '#EA580C' },
+  },
+  COMPLIANCE: {
+    compareLabel: 'Docs Valid vs Required',
+    metrics: ['ValidDocs', 'RequiredDocs'],
+    badge: { icon: 'SafetyCertificateOutlined', color: '#DC2626' },
+  },
+  GENERAL: {
+    compareLabel: 'Progress',
+    metrics: ['ProgressPct'],
+    badge: { icon: 'InfoCircleOutlined', color: '#64748B' },
+  },
+};
