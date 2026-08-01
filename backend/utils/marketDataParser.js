@@ -328,6 +328,35 @@ function detectAplusContent(rawData) {
     return false;
 }
 
+/**
+ * Distinguish "scrape captured A+ data (present OR absent)" from
+ * "scrape captured no A+ field at all". Returns true when any A+ column
+ * carries a real value (including explicit negatives like `has_aplus=false`
+ * or `A_plus="No A+ content found"`), and false when every A+ column is
+ * missing or empty — which lets callers preserve existing A+ state instead
+ * of treating a blank capture as "A+ absent".
+ */
+function hasAplusSignal(rawData) {
+    if (!rawData || typeof rawData !== 'object') return false;
+
+    const signalFields = [
+        'has_aplus', 'A_plus', 'aplus', 'A+', 'A Plus', 'A+ Content',
+        'aplus_content', 'AplusContent', 'hasAplus', 'isAplus'
+    ];
+    for (const field of signalFields) {
+        const val = getFromRaw(rawData, [field]);
+        if (val === undefined || val === null) continue;
+        if (typeof val === 'object') {
+            if (Array.isArray(val)) { if (val.length > 0) return true; continue; }
+            if (Object.keys(val).length > 0) return true;
+            continue;
+        }
+        // Boolean (incl. `false`), number, or non-empty string all count
+        return true;
+    }
+    return false;
+}
+
 module.exports = {
     getFromRaw,
     parseRatingValue,
@@ -338,5 +367,6 @@ module.exports = {
     normalizeBreakdown,
     hasAplusContent,
     detectAplusContent,
+    hasAplusSignal,
     APLUS_MARKERS
 };

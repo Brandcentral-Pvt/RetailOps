@@ -6,7 +6,8 @@ const {
   computeRatingFromBreakdown,
   safeParseRatingBreakdown,
   hasAplusContent,
-  detectAplusContent
+  detectAplusContent,
+  hasAplusSignal
 } = require('../../utils/marketDataParser');
 
 describe('getFromRaw', () => {
@@ -189,5 +190,30 @@ describe('detectAplusContent (A2 regression)', () => {
   it('returns false for empty rows', () => {
     expect(detectAplusContent({})).toBe(false);
     expect(detectAplusContent(null)).toBe(false);
+  });
+});
+
+describe('hasAplusSignal', () => {
+  it('returns false when no A+ column exists at all', () => {
+    expect(hasAplusSignal({ Title: 'x', asp: '10', avg_rating: '4.2' })).toBe(false);
+    expect(hasAplusSignal({})).toBe(false);
+    expect(hasAplusSignal(null)).toBe(false);
+  });
+
+  it('returns false when A+ columns are empty/blank (blank capture)', () => {
+    expect(hasAplusSignal({ A_plus: '', aplus: '   ', 'A+ Content': '' })).toBe(false);
+  });
+
+  it('returns true for explicit negative flags (real signal)', () => {
+    expect(hasAplusSignal({ has_aplus: false })).toBe(true);
+    expect(hasAplusSignal({ has_aplus: 0 })).toBe(true);
+    expect(hasAplusSignal({ A_plus: 'No A+ content found' })).toBe(true);
+    expect(hasAplusSignal({ 'A+': 'false' })).toBe(true);
+  });
+
+  it('returns true for positive flags and content', () => {
+    expect(hasAplusSignal({ A_plus: 'true' })).toBe(true);
+    expect(hasAplusSignal({ AplusContent: '<div id="aplus_feature_div"></div>' })).toBe(true);
+    expect(hasAplusSignal({ 'A+': '1' })).toBe(true);
   });
 });
