@@ -1,5 +1,8 @@
 const { sql, getPool, generateId } = require('../../database/db');
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, WORKFLOW_STATUSES } = require('./workflowEngine');
+const eventBus = require('../eventBus');
+const eventStore = require('./eventStore');
+const logger = require('../../utils/logger');
 
 function genId() { return generateId ? generateId() : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function genCode(prefix, n) { return `${prefix}-${String(n).padStart(4, '0')}`; }
@@ -255,7 +258,8 @@ async function getInstances(filters = {}) {
   let where = 'WHERE 1=1';
   const req = pool.request();
 
-  if (filters.status) { where += ' AND i.Status = @status'; req.input('status', sql.VarChar, filters.status); }
+  if (filters.status && filters.status.includes(',')) { where += " AND ',' + @status + ',' LIKE '%,' + i.Status + ',%'"; req.input('status', sql.VarChar, filters.status); }
+  else if (filters.status) { where += ' AND i.Status = @status'; req.input('status', sql.VarChar, filters.status); }
   if (filters.sellerId) { where += ' AND i.SellerId = @sellerId'; req.input('sellerId', sql.VarChar, filters.sellerId); }
   if (filters.assignedTo) { where += ' AND i.AssignedTo = @assignedTo'; req.input('assignedTo', sql.VarChar, filters.assignedTo); }
   if (filters.reviewerId) { where += ' AND i.ReviewerId = @reviewerId'; req.input('reviewerId', sql.VarChar, filters.reviewerId); }
@@ -298,7 +302,7 @@ async function getInstances(filters = {}) {
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
   `);
 
-  const instances = result.recordset.map(r => ({ ...r, Tags: safeParse(r.Tags, []), Attachments: safeParse(r.Attachments, []) }));
+  let instances = result.recordset.map(r => ({ ...r, Tags: safeParse(r.Tags, []), Attachments: safeParse(r.Attachments, []) }));
 
   if (filters.includeSubtasks === 'true' && instances.length > 0) {
     const ids = instances.map(r => r.Id);
@@ -314,6 +318,43 @@ async function getInstances(filters = {}) {
       subMap[st.TaskInstanceId].push(st);
     });
     instances.forEach(inst => { inst.subTasks = subMap[inst.Id] || []; });
+  }
+
+  if (filters.includeRuleTasks === 'true') {
+    const ruleReq = pool.request();
+    let ruleWhere = "WHERE a.Status IN ('PENDING','IN_PROGRESS') AND a.Type = 'automated'";
+    if (filters.sellerId) { ruleWhere += ' AND a.SellerId = @ruleSellerId'; ruleReq.input('ruleSellerId', sql.VarChar, filters.sellerId); }
+    if (filters.priority) { ruleWhere += ' AND a.Priority = @rulePriority'; ruleReq.input('rulePriority', sql.VarChar, filters.priority); }
+    try {
+      const ruleResult = await ruleReq.query(`
+        SELECT a.Id, a.Title, a.Status, a.Priority, a.SellerId, s.Name as SellerName,
+               a.AssignedTo, a.CreatedAt, a.DueDate, a.Description, a.Asins, a.SubTasks,
+               a.SubTaskProgress, a.Category as Department
+        FROM Actions a
+        LEFT JOIN Sellers s ON a.SellerId = s.Id
+        ${ruleWhere}
+        ORDER BY a.CreatedAt DESC
+      `);
+      const ruleTasks = ruleResult.recordset.map(r => ({
+        Id: `rule_${r.Id}`,
+        InstanceCode: `[RULESET]`,
+        Title: r.Title,
+        Status: r.Status === 'PENDING' ? 'ASSIGNED' : 'IN_PROGRESS',
+        Priority: (r.Priority || 'MEDIUM').toUpperCase(),
+        SellerId: r.SellerId,
+        SellerName: r.SellerName || '-',
+        AssignedTo: r.AssignedTo,
+        DueDate: r.DueDate,
+        CreatedAt: r.CreatedAt,
+        Description: r.Description,
+        Department: r.Department || 'General',
+        SLAStatus: 'WITHIN_SLA',
+        AchievementPct: 0,
+        subTasks: [],
+        _isRuleTask: true,
+      }));
+      instances = [...ruleTasks, ...instances];
+    } catch (e) { console.error('Failed to fetch rule tasks:', e.message); }
   }
 
   return { instances, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
@@ -421,34 +462,44 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
 
   await writeAuditLog(taskInstanceId, 'STATUS_CHANGED', instance.Status, toStatus, actorId, actorName, details || `Status changed to ${toStatus}`);
 
-  // ── Notification Triggers ──
+  // ── Event Store (append-only) ──
   try {
-    const { triggerNotification } = require('./emailNotificationService');
-    switch (toStatus) {
-      case 'ASSIGNED':
-        if (instance.AssignedTo) triggerNotification('TASK_ASSIGNED', instance, instance.AssignedTo);
-        break;
-      case 'SUBMITTED':
-        if (instance.ReviewerId) triggerNotification('TASK_SUBMITTED', instance, instance.ReviewerId);
-        break;
-      case 'APPROVED':
-        if (instance.AssignedTo) triggerNotification('TASK_APPROVED', instance, instance.AssignedTo);
-        break;
-      case 'REJECTED':
-        if (instance.AssignedTo) triggerNotification('TASK_REJECTED', instance, instance.AssignedTo);
-        break;
-      case 'ESCALATED':
-        if (instance.ReviewerId) triggerNotification('TASK_ESCALATED', instance, instance.ReviewerId);
-        break;
-    }
-    // SLA breach notification
-    if (toStatus === 'IN_PROGRESS' && instance.DueDate && instance.SLAHours) {
-      const hoursUntilDue = (new Date(instance.DueDate) - new Date()) / (1000 * 60 * 60);
-      if (hoursUntilDue <= 0) {
-        triggerNotification('SLA_BREACH', instance, instance.AssignedTo);
-      }
-    }
-  } catch (err) { console.warn('Notification trigger error:', err.message); }
+    const eventTypeMap = {
+      'ASSIGNED': eventStore.EVENT_TYPES.TASK_ASSIGNED,
+      'ACCEPTED': eventStore.EVENT_TYPES.TASK_ACCEPTED,
+      'IN_PROGRESS': eventStore.EVENT_TYPES.TASK_STARTED,
+      'SUBMITTED': eventStore.EVENT_TYPES.TASK_SUBMITTED,
+      'UNDER_REVIEW': eventStore.EVENT_TYPES.TASK_REVIEWED,
+      'APPROVED': eventStore.EVENT_TYPES.TASK_APPROVED,
+      'REJECTED': eventStore.EVENT_TYPES.TASK_REJECTED,
+      'REWORK': eventStore.EVENT_TYPES.TASK_REWORKED,
+      'CANCELLED': eventStore.EVENT_TYPES.TASK_CANCELLED,
+      'ESCALATED': eventStore.EVENT_TYPES.TASK_ESCALATED,
+    };
+    const eventType = eventTypeMap[toStatus] || eventStore.EVENT_TYPES.TASK_UPDATED;
+    await eventStore.append(eventType, taskInstanceId, {
+      fromStatus: instance.Status,
+      toStatus,
+      actorId,
+      actorName,
+      details,
+      assigneeId: instance.AssignedTo,
+      reviewerId: instance.ReviewerId,
+    });
+  } catch (err) { logger.warn('Event store append error:', err.message); }
+
+  // ── Event Bus Notification ──
+  try {
+    eventBus.emit(eventBus.EVENTS.TASK_TRANSITIONED, {
+      taskInstanceId,
+      fromStatus: instance.Status,
+      toStatus,
+      userId: actorId,
+      actorName,
+      assigneeId: instance.AssignedTo,
+      reviewerId: instance.ReviewerId,
+    });
+  } catch (err) { logger.warn('Event bus error:', err.message); }
 
   return { success: true, from: instance.Status, to: toStatus };
 }
@@ -480,6 +531,7 @@ async function completeSubTask(subTaskId, actorId, actorName) {
       .input('wp', sql.Decimal(5, 2), weightedProgress)
       .query('UPDATE PemsTaskInstances SET CompletedSubTasks = @done, ProgressPct = @pct, WeightedProgressPct = @wp WHERE Id = @instId');
     await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`);
+    eventBus.emit(eventBus.EVENTS.SUBTASK_COMPLETED, { taskInstanceId: instId, subTaskId, actorId, actorName });
   }
 }
 
@@ -868,6 +920,11 @@ async function checkEscalations() {
       if (newSlaStatus !== task.SLAStatus) {
         await pool.request().input('id', sql.VarChar, task.Id).input('sla', sql.VarChar, newSlaStatus)
           .query('UPDATE PemsTaskInstances SET SLAStatus = @sla WHERE Id = @id');
+        await eventStore.append(eventStore.EVENT_TYPES.SLA_UPDATED, task.Id, {
+          slaStatus: newSlaStatus,
+          previousSlaStatus: task.SLAStatus,
+          dueDate: task.DueDate,
+        }).catch(() => {});
       }
 
       if (level === 'assignee' && task.AssignedTo) {

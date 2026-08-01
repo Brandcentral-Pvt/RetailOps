@@ -1,12 +1,15 @@
 require('dotenv').config();
 const globalTimezone = process.env.AUTOMATION_TIMEZONE || 'Asia/Kolkata';
-process.env.TZ = globalTimezone; // Force server timezone to dynamically match .env
+process.env.TZ = globalTimezone;
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { getPool, sql } = require('./database/db');
+const logger = require('./utils/logger');
+const { v4: uuidv4 } = require('uuid');
+const { errorHandler } = require('./utils/errors');
 
 // Memory monitoring - reduced frequency to every 30 minutes
 setInterval(() => {
@@ -16,9 +19,9 @@ setInterval(() => {
   const percent = Math.round((heapUsed / heapTotal) * 100);
 
   if (percent > 85) {
-    console.log(`📊 High Memory Warning: ${heapUsed}MB / ${heapTotal}MB (${percent}%)`);
+    logger.warn(`High memory usage: ${heapUsed}MB / ${heapTotal}MB (${percent}%)`);
     if (global.gc) {
-      console.log('🧹 Running emergency garbage collection...');
+      logger.info('Running emergency garbage collection...');
       global.gc();
     }
   }
@@ -29,7 +32,11 @@ const apiCallLogger = require('./middleware/apiCallLogger');
 
 const app = express();
 app.use((req, res, next) => {
-  asyncLocalStorage.run({ req, logged: false }, () => {
+  const requestId = req.headers['x-request-id'] || uuidv4();
+  const store = { req, logged: false, requestId };
+  asyncLocalStorage.run(store, () => {
+    req.requestId = requestId;
+    res.setHeader('x-request-id', requestId);
     next();
   });
 });
@@ -55,28 +62,16 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: 'same-origin' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
-// 1000 users support: Apply Rate Limiting
-const globalLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 500, // Limit each IP to 500 requests per windowMs
-  message: { error: 'Too many requests, please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const { createLimiter, TIERS } = require('./middleware/rateLimiter');
+const globalLimiter = createLimiter('READ');
 app.use(globalLimiter);
 
 // HTTPS redirect in production
 const httpsRedirect = require('./middleware/httpsRedirect');
 app.use(httpsRedirect);
 
-// Stricter rate limit for sensitive mutation endpoints
-const strictLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 30,
-  message: { error: 'Too many requests to this endpoint, please slow down.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const strictLimiter = createLimiter('STRICT');
+const bulkLimiter = createLimiter('BULK');
 
 // 1000 users support: Shrink payload limit to save Memory
 app.use(express.json({ limit: '10mb' }));
@@ -93,33 +88,37 @@ async function verifySqlConnection() {
   try {
     const pool = await getPool();
     await pool.request().query('SELECT 1 as test');
-    console.log('✅ SQL Server Connected successfully');
+    logger.info('SQL Server connected successfully');
   } catch (err) {
-    console.error('❌ SQL Server Connection Error:', err.message);
-    console.log('⚠️  Server will continue, but SQL-dependent features will not work');
+    logger.error('SQL Server connection error', { error: err.message });
+    logger.warn('Server will continue, but SQL-dependent features will not work');
   }
 }
 
 verifySqlConnection();
 
 async function loadAutomationSetting() {
-  const isEnabled = process.env.AUTOMATION_ENABLED !== 'false'; // Default to true if not explicitly set to 'false'
+  const isEnabled = process.env.AUTOMATION_ENABLED !== 'false';
   process.env.AUTOMATION_ENABLED = isEnabled ? 'true' : 'false';
-  console.log(`🔧 Automation is ${isEnabled ? 'ENABLED' : 'DISABLED'} globally`);
+  logger.info(`Automation is ${isEnabled ? 'ENABLED' : 'DISABLED'} globally`);
 }
 
-// Call after DB connection
 loadAutomationSetting();
 
-// ENHANCED Request Logging Middleware
+// Structured Request Logging Middleware
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const status = res.statusCode;
-    const color = status >= 500 ? '\x1b[31m' : status >= 400 ? '\x1b[33m' : status >= 300 ? '\x1b[36m' : '\x1b[32m';
-    const reset = '\x1b[0m';
-    console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl} ${color}${status}${reset} - ${duration}ms`);
+    const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+    logger.log(level, `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`, {
+      method: req.method,
+      url: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs: duration,
+      userId: req.user?.Id || req.user?._id || null,
+      ip: req.ip || req.headers?.['x-forwarded-for'],
+    });
   });
   next();
 });
@@ -175,7 +174,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api', rulesetRoutes);
 app.use('/api/sellers', sellerRoutes);
 app.use('/api/asins', asinRoutes);
-app.use('/api/auth', strictLimiter, authRoutes);
+app.use('/api/auth', createLimiter('AUTH'), authRoutes);
 app.use('/api/users', strictLimiter, userRoutes);
 app.use('/api/roles', strictLimiter, roleRoutes);
 app.use('/api/seed', seedRoutes);
@@ -200,7 +199,7 @@ app.use('/api/revenue-engine', revenueRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/asins-table', asinTableRoutes);
 app.use('/api/listing-quality', listingQualityRoutes);
-app.use('/api/bulk', bulkRoutes);
+app.use('/api/bulk', bulkLimiter, bulkRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/scheduled-runs', scheduledRunRoutes);
 app.use('/api/targets', targetRoutes);
@@ -210,53 +209,83 @@ app.use('/api/live-sync-tracker', pemsLiveSyncRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/keyword-analysis', keywordAnalysisRoutes);
 
-// Health check endpoint - SQL version
+// Health check endpoints
 app.get('/api/health', async (req, res) => {
+  const mem = process.memoryUsage();
+  const checks = {};
+
+  // DB check
   try {
     const pool = await getPool();
     await pool.request().query('SELECT 1 as test');
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      database: 'sql-server-connected',
-      uptime: process.uptime()
-    });
+    checks.database = { status: 'connected', poolSize: pool.size, poolAvailable: pool.available };
   } catch (err) {
-    res.status(500).json({
-      status: 'error',
-      database: 'disconnected',
-      error: err.message
-    });
+    checks.database = { status: 'disconnected', error: err.message };
+  }
+
+  // Redis check
+  try {
+    const { createClient } = require('redis');
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const client = createClient({ url: redisUrl });
+    await client.connect();
+    await client.ping();
+    checks.redis = { status: 'connected' };
+    await client.quit();
+  } catch (err) {
+    checks.redis = { status: 'disconnected', error: err.message };
+  }
+
+  const allOk = Object.values(checks).every(c => c.status === 'connected');
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    memory: {
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
+      rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+    },
+    env: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version,
+    checks,
+  });
+});
+
+app.get('/api/health/liveness', (req, res) => {
+  res.status(200).json({ status: 'alive', uptime: Math.floor(process.uptime()) });
+});
+
+app.get('/api/health/readiness', async (req, res) => {
+  try {
+    const pool = await getPool();
+    await pool.request().query('SELECT 1 as test');
+    res.status(200).json({ status: 'ready' });
+  } catch (err) {
+    res.status(503).json({ status: 'not-ready', error: err.message });
   }
 });
 
 // Error handling
 app.use(async (err, req, res, next) => {
-  console.error('🚨 [GLOBAL ERROR]:', err.stack);
-
   try {
     const SystemLogService = require('./services/SystemLogService');
     await SystemLogService.log({
       type: 'SYSTEM_ERROR',
       entityType: 'SERVER',
       user: req.userId || null,
-      description: `Global Error: ${err.message}`,
+      description: err.isOperational ? err.message : 'Unhandled server error',
       metadata: {
-        stack: err.stack?.split('\n').slice(0, 5).join('\n'),
+        code: err.code || 'INTERNAL_ERROR',
         url: req.originalUrl,
         method: req.method,
-        ip: req.ip || req.headers['x-forwarded-for']
-      }
+        ip: req.ip || req.headers?.['x-forwarded-for'],
+        userId: req.userId || req.user?.Id || null,
+      },
     });
-  } catch (logErr) {
-    // Don't let logging failure mask original error
-  }
+  } catch (_) {}
 
-  if (!res.headersSent) {
-    res.status(500).json({
-      error: 'Internal server error'
-    });
-  }
+  errorHandler(err, req, res, next);
 });
 
 const PORT = process.env.PORT || 3001;
@@ -303,15 +332,15 @@ try {
   const subClient = pubClient.duplicate();
   Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
     io.adapter(createAdapter(pubClient, subClient));
-    console.log('✅ Socket.IO Redis adapter connected');
+    logger.info('Socket.IO Redis adapter connected');
   }).catch(err => {
-    console.error('❌ Socket.IO Redis adapter failed (falling back to in-memory):', err.message);
+    logger.warn('Socket.IO Redis adapter failed (falling back to in-memory)', { error: err.message });
   });
 } catch (err) {
-  console.warn('⚠️ Socket.IO Redis adapter not available (falling back to in-memory):', err.message);
+  logger.warn('Socket.IO Redis adapter not available (falling back to in-memory)', { error: err.message });
 }
 
-if (!io) console.error('❌ Socket.io failed to initialize');
+if (!io) logger.fatal('Socket.io failed to initialize');
 
 app.set('io', io);
 
@@ -319,7 +348,7 @@ const onlineUsers = new Map();
 
 io.on('connection', async (socket) => {
   // Validate JWT token from handshake
-  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  const token = socket.handshake.auth?.token;
   if (!token) {
     socket.disconnect(true);
     return;
@@ -372,7 +401,7 @@ io.on('connection', async (socket) => {
   socket.on('join_room', (roomId) => {
     if (typeof roomId === 'string') {
       socket.join(roomId);
-      console.log(`🔌 Socket ${socket.id} joined room: ${roomId}`);
+      logger.debug(`Socket ${socket.id} joined room: ${roomId}`);
     }
   });
 
@@ -429,7 +458,7 @@ io.on('connection', async (socket) => {
         io.emit('role_permissions_updated', formattedRole);
       }
     } catch (err) {
-      console.error('Socket update_role_permissions error:', err);
+      logger.error('Socket update_role_permissions error', { error: err.message });
     }
   });
 
@@ -484,7 +513,7 @@ io.on('connection', async (socket) => {
       const populatedMessage = msgResult.recordset[0];
       io.to(conversationId).emit('receive_message', populatedMessage);
     } catch (err) {
-      console.error('Socket send_message error:', err);
+      logger.error('Socket send_message error', { error: err.message });
     }
   });
 
@@ -519,7 +548,7 @@ io.on('connection', async (socket) => {
         });
       }
     } catch (err) {
-      console.error('Socket add_reaction error:', err);
+      logger.error('Socket add_reaction error', { error: err.message });
     }
   });
 
@@ -539,7 +568,7 @@ io.on('connection', async (socket) => {
           END
         `);
     } catch (err) {
-      console.error('Socket message_read error:', err);
+      logger.error('Socket message_read error', { error: err.message });
     }
   });
 
@@ -564,7 +593,7 @@ io.on('connection', async (socket) => {
       io.to(receiverId).emit('incoming_call', { callId, conversationId, callerId, type, status: 'INITIATED' });
       socket.emit('call_initiated', { callId, conversationId, callerId, type, status: 'INITIATED' });
     } catch (err) {
-      console.error('Socket invite_to_call error:', err);
+      logger.error('Socket invite_to_call error', { error: err.message });
     }
   });
 
@@ -591,7 +620,7 @@ io.on('connection', async (socket) => {
         io.to(call.ReceiverId).emit('call_accepted', call);
       }
     } catch (err) {
-      console.error('Socket accept_call error:', err);
+      logger.error('Socket accept_call error', { error: err.message });
     }
   });
 
@@ -610,7 +639,7 @@ io.on('connection', async (socket) => {
         io.to(callResult.recordset[0].CallerId).emit('call_rejected', { callId });
       }
     } catch (err) {
-      console.error('Socket reject_call error:', err);
+      logger.error('Socket reject_call error', { error: err.message });
     }
   });
 
@@ -637,12 +666,12 @@ io.on('connection', async (socket) => {
         io.to(call.ReceiverId).emit('call_ended', { callId, duration });
       }
     } catch (err) {
-      console.error('Socket end_call error:', err);
+      logger.error('Socket end_call error', { error: err.message });
     }
   });
 
   socket.on('disconnect', async () => {
-    console.log('🔌 Socket disconnected:', socket.id);
+    logger.debug('Socket disconnected:', socket.id);
     if (socket.userId) {
       onlineUsers.delete(socket.userId);
       try {
@@ -657,10 +686,8 @@ io.on('connection', async (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Backend running: http://0.0.0.0:${PORT}`);
+  logger.info(`Backend running on port ${PORT}`);
 
-  // Only start cron jobs and background syncs on the primary instance in a PM2 cluster
-  // PM2 sets NODE_APP_INSTANCE to '0', '1', '2', etc.
   const isPrimaryWorker = process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === '0';
 
   if (isPrimaryWorker) {
@@ -670,17 +697,30 @@ server.listen(PORT, '0.0.0.0', () => {
     const schedulerService = require('./services/schedulerService');
     schedulerService.init();
 
-    
-    console.log('👑 Primary Node Worker [0] initialized schedulers and background tasks.');
+    logger.info('Primary Node Worker [0] — initialized schedulers and background tasks');
   } else {
-    console.log(`👷 Secondary Node Worker [${process.env.NODE_APP_INSTANCE}] initialized as an API request handler only.`);
+    logger.info(`Secondary Node Worker [${process.env.NODE_APP_INSTANCE}] — API request handler only`);
   }
 
-  if (process.env.AUTOMATION_ENABLED === 'true') {
-    console.log('🤖 Octoparse Automation enabled');
-  } else {
-    console.log('🛑 Octoparse Automation paused (Direct scraper deprecated)');
-  }
+  logger.info(`Automation: ${process.env.AUTOMATION_ENABLED === 'true' ? 'ENABLED' : 'DISABLED'}`);
+
+  // Initialize Redis cache
+  const cacheService = require('./services/cacheService');
+  cacheService.connect();
+
+  // Initialize job queues
+  const { initializeQueues } = require('./jobs/queueDefinitions');
+  initializeQueues();
+  const { registerProcessors } = require('./jobs/processors');
+  registerProcessors();
+
+  // Register event handlers
+  const { registerEventHandlers } = require('./jobs/eventHandlers');
+  registerEventHandlers();
+
+  // Ensure PEMS event store table
+  const eventStore = require('./services/pems/eventStore');
+  eventStore.ensureEventStoreTable();
 });
 
 // Make getPool available globally for socket handlers

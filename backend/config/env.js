@@ -2,7 +2,8 @@ const requiredEnvVars = [
   'DB_USER',
   'DB_PASSWORD',
   'DB_SERVER',
-  'JWT_SECRET'
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET'
 ];
 
 const missing = requiredEnvVars.filter(key => !process.env[key]);
@@ -34,9 +35,29 @@ module.exports = {
     requestTimeout: 120000,
     connectionTimeout: 60000
   },
+  dbReader: process.env.DB_READER_SERVER ? {
+    user: process.env.DB_READER_USER || process.env.DB_USER,
+    password: process.env.DB_READER_PASSWORD || process.env.DB_PASSWORD,
+    server: process.env.DB_READER_SERVER,
+    database: process.env.DB_READER_NAME || process.env.DB_NAME || 'retailops',
+    port: parseInt(process.env.DB_READER_PORT || process.env.DB_PORT || '1433', 10),
+    options: {
+      encrypt: true,
+      trustServerCertificate: false,
+      enableArithAbort: true,
+      useUTC: false
+    },
+    pool: {
+      max: parseInt(process.env.DB_READER_POOL_MAX || '100', 10),
+      min: parseInt(process.env.DB_READER_POOL_MIN || '10', 10),
+      idleTimeoutMillis: 10000
+    },
+    requestTimeout: 120000,
+    connectionTimeout: 60000
+  } : null,
   jwt: {
     secret: process.env.JWT_SECRET,
-    refreshSecret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    refreshSecret: process.env.JWT_REFRESH_SECRET,
     expiresIn: '2h',
     refreshExpiresIn: '7d'
   },

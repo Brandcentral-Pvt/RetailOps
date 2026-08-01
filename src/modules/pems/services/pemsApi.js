@@ -265,6 +265,12 @@ const pemsApi = {
     if (!res.ok) throw new Error('Failed');
     return res.json();
   },
+
+  verifyFix: async (taskId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/verify-fix`, { method: 'POST', headers: authHeaders() });
+    if (!res.ok) throw new Error('Verification failed');
+    return res.json();
+  },
 };
 
 export default pemsApi;

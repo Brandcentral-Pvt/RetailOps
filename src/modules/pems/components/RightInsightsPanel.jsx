@@ -113,7 +113,7 @@ function TaskRow({ task, onClick }) {
   );
 }
 
-export default function RightInsightsPanel({ onTaskClick }) {
+export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
   const [upcoming, setUpcoming] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [recent, setRecent] = useState([]);
@@ -140,7 +140,7 @@ export default function RightInsightsPanel({ onTaskClick }) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [refreshKey]);
 
   const actionIcons = {
     CREATED: <ThunderboltOutlined style={{ fontSize: 10 }} />,

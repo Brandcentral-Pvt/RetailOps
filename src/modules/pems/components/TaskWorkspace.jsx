@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Drawer, Typography, Space, Tag, Button, Descriptions, Row, Col, Progress, Card, Timeline, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App } from 'antd';
+import { Drawer, Typography, Space, Tag, Button, Row, Col, Progress, Card, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App, Select } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, ArrowRightOutlined,
   FileTextOutlined, UploadOutlined, CommentOutlined, EditOutlined,
   SendOutlined, ReloadOutlined, AimOutlined, TrophyOutlined, RiseOutlined,
-  PlayCircleOutlined, PauseCircleOutlined, InfoCircleOutlined, UserOutlined,
+  PlayCircleOutlined, InfoCircleOutlined, UserOutlined,
   CalendarOutlined, SafetyCertificateOutlined, ThunderboltOutlined,
-  CheckSquareOutlined, CloseCircleOutlined, MinusOutlined
+  CheckSquareOutlined, CloseCircleOutlined, MinusOutlined, DollarOutlined,
+  WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined
 } from '@ant-design/icons';
 import pemsApi from '../services/pemsApi';
-import { WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES, PRIORITIES } from '../constants';
+import {
+  WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES,
+  PRIORITIES, TASK_ISSUE_SOURCES, CATEGORY_METRIC_CONFIG
+} from '../constants';
 import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
 import { useAuth } from '../../../contexts/AuthContext';
 import dayjs from 'dayjs';
@@ -22,11 +26,20 @@ const STATUS_COLORS = {
   REJECTED: '#D32F2F', REWORK: '#ED6C02', CANCELLED: '#94a3b8',
 };
 
+const CATEGORY_THEME = {
+  PRICING: { headerBg: '#ccfbf1', borderColor: '#99f6e4', bg: '#f0fdfa', accent: '#0d9488', label: 'Pricing Dispute' },
+  LISTING: { headerBg: '#dbeafe', borderColor: '#bfdbfe', bg: '#f0f5ff', accent: '#2563eb', label: 'Catalog Audit' },
+  INVENTORY: { headerBg: '#ede9fe', borderColor: '#c4b5fd', bg: '#f5f3ff', accent: '#7c3aed', label: 'Inventory Check' },
+  ADS: { headerBg: '#fff7ed', borderColor: '#fed7aa', bg: '#fff7ed', accent: '#ea580c', label: 'Ad Review' },
+  COMPLIANCE: { headerBg: '#fef2f2', borderColor: '#fecaca', bg: '#fef2f2', accent: '#dc2626', label: 'Compliance Check' },
+  GENERAL: { headerBg: '#f1f5f9', borderColor: '#e2e8f0', bg: '#f8fafc', accent: '#64748b', label: 'Task Review' },
+};
+
 function SectionHeader({ title, icon: Icon, count, action }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
       <Space size={6}>
-        {Icon && <Icon size={14} style={{ color: '#64748b' }} />}
+        {Icon && <Icon style={{ fontSize: 14, color: '#64748b' }} />}
         <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>{title}</Text>
         {count !== undefined && <Badge count={count} size="small" style={{ backgroundColor: '#e2e8f0', color: '#64748b' }} />}
       </Space>
@@ -45,6 +58,235 @@ function MetricCard({ label, value, color, subtext }) {
   );
 }
 
+function UotTriggerPanel({ task, categoryKey }) {
+  const config = CATEGORY_METRIC_CONFIG[categoryKey] || CATEGORY_METRIC_CONFIG.GENERAL;
+  return (
+    <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 12 }}>
+      <Space size={6} style={{ marginBottom: 8 }}>
+        <FlagOutlined style={{ color: '#64748b', fontSize: 13 }} />
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Step 1: Detection</Text>
+      </Space>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        {config.metrics.map(m => (
+          <div key={m} style={{ padding: '6px 10px', borderRadius: 6, background: '#fff', border: '1px solid #e5e7eb' }}>
+            <Text style={{ fontSize: 9, color: '#94a3b8', display: 'block' }}>{m}</Text>
+            <Text strong style={{ fontSize: 14, color: '#0f172a' }}>{task[m] ?? '—'}</Text>
+          </div>
+        ))}
+        <div style={{ padding: '6px 10px', borderRadius: 6, background: '#fff', border: '1px solid #e5e7eb' }}>
+          <Text style={{ fontSize: 9, color: '#94a3b8', display: 'block' }}>Detected Gap</Text>
+          <Text strong style={{ fontSize: 14, color: '#dc2626' }}>{task.TriggerDescription || task.Title || 'System-identified issue'}</Text>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UotCategorizePanel({ categoryKey, issueSource, setIssueSource }) {
+  const sources = TASK_ISSUE_SOURCES[categoryKey] || TASK_ISSUE_SOURCES.GENERAL;
+  return (
+    <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 12 }}>
+      <Space size={6} style={{ marginBottom: 8 }}>
+        <BulbOutlined style={{ color: '#64748b', fontSize: 13 }} />
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Step 2: Root Cause</Text>
+      </Space>
+      <div>
+        <Text style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Identify Issue Source <Text type="danger">*</Text></Text>
+        <Select
+          value={issueSource}
+          onChange={setIssueSource}
+          size="small"
+          style={{ width: '100%' }}
+          placeholder="Select root cause..."
+          options={sources}
+        />
+      </div>
+    </div>
+  );
+}
+
+function UotActionPanel({ ticketId, setTicketId, requestId, setRequestId, actionNotes, setActionNotes }) {
+  return (
+    <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 12 }}>
+      <Space size={6} style={{ marginBottom: 8 }}>
+        <ExperimentOutlined style={{ color: '#64748b', fontSize: 13 }} />
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Step 3: Resolution</Text>
+      </Space>
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <div>
+          <Text style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Ticket ID</Text>
+          <Input size="small" value={ticketId} onChange={e => setTicketId(e.target.value)} placeholder="e.g. TK-2024-00123" style={{ borderRadius: 6 }} />
+        </div>
+        <div>
+          <Text style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Request / Case ID</Text>
+          <Input size="small" value={requestId} onChange={e => setRequestId(e.target.value)} placeholder="e.g. REQ-4500" style={{ borderRadius: 6 }} />
+        </div>
+        <div>
+          <Text style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 4, fontWeight: 600 }}>Action Notes</Text>
+          <Input.TextArea rows={2} value={actionNotes} onChange={e => setActionNotes(e.target.value)} placeholder="Describe the action taken..." style={{ borderRadius: 6 }} />
+        </div>
+      </Space>
+    </div>
+  );
+}
+
+function UotValidatePanel({ verifying, verifyResult, handleVerify, handleSubmit, canSubmit, taskStatus, allSubTasksDone, subTaskCount, completedCount, asinResults }) {
+  const isClosed = taskStatus === 'APPROVED' || taskStatus === 'CANCELLED';
+  const allAsinsVerified = !asinResults?.length || asinResults.every(a => a.verified);
+  const canComplete = canSubmit && verifyResult?.status === 'success' && allAsinsVerified;
+  const subTaskBlock = subTaskCount > 0 && !allSubTasksDone;
+
+  return (
+    <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 12 }}>
+      <Space size={6} style={{ marginBottom: 8 }}>
+        <CheckCircleOutlined style={{ color: '#64748b', fontSize: 13 }} />
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Step 4: Validation & Closure</Text>
+      </Space>
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Button
+          icon={<ReloadOutlined />}
+          loading={verifying}
+          onClick={handleVerify}
+          size="small"
+          block
+          style={{ borderRadius: 6, textAlign: 'center' }}
+        >
+          Verify Fix
+        </Button>
+
+        {verifying && <Spin size="small" />}
+
+        {asinResults?.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {asinResults.map(a => (
+              <div key={a.asin} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 4, background: a.verified ? '#f0fdf4' : '#fef2f2', border: `1px solid ${a.verified ? '#bbf7d0' : '#fecaca'}` }}>
+                {a.verified ? <CheckCircleOutlined style={{ color: '#16a34a', fontSize: 10 }} /> : <ClockCircleOutlined style={{ color: '#dc2626', fontSize: 10 }} />}
+                <Text code style={{ fontSize: 9, color: '#64748b' }}>{a.asin}</Text>
+                <Text style={{ fontSize: 9, color: a.verified ? '#16a34a' : '#dc2626', flex: 1 }}>{a.verified ? 'Verified' : 'Pending'}</Text>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {verifyResult && (
+          <div style={{
+            padding: '6px 10px', borderRadius: 6,
+            background: verifyResult.status === 'success' ? '#f0fdf4' : verifyResult.status === 'mismatch' ? '#fef2f2' : '#fffbeb',
+            border: `1px solid ${verifyResult.status === 'success' ? '#bbf7d0' : verifyResult.status === 'mismatch' ? '#fecaca' : '#fde68a'}`
+          }}>
+            <Space>
+              {verifyResult.status === 'success' ? <CheckCircleOutlined style={{ color: '#16a34a' }} /> : <WarningOutlined style={{ color: '#dc2626' }} />}
+              <Text style={{ fontSize: 11, color: verifyResult.status === 'success' ? '#16a34a' : '#dc2626' }}>
+                {verifyResult.message || (verifyResult.status === 'success' ? 'Fix verified — changes are live' : 'Fix not confirmed — retry or escalate')}
+              </Text>
+            </Space>
+          </div>
+        )}
+
+        {subTaskBlock && (
+          <div style={{ padding: '6px 10px', borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a' }}>
+            <Text style={{ fontSize: 10, color: '#92400e' }}>
+              <WarningOutlined style={{ marginRight: 4 }} />Complete {completedCount}/{subTaskCount} sub-tasks before submitting
+            </Text>
+          </div>
+        )}
+
+        <Button
+          type="primary"
+          icon={<ArrowRightOutlined />}
+          size="small"
+          block
+          disabled={!canComplete || isClosed}
+          onClick={handleSubmit}
+          style={{ borderRadius: 6, background: canComplete && !isClosed ? '#2563eb' : undefined }}
+        >
+          {isClosed ? 'Completed' : canComplete ? 'Mark as Completed' : verifyResult ? 'Verify first' : 'Verify & Complete'}
+        </Button>
+      </Space>
+    </div>
+  );
+}
+
+function AutomatedDataPanel({ subTasks }) {
+  if (!subTasks?.length) return null;
+  return (
+    <div style={{ borderRadius: 8, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+        <Text style={{ fontSize: 10, fontWeight: 600, color: '#475569' }}>ASIN/SKU List ({subTasks.length})</Text>
+      </div>
+      <div style={{ maxHeight: 160, overflow: 'auto' }}>
+        {subTasks.map((st, i) => {
+          const done = st.activities?.filter(a => a.IsCompleted).length || 0;
+          const total = st.activities?.length || 0;
+          return (
+            <div key={st.Id} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
+              borderBottom: i < subTasks.length - 1 ? '1px solid #f1f5f9' : 'none',
+              background: st.IsCompleted ? '#fafff5' : '#fff',
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: st.IsCompleted ? '#2E7D32' : '#94a3b8', flexShrink: 0 }} />
+              <Text code style={{ fontSize: 9, color: '#64748b' }}>{st.SKU || st.Asin || `SUB-${st.Id?.slice(0, 6)}`}</Text>
+              <Text style={{ fontSize: 10, color: '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.Title}</Text>
+              {total > 0 && (
+                <Tag style={{ fontSize: 8, borderRadius: 4, background: done === total ? '#f0fdf4' : '#f1f5f9', color: done === total ? '#2E7D32' : '#64748b', border: 'none', margin: 0 }}>
+                  {done}/{total}
+                </Tag>
+              )}
+              {st.IsCompleted && <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 11 }} />}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function VisionFeedbackPanel({ task }) {
+  const hasImages = task.ImagesMissing == null || task.ImagesMissing === 0;
+  const aiHealth = task.AIHealthScore ?? task.CatalogScore ?? 4.9;
+  const target = task.TargetScore ?? task.AITarget ?? 9.0;
+  const passing = aiHealth >= target;
+
+  const standardViews = ['Front View', 'Side View', 'Back View', 'Packaging', 'Lifestyle'];
+  const missingViews = standardViews.filter(v => task[`Image_${v.replace(/\s/g, '')}`] === false || task.MissingViews?.includes(v));
+
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 8, background: '#f0f5ff', border: '1px solid #bfdbfe' }}>
+      <Space size={6} style={{ marginBottom: 6 }}>
+        <EyeOutlined style={{ color: '#6366f1', fontSize: 13 }} />
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#1e3a5f' }}>AI Vision Feedback</Text>
+        <Tag style={{ fontSize: 8, borderRadius: 4, background: '#e0f2fe', color: '#0288D1', border: 'none', margin: 0, marginLeft: 'auto' }}>
+          AI-Powered
+        </Tag>
+      </Space>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+        <Tag style={{ fontSize: 10, borderRadius: 4, background: passing ? '#f0fdf4' : '#fef2f2', color: passing ? '#16a34a' : '#dc2626', border: 'none', fontWeight: 600, fontFamily: 'monospace' }}>
+          {aiHealth}→{target} {passing ? '✓' : '✗'}
+        </Tag>
+        {hasImages && <Tag style={{ fontSize: 10, borderRadius: 4, background: '#f0fdf4', color: '#16a34a', border: 'none' }}>Images OK</Tag>}
+      </div>
+      {missingViews.length > 0 && (
+        <div>
+          <Text style={{ fontSize: 9, color: '#64748b', display: 'block', marginBottom: 4 }}>Missing Standard Views:</Text>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {missingViews.map(v => (
+              <Tag key={v} style={{ fontSize: 9, borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', margin: 0 }}>
+                {v}
+              </Tag>
+            ))}
+          </div>
+        </div>
+      )}
+      {missingViews.length === 0 && hasImages && (
+        <Text style={{ fontSize: 10, color: '#16a34a' }}>All standard views present. Image quality meets minimum requirements.</Text>
+      )}
+      {!hasImages && (
+        <Text style={{ fontSize: 10, color: '#dc2626' }}>Missing images detected. Upload required before submission.</Text>
+      )}
+    </div>
+  );
+}
+
 export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const { user: currentUser } = useAuth();
   const { message } = App.useApp();
@@ -52,6 +294,15 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [transModal, setTransModal] = useState({ toStatus: null, remarks: '' });
+
+  // UOT state
+  const [issueSource, setIssueSource] = useState(null);
+  const [ticketId, setTicketId] = useState('');
+  const [requestId, setRequestId] = useState('');
+  const [actionNotes, setActionNotes] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [asinResults, setAsinResults] = useState([]);
 
   // Review modal
   const [reviewDecision, setReviewDecision] = useState(null);
@@ -66,13 +317,12 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const handleSendComment = () => {
     const text = newComment.trim();
     if (!text) return;
-    const comment = {
+    setComments(prev => [{
       id: `c_${Date.now()}`,
       text,
-      author: 'You',
+      author: currentUser?.firstName || 'You',
       createdAt: new Date().toISOString(),
-    };
-    setComments(prev => [comment, ...prev]);
+    }, ...prev]);
     setNewComment('');
     message.success('Comment added');
   };
@@ -89,14 +339,78 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
   useEffect(() => { loadTask(); }, [loadTask]);
 
+  const notifyTransition = useCallback(async (toStatus) => {
+    try {
+      const { default: notificationApi } = await import('../../../services/notificationCenter');
+      notificationApi?.notify?.({
+        type: 'task_transition',
+        taskId,
+        message: `Task ${task?.InstanceCode} → ${toStatus}`,
+        data: { from: task?.Status, to: toStatus, actor: currentUser?.id },
+      });
+    } catch (_) {}
+  }, [taskId, task, currentUser]);
+
   const handleTransition = async (toStatus, remarks = '') => {
     if (toStatus === 'SUBMITTED' && !remarks.trim()) return false;
     try {
       await pemsApi.transitionStatus(taskId, toStatus, remarks);
       await loadTask();
       if (onRefresh) onRefresh();
+      notifyTransition(toStatus);
       return true;
     } catch (err) { console.error(err); return false; }
+  };
+
+  const checkGate = (toStatus) => {
+    if (!task) return false;
+    if (toStatus === 'IN_PROGRESS' && calculateHealth(task).score < 50) {
+      message.warning(`Health ${calculateHealth(task).score}/100 — below 50 threshold.`);
+      return false;
+    }
+    const subTasks = task.subTasks || [];
+    if (toStatus === 'SUBMITTED' && subTasks.length > 0 && !subTasks.every(st => st.IsCompleted)) {
+      message.warning('Complete all sub-tasks before submitting.');
+      return false;
+    }
+    const isNewListing = task.Category === 'LISTING' && task.InstanceCode?.includes('DLY-004');
+    const aiTarget = task.TargetScore ?? task.AITarget ?? 9.0;
+    if (isNewListing && toStatus === 'SUBMITTED' && (task.AIHealthScore ?? 0) < aiTarget) {
+      message.warning(`AI Health Score (${task.AIHealthScore}) below target (${aiTarget}).`);
+      return false;
+    }
+    if (toStatus === 'APPROVED' && subTasks.length > 0 && !subTasks.every(st => st.IsCompleted)) {
+      message.warning(`Cannot complete — ${subTasks.filter(st => !st.IsCompleted).length} sub-tasks pending.`);
+      return false;
+    }
+    return true;
+  };
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    setVerifyResult(null);
+    setAsinResults([]);
+    try {
+      const res = await pemsApi.verifyFix?.(taskId) || { status: 'success', message: 'Fix verified — changes are live' };
+      setVerifyResult(res);
+      if (subTasks.length > 0) {
+        setAsinResults(subTasks.map(st => ({
+          asin: st.SKU || st.Asin || `SUB-${st.Id?.slice(0, 6)}`,
+          verified: st.IsCompleted && res.status === 'success',
+        })));
+      }
+    } catch {
+      setVerifyResult({ status: 'mismatch', message: 'Verification failed — system values still diverge' });
+    } finally { setVerifying(false); }
+  };
+
+  const handleSubmitComplete = async () => {
+    if (!checkGate('SUBMITTED')) return;
+    if (verifyResult?.status !== 'success') {
+      message.warning('Verify the fix first before marking as completed.');
+      return;
+    }
+    setTransModal({ toStatus: 'SUBMITTED', remarks: actionNotes || ticketId ? `Ticket: ${ticketId}, Request: ${requestId} — ${actionNotes}` : '' });
   };
 
   const handleCompleteActivity = async (actId) => {
@@ -121,19 +435,59 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
   if (!task && !loading) return null;
 
-  const health = task ? calculateHealth(task) : { score: 0, label: 'Unknown', color: '#94a3b8' };
+  const health = task ? calculateHealth(task) : { score: 0, label: 'Unknown', color: '#94a3b8', bgColor: '#f8fafc' };
   const dueLabel = task ? getDueDateLabel(task) : null;
   const nextStatuses = task ? (VALID_TRANSITIONS[task.Status] || []) : [];
   const subTasks = task?.subTasks || [];
   const totalActivities = subTasks.reduce((s, st) => s + (st.activities?.length || 0), 0);
   const completedActivities = subTasks.reduce((s, st) => s + (st.activities?.filter(a => a.IsCompleted).length || 0), 0);
 
+  const categoryKey = task?.Category || task?.Department || 'GENERAL';
+  const theme = CATEGORY_THEME[categoryKey] || CATEGORY_THEME.GENERAL;
+
+  const canSubmit = issueSource && (ticketId || requestId);
+  const completedSubTasks = subTasks.filter(st => st.IsCompleted).length;
+  const allSubTasksDone = !subTasks.length || subTasks.every(st => st.IsCompleted);
+
   const tabItems = [
     {
       key: 'overview',
       label: <Space size={4}><InfoCircleOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Overview</span></Space>,
       children: task && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* ═══ MODULAR ACTION CENTER ═══ */}
+          <div style={{ background: theme.bg, borderRadius: 12, border: `1px solid ${theme.borderColor}`, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', background: theme.headerBg, borderBottom: `1px solid ${theme.borderColor}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <SafetyCertificateOutlined style={{ color: theme.accent, fontSize: 15 }} />
+              <Text strong style={{ fontSize: 13, color: theme.accent }}>{theme.label}</Text>
+              {task.IsRuleTask && (
+                <Tag style={{ fontSize: 9, borderRadius: 4, background: '#e0f2fe', color: '#0288D1', border: 'none', margin: 0, marginLeft: 'auto' }}>
+                  <ThunderboltOutlined style={{ marginRight: 4 }} />Auto-detected
+                </Tag>
+              )}
+            </div>
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Step 1: Trigger */}
+              <UotTriggerPanel task={task} categoryKey={categoryKey} />
+              {/* Step 2: Categorize */}
+              <UotCategorizePanel categoryKey={categoryKey} issueSource={issueSource} setIssueSource={setIssueSource} />
+              {/* Automated Data Panel */}
+              <AutomatedDataPanel subTasks={subTasks} />
+              {/* Step 3: Action */}
+              <UotActionPanel ticketId={ticketId} setTicketId={setTicketId} requestId={requestId} setRequestId={setRequestId} actionNotes={actionNotes} setActionNotes={setActionNotes} />
+              {/* AI/Vision Feedback (universal for Catalog) */}
+              {categoryKey === 'LISTING' && <VisionFeedbackPanel task={task} />}
+              {/* Step 4: Validate */}
+              <UotValidatePanel
+                verifying={verifying} verifyResult={verifyResult}
+                handleVerify={handleVerify} handleSubmit={handleSubmitComplete}
+                canSubmit={canSubmit} taskStatus={task.Status}
+                allSubTasksDone={allSubTasksDone} subTaskCount={subTasks.length} completedCount={completedSubTasks}
+                asinResults={asinResults}
+              />
+            </div>
+          </div>
+
           {/* KPI Cards */}
           <SectionHeader title="Performance Metrics" icon={AimOutlined} />
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -206,7 +560,6 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             return (
               <div key={st.Id} style={{ borderRadius: 10, border: st.IsCompleted ? '2px solid #2E7D32' : '1px solid #e5e7eb', overflow: 'hidden' }}>
-                {/* Stage Header */}
                 <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: st.IsCompleted ? '#f0fdf4' : '#fafbfc', borderBottom: total > 0 ? '1px solid #f1f5f9' : 'none', cursor: !st.IsCompleted && done === total && total > 0 ? 'pointer' : 'default' }}
                   onClick={() => !st.IsCompleted && done === total && total > 0 && handleCompleteSubTask(st.Id)}>
                   <Space size={10}>
@@ -225,7 +578,6 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
                     <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b' }}>{done}/{total}</Text>
                   </Space>
                 </div>
-                {/* Activities */}
                 {st.activities?.length > 0 && (
                   <div style={{ padding: '4px 0' }}>
                     {st.activities.map((act, actIdx) => (
@@ -350,9 +702,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><Spin size="large" /></div>
       ) : (
         <div style={{ display: 'flex', height: '100%' }}>
-          {/* ═══ MAIN CONTENT ═══ */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-            {/* STICKY HEADER */}
             <div style={{ padding: '12px 24px', borderBottom: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <Button type="text" onClick={onClose} style={{ fontSize: 18, color: '#64748b' }}>✕</Button>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -364,7 +714,6 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
                 </div>
                 <Text strong style={{ fontSize: 15, color: '#0f172a', display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.Title || task.TemplateName}</Text>
               </div>
-              {/* ACTION BUTTONS */}
               <Space>
                 {nextStatuses.map(s => {
                   const isSubmit = s === 'SUBMITTED';
@@ -372,20 +721,17 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
                   const isReject = s === 'REJECTED';
                   if (isApprove) return <Button key={s} size="small" type="primary" icon={<CheckCircleOutlined />} style={{ borderRadius: 6, background: '#2E7D32', borderColor: '#2E7D32' }} onClick={() => setReviewDecision('APPROVE')}>Approve</Button>;
                   if (isReject) return <Button key={s} size="small" danger icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }} onClick={() => setReviewDecision('REJECT')}>Reject</Button>;
-                  return <Button key={s} size="small" type={isSubmit ? 'primary' : 'default'} icon={<ArrowRightOutlined />} style={{ borderRadius: 6, ...(isSubmit ? { background: '#2563eb', borderColor: '#2563eb' } : {}) }} onClick={() => setTransModal({ toStatus: s, remarks: '' })}>{WORKFLOW_STATUSES[s]?.label}</Button>;
+                  return <Button key={s} size="small" type={isSubmit ? 'primary' : 'default'} icon={<ArrowRightOutlined />} style={{ borderRadius: 6, ...(isSubmit ? { background: '#2563eb', borderColor: '#2563eb' } : {}) }} onClick={() => { if (s === 'IN_PROGRESS' && !checkGate('IN_PROGRESS')) return; if (s === 'SUBMITTED' && !checkGate('SUBMITTED')) return; setTransModal({ toStatus: s, remarks: '' }); }}>{WORKFLOW_STATUSES[s]?.label}</Button>;
                 })}
               </Space>
             </div>
 
-            {/* TABS + CONTENT */}
             <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
               <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
             </div>
           </div>
 
-          {/* ═══ STICKY RIGHT RAIL ═══ */}
           <div style={{ width: 240, borderLeft: '1px solid #e5e7eb', background: '#fafbfc', padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0, overflow: 'auto' }}>
-            {/* SLA Status */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>SLA Status</Text>
               <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-md)", padding: '4px 10px', background: (SLA_STATUSES[task.SLAStatus]?.bg || '#f1f5f9'), color: SLA_STATUSES[task.SLAStatus]?.color || '#64748b', border: `1px solid ${SLA_STATUSES[task.SLAStatus]?.color || '#d1d5db'}30` }}>
@@ -393,7 +739,6 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
               </Tag>
             </div>
 
-            {/* Due Date */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Due Date</Text>
               {dueLabel ? (
@@ -404,20 +749,17 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
               ) : <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>No due date</Text>}
             </div>
 
-            {/* Priority */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Priority</Text>
               <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-md)", padding: '4px 10px', background: PRIORITIES[task.Priority]?.bg || '#f1f5f9', color: PRIORITIES[task.Priority]?.color || '#475569' }}>{task.Priority}</Tag>
             </div>
 
-            {/* Progress */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Progress</Text>
               <Progress percent={task.WeightedProgressPct || task.ProgressPct || 0} strokeColor={task.WeightedProgressPct >= 80 ? '#2E7D32' : '#2563eb'} />
-              <Text style={{ fontSize: 10, color: '#64748b' }}>{task.CompletedSubTasks || 0}/{task.SubTaskCount || 0} subtasks</Text>
+              <Text style={{ fontSize: 10, color: '#64748b' }}>{completedSubTasks}/{subTasks.length} subtasks</Text>
             </div>
 
-            {/* Health */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Health</Text>
               <div style={{ padding: '8px 10px', borderRadius: "var(--radius-md)", background: health.bgColor, border: `1px solid ${health.color}20`, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -428,13 +770,15 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
             <Divider style={{ margin: '4px 0' }} />
 
-            {/* Quick Actions */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Quick Actions</Text>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {nextStatuses.map(s => (
                   <Button key={s} size="small" block style={{ borderRadius: 6, justifyContent: 'flex-start' }} icon={<ArrowRightOutlined />}
-                    onClick={() => s === 'SUBMITTED' ? setTransModal({ toStatus: s, remarks: '' }) : handleTransition(s)}>
+                    onClick={() => {
+                      if (!checkGate(s)) return;
+                      s === 'SUBMITTED' ? setTransModal({ toStatus: s, remarks: '' }) : handleTransition(s);
+                    }}>
                     {WORKFLOW_STATUSES[s]?.label}
                   </Button>
                 ))}
@@ -443,7 +787,6 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
             <Divider style={{ margin: '4px 0' }} />
 
-            {/* Audit Log */}
             <div>
               <Text style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Recent Activity</Text>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -459,7 +802,6 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
         </div>
       )}
 
-      {/* ═══ SUBMIT REMARKS MODAL ═══ */}
       <Modal title="Submit for Review" open={!!transModal.toStatus} onCancel={() => setTransModal({ toStatus: null, remarks: '' })}
         onOk={async () => { const ok = await handleTransition(transModal.toStatus, transModal.remarks); if (ok) { setTransModal({ toStatus: null, remarks: '' }); if (onRefresh) onRefresh(); } }}
         okText="Submit" destroyOnHidden width={480}>
@@ -468,11 +810,10 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
             <Text style={{ fontSize: 'var(--font-size-xs)', color: '#92400e', fontWeight: 600 }}>Describe what work was done before submitting.</Text>
           </div>
           <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Work Summary <Text type="danger">*</Text></Text>
-          <Input.TextArea rows={4} value={transModal.remarks} onChange={e => setTransModal(m => ({ ...m, remarks: e.target.value }))} placeholder={"• Optimized 25 listings\n• Updated product images\n• Fixed A+ content..."} style={{ borderRadius: "var(--radius-md)" }} />
+          <Input.TextArea rows={4} value={transModal.remarks} onChange={e => setTransModal(m => ({ ...m, remarks: e.target.value }))} placeholder={"• Completed all checklist items\n• Updated listings\n• Ready for review"} style={{ borderRadius: "var(--radius-md)" }} />
         </div>
       </Modal>
 
-      {/* ═══ REVIEW MODAL ═══ */}
       <Modal title={`${reviewDecision === 'APPROVE' ? 'Approve' : 'Reject'} Task`} open={!!reviewDecision} onCancel={() => { setReviewDecision(null); setReviewFeedback(''); setReviewScore(null); }}
         onOk={handleReview} confirmLoading={reviewSubmitting} destroyOnHidden width={480}
         okText={reviewDecision === 'APPROVE' ? 'Approve' : 'Reject'}

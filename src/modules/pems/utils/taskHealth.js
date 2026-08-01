@@ -74,13 +74,12 @@ export function getDueDateLabel(task) {
   if (!task.DueDate) return null;
   const due = new Date(task.DueDate);
   const now = new Date();
-  const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  const diffHours = (due - now) / (1000 * 60 * 60);
 
-  if (diffDays < 0) return { text: `${Math.abs(diffDays)}d overdue`, color: '#dc2626', urgent: true };
-  if (diffDays === 0) return { text: 'Due today', color: '#f59e0b', urgent: true };
-  if (diffDays === 1) return { text: 'Due tomorrow', color: '#f59e0b', urgent: false };
-  if (diffDays <= 3) return { text: `${diffDays}d left`, color: '#f59e0b', urgent: false };
-  return { text: `${diffDays}d left`, color: '#64748b', urgent: false };
+  if (diffHours < 0) return { text: `${Math.abs(Math.ceil(diffHours / 24))}d overdue`, color: '#DC2626', level: 'critical' };
+  if (diffHours < 12) return { text: `${Math.ceil(diffHours)}h left`, color: '#EA580C', level: 'warning' };
+  if (diffHours < 24) return { text: `${Math.ceil(diffHours)}h left`, color: '#EAB308', level: 'attention' };
+  return { text: `${Math.ceil(diffHours / 24)}d left`, color: '#16A34A', level: 'healthy' };
 }
 
 export function formatNumber(n) {

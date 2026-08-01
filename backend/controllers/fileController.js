@@ -279,10 +279,19 @@ exports.listAsinFolders = async (req, res) => {
 };
 
 /* ── Files in ASIN folder ───────────────────────────────────────── */
+const ASIN_REGEX = /^[A-Z0-9]{10}$/;
+
 exports.getAsinFiles = async (req, res) => {
     try {
         const { asin } = req.params;
-        const baseDir = path.join(__dirname, '..', 'uploads', 'asin_images', asin);
+        if (!ASIN_REGEX.test(asin)) {
+            return res.status(400).json({ success: false, message: 'Invalid ASIN format' });
+        }
+        const baseDir = path.resolve(__dirname, '..', 'uploads', 'asin_images', asin);
+        const uploadsDir = path.resolve(__dirname, '..', 'uploads');
+        if (!baseDir.startsWith(uploadsDir)) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
 
         if (!fs.existsSync(baseDir)) {
             return res.status(404).json({ success: false, message: 'ASIN folder not found' });

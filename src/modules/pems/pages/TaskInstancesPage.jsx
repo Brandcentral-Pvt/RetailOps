@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons';
 import pemsApi from '../services/pemsApi';
 import { WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS, CATEGORIES, COMPLEXITY_LEVELS, TARGET_TYPES } from '../constants';
-import { calculateHealth, isOverdue, isDueToday, getDueDateLabel, formatNumber } from '../utils/taskHealth';
+import { calculateHealth, isOverdue, isDueToday, isDueTomorrow, getDueDateLabel, formatNumber } from '../utils/taskHealth';
 import { useAuth } from '../../../contexts/AuthContext';
 import { db } from '../../../services/db';
 import ObjectiveManager from '../../../components/actions/ObjectiveManager';
@@ -202,15 +202,14 @@ const OkrProgressCell = ({ pct }) => {
 };
 
 const QUICK_VIEWS = [
-  { key: 'ALL', label: 'All Tasks' },
-  { key: 'MY_TASKS', label: 'My Tasks' },
+  { key: 'ALL', label: 'All' },
+  { key: 'TODO', label: 'To Do' },
+  { key: 'IN_PROGRESS', label: 'In Progress' },
   { key: 'PENDING_REVIEW', label: 'Pending Review' },
   { key: 'OVERDUE', label: 'Overdue' },
-  { key: 'CRITICAL', label: 'Critical' },
-  { key: 'APPROVED', label: 'Approved' },
-  { key: 'Operations', label: 'Operations' },
-  { key: 'Brand Managers', label: 'Brand Managers' },
-  { key: 'Catalog Team', label: 'Catalog Team' },
+  { key: 'TOMORROW', label: 'Tomorrow' },
+  { key: 'UPCOMING', label: 'Upcoming' },
+  { key: 'COMPLETED', label: 'Completed' },
 ];
 
 export default function TaskInstancesPage() {
@@ -223,6 +222,7 @@ export default function TaskInstancesPage() {
   const [quickView, setQuickView] = useState('ALL');
   const [viewMode, setViewMode] = useState('list');
   const [search, setSearch] = useState('');
+  const [disputesOnly, setDisputesOnly] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filters, setFilters] = useState({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null });
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -257,10 +257,10 @@ export default function TaskInstancesPage() {
   const [okrPriorityFilter, setOkrPriorityFilter] = useState(null);
 
   useEffect(() => {
-    pemsApi.getSellers().then(r => { if (r.success) setSellers(r.data); }).catch(() => {});
-    pemsApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => {});
-    pemsApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => {});
-    pemsApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => {});
+    pemsApi.getSellers().then(r => { if (r.success) setSellers(r.data); }).catch(() => { });
+    pemsApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => { });
+    pemsApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => { });
+    pemsApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
   }, []);
 
   const loadOkrData = useCallback(async () => {
@@ -287,6 +287,8 @@ export default function TaskInstancesPage() {
     if (search) p.search = search;
     if (quickView === 'MY_TASKS') p.assignedTo = currentUser?.id;
     else if (quickView === 'PENDING_REVIEW') p.status = 'UNDER_REVIEW';
+    else if (quickView === 'IN_PROGRESS') p.status = 'IN_PROGRESS';
+    else if (quickView === 'COMPLETED') p.status = 'APPROVED';
     else if (quickView === 'CRITICAL') p.priority = 'CRITICAL';
     else if (quickView === 'APPROVED') p.status = 'APPROVED';
     else if (quickView === 'Operations') p.department = 'Operations';
@@ -300,6 +302,7 @@ export default function TaskInstancesPage() {
     if (filters.status) p.status = filters.status;
     if (filters.frequency) p.frequency = filters.frequency;
     if (viewMode === 'seller') p.includeSubtasks = 'true';
+    p.includeRuleTasks = 'true';
     return p;
   }, [quickView, filters, search, pagination.page, pagination.limit, currentUser, viewMode]);
 
@@ -313,6 +316,15 @@ export default function TaskInstancesPage() {
       if (instRes.success) {
         let data = instRes.instances || [];
         if (quickView === 'OVERDUE') data = data.filter(t => isOverdue(t));
+        if (quickView === 'TODO') data = data.filter(t => !['APPROVED', 'CANCELLED'].includes(t.Status));
+        if (quickView === 'TOMORROW') data = data.filter(t => isDueTomorrow(t));
+        if (quickView === 'UPCOMING') data = data.filter(t => {
+          if (!t.DueDate) return false;
+          const d = new Date(t.DueDate);
+          const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(0, 0, 0, 0);
+          return d >= tomorrow && !['APPROVED', 'CANCELLED'].includes(t.Status);
+        });
+        if (disputesOnly) data = data.filter(t => t.Category === 'PRICING' || t.Category === 'LISTING' || t.IsRuleTask);
         if (filters.health === 'critical') data = data.filter(t => calculateHealth(t).score < 50);
         else if (filters.health === 'attention') data = data.filter(t => { const h = calculateHealth(t).score; return h >= 50 && h < 80; });
         else if (filters.health === 'healthy') data = data.filter(t => calculateHealth(t).score >= 80);
@@ -322,9 +334,9 @@ export default function TaskInstancesPage() {
       if (sumRes.success) setSummary(sumRes.data);
     } catch { message.error('Failed to load tasks'); }
     finally { setLoading(false); }
-  }, [buildParams, quickView, filters, viewMode]);
+  }, [buildParams, quickView, filters, viewMode, disputesOnly]);
 
-  useEffect(() => { loadInstances(); }, [quickView, filters, search, pagination.page, viewMode]);
+  useEffect(() => { loadInstances(); }, [quickView, filters, search, pagination.page, viewMode, disputesOnly]);
 
   const openWorkspace = (task) => { setWorkspaceTaskId(task.Id); setWorkspaceOpen(true); };
 
@@ -354,7 +366,46 @@ export default function TaskInstancesPage() {
   const toggleSelectAll = () => selectedIds.size === instances.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(instances.map(i => i.Id)));
   const toggleSelect = (id) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const kpi = summary?.kpi || {};
+  const computedKpi = useMemo(() => {
+    const total = instances.length;
+    const ruleTasks = instances.filter(t => t.IsRuleTask || t.source === 'ACTION_RULE' || t.InstanceCode?.startsWith('R'));
+    const pricing = instances.filter(t => (t.Category || t.Department) === 'PRICING');
+    const pricingMismatches = pricing.filter(t => {
+      const asp = t.SellingPrice || t.ASP;
+      const sp = t.StandardPrice || t.SP;
+      return asp && sp && Math.abs(((asp - sp) / sp) * 100) > 2;
+    }).length;
+    const listing = instances.filter(t => (t.Category || t.Department) === 'LISTING');
+    const scores = listing.map(t => t.AIHealthScore ?? t.CatalogScore).filter(s => s != null);
+    const avgHealth = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+    const approved = instances.filter(t => t.Status === 'APPROVED').length;
+    const inProg = instances.filter(t => t.Status === 'IN_PROGRESS').length;
+    const overdue = instances.filter(t => isOverdue(t)).length;
+    const pendingReview = instances.filter(t => t.Status === 'UNDER_REVIEW').length;
+    const slaOk = instances.filter(t => t.SLAStatus === 'WITHIN_SLA' || !t.SLAStatus).length;
+    const slaCompliance = total > 0 ? Math.round((slaOk / total) * 100) : 100;
+    const buyBoxTasks = instances.filter(t => t.InstanceCode?.includes('DLY-002'));
+    const buyBoxWin = buyBoxTasks.filter(t => t.IsBuyBoxWon || t.BuyBoxStatus === 'WON').length;
+    const buyBoxPct = buyBoxTasks.length > 0 ? Math.round((buyBoxWin / buyBoxTasks.length) * 100) : null;
+
+    return {
+      total, active: inProg, approved, overdue, pendingReview,
+      slaCompliance, pricingMismatches, avgHealth: avgHealth ?? summary?.kpi?.avgHealth,
+      autoTasks: ruleTasks.length,
+      activeDisputes: ruleTasks.filter(t => ['IN_PROGRESS', 'SUBMITTED'].includes(t.Status)).length,
+      buyBoxPct: buyBoxPct ?? summary?.kpi?.buyBoxPct,
+      disputeTrend: summary?.kpi?.disputeTrend,
+      pricingTrend: summary?.kpi?.pricingTrend,
+      qualityTrend: summary?.kpi?.qualityTrend,
+      buyBoxTrend: summary?.kpi?.buyBoxTrend,
+      successTrend: summary?.kpi?.successTrend,
+      overdueTrend: summary?.kpi?.overdueTrend,
+      completionRate: total > 0 ? Math.round((approved / total) * 100) : 0,
+      pricingHealth: pricingMismatches,
+    };
+  }, [instances, summary]);
+
+  const kpi = { ...summary?.kpi, ...computedKpi };
 
   /* ── SELLER TASKS VIEW (PEMS) ── */
   const renderSellerTasksView = () => {
@@ -624,20 +675,26 @@ export default function TaskInstancesPage() {
     },
     { key: 'priority', width: 100, render: (_, task) => <OkrPriorityTag priority={(task.priority || 'MEDIUM').toUpperCase()} /> },
     { key: 'status', width: 100, render: (_, task) => <OkrStatusTag status={(task.status || 'PENDING').toUpperCase()} /> },
-    { key: 'progress', width: 120, render: (_, task) => {
-      const timeTracking = task.timeTracking || {};
-      const started = timeTracking.startedAt || task.startedAt;
-      const completed = timeTracking.completedAt || task.completedAt;
-      const status = (task.status || '').toUpperCase();
-      const pct = status === 'COMPLETED' ? 100 : status === 'IN_PROGRESS' ? 50 : 0;
-      return <OkrProgressCell pct={pct} />;
-    }},
-    { key: 'timeline', width: 160, render: (_, task) => (
-      <OkrTimelineCell createdAt={task.createdAt} startedAt={task.timeTracking?.startedAt} completedAt={task.timeTracking?.completedAt} status={(task.status || '').toUpperCase()} />
-    )},
-    { key: 'actions', width: 60, align: 'right', render: (_, task) => (
-      <Button type="text" icon={<EyeOutlined />} size="small" style={{ color: '#94a3b8' }} />
-    )},
+    {
+      key: 'progress', width: 120, render: (_, task) => {
+        const timeTracking = task.timeTracking || {};
+        const started = timeTracking.startedAt || task.startedAt;
+        const completed = timeTracking.completedAt || task.completedAt;
+        const status = (task.status || '').toUpperCase();
+        const pct = status === 'COMPLETED' ? 100 : status === 'IN_PROGRESS' ? 50 : 0;
+        return <OkrProgressCell pct={pct} />;
+      }
+    },
+    {
+      key: 'timeline', width: 160, render: (_, task) => (
+        <OkrTimelineCell createdAt={task.createdAt} startedAt={task.timeTracking?.startedAt} completedAt={task.timeTracking?.completedAt} status={(task.status || '').toUpperCase()} />
+      )
+    },
+    {
+      key: 'actions', width: 60, align: 'right', render: (_, task) => (
+        <Button type="text" icon={<EyeOutlined />} size="small" style={{ color: '#94a3b8' }} />
+      )
+    },
   ];
 
   return (
@@ -657,23 +714,25 @@ export default function TaskInstancesPage() {
 
       <div style={{ padding: '16px 24px' }}>
         {/* ═══ KPI STRIP ═══ */}
-        <CommandCenterKpis kpi={kpi} risk={summary?.risk} />
+        <CommandCenterKpis kpi={kpi} risk={summary?.risk} disputesOnly={disputesOnly} onDisputesToggle={() => setDisputesOnly(d => !d)} />
 
         {/* ═══ QUICK VIEWS + CONTROLS ═══ */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, flex: 1 }}>
             {QUICK_VIEWS.map(qv => (
               <div key={qv.key} onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
-                style={{ padding: '5px 14px', borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: quickView === qv.key ? 700 : 500,
+                style={{
+                  padding: '5px 14px', borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: quickView === qv.key ? 700 : 500,
                   background: quickView === qv.key ? '#2563eb' : '#fff', color: quickView === qv.key ? '#fff' : '#475569',
                   border: `1px solid ${quickView === qv.key ? '#2563eb' : '#e5e7eb'}`,
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s', userSelect: 'none' }}>
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s', userSelect: 'none'
+                }}>
                 {qv.label}
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-             <Segmented size="small" value={viewMode} onChange={(v) => { setViewMode(v); if (v === 'objectives') loadOkrData(); }} options={[
+            <Segmented size="small" value={viewMode} onChange={(v) => { setViewMode(v); if (v === 'objectives') loadOkrData(); }} options={[
               { label: 'List', value: 'list' }, { label: 'Board', value: 'board' }, { label: 'Calendar', value: 'calendar' }, { label: 'Seller', value: 'seller' }, { label: 'Objectives', value: 'objectives' },
             ]} />
             <Input prefix={<SearchOutlined style={{ fontSize: 'var(--font-size-sm)' }} />} placeholder="Search tasks, sellers, ASINs..." value={search} onChange={e => setSearch(e.target.value)} onPressEnter={() => loadInstances()} style={{ width: 240, borderRadius: "var(--radius-md)" }} size="small" />
@@ -759,13 +818,14 @@ export default function TaskInstancesPage() {
               /* LIST VIEW */
               <Card size="small" style={{ borderRadius: 10 }} styles={{ body: { padding: 0 } }}>
                 {/* Table Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,2fr) 120px 90px 110px 100px 90px minmax(150px, auto)', alignItems: 'center', padding: '8px 16px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,2fr) 110px 70px 80px 80px 90px 70px minmax(130px, auto)', alignItems: 'center', padding: '8px 16px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc', gap: 8 }}>
                   <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Task</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Metrics</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Assignee</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Priority</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Status</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Progress</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>SLA</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Due</Text>
                   <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', textAlign: 'right' }}>Actions</Text>
                 </div>
@@ -774,7 +834,7 @@ export default function TaskInstancesPage() {
                 <div style={{ display: 'none' }} className="pems-mobile-only">
                   {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
                     instances.length === 0 ? <Empty description="No tasks found" style={{ padding: 40 }} /> :
-                    instances.map(t => <MobileTaskCard key={t.Id} task={t} onView={openWorkspace} />)}
+                      instances.map(t => <MobileTaskCard key={t.Id} task={t} onView={openWorkspace} />)}
                 </div>
 
                 {/* Desktop list */}
@@ -819,7 +879,7 @@ export default function TaskInstancesPage() {
           </div>
 
           {/* ═══ RIGHT INSIGHTS PANEL ═══ */}
-          <RightInsightsPanel onTaskClick={openWorkspace} />
+          <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${disputesOnly}-${filters.status}-${pagination.page}`} />
         </div>
       </div>
 

@@ -6,7 +6,10 @@
     "start": "node --max-old-space-size=4096 server.js",
     "start-cluster": "pm2 start ecosystem.config.js",
     "dev": "nodemon --max-old-space-size=4096 server.js",
-    "force-sync": "node scripts/force_sync_all.js"
+    "force-sync": "node scripts/force_sync_all.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --forceExit --detectOpenHandles",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
@@ -15,6 +18,7 @@
     "@socket.io/sticky": "^1.0.4",
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",
+    "bull": "^4.16.5",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
@@ -42,6 +46,9 @@
     "socket.io": "^4.8.3",
     "socks-proxy-agent": "^10.0.0",
     "superagent": "^10.3.0",
+    "uuid": "^14.0.1",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "xlsx": "^0.18.5",
     "xmldom": "^0.6.0",
     "xpath": "^0.0.34",
@@ -52,6 +59,8 @@
   "license": "ISC",
   "description": "GMS Report Dashboard Backend Service",
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }
