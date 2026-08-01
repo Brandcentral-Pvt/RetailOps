@@ -11,7 +11,7 @@ const config = {
     database: process.env.DB_NAME,
     port: parseInt(process.env.DB_PORT),
     options: {
-        encrypt: true,
+        encrypt: process.env.DB_ENCRYPT !== 'false',
         trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
         enableArithAbort: true,
         useUTC: false
@@ -33,7 +33,7 @@ const readerConfig = process.env.DB_READER_SERVER ? {
     database: process.env.DB_READER_NAME || process.env.DB_NAME,
     port: parseInt(process.env.DB_READER_PORT || process.env.DB_PORT),
     options: {
-        encrypt: true,
+        encrypt: process.env.DB_ENCRYPT !== 'false',
         trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
         enableArithAbort: true,
         useUTC: false
