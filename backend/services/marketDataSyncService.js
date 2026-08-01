@@ -51,6 +51,15 @@ const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 const { calculateLQS, getGrade } = require('../utils/lqs');
 const listingQualityService = require('./listingQualityService');
 const SystemLogService = require('./SystemLogService');
+const {
+    getFromRaw,
+    parseRatingValue,
+    parseReviewCount,
+    parseRatingBreakdown,
+    computeRatingFromBreakdown,
+    safeParseRatingBreakdown,
+    detectAplusContent
+} = require('../utils/marketDataParser');
 
 // Amazon India Top-Level Categories for BSR classification
 const AMAZON_TOP_LEVEL_CATEGORIES = [
@@ -2070,12 +2079,18 @@ class MarketDataSyncService {
                 }
 
                 // Rating & Reviews
-                const rawRating = this._getFromRaw(rawData, ['Rating', 'rating', 'avg_rating'], 0);
-                rating = parseFloat(rawRating);
-                if (isNaN(rating)) rating = 0;
+                const rawRating = this._getFromRaw(rawData, ['Rating', 'rating', 'avg_rating', 'Average Rating'], 0);
+                rating = parseRatingValue(rawRating);
 
-                const rawReviews = this._getFromRaw(rawData, ['Review_count', 'review_count', 'ReviewCount', 'rating_count'], 0);
+                const rawReviews = this._getFromRaw(rawData, ['Review_count', 'review_count', 'ReviewCount', 'review count', 'Review Count', 'Reviews', 'Total Reviews', 'rating_count'], 0);
                 reviewCount = this._cleanReviewCount(rawReviews) || 0;
+
+                // Ajio rating breakdown: parse if the workflow captured it, otherwise
+                // preserve any existing breakdown instead of overwriting it with zeros
+                const ajioBreakdown = this._parseRatingBreakdown(this._getFromRaw(rawData, ['Rating_breakdown', 'rating_breakdown', 'Rating'], ''));
+                finalRatingBreakdown = Object.values(ajioBreakdown).some(v => v > 0)
+                    ? ajioBreakdown
+                    : (safeParseRatingBreakdown(asin.RatingBreakdown) || ajioBreakdown);
 
                 if (soldBy) {
                     allOffers.push({
@@ -2107,14 +2122,17 @@ class MarketDataSyncService {
                 images = mediaData.images || [];
                 mainImageUrl = this._getFromRaw(rawData, ['Main_Image', 'mainImage', 'imageUrl', 'Field5'], asin.ImageUrl);
 
-                rating = parseFloat(rawData.avg_rating);
-                if (isNaN(rating)) rating = 0;
+                rating = parseRatingValue(this._getFromRaw(rawData, ['avg_rating', 'Rating', 'rating', 'Average Rating', 'AverageRating', 'avg rating'], 0));
 
-                reviewCount = this._cleanReviewCount(this._getFromRaw(rawData, ['review_count', 'Review_Count', 'Rating_Count', 'rating', 'RT'], '')) || asin.ReviewCount;
+                reviewCount = this._cleanReviewCount(this._getFromRaw(rawData, ['review_count', 'Review_Count', 'review count', 'Review Count', 'Reviews', 'Total Reviews', 'Rating_Count', 'rating', 'RT'], '')) || asin.ReviewCount;
 
                 const ratingBreakdown = this._parseRatingBreakdown(rawData.Rating || rawData.Field7 || rawData.Rating_breakdown || '');
                 const hasBreakdown = Object.values(ratingBreakdown).some(v => v > 0);
-                finalRatingBreakdown = hasBreakdown ? ratingBreakdown : (asin.RatingBreakdown ? JSON.parse(asin.RatingBreakdown) : ratingBreakdown);
+                // If only a breakdown was captured, derive the average rating from it
+                if ((!rating || rating <= 0) && hasBreakdown) {
+                    rating = computeRatingFromBreakdown(ratingBreakdown);
+                }
+                finalRatingBreakdown = hasBreakdown ? ratingBreakdown : (safeParseRatingBreakdown(asin.RatingBreakdown) || ratingBreakdown);
 
                 const bulletHtmlField = this._getFromRaw(rawData, ['bullet_points', 'bullet_points_count', 'Field8'], '');
                 if (bulletHtmlField && typeof bulletHtmlField === 'string' && bulletHtmlField.length > 50) {
@@ -2392,12 +2410,19 @@ class MarketDataSyncService {
             // Extract Parent ASIN if available
             const parentAsin = this._extractParentAsinFromData(rawData);
 
-            let aplusContent = this._getFromRaw(rawData, ['A_plus', 'aplus_content', 'aplus'], null);
+            let aplusContent = this._getFromRaw(rawData, ['A_plus', 'aplus_content', 'aplus', 'A+', 'A Plus', 'A+ Content'], null);
             if (aplusContent && typeof aplusContent === 'object') {
                 aplusContent = JSON.stringify(aplusContent);
             }
+            // Keep HasAplus / AplusContent consistent: preserve existing content when
+            // A+ is still present but the scrape didn't carry the raw HTML.
+            if (hasAplus) {
+                if (!aplusContent && asin.AplusContent) aplusContent = asin.AplusContent;
+            } else {
+                aplusContent = null;
+            }
             let aplusModuleCount = 0;
-            if (aplusContent && typeof aplusContent === 'string') {
+            if (hasAplus && aplusContent && typeof aplusContent === 'string') {
                 // Count A+ modules from HTML markers
                 const modulePatterns = [
                     /aplus-\d+p-fixed-width/gi,
@@ -2425,6 +2450,10 @@ class MarketDataSyncService {
                 AplusPresentSince: aplusPresentSince,
                 // Review Rating Breakdown (Octoparse specialty — PA-API doesn't have star distribution)
                 RatingBreakdown: JSON.stringify(finalRatingBreakdown),
+                // Review rating — only persist when a real value was scraped so we
+                // never zero out existing data from a partial/incomplete scrape
+                ...(rating > 0 ? { Rating: rating } : {}),
+                ...(reviewCount > 0 ? { ReviewCount: reviewCount } : {}),
                 // Sync metadata
                 LastOctoparseSyncAt: now,
                 LastSyncSource: 'OCTOPARSE',
@@ -2631,27 +2660,7 @@ class MarketDataSyncService {
      * Get value from raw data with fallback chain
      */
     _getFromRaw(rawData, fieldNames, defaultValue = null) {
-        if (!rawData) return defaultValue;
-
-        // Create a lookup of lowercase trimmed keys to actual keys
-        const rawKeys = Object.keys(rawData);
-        const keyMap = {};
-        for (const k of rawKeys) {
-            keyMap[k.toLowerCase().trim()] = k;
-        }
-
-        for (const field of fieldNames) {
-            const normalizedField = field.toLowerCase().trim();
-            const actualKey = keyMap[normalizedField];
-            if (actualKey) {
-                const value = rawData[actualKey];
-                if (value !== undefined && value !== null && value !== '') {
-                    if (typeof value === 'string' && value.trim() === '') continue;
-                    return value;
-                }
-            }
-        }
-        return defaultValue;
+        return getFromRaw(rawData, fieldNames, defaultValue);
     }
 
     /**
@@ -2896,87 +2905,7 @@ class MarketDataSyncService {
     }
 
     _detectAplusContent(rawData) {
-        if (!rawData) return false;
-        
-        // Priority 1: Explicit boolean/flag/object fields
-        const explicitFlags = ['has_aplus', 'A_plus', 'aplus', 'hasAplus', 'isAplus'];
-        for (const flag of explicitFlags) {
-            const val = rawData[flag];
-            if (val === undefined || val === null) continue;
-            
-            if (typeof val === 'boolean') return val;
-            if (typeof val === 'number') return val > 0;
-            if (typeof val === 'object') {
-                if (Array.isArray(val)) return val.length > 0;
-                return Object.keys(val).length > 0;
-            }
-            if (typeof val === 'string') {
-                const trimmed = val.trim();
-                const lower = trimmed.toLowerCase();
-                if (lower === 'true' || lower === 'yes' || lower === '1') return true;
-                if (lower === 'false' || lower === 'no' || lower === '0') return false;
-                
-                // If it's a JSON string representing an array or object
-                if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-                    try {
-                        const parsed = JSON.parse(trimmed);
-                        if (Array.isArray(parsed)) return parsed.length > 0;
-                        return Object.keys(parsed).length > 0;
-                    } catch (e) {}
-                }
-            }
-        }
-
-        // Priority 2: Check aplus/A_plus field or description for A+ markers
-        const aplusContent = this._getFromRaw(rawData, ['A_plus', 'aplus_content', 'aplus', 'product_description'], '');
-        if (aplusContent) {
-            if (typeof aplusContent === 'object') {
-                if (Array.isArray(aplusContent)) return aplusContent.length > 0;
-                return Object.keys(aplusContent).length > 0;
-            }
-            if (typeof aplusContent === 'string') {
-                const trimmed = aplusContent.trim();
-                
-                // Handle stringified JSON
-                if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-                    try {
-                        const parsed = JSON.parse(trimmed);
-                        if (Array.isArray(parsed)) return parsed.length > 0;
-                        return Object.keys(parsed).length > 0;
-                    } catch (e) {}
-                }
-                
-                const aplusMarkers = [
-                    'aplus-v2', 'aplus-standard', 'aplus-module', 'launchpad-module',
-                    'apm-', 'aplus-content-wrapper', 'productDescription_feature_div',
-                    'aplus-3p-fixed-width', 'aplus-banner', 'aplus-image',
-                    'shoppable', 'aplus_media', 'aplusBlock'
-                ];
-
-                for (const marker of aplusMarkers) {
-                    if (trimmed.toLowerCase().includes(marker.toLowerCase())) {
-                        return true;
-                    }
-                }
-
-                // If content has significant length and HTML structure (lowered threshold)
-                if (trimmed.length > 100 && (trimmed.includes('<div') || trimmed.includes('<img') || trimmed.includes('<section'))) {
-                    return true;
-                }
-                
-                // If content has any HTML tags at all, it's likely A+ content
-                if (trimmed.includes('<') && trimmed.includes('>') && trimmed.length > 50) {
-                    return true;
-                }
-                
-                // If the field is 'A_plus' or 'aplus_content' and has meaningful content
-                if (aplusContent.length > 10) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return detectAplusContent(rawData);
     }
 
     /**
@@ -3038,57 +2967,7 @@ class MarketDataSyncService {
      * Parse rating breakdown from HTML or string
      */
     _parseRatingBreakdown(ratingStr) {
-        const breakdown = { fiveStar: 0, fourStar: 0, threeStar: 0, twoStar: 0, oneStar: 0 };
-
-        if (!ratingStr) return breakdown;
-
-        const s = ratingStr.toString().replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim();
-        if (!s) return breakdown;
-
-        // Method 1: Extract percentages from pattern like "53%23%12%5%7%"
-        const percMatch = s.match(/(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%[^\d]*?(\d{1,3})%/);
-        if (percMatch) {
-            breakdown.fiveStar = parseFloat(percMatch[1]) || 0;
-            breakdown.fourStar = parseFloat(percMatch[2]) || 0;
-            breakdown.threeStar = parseFloat(percMatch[3]) || 0;
-            breakdown.twoStar = parseFloat(percMatch[4]) || 0;
-            breakdown.oneStar = parseFloat(percMatch[5]) || 0;
-            const sum = breakdown.fiveStar + breakdown.fourStar + breakdown.threeStar + breakdown.twoStar + breakdown.oneStar;
-            if (sum > 0) return breakdown;
-        }
-
-        // Method 2: Extract individual star ratings like "5 star34%" or "5-star: 34%"
-        const starPattern = /(\d)\s*(?:star|★|star[s]?|Star[s]?)[^%]*?(\d{1,3})%/gi;
-        let match;
-        const starMap = {};
-        while ((match = starPattern.exec(s)) !== null) {
-            const starNum = parseInt(match[1]);
-            const pct = parseInt(match[2]);
-            if (starNum >= 1 && starNum <= 5 && !isNaN(pct)) {
-                starMap[starNum] = pct;
-            }
-        }
-        if (Object.keys(starMap).length === 5) {
-            breakdown.fiveStar = starMap[5] || 0;
-            breakdown.fourStar = starMap[4] || 0;
-            breakdown.threeStar = starMap[3] || 0;
-            breakdown.twoStar = starMap[2] || 0;
-            breakdown.oneStar = starMap[1] || 0;
-            return breakdown;
-        }
-
-        // Method 3: Simple percentage extraction without star labels
-        const simplePercs = s.match(/(\d{1,3})%/g);
-        if (simplePercs && simplePercs.length >= 5) {
-            breakdown.fiveStar = parseInt(simplePercs[0]) || 0;
-            breakdown.fourStar = parseInt(simplePercs[1]) || 0;
-            breakdown.threeStar = parseInt(simplePercs[2]) || 0;
-            breakdown.twoStar = parseInt(simplePercs[3]) || 0;
-            breakdown.oneStar = parseInt(simplePercs[4]) || 0;
-            return breakdown;
-        }
-
-        return breakdown;
+        return parseRatingBreakdown(ratingStr);
     }
 
     /**
@@ -3180,28 +3059,7 @@ class MarketDataSyncService {
      * Clean review count from various formats
      */
     _cleanReviewCount(str) {
-        if (!str) return 0;
-        let s = str.toString().trim();
-
-        // Remove common Amazon rating noise
-        s = s.replace(/out\s+of\s+[0-5](?:\.[0-9])?/gi, '');
-        s = s.replace(/[0-5]\s*stars?/gi, '');
-
-        // Parenthesized numbers with commas (e.g., "(2,441)")
-        const parenMatch = s.match(/\(([\d,]+)\)/);
-        if (parenMatch) {
-            const val = parseInt(parenMatch[1].replace(/,/g, ''));
-            if (val > 0) return val;
-        }
-
-        // Direct number with commas
-        const numMatch = s.match(/([\d,]+)/);
-        if (numMatch) {
-            const val = parseInt(numMatch[1].replace(/,/g, ''));
-            if (val > 0 && val < 10000000) return val;
-        }
-
-        return 0;
+        return parseReviewCount(str);
     }
 
     /**
