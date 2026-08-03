@@ -178,3 +178,10 @@ export const CATEGORY_METRIC_CONFIG = {
     badge: { icon: 'InfoCircleOutlined', color: '#64748B' },
   },
 };
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Task-list column grid (single source of truth for the list view).
+   Must match the grid used by PremiumTaskRow's root row element.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export const TASK_LIST_GRID = '36px minmax(0,2fr) 140px 70px 70px 80px 80px 70px minmax(130px, auto)';
