@@ -172,3 +172,21 @@ describe('getTransitionTimestamps', () => {
     expect(Object.keys(t)).toHaveLength(0);
   });
 });
+
+describe('resolveReviewTransition', () => {
+  const { resolveReviewTransition } = require('../../services/pems/workflowEngine');
+
+  it('maps APPROVE to APPROVED', () => {
+    expect(resolveReviewTransition('APPROVE')).toBe('APPROVED');
+  });
+
+  it('maps REWORK to REWORK (regression: was collapsed into REJECTED)', () => {
+    expect(resolveReviewTransition('REWORK')).toBe('REWORK');
+  });
+
+  it('maps anything else to REJECTED', () => {
+    expect(resolveReviewTransition('REJECT')).toBe('REJECTED');
+    expect(resolveReviewTransition(undefined)).toBe('REJECTED');
+    expect(resolveReviewTransition('BOGUS')).toBe('REJECTED');
+  });
+});

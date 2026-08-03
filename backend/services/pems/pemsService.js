@@ -361,6 +361,7 @@ async function getInstances(filters = {}) {
         AchievementPct: 0,
         subTasks: [],
         _isRuleTask: true,
+        IsRuleTask: true,
       }));
       instances = [...ruleTasks, ...instances];
     } catch (e) { console.error('Failed to fetch rule tasks:', e.message); }
@@ -503,6 +504,40 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   } catch (err) { logger.warn('Event bus error:', err.message); }
 
   return { success: true, from: instance.Status, to: toStatus };
+}
+
+/**
+ * Bulk transition for a list of task ids.
+ * Validates each task independently — non-transitionable / missing tasks are
+ * skipped, not failed. Returns per-id results for the UI.
+ */
+async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, details) {
+  if (!Array.isArray(taskIds) || taskIds.length === 0) throw new Error('No task ids provided');
+  if (!WORKFLOW_STATUSES[toStatus]) throw new Error(`Unknown status: ${toStatus}`);
+  if (taskIds.length > 200) throw new Error('Too many tasks (max 200 per bulk operation)');
+
+  const pool = await getPool();
+  const updated = [];
+  const skipped = [];
+
+  for (const id of taskIds) {
+    try {
+      const inst = await pool.request().input('id', sql.VarChar, id)
+        .query('SELECT Status FROM PemsTaskInstances WHERE Id = @id');
+      const row = inst.recordset[0];
+      if (!row) { skipped.push({ id, reason: 'NOT_FOUND' }); continue; }
+      if (!canTransition(row.Status, toStatus)) {
+        skipped.push({ id, reason: `INVALID_TRANSITION:${row.Status}->${toStatus}` });
+        continue;
+      }
+      await transitionStatus(id, toStatus, actorId, actorName, actorRole, details);
+      updated.push(id);
+    } catch (err) {
+      skipped.push({ id, reason: err.message || 'ERROR' });
+    }
+  }
+
+  return { updated, skipped, updatedCount: updated.length, skippedCount: skipped.length };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1158,6 +1193,7 @@ async function recalculateAllWeightedProgress() {
 }
 
 module.exports = {
+  bulkTransition,
   createTemplate, getTemplates, getTemplateById, updateTemplate, deleteTemplate,
   createInstance, getInstances, getInstanceById,
   transitionStatus,

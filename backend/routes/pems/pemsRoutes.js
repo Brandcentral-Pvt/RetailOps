@@ -16,6 +16,7 @@ router.delete('/templates/:id', auth, invalidateCache('route:/api/pems/templates
 router.get('/instances', auth, cacheRoute('pems:instances', 30), ctrl.getInstances);
 router.get('/instances/:id', auth, cacheRoute('pems:instances', 60), ctrl.getInstanceById);
 router.post('/instances', auth, invalidateCache('pems:instances'), ctrl.createInstance);
+router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
 router.post('/instances/:id/transition', auth, invalidateCache('pems:instances'), ctrl.transitionStatus);
 router.put('/instances/:id/achievement', auth, invalidateCache('pems:instances'), ctrl.updateAchievement);
 
