@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useEffect } from 'react';
-=======
 import React, { useEffect, useState } from 'react';
->>>>>>> 17b09baabb760bd50af401783fcec59049a38d03
 
 const LOGO_SOURCES = [
   import.meta.env.VITE_MAINTENANCE_LOGO,
