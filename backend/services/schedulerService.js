@@ -214,6 +214,32 @@ class SchedulerService {
             await queueService.add(QUEUES.AUTO_TAG, { type: 'full' });
         }, cronOptions);
         logger.info('Auto-Tags scheduled daily at 3:00 AM');
+
+        // ── PEMS: recurring task template materialization (hourly) ──
+        this.jobs.pemsRecurrence = cron.schedule('0 * * * *', async () => {
+            if (process.env.PEMS_RECURRENCE_ENABLED === 'false') return;
+            logger.info('Cron triggering PEMS recurrence check');
+            try {
+                const { generateDueOccurrences } = require('./pems/recurrenceService');
+                const result = await generateDueOccurrences();
+                logger.info(`PEMS recurrence: ${result.created} instance(s) created (scanned ${result.scanned})`);
+            } catch (err) {
+                logger.error('PEMS recurrence job failed', { error: err.message });
+            }
+        }, cronOptions);
+        logger.info(`PEMS recurrence scheduled hourly (${process.env.PEMS_RECURRENCE_ENABLED === 'false' ? 'DISABLED' : 'ENABLED'})`);
+
+        // ── PEMS: SLA escalation check (every 30 minutes) ──
+        this.jobs.pemsSlaEscalation = cron.schedule('*/30 * * * *', async () => {
+            if (process.env.PEMS_SLA_ESCALATION_ENABLED === 'false') return;
+            logger.info('Cron triggering PEMS SLA escalation check');
+            try {
+                await queueService.add(QUEUES.SLA_ESCALATION, {});
+            } catch (err) {
+                logger.error('PEMS SLA escalation enqueue failed', { error: err.message });
+            }
+        }, cronOptions);
+        logger.info(`PEMS SLA escalation scheduled every 30 min (${process.env.PEMS_SLA_ESCALATION_ENABLED === 'false' ? 'DISABLED' : 'ENABLED'})`);
     }
 
     async reschedule() {
