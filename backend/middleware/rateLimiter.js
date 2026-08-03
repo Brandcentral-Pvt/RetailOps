@@ -23,7 +23,7 @@ function createLimiter(tierName) {
     keyGenerator: (req) => {
       // Per-user limiting when authenticated; IPv6-safe IP fallback otherwise.
       if (req.user?.Id) return `user:${req.user.Id}`;
-      return ipKeyGenerator()(req) || 'unknown';
+      return ipKeyGenerator(req.ip) || 'unknown';
     },
   });
 }
