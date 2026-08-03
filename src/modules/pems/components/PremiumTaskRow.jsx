@@ -198,21 +198,31 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
   const btnStyle = (s) => {
     if (s === 'IN_PROGRESS') return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
     if (s === 'SUBMITTED') return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
+<<<<<<< HEAD
     if (s === 'CANCELLED') return { background: 'var(--bc-red-600)', borderColor: 'var(--bc-red-600)', color: '#fff' };
     return { background: 'var(--bc-white)', borderColor: 'var(--bc-border-strong)', color: 'var(--bc-text-body)' };
+=======
+    if (s === 'CANCELLED') return { background: '#D32F2F', borderColor: '#D32F2F', color: '#fff' };
+    return { background: 'var(--bc-surface-card, #fff)', borderColor: 'var(--bc-border-strong, #d1d5db)', color: 'var(--bc-text-body, #374151)' };
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
   };
 
   return (
     <>
       <div
+        className={`pems-task-row${selected ? ' selected' : ''}`}
         style={{
           display: 'grid',
           gridTemplateColumns: TASK_LIST_GRID,
           alignItems: 'center',
           gap: 8,
           padding: '10px 16px',
+<<<<<<< HEAD
           borderBottom: '1px solid var(--bc-border-subtle)',
           background: selected ? 'var(--bc-blue-50)' : 'var(--bc-white)',
+=======
+          borderBottom: '1px solid var(--bc-border-subtle, #f1f5f9)',
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
           cursor: 'pointer',
           transition: 'background 0.1s ease',
           position: 'relative'
@@ -223,7 +233,7 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
 
         <div onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={selected} onChange={() => onSelect(task.Id)}
-            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#2563eb' }} />
+            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--bc-ro-500, #1976D2)' }} />
         </div>
 
         <div style={{ minWidth: 0 }}>
@@ -233,7 +243,11 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
                 <ThunderboltOutlined style={{ color: '#0288D1', fontSize: 11, flexShrink: 0 }} />
               </Tooltip>
             )}
+<<<<<<< HEAD
             <Text strong style={{ fontSize: 'var(--bc-text-sm)', color: 'var(--bc-text-heading)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+=======
+            <Text strong style={{ fontSize: 13, color: 'var(--bc-text-heading, #0f172a)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
               {task.Title || 'Untitled'}
             </Text>
           </div>
@@ -241,9 +255,15 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
             {isRuleTask && (
               <Tag style={{ fontSize: 'var(--bc-text-2xs)', borderRadius: 'var(--bc-radius-sm)', background: '#e0f2fe', color: '#0288D1', border: 'none', margin: 0, lineHeight: '14px', padding: '0 4px', fontWeight: 600 }}>Auto</Tag>
             )}
+<<<<<<< HEAD
             <Text style={{ fontSize: 'var(--bc-text-2xs)', color: 'var(--bc-text-muted)', fontFamily: 'var(--bc-font-mono)' }}>{task.InstanceCode}</Text>
             <Text style={{ fontSize: 'var(--bc-text-2xs)', color: 'var(--bc-text-muted)' }}>·</Text>
             <Text style={{ fontSize: 'var(--bc-text-2xs)', color: 'var(--bc-text-muted)' }}>{task.SellerName || '-'}</Text>
+=======
+            <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)', fontFamily: 'monospace' }}>{task.InstanceCode}</Text>
+            <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>·</Text>
+            <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>{task.SellerName || '-'}</Text>
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
           </div>
         </div>
 
@@ -253,11 +273,19 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           {task.AssigneeName ? (
+<<<<<<< HEAD
             <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--bc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
               {task.AssigneeName.charAt(0)}
             </div>
           ) : <UserOutlined style={{ color: 'var(--bc-border-strong)', fontSize: 12 }} />}
           <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.AssigneeName?.split(' ')[0] || '—'}</Text>
+=======
+            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--bc-ro-50, #E3F2FD)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-ro-500, #1976D2)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
+              {task.AssigneeName.charAt(0)}
+            </div>
+          ) : <UserOutlined style={{ color: 'var(--bc-slate-300, #d1d5db)', fontSize: 12 }} />}
+          <Text style={{ fontSize: 11, color: 'var(--bc-text-body, #334155)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.AssigneeName?.split(' ')[0] || '—'}</Text>
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
         </div>
 
         <div>
@@ -283,7 +311,11 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
                 {slaLevel.label}
               </div>
             </Tooltip>
+<<<<<<< HEAD
           ) : <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-disabled)' }}>—</Text>}
+=======
+          ) : <Text style={{ fontSize: 11, color: 'var(--bc-slate-300, #d1d5db)' }}>—</Text>}
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
         </div>
 
         <div>
@@ -292,13 +324,21 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
               <CalendarOutlined style={{ fontSize: 10, color: due.color }} />
               <Text style={{ fontSize: 'var(--bc-text-xs)', fontWeight: 600, color: due.color }}>{due.text}</Text>
             </Space>
+<<<<<<< HEAD
           ) : <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-disabled)' }}>—</Text>}
+=======
+          ) : <Text style={{ fontSize: 11, color: 'var(--bc-slate-300, #d1d5db)' }}>—</Text>}
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
         </div>
 
         <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Tooltip title="View details">
             <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => onView(task)}
+<<<<<<< HEAD
               style={{ fontSize: 13, color: 'var(--bc-text-muted)', padding: '0 4px' }} />
+=======
+              style={{ fontSize: 13, color: 'var(--bc-text-muted, #94a3b8)', padding: '0 4px' }} />
+>>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
           </Tooltip>
           {!isRuleTask && nextStatuses.filter(s => s === 'IN_PROGRESS' || s === 'SUBMITTED').map(s => {
             const btnLabel = s === 'IN_PROGRESS' ? 'Start' : 'Submit';
