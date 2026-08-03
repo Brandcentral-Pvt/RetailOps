@@ -1,15 +1,15 @@
 export const WORKFLOW_STATUSES = {
   DRAFT: { label: 'Draft', color: '#64748b', bg: '#f1f5f9', antColor: 'default' },
   ASSIGNED: { label: 'Assigned', color: '#0288D1', bg: '#e0f2fe', antColor: 'processing' },
-  ACCEPTED: { label: 'Accepted', color: '#7c3aed', bg: '#f5f3ff', antColor: 'purple' },
-  IN_PROGRESS: { label: 'In Progress', color: '#2563eb', bg: '#eff6ff', antColor: 'processing' },
-  SUBMITTED: { label: 'Submitted', color: '#d97706', bg: '#fffbeb', antColor: 'warning' },
-  UNDER_REVIEW: { label: 'Under Review', color: '#7c3aed', bg: '#f5f3ff', antColor: 'purple' },
-  APPROVED: { label: 'Approved', color: '#16a34a', bg: '#f0fdf4', antColor: 'success' },
-  REJECTED: { label: 'Rejected', color: '#dc2626', bg: '#fef2f2', antColor: 'error' },
-  REWORK: { label: 'Rework', color: '#ea580c', bg: '#fff7ed', antColor: 'warning' },
+  ACCEPTED: { label: 'Accepted', color: '#9C27B0', bg: '#f5f3ff', antColor: 'purple' },
+  IN_PROGRESS: { label: 'In Progress', color: '#1976D2', bg: '#eef2ff', antColor: 'processing' },
+  SUBMITTED: { label: 'Submitted', color: '#ED6C02', bg: '#fff7ed', antColor: 'warning' },
+  UNDER_REVIEW: { label: 'Under Review', color: '#9C27B0', bg: '#f5f3ff', antColor: 'purple' },
+  APPROVED: { label: 'Approved', color: '#2E7D32', bg: '#ecfdf5', antColor: 'success' },
+  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: '#fef2f2', antColor: 'error' },
+  REWORK: { label: 'Rework', color: '#E65100', bg: '#fff7ed', antColor: 'warning' },
   RESUBMITTED: { label: 'Resubmitted', color: '#0288D1', bg: '#e0f2fe', antColor: 'processing' },
-  ESCALATED: { label: 'Escalated', color: '#dc2626', bg: '#fef2f2', antColor: 'error' },
+  ESCALATED: { label: 'Escalated', color: '#D32F2F', bg: '#fef2f2', antColor: 'error' },
   CANCELLED: { label: 'Cancelled', color: '#94a3b8', bg: '#f8fafc', antColor: 'default' },
 };
 
@@ -27,9 +27,9 @@ export const VALID_TRANSITIONS = {
 };
 
 export const SLA_STATUSES = {
-  WITHIN_SLA: { label: 'Within SLA', color: '#16a34a', bg: '#f0fdf4' },
-  AT_RISK: { label: 'At Risk', color: '#d97706', bg: '#fffbeb' },
-  BREACHED: { label: 'SLA Breached', color: '#dc2626', bg: '#fef2f2' },
+  WITHIN_SLA: { label: 'Within SLA', color: '#2E7D32', bg: '#ecfdf5' },
+  AT_RISK: { label: 'At Risk', color: '#ED6C02', bg: '#fff7ed' },
+  BREACHED: { label: 'SLA Breached', color: '#D32F2F', bg: '#fef2f2' },
 };
 
 export const FREQUENCIES = [
@@ -61,10 +61,10 @@ export const CATEGORIES = [
 ];
 
 export const PRIORITIES = {
-  CRITICAL: { label: 'Critical', color: '#dc2626', bg: '#fef2f2' },
-  HIGH: { label: 'High', color: '#ea580c', bg: '#fff7ed' },
-  MEDIUM: { label: 'Medium', color: '#d97706', bg: '#fffbeb' },
-  LOW: { label: 'Low', color: '#64748b', bg: '#f1f5f9' },
+  CRITICAL: { label: 'Critical', color: '#b91c1c', bg: '#fee2e2' },
+  HIGH: { label: 'High', color: '#c2410c', bg: '#ffedd5' },
+  MEDIUM: { label: 'Medium', color: '#b45309', bg: '#fef3c7' },
+  LOW: { label: 'Low', color: '#475569', bg: '#f1f5f9' },
 };
 
 export const TARGET_TYPES = [
@@ -179,15 +179,9 @@ export const CATEGORY_METRIC_CONFIG = {
   },
 };
 
-<<<<<<< HEAD
-/* Shared grid template for the task list — kept in sync between the list
-   header (TaskInstancesPage) and each row (PremiumTaskRow) so columns align. */
-export const TASK_LIST_GRID = '36px minmax(0, 2fr) 150px 72px 72px 88px 88px 76px minmax(132px, auto)';
-=======
 /* ─────────────────────────────────────────────────────────────────────────────
    Task-list column grid (single source of truth for the list view).
    Must match the grid used by PremiumTaskRow's root row element.
    ───────────────────────────────────────────────────────────────────────────── */
 
 export const TASK_LIST_GRID = '36px minmax(0,2fr) 140px 70px 70px 80px 80px 70px minmax(130px, auto)';
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77

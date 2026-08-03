@@ -134,6 +134,36 @@ function getNextDueDate(frequency, customCron, fromDate = new Date()) {
 }
 
 /**
+ * Lifecycle timestamps for a status transition.
+ * Pure + unit-testable. APPROVED stamps ReviewedAt + CompletedAt;
+ * REJECTED stamps ReviewedAt and clears CompletedAt.
+ */
+function getTransitionTimestamps(fromStatus, toStatus, now = new Date()) {
+  const t = {};
+  switch (toStatus) {
+    case 'ASSIGNED': t.AssignedAt = now; break;
+    case 'ACCEPTED': t.AcceptedAt = now; break;
+    case 'IN_PROGRESS': t.StartedAt = now; break;
+    case 'SUBMITTED': t.SubmittedAt = now; break;
+    case 'UNDER_REVIEW': t.ReviewedAt = now; break;
+    case 'APPROVED': t.ReviewedAt = now; t.CompletedAt = now; break;
+    case 'REJECTED': t.ReviewedAt = now; t.CompletedAt = null; break;
+    default: break;
+  }
+  return t;
+}
+
+/**
+ * Maps a review decision to the resulting workflow status.
+ * APPROVE → APPROVED · REWORK → REWORK · anything else → REJECTED.
+ */
+function resolveReviewTransition(decision) {
+  if (decision === 'APPROVE') return 'APPROVED';
+  if (decision === 'REWORK') return 'REWORK';
+  return 'REJECTED';
+}
+
+/**
  * Escalation rules:
  * 24h before SLA → notify assignee
  * 12h before SLA → notify reviewer
@@ -159,5 +189,6 @@ module.exports = {
   NOTIFICATION_TYPES,
   canTransition, getNextTransitions, calculateSLAStatus,
   calculateAchievement, calculateVariance, calculateProgress,
-  getNextDueDate, getEscalationLevel,
+  getNextDueDate, getEscalationLevel, getTransitionTimestamps,
+  resolveReviewTransition,
 };

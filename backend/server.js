@@ -11,6 +11,21 @@ const logger = require('./utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { errorHandler } = require('./utils/errors');
 
+// ── Resilience: never let a transient infra failure (DB / Redis / network)
+//    take the whole process down. Log loudly and keep serving. ──
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', {
+    error: (reason && (reason.message || reason)) || 'Unknown rejection',
+    stack: reason?.stack,
+  });
+});
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', {
+    error: err?.message || String(err),
+    stack: err?.stack,
+  });
+});
+
 // Memory monitoring - reduced frequency to every 30 minutes
 setInterval(() => {
   const mem = process.memoryUsage();
@@ -166,6 +181,9 @@ const pemsLiveSyncRoutes = require('./routes/pems/liveSyncTrackerRoutes');
 const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
+
+// Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
+app.use(require('./middleware/maintenanceMode'));
 
 app.use('/api', dataRoutes);
 app.use('/api', uploadRoutes);
@@ -721,6 +739,10 @@ server.listen(PORT, '0.0.0.0', () => {
   // Ensure PEMS event store table
   const eventStore = require('./services/pems/eventStore');
   eventStore.ensureEventStoreTable();
+
+  // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
+  const { runMigrationsAtStartup } = require('./database/migrate');
+  runMigrationsAtStartup();
 });
 
 // Make getPool available globally for socket handlers

@@ -107,21 +107,23 @@ async function getUserEmail(userId) {
   return result.recordset[0] || null;
 }
 
-async function triggerNotification(eventType, task, recipientId, details = {}) {
+async function triggerNotification(eventType, task, recipientId, details = {}, options = {}) {
   try {
     const pool = await getPool();
 
-    // Create in-app notification
-    await pool.request()
-      .input('id', sql.VarChar, genId())
-      .input('taskInstanceId', sql.VarChar, task.Id || task._id)
-      .input('userId', sql.VarChar, recipientId)
-      .input('type', sql.VarChar, eventType)
-      .input('title', sql.NVarChar, `${eventType.replace(/_/g, ' ').toLowerCase()}: ${task.Title || task.InstanceCode}`)
-      .input('message', sql.NVarChar, details.message || '')
-      .input('actionUrl', sql.NVarChar, details.actionUrl || '/pems/tasks')
-      .query(`INSERT INTO PemsNotifications (Id, TaskInstanceId, UserId, Type, Title, Message, ActionUrl) 
-              VALUES (@id, @taskInstanceId, @userId, @type, @title, @message, @actionUrl)`);
+    // Create in-app notification (skip when the queue processor already inserted it)
+    if (!options.skipInApp) {
+      await pool.request()
+        .input('id', sql.VarChar, genId())
+        .input('taskInstanceId', sql.VarChar, task.Id || task._id)
+        .input('userId', sql.VarChar, recipientId)
+        .input('type', sql.VarChar, eventType)
+        .input('title', sql.NVarChar, `${eventType.replace(/_/g, ' ').toLowerCase()}: ${task.Title || task.InstanceCode}`)
+        .input('message', sql.NVarChar, details.message || '')
+        .input('actionUrl', sql.NVarChar, details.actionUrl || '/pems/tasks')
+        .query(`INSERT INTO PemsNotifications (Id, TaskInstanceId, UserId, Type, Title, Message, ActionUrl) 
+                VALUES (@id, @taskInstanceId, @userId, @type, @title, @message, @actionUrl)`);
+    }
 
     // Send email notification
     const user = await getUserEmail(recipientId);
@@ -135,7 +137,7 @@ async function triggerNotification(eventType, task, recipientId, details = {}) {
 
     // Emit socket event for real-time update
     try {
-      const { SocketService } = require('../SocketService');
+      const { SocketService } = require('../socketService');
       const io = SocketService?.getIo?.();
       if (io) {
         io.emit('pems-notification', { type: eventType, taskId: task.Id, recipientId });

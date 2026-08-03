@@ -6,7 +6,7 @@ import {
   SafetyCertificateOutlined, DollarOutlined, ShoppingCartOutlined,
   WarningOutlined, BarChartOutlined
 } from '@ant-design/icons';
-import { WORKFLOW_STATUSES, VALID_TRANSITIONS, PRIORITIES, CATEGORY_METRIC_CONFIG, TASK_LIST_GRID } from '../constants';
+import { WORKFLOW_STATUSES, VALID_TRANSITIONS, PRIORITIES, CATEGORY_METRIC_CONFIG } from '../constants';
 import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
 import pemsApi from '../services/pemsApi';
 
@@ -17,8 +17,6 @@ const CATEGORY_BAR_COLORS = {
   ADS: '#EA580C', ANALYTICS: '#16A34A', COMPLIANCE: '#DC2626', GENERAL: '#64748B',
 };
 
-const TAG_S = { fontSize: 'var(--bc-text-2xs)', borderRadius: 'var(--bc-radius-sm)', margin: 0, lineHeight: '16px', padding: '0 5px', display: 'inline-flex', alignItems: 'center', gap: 2 };
-
 function CategoryMetrics({ task, categoryKey }) {
   if (categoryKey === 'PRICING') {
     const asp = task.SellingPrice || task.ASP;
@@ -27,17 +25,17 @@ function CategoryMetrics({ task, categoryKey }) {
     return (
       <Space size={4}>
         <Tooltip title={`ASP: $${asp ?? '—'}`}>
-          <Tag style={{ ...TAG_S, background: '#ecfeff', color: '#0891b2', border: '1px solid #cffafe' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', margin: 0, lineHeight: '16px', padding: '0 5px', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
             <DollarOutlined style={{ fontSize: 7 }} />${asp ?? '—'}
           </Tag>
         </Tooltip>
         <Tooltip title={`Std: $${sp ?? '—'}`}>
-          <Tag style={{ ...TAG_S, background: 'var(--bc-amber-50)', color: '#ea580c', border: '1px solid var(--bc-amber-200)' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', margin: 0, lineHeight: '16px', padding: '0 5px', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
             SP ${sp ?? '—'}
           </Tag>
         </Tooltip>
         {mismatch != null && (
-          <Tag style={{ ...TAG_S, background: mismatch > 5 ? 'var(--bc-red-50)' : 'var(--bc-green-50)', color: mismatch > 5 ? 'var(--bc-red-600)' : 'var(--bc-green-600)', border: `1px solid ${mismatch > 5 ? 'var(--bc-red-200)' : 'var(--bc-green-200)'}`, fontWeight: 600 }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: mismatch > 5 ? '#fef2f2' : '#f0fdf4', color: mismatch > 5 ? '#dc2626' : '#16a34a', border: `1px solid ${mismatch > 5 ? '#fecaca' : '#bbf7d0'}`, margin: 0, fontWeight: 600, lineHeight: '16px', padding: '0 5px' }}>
             {mismatch > 0 ? '+' : ''}{mismatch}%
           </Tag>
         )}
@@ -52,17 +50,17 @@ function CategoryMetrics({ task, categoryKey }) {
     return (
       <Space size={4}>
         <Tooltip title={`AI Health: ${score ?? '—'} / Target: ${target}`}>
-          <Tag style={{ ...TAG_S,
-            background: passing ? 'var(--bc-green-50)' : score >= 5 ? 'var(--bc-amber-50)' : 'var(--bc-red-50)',
-            color: passing ? 'var(--bc-green-600)' : score >= 5 ? 'var(--bc-amber-600)' : 'var(--bc-red-600)',
-            border: `1px solid ${passing ? 'var(--bc-green-200)' : score >= 5 ? 'var(--bc-amber-200)' : 'var(--bc-red-200)'}`,
-            fontWeight: 600, fontFamily: 'var(--bc-font-mono)',
+          <Tag style={{ fontSize: 9, borderRadius: 4, margin: 0, lineHeight: '16px', padding: '0 5px',
+            background: passing ? '#f0fdf4' : score >= 5 ? '#fffbeb' : '#fef2f2',
+            color: passing ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626',
+            border: `1px solid ${passing ? '#bbf7d0' : score >= 5 ? '#fde68a' : '#fecaca'}`,
+            fontWeight: 600, fontFamily: 'monospace',
           }}>
             <SafetyCertificateOutlined style={{ fontSize: 7 }} />{score ?? '—'}→{target}
           </Tag>
         </Tooltip>
         {task.ImagesMissing > 0 && (
-          <Tag style={{ ...TAG_S, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid var(--bc-red-200)' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>
             {task.ImagesMissing} img
           </Tag>
         )}
@@ -78,17 +76,17 @@ function CategoryMetrics({ task, categoryKey }) {
     return (
       <Space size={4}>
         <Tooltip title={`Stock: ${stock ?? '—'}`}>
-          <Tag style={{ ...TAG_S,
-            background: isOut ? 'var(--bc-red-50)' : isLow ? 'var(--bc-amber-50)' : 'var(--bc-green-50)',
-            color: isOut ? 'var(--bc-red-600)' : isLow ? 'var(--bc-amber-600)' : 'var(--bc-green-600)',
-            border: `1px solid ${isOut ? 'var(--bc-red-200)' : isLow ? 'var(--bc-amber-200)' : 'var(--bc-green-200)'}`,
+          <Tag style={{ fontSize: 9, borderRadius: 4, margin: 0, lineHeight: '16px', padding: '0 5px',
+            background: isOut ? '#fef2f2' : isLow ? '#fffbeb' : '#f0fdf4',
+            color: isOut ? '#dc2626' : isLow ? '#d97706' : '#16a34a',
+            border: `1px solid ${isOut ? '#fecaca' : isLow ? '#fde68a' : '#bbf7d0'}`,
             fontWeight: 600,
           }}>
             {stock ?? '—'} units
           </Tag>
         </Tooltip>
-        {isOut && <Tag style={{ ...TAG_S, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid var(--bc-red-200)' }}>OOS</Tag>}
-        {isLow && !isOut && <Tag style={{ ...TAG_S, background: 'var(--bc-amber-50)', color: 'var(--bc-amber-600)', border: '1px solid var(--bc-amber-200)' }}>Low</Tag>}
+        {isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>OOS</Tag>}
+        {isLow && !isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', margin: 0, lineHeight: '16px', padding: '0 5px' }}>Low</Tag>}
       </Space>
     );
   }
@@ -100,12 +98,12 @@ function CategoryMetrics({ task, categoryKey }) {
     return (
       <Space size={4}>
         <Tooltip title={`Spend: $${spend ?? '—'}`}>
-          <Tag style={{ ...TAG_S, background: 'var(--bc-amber-50)', color: '#ea580c', border: '1px solid var(--bc-amber-200)' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', margin: 0, lineHeight: '16px', padding: '0 5px' }}>
             <BarChartOutlined style={{ fontSize: 7 }} />${spend ?? '—'}
           </Tag>
         </Tooltip>
         {pct != null && (
-          <Tag style={{ ...TAG_S, background: pct > 80 ? 'var(--bc-red-50)' : 'var(--bc-green-50)', color: pct > 80 ? 'var(--bc-red-600)' : 'var(--bc-green-600)', border: `1px solid ${pct > 80 ? 'var(--bc-red-200)' : 'var(--bc-green-200)'}`, fontWeight: 600 }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: pct > 80 ? '#fef2f2' : '#f0fdf4', color: pct > 80 ? '#dc2626' : '#16a34a', border: `1px solid ${pct > 80 ? '#fecaca' : '#bbf7d0'}`, margin: 0, lineHeight: '16px', padding: '0 5px', fontWeight: 600 }}>
             {pct}%
           </Tag>
         )}
@@ -118,12 +116,12 @@ function CategoryMetrics({ task, categoryKey }) {
 
 function getSlaLevel(task) {
   const sla = task.SLAStatus;
-  if (sla === 'BREACHED') return { color: 'var(--bc-red-600)', bg: 'var(--bc-red-50)', label: 'Breached', level: 'critical' };
-  if (sla === 'AT_RISK') return { color: 'var(--bc-amber-600)', bg: 'var(--bc-amber-50)', label: 'At Risk', level: 'warning' };
+  if (sla === 'BREACHED') return { color: '#DC2626', bg: '#fef2f2', label: 'Breached', level: 'critical' };
+  if (sla === 'AT_RISK') return { color: '#EA580C', bg: '#fff7ed', label: 'At Risk', level: 'warning' };
   if (!task.DueDate) return null;
   const h = (new Date(task.DueDate) - new Date()) / (1000 * 60 * 60);
-  if (h < 12) return { color: 'var(--bc-amber-500)', bg: '#fefce8', label: '<12h', level: 'attention' };
-  return { color: 'var(--bc-green-600)', bg: 'var(--bc-green-50)', label: 'On Track', level: 'healthy' };
+  if (h < 12) return { color: '#EAB308', bg: '#fefce8', label: '<12h', level: 'attention' };
+  return { color: '#16A34A', bg: '#f0fdf4', label: 'On Track', level: 'healthy' };
 }
 
 export default function PremiumTaskRow({ task, index, selected, onSelect, onView, onRefresh }) {
@@ -196,15 +194,10 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
   };
 
   const btnStyle = (s) => {
-    if (s === 'IN_PROGRESS') return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
+    if (s === 'IN_PROGRESS') return { background: '#1976D2', borderColor: '#1976D2', color: '#fff' };
     if (s === 'SUBMITTED') return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
-<<<<<<< HEAD
-    if (s === 'CANCELLED') return { background: 'var(--bc-red-600)', borderColor: 'var(--bc-red-600)', color: '#fff' };
-    return { background: 'var(--bc-white)', borderColor: 'var(--bc-border-strong)', color: 'var(--bc-text-body)' };
-=======
     if (s === 'CANCELLED') return { background: '#D32F2F', borderColor: '#D32F2F', color: '#fff' };
     return { background: 'var(--bc-surface-card, #fff)', borderColor: 'var(--bc-border-strong, #d1d5db)', color: 'var(--bc-text-body, #374151)' };
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
   };
 
   return (
@@ -213,18 +206,13 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
         className={`pems-task-row${selected ? ' selected' : ''}`}
         style={{
           display: 'grid',
-          gridTemplateColumns: TASK_LIST_GRID,
+          gridTemplateColumns: '36px minmax(0,2fr) 140px 70px 70px 80px 80px 70px minmax(130px, auto)',
           alignItems: 'center',
           gap: 8,
           padding: '10px 16px',
-<<<<<<< HEAD
-          borderBottom: '1px solid var(--bc-border-subtle)',
-          background: selected ? 'var(--bc-blue-50)' : 'var(--bc-white)',
-=======
           borderBottom: '1px solid var(--bc-border-subtle, #f1f5f9)',
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
           cursor: 'pointer',
-          transition: 'background 0.1s ease',
+          transition: 'all 0.1s ease',
           position: 'relative'
         }}
         onClick={() => onView(task)}
@@ -243,27 +231,17 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
                 <ThunderboltOutlined style={{ color: '#0288D1', fontSize: 11, flexShrink: 0 }} />
               </Tooltip>
             )}
-<<<<<<< HEAD
-            <Text strong style={{ fontSize: 'var(--bc-text-sm)', color: 'var(--bc-text-heading)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-=======
             <Text strong style={{ fontSize: 13, color: 'var(--bc-text-heading, #0f172a)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
               {task.Title || 'Untitled'}
             </Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
             {isRuleTask && (
-              <Tag style={{ fontSize: 'var(--bc-text-2xs)', borderRadius: 'var(--bc-radius-sm)', background: '#e0f2fe', color: '#0288D1', border: 'none', margin: 0, lineHeight: '14px', padding: '0 4px', fontWeight: 600 }}>Auto</Tag>
+              <Tag style={{ fontSize: 8, borderRadius: 3, background: '#e0f2fe', color: '#0288D1', border: 'none', margin: 0, lineHeight: '14px', padding: '0 4px', fontWeight: 600 }}>Auto</Tag>
             )}
-<<<<<<< HEAD
-            <Text style={{ fontSize: 'var(--bc-text-2xs)', color: 'var(--bc-text-muted)', fontFamily: 'var(--bc-font-mono)' }}>{task.InstanceCode}</Text>
-            <Text style={{ fontSize: 'var(--bc-text-2xs)', color: 'var(--bc-text-muted)' }}>·</Text>
-            <Text style={{ fontSize: 'var(--bc-text-2xs)', color: 'var(--bc-text-muted)' }}>{task.SellerName || '-'}</Text>
-=======
             <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)', fontFamily: 'monospace' }}>{task.InstanceCode}</Text>
             <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>·</Text>
             <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>{task.SellerName || '-'}</Text>
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
           </div>
         </div>
 
@@ -273,29 +251,21 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           {task.AssigneeName ? (
-<<<<<<< HEAD
-            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--bc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
-              {task.AssigneeName.charAt(0)}
-            </div>
-          ) : <UserOutlined style={{ color: 'var(--bc-border-strong)', fontSize: 12 }} />}
-          <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.AssigneeName?.split(' ')[0] || '—'}</Text>
-=======
             <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--bc-ro-50, #E3F2FD)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-ro-500, #1976D2)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
               {task.AssigneeName.charAt(0)}
             </div>
           ) : <UserOutlined style={{ color: 'var(--bc-slate-300, #d1d5db)', fontSize: 12 }} />}
           <Text style={{ fontSize: 11, color: 'var(--bc-text-body, #334155)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.AssigneeName?.split(' ')[0] || '—'}</Text>
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
         </div>
 
         <div>
           {task.Priority && (
-            <Tag style={{ fontSize: 'var(--bc-text-2xs)', borderRadius: 6, background: prCfg.bg, color: prCfg.color, border: `1px solid ${prCfg.color}20`, fontWeight: 600, padding: '2px 6px', margin: 0 }}>{task.Priority}</Tag>
+            <Tag style={{ fontSize: 9, borderRadius: 6, background: prCfg.bg, color: prCfg.color, border: `1px solid ${prCfg.color}20`, fontWeight: 600, padding: '2px 6px', margin: 0 }}>{task.Priority}</Tag>
           )}
         </div>
 
         <div>
-          <Tag style={{ fontSize: 'var(--bc-text-xs)', borderRadius: 10, background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.color}25`, fontWeight: 600, padding: '2px 10px', margin: 0 }}>
+          <Tag style={{ fontSize: 10, borderRadius: 10, background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.color}25`, fontWeight: 600, padding: '2px 10px', margin: 0 }}>
             {statusCfg.label}
           </Tag>
         </div>
@@ -304,41 +274,29 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
           {slaLevel ? (
             <Tooltip title={`SLA: ${slaLevel.label}`}>
               <div style={{
-                fontSize: 'var(--bc-text-2xs)', fontWeight: 600, color: slaLevel.color,
-                background: slaLevel.bg, borderRadius: 'var(--bc-radius-sm)', padding: '1px 6px',
+                fontSize: 10, fontWeight: 600, color: slaLevel.color,
+                background: slaLevel.bg, borderRadius: 4, padding: '1px 6px',
                 border: `1px solid ${slaLevel.color}20`, textAlign: 'center', whiteSpace: 'nowrap',
               }}>
                 {slaLevel.label}
               </div>
             </Tooltip>
-<<<<<<< HEAD
-          ) : <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-disabled)' }}>—</Text>}
-=======
           ) : <Text style={{ fontSize: 11, color: 'var(--bc-slate-300, #d1d5db)' }}>—</Text>}
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
         </div>
 
         <div>
           {due ? (
             <Space size={3}>
               <CalendarOutlined style={{ fontSize: 10, color: due.color }} />
-              <Text style={{ fontSize: 'var(--bc-text-xs)', fontWeight: 600, color: due.color }}>{due.text}</Text>
+              <Text style={{ fontSize: 11, fontWeight: 600, color: due.color }}>{due.text}</Text>
             </Space>
-<<<<<<< HEAD
-          ) : <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-disabled)' }}>—</Text>}
-=======
           ) : <Text style={{ fontSize: 11, color: 'var(--bc-slate-300, #d1d5db)' }}>—</Text>}
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
         </div>
 
         <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Tooltip title="View details">
             <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => onView(task)}
-<<<<<<< HEAD
-              style={{ fontSize: 13, color: 'var(--bc-text-muted)', padding: '0 4px' }} />
-=======
               style={{ fontSize: 13, color: 'var(--bc-text-muted, #94a3b8)', padding: '0 4px' }} />
->>>>>>> 6957627aacacd9b2675c14e8ed4b5cb398e08c77
           </Tooltip>
           {!isRuleTask && nextStatuses.filter(s => s === 'IN_PROGRESS' || s === 'SUBMITTED').map(s => {
             const btnLabel = s === 'IN_PROGRESS' ? 'Start' : 'Submit';
@@ -381,16 +339,16 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
         width={480}
       >
         <div style={{ padding: '4px 0' }}>
-          <div style={{ padding: '8px 12px', background: 'var(--bc-amber-50)', border: '1px solid var(--bc-amber-200)', borderRadius: "var(--bc-radius-md)", marginBottom: 12 }}>
-            <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-amber-800)', fontWeight: 600 }}>Describe what work was done before submitting.</Text>
+          <div style={{ padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: "var(--radius-md)", marginBottom: 12 }}>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: '#92400e', fontWeight: 600 }}>Describe what work was done before submitting.</Text>
           </div>
-          <Text style={{ fontSize: 'var(--bc-text-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Work Summary <Text type="danger">*</Text></Text>
+          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Work Summary <Text type="danger">*</Text></Text>
           <Input.TextArea
             rows={4}
             value={submitRemarks}
             onChange={e => setSubmitRemarks(e.target.value)}
             placeholder={"• Completed all checklist items\n• Updated listings\n• Ready for review"}
-            style={{ borderRadius: "var(--bc-radius-md)" }}
+            style={{ borderRadius: "var(--radius-md)" }}
           />
         </div>
       </Modal>
