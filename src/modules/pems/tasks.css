@@ -259,6 +259,12 @@
    ────────────────────────────────────────────── */
 .pems-list-desktop { display: block; }
 .pems-mobile-only { display: none; }
+/* Switch to mobile cards early (incl. tablets) + hide the insights panel */
+@media (max-width: 960px) {
+  .pems-list-desktop { display: none; }
+  .pems-mobile-only { display: block; }
+  .pems-insights-panel { display: none; }
+}
 @media (max-width: 768px) {
   .pems-list-desktop { display: none; }
   .pems-mobile-only { display: block; }
