@@ -26,8 +26,8 @@ module.exports = {
     database: process.env.DB_NAME || 'retailops',
     port: parseInt(process.env.DB_PORT || '1433', 10),
     options: {
-      encrypt: true,
-      trustServerCertificate: false,
+      encrypt: process.env.DB_ENCRYPT !== 'false',
+      trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
       enableArithAbort: true,
       useUTC: false
     },
@@ -46,8 +46,8 @@ module.exports = {
     database: process.env.DB_READER_NAME || process.env.DB_NAME || 'retailops',
     port: parseInt(process.env.DB_READER_PORT || process.env.DB_PORT || '1433', 10),
     options: {
-      encrypt: true,
-      trustServerCertificate: false,
+      encrypt: process.env.DB_ENCRYPT !== 'false',
+      trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
       enableArithAbort: true,
       useUTC: false
     },

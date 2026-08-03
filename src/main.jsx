@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'rsuite/dist/rsuite-no-reset.min.css';
 import './styles/rsuite-overrides.css';
+import './styles/tokens.css';
 import './index.css'
 import './styles/global-overrides.css'
 import App from './App.jsx'
