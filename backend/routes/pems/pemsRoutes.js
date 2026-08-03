@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../../middleware/auth');
+const { auth, requirePermission } = require('../../middleware/auth');
+const { requireTaskAccess } = require('../../middleware/pemsAccess');
 const ctrl = require('../../controllers/pems/pemsController');
 const { cacheRoute, invalidateCache } = require('../../middleware/cache');
 
