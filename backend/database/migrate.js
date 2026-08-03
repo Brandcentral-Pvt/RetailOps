@@ -60,12 +60,15 @@ async function runMigrations({ quiet = false } = {}) {
 
     const mod = require(path.join(dir, file));
     try {
-      if (typeof mod.up === 'function') {
+      if (typeof mod === 'function') {
+        // Legacy shape: module.exports = async function (pool, sql) {...}
+        await mod(pool, sql);
+      } else if (typeof mod.up === 'function') {
         await mod.up(pool, sql);
       } else if (typeof mod.runMigration === 'function') {
         await mod.runMigration(); // legacy self-contained runner
       } else {
-        throw new Error(`Migration ${file} must export up() or runMigration()`);
+        throw new Error(`Migration ${file} must export up(), runMigration(), or be a function`);
       }
       await recordApplied(pool, file);
       results.applied += 1;
