@@ -1,5 +1,6 @@
-const { sql, getPool, generateId } = require('../../database/db');
-const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, WORKFLOW_STATUSES } = require('./workflowEngine');
+const { sql, getPool, generateId, withTransaction } = require('../../database/db');
+const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
+const { canActOnTask } = require('./pemsPolicy');
 const eventBus = require('../eventBus');
 const eventStore = require('./eventStore');
 const logger = require('../../utils/logger');
@@ -136,12 +137,19 @@ async function deleteTemplate(id) {
 // ═══════════════════════════════════════════════════════
 
 async function createInstance(data) {
-  const pool = await getPool();
+  return withTransaction(async (tx) => {
+  const pool = tx;
   const id = genId();
   const countResult = await pool.request().query('SELECT COUNT(*) as c FROM PemsTaskInstances');
   const instanceCode = genCode('TASK', countResult.recordset[0].c + 1);
   const now = new Date();
   const dueDate = data.dueDate || getNextDueDate(data.frequency || 'ONE_TIME');
+
+  // Resolve template defaults (department, SOP) once up-front
+  const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
+    .query('SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
+  const tplRow = tplResult.recordset[0];
+  const department = data.department || tplRow?.Department || 'Operations';
 
   await pool.request()
     .input('id', sql.VarChar, id)
@@ -153,6 +161,7 @@ async function createInstance(data) {
     .input('assigneeName', sql.NVarChar, data.assigneeName || '')
     .input('reviewerId', sql.VarChar, data.reviewerId || null)
     .input('reviewerName', sql.NVarChar, data.reviewerName || '')
+    .input('department', sql.NVarChar, department)
     .input('status', sql.VarChar, data.status || 'DRAFT')
     .input('reviewStatus', sql.VarChar, 'NOT_REVIEWED')
     .input('frequency', sql.VarChar, data.frequency || 'ONE_TIME')
@@ -170,12 +179,12 @@ async function createInstance(data) {
     .query(`
       INSERT INTO PemsTaskInstances
         (Id, InstanceCode, TemplateId, SellerId, SellerName, AssignedTo, AssigneeName,
-         ReviewerId, ReviewerName, Status, ReviewStatus, Frequency, Title, Description,
+         ReviewerId, ReviewerName, Department, Status, ReviewStatus, Frequency, Title, Description,
          Priority, Target, Achievement, SLAStatus, SLAHours, DueDate, AssignedAt,
          Attachments, Tags)
       VALUES
         (@id, @instanceCode, @templateId, @sellerId, @sellerName, @assignedTo, @assigneeName,
-         @reviewerId, @reviewerName, @status, @reviewStatus, @frequency, @title, @description,
+         @reviewerId, @reviewerName, @department, @status, @reviewStatus, @frequency, @title, @description,
          @priority, @target, @achievement, @slaStatus, @slaHours, @dueDate, @assignedAt,
          @attachments, @tags)
     `);
@@ -248,9 +257,10 @@ async function createInstance(data) {
     .query('UPDATE PemsTaskInstances SET SubTaskCount = @stCount, ActivityCount = @actCount WHERE Id = @instId');
 
   // Audit log
-  await writeAuditLog(id, 'CREATED', null, data.status || 'DRAFT', data.createdBy, data.assigneeName, 'Task instance created');
+  await writeAuditLog(id, 'CREATED', null, data.status || 'DRAFT', data.createdBy, data.assigneeName, 'Task instance created', tx);
 
   return { id, instanceCode };
+  });
 }
 
 async function getInstances(filters = {}) {
@@ -270,13 +280,15 @@ async function getInstances(filters = {}) {
   if (filters.dueAfter) { where += ' AND i.DueDate >= @dueAfter'; req.input('dueAfter', sql.DateTime2, new Date(filters.dueAfter)); }
   if (filters.search) { where += ' AND (i.Title LIKE @search OR i.InstanceCode LIKE @search OR i.SellerName LIKE @search)'; req.input('search', sql.NVarChar, `%${filters.search}%`); }
   if (filters.templateId) { where += ' AND i.TemplateId = @templateId'; req.input('templateId', sql.VarChar, filters.templateId); }
+  if (filters.department) { where += ' AND i.Department = @department'; req.input('department', sql.NVarChar, filters.department); }
+  if (filters.frequency) { where += ' AND i.Frequency = @frequency'; req.input('frequency', sql.VarChar, filters.frequency); }
 
   const page = parseInt(filters.page) || 1;
   const limit = parseInt(filters.limit) || 25;
   const offset = (page - 1) * limit;
   const sortBy = filters.sortBy || 'CreatedAt';
   const sortOrder = filters.sortOrder === 'asc' ? 'ASC' : 'DESC';
-  const allowedSorts = ['CreatedAt', 'DueDate', 'Priority', 'Status', 'AchievementPct', 'SLAStatus', 'InstanceCode'];
+  const allowedSorts = ['CreatedAt', 'DueDate', 'Priority', 'Status', 'AchievementPct', 'SLAStatus', 'InstanceCode', 'Department', 'Frequency'];
   const sortCol = allowedSorts.includes(sortBy) ? sortBy : 'CreatedAt';
 
   const countReq = pool.request();
@@ -352,6 +364,7 @@ async function getInstances(filters = {}) {
         AchievementPct: 0,
         subTasks: [],
         _isRuleTask: true,
+        IsRuleTask: true,
       }));
       instances = [...ruleTasks, ...instances];
     } catch (e) { console.error('Failed to fetch rule tasks:', e.message); }
@@ -381,10 +394,18 @@ async function getInstanceById(id) {
     .query('SELECT * FROM PemsSubTasks WHERE TaskInstanceId = @instanceId ORDER BY SortOrder');
   instance.subTasks = subTasks.recordset;
 
-  for (const st of instance.subTasks) {
-    const acts = await pool.request().input('subTaskId', sql.VarChar, st.Id)
-      .query('SELECT * FROM PemsActivities WHERE SubTaskId = @subTaskId ORDER BY StepNo');
-    st.activities = acts.recordset.map(a => ({ ...a, SupportDocuments: safeParse(a.SupportDocuments, []) }));
+  if (instance.subTasks.length > 0) {
+    const ids = instance.subTasks.map(s => s.Id);
+    const placeholders = ids.map((_, i) => `@id${i}`).join(',');
+    const req3 = pool.request();
+    ids.forEach((id, i) => req3.input(`id${i}`, sql.VarChar, id));
+    const acts = await req3.query(`SELECT * FROM PemsActivities WHERE SubTaskId IN (${placeholders}) ORDER BY StepNo`);
+    const actMap = {};
+    acts.recordset.forEach(a => {
+      if (!actMap[a.SubTaskId]) actMap[a.SubTaskId] = [];
+      actMap[a.SubTaskId].push({ ...a, SupportDocuments: safeParse(a.SupportDocuments, []) });
+    });
+    instance.subTasks.forEach(st => { st.activities = actMap[st.Id] || []; });
   }
 
   const evidence = await pool.request().input('instanceId', sql.VarChar, id)
@@ -406,8 +427,8 @@ async function getInstanceById(id) {
 // WORKFLOW TRANSITIONS
 // ═══════════════════════════════════════════════════════
 
-async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details) {
-  const pool = await getPool();
+async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, tx) {
+  const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
     .query('SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances WHERE Id = @id');
@@ -419,15 +440,7 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   }
 
   const now = new Date();
-  const timeFields = {};
-  switch (toStatus) {
-    case 'ASSIGNED': timeFields.AssignedAt = now; break;
-    case 'ACCEPTED': timeFields.AcceptedAt = now; break;
-    case 'IN_PROGRESS': timeFields.StartedAt = now; break;
-    case 'SUBMITTED': timeFields.SubmittedAt = now; break;
-    case 'UNDER_REVIEW': case 'APPROVED': case 'REJECTED': timeFields.ReviewedAt = now; break;
-    case 'APPROVED': case 'REJECTED': timeFields.CompletedAt = toStatus === 'APPROVED' ? now : null; break;
-  }
+  const timeFields = getTransitionTimestamps(instance.Status, toStatus, now);
 
   const sets = ['Status = @status', 'UpdatedAt = dbo.GetEnvDate()'];
   const req = pool.request().input('id', sql.VarChar, taskInstanceId).input('status', sql.VarChar, toStatus);
@@ -460,7 +473,7 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
 
   await req.query(`UPDATE PemsTaskInstances SET ${sets.join(', ')} WHERE Id = @id`);
 
-  await writeAuditLog(taskInstanceId, 'STATUS_CHANGED', instance.Status, toStatus, actorId, actorName, details || `Status changed to ${toStatus}`);
+  await writeAuditLog(taskInstanceId, 'STATUS_CHANGED', instance.Status, toStatus, actorId, actorName, details || `Status changed to ${toStatus}`, tx);
 
   // ── Event Store (append-only) ──
   try {
@@ -504,12 +517,51 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   return { success: true, from: instance.Status, to: toStatus };
 }
 
+/**
+ * Bulk transition for a list of task ids.
+ * Validates each task independently — non-transitionable / missing tasks are
+ * skipped, not failed. Returns per-id results for the UI.
+ */
+async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, details) {
+  if (!Array.isArray(taskIds) || taskIds.length === 0) throw new Error('No task ids provided');
+  if (!WORKFLOW_STATUSES[toStatus]) throw new Error(`Unknown status: ${toStatus}`);
+  if (taskIds.length > 200) throw new Error('Too many tasks (max 200 per bulk operation)');
+
+  const pool = await getPool();
+  const updated = [];
+  const skipped = [];
+
+  for (const id of taskIds) {
+    try {
+      const inst = await pool.request().input('id', sql.VarChar, id)
+        .query('SELECT Status, AssignedTo, ReviewerId FROM PemsTaskInstances WHERE Id = @id');
+      const row = inst.recordset[0];
+      if (!row) { skipped.push({ id, reason: 'NOT_FOUND' }); continue; }
+      if (!canActOnTask({ Id: actorId, role: actorRole }, row)) {
+        skipped.push({ id, reason: 'NO_ACCESS' });
+        continue;
+      }
+      if (!canTransition(row.Status, toStatus)) {
+        skipped.push({ id, reason: `INVALID_TRANSITION:${row.Status}->${toStatus}` });
+        continue;
+      }
+      await transitionStatus(id, toStatus, actorId, actorName, actorRole, details);
+      updated.push(id);
+    } catch (err) {
+      skipped.push({ id, reason: err.message || 'ERROR' });
+    }
+  }
+
+  return { updated, skipped, updatedCount: updated.length, skippedCount: skipped.length };
+}
+
 // ═══════════════════════════════════════════════════════
 // SUB TASKS
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
-  const pool = await getPool();
+  return withTransaction(async (tx) => {
+  const pool = tx;
   await pool.request()
     .input('id', sql.VarChar, subTaskId)
     .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id");
@@ -530,9 +582,10 @@ async function completeSubTask(subTaskId, actorId, actorName) {
       .input('pct', sql.Decimal(5, 2), progressPct)
       .input('wp', sql.Decimal(5, 2), weightedProgress)
       .query('UPDATE PemsTaskInstances SET CompletedSubTasks = @done, ProgressPct = @pct, WeightedProgressPct = @wp WHERE Id = @instId');
-    await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`);
+    await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`, tx);
     eventBus.emit(eventBus.EVENTS.SUBTASK_COMPLETED, { taskInstanceId: instId, subTaskId, actorId, actorName });
   }
+  });
 }
 
 async function completeActivity(activityId, actorId, actorName) {
@@ -575,8 +628,8 @@ async function uploadEvidence(data) {
 // REVIEWS
 // ═══════════════════════════════════════════════════════
 
-async function submitReview(data) {
-  const pool = await getPool();
+async function submitReview(data, tx) {
+  const pool = tx || (await getPool());
   const id = genId();
   await pool.request()
     .input('id', sql.VarChar, id)
@@ -594,6 +647,24 @@ async function submitReview(data) {
     `);
 
   return { id };
+}
+
+/**
+ * Insert the review AND apply its workflow transition atomically.
+ * decision APPROVE → APPROVED · REWORK → REWORK · else REJECTED.
+ */
+async function submitReviewAndTransition(data, actor) {
+  return withTransaction(async (tx) => {
+    const review = await submitReview(data, tx);
+    await transitionStatus(
+      data.taskInstanceId,
+      resolveReviewTransition(data.decision),
+      actor.id, actor.name, actor.role,
+      data.feedback,
+      tx
+    );
+    return review;
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -723,8 +794,8 @@ async function getSellerPerformance(filters = {}) {
 // UTILITIES
 // ═══════════════════════════════════════════════════════
 
-async function writeAuditLog(taskInstanceId, action, fromStatus, toStatus, actorId, actorName, details) {
-  const pool = await getPool();
+async function writeAuditLog(taskInstanceId, action, fromStatus, toStatus, actorId, actorName, details, tx) {
+  const pool = tx || (await getPool());
   await pool.request()
     .input('id', sql.VarChar, genId())
     .input('taskInstanceId', sql.VarChar, taskInstanceId)
@@ -757,6 +828,7 @@ function applyFilterInputs(req, filters) {
   if (filters.search) req.input('search', sql.NVarChar, `%${filters.search}%`);
   if (filters.templateId) req.input('templateId', sql.VarChar, filters.templateId);
   if (filters.department) req.input('department', sql.NVarChar, filters.department);
+  if (filters.frequency) req.input('frequency', sql.VarChar, filters.frequency);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -901,7 +973,8 @@ async function checkEscalations() {
       .input('offset', sql.Int, offset)
       .input('limit', sql.Int, BATCH_SIZE)
       .query(`
-        SELECT Id, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Status, SLAStatus, Title
+        SELECT Id, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours,
+               Status, SLAStatus, Title, LastSlaWarningAt, LastSlaBreachAt
         FROM PemsTaskInstances
         WHERE Status NOT IN ('APPROVED', 'CANCELLED')
         AND DueDate IS NOT NULL
@@ -927,14 +1000,31 @@ async function checkEscalations() {
         }).catch(() => {});
       }
 
-      if (level === 'assignee' && task.AssignedTo) {
-        await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_WARNING', title: `SLA Warning: ${task.Title}`, message: `Task due in less than 24 hours`, actionUrl: `/pems/tasks?id=${task.Id}` });
+      // Notification dedup: warn at most once per 12h, breach at most once per 24h
+      const now2 = new Date();
+      const H12 = 12 * 60 * 60 * 1000;
+      const H24 = 24 * 60 * 60 * 1000;
+      const lastWarn = task.LastSlaWarningAt ? new Date(task.LastSlaWarningAt).getTime() : 0;
+      const lastBreach = task.LastSlaBreachAt ? new Date(task.LastSlaBreachAt).getTime() : 0;
+      const warnDue = (now2.getTime() - lastWarn) >= H12;
+      const breachDue = (now2.getTime() - lastBreach) >= H24;
+
+      if (warnDue && (level === 'assignee' || level === 'reviewer')) {
+        if (level === 'assignee' && task.AssignedTo) {
+          await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_WARNING', title: `SLA Warning: ${task.Title}`, message: `Task due in less than 24 hours`, actionUrl: `/pems/tasks?id=${task.Id}` });
+          await pool.request().input('id', sql.VarChar, task.Id).input('t', sql.DateTime2, now2)
+            .query('UPDATE PemsTaskInstances SET LastSlaWarningAt = @t WHERE Id = @id');
+        }
+        if (level === 'reviewer' && task.ReviewerId) {
+          await createNotification({ taskInstanceId: task.Id, userId: task.ReviewerId, type: 'SLA_WARNING', title: `SLA Urgent: ${task.Title}`, message: `Task due in less than 12 hours, review needed`, actionUrl: `/pems/tasks?id=${task.Id}` });
+          await pool.request().input('id', sql.VarChar, task.Id).input('t', sql.DateTime2, now2)
+            .query('UPDATE PemsTaskInstances SET LastSlaWarningAt = @t WHERE Id = @id');
+        }
       }
-      if (level === 'reviewer' && task.ReviewerId) {
-        await createNotification({ taskInstanceId: task.Id, userId: task.ReviewerId, type: 'SLA_WARNING', title: `SLA Urgent: ${task.Title}`, message: `Task due in less than 12 hours, review needed`, actionUrl: `/pems/tasks?id=${task.Id}` });
-      }
-      if (level === 'manager' || level === 'admin') {
+      if (breachDue && (level === 'manager' || level === 'admin') && task.AssignedTo) {
         await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_BREACH', title: `SLA BREACHED: ${task.Title}`, message: `Task has breached its SLA deadline`, actionUrl: `/pems/tasks?id=${task.Id}` });
+        await pool.request().input('id', sql.VarChar, task.Id).input('t', sql.DateTime2, now2)
+          .query('UPDATE PemsTaskInstances SET LastSlaBreachAt = @t WHERE Id = @id');
       }
       escalated++;
     }
@@ -1156,6 +1246,8 @@ async function recalculateAllWeightedProgress() {
 }
 
 module.exports = {
+  bulkTransition,
+  submitReviewAndTransition,
   createTemplate, getTemplates, getTemplateById, updateTemplate, deleteTemplate,
   createInstance, getInstances, getInstanceById,
   transitionStatus,
