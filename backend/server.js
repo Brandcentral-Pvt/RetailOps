@@ -11,6 +11,21 @@ const logger = require('./utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { errorHandler } = require('./utils/errors');
 
+// ── Resilience: never let a transient infra failure (DB / Redis / network)
+//    take the whole process down. Log loudly and keep serving. ──
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', {
+    error: (reason && (reason.message || reason)) || 'Unknown rejection',
+    stack: reason?.stack,
+  });
+});
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', {
+    error: err?.message || String(err),
+    stack: err?.stack,
+  });
+});
+
 // Memory monitoring - reduced frequency to every 30 minutes
 setInterval(() => {
   const mem = process.memoryUsage();

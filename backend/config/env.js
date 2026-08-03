@@ -1,3 +1,5 @@
+const net = require('net');
+
 const requiredEnvVars = [
   'DB_USER',
   'DB_PASSWORD',
@@ -17,6 +19,20 @@ if (!process.env.JWT_REFRESH_SECRET) {
   process.env.JWT_REFRESH_SECRET = process.env.JWT_SECRET;
 }
 
+// Node 24+/26 refuses TLS `servername` set to an IP literal. For IP hosts,
+// TLS is disabled unless DB_ENCRYPT=true is set explicitly.
+const isIpLiteral = (host) => !!host && net.isIP(host) !== 0;
+
+function resolveSqlOptions(host, { trustServerCertificate = false } = {}) {
+  const encryptOverride = process.env.DB_ENCRYPT;
+  return {
+    encrypt: encryptOverride !== undefined ? encryptOverride === 'true' : !isIpLiteral(host),
+    trustServerCertificate,
+    enableArithAbort: true,
+    useUTC: false
+  };
+}
+
 module.exports = {
   port: parseInt(process.env.PORT || '3001', 10),
   db: {
@@ -25,12 +41,9 @@ module.exports = {
     server: process.env.DB_SERVER,
     database: process.env.DB_NAME || 'retailops',
     port: parseInt(process.env.DB_PORT || '1433', 10),
-    options: {
-      encrypt: true,
-      trustServerCertificate: false,
-      enableArithAbort: true,
-      useUTC: false
-    },
+    options: resolveSqlOptions(process.env.DB_SERVER, {
+      trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true'
+    }),
     pool: {
       max: parseInt(process.env.DB_POOL_MAX || '50', 10),
       min: parseInt(process.env.DB_POOL_MIN || '5', 10),
@@ -45,12 +58,9 @@ module.exports = {
     server: process.env.DB_READER_SERVER,
     database: process.env.DB_READER_NAME || process.env.DB_NAME || 'retailops',
     port: parseInt(process.env.DB_READER_PORT || process.env.DB_PORT || '1433', 10),
-    options: {
-      encrypt: true,
-      trustServerCertificate: false,
-      enableArithAbort: true,
-      useUTC: false
-    },
+    options: resolveSqlOptions(process.env.DB_READER_SERVER, {
+      trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true'
+    }),
     pool: {
       max: parseInt(process.env.DB_READER_POOL_MAX || '100', 10),
       min: parseInt(process.env.DB_READER_POOL_MIN || '10', 10),
