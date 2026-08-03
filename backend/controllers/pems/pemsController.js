@@ -59,18 +59,6 @@ exports.deleteTemplate = async (req, res) => {
   }
 };
 
-exports.getFilterOptions = async (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      frequencies: Object.values(FREQUENCIES),
-      categories: Object.values(CATEGORIES),
-      priorities: Object.values(PRIORITIES),
-      statuses: Object.values(WORKFLOW_STATUSES),
-    }
-  });
-};
-
 // ═══════════════════════════════════════════════════════
 // TASK INSTANCES
 // ═══════════════════════════════════════════════════════
@@ -117,6 +105,21 @@ exports.transitionStatus = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (err) {
     console.error('transitionStatus error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.bulkTransition = async (req, res) => {
+  try {
+    const { ids, toStatus, details } = req.body;
+    const result = await pemsService.bulkTransition(
+      ids, toStatus,
+      getUserId(req), getUserName(req) || req.user?.email, req.user?.role,
+      details
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('bulkTransition error:', err);
     res.status(400).json({ success: false, error: err.message });
   }
 };
@@ -183,12 +186,12 @@ exports.submitReview = async (req, res) => {
       reviewerName: getUserName(req) || req.user?.email,
     });
 
-    // Auto-transition based on decision
-    if (req.body.decision === 'APPROVE') {
-      await pemsService.transitionStatus(req.body.taskInstanceId, 'APPROVED', getUserId(req), getUserName(req), req.user?.role, req.body.feedback);
-    } else {
-      await pemsService.transitionStatus(req.body.taskInstanceId, 'REJECTED', getUserId(req), getUserName(req), req.user?.role, req.body.feedback);
-    }
+    // Review insert + workflow transition applied atomically
+    await pemsService.submitReviewAndTransition(req.body, {
+      id: getUserId(req),
+      name: getUserName(req) || req.user?.email,
+      role: req.user?.role,
+    });
 
     res.json({ success: true, data: result });
   } catch (err) {

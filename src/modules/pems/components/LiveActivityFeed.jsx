@@ -10,10 +10,10 @@ dayjs.extend(relativeTime);
 const { Text } = Typography;
 
 const ACTION_CONFIG = {
-  CREATED: { icon: <ThunderboltOutlined style={{ fontSize: 9 }} />, color: '#2563eb', bg: '#eff6ff' },
-  STATUS_CHANGED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: '#2E7D32', bg: '#f0fdf4' },
-  SUBTASK_COMPLETED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: '#2E7D32', bg: '#f0fdf4' },
-  EVIDENCE_UPLOADED: { icon: <EditOutlined style={{ fontSize: 9 }} />, color: '#9333ea', bg: '#f5f3ff' },
+  CREATED: { icon: <ThunderboltOutlined style={{ fontSize: 9 }} />, color: 'var(--bc-blue-600)', bg: 'var(--bc-blue-50)' },
+  STATUS_CHANGED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: 'var(--bc-green-600)', bg: 'var(--bc-green-50)' },
+  SUBTASK_COMPLETED: { icon: <CheckCircleOutlined style={{ fontSize: 9 }} />, color: 'var(--bc-green-600)', bg: 'var(--bc-green-50)' },
+  EVIDENCE_UPLOADED: { icon: <EditOutlined style={{ fontSize: 9 }} />, color: 'var(--bc-violet-600)', bg: 'var(--bc-violet-50)' },
 };
 
 export default function LiveActivityFeed({ compact = false }) {
@@ -48,35 +48,35 @@ export default function LiveActivityFeed({ compact = false }) {
 
   if (compact) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: '#f8fafc', border: '1px solid #f1f5f9', maxWidth: 300, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: 'var(--bc-surface-subtle)', border: '1px solid var(--bc-border-subtle)', maxWidth: 300, overflow: 'hidden' }}>
         <div style={{ width: 18, height: 18, borderRadius: 5, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
           {cfg.icon}
         </div>
-        <Text style={{ fontSize: 10, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <Text style={{ fontSize: 10, color: 'var(--bc-text-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           <Text strong>{current.ActorName || 'System'}</Text> {current.Action.replace(/_/g, ' ').toLowerCase()}
-          {current.InstanceCode && <> <Text style={{ color: '#2563eb' }}>{current.InstanceCode}</Text></>}
+          {current.InstanceCode && <> <Text style={{ color: 'var(--bc-blue-600)' }}>{current.InstanceCode}</Text></>}
         </Text>
-        <Text style={{ fontSize: 9, color: '#94a3b8', whiteSpace: 'nowrap', flexShrink: 0 }}>{dayjs(current.CreatedAt).fromNow()}</Text>
+        <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{dayjs(current.CreatedAt).fromNow()}</Text>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: "var(--radius-md)", background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: "var(--bc-radius-md)", background: 'var(--bc-surface-subtle)', border: '1px solid var(--bc-border-subtle)' }}>
       <div style={{ width: 20, height: 20, borderRadius: 5, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
         {cfg.icon}
       </div>
-      <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155', flex: 1 }}>
+      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-body)', flex: 1 }}>
         <Text strong>{current.ActorName || 'System'}</Text>{' '}
         {current.Action.replace(/_/g, ' ').toLowerCase()}
-        {current.InstanceCode && <> <Text strong style={{ color: '#2563eb' }}>{current.InstanceCode}</Text></>}
+        {current.InstanceCode && <> <Text strong style={{ color: 'var(--bc-blue-600)' }}>{current.InstanceCode}</Text></>}
         {current.Title && <> — {current.Title}</>}
       </Text>
-      <Text style={{ fontSize: 10, color: '#94a3b8', whiteSpace: 'nowrap' }}>{dayjs(current.CreatedAt).fromNow()}</Text>
+      <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', whiteSpace: 'nowrap' }}>{dayjs(current.CreatedAt).fromNow()}</Text>
       {/* Dots indicator */}
       <div style={{ display: 'flex', gap: 3 }}>
         {activities.slice(0, 5).map((_, i) => (
-          <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: i === currentIdx ? '#2563eb' : '#d1d5db' }} />
+          <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: i === currentIdx ? 'var(--bc-blue-600)' : 'var(--bc-border-strong)' }} />
         ))}
       </div>
     </div>
