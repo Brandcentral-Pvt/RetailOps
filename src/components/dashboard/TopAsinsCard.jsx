@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import {
     Trophy,
     Package, ArrowUpRight, BarChart3, Star,
-    ChevronRight, Search, Filter, Eye, ShoppingBag, Loader2
+    ChevronRight, Search, Filter, Eye, ShoppingBag
 } from 'lucide-react';
 import { formatNumber, formatCurrency } from './utils';
 import AsinRow from './AsinRow';
@@ -62,7 +62,7 @@ const ProductList = memo(({ products, maxValue, sortBy }) => {
                     justifyContent: 'center',
                     gap: 8
                 }}>
-                    <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                    <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" />
                     Loading more products...
                 </div>
             )}

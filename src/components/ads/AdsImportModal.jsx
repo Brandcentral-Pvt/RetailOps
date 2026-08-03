@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, Segmented, DatePicker, Upload, Alert, Button, Typography, Space } from 'antd';
-import { FileType, Loader2, X } from 'lucide-react';
+import { FileType, X } from 'lucide-react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { InboxOutlined } from '@ant-design/icons';
@@ -268,7 +268,7 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                                             {fileStatus.status === 'uploading' && (
                                                 <div className="d-flex align-items-center gap-2">
                                                     <span className="text-primary fw-bold" style={{ fontSize: 'var(--font-size-xs)' }}>{fileStatus.progress}%</span>
-                                                    <Loader2 size={12} className="animate-spin text-primary" />
+                                                    <span className="icon-[svg-spinners--eclipse] text-primary" style={{ fontSize: 12 }} aria-hidden="true" />
                                                 </div>
                                             )}
                                             {fileStatus.status === 'success' && (

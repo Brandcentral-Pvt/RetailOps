@@ -407,7 +407,7 @@ const SettingsPage = () => {
                                 <Divider style={{ margin: '8px 0' }} />
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                                     <Button
-                                        icon={<RefreshCw size={13} strokeWidth={2} className={testingOctoparse ? 'spin-animation' : ''} />}
+                                        icon={<RefreshCw size={13} strokeWidth={2} />}
                                         loading={testingOctoparse}
                                         onClick={handleTestOctoparse}
                                         style={{ borderRadius: 6, fontWeight: 600, fontSize: 'var(--font-size-sm)', height: 34 }}

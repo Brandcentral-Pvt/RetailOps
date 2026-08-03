@@ -286,7 +286,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             shape="circle"
                             onClick={handleRefresh}
                             disabled={loading}
-                            icon={<RefreshCw size={14} className={loading ? 'spin-animation' : ''} />}
+                            icon={loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
                         />
                         <Button
                             type="text"

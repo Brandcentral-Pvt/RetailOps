@@ -1,25 +1,26 @@
 import React from 'react';
 import { Spin } from 'antd';
-import { LoadingOutlined } from '@ant-design/icons';
 
 // Primary brand color of RetailOps is #1976D2
 const antIcon = (
-  <LoadingOutlined
+  <span
+    className="icon-[svg-spinners--eclipse]"
     style={{
       fontSize: 28,
       color: '#1976D2',
     }}
-    spin
+    aria-hidden="true"
   />
 );
 
 const antIconSmall = (
-  <LoadingOutlined
+  <span
+    className="icon-[svg-spinners--eclipse]"
     style={{
       fontSize: 18,
       color: '#1976D2',
     }}
-    spin
+    aria-hidden="true"
   />
 );
 

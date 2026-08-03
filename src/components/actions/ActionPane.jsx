@@ -236,7 +236,7 @@ const ActionPane = ({
                                             <div className="relative z-10 text-sm text-slate-300 leading-relaxed markdown-content prose prose-invert prose-sm max-w-none">
                                                 {analyzing ? (
                                                     <div className="flex items-center gap-2 py-4 text-indigo-400">
-                                                        <Activity className="animate-spin" size={16} />
+                                                        <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 16, color: '#a5b4fc' }} aria-hidden="true" />
                                                         <span className="font-bold tracking-tight">Synthesizing listing optimization flow...</span>
                                                     </div>
                                                 ) : (
@@ -253,7 +253,7 @@ const ActionPane = ({
                                                 disabled={analyzing}
                                                 className="mt-6 w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                             >
-                                                {analyzing ? <Activity className="animate-spin" size={14} /> : <Sparkles size={14} />}
+                                                {analyzing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <Sparkles size={14} />}
                                                 {analyzing ? 'Analyzing...' : 'Analyze Action Viability'}
                                             </button>
                                         </div>

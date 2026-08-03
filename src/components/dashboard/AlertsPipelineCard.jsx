@@ -654,7 +654,7 @@ const AlertsPipelineCard = ({
                                     alignItems: 'center',
                                     gap: 4
                                 }}>
-                                    <Loader2 size={11} className="spinning-icon" />
+                                    <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 11 }} aria-hidden="true" />
                                     {pipelineStats.running} active
                                 </span>
                             )}
@@ -772,7 +772,7 @@ const AlertsPipelineCard = ({
                     >
                         {syncLoading ? (
                             <>
-                                <Loader2 size={14} className="spinning-icon" strokeWidth={2.5} />
+                                <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" />
                                 Syncing Pipeline...
                             </>
                         ) : (

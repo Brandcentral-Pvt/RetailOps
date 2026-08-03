@@ -84,9 +84,7 @@ const ChatContainer = () => {
                     <CometChatHome />
                 ) : isLoggingIn ? (
                     <div className="h-100 d-flex flex-column align-items-center justify-content-center bg-light">
-                        <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
+                        <span className="icon-[svg-spinners--eclipse] text-primary mb-3" role="status" style={{ fontSize: '3rem' }} aria-label="Loading"></span>
                         <h4 className="text-dark mb-1">Initializing Chat</h4>
                         <p className="text-muted">Please wait while we connect you...</p>
                     </div>

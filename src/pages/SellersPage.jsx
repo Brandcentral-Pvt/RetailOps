@@ -809,7 +809,7 @@ const SellersPage = () => {
         </Tooltip>
         <Tooltip title="Sync Store">
           <Button type="text" size="small"
-            icon={<RefreshCw size={14} className={isSyncing ? styles.spin : ''} />}
+            icon={isSyncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
             loading={isSyncing}
             onClick={() => handleSyncSeller(seller._id)}
             style={{ color: 'var(--text-muted, #94a3b8)' }} />
@@ -1078,7 +1078,7 @@ const SellersPage = () => {
           borderBottom: '1px solid #EF9A9A',
           display: 'flex', alignItems: 'center', gap: 12
         }}>
-          <Zap size={14} className={styles.spin} style={{ color: 'var(--text-danger, #D32F2F)' }} />
+          <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14, color: 'var(--text-danger, #D32F2F)' }} aria-hidden="true" />
           <Text style={{ color: 'var(--text-danger, #D32F2F)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
             Global Live Sync Running
           </Text>

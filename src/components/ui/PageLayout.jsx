@@ -1,8 +1,14 @@
 import React from 'react';
 import { Spin, Empty, Result, Skeleton, Button } from 'antd';
-import { LoadingOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons';
+import { ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 
-const antIcon = <LoadingOutlined style={{ fontSize: 'var(--font-size-2xl)', color: '#4F46E5' }} spin />;
+const antIcon = (
+  <span
+    className="icon-[svg-spinners--eclipse]"
+    style={{ fontSize: 'var(--font-size-2xl)', color: '#4F46E5' }}
+    aria-hidden="true"
+  />
+);
 
 export function PageHeader({ title, subtitle, icon, actions, breadcrumbs }) {
   return (

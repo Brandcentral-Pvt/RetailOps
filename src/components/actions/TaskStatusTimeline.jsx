@@ -2,7 +2,7 @@ import React from 'react';
 import { Timeline, Tag } from 'antd';
 import {
   CalendarOutlined, PlayCircleOutlined, SendOutlined,
-  CloseCircleOutlined, CheckCircleOutlined, LoadingOutlined
+  CloseCircleOutlined, CheckCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -126,7 +126,7 @@ const TaskStatusTimeline = ({ task, compact = false }) => {
   // 5. Awaiting Review (Active status is REVIEW and pending)
   if (task.status === 'REVIEW') {
     timelineItems.push({
-      dot: <LoadingOutlined style={{ color: '#9C27B0', fontSize: compact ? 12 : 14 }} spin />,
+      dot: <span className="icon-[svg-spinners--eclipse]" style={{ color: '#9C27B0', fontSize: compact ? 12 : 14 }} aria-hidden="true"></span>,
       label: 'Reviewing',
       color: 'purple',
       children: (

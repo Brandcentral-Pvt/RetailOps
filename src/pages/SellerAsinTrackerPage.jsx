@@ -191,7 +191,7 @@ const TimelineItem = memo(({ activity }) => {
         flexShrink: 0,
         border: `1px solid ${config.color}25`
       }}>
-        <Icon size={15} strokeWidth={2} className={isAnimated ? styles.spinAnimation : ''} />
+        {isAnimated ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 15 }} aria-hidden="true" /> : <Icon size={15} strokeWidth={2} />}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -925,7 +925,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               size="small"
               onClick={() => onSync(seller._id)}
               loading={syncing}
-              icon={<RefreshCw size={13} strokeWidth={2} className={syncing ? styles.spinAnimation : ''} />}
+              icon={syncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> : <RefreshCw size={13} strokeWidth={2} />}
             >
               {syncing ? 'Syncing' : 'Sync Now'}
             </Button>
@@ -1563,7 +1563,7 @@ const SellerAsinTrackerPage = () => {
                 type="primary"
                 size="small"
                 block
-                icon={<RefreshCw size={12} strokeWidth={2} className={syncingAll ? styles.spinAnimation : ''} />}
+                icon={syncingAll ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12 }} aria-hidden="true" /> : <RefreshCw size={12} strokeWidth={2} />}
                 onClick={handleSyncAll}
                 loading={syncingAll}
               >
