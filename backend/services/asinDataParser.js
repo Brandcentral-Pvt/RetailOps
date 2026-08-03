@@ -1,6 +1,13 @@
 const { sql, getPool, generateId } = require('../database/db');
 const { calculateLQS } = require('../utils/lqs');
 const SocketService = require('./socketService');
+const {
+    parseReviewCount,
+    parseRatingValue,
+    parseRatingBreakdown,
+    computeRatingFromBreakdown,
+    hasAplusContent
+} = require('../utils/marketDataParser');
 
 class AsinDataParser {
     /**
@@ -120,12 +127,10 @@ class AsinDataParser {
     }
 
     /**
-     * Parse review count from "(89)" -> 89 or "89 reviews"
+     * Parse review count from "(89)" -> 89, "89 reviews" -> 89, "1,234" -> 1234
      */
     static parseReviewCount(str) {
-        if (!str) return 0;
-        const match = str.match(/(\d+)/);
-        return match ? parseInt(match[1]) : 0;
+        return parseReviewCount(str);
     }
 
     /**
@@ -156,37 +161,7 @@ class AsinDataParser {
      * Check if A+ content exists (supports HTML strings, parsed JSON arrays/objects, or stringified JSON)
      */
     static hasAplus(html) {
-        if (!html) return false;
-        
-        // Handle pre-parsed JSON objects or arrays
-        if (typeof html === 'object') {
-            if (Array.isArray(html)) return html.length > 0;
-            return Object.keys(html).length > 0;
-        }
-        
-        if (typeof html !== 'string') {
-            html = String(html);
-        }
-        
-        const trimmed = html.trim();
-        
-        // If it's a boolean-like string
-        const lower = trimmed.toLowerCase();
-        if (lower === 'true' || lower === 'yes' || lower === '1') return true;
-        if (lower === 'false' || lower === 'no' || lower === '0') return false;
-
-        // Handle stringified JSON arrays/objects
-        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-            try {
-                const parsed = JSON.parse(trimmed);
-                if (Array.isArray(parsed)) return parsed.length > 0;
-                return Object.keys(parsed).length > 0;
-            } catch (e) {}
-        }
-
-        // Handle standard HTML string
-        const textContent = trimmed.replace(/<[^>]+>/g, '').trim();
-        return textContent.length > 50 || trimmed.toLowerCase().includes('aplus-v2') || trimmed.toLowerCase().includes('aplus-module');
+        return hasAplusContent(html);
     }
 
     /**
@@ -203,8 +178,7 @@ class AsinDataParser {
      * Parse rating from "3.9" or similar
      */
     static parseRating(ratingStr) {
-        const val = parseFloat(ratingStr);
-        return isNaN(val) ? 0 : Math.min(Math.max(val, 0), 5);
+        return parseRatingValue(ratingStr);
     }
 
     /**
@@ -303,26 +277,22 @@ class AsinDataParser {
         const subBsr = this.parseBSR(parsed.sub_BSR || '');
         
         // Rating and review count extraction
-        const rawRating = parsed.Rating || parsed.rating || parsed.avg_rating || '';
-        const rating = this.parseRating(rawRating);
+        const rawRating = parsed.Rating || parsed.rating || parsed.avg_rating || parsed['Average Rating'] || parsed['AverageRating'] || '';
+        let rating = this.parseRating(rawRating);
 
-        const rawReviews = parsed['review count'] || parsed.Review_count || parsed.review_count || parsed.ReviewCount || '';
+        const rawReviews = parsed['review count'] || parsed['Review Count'] || parsed.Reviews || parsed.Review_count || parsed.review_count || parsed.ReviewCount || parsed['Total Reviews'] || parsed['Total Ratings'] || '';
         const reviewCount = this.parseReviewCount(rawReviews);
 
-        const rawAplus = parsed.A_plus || parsed.aplus || parsed.aplus_content || parsed.has_aplus || parsed.hasAplus || '';
+        const rawAplus = parsed.A_plus || parsed.aplus || parsed.aplus_content || parsed['A+'] || parsed['A Plus'] || parsed['A+ Content'] || parsed.has_aplus || parsed.hasAplus || '';
         const hasAplus = this.hasAplus(rawAplus);
-        const aplusContent = typeof rawAplus === 'string' && rawAplus.length > 10 ? rawAplus : null;
+        const aplusContent = hasAplus && typeof rawAplus === 'string' && rawAplus.length > 10 ? rawAplus : null;
 
-        // Rating breakdown extraction
-        const rawRatingBreakdown = parsed.Rating || parsed.rating_breakdown || parsed.Rating_breakdown || '';
-        let ratingBreakdown = { fiveStar: 0, fourStar: 0, threeStar: 0, twoStar: 0, oneStar: 0 };
-        if (rawRatingBreakdown && typeof rawRatingBreakdown === 'string') {
-            try {
-                const rbMatch = rawRatingBreakdown.match(/(\d+)%.*?(\d+)%.*?(\d+)%.*?(\d+)%.*?(\d+)%/);
-                if (rbMatch) {
-                    ratingBreakdown = { fiveStar: parseInt(rbMatch[1]), fourStar: parseInt(rbMatch[2]), threeStar: parseInt(rbMatch[3]), twoStar: parseInt(rbMatch[4]), oneStar: parseInt(rbMatch[5]) };
-                }
-            } catch {}
+        // Rating breakdown extraction (with weighted-rating fallback when only percentages exist)
+        const ratingBreakdown = parseRatingBreakdown(
+            parsed.Rating_breakdown || parsed.rating_breakdown || parsed['Rating Breakdown'] || parsed.Rating || ''
+        );
+        if ((!rating || rating <= 0) && Object.values(ratingBreakdown).some(v => v > 0)) {
+            rating = computeRatingFromBreakdown(ratingBreakdown);
         }
         
         // Bullet points
