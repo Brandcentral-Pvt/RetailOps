@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useEffect } from 'react';
+=======
+import React, { useEffect, useState } from 'react';
+>>>>>>> 17b09baabb760bd50af401783fcec59049a38d03
 
 const LOGO_SOURCES = [
   import.meta.env.VITE_MAINTENANCE_LOGO,
@@ -6,14 +10,22 @@ const LOGO_SOURCES = [
   'https://brandcentral.in/wp-content/uploads/2024/09/logo.png',
 ].filter(Boolean);
 
+const TITLE = import.meta.env.VITE_MAINTENANCE_TITLE || "We're upgrading BrandCentral";
+const MESSAGE = import.meta.env.VITE_MAINTENANCE_MESSAGE || 'Scheduled maintenance in progress. We\'ll be back shortly.';
 const ETA = (import.meta.env.VITE_MAINTENANCE_ETA || '30 Minutes').trim();
 const STATUS_PAGE = import.meta.env.VITE_STATUS_PAGE || 'https://status.brandcentral.in';
 const SUPPORT_EMAIL = import.meta.env.VITE_MAINTENANCE_EMAIL || 'support@brandcentral.in';
 
 const FONT = "var(--bc-font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif)";
 
+// "We're |restocking| the shelves." → pre="We're", accent="restocking", post="the shelves."
+const [TITLE_PRE, TITLE_ACCENT, TITLE_POST] = (() => {
+  const parts = TITLE.split('|').map(s => s.trim());
+  return [parts[0] || '', parts[1] || '', parts[2] || ''];
+})();
+
 function BrandLogo() {
-  const [idx, setIdx] = React.useState(0);
+  const [idx, setIdx] = useState(0);
   if (idx >= LOGO_SOURCES.length) return null;
   return (
     <img
@@ -103,11 +115,14 @@ export default function UnderMaintenance() {
         </div>
 
         <h1 style={{ margin: '18px 0 8px', fontSize: 26, fontWeight: 700, letterSpacing: '-.02em', color: '#0f172a' }}>
-          We&apos;re upgrading BrandCentral
+          {TITLE_PRE}{TITLE_ACCENT ? ' ' : ''}
+          {TITLE_ACCENT && (
+            <em style={{ fontStyle: 'italic', fontWeight: 600, color: '#2563eb' }}>{TITLE_ACCENT}</em>
+          )}{TITLE_POST ? ' ' : ''}{TITLE_POST}
         </h1>
 
         <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6 }}>
-          Scheduled maintenance in progress. We&apos;ll be back shortly.
+          {MESSAGE}
         </p>
 
         {ETA && (
