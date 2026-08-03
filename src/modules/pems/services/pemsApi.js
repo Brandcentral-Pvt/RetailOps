@@ -79,6 +79,18 @@ const pemsApi = {
     return res.json();
   },
 
+  bulkTransition: async (ids, toStatus, details = '') => {
+    const res = await fetch(`${API_BASE}/pems/instances/bulk/transition`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ ids, toStatus, details }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error || 'Failed to bulk transition');
+    }
+    return res.json();
+  },
+
   updateAchievement: async (id, achievement) => {
     const res = await fetch(`${API_BASE}/pems/instances/${id}/achievement`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },

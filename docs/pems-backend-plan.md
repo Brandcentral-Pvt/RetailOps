@@ -360,3 +360,20 @@ Dependencies: M0 → everything; M1/M2 independent after M0 (can parallelize); M
 | D8 | Integration tests target `retailops_test` DB, skip when unreachable | Proposed — OK? |
 
 Proposed items are flagged for a quick sign-off; nothing blocks M0/M1.
+
+---
+
+## 15. Implementation Status (updated 2026-08-03)
+
+| Milestone | Status | Commit |
+|---|---|---|
+| M0 Foundations | ✅ Done | `19736aa` |
+| M1 Data integrity | ✅ Done | `19736aa` (bundled with M0) |
+| M2 Contract alignment | ✅ Done | `3f57d88` |
+| M3 Automation engine | ✅ Done | `b907112` |
+| M4 Hardening | ✅ Done | `506d9b6` |
+| M5 Frontend alignment | ✅ Done | *(next commit)* |
+
+- Unit tests: **57 passing** across 4 suites (workflowEngine, eventStore, recurrenceService, pemsPolicy).
+- Integration tests (DB-backed) are written to target `retailops_test` and skip when unreachable — run on the user's dev DB via `node backend/scripts/runMigrations.js` then the jest integration suite.
+- Manual verification checklist (§13) applies after deploying to a reachable DB.
