@@ -1,5 +1,5 @@
 const { sql, getPool, generateId } = require('../../database/db');
-const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, WORKFLOW_STATUSES } = require('./workflowEngine');
+const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, WORKFLOW_STATUSES } = require('./workflowEngine');
 const eventBus = require('../eventBus');
 const eventStore = require('./eventStore');
 const logger = require('../../utils/logger');
@@ -143,6 +143,12 @@ async function createInstance(data) {
   const now = new Date();
   const dueDate = data.dueDate || getNextDueDate(data.frequency || 'ONE_TIME');
 
+  // Resolve template defaults (department, SOP) once up-front
+  const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
+    .query('SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
+  const tplRow = tplResult.recordset[0];
+  const department = data.department || tplRow?.Department || 'Operations';
+
   await pool.request()
     .input('id', sql.VarChar, id)
     .input('instanceCode', sql.VarChar, instanceCode)
@@ -153,6 +159,7 @@ async function createInstance(data) {
     .input('assigneeName', sql.NVarChar, data.assigneeName || '')
     .input('reviewerId', sql.VarChar, data.reviewerId || null)
     .input('reviewerName', sql.NVarChar, data.reviewerName || '')
+    .input('department', sql.NVarChar, department)
     .input('status', sql.VarChar, data.status || 'DRAFT')
     .input('reviewStatus', sql.VarChar, 'NOT_REVIEWED')
     .input('frequency', sql.VarChar, data.frequency || 'ONE_TIME')
@@ -170,12 +177,12 @@ async function createInstance(data) {
     .query(`
       INSERT INTO PemsTaskInstances
         (Id, InstanceCode, TemplateId, SellerId, SellerName, AssignedTo, AssigneeName,
-         ReviewerId, ReviewerName, Status, ReviewStatus, Frequency, Title, Description,
+         ReviewerId, ReviewerName, Department, Status, ReviewStatus, Frequency, Title, Description,
          Priority, Target, Achievement, SLAStatus, SLAHours, DueDate, AssignedAt,
          Attachments, Tags)
       VALUES
         (@id, @instanceCode, @templateId, @sellerId, @sellerName, @assignedTo, @assigneeName,
-         @reviewerId, @reviewerName, @status, @reviewStatus, @frequency, @title, @description,
+         @reviewerId, @reviewerName, @department, @status, @reviewStatus, @frequency, @title, @description,
          @priority, @target, @achievement, @slaStatus, @slaHours, @dueDate, @assignedAt,
          @attachments, @tags)
     `);
@@ -270,13 +277,15 @@ async function getInstances(filters = {}) {
   if (filters.dueAfter) { where += ' AND i.DueDate >= @dueAfter'; req.input('dueAfter', sql.DateTime2, new Date(filters.dueAfter)); }
   if (filters.search) { where += ' AND (i.Title LIKE @search OR i.InstanceCode LIKE @search OR i.SellerName LIKE @search)'; req.input('search', sql.NVarChar, `%${filters.search}%`); }
   if (filters.templateId) { where += ' AND i.TemplateId = @templateId'; req.input('templateId', sql.VarChar, filters.templateId); }
+  if (filters.department) { where += ' AND i.Department = @department'; req.input('department', sql.NVarChar, filters.department); }
+  if (filters.frequency) { where += ' AND i.Frequency = @frequency'; req.input('frequency', sql.VarChar, filters.frequency); }
 
   const page = parseInt(filters.page) || 1;
   const limit = parseInt(filters.limit) || 25;
   const offset = (page - 1) * limit;
   const sortBy = filters.sortBy || 'CreatedAt';
   const sortOrder = filters.sortOrder === 'asc' ? 'ASC' : 'DESC';
-  const allowedSorts = ['CreatedAt', 'DueDate', 'Priority', 'Status', 'AchievementPct', 'SLAStatus', 'InstanceCode'];
+  const allowedSorts = ['CreatedAt', 'DueDate', 'Priority', 'Status', 'AchievementPct', 'SLAStatus', 'InstanceCode', 'Department', 'Frequency'];
   const sortCol = allowedSorts.includes(sortBy) ? sortBy : 'CreatedAt';
 
   const countReq = pool.request();
@@ -419,15 +428,7 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
   }
 
   const now = new Date();
-  const timeFields = {};
-  switch (toStatus) {
-    case 'ASSIGNED': timeFields.AssignedAt = now; break;
-    case 'ACCEPTED': timeFields.AcceptedAt = now; break;
-    case 'IN_PROGRESS': timeFields.StartedAt = now; break;
-    case 'SUBMITTED': timeFields.SubmittedAt = now; break;
-    case 'UNDER_REVIEW': case 'APPROVED': case 'REJECTED': timeFields.ReviewedAt = now; break;
-    case 'APPROVED': case 'REJECTED': timeFields.CompletedAt = toStatus === 'APPROVED' ? now : null; break;
-  }
+  const timeFields = getTransitionTimestamps(instance.Status, toStatus, now);
 
   const sets = ['Status = @status', 'UpdatedAt = dbo.GetEnvDate()'];
   const req = pool.request().input('id', sql.VarChar, taskInstanceId).input('status', sql.VarChar, toStatus);
@@ -757,6 +758,7 @@ function applyFilterInputs(req, filters) {
   if (filters.search) req.input('search', sql.NVarChar, `%${filters.search}%`);
   if (filters.templateId) req.input('templateId', sql.VarChar, filters.templateId);
   if (filters.department) req.input('department', sql.NVarChar, filters.department);
+  if (filters.frequency) req.input('frequency', sql.VarChar, filters.frequency);
 }
 
 // ═══════════════════════════════════════════════════════

@@ -184,11 +184,30 @@ async function executeWithRetry(queryFn, maxRetries = 5, retryDelayMs = 250) {
     }
 }
 
+/**
+ * Run `fn(transaction)` inside a SQL transaction (begin → fn → commit / rollback).
+ * Use `transaction.request()` to build requests inside the transaction.
+ */
+async function withTransaction(fn) {
+    const pool = await getPool();
+    const transaction = new sql.Transaction(pool);
+    try {
+        await transaction.begin();
+        const result = await fn(transaction);
+        await transaction.commit();
+        return result;
+    } catch (err) {
+        try { await transaction.rollback(); } catch (_) { /* connection already aborted */ }
+        throw err;
+    }
+}
+
 module.exports = {
     sql,
     getPool,
     getReader,
     query,
     generateId,
-    executeWithRetry
+    executeWithRetry,
+    withTransaction
 };

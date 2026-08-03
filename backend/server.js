@@ -736,6 +736,10 @@ server.listen(PORT, '0.0.0.0', () => {
   // Ensure PEMS event store table
   const eventStore = require('./services/pems/eventStore');
   eventStore.ensureEventStoreTable();
+
+  // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
+  const { runMigrationsAtStartup } = require('./database/migrate');
+  runMigrationsAtStartup();
 });
 
 // Make getPool available globally for socket handlers
