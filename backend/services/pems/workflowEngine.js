@@ -154,6 +154,16 @@ function getTransitionTimestamps(fromStatus, toStatus, now = new Date()) {
 }
 
 /**
+ * Maps a review decision to the resulting workflow status.
+ * APPROVE → APPROVED · REWORK → REWORK · anything else → REJECTED.
+ */
+function resolveReviewTransition(decision) {
+  if (decision === 'APPROVE') return 'APPROVED';
+  if (decision === 'REWORK') return 'REWORK';
+  return 'REJECTED';
+}
+
+/**
  * Escalation rules:
  * 24h before SLA → notify assignee
  * 12h before SLA → notify reviewer
@@ -180,4 +190,5 @@ module.exports = {
   canTransition, getNextTransitions, calculateSLAStatus,
   calculateAchievement, calculateVariance, calculateProgress,
   getNextDueDate, getEscalationLevel, getTransitionTimestamps,
+  resolveReviewTransition,
 };
