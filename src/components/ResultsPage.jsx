@@ -197,7 +197,7 @@ const ResultsPage = ({ asins, onNavigate }) => {
               >
                 {isCalculating ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-1"></span>
+                    <span className="icon-[svg-spinners--eclipse] me-1" aria-hidden="true"></span>
                     Calculating...
                   </>
                 ) : (

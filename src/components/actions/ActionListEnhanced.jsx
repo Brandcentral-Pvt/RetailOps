@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Edit2, Trash2, CheckCircle, Clock, AlertTriangle, Filter, Search, Play, Square, Plus, Sparkles, Loader2, Calendar, AlertCircle, ArrowDown, Minus, ThumbsUp, ThumbsDown, RotateCcw, FileText, RefreshCw, Eye } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle, Clock, AlertTriangle, Filter, Search, Play, Square, Plus, Sparkles, Calendar, AlertCircle, ArrowDown, Minus, ThumbsUp, ThumbsDown, RotateCcw, FileText, RefreshCw, Eye } from 'lucide-react';
 import CompletionModal from './CompletionModal';
 import ActionDetailModal from './ActionDetailModal';
 import Popover from '../common/Popover';
@@ -496,11 +496,11 @@ const ActionList = ({
                                                         {type === 'KR' && data.metric === 'GMS' && (
                                                             <button
                                                                 onClick={(e) => handleSync(e, data)}
-                                                                className={`btn btn-sm btn-link p-0 ms-1 ${syncingKRs[data._id || data.id] ? 'fa-spin' : ''}`}
+                                                                className="btn btn-sm btn-link p-0 ms-1"
                                                                 title="Sync GMS Progress"
                                                                 disabled={syncingKRs[data._id || data.id]}
                                                             >
-                                                                <RefreshCw size={10} className={syncingKRs[data._id || data.id] ? 'animate-spin' : ''} />
+                                                                {syncingKRs[data._id || data.id] ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 10 }} aria-hidden="true" /> : <RefreshCw size={10} />}
                                                             </button>
                                                         )}
                                                     </div>

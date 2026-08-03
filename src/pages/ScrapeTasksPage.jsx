@@ -130,7 +130,7 @@ const ScrapeTasksPage = () => {
     const { className, icon: Icon, label, spin } = map[status] || { className: 'badge-idle', icon: Clock, label: status };
     return (
       <span className={`sync-status-badge ${className}`}>
-        <Icon size={14} className={`me-1 ${spin ? 'spin' : ''}`} />
+        {spin ? <span className="icon-[svg-spinners--eclipse] me-1" style={{ fontSize: 14 }} aria-hidden="true" /> : <Icon size={14} className="me-1" />}
         {label}
       </span>
     );
@@ -258,7 +258,7 @@ const ScrapeTasksPage = () => {
           </div>
           <div className="d-flex gap-2">
             <button className="btn btn-white shadow-sm border px-3 d-flex align-items-center gap-2" onClick={() => loadSyncTasks(true)} disabled={refreshing}>
-              {refreshing ? <span className="spinner-border spinner-border-sm"></span> : <RefreshCcw size={16} />}
+              {refreshing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <RefreshCcw size={16} />}
               Refresh Status
             </button>
             <button 
@@ -266,7 +266,7 @@ const ScrapeTasksPage = () => {
                 onClick={handleBulkDuplicate} 
                 disabled={bulkSyncing || loading}
             >
-                {bulkSyncing ? <span className="spinner-border spinner-border-sm"></span> : <Plus size={16} />}
+                {bulkSyncing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <Plus size={16} />}
                 {bulkSyncing ? 'Creating Tasks...' : 'Assign & Duplicate Tasks'}
             </button>
             <button 
@@ -274,7 +274,7 @@ const ScrapeTasksPage = () => {
                 onClick={handleBulkInject} 
                 disabled={bulkSyncing || loading}
             >
-                {bulkSyncing ? <span className="spinner-border spinner-border-sm"></span> : <CloudDownload size={16} />}
+                {bulkSyncing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <CloudDownload size={16} />}
                 {bulkSyncing ? 'Syncing ASINs...' : 'Sync ASINs to Cloud'}
             </button>
             <button className="btn btn-primary shadow-sm px-4 d-flex align-items-center gap-2" onClick={() => marketSyncApi.ingestAllResults().then(() => alert('Global ingestion started'))}>
@@ -371,7 +371,7 @@ const ScrapeTasksPage = () => {
                           disabled={task.status === 'RUNNING' || syncing[task.sellerId]}
                           title="Trigger extraction"
                         >
-                          {syncing[task.sellerId] ? <span className="spinner-border spinner-border-sm"></span> : <Play size={18} />}
+                          {syncing[task.sellerId] ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <Play size={18} />}
                         </button>
                         <button 
                           className="btn btn-outline-success" 
