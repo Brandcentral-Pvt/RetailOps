@@ -10,19 +10,27 @@ import {
 
 const { Text } = Typography;
 
+const TONE = {
+  success: '#16A34A',
+  danger: '#DC2626',
+  warning: '#EA580C',
+  neutral: '#94A3B8',
+};
+
 function MiniTrend({ value, label }) {
   if (value === undefined || value === null) return null;
   const isUp = value > 0;
   const isDown = value < 0;
   return (
     <span style={{
-      fontSize: 11, fontWeight: 600,
-      color: isUp ? '#16A34A' : isDown ? '#DC2626' : '#94A3B8',
+      fontSize: 'var(--bc-text-xs)',
+      fontWeight: 'var(--bc-weight-semibold)',
+      color: isUp ? TONE.success : isDown ? TONE.danger : TONE.neutral,
       display: 'inline-flex', alignItems: 'center', gap: 2,
     }}>
       {isUp ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : isDown ? <ArrowDownOutlined style={{ fontSize: 10 }} /> : <MinusOutlined style={{ fontSize: 10 }} />}
       {Math.abs(value).toFixed(1)}%
-      {label && <span style={{ color: '#94A3B8', fontWeight: 400 }}> {label}</span>}
+      {label && <span style={{ color: 'var(--bc-text-muted)', fontWeight: 'var(--bc-weight-regular)' }}> {label}</span>}
     </span>
   );
 }
@@ -46,7 +54,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'Action Success Rate',
       value: successRate != null ? `${successRate}%` : '—',
       subtitle: 'Tasks approved vs total',
-      color: successRate >= 80 ? '#16A34A' : '#EA580C',
+      color: successRate >= 80 ? TONE.success : TONE.warning,
       icon: <AimOutlined />,
       trend: kpi.successTrend,
     },
@@ -82,7 +90,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'Pending Review',
       value: kpi.pendingReview || 0,
       subtitle: 'Awaiting supervisor',
-      color: '#EA580C',
+      color: TONE.warning,
       icon: <EyeOutlined />,
       trend: risk?.staleReviews > 0 ? -33 : null,
     },
@@ -91,7 +99,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'SLA Compliance',
       value: `${kpi.slaCompliance ?? 100}%`,
       subtitle: 'Within SLA window',
-      color: (kpi.slaCompliance ?? 100) >= 90 ? '#16A34A' : '#DC2626',
+      color: (kpi.slaCompliance ?? 100) >= 90 ? TONE.success : TONE.danger,
       icon: <SafetyCertificateOutlined />,
     },
     {
@@ -99,7 +107,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'Overdue',
       value: kpi.overdue || 0,
       subtitle: 'Past SLA deadline',
-      color: '#DC2626',
+      color: TONE.danger,
       icon: <ClockCircleOutlined />,
       trend: kpi.overdueTrend,
     },
@@ -108,17 +116,18 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Text style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', letterSpacing: '0.02em' }}>
+        <Text style={{ fontSize: 'var(--bc-text-base)', fontWeight: 'var(--bc-weight-bold)', color: 'var(--bc-text-heading)', letterSpacing: '0.01em' }}>
           Universal Operational Health
         </Text>
         <Space size={8}>
-          <FilterOutlined style={{ color: '#64748B', fontSize: 13 }} />
-          <Text style={{ fontSize: 11, color: '#64748B' }}>Disputes Only</Text>
-          <Switch size="small" checked={disputesOnly} onChange={onDisputesToggle} style={{ background: disputesOnly ? '#DC2626' : '#CBD5E1' }} />
+          <FilterOutlined style={{ color: 'var(--bc-text-secondary)', fontSize: 13 }} />
+          <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-secondary)' }}>Disputes Only</Text>
+          <Switch size="small" checked={disputesOnly} onChange={onDisputesToggle} style={{ background: disputesOnly ? TONE.danger : 'var(--bc-border-strong)' }} />
         </Space>
       </div>
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
         gap: 12,
       }}>
         {retailCards.map(card => (
@@ -127,42 +136,48 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
               onClick={() => onDrillDown?.(card.key)}
               style={{
                 padding: '12px 14px',
-                borderRadius: 14,
-                background: '#FFFFFF',
-                border: '1px solid #E5E7EB',
+                borderRadius: 'var(--bc-radius-xl)',
+                background: 'var(--bc-surface-card)',
+                border: '1px solid var(--bc-border-default)',
                 cursor: 'pointer',
                 transition: 'all 0.12s ease',
                 position: 'relative',
                 overflow: 'hidden',
-                height: 82,
+                height: 84,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
+                minWidth: 0,
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = card.color + '30';
-                e.currentTarget.style.boxShadow = `0 4px 12px ${card.color}12`;
+                e.currentTarget.style.borderColor = card.color + '40';
+                e.currentTarget.style.boxShadow = `0 4px 12px ${card.color}14`;
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.borderColor = 'var(--bc-border-default)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'none';
               }}
             >
               <div>
                 <div style={{
-                  fontSize: 9, fontWeight: 600,
-                  color: '#64748B',
+                  fontSize: 'var(--bc-text-xs)',
+                  fontWeight: 'var(--bc-weight-semibold)',
+                  color: 'var(--bc-text-secondary)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   marginBottom: 2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}>
                   <span style={{ marginRight: 4, opacity: 0.6, fontSize: 10 }}>{card.icon}</span>
                   {card.title}
                 </div>
                 <div style={{
-                  fontSize: 28, fontWeight: 700,
+                  fontSize: 'var(--bc-text-2xl)',
+                  fontWeight: 'var(--bc-weight-bold)',
                   color: card.color,
                   lineHeight: 1.1,
                   letterSpacing: '-0.02em',
@@ -172,7 +187,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 {card.trend != null && <MiniTrend value={card.trend} />}
-                <Text style={{ fontSize: 9, color: '#94A3B8' }}>{card.subtitle}</Text>
+                <Text style={{ fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-muted)' }}>{card.subtitle}</Text>
               </div>
               <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,

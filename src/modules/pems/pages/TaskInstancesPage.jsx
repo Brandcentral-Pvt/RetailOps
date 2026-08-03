@@ -13,8 +13,9 @@ import {
   MinusOutlined, ArrowUpOutlined, ArrowDownOutlined
 } from '@ant-design/icons';
 import pemsApi from '../services/pemsApi';
-import { WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS, CATEGORIES, COMPLEXITY_LEVELS, TARGET_TYPES } from '../constants';
+import { WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS, CATEGORIES, COMPLEXITY_LEVELS, TARGET_TYPES, TASK_LIST_GRID } from '../constants';
 import { calculateHealth, isOverdue, isDueToday, isDueTomorrow, getDueDateLabel, formatNumber } from '../utils/taskHealth';
+import '../tasks.css';
 import { useAuth } from '../../../contexts/AuthContext';
 import { db } from '../../../services/db';
 import ObjectiveManager from '../../../components/actions/ObjectiveManager';
@@ -35,23 +36,23 @@ const { Text } = Typography;
 
 /* ─── OKR CONSTANTS ──────────────────────────────────────────── */
 const STATUS_META = {
-  PENDING: { label: 'Pending', color: '#94a3b8', bg: '#f1f5f9', icon: <ClockCircleOutlined /> },
-  IN_PROGRESS: { label: 'In Progress', color: '#1976D2', bg: '#e3f2fd', icon: <PlayCircleOutlined /> },
-  REVIEW: { label: 'Review', color: '#ED6C02', bg: '#fff3e0', icon: <EyeOutlined /> },
-  COMPLETED: { label: 'Completed', color: '#2E7D32', bg: '#e8f5e9', icon: <CheckCircleOutlined /> },
-  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: '#ffebee', icon: <CloseCircleOutlined /> },
+  PENDING: { label: 'Pending', color: '#64748b', bg: '#f1f5f9', icon: <ClockCircleOutlined /> },
+  IN_PROGRESS: { label: 'In Progress', color: '#2563eb', bg: '#eff6ff', icon: <PlayCircleOutlined /> },
+  REVIEW: { label: 'Review', color: '#d97706', bg: '#fffbeb', icon: <EyeOutlined /> },
+  COMPLETED: { label: 'Completed', color: '#16a34a', bg: '#f0fdf4', icon: <CheckCircleOutlined /> },
+  REJECTED: { label: 'Rejected', color: '#dc2626', bg: '#fef2f2', icon: <CloseCircleOutlined /> },
 };
 const PRIORITY_META = {
   LOW: { label: 'Low', color: '#64748b', bg: '#f1f5f9', icon: <ArrowRightOutlined /> },
-  MEDIUM: { label: 'Medium', color: '#1976D2', bg: '#e3f2fd', icon: <MinusOutlined /> },
-  HIGH: { label: 'High', color: '#ED6C02', bg: '#fff3e0', icon: <ArrowUpOutlined /> },
-  CRITICAL: { label: 'Critical', color: '#D32F2F', bg: '#ffebee', icon: <ArrowDownOutlined /> },
+  MEDIUM: { label: 'Medium', color: '#2563eb', bg: '#eff6ff', icon: <MinusOutlined /> },
+  HIGH: { label: 'High', color: '#ea580c', bg: '#fff7ed', icon: <ArrowUpOutlined /> },
+  CRITICAL: { label: 'Critical', color: '#dc2626', bg: '#fef2f2', icon: <ArrowDownOutlined /> },
 };
 
 /* ─── UTILITIES ──────────────────────────────────────────────── */
 const getSellerColor = (name) => {
-  if (!name) return '#1976D2';
-  const palette = ['#1976D2', '#2E7D32', '#9C27B0', '#ED6C02', '#0288D1', '#D32F2F', '#00796B', '#512DA8', '#E64A19', '#1976D2'];
+  if (!name) return '#2563eb';
+  const palette = ['#2563eb', '#16a34a', '#7c3aed', '#ea580c', '#0891b2', '#dc2626', '#0d9488', '#4f46e5', '#db2777', '#2563eb'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
   return palette[Math.abs(hash) % palette.length];
@@ -86,12 +87,12 @@ const fmtDuration = (start, end) => {
 const fmtExact = (iso) => iso ? dayjs(iso).format('ddd, D MMM YYYY [at] h:mm A') : '';
 
 const getProgressColor = (pct) => {
-  if (pct === 0) return '#e2e8f0';
-  if (pct <= 25) return '#fb7185';
-  if (pct <= 50) return '#fbbf24';
-  if (pct <= 75) return '#818cf8';
-  if (pct < 100) return '#1976D2';
-  return '#2E7D32';
+  if (pct === 0) return 'var(--bc-slate-200)';
+  if (pct <= 25) return '#f43f5e';
+  if (pct <= 50) return '#f59e0b';
+  if (pct <= 75) return '#6366f1';
+  if (pct < 100) return '#2563eb';
+  return '#16a34a';
 };
 
 const matchesFilter = (a, f) => {
@@ -175,17 +176,17 @@ const OkrPriorityTag = ({ priority }) => {
 
 const OkrTimelineCell = ({ createdAt, startedAt, completedAt, status }) => {
   const items = [];
-  if (createdAt) items.push({ label: 'Created', value: fmtTime(createdAt), exact: fmtExact(createdAt), color: '#94a3b8', icon: <CalendarOutlined style={{ color: '#94a3b8', fontSize: 10 }} /> });
-  if (startedAt) items.push({ label: 'Started', value: fmtTime(startedAt), exact: fmtExact(startedAt), color: '#1976D2', icon: <PlayCircleOutlined style={{ color: '#1976D2', fontSize: 10 }} /> });
-  if (completedAt) items.push({ label: 'Done', value: fmtTime(completedAt), exact: fmtExact(completedAt), color: '#2E7D32', icon: <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 10 }} /> });
+  if (createdAt) items.push({ label: 'Created', value: fmtTime(createdAt), exact: fmtExact(createdAt), color: 'var(--bc-text-muted)', icon: <CalendarOutlined style={{ color: 'var(--bc-text-muted)', fontSize: 10 }} /> });
+  if (startedAt) items.push({ label: 'Started', value: fmtTime(startedAt), exact: fmtExact(startedAt), color: '#2563eb', icon: <PlayCircleOutlined style={{ color: '#2563eb', fontSize: 10 }} /> });
+  if (completedAt) items.push({ label: 'Done', value: fmtTime(completedAt), exact: fmtExact(completedAt), color: '#16a34a', icon: <CheckCircleOutlined style={{ color: '#16a34a', fontSize: 10 }} /> });
   const duration = startedAt ? fmtDuration(startedAt, completedAt) : null;
-  if (items.length === 0) return <Text style={{ color: '#cbd5e1', fontSize: 'var(--font-size-sm)' }}>—</Text>;
-  const content = <Space direction="vertical" size={2}>{items.map((it, i) => <Text key={i} style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{it.label}: {it.exact}</Text>)}</Space>;
+  if (items.length === 0) return <Text style={{ color: 'var(--bc-text-disabled)', fontSize: 'var(--font-size-sm)' }}>—</Text>;
+  const content = <Space direction="vertical" size={2}>{items.map((it, i) => <Text key={i} style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)' }}>{it.label}: {it.exact}</Text>)}</Space>;
   return (
     <Tooltip title={content}>
       <Space orientation="vertical" size={2}>
-        {items.slice(-2).map((it, i) => <Space key={i} size={4}>{it.icon}<Text style={{ fontSize: 10, color: '#94a3b8' }}>{it.label}</Text><Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: it.color }}>{it.value}</Text></Space>)}
-        {duration && <Tag style={{ marginTop: 2, fontSize: 10, fontFamily: 'monospace', background: status === 'COMPLETED' ? '#ecfdf5' : '#eef2ff', color: status === 'COMPLETED' ? '#2E7D32' : '#1976D2', border: 'none', borderRadius: "var(--radius-sm)", padding: '0 6px' }}>{duration}</Tag>}
+        {items.slice(-2).map((it, i) => <Space key={i} size={4}>{it.icon}<Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{it.label}</Text><Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: it.color }}>{it.value}</Text></Space>)}
+        {duration && <Tag style={{ marginTop: 2, fontSize: 10, fontFamily: 'var(--bc-font-mono)', background: status === 'COMPLETED' ? 'var(--bc-green-50)' : 'var(--bc-blue-50)', color: status === 'COMPLETED' ? '#16a34a' : '#2563eb', border: 'none', borderRadius: "var(--radius-sm)", padding: '0 6px' }}>{duration}</Tag>}
       </Space>
     </Tooltip>
   );
@@ -195,8 +196,8 @@ const OkrProgressCell = ({ pct }) => {
   const color = getProgressColor(pct);
   return (
     <Space orientation="vertical" size={2} style={{ width: 80 }}>
-      <Progress percent={pct} size="small" showInfo={false} strokeColor={color} railColor="#f1f5f9" />
-      <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontVariantNumeric: 'tabular-nums', textAlign: 'center', display: 'block' }}>{pct}%</Text>
+      <Progress percent={pct} size="small" showInfo={false} strokeColor={color} railColor="var(--bc-slate-100)" />
+      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)', fontVariantNumeric: 'tabular-nums', textAlign: 'center', display: 'block' }}>{pct}%</Text>
     </Space>
   );
 };
@@ -428,24 +429,24 @@ export default function TaskInstancesPage() {
           const inProg = group.tasks.filter(t => t.Status === 'IN_PROGRESS' || t.Status === 'ESCALATED').length;
           const color = getSellerColor(group.sellerName);
           return (
-            <Card key={group.sellerId || group.sellerName} style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden' }} styles={{ body: { padding: 0 } }}>
-              <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${color}10, #ffffff)`, borderBottom: '1px solid #f1f5f9', borderLeft: `4px solid ${color}` }}>
+            <Card key={group.sellerId || group.sellerName} style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-border-default)', overflow: 'hidden' }} styles={{ body: { padding: 0 } }}>
+              <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${color}10, var(--bc-surface-card))`, borderBottom: '1px solid var(--bc-border-subtle)', borderLeft: `4px solid ${color}` }}>
                 <Row align="middle" gutter={16}>
                   <Col><Avatar size={36} style={{ background: color, fontSize: 15, fontWeight: 600 }}>{getSellerInitial(group.sellerName)}</Avatar></Col>
                   <Col flex={1}>
                     <Space size={8} wrap>
-                      <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#1e293b' }}>{group.sellerName}</Text>
-                      <Tag style={{ borderRadius: "var(--radius-lg)", background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>{total} tasks</Tag>
-                      {inProg > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", background: '#eef2ff', color: '#1976D2', border: '1px solid #c7d2fe' }}>{inProg} in progress</Tag>}
+                      <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-text-heading)' }}>{group.sellerName}</Text>
+                      <Tag style={{ borderRadius: "var(--radius-lg)", background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-secondary)', border: '1px solid var(--bc-border-default)' }}>{total} tasks</Tag>
+                      {inProg > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", background: 'var(--bc-blue-50)', color: '#2563eb', border: '1px solid var(--bc-blue-200)' }}>{inProg} in progress</Tag>}
                     </Space>
                   </Col>
                   <Col>
                     <Space size={16} align="center">
                       <Space size={8}>
-                        <Badge color="#2E7D32" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{done}</Text>} />
-                        <Badge color="#1976D2" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{inProg}</Text>} />
+                        <Badge color="var(--bc-green-600)" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{done}</Text>} />
+                        <Badge color="#2563eb" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{inProg}</Text>} />
                       </Space>
-                      <Progress percent={total === 0 ? 0 : Math.round((done / total) * 100)} size="small" style={{ width: 100, margin: 0 }} strokeColor={color} railColor="#f1f5f9" format={p => <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{p}%</Text>} />
+                      <Progress percent={total === 0 ? 0 : Math.round((done / total) * 100)} size="small" style={{ width: 100, margin: 0 }} strokeColor={color} railColor="var(--bc-slate-100)" format={p => <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)' }}>{p}%</Text>} />
                     </Space>
                   </Col>
                 </Row>
@@ -458,26 +459,26 @@ export default function TaskInstancesPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', cursor: 'pointer' }}>
                         <div style={{ flex: 1 }}>
                           <Space size={6}>
-                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", margin: 0, background: WORKFLOW_STATUSES[task.Status]?.bg || '#f1f5f9', color: WORKFLOW_STATUSES[task.Status]?.color || '#64748b', border: 'none' }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
-                            <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#1e293b' }}>{task.Title}</Text>
-                            <Text style={{ fontSize: 10, color: '#94a3b8' }}>{task.InstanceCode}</Text>
+                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", margin: 0, background: WORKFLOW_STATUSES[task.Status]?.bg || 'var(--bc-surface-subtle)', color: WORKFLOW_STATUSES[task.Status]?.color || 'var(--bc-text-secondary)', border: 'none' }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
+                            <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--bc-text-heading)' }}>{task.Title}</Text>
+                            <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{task.InstanceCode}</Text>
                           </Space>
                         </div>
                         <Tag style={{ fontSize: 10, borderRadius: "var(--radius-lg)" }} color={PRIORITIES[task.Priority]?.antColor || 'default'}>{task.Priority}</Tag>
-                        <Text style={{ fontSize: 10, color: '#94a3b8', whiteSpace: 'nowrap' }}>{task.DueDate ? dayjs(task.DueDate).format('DD MMM') : '-'}</Text>
-                        <Button type="text" size="small" icon={<EyeOutlined />} onClick={e => { e.stopPropagation(); openWorkspace(task); }} style={{ color: '#94a3b8' }} />
+                        <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', whiteSpace: 'nowrap' }}>{task.DueDate ? dayjs(task.DueDate).format('DD MMM') : '-'}</Text>
+                        <Button type="text" size="small" icon={<EyeOutlined />} onClick={e => { e.stopPropagation(); openWorkspace(task); }} style={{ color: 'var(--bc-text-muted)' }} />
                       </div>
                     ),
                     children: (() => {
                       const items = task.subTasks || [];
-                      if (items.length === 0) return <div style={{ padding: '8px 12px 8px 16px' }}><Text style={{ fontSize: 11, color: '#94a3b8' }}>No sub-tasks</Text></div>;
+                      if (items.length === 0) return <div style={{ padding: '8px 12px 8px 16px' }}><Text style={{ fontSize: 11, color: 'var(--bc-text-muted)' }}>No sub-tasks</Text></div>;
                       return (
                         <div style={{ padding: '4px 12px 8px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
                           {items.map(st => (
-                            <div key={st.Id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: "var(--radius-sm)", background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: st.IsCompleted ? '#2E7D32' : '#94a3b8' }} />
-                              <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155', flex: 1 }}>{st.Title}</Text>
-                              <Tag style={{ fontSize: 9, borderRadius: "var(--radius-lg)", background: st.IsCompleted ? '#ecfdf5' : '#f1f5f9', color: st.IsCompleted ? '#2E7D32' : '#64748b', border: 'none' }}>{st.IsCompleted ? 'Done' : 'Pending'}</Tag>
+                            <div key={st.Id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: "var(--radius-sm)", background: 'var(--bc-surface-subtle)', border: '1px solid var(--bc-border-subtle)' }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: st.IsCompleted ? '#16a34a' : 'var(--bc-text-muted)' }} />
+                              <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-body)', flex: 1 }}>{st.Title}</Text>
+                              <Tag style={{ fontSize: 9, borderRadius: "var(--radius-lg)", background: st.IsCompleted ? 'var(--bc-green-50)' : 'var(--bc-surface-subtle)', color: st.IsCompleted ? '#16a34a' : 'var(--bc-text-secondary)', border: 'none' }}>{st.IsCompleted ? 'Done' : 'Pending'}</Tag>
                             </div>
                           ))}
                         </div>
@@ -530,20 +531,20 @@ export default function TaskInstancesPage() {
           label: (
             <Row align="middle" gutter={16} style={{ width: '100%' }}>
               <Col>
-                <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#eef2ff', color: '#1976D2', border: '1px solid #c7d2fe', borderRadius: "var(--radius-sm)", minWidth: 36, textAlign: 'center' }}>OBJ</Tag>
+                <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--bc-font-mono)', background: 'var(--bc-blue-50)', color: '#2563eb', border: '1px solid var(--bc-blue-200)', borderRadius: "var(--radius-sm)", minWidth: 36, textAlign: 'center' }}>OBJ</Tag>
               </Col>
               <Col flex={1}>
                 <Space size={8}>
-                  {hasReview && <Tooltip title="Has tasks awaiting review"><Badge dot color="#ED6C02" /></Tooltip>}
-                  {childIncomplete && <Tooltip title="Not all tasks complete"><LockOutlined style={{ color: '#fbbf24', fontSize: 'var(--font-size-sm)' }} /></Tooltip>}
-                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>{obj.title || 'Untitled Objective'}</Text>
+                  {hasReview && <Tooltip title="Has tasks awaiting review"><Badge dot color="#d97706" /></Tooltip>}
+                  {childIncomplete && <Tooltip title="Not all tasks complete"><LockOutlined style={{ color: '#f59e0b', fontSize: 'var(--font-size-sm)' }} /></Tooltip>}
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-text-heading)' }}>{obj.title || 'Untitled Objective'}</Text>
                 </Space>
               </Col>
               <Col>
                 <Space size={12} align="center">
-                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{objDone}/{objTasks.length} done</Text>
-                  <Progress percent={objPct} size="small" style={{ width: 80, margin: 0 }} strokeColor={objPct === 100 ? '#2E7D32' : '#1976D2'} railColor="#f1f5f9" showInfo={false} />
-                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontVariantNumeric: 'tabular-nums', minWidth: 32 }}>{objPct}%</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-muted)' }}>{objDone}/{objTasks.length} done</Text>
+                  <Progress percent={objPct} size="small" style={{ width: 80, margin: 0 }} strokeColor={objPct === 100 ? '#16a34a' : '#2563eb'} railColor="var(--bc-slate-100)" showInfo={false} />
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)', fontVariantNumeric: 'tabular-nums', minWidth: 32 }}>{objPct}%</Text>
                 </Space>
               </Col>
             </Row>
@@ -556,17 +557,17 @@ export default function TaskInstancesPage() {
               size="small"
               pagination={false}
               showHeader={false}
-              style={{ background: 'white' }}
+              style={{ background: 'var(--bc-surface-card)' }}
               rowClassName={(_, idx) => idx % 2 === 0 ? 'task-row-even' : 'task-row-odd'}
               expandable={{
                 expandedRowRender: (task) => {
                   if (task.subtasks && task.subtasks.length > 0) return (
-                    <div style={{ padding: '8px 16px 8px 48px', background: '#f8fafc' }}>
+                    <div style={{ padding: '8px 16px 8px 48px', background: 'var(--bc-surface-subtle)' }}>
                       {task.subtasks.map((sub, si) => (
-                        <Row key={sub._id || sub.id || si} align="middle" gutter={16} style={{ padding: '6px 12px', background: 'white', borderRadius: 6, marginBottom: 4, border: '1px solid #f1f5f9' }}>
+                        <Row key={sub._id || sub.id || si} align="middle" gutter={16} style={{ padding: '6px 12px', background: 'var(--bc-surface-card)', borderRadius: 6, marginBottom: 4, border: '1px solid var(--bc-border-subtle)' }}>
                           <Col flex={1}>
                             <Space size={8}>
-                              <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: "var(--radius-sm)" }}>SUB</Tag>
+                              <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--bc-font-mono)', background: 'var(--bc-cyan-50)', color: 'var(--bc-cyan-600)', border: '1px solid var(--bc-cyan-100)', borderRadius: "var(--radius-sm)" }}>SUB</Tag>
                               <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{sub.action || sub.title || sub.name || 'Untitled'}</Text>
                             </Space>
                           </Col>
@@ -582,7 +583,7 @@ export default function TaskInstancesPage() {
               }}
             />
           ),
-          style: { background: '#fafbfc', borderBottom: '1px solid #f1f5f9' },
+          style: { background: 'var(--bc-surface-subtle)', borderBottom: '1px solid var(--bc-border-subtle)' },
         });
       });
 
@@ -598,15 +599,15 @@ export default function TaskInstancesPage() {
             key: 'direct-tasks',
             label: (
               <Space>
-                <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd', borderRadius: "var(--radius-sm)" }}>DIRECT</Tag>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>Direct Tasks</Text>
-                <Tag style={{ fontSize: 'var(--font-size-xs)', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)" }}>{filteredDirect.length} tasks</Tag>
+                <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--bc-font-mono)', background: 'var(--bc-cyan-50)', color: 'var(--bc-cyan-600)', border: '1px solid var(--bc-cyan-100)', borderRadius: "var(--radius-sm)" }}>DIRECT</Tag>
+                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-text-heading)' }}>Direct Tasks</Text>
+                <Tag style={{ fontSize: 'var(--font-size-xs)', background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-secondary)', border: '1px solid var(--bc-border-default)', borderRadius: "var(--radius-lg)" }}>{filteredDirect.length} tasks</Tag>
               </Space>
             ),
             children: (
-              <Table dataSource={filteredDirect.map((t, i) => ({ ...t, _tableKey: `d-${t._id || t.id}-${i}` }))} rowKey="_tableKey" columns={okrTaskColumns} size="small" pagination={false} showHeader={false} style={{ background: 'white' }} />
+              <Table dataSource={filteredDirect.map((t, i) => ({ ...t, _tableKey: `d-${t._id || t.id}-${i}` }))} rowKey="_tableKey" columns={okrTaskColumns} size="small" pagination={false} showHeader={false} style={{ background: 'var(--bc-surface-card)' }} />
             ),
-            style: { background: '#fafbfc', borderBottom: '1px solid #f1f5f9' },
+            style: { background: 'var(--bc-surface-subtle)', borderBottom: '1px solid var(--bc-border-subtle)' },
           });
         }
       }
@@ -628,26 +629,26 @@ export default function TaskInstancesPage() {
           const collapseItems = buildCollapseItems(group);
           if (collapseItems.length === 0) return null;
           return (
-            <Card key={group.sellerId} style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} styles={{ body: { padding: 0 } }}>
-              <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${sellerColor}10, #ffffff)`, borderBottom: '1px solid #f1f5f9', borderLeft: `4px solid ${sellerColor}` }}>
+            <Card key={group.sellerId} style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-border-default)', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }} styles={{ body: { padding: 0 } }}>
+              <div style={{ padding: '12px 20px', background: `linear-gradient(135deg, ${sellerColor}10, var(--bc-surface-card))`, borderBottom: '1px solid var(--bc-border-subtle)', borderLeft: `4px solid ${sellerColor}` }}>
                 <Row align="middle" gutter={16} style={{ width: '100%' }}>
                   <Col><Avatar size={36} style={{ background: sellerColor, fontSize: 15, fontWeight: 600 }}>{getSellerInitial(group.sellerName)}</Avatar></Col>
                   <Col flex={1}>
                     <Space size={8} wrap>
-                      <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#1e293b' }}>{group.sellerName}</Text>
-                      <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>{group.objectives.length} objective{group.objectives.length !== 1 ? 's' : ''}</Tag>
-                      <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}>{totalTasks} task{totalTasks !== 1 ? 's' : ''}</Tag>
-                      {overdueTasks > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3' }}><ExclamationCircleOutlined style={{ marginRight: 4 }} />{overdueTasks} overdue</Tag>}
-                      {reviewTasks > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: '#f5f3ff', color: '#9C27B0', border: '1px solid #ddd6fe' }}><EyeOutlined style={{ marginRight: 4 }} />{reviewTasks} needs review</Tag>}
+                      <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-text-heading)' }}>{group.sellerName}</Text>
+                      <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-secondary)', border: '1px solid var(--bc-border-default)' }}>{group.objectives.length} objective{group.objectives.length !== 1 ? 's' : ''}</Tag>
+                      <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-secondary)', border: '1px solid var(--bc-border-default)' }}>{totalTasks} task{totalTasks !== 1 ? 's' : ''}</Tag>
+                      {overdueTasks > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid var(--bc-red-200)' }}><ExclamationCircleOutlined style={{ marginRight: 4 }} />{overdueTasks} overdue</Tag>}
+                      {reviewTasks > 0 && <Tag style={{ borderRadius: "var(--radius-lg)", fontSize: 'var(--font-size-xs)', background: 'var(--bc-violet-50)', color: 'var(--bc-violet-600)', border: '1px solid var(--bc-violet-100)' }}><EyeOutlined style={{ marginRight: 4 }} />{reviewTasks} needs review</Tag>}
                     </Space>
                   </Col>
                   <Col>
                     <Space size={16} align="center">
                       <Space size={8}>
-                        <Badge color="#2E7D32" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{doneTasks}</Text>} />
-                        <Badge color="#1976D2" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{inProgTasks}</Text>} />
+                        <Badge color="var(--bc-green-600)" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{doneTasks}</Text>} />
+                        <Badge color="#2563eb" text={<Text style={{ fontSize: 'var(--font-size-sm)' }}>{inProgTasks}</Text>} />
                       </Space>
-                      <Progress percent={pct} size="small" style={{ width: 100, margin: 0 }} strokeColor={sellerColor} railColor="#f1f5f9" format={p => <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{p}%</Text>} />
+                      <Progress percent={pct} size="small" style={{ width: 100, margin: 0 }} strokeColor={sellerColor} railColor="var(--bc-slate-100)" format={p => <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)' }}>{p}%</Text>} />
                     </Space>
                   </Col>
                 </Row>
@@ -664,11 +665,11 @@ export default function TaskInstancesPage() {
     {
       key: 'title', width: 320, render: (_, task) => (
         <Space size={8}>
-          <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: "var(--radius-sm)" }}>TASK</Tag>
+          <Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--bc-font-mono)', background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-secondary)', border: '1px solid var(--bc-border-default)', borderRadius: "var(--radius-sm)" }}>TASK</Tag>
           <div>
-            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', fontWeight: 500 }}>{task.action || task.title || task.name || 'Untitled'}</Text>
-            {task.description && <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', display: 'block', marginTop: 0 }}>{task.description.substring(0, 80)}{(task.description || '').length > 80 ? '...' : ''}</Text>}
-            {task.krTitle && <Text style={{ fontSize: 10, color: '#64748b', display: 'block', marginTop: 0 }}>KR: {task.krTitle}</Text>}
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-text-heading)', fontWeight: 500 }}>{task.action || task.title || task.name || 'Untitled'}</Text>
+            {task.description && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-muted)', display: 'block', marginTop: 0 }}>{task.description.substring(0, 80)}{(task.description || '').length > 80 ? '...' : ''}</Text>}
+            {task.krTitle && <Text style={{ fontSize: 10, color: 'var(--bc-text-secondary)', display: 'block', marginTop: 0 }}>KR: {task.krTitle}</Text>}
           </div>
         </Space>
       ),
@@ -692,23 +693,23 @@ export default function TaskInstancesPage() {
     },
     {
       key: 'actions', width: 60, align: 'right', render: (_, task) => (
-        <Button type="text" icon={<EyeOutlined />} size="small" style={{ color: '#94a3b8' }} />
+        <Button type="text" icon={<EyeOutlined />} size="small" style={{ color: 'var(--bc-text-muted)' }} />
       )
     },
   ];
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+    <div className="pems-tasks-page" style={{ background: 'var(--bc-surface-page)', minHeight: '100vh' }}>
       {/* ═══ HEADER ═══ */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: 'var(--bc-surface-card)', borderBottom: '1px solid var(--bc-border-default)', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Text strong style={{ fontSize: 18, color: '#0f172a' }}>Task Execution Center</Text>
+          <Text strong style={{ fontSize: 18, color: 'var(--bc-text-heading)', fontFamily: 'var(--bc-font-sans)' }}>Task Execution Center</Text>
           <LiveActivityFeed compact />
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadInstances} loading={loading} size="small" style={{ borderRadius: "var(--radius-md)" }}>Refresh</Button>
           <Button icon={<DownloadOutlined />} size="small" style={{ borderRadius: "var(--radius-md)" }} onClick={() => { exportTasksToExcel(instances); message.success('Exported tasks to Excel'); }}>Export</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openWizard} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: '#2563eb', borderColor: '#2563eb' }}>New Task</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openWizard} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: 'var(--bc-blue-600)', borderColor: 'var(--bc-blue-600)' }}>New Task</Button>
         </Space>
       </div>
 
@@ -722,9 +723,9 @@ export default function TaskInstancesPage() {
             {QUICK_VIEWS.map(qv => (
               <div key={qv.key} onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
                 style={{
-                  padding: '5px 14px', borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: quickView === qv.key ? 700 : 500,
-                  background: quickView === qv.key ? '#2563eb' : '#fff', color: quickView === qv.key ? '#fff' : '#475569',
-                  border: `1px solid ${quickView === qv.key ? '#2563eb' : '#e5e7eb'}`,
+                  padding: '5px 14px', borderRadius: 'var(--bc-radius-full)', fontSize: 'var(--font-size-xs)', fontWeight: quickView === qv.key ? 700 : 500,
+                  background: quickView === qv.key ? 'var(--bc-blue-600)' : 'var(--bc-surface-card)', color: quickView === qv.key ? '#fff' : 'var(--bc-text-body)',
+                  border: `1px solid ${quickView === qv.key ? 'var(--bc-blue-600)' : 'var(--bc-border-default)'}`,
                   cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s', userSelect: 'none'
                 }}>
                 {qv.label}
@@ -756,7 +757,7 @@ export default function TaskInstancesPage() {
                 { key: 'health', label: 'Health', options: [{ value: 'critical', label: 'Critical' }, { value: 'attention', label: 'Attention' }, { value: 'healthy', label: 'Healthy' }] },
               ].map(f => (
                 <div key={f.key}>
-                  <Text style={{ fontSize: 9, color: '#94a3b8', display: 'block', marginBottom: 3, fontWeight: 600 }}>{f.label}</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-muted)', display: 'block', marginBottom: 3, fontWeight: 600 }}>{f.label}</Text>
                   <Select allowClear placeholder={f.label} value={filters[f.key]} onChange={v => setFilters(p => ({ ...p, [f.key]: v }))} size="small" style={{ width: 120 }} showSearch optionFilterProp="label" options={f.options} />
                 </div>
               ))}
@@ -767,9 +768,9 @@ export default function TaskInstancesPage() {
 
         {/* ═══ BULK ACTIONS ═══ */}
         {selectedIds.size > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: '#eff6ff', borderRadius: 10, marginBottom: 12, border: '1px solid #bfdbfe' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', background: 'var(--bc-blue-50)', borderRadius: 10, marginBottom: 12, border: '1px solid var(--bc-blue-200)', flexWrap: 'wrap' }}>
             <Checkbox checked={selectedIds.size === instances.length} onChange={toggleSelectAll}>
-              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: '#1e40af' }}>{selectedIds.size} selected</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-blue-800)' }}>{selectedIds.size} selected</Text>
             </Checkbox>
             <div style={{ flex: 1 }} />
             <Space size={4}>
@@ -778,7 +779,7 @@ export default function TaskInstancesPage() {
               <Button size="small" danger style={{ borderRadius: 6 }}>Reject</Button>
               <Button size="small" style={{ borderRadius: 6 }} icon={<DownloadOutlined />}>Export</Button>
             </Space>
-            <Button size="small" type="text" onClick={() => setSelectedIds(new Set())} style={{ color: '#D32F2F' }}>Clear</Button>
+            <Button size="small" type="text" onClick={() => setSelectedIds(new Set())} style={{ color: 'var(--bc-red-600)' }}>Clear</Button>
           </div>
         )}
 
@@ -801,7 +802,7 @@ export default function TaskInstancesPage() {
                       <Space>
                         <Input prefix={<SearchOutlined />} placeholder="Search OKR tasks..." value={okrSearchQuery} onChange={e => setOkrSearchQuery(e.target.value)} style={{ width: 220, borderRadius: "var(--radius-md)" }} size="small" />
                         <Button size="small" icon={<ReloadOutlined />} onClick={loadOkrData}>Refresh</Button>
-                        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => { setEditingObjective(null); setIsObjectiveModalOpen(true); }} style={{ background: '#2563eb', borderRadius: "var(--radius-md)" }}>New Objective</Button>
+                        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => { setEditingObjective(null); setIsObjectiveModalOpen(true); }} style={{ background: 'var(--bc-blue-600)', borderRadius: "var(--radius-md)" }}>New Objective</Button>
                       </Space>
                     </Col>
                   </Row>
@@ -817,55 +818,57 @@ export default function TaskInstancesPage() {
             ) : (
               /* LIST VIEW */
               <Card size="small" style={{ borderRadius: 10 }} styles={{ body: { padding: 0 } }}>
-                {/* Table Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,2fr) 110px 70px 80px 80px 90px 70px minmax(130px, auto)', alignItems: 'center', padding: '8px 16px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc', gap: 8 }}>
-                  <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Task</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Metrics</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Assignee</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Priority</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Status</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>SLA</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Due</Text>
-                  <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', textAlign: 'right' }}>Actions</Text>
+                <div className="pems-list-desktop">
+                  {/* Table Header */}
+                  <div style={{ display: 'grid', gridTemplateColumns: TASK_LIST_GRID, alignItems: 'center', padding: '8px 16px', borderBottom: '2px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)', gap: 8 }}>
+                    <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>Task</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>Metrics</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>Assignee</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>Priority</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>Status</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>SLA</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)' }}>Due</Text>
+                    <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)', textAlign: 'right' }}>Actions</Text>
+                  </div>
+
+                  {/* Desktop list */}
+                  {loading ? (
+                    <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
+                  ) : instances.length === 0 ? (
+                    <Empty description={
+                      <Space direction="vertical" size={4}>
+                        <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600 }}>No tasks found</Text>
+                        <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-text-muted)' }}>{quickView !== 'ALL' ? 'Try a different view' : 'Create your first task to get started'}</Text>
+                      </Space>
+                    } style={{ padding: 60 }} />
+                  ) : (
+                    <div>
+                      {instances.map((task, i) => (
+                        <PremiumTaskRow
+                          key={task.Id}
+                          task={task}
+                          index={i}
+                          selected={selectedIds.has(task.Id)}
+                          onSelect={toggleSelect}
+                          onView={openWorkspace}
+                          onRefresh={loadInstances}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile cards for small screens */}
-                <div style={{ display: 'none' }} className="pems-mobile-only">
+                <div className="pems-mobile-only">
                   {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
                     instances.length === 0 ? <Empty description="No tasks found" style={{ padding: 40 }} /> :
                       instances.map(t => <MobileTaskCard key={t.Id} task={t} onView={openWorkspace} />)}
                 </div>
 
-                {/* Desktop list */}
-                {loading ? (
-                  <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
-                ) : instances.length === 0 ? (
-                  <Empty description={
-                    <Space direction="vertical" size={4}>
-                      <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600 }}>No tasks found</Text>
-                      <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>{quickView !== 'ALL' ? 'Try a different view' : 'Create your first task to get started'}</Text>
-                    </Space>
-                  } style={{ padding: 60 }} />
-                ) : (
-                  <div>
-                    {instances.map((task, i) => (
-                      <PremiumTaskRow
-                        key={task.Id}
-                        task={task}
-                        index={i}
-                        selected={selectedIds.has(task.Id)}
-                        onSelect={toggleSelect}
-                        onView={openWorkspace}
-                        onRefresh={loadInstances}
-                      />
-                    ))}
-                  </div>
-                )}
-
                 {/* Pagination */}
                 {instances.length > 0 && (
-                  <div style={{ padding: '8px 14px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '8px 14px', borderTop: '1px solid var(--bc-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>{pagination.total} tasks</Text>
                     <Space>
                       <Button size="small" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} icon={<LeftOutlined />} />
@@ -879,7 +882,9 @@ export default function TaskInstancesPage() {
           </div>
 
           {/* ═══ RIGHT INSIGHTS PANEL ═══ */}
-          <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${disputesOnly}-${filters.status}-${pagination.page}`} />
+          <div className="pems-insights-panel">
+            <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${disputesOnly}-${filters.status}-${pagination.page}`} />
+          </div>
         </div>
       </div>
 
@@ -900,15 +905,15 @@ export default function TaskInstancesPage() {
         footer={<div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <Button onClick={() => setWizardStep(Math.max(0, wizardStep - 1))} disabled={wizardStep === 0}>Back</Button>
           <Space>
-            {wizardStep < 4 ? <Button type="primary" onClick={handleWizardNext} style={{ background: '#2563eb' }}>Next</Button> :
-              <Button type="primary" onClick={handleCreateTask} loading={creating} style={{ background: '#2E7D32' }}>Create</Button>}
+            {wizardStep < 4 ? <Button type="primary" onClick={handleWizardNext} style={{ background: 'var(--bc-blue-600)', borderColor: 'var(--bc-blue-600)' }}>Next</Button> :
+              <Button type="primary" onClick={handleCreateTask} loading={creating} style={{ background: 'var(--bc-green-600)', borderColor: 'var(--bc-green-600)' }}>Create</Button>}
           </Space>
         </div>}
       >
         <div style={{ marginBottom: 20 }}>
           {['Basic Info', 'Assignments', 'Performance', 'Timeline', 'Preview'].map((s, i) => (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 16, fontSize: 'var(--font-size-xs)', fontWeight: wizardStep === i ? 700 : 400, color: wizardStep === i ? '#2563eb' : '#94a3b8' }}>
-              <span style={{ width: 20, height: 20, borderRadius: '50%', background: wizardStep >= i ? '#2563eb' : '#e5e7eb', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600 }}>{i + 1}</span>
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 16, fontSize: 'var(--font-size-xs)', fontWeight: wizardStep === i ? 700 : 400, color: wizardStep === i ? 'var(--bc-blue-600)' : 'var(--bc-text-muted)' }}>
+              <span style={{ width: 20, height: 20, borderRadius: '50%', background: wizardStep >= i ? 'var(--bc-blue-600)' : 'var(--bc-border-default)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600 }}>{i + 1}</span>
               {s}
             </span>
           ))}

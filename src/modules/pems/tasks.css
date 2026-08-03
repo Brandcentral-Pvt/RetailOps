@@ -1,0 +1,35 @@
+/* PEMS Tasks — module-level responsive + polish rules. */
+
+.pems-tasks-page .pems-mobile-only {
+  display: none;
+}
+
+.pems-tasks-page .pems-list-desktop {
+  display: block;
+}
+
+@media (max-width: 960px) {
+  .pems-tasks-page .pems-mobile-only {
+    display: block;
+  }
+
+  .pems-tasks-page .pems-list-desktop {
+    display: none;
+  }
+
+  .pems-tasks-page .pems-insights-panel {
+    display: none;
+  }
+}
+
+.pems-tasks-page .task-row-even > td {
+  background: #fafbfc;
+}
+
+.pems-tasks-page .task-row-hover > td {
+  transition: background 0.15s ease;
+}
+
+.pems-tasks-page .task-row-hover:hover > td {
+  background: #f1f5f9 !important;
+}

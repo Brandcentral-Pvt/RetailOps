@@ -42,18 +42,18 @@ export default function CalendarView({ instances, onView, loading }) {
   if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><Text type="secondary">Loading...</Text></div>;
 
   return (
-    <Card size="small" style={{ borderRadius: 10 }} styles={{ body: { padding: '12px 16px' } }}>
+    <Card size="small" style={{ borderRadius: "var(--bc-radius-lg)", border: '1px solid var(--bc-border-default)' }} styles={{ body: { padding: '12px 16px' } }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Button type="text" icon={<LeftOutlined />} onClick={prevMonth} size="small" />
-        <Text strong style={{ fontSize: 15 }}>{MONTHS[month]} {year}</Text>
+        <Text strong style={{ fontSize: 15, color: 'var(--bc-text-heading)' }}>{MONTHS[month]} {year}</Text>
         <Button type="text" icon={<RightOutlined />} onClick={nextMonth} size="small" />
       </div>
 
       {/* Weekday headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
         {WEEKDAYS.map(d => (
-          <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#94a3b8', padding: '4px 0' }}>{d}</div>
+          <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--bc-text-muted)', padding: '4px 0' }}>{d}</div>
         ))}
       </div>
 
@@ -72,13 +72,13 @@ export default function CalendarView({ instances, onView, loading }) {
           return (
             <div key={i} style={{
               padding: '4px 3px', borderRadius: 6, minHeight: 60,
-              background: isToday ? '#eff6ff' : '#fff',
-              border: isToday ? '2px solid #2563eb' : '1px solid #f1f5f9',
+              background: isToday ? 'var(--bc-blue-50)' : 'var(--bc-surface-card)',
+              border: isToday ? '2px solid var(--bc-blue-600)' : '1px solid var(--bc-border-subtle)',
               cursor: tasks.length > 0 ? 'pointer' : 'default',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: isToday ? 800 : 500, color: isToday ? '#2563eb' : '#475569' }}>{day}</Text>
-                {overdueCount > 0 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D32F2F' }} />}
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: isToday ? 800 : 500, color: isToday ? 'var(--bc-blue-600)' : 'var(--bc-text-body)' }}>{day}</Text>
+                {overdueCount > 0 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--bc-red-600)' }} />}
               </div>
               {tasks.slice(0, 3).map(task => {
                 const cfg = WORKFLOW_STATUSES[task.Status] || {};
@@ -97,7 +97,7 @@ export default function CalendarView({ instances, onView, loading }) {
                 );
               })}
               {tasks.length > 3 && (
-                <Text style={{ fontSize: 8, color: '#94a3b8' }}>+{tasks.length - 3} more</Text>
+                <Text style={{ fontSize: 8, color: 'var(--bc-text-muted)' }}>+{tasks.length - 3} more</Text>
               )}
             </div>
           );
@@ -107,13 +107,13 @@ export default function CalendarView({ instances, onView, loading }) {
       {/* Legend */}
       <div style={{ display: 'flex', gap: 12, marginTop: 8, justifyContent: 'center' }}>
         {[
-          { label: 'Today', color: '#2563eb' },
-          { label: 'Overdue', color: '#D32F2F' },
-          { label: 'Tasks', color: '#64748b' },
+          { label: 'Today', color: 'var(--bc-blue-600)' },
+          { label: 'Overdue', color: 'var(--bc-red-600)' },
+          { label: 'Tasks', color: 'var(--bc-text-secondary)' },
         ].map(l => (
           <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
-            <Text style={{ fontSize: 10, color: '#94a3b8' }}>{l.label}</Text>
+            <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{l.label}</Text>
           </div>
         ))}
       </div>
