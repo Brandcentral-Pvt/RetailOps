@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 const TIERS = {
   PUBLIC: { windowMs: 60 * 1000, max: 100 },
@@ -21,7 +21,9 @@ function createLimiter(tierName) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-      return req.user?.Id || req.ip || req.headers?.['x-forwarded-for'] || 'unknown';
+      // Per-user limiting when authenticated; IPv6-safe IP fallback otherwise.
+      if (req.user?.Id) return `user:${req.user.Id}`;
+      return ipKeyGenerator()(req) || 'unknown';
     },
   });
 }

@@ -1,8 +1,24 @@
 const sql = require('mssql');
+const net = require('net');
 const path = require('path');
 const { randomUUID } = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const logger = require('../utils/logger');
+
+// Node 24+/26 refuses to set the TLS `servername` to an IP literal
+// (ERR_INVALID_ARG_VALUE). When the SQL host is an IP address, TLS is
+// disabled by default — override explicitly with DB_ENCRYPT=true|false.
+const isIpLiteral = (host) => !!host && net.isIP(host) !== 0;
+
+function resolveSqlOptions(host, { trustServerCertificate = false } = {}) {
+  const encryptOverride = process.env.DB_ENCRYPT;
+  return {
+    encrypt: encryptOverride !== undefined ? encryptOverride === 'true' : !isIpLiteral(host),
+    trustServerCertificate,
+    enableArithAbort: true,
+    useUTC: false,
+  };
+}
 
 const config = {
     user: process.env.DB_USER,
@@ -10,12 +26,9 @@ const config = {
     server: process.env.DB_SERVER,
     database: process.env.DB_NAME,
     port: parseInt(process.env.DB_PORT),
-    options: {
-        encrypt: true,
-        trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
-        enableArithAbort: true,
-        useUTC: false
-    },
+    options: resolveSqlOptions(process.env.DB_SERVER, {
+      trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
+    }),
     requestTimeout: 600000,
     connectionTimeout: 60000,
     cancelTimeout: 10000,
@@ -32,12 +45,9 @@ const readerConfig = process.env.DB_READER_SERVER ? {
     server: process.env.DB_READER_SERVER,
     database: process.env.DB_READER_NAME || process.env.DB_NAME,
     port: parseInt(process.env.DB_READER_PORT || process.env.DB_PORT),
-    options: {
-        encrypt: true,
-        trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
-        enableArithAbort: true,
-        useUTC: false
-    },
+    options: resolveSqlOptions(process.env.DB_READER_SERVER, {
+      trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
+    }),
     requestTimeout: 300000,
     connectionTimeout: 30000,
     cancelTimeout: 10000,
@@ -91,11 +101,13 @@ async function initUdf(pool) {
 
 function getPool() {
     if (!poolPromise) {
-        poolPromise = new sql.ConnectionPool(config)
-            .connect()
-            .then(async pool => {
-                await initUdf(pool);
-                return pool;
+        const pool = new sql.ConnectionPool(config);
+        // Prevent unhandled 'error' events from taking the process down
+        pool.on('error', (err) => logger.error('SQL pool error event', { error: err.message }));
+        poolPromise = pool.connect()
+            .then(async connected => {
+                await initUdf(connected);
+                return connected;
             })
             .catch(err => {
                 logger.error('SQL Connection Pool Error', { error: err.message });
@@ -109,11 +121,12 @@ function getPool() {
 function getReader() {
     if (!readerConfig) return getPool();
     if (!readerPoolPromise) {
-        readerPoolPromise = new sql.ConnectionPool(readerConfig)
-            .connect()
-            .then(async pool => {
-                await initUdf(pool);
-                return pool;
+        const pool = new sql.ConnectionPool(readerConfig);
+        pool.on('error', (err) => logger.warn('SQL reader pool error event', { error: err.message }));
+        readerPoolPromise = pool.connect()
+            .then(async connected => {
+                await initUdf(connected);
+                return connected;
             })
             .catch(err => {
                 logger.warn('SQL Reader Pool failed — falling back to primary', { error: err.message });
