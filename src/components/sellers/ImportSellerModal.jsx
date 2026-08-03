@@ -137,7 +137,7 @@ const ImportSellerModal = ({ onClose, onImport }) => {
           <Button 
             style={{ marginTop: 24, borderRadius: 'var(--radius-full)', fontWeight: 600, padding: '0 24px', background: 'var(--text-primary, #0f172a)', color: '#fff' }}
           >
-            {isUploading ? <RefreshCw size={14} className="spin" /> : <ChevronRight size={14} />}
+            {isUploading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <ChevronRight size={14} />}
             <span style={{ marginLeft: 8 }}>Browse manifests</span>
           </Button>
         </Dragger>

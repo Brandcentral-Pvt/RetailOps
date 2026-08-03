@@ -633,7 +633,7 @@ const efficiencyMetrics = useMemo(() => {
                 onClick={() => fileRef.current.click()}
                 disabled={loading}
               >
-                {loading ? <RefreshCw size={14} className="me-1 spin" /> : <Upload size={14} className="me-1" />}
+                {loading ? <span className="icon-[svg-spinners--eclipse] me-1" style={{ fontSize: 14 }} aria-hidden="true" /> : <Upload size={14} className="me-1" />}
                 Import
               </button>
               <input
@@ -645,7 +645,7 @@ const efficiencyMetrics = useMemo(() => {
               />
 
               <button className="btn btn-white btn-sm rounded-circle p-2 shadow-sm border border-zinc-200" onClick={loadData}>
-                <RefreshCw size={14} className={loading ? 'spin text-primary' : 'text-zinc-500'} />
+                {loading ? <span className="icon-[svg-spinners--eclipse] text-primary" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} className="text-zinc-500" />}
               </button>
             </div>
           </div>

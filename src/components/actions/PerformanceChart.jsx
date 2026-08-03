@@ -64,7 +64,7 @@ const PerformanceChart = ({ chartData, loading }) => {
       <div style={{ minHeight: '300px' }}>
         {loading ? (
           <div className="d-flex align-items-center justify-content-center h-100 py-5">
-            <div className="spinner-border spinner-border-sm text-primary"></div>
+            <span className="icon-[svg-spinners--eclipse] text-primary" aria-hidden="true"></span>
           </div>
         ) : (
           <Chart options={options} series={series} type="area" height={300} />

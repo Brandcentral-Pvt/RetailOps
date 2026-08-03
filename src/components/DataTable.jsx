@@ -252,7 +252,7 @@ const DataTable = ({
   if (isLoading) {
     return (
       <div className="d-flex justify-content-center align-items-center p-5" style={{ minHeight: '200px' }}>
-        <div className="pulse-loader"></div>
+        <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 32 }} aria-hidden="true" />
       </div>
     );
   }

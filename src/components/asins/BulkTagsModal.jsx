@@ -440,7 +440,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                   onClick={handleApply}
                   disabled={processing}
                   style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
-                  {processing ? <RefreshCw size={14} className="spin" /> : <Save size={14} />}
+                  {processing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <Save size={14} />}
                   {processing ? 'Applying...' : 'Apply Tags'}
                 </button>
               </>

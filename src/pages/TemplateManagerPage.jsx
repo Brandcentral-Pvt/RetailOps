@@ -2,7 +2,7 @@ import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../services/db';
 import {
-    Plus, Edit2, Trash2, Search, Clock, Check, Loader2, Zap, Sparkles, Target, Settings, LayoutTemplate, BarChart2
+    Plus, Edit2, Trash2, Search, Clock, Check, Zap, Sparkles, Target, Settings, LayoutTemplate, BarChart2
 } from 'lucide-react';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
@@ -967,7 +967,7 @@ const TemplateManagerPage = () => {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 4 }}>
                             <Button 
                                 type="primary" 
-                                icon={aiGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
+                                icon={aiGenerating ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <Sparkles size={14} />} 
                                 disabled={aiGenerating || !aiPrompt.trim()} 
                                 onClick={handleAiGenerate}
                                 shape="round"

@@ -218,7 +218,7 @@ const SkuReport = () => {
           ]} />
         <Segmented size="small" value={view} onChange={setView}
           options={[{ label: 'Table', value: 'table' }, { label: 'Charts', value: 'charts' }]} />
-        <Button size="small" icon={<RefreshCw size={13} className={loading ? 'spin-animation' : ''} />} loading={loading} onClick={loadSkuData} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Refresh</Button>
+        <Button size="small" icon={<RefreshCw size={13} />} loading={loading} onClick={loadSkuData} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Refresh</Button>
         <Button size="small" icon={<Download size={13} />} onClick={handleExport} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Export</Button>
       </div>
 

@@ -187,7 +187,7 @@ const MissionControlView = ({ isEmbed = false }) => {
                         className={`mt-4 w-full py-2 ${isRecovering[goal.objectiveId] ? 'bg-slate-50 text-slate-400' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'} rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all flex items-center justify-center gap-2`}
                     >
                         {isRecovering[goal.objectiveId] ? (
-                            <><RefreshCw size={12} className="animate-spin" /> Analyzing Gaps...</>
+                            <><span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12 }} aria-hidden="true" /> Analyzing Gaps...</>
                         ) : (
                             <><Sparkles size={12} /> Trigger AI Recovery</>
                         )}
