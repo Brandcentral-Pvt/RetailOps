@@ -20,16 +20,16 @@ function InsightSection({ title, icon: Icon, count, children }) {
         marginBottom: 10,
       }}>
         <Space size={8}>
-          <Icon style={{ fontSize: 13, color: '#64748B' }} />
+          <Icon style={{ fontSize: 13, color: 'var(--bc-text-secondary)' }} />
           <Text style={{
             fontSize: 11, fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '0.05em',
-            color: '#64748B',
+            color: 'var(--bc-text-secondary)',
           }}>{title}</Text>
         </Space>
         {count !== undefined && (
           <div style={{
-            background: '#F1F5F9', color: '#475569',
+            background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-body)',
             borderRadius: 10, padding: '0 8px',
             fontSize: 10, fontWeight: 600, lineHeight: '18px',
           }}>{count}</div>
@@ -49,9 +49,9 @@ function TaskRow({ task, onClick }) {
       onClick={() => onClick?.(task)}
       style={{
         padding: '10px 12px',
-        borderRadius: 10,
-        border: '1px solid #F1F5F9',
-        background: '#FFFFFF',
+        borderRadius: 'var(--bc-radius-lg)',
+        border: '1px solid var(--bc-border-subtle)',
+        background: 'var(--bc-surface-card)',
         marginBottom: 6,
         cursor: 'pointer',
         transition: 'all 0.1s ease',
@@ -62,7 +62,7 @@ function TaskRow({ task, onClick }) {
         e.currentTarget.style.boxShadow = '0 2px 8px rgba(37,99,235,0.08)';
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.borderColor = '#F1F5F9';
+        e.currentTarget.style.borderColor = 'var(--bc-border-subtle)';
         e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)';
       }}
     >
@@ -71,7 +71,7 @@ function TaskRow({ task, onClick }) {
         marginBottom: 6,
       }}>
         <Text style={{
-          fontSize: 12, fontWeight: 600, color: '#0F172A',
+          fontSize: 12, fontWeight: 600, color: 'var(--bc-text-heading)',
           lineHeight: 1.3, flex: 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{task.Title || 'Untitled'}</Text>
@@ -83,7 +83,7 @@ function TaskRow({ task, onClick }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Space size={6}>
-          <Text style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'monospace' }}>{task.InstanceCode}</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', fontFamily: 'var(--bc-font-mono)' }}>{task.InstanceCode}</Text>
           {task.Priority && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 3,
@@ -149,10 +149,10 @@ export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
 
   return (
     <div style={{
-      width: 260,
-      background: '#FFFFFF',
-      borderRadius: 14,
-      border: '1px solid #E5E7EB',
+      width: 280,
+      background: 'var(--bc-surface-card)',
+      borderRadius: 'var(--bc-radius-2xl)',
+      border: '1px solid var(--bc-border-default)',
       padding: '18px',
       flexShrink: 0,
       overflowY: 'auto',
@@ -161,59 +161,59 @@ export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
     }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #F1F5F9',
+        marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--bc-border-subtle)',
       }}>
-        <Text style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>Insights</Text>
+        <Text style={{ fontSize: 14, fontWeight: 700, color: 'var(--bc-text-heading)' }}>Insights</Text>
         <Button
           type="text" size="small" icon={<ReloadOutlined />} onClick={loadData}
-          style={{ fontSize: 11, color: '#94A3B8' }}
+          style={{ fontSize: 11, color: 'var(--bc-text-muted)' }}
         />
       </div>
 
       <InsightSection title="Upcoming Deadlines" icon={ClockCircleOutlined} count={upcoming.length}>
         {upcoming.length === 0 ? (
-          <Text style={{ fontSize: 11, color: '#94A3B8', padding: '8px 0', display: 'block' }}>No upcoming tasks</Text>
+          <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '8px 0', display: 'block' }}>No upcoming tasks</Text>
         ) : upcoming.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
       </InsightSection>
 
-      <Divider style={{ margin: '4px 0 16px', borderColor: '#F1F5F9' }} />
+      <Divider style={{ margin: '4px 0 16px', borderColor: 'var(--bc-border-subtle)' }} />
 
       <InsightSection title="My Reviews" icon={EyeOutlined} count={reviews.length}>
         {reviews.length === 0 ? (
-          <Text style={{ fontSize: 11, color: '#94A3B8', padding: '8px 0', display: 'block' }}>No pending reviews</Text>
+          <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '8px 0', display: 'block' }}>No pending reviews</Text>
         ) : reviews.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
       </InsightSection>
 
-      <Divider style={{ margin: '4px 0 16px', borderColor: '#F1F5F9' }} />
+      <Divider style={{ margin: '4px 0 16px', borderColor: 'var(--bc-border-subtle)' }} />
 
       <InsightSection title="Recent Activity" icon={WarningOutlined}>
         {recent.length === 0 ? (
-          <Text style={{ fontSize: 11, color: '#94A3B8', padding: '8px 0', display: 'block' }}>No recent activity</Text>
+          <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '8px 0', display: 'block' }}>No recent activity</Text>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recent.slice(0, 6).map(a => (
               <div key={a.Id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <div style={{
                   width: 20, height: 20, borderRadius: 6,
-                  background: a.Action === 'CREATED' ? '#EEF4FF' : '#F0FDF4',
+                  background: a.Action === 'CREATED' ? 'var(--bc-blue-50)' : 'var(--bc-green-50)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, marginTop: 1,
                 }}>
-                  {actionIcons[a.Action] || <ThunderboltOutlined style={{ fontSize: 9, color: '#2563EB' }} />}
+                  {actionIcons[a.Action] || <ThunderboltOutlined style={{ fontSize: 9, color: 'var(--bc-blue-600)' }} />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Text style={{
-                    fontSize: 11, color: '#334155', lineHeight: 1.3,
+                    fontSize: 11, color: 'var(--bc-text-body)', lineHeight: 1.3,
                     display: 'block',
                   }}>
                     <span style={{ fontWeight: 600 }}>{a.ActorName || 'System'}</span>{' '}
                     {a.Action.replace(/_/g, ' ').toLowerCase()}
                   </Text>
                   <Text style={{
-                    fontSize: 10, color: '#94A3B8',
+                    fontSize: 10, color: 'var(--bc-text-muted)',
                     display: 'flex', alignItems: 'center', gap: 4, marginTop: 1,
                   }}>
-                    {a.InstanceCode && <><span style={{ fontFamily: 'monospace' }}>{a.InstanceCode}</span><span>·</span></>}
+                    {a.InstanceCode && <><span style={{ fontFamily: 'var(--bc-font-mono)' }}>{a.InstanceCode}</span><span>·</span></>}
                     {dayjs(a.CreatedAt).fromNow?.() || dayjs(a.CreatedAt).format('HH:mm')}
                   </Text>
                 </div>

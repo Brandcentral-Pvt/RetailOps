@@ -33,6 +33,15 @@ Thumbs.db
 .idea/
 *.sw?
 
+# .NET build artifacts and IDE files
+dotnet/**/bin/
+dotnet/**/obj/
+dotnet/.vs/
+dotnet/**/*.user
+dotnet/**/*.suo
+dotnet/**/*.userprefs
+dotnet/**/*.vsidx
+
 # Uploads and temp files
 backend/uploads/*
 !backend/uploads/.gitkeep

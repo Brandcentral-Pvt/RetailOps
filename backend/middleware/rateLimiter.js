@@ -21,7 +21,9 @@ function createLimiter(tierName) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-      return req.user?.Id || ipKeyGenerator(req.ip) || 'unknown';
+      // Per-user limiting when authenticated; IPv6-safe IP fallback otherwise.
+      if (req.user?.Id) return `user:${req.user.Id}`;
+      return ipKeyGenerator(req.ip) || 'unknown';
     },
   });
 }

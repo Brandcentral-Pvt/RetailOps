@@ -229,8 +229,14 @@ exports.getLiveTasks = async (req, res) => {
     const pool = await getPool();
     const { department, sellerId, assignedTo, status, priority } = req.query;
 
+    // Pagination guard: default 15, max 50
+    let limit = parseInt(req.query.limit, 10);
+    if (!Number.isFinite(limit) || limit < 1) limit = 15;
+    if (limit > 50) limit = 50;
+
     let where = "WHERE i.Status NOT IN ('APPROVED','CANCELLED')";
     const req_ = pool.request();
+    req_.input('limit', sql.Int, limit);
 
     if (department) { where += ' AND i.Department = @department'; req_.input('department', sql.NVarChar, department); }
     if (sellerId) { where += ' AND i.SellerId = @sellerId'; req_.input('sellerId', sql.VarChar, sellerId); }
@@ -239,7 +245,7 @@ exports.getLiveTasks = async (req, res) => {
     if (priority) { where += ' AND i.Priority = @priority'; req_.input('priority', sql.VarChar, priority); }
 
     const result = await req_.query(`
-      SELECT TOP 15 i.Id, i.InstanceCode, i.Title, i.Department, i.SellerName, i.AssigneeName,
+      SELECT TOP (@limit) i.Id, i.InstanceCode, i.Title, i.Department, i.SellerName, i.AssigneeName,
         i.Status, i.ReviewStatus, i.Priority, i.Frequency,
         i.Target, i.Achievement, i.AchievementPct, i.Variance, i.ProgressPct,
         i.SLAStatus, i.SLAHours, i.DueDate, i.CreatedAt,

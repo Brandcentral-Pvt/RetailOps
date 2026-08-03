@@ -1,0 +1,331 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Task Execution Center — v2 page styles
+   Sits on the BrandCentral design tokens (src/styles/tokens.css)
+   Expected location: src/modules/pems/tasks.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pems-tasks-page {
+  background: var(--bc-surface-page, #f8fafc);
+  min-height: 100vh;
+}
+
+.pems-page-inner {
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 20px 24px 96px; /* bottom padding leaves room for the floating bulk bar */
+}
+@media (max-width: 768px) {
+  .pems-page-inner { padding: 14px 14px 96px; }
+}
+
+/* ──────────────────────────────────────────────
+   1. STICKY COMMAND HEADER
+   ────────────────────────────────────────────── */
+.pems-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--bc-border-subtle, #e2e8f0);
+  transition: box-shadow var(--bc-transition-normal, 0.2s ease);
+}
+.pems-sticky-header.scrolled {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+.pems-brand-tile {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--bc-radius-xl, 12px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bc-ro-500, #1976D2), var(--bc-ro-700, #0D47A1));
+  color: #fff;
+  font-size: 17px;
+  box-shadow: 0 4px 10px rgba(25, 118, 210, 0.35);
+  flex-shrink: 0;
+}
+
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid var(--bc-border-strong, #cbd5e1);
+  border-bottom-width: 2px;
+  background: var(--bc-surface-card, #fff);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--bc-text-muted, #94a3b8);
+  font-family: var(--bc-font-mono, monospace);
+}
+
+/* ──────────────────────────────────────────────
+   2. KPI STRIP
+   ────────────────────────────────────────────── */
+.pems-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1700px) { .pems-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 1200px) { .pems-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .pems-kpi-grid { grid-template-columns: 1fr; } }
+
+.pems-kpi-card {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px;
+  border-radius: var(--bc-radius-xl, 12px);
+  background: var(--bc-surface-card, #fff);
+  border: 1px solid var(--bc-border-subtle, #e2e8f0);
+  cursor: pointer;
+  transition: all var(--bc-transition-fast, 0.15s ease);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 96px;
+}
+.pems-kpi-card:hover {
+  border-color: var(--bc-ro-300, #90CAF9);
+  box-shadow: var(--bc-shadow-md, 0 4px 6px rgba(0,0,0,0.07));
+  transform: translateY(-2px);
+}
+.pems-kpi-accent {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+/* ──────────────────────────────────────────────
+   3. QUICK VIEW PILLS
+   ────────────────────────────────────────────── */
+.pems-quick-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: none;      /* clean edge — still scrollable via drag/touch */
+}
+.pems-quick-pills::-webkit-scrollbar { display: none; }
+
+.pems-quick-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 13px;
+  border-radius: var(--bc-radius-full, 9999px);
+  font-size: var(--bc-text-xs, 11px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--bc-text-secondary, #64748b);
+  background: var(--bc-surface-card, #fff);
+  border: 1px solid var(--bc-border-default, #e2e8f0);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+  transition: all var(--bc-transition-fast, 0.15s ease);
+}
+.pems-quick-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.8;
+}
+.pems-quick-pill-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+.pems-quick-pill:hover {
+  color: var(--bc-ro-600, #1565C0);
+  background: var(--bc-ro-50, #E3F2FD);
+  border-color: var(--bc-ro-200, #90CAF9);
+}
+.pems-quick-pill:hover .pems-quick-pill-icon { opacity: 1; }
+.pems-quick-pill:active {
+  transform: scale(0.96);
+}
+.pems-quick-pill:focus-visible {
+  outline: 2px solid var(--bc-ro-400, #42A5F5);
+  outline-offset: 2px;
+}
+.pems-quick-pill.active {
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--bc-ro-500, #1976D2), var(--bc-ro-600, #1565C0));
+  border-color: var(--bc-ro-500, #1976D2);
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.28);
+}
+.pems-quick-pill.active .pems-quick-pill-icon { opacity: 1; }
+
+/* ──────────────────────────────────────────────
+   4. ACTIVE FILTER CHIPS
+   ────────────────────────────────────────────── */
+.pems-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+  border-radius: var(--bc-radius-full, 9999px);
+  font-size: var(--bc-text-xs, 11px);
+  font-weight: 600;
+  background: var(--bc-ro-50, #E3F2FD);
+  color: var(--bc-ro-700, #0D47A1);
+  border: 1px solid var(--bc-ro-200, #90CAF9);
+  transition: all var(--bc-transition-fast, 0.15s ease);
+}
+.pems-chip .anticon {
+  cursor: pointer;
+  opacity: 0.55;
+  font-size: 9px;
+}
+.pems-chip .anticon:hover { opacity: 1; }
+
+/* ──────────────────────────────────────────────
+   5. TASK LIST
+   ────────────────────────────────────────────── */
+.pems-list-card {
+  border-radius: var(--bc-radius-xl, 12px);
+  border: 1px solid var(--bc-border-subtle, #e2e8f0);
+  box-shadow: var(--bc-shadow-card, 0 1px 3px rgba(0,0,0,0.04));
+  overflow: hidden;
+}
+.pems-list-header {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: var(--bc-surface-subtle, #f1f5f9);
+  border-bottom: 1px solid var(--bc-border-default, #e2e8f0);
+}
+.pems-row {
+  position: relative;
+  transition: background var(--bc-transition-fast, 0.15s ease);
+}
+.pems-row:hover { background: var(--bc-surface-hover, #f8fafc); }
+.pems-row.selected { background: var(--bc-ro-50, #E3F2FD); }
+.pems-row.selected:hover { background: var(--bc-ro-100, #BBDEFB); }
+
+/* PremiumTaskRow v2 row states (used when the row itself carries the class) */
+.pems-task-row {
+  background: var(--bc-surface-card, #fff);
+  transition: background var(--bc-transition-fast, 0.15s ease);
+}
+.pems-task-row:hover { background: var(--bc-surface-hover, #f8fafc); }
+.pems-task-row.selected { background: var(--bc-ro-50, #E3F2FD); }
+.pems-task-row.selected:hover { background: var(--bc-ro-100, #BBDEFB); }
+
+/* OKR zebra tables */
+.task-row-even td { background: var(--bc-surface-card, #fff); }
+.task-row-odd td { background: var(--bc-surface-muted, #f8fafc); }
+
+/* ──────────────────────────────────────────────
+   6. RIGHT INSIGHTS PANEL
+   ────────────────────────────────────────────── */
+.pems-insights-panel {
+  width: 316px;
+  flex-shrink: 0;
+}
+.pems-insights-sticky {
+  position: sticky;
+  top: 84px;
+  max-height: calc(100vh - 104px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* Below 1360px the panel tucks into a drawer triggered from the toolbar */
+@media (max-width: 1360px) {
+  .pems-insights-panel { display: none; }
+  .pems-insights-trigger { display: inline-flex !important; }
+}
+.pems-insights-trigger { display: none; }
+
+/* ──────────────────────────────────────────────
+   7. RESPONSIVE: DESKTOP LIST vs MOBILE CARDS
+   ────────────────────────────────────────────── */
+.pems-list-desktop { display: block; }
+.pems-mobile-only { display: none; }
+/* Switch to mobile cards early (incl. tablets) + hide the insights panel */
+@media (max-width: 960px) {
+  .pems-list-desktop { display: none; }
+  .pems-mobile-only { display: block; }
+  .pems-insights-panel { display: none; }
+}
+@media (max-width: 768px) {
+  .pems-list-desktop { display: none; }
+  .pems-mobile-only { display: block; }
+}
+
+/* ──────────────────────────────────────────────
+   8. FLOATING BULK ACTION BAR
+   ────────────────────────────────────────────── */
+.pems-bulk-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 22px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 18px;
+  background: var(--bc-slate-900, #0f172a);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--bc-radius-2xl, 16px);
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.4);
+  animation: pems-rise 0.25s var(--bc-ease-out, cubic-bezier(0, 0, 0.2, 1));
+}
+@keyframes pems-rise {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.pems-bulk-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ──────────────────────────────────────────────
+   9. MISC
+   ────────────────────────────────────────────── */
+.pems-empty-wrap { padding: 64px 24px; }
+.pems-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bc-text-muted, #94a3b8);
+}
+.pems-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bc-green-500, #22c55e);
+  box-shadow: 0 0 0 3px var(--bc-green-50, #f0fdf4);
+  animation: pems-pulse 2s infinite;
+}
+@keyframes pems-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18); }
+  50%      { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.05); }
+}
+
+.pems-tasks-page ::-webkit-scrollbar { width: 8px; height: 8px; }
+.pems-tasks-page ::-webkit-scrollbar-thumb { background: var(--bc-slate-300, #cbd5e1); border-radius: 8px; }
+.pems-tasks-page ::-webkit-scrollbar-track { background: transparent; }
+
+/* Skeleton shimmer rows for list loading */
+.pems-skeleton-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--bc-border-subtle, #f1f5f9); }

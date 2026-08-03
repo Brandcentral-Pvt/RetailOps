@@ -138,3 +138,55 @@ describe('WorkflowEngine', () => {
     });
   });
 });
+
+describe('getTransitionTimestamps', () => {
+  const { getTransitionTimestamps } = require('../../services/pems/workflowEngine');
+  const now = new Date('2026-08-03T12:00:00Z');
+
+  it('stamps AssignedAt on ASSIGNED', () => {
+    const t = getTransitionTimestamps('DRAFT', 'ASSIGNED', now);
+    expect(t.AssignedAt).toEqual(now);
+    expect(t.CompletedAt).toBeUndefined();
+  });
+
+  it('stamps StartedAt on IN_PROGRESS', () => {
+    const t = getTransitionTimestamps('ACCEPTED', 'IN_PROGRESS', now);
+    expect(t.StartedAt).toEqual(now);
+    expect(t.ReviewedAt).toBeUndefined();
+  });
+
+  it('stamps ReviewedAt + CompletedAt on APPROVED (regression: CompletedAt was never set)', () => {
+    const t = getTransitionTimestamps('UNDER_REVIEW', 'APPROVED', now);
+    expect(t.ReviewedAt).toEqual(now);
+    expect(t.CompletedAt).toEqual(now);
+  });
+
+  it('stamps ReviewedAt and clears CompletedAt on REJECTED', () => {
+    const t = getTransitionTimestamps('UNDER_REVIEW', 'REJECTED', now);
+    expect(t.ReviewedAt).toEqual(now);
+    expect(t.CompletedAt).toBeNull();
+  });
+
+  it('returns no timestamps for non-timestamped transitions (e.g. REWORK)', () => {
+    const t = getTransitionTimestamps('REJECTED', 'REWORK', now);
+    expect(Object.keys(t)).toHaveLength(0);
+  });
+});
+
+describe('resolveReviewTransition', () => {
+  const { resolveReviewTransition } = require('../../services/pems/workflowEngine');
+
+  it('maps APPROVE to APPROVED', () => {
+    expect(resolveReviewTransition('APPROVE')).toBe('APPROVED');
+  });
+
+  it('maps REWORK to REWORK (regression: was collapsed into REJECTED)', () => {
+    expect(resolveReviewTransition('REWORK')).toBe('REWORK');
+  });
+
+  it('maps anything else to REJECTED', () => {
+    expect(resolveReviewTransition('REJECT')).toBe('REJECTED');
+    expect(resolveReviewTransition(undefined)).toBe('REJECTED');
+    expect(resolveReviewTransition('BOGUS')).toBe('REJECTED');
+  });
+});
