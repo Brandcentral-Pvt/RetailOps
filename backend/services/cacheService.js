@@ -128,6 +128,15 @@ async function invalidate(...patterns) {
   }
 }
 
+/**
+ * Namespace-based invalidation (PEMS uses this).
+ * Keys built via cacheRoute(namespace, ttl) are `route:{namespace}:{path}`,
+ * so deleting `route:{namespace}:*` clears exactly that namespace.
+ */
+async function invalidateNamespace(namespace) {
+  await delPattern(`route:${namespace}:*`);
+}
+
 function isEnabled() {
   return enabled && client !== null;
 }
@@ -148,6 +157,7 @@ module.exports = {
   delPattern,
   remember,
   invalidate,
+  invalidateNamespace,
   key,
   isEnabled,
   disconnect,

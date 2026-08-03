@@ -9,8 +9,8 @@ function registerEventHandlers() {
     const { taskInstanceId, toStatus, fromStatus, userId, actorName } = data;
 
     // Invalidate related caches
-    cacheService.delPattern('route:/api/pems:instances*').catch(() => {});
-    cacheService.delPattern('route:/api/pems:dashboard*').catch(() => {});
+    cacheService.invalidateNamespace('pems:instances').catch(() => {});
+    cacheService.invalidateNamespace('pems:dashboard').catch(() => {});
 
     // Queue notification
     const notificationTypes = {
@@ -52,8 +52,8 @@ function registerEventHandlers() {
   });
 
   eventBus.on(eventBus.EVENTS.TASK_APPROVED, async (data) => {
-    cacheService.delPattern('route:/api/pems:instances*').catch(() => {});
-    cacheService.delPattern('route:/api/pems:dashboard*').catch(() => {});
+    cacheService.invalidateNamespace('pems:instances').catch(() => {});
+    cacheService.invalidateNamespace('pems:dashboard').catch(() => {});
   });
 
   eventBus.on(eventBus.EVENTS.SLA_BREACHED, async (data) => {
@@ -79,7 +79,7 @@ function registerEventHandlers() {
   });
 
   eventBus.on(eventBus.EVENTS.PIPELINE_COMPLETED, async (data) => {
-    cacheService.delPattern('route:/api/pems:dashboard*').catch(() => {});
+    cacheService.invalidateNamespace('pems:dashboard').catch(() => {});
     logger.info(`Pipeline completed: ${data.totalSellers} sellers, ${data.successful} successful`);
   });
 
