@@ -1,5 +1,6 @@
-const { sql, getPool, generateId } = require('../../database/db');
-const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, WORKFLOW_STATUSES } = require('./workflowEngine');
+const { sql, getPool, generateId, withTransaction } = require('../../database/db');
+const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
+const { canActOnTask } = require('./pemsPolicy');
 const eventBus = require('../eventBus');
 const eventStore = require('./eventStore');
 const logger = require('../../utils/logger');
@@ -136,7 +137,8 @@ async function deleteTemplate(id) {
 // ═══════════════════════════════════════════════════════
 
 async function createInstance(data) {
-  const pool = await getPool();
+  return withTransaction(async (tx) => {
+  const pool = tx;
   const id = genId();
   const countResult = await pool.request().query('SELECT COUNT(*) as c FROM PemsTaskInstances');
   const instanceCode = genCode('TASK', countResult.recordset[0].c + 1);
@@ -255,9 +257,10 @@ async function createInstance(data) {
     .query('UPDATE PemsTaskInstances SET SubTaskCount = @stCount, ActivityCount = @actCount WHERE Id = @instId');
 
   // Audit log
-  await writeAuditLog(id, 'CREATED', null, data.status || 'DRAFT', data.createdBy, data.assigneeName, 'Task instance created');
+  await writeAuditLog(id, 'CREATED', null, data.status || 'DRAFT', data.createdBy, data.assigneeName, 'Task instance created', tx);
 
   return { id, instanceCode };
+  });
 }
 
 async function getInstances(filters = {}) {
@@ -391,10 +394,18 @@ async function getInstanceById(id) {
     .query('SELECT * FROM PemsSubTasks WHERE TaskInstanceId = @instanceId ORDER BY SortOrder');
   instance.subTasks = subTasks.recordset;
 
-  for (const st of instance.subTasks) {
-    const acts = await pool.request().input('subTaskId', sql.VarChar, st.Id)
-      .query('SELECT * FROM PemsActivities WHERE SubTaskId = @subTaskId ORDER BY StepNo');
-    st.activities = acts.recordset.map(a => ({ ...a, SupportDocuments: safeParse(a.SupportDocuments, []) }));
+  if (instance.subTasks.length > 0) {
+    const ids = instance.subTasks.map(s => s.Id);
+    const placeholders = ids.map((_, i) => `@id${i}`).join(',');
+    const req3 = pool.request();
+    ids.forEach((id, i) => req3.input(`id${i}`, sql.VarChar, id));
+    const acts = await req3.query(`SELECT * FROM PemsActivities WHERE SubTaskId IN (${placeholders}) ORDER BY StepNo`);
+    const actMap = {};
+    acts.recordset.forEach(a => {
+      if (!actMap[a.SubTaskId]) actMap[a.SubTaskId] = [];
+      actMap[a.SubTaskId].push({ ...a, SupportDocuments: safeParse(a.SupportDocuments, []) });
+    });
+    instance.subTasks.forEach(st => { st.activities = actMap[st.Id] || []; });
   }
 
   const evidence = await pool.request().input('instanceId', sql.VarChar, id)
@@ -416,8 +427,8 @@ async function getInstanceById(id) {
 // WORKFLOW TRANSITIONS
 // ═══════════════════════════════════════════════════════
 
-async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details) {
-  const pool = await getPool();
+async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, actorRole, details, tx) {
+  const pool = tx || (await getPool());
   const instanceResult = await pool.request()
     .input('id', sql.VarChar, taskInstanceId)
     .query('SELECT Status, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Title FROM PemsTaskInstances WHERE Id = @id');
@@ -462,7 +473,7 @@ async function transitionStatus(taskInstanceId, toStatus, actorId, actorName, ac
 
   await req.query(`UPDATE PemsTaskInstances SET ${sets.join(', ')} WHERE Id = @id`);
 
-  await writeAuditLog(taskInstanceId, 'STATUS_CHANGED', instance.Status, toStatus, actorId, actorName, details || `Status changed to ${toStatus}`);
+  await writeAuditLog(taskInstanceId, 'STATUS_CHANGED', instance.Status, toStatus, actorId, actorName, details || `Status changed to ${toStatus}`, tx);
 
   // ── Event Store (append-only) ──
   try {
@@ -523,9 +534,13 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
   for (const id of taskIds) {
     try {
       const inst = await pool.request().input('id', sql.VarChar, id)
-        .query('SELECT Status FROM PemsTaskInstances WHERE Id = @id');
+        .query('SELECT Status, AssignedTo, ReviewerId FROM PemsTaskInstances WHERE Id = @id');
       const row = inst.recordset[0];
       if (!row) { skipped.push({ id, reason: 'NOT_FOUND' }); continue; }
+      if (!canActOnTask({ Id: actorId, role: actorRole }, row)) {
+        skipped.push({ id, reason: 'NO_ACCESS' });
+        continue;
+      }
       if (!canTransition(row.Status, toStatus)) {
         skipped.push({ id, reason: `INVALID_TRANSITION:${row.Status}->${toStatus}` });
         continue;
@@ -545,7 +560,8 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, actorRole, 
 // ═══════════════════════════════════════════════════════
 
 async function completeSubTask(subTaskId, actorId, actorName) {
-  const pool = await getPool();
+  return withTransaction(async (tx) => {
+  const pool = tx;
   await pool.request()
     .input('id', sql.VarChar, subTaskId)
     .query("UPDATE PemsSubTasks SET IsCompleted = 1, Status = 'COMPLETED', CompletedAt = dbo.GetEnvDate() WHERE Id = @id");
@@ -566,9 +582,10 @@ async function completeSubTask(subTaskId, actorId, actorName) {
       .input('pct', sql.Decimal(5, 2), progressPct)
       .input('wp', sql.Decimal(5, 2), weightedProgress)
       .query('UPDATE PemsTaskInstances SET CompletedSubTasks = @done, ProgressPct = @pct, WeightedProgressPct = @wp WHERE Id = @instId');
-    await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`);
+    await writeAuditLog(instId, 'SUBTASK_COMPLETED', null, null, actorId, actorName, `Subtask completed`, tx);
     eventBus.emit(eventBus.EVENTS.SUBTASK_COMPLETED, { taskInstanceId: instId, subTaskId, actorId, actorName });
   }
+  });
 }
 
 async function completeActivity(activityId, actorId, actorName) {
@@ -611,8 +628,8 @@ async function uploadEvidence(data) {
 // REVIEWS
 // ═══════════════════════════════════════════════════════
 
-async function submitReview(data) {
-  const pool = await getPool();
+async function submitReview(data, tx) {
+  const pool = tx || (await getPool());
   const id = genId();
   await pool.request()
     .input('id', sql.VarChar, id)
@@ -630,6 +647,24 @@ async function submitReview(data) {
     `);
 
   return { id };
+}
+
+/**
+ * Insert the review AND apply its workflow transition atomically.
+ * decision APPROVE → APPROVED · REWORK → REWORK · else REJECTED.
+ */
+async function submitReviewAndTransition(data, actor) {
+  return withTransaction(async (tx) => {
+    const review = await submitReview(data, tx);
+    await transitionStatus(
+      data.taskInstanceId,
+      resolveReviewTransition(data.decision),
+      actor.id, actor.name, actor.role,
+      data.feedback,
+      tx
+    );
+    return review;
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -759,8 +794,8 @@ async function getSellerPerformance(filters = {}) {
 // UTILITIES
 // ═══════════════════════════════════════════════════════
 
-async function writeAuditLog(taskInstanceId, action, fromStatus, toStatus, actorId, actorName, details) {
-  const pool = await getPool();
+async function writeAuditLog(taskInstanceId, action, fromStatus, toStatus, actorId, actorName, details, tx) {
+  const pool = tx || (await getPool());
   await pool.request()
     .input('id', sql.VarChar, genId())
     .input('taskInstanceId', sql.VarChar, taskInstanceId)
@@ -1212,6 +1247,7 @@ async function recalculateAllWeightedProgress() {
 
 module.exports = {
   bulkTransition,
+  submitReviewAndTransition,
   createTemplate, getTemplates, getTemplateById, updateTemplate, deleteTemplate,
   createInstance, getInstances, getInstanceById,
   transitionStatus,

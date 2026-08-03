@@ -186,13 +186,12 @@ exports.submitReview = async (req, res) => {
       reviewerName: getUserName(req) || req.user?.email,
     });
 
-    // Auto-transition based on decision (APPROVE / REWORK / else REJECTED)
-    const { resolveReviewTransition } = require('../../services/pems/workflowEngine');
-    await pemsService.transitionStatus(
-      req.body.taskInstanceId,
-      resolveReviewTransition(req.body.decision),
-      getUserId(req), getUserName(req), req.user?.role, req.body.feedback
-    );
+    // Review insert + workflow transition applied atomically
+    await pemsService.submitReviewAndTransition(req.body, {
+      id: getUserId(req),
+      name: getUserName(req) || req.user?.email,
+      role: req.user?.role,
+    });
 
     res.json({ success: true, data: result });
   } catch (err) {

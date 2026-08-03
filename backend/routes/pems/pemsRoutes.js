@@ -8,27 +8,27 @@ const { cacheRoute, invalidateCache } = require('../../middleware/cache');
 router.get('/templates', auth, cacheRoute('pems:templates', 120), ctrl.getTemplates);
 router.get('/templates/filters', auth, cacheRoute('pems:meta', 300), ctrl.getFilterOptions);
 router.get('/templates/:id', auth, cacheRoute('pems:templates', 120), ctrl.getTemplateById);
-router.post('/templates', auth, invalidateCache('route:/api/pems/templates*'), ctrl.createTemplate);
-router.put('/templates/:id', auth, invalidateCache('route:/api/pems/templates*'), ctrl.updateTemplate);
-router.delete('/templates/:id', auth, invalidateCache('route:/api/pems/templates*'), ctrl.deleteTemplate);
+router.post('/templates', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.createTemplate);
+router.put('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.updateTemplate);
+router.delete('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.deleteTemplate);
 
 // ── Task Instances ──
 router.get('/instances', auth, cacheRoute('pems:instances', 30), ctrl.getInstances);
 router.get('/instances/:id', auth, cacheRoute('pems:instances', 60), ctrl.getInstanceById);
 router.post('/instances', auth, invalidateCache('pems:instances'), ctrl.createInstance);
 router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
-router.post('/instances/:id/transition', auth, invalidateCache('pems:instances'), ctrl.transitionStatus);
-router.put('/instances/:id/achievement', auth, invalidateCache('pems:instances'), ctrl.updateAchievement);
+router.post('/instances/:id/transition', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.transitionStatus);
+router.put('/instances/:id/achievement', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.updateAchievement);
 
 // ── Sub Tasks & Activities ──
-router.post('/subtasks/:subTaskId/complete', auth, invalidateCache('pems:instances'), ctrl.completeSubTask);
-router.post('/activities/:activityId/complete', auth, invalidateCache('pems:instances'), ctrl.completeActivity);
+router.post('/subtasks/:subTaskId/complete', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.completeSubTask);
+router.post('/activities/:activityId/complete', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.completeActivity);
 
 // ── Evidence ──
-router.post('/evidence', auth, ctrl.uploadEvidence);
+router.post('/evidence', auth, requireTaskAccess, ctrl.uploadEvidence);
 
 // ── Reviews ──
-router.post('/reviews', auth, invalidateCache('pems:instances'), ctrl.submitReview);
+router.post('/reviews', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.submitReview);
 
 // ── Dashboard ──
 router.get('/dashboard/kpis', auth, cacheRoute('pems:dashboard', 120), ctrl.getDashboardKPIs);
@@ -49,7 +49,7 @@ router.get('/dashboard/activity-feed', auth, cacheRoute('pems:dashboard', 30), d
 
 // ── V3: Template Detail + Assignment Rules ──
 router.get('/templates/:id/detail', auth, cacheRoute('pems:templates', 120), ctrl.getTemplateDetail);
-router.put('/templates/:templateId/assignment-rules', auth, invalidateCache('pems:templates'), ctrl.upsertAssignmentRules);
+router.put('/templates/:templateId/assignment-rules', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.upsertAssignmentRules);
 router.post('/recalculate-progress', auth, ctrl.recalculateProgress);
 
 // ── Notifications ──
