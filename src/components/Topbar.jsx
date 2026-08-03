@@ -185,7 +185,7 @@ const Topbar = ({ toggleSidebar }) => {
           title="Refresh data"
           disabled={isRefreshing}
         >
-          <RefreshCw size={20} className={isRefreshing ? 'spin' : ''} />
+          {isRefreshing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 20 }} aria-hidden="true" /> : <RefreshCw size={20} />}
         </button>
 
         {/* Notifications */}

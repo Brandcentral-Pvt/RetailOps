@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ChevronDown, Check, Loader2, X } from 'lucide-react';
+import { Search, ChevronDown, Check, X } from 'lucide-react';
 
 /**
  * InfiniteScrollSelect - A premium custom dropdown with lazy loading and search.
@@ -243,7 +243,7 @@ const InfiniteScrollSelect = ({
                     <div className="options-list">
                         {loading && options.length === 0 ? (
                             <div className="initial-loader" style={{ padding: '30px', textAlign: 'center' }}>
-                                <Loader2 size={20} className="spin text-zinc-400 mx-auto" />
+                                <span className="icon-[svg-spinners--eclipse] text-zinc-400 mx-auto" style={{ fontSize: 20 }} aria-hidden="true" />
                                 <div style={{ fontSize: 'var(--font-size-xs)', color: '#a1a1aa', marginTop: '8px' }}>Fetching sellers...</div>
                             </div>
                         ) : (
@@ -263,7 +263,7 @@ const InfiniteScrollSelect = ({
                                 {hasMore && (
                                     <div ref={observerTarget} className="sentinel" style={{ height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         {loading ? (
-                                            <Loader2 size={12} className="spin text-zinc-400" />
+                                            <span className="icon-[svg-spinners--eclipse] text-zinc-400" style={{ fontSize: 12 }} aria-hidden="true" />
                                         ) : (
                                             <div style={{ height: '1px' }} />
                                         )}

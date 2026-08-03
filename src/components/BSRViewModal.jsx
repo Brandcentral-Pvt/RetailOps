@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import {
   X, BarChart3, Search, Download, Maximize2, Minimize2,
   ArrowUpDown, ArrowUp, ArrowDown, FileText, Minus,
-  TrendingUp, TrendingDown, SlidersHorizontal, Loader2, Store, Calendar
+  TrendingUp, TrendingDown, SlidersHorizontal, Store, Calendar
 } from 'lucide-react';
 import { asinApi, sellerApi } from '../services/api';
 import InfiniteScrollSelect from './common/InfiniteScrollSelect';
@@ -301,10 +301,6 @@ const BSRViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sellerI
     .dd { font-size:10px; padding:2px 6px; border-radius:4px; text-align:center; min-width:48px; }
     .dd-has { background:${C.successBg}; color:#2E7D32; font-weight:600; }
     .dd-no { color:#d1d5db; }
-    .loader-pulse { height:30px; display:flex; align-items:center; justify-content:center; gap:6px; margin:16px 0; }
-    .pulse-dot { width:6px; height:6px; background:${C.primary}; border-radius:50%; animation:pulse 1.5s infinite; }
-    .pulse-dot:nth-child(2) { animation-delay:0.2s; }
-    .pulse-dot:nth-child(3) { animation-delay:0.4s; }
     @keyframes pulse { 0%,100% { transform:scale(1); opacity:0.3; } 50% { transform:scale(1.5); opacity:1; } }
     .bt input[type="checkbox"] { width:13px; height:13px; cursor:pointer; accent-color:${C.primary}; }
   `;
@@ -332,7 +328,7 @@ const BSRViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sellerI
           </Space>
           <Space size={8}>
             <button className="chp" onClick={() => setShowExportMenu(!showExportMenu)} style={{ borderColor: C.success, color: C.success }} disabled={exporting}>
-              {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export
+              {exporting ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> : <Download size={13} />} Export
             </button>
             {showExportMenu && !exporting && (
               <div className="position-absolute bg-white border rounded-lg shadow-xl p-1" style={{ top: '100%', right: 0, zIndex: 100, marginTop: 4, minWidth: 160 }}>
@@ -399,7 +395,7 @@ const BSRViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sellerI
         )}
         {loading && (
           <span className="d-flex align-items-center gap-1 ms-auto" style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
-            <Loader2 size={13} className="animate-spin" /> Fetching...
+            <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> Fetching...
           </span>
         )}
       </div>
@@ -520,7 +516,7 @@ const BSRViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sellerI
           </tbody>
         </table>
         {(loading || hasMore) && (
-          <div ref={loaderRef} className="loader-pulse"><div className="pulse-dot" /><div className="pulse-dot" /><div className="pulse-dot" /></div>
+          <span ref={loaderRef} className="icon-[svg-spinners--eclipse]" style={{ fontSize: 18, color: C.primary, display: 'block', margin: '16px 0' }} aria-hidden="true" />
         )}
       </div>
 

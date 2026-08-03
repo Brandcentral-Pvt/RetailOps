@@ -3,7 +3,7 @@ import {
   Package, IndianRupee, Star, Award, Store, Activity, BarChart3,
   TrendingUp, TrendingDown, Eye, ExternalLink, Calendar, ListChecks,
   Image, AlertCircle, Trophy, Sparkles, CheckCircle2, AlertTriangle,
-  Loader2, RefreshCcw, ChevronDown, X
+  RefreshCcw, ChevronDown, X
 } from 'lucide-react';
 import { asinApi } from '../services/api';
 import Chart from 'react-apexcharts';
@@ -801,7 +801,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
             <div style={{ minHeight: 350, position: 'relative' }}>
               {isLoadingSubTrend ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 350 }}>
-                  <Loader2 size={32} className="animate-spin" style={{ color: C.primary, marginBottom: 12 }} />
+                  <span className="icon-[svg-spinners--eclipse]" style={{ color: C.primary, fontSize: 32, marginBottom: 12 }} aria-hidden="true" />
                   <Text type="secondary" style={{ fontWeight: 500 }}>Running niche data indexing...</Text>
                 </div>
               ) : subBsrSeries.length > 0 ? (
