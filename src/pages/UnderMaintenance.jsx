@@ -1,64 +1,56 @@
 /**
- * UnderMaintenance — professional maintenance screen.
+ * UnderMaintenance — RetailOps branded maintenance screen.
  *
- * Design notes (kept deliberately restrained):
- *   • Light theme matching the RetailOps product (design tokens, slate + brand blue)
- *   • Real brand logo with a resilient fallback chain:
- *       1. VITE_MAINTENANCE_LOGO   (explicit override)
- *       2. /brandcentral-logo.png  (drop the file in public/ for self-hosting)
- *       3. https://brandcentral.in/wp-content/uploads/2024/09/logo.png
- *       4. /retailops-logo.svg     (repo fallback — never a broken image)
- *   • One-time fade-up entrance + a subtle status-dot pulse. Nothing else
- *     loops — motion stays quiet and respects prefers-reduced-motion.
+ * Built around the project's own identity (same logo + palette as the app's
+ * sidebar): light product theme, the real RetailOps wordmark (rich black +
+ * enterprise gold), DM Sans, quiet motion.
  *
  * Env overrides:
- *   VITE_MAINTENANCE_TITLE    headline text          (default: "We'll be right back")
+ *   VITE_MAINTENANCE_TITLE    headline — "text |accent word| text" renders the
+ *                             pipe-wrapped word in brand gold serif-italic
  *   VITE_MAINTENANCE_MESSAGE  body copy
- *   VITE_MAINTENANCE_ETA      "30 minutes" etc.      (shown as 'Back online · …')
- *   VITE_MAINTENANCE_EMAIL    support address        (footer link)
- *   VITE_MAINTENANCE_LOGO     logo URL/path override
+ *   VITE_MAINTENANCE_ETA      any length ("ASAP", "~2–3 hours"…) — wraps cleanly
+ *   VITE_MAINTENANCE_EMAIL    support address shown in footer
+ *   VITE_MAINTENANCE_LOGO     optional custom logo URL; falls back to the
+ *                             RetailOps wordmark on error
  */
 import React, { useEffect, useState } from 'react';
+import { RetailOpsWordmark } from '../components/common/BrandLogo';
 
 const TITLE = import.meta.env.VITE_MAINTENANCE_TITLE || "We'll be right back";
 const MESSAGE = import.meta.env.VITE_MAINTENANCE_MESSAGE ||
   'We are performing scheduled maintenance right now. The platform will be back online shortly — thank you for your patience.';
 const ETA = import.meta.env.VITE_MAINTENANCE_ETA || '';
 const SUPPORT_EMAIL = import.meta.env.VITE_MAINTENANCE_EMAIL || 'support@brandcentral.in';
+const LOGO_URL = import.meta.env.VITE_MAINTENANCE_LOGO || '';
 
-const LOGO_SOURCES = [
-  import.meta.env.VITE_MAINTENANCE_LOGO,
-  '/brandcentral-logo.png',
-  'https://brandcentral.in/wp-content/uploads/2024/09/logo.png',
-  '/retailops-logo.svg',
-].filter(Boolean);
+// "We're |restocking| the shelves." → pre="We're", accent="restocking", post="the shelves."
+const [TITLE_PRE, TITLE_ACCENT, TITLE_POST] = (() => {
+  const parts = TITLE.split('|').map(s => s.trim());
+  return [parts[0] || '', parts[1] || '', parts[2] || ''];
+})();
 
-/** Walks the fallback chain if an image fails to load. */
-function BrandLogo() {
-  const [idx, setIdx] = useState(0);
-  if (idx >= LOGO_SOURCES.length) return null;
-
-  return (
-    <img
-      src={LOGO_SOURCES[idx]}
-      alt="BrandCentral"
-      draggable={false}
-      onError={() => setIdx(i => i + 1)}
-      style={{
-        height: 44,
-        width: 'auto',
-        maxWidth: 220,
-        objectFit: 'contain',
-        userSelect: 'none',
-      }}
-    />
-  );
+/** Renders the project wordmark, or a custom logo if provided (with fallback). */
+function Logo() {
+  const [failed, setFailed] = useState(false);
+  if (LOGO_URL && !failed) {
+    return (
+      <img
+        src={LOGO_URL}
+        alt="RetailOps"
+        draggable={false}
+        onError={() => setFailed(true)}
+        style={{ height: 44, width: 'auto', maxWidth: 240, objectFit: 'contain', userSelect: 'none' }}
+      />
+    );
+  }
+  return <RetailOpsWordmark size={40} />;
 }
 
 export default function UnderMaintenance() {
   useEffect(() => {
     const prev = document.title;
-    document.title = 'Under Maintenance · BrandCentral';
+    document.title = 'RetailOps · Under Maintenance';
     return () => { document.title = prev; };
   }, []);
 
@@ -67,7 +59,7 @@ export default function UnderMaintenance() {
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      background: 'var(--bc-surface-page, #f8fafc)',
+      background: 'linear-gradient(180deg, var(--bc-surface-page, #f8fafc) 0%, #ffffff 100%)',
       fontFamily: 'var(--bc-font-sans, Inter, -apple-system, "Segoe UI", sans-serif)',
       color: 'var(--bc-text-body, #334155)',
       WebkitFontSmoothing: 'antialiased',
@@ -80,13 +72,14 @@ export default function UnderMaintenance() {
         padding: '72px 24px',
       }}>
         <div style={{
-          maxWidth: 520,
+          width: '100%',
+          maxWidth: 540,
           textAlign: 'center',
           animation: 'um-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
         }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
-            <BrandLogo />
+          {/* Project logo */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 44 }}>
+            <Logo />
           </div>
 
           {/* Status eyebrow */}
@@ -94,73 +87,93 @@ export default function UnderMaintenance() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '5px 12px 5px 10px',
+            padding: '6px 14px 6px 12px',
             borderRadius: 'var(--bc-radius-full, 9999px)',
             background: 'var(--bc-surface-card, #fff)',
             border: '1px solid var(--bc-border-default, #e2e8f0)',
             boxShadow: 'var(--bc-shadow-xs, 0 1px 2px rgba(0,0,0,0.04))',
           }}>
             <span className="um-dot" aria-hidden="true" style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
+              width: 8, height: 8, borderRadius: '50%',
               background: 'var(--bc-amber-500, #f59e0b)',
             }} />
             <span style={{
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.07em',
               textTransform: 'uppercase',
               color: 'var(--bc-text-secondary, #64748b)',
             }}>
-              Maintenance in progress
+              Under Maintenance
             </span>
           </div>
 
-          {/* Headline */}
+          {/* Headline — pipe-wrapped word renders in brand gold serif-italic */}
           <h1 style={{
-            margin: '20px 0 0',
-            fontSize: 'clamp(26px, 4.5vw, 32px)',
+            margin: '22px 0 0',
+            fontSize: 'clamp(30px, 5vw, 42px)',
             fontWeight: 700,
             letterSpacing: '-0.02em',
-            lineHeight: 1.2,
+            lineHeight: 1.18,
             color: 'var(--bc-text-heading, #0f172a)',
           }}>
-            {TITLE}
+            {TITLE_PRE}{TITLE_ACCENT ? ' ' : ''}
+            {TITLE_ACCENT && (
+              <em style={{
+                fontFamily: 'Georgia, "Times New Roman", serif',
+                fontStyle: 'italic',
+                fontWeight: 500,
+                color: '#CA8A04',            // enterprise gold — the wordmark's accent
+                whiteSpace: 'nowrap',
+              }}>{TITLE_ACCENT}</em>
+            )}{TITLE_POST ? ' ' : ''}{TITLE_POST}
           </h1>
 
           {/* Body copy */}
-          <p style={{
-            margin: '12px auto 0',
-            maxWidth: 430,
-            fontSize: 14.5,
-            lineHeight: 1.7,
-            color: 'var(--bc-text-secondary, #64748b)',
-          }}>
-            {MESSAGE}
-          </p>
+          {MESSAGE && (
+            <p style={{
+              margin: '14px auto 0',
+              maxWidth: 440,
+              fontSize: 14.5,
+              lineHeight: 1.7,
+              color: 'var(--bc-text-secondary, #64748b)',
+            }}>
+              {MESSAGE}
+            </p>
+          )}
 
-          {/* ETA */}
+          {/* ETA — designed for long values (wraps, never truncates) */}
           {ETA && (
             <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              marginTop: 26,
-              padding: '7px 14px',
-              borderRadius: 'var(--bc-radius-full, 9999px)',
+              margin: '30px auto 0',
+              maxWidth: 440,
+              padding: '18px 24px 20px',
+              borderRadius: 'var(--bc-radius-xl, 12px)',
               background: 'var(--bc-surface-card, #fff)',
               border: '1px solid var(--bc-border-default, #e2e8f0)',
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--bc-text-body, #334155)',
+              boxShadow: 'var(--bc-shadow-sm, 0 1px 3px rgba(0,0,0,0.06))',
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="var(--bc-ro-500, #1976D2)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              Back online · <strong style={{ fontWeight: 600, color: 'var(--bc-text-heading, #0f172a)' }}>{ETA}</strong>
+              <div style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--bc-text-muted, #94a3b8)',
+                marginBottom: 8,
+              }}>
+                Estimated downtime
+              </div>
+              <div style={{
+                fontSize: 20,
+                fontWeight: 700,
+                lineHeight: 1.45,
+                letterSpacing: '-0.01em',
+                color: 'var(--bc-text-heading, #0f172a)',
+                wordBreak: 'normal',
+                overflowWrap: 'anywhere',
+              }}>
+                {ETA}
+              </div>
             </div>
           )}
         </div>
@@ -177,9 +190,20 @@ export default function UnderMaintenance() {
           © {new Date().getFullYear()} BrandCentral Pvt. Ltd. ·{' '}
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
-            style={{ color: 'var(--bc-text-secondary, #64748b)', textDecoration: 'none', borderBottom: '1px solid transparent', transition: 'color 0.15s ease, border-color 0.15s ease' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--bc-ro-600, #1565C0)'; e.currentTarget.style.borderBottomColor = 'var(--bc-ro-300, #90CAF9)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--bc-text-secondary, #64748b)'; e.currentTarget.style.borderBottomColor = 'transparent'; }}
+            style={{
+              color: 'var(--bc-text-secondary, #64748b)',
+              textDecoration: 'none',
+              borderBottom: '1px solid transparent',
+              transition: 'color 0.15s ease, border-color 0.15s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--bc-ro-600, #1565C0)';
+              e.currentTarget.style.borderBottomColor = 'var(--bc-ro-300, #90CAF9)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--bc-text-secondary, #64748b)';
+              e.currentTarget.style.borderBottomColor = 'transparent';
+            }}
           >
             {SUPPORT_EMAIL}
           </a>
@@ -198,7 +222,7 @@ export default function UnderMaintenance() {
         .um-dot { animation: um-dot-pulse 2.2s ease-in-out infinite; }
 
         @media (prefers-reduced-motion: reduce) {
-          .um-root *, .um-dot { animation: none !important; }
+          .um-dot { animation: none !important; }
           [style*="animation"] { animation: none !important; }
         }
       `}</style>
