@@ -68,7 +68,26 @@ function registerProcessors() {
     nq.process(async (job) => {
       const { type, userId, title, message, actionUrl, taskInstanceId } = job.data;
       const pemsService = require('../services/pems/pemsService');
-      return pemsService.createNotification({ userId, type, title, message, actionUrl, taskInstanceId });
+      await pemsService.createNotification({ userId, type, title, message, actionUrl, taskInstanceId });
+
+      // Best-effort email dispatch (gated by PEMS_EMAIL_ENABLED=true)
+      if (process.env.PEMS_EMAIL_ENABLED === 'true' && taskInstanceId) {
+        try {
+          const { sql, getPool } = require('../database/db');
+          const pool = await getPool();
+          const taskRes = await pool.request().input('id', sql.VarChar, taskInstanceId)
+            .query('SELECT * FROM PemsTaskInstances WHERE Id = @id');
+          const task = taskRes.recordset[0];
+          if (task) {
+            const emailNotificationService = require('../services/pems/emailNotificationService');
+            await emailNotificationService.triggerNotification(type, task, userId, { message, actionUrl }, { skipInApp: true });
+          }
+        } catch (err) {
+          logger.warn('PEMS email notification failed', { error: err.message, type });
+        }
+      }
+
+      return { ok: true };
     });
   }
 

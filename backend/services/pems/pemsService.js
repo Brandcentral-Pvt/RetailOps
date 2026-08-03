@@ -938,7 +938,8 @@ async function checkEscalations() {
       .input('offset', sql.Int, offset)
       .input('limit', sql.Int, BATCH_SIZE)
       .query(`
-        SELECT Id, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours, Status, SLAStatus, Title
+        SELECT Id, AssignedTo, AssigneeName, ReviewerId, ReviewerName, DueDate, SLAHours,
+               Status, SLAStatus, Title, LastSlaWarningAt, LastSlaBreachAt
         FROM PemsTaskInstances
         WHERE Status NOT IN ('APPROVED', 'CANCELLED')
         AND DueDate IS NOT NULL
@@ -964,14 +965,31 @@ async function checkEscalations() {
         }).catch(() => {});
       }
 
-      if (level === 'assignee' && task.AssignedTo) {
-        await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_WARNING', title: `SLA Warning: ${task.Title}`, message: `Task due in less than 24 hours`, actionUrl: `/pems/tasks?id=${task.Id}` });
+      // Notification dedup: warn at most once per 12h, breach at most once per 24h
+      const now2 = new Date();
+      const H12 = 12 * 60 * 60 * 1000;
+      const H24 = 24 * 60 * 60 * 1000;
+      const lastWarn = task.LastSlaWarningAt ? new Date(task.LastSlaWarningAt).getTime() : 0;
+      const lastBreach = task.LastSlaBreachAt ? new Date(task.LastSlaBreachAt).getTime() : 0;
+      const warnDue = (now2.getTime() - lastWarn) >= H12;
+      const breachDue = (now2.getTime() - lastBreach) >= H24;
+
+      if (warnDue && (level === 'assignee' || level === 'reviewer')) {
+        if (level === 'assignee' && task.AssignedTo) {
+          await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_WARNING', title: `SLA Warning: ${task.Title}`, message: `Task due in less than 24 hours`, actionUrl: `/pems/tasks?id=${task.Id}` });
+          await pool.request().input('id', sql.VarChar, task.Id).input('t', sql.DateTime2, now2)
+            .query('UPDATE PemsTaskInstances SET LastSlaWarningAt = @t WHERE Id = @id');
+        }
+        if (level === 'reviewer' && task.ReviewerId) {
+          await createNotification({ taskInstanceId: task.Id, userId: task.ReviewerId, type: 'SLA_WARNING', title: `SLA Urgent: ${task.Title}`, message: `Task due in less than 12 hours, review needed`, actionUrl: `/pems/tasks?id=${task.Id}` });
+          await pool.request().input('id', sql.VarChar, task.Id).input('t', sql.DateTime2, now2)
+            .query('UPDATE PemsTaskInstances SET LastSlaWarningAt = @t WHERE Id = @id');
+        }
       }
-      if (level === 'reviewer' && task.ReviewerId) {
-        await createNotification({ taskInstanceId: task.Id, userId: task.ReviewerId, type: 'SLA_WARNING', title: `SLA Urgent: ${task.Title}`, message: `Task due in less than 12 hours, review needed`, actionUrl: `/pems/tasks?id=${task.Id}` });
-      }
-      if (level === 'manager' || level === 'admin') {
+      if (breachDue && (level === 'manager' || level === 'admin') && task.AssignedTo) {
         await createNotification({ taskInstanceId: task.Id, userId: task.AssignedTo, type: 'SLA_BREACH', title: `SLA BREACHED: ${task.Title}`, message: `Task has breached its SLA deadline`, actionUrl: `/pems/tasks?id=${task.Id}` });
+        await pool.request().input('id', sql.VarChar, task.Id).input('t', sql.DateTime2, now2)
+          .query('UPDATE PemsTaskInstances SET LastSlaBreachAt = @t WHERE Id = @id');
       }
       escalated++;
     }
