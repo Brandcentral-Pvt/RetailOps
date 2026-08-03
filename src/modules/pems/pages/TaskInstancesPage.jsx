@@ -467,9 +467,17 @@ export default function TaskInstancesPage() {
       okButtonProps: { style: { background: color, borderColor: color } },
       cancelText: 'Cancel',
       onOk: async () => {
-        const results = await Promise.allSettled(ids.map(id => pemsApi.transitionStatus(id, toStatus, `Bulk ${verb.toLowerCase()} via list`)));
-        const ok = results.filter(r => r.status === 'fulfilled').length;
-        message.success(`${ok} of ${ids.length} tasks updated`);
+        try {
+          const res = await pemsApi.bulkTransition(ids, toStatus, `Bulk ${verb.toLowerCase()} via list`);
+          const { updatedCount = 0, skippedCount = 0 } = res?.data || {};
+          if (skippedCount > 0) {
+            message.warning(`${updatedCount} updated · ${skippedCount} skipped (not in a transitionable state)`);
+          } else {
+            message.success(`${updatedCount} of ${ids.length} tasks updated`);
+          }
+        } catch (err) {
+          message.error(err.message || 'Bulk transition failed');
+        }
         setSelectedIds(new Set());
         loadInstances();
       },
