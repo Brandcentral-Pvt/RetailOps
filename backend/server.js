@@ -182,6 +182,9 @@ const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
 
+// Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
+app.use(require('./middleware/maintenanceMode'));
+
 app.use('/api', dataRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', alertsRoutes);
