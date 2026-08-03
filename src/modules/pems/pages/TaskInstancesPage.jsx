@@ -13,6 +13,11 @@
    • Right Insights panel becomes sticky; collapses to a drawer < 1360px
    • Full design-token adoption (--bc-*), responsive at 1700/1360/1200/768px
 
+   v2.1:
+   • Removed Board & Calendar views (List / Seller / Objectives remain)
+   • Fixed quick-view pill styling (uniform height, gradient active state,
+     keyboard access)
+
    All data flow / API logic is preserved from v1.
    ═══════════════════════════════════════════════════════════════════════════ */
 import { Spinner } from "@/components/Spinner";
@@ -40,12 +45,10 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { db } from '../../../services/db';
 import ObjectiveManager from '../../../components/actions/ObjectiveManager';
 import { CommandCenterKpis } from '../components/CommandCenterKpis';
-import BoardView from '../components/BoardView';
 import RightInsightsPanel from '../components/RightInsightsPanel';
 import MobileTaskCard from '../components/MobileTaskCard';
 import LiveActivityFeed from '../components/LiveActivityFeed';
 import PremiumTaskRow from '../components/PremiumTaskRow';
-import CalendarView from '../components/CalendarView';
 import TaskWorkspace from '../components/TaskWorkspace';
 import { exportTasksToExcel } from '../utils/exportUtils';
 import dayjs from 'dayjs';
@@ -234,8 +237,6 @@ const QUICK_VIEWS = [
 
 const VIEW_OPTIONS = [
   { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><UnorderedListOutlined />List</span>), value: 'list' },
-  { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AppstoreOutlined />Board</span>), value: 'board' },
-  { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CalendarOutlined />Calendar</span>), value: 'calendar' },
   { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><ShopOutlined />Seller</span>), value: 'seller' },
   { label: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FlagOutlined />Objectives</span>), value: 'objectives' },
 ];
@@ -967,15 +968,25 @@ export default function TaskInstancesPage() {
 
         {/* ═══ 3. TOOLBAR: QUICK VIEWS + CONTROLS ═══ */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 16, marginBottom: activeFilterCount > 0 ? 8 : 12 }}>
-          <div className="pems-quick-pills">
+          <div className="pems-quick-pills" role="tablist" aria-label="Quick views">
             {QUICK_VIEWS.map(qv => (
               <div
                 key={qv.key}
+                role="tab"
+                aria-selected={quickView === qv.key}
+                tabIndex={0}
                 className={`pems-quick-pill${quickView === qv.key ? ' active' : ''}`}
                 onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setQuickView(qv.key);
+                    setPagination(p => ({ ...p, page: 1 }));
+                  }
+                }}
               >
-                <span style={{ fontSize: 11 }}>{qv.icon}</span>
-                <span>{qv.label}</span>
+                <span className="pems-quick-pill-icon">{qv.icon}</span>
+                <span className="pems-quick-pill-label">{qv.label}</span>
               </div>
             ))}
           </div>
@@ -1065,10 +1076,6 @@ export default function TaskInstancesPage() {
               </div>
             ) : viewMode === 'seller' ? (
               renderSellerTasksView()
-            ) : viewMode === 'board' ? (
-              <BoardView instances={instances} loading={loading} onView={openWorkspace} />
-            ) : viewMode === 'calendar' ? (
-              <CalendarView instances={instances} loading={loading} onView={openWorkspace} />
             ) : (
               renderListView()
             )}

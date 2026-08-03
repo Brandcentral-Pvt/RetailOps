@@ -108,40 +108,69 @@
    ────────────────────────────────────────────── */
 .pems-quick-pills {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
+  align-items: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
+  overflow-x: auto;
   padding: 2px;
-  scrollbar-width: thin;
+  scrollbar-width: none;      /* clean edge — still scrollable via drag/touch */
 }
+.pems-quick-pills::-webkit-scrollbar { display: none; }
+
 .pems-quick-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  height: 28px;
+  padding: 0 13px;
   border-radius: var(--bc-radius-full, 9999px);
   font-size: var(--bc-text-xs, 11px);
   font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
   color: var(--bc-text-secondary, #64748b);
   background: var(--bc-surface-card, #fff);
   border: 1px solid var(--bc-border-default, #e2e8f0);
   cursor: pointer;
   white-space: nowrap;
-  transition: all var(--bc-transition-fast, 0.15s ease);
+  flex-shrink: 0;
   user-select: none;
+  transition: all var(--bc-transition-fast, 0.15s ease);
+}
+.pems-quick-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.8;
+}
+.pems-quick-pill-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 .pems-quick-pill:hover {
-  border-color: var(--bc-ro-300, #90CAF9);
   color: var(--bc-ro-600, #1565C0);
   background: var(--bc-ro-50, #E3F2FD);
+  border-color: var(--bc-ro-200, #90CAF9);
+}
+.pems-quick-pill:hover .pems-quick-pill-icon { opacity: 1; }
+.pems-quick-pill:active {
+  transform: scale(0.96);
+}
+.pems-quick-pill:focus-visible {
+  outline: 2px solid var(--bc-ro-400, #42A5F5);
+  outline-offset: 2px;
 }
 .pems-quick-pill.active {
-  background: var(--bc-ro-500, #1976D2);
-  border-color: var(--bc-ro-500, #1976D2);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(25, 118, 210, 0.35);
+  background: linear-gradient(135deg, var(--bc-ro-500, #1976D2), var(--bc-ro-600, #1565C0));
+  border-color: var(--bc-ro-500, #1976D2);
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.28);
 }
+.pems-quick-pill.active .pems-quick-pill-icon { opacity: 1; }
 
 /* ──────────────────────────────────────────────
    4. ACTIVE FILTER CHIPS
