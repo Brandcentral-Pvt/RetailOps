@@ -1,4 +1,4 @@
-const { sql, getPool, generateId } = require('../../database/db');
+const { sql, getPool, generateId, withTransaction } = require('../../database/db');
 const eventBus = require('../eventBus');
 const logger = require('../../utils/logger');
 const cacheService = require('../cacheService');
@@ -50,14 +50,8 @@ async function ensureEventStoreTable() {
   logger.info('PemsTaskEvents table verified');
 }
 
-async function append(eventType, taskInstanceId, data = {}) {
-  const pool = await getPool();
+async function append(eventType, taskInstanceId, data = {}, attempt = 0) {
   const id = generateId();
-
-  const versionResult = await pool.request()
-    .input('taskId', sql.VarChar, taskInstanceId)
-    .query('SELECT ISNULL(MAX(Version), 0) + 1 as nextVersion FROM PemsTaskEvents WHERE TaskInstanceId = @taskId');
-  const version = versionResult.recordset[0].nextVersion;
 
   const payload = {
     ...data,
@@ -66,25 +60,45 @@ async function append(eventType, taskInstanceId, data = {}) {
   delete payload.eventType;
   delete payload.taskInstanceId;
 
-  await pool.request()
-    .input('id', sql.VarChar, id)
-    .input('taskInstanceId', sql.VarChar, taskInstanceId)
-    .input('eventType', sql.VarChar, eventType)
-    .input('fromStatus', sql.VarChar, data.fromStatus || null)
-    .input('toStatus', sql.VarChar, data.toStatus || null)
-    .input('actorId', sql.VarChar, data.actorId || null)
-    .input('actorName', sql.NVarChar, data.actorName || null)
-    .input('payload', sql.NVarChar(sql.MAX), JSON.stringify(payload))
-    .input('version', sql.Int, version)
-    .query(`
-      INSERT INTO PemsTaskEvents (Id, TaskInstanceId, EventType, FromStatus, ToStatus, ActorId, ActorName, Payload, Version)
-      VALUES (@id, @taskInstanceId, @eventType, @fromStatus, @toStatus, @actorId, @actorName, @payload, @version)
-    `);
+  try {
+    const result = await withTransaction(async (tx) => {
+      // UPDLOCK + HOLDLOCK serializes concurrent appends per task so
+      // (TaskInstanceId, Version) can never collide.
+      const versionResult = await tx.request()
+        .input('taskId', sql.VarChar, taskInstanceId)
+        .query('SELECT ISNULL(MAX(Version), 0) + 1 as nextVersion FROM PemsTaskEvents WITH (UPDLOCK, HOLDLOCK) WHERE TaskInstanceId = @taskId');
+      const version = versionResult.recordset[0].nextVersion;
 
-  // Invalidate task cache
-  cacheService.del(cacheService.key('task', taskInstanceId)).catch(() => {});
+      await tx.request()
+        .input('id', sql.VarChar, id)
+        .input('taskInstanceId', sql.VarChar, taskInstanceId)
+        .input('eventType', sql.VarChar, eventType)
+        .input('fromStatus', sql.VarChar, data.fromStatus || null)
+        .input('toStatus', sql.VarChar, data.toStatus || null)
+        .input('actorId', sql.VarChar, data.actorId || null)
+        .input('actorName', sql.NVarChar, data.actorName || null)
+        .input('payload', sql.NVarChar(sql.MAX), JSON.stringify(payload))
+        .input('version', sql.Int, version)
+        .query(`
+          INSERT INTO PemsTaskEvents (Id, TaskInstanceId, EventType, FromStatus, ToStatus, ActorId, ActorName, Payload, Version)
+          VALUES (@id, @taskInstanceId, @eventType, @fromStatus, @toStatus, @actorId, @actorName, @payload, @version)
+        `);
 
-  return { id, version };
+      return { id, version };
+    });
+
+    // Invalidate task cache
+    cacheService.del(cacheService.key('task', taskInstanceId)).catch(() => {});
+
+    return result;
+  } catch (err) {
+    // Duplicate key on (TaskInstanceId, Version) — retry once
+    const isDup = err.number === 2601 || err.number === 2627;
+    if (isDup && attempt < 1) {
+      return append(eventType, taskInstanceId, data, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 async function getEvents(taskInstanceId, fromVersion = 0) {
