@@ -323,6 +323,10 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const API = window.location.origin + '/api';
+function authHeaders(extra) {
+  const token = localStorage.getItem('authToken');
+  return Object.assign({}, token ? { Authorization: 'Bearer ' + token } : {}, extra || {});
+}
 let allMetrics = [], selectedKeys = [], results = [], notFound = [];
 let searchHistory = JSON.parse(localStorage.getItem('ldi_history') || '[]');
 let currentJobId = null, progressInterval = null, selectedFile = null;
@@ -496,7 +500,7 @@ const METRIC_META = {
 
 async function init() {
   try {
-    const r = await fetch(API + '/live-data/metrics').then(r => r.json());
+    const r = await fetch(API + '/live-data/metrics', { headers: authHeaders() }).then(r => r.json());
     if (r.success && r.data) { allMetrics = r.data; selectedKeys = r.data.map(m => m.key); renderMetrics();
       document.getElementById('apiStatus').textContent = 'API Connected'; document.getElementById('apiStatus').classList.add('active'); }
   } catch (e) {
@@ -562,7 +566,7 @@ async function fetchData() {
   const btn = document.getElementById('fetchBtn'); btn.disabled = true; btn.classList.add('loading');
   document.getElementById('loadingOverlay').classList.add('active');
   try {
-    const r = await fetch(API + '/live-data/v2/fetch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asins, metrics: selectedKeys, credId: 'secondary' }) }).then(r => r.json());
+    const r = await fetch(API + '/live-data/v2/fetch', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ asins, metrics: selectedKeys, credId: 'secondary' }) }).then(r => r.json());
     if (r.success) { results = r.data || []; notFound = r.notFound || []; renderResults();
       document.getElementById('exportBtn').style.display = results.length ? '' : 'none'; document.getElementById('csvBtn').style.display = results.length ? '' : 'none';
       toast(`Fetched ${results.length} ASINs`, 'success'); saveHistory(asins.slice(0, 3).join(', ') + (asins.length > 3 ? ` +${asins.length - 3}` : ''));
@@ -578,7 +582,7 @@ async function uploadFile() {
   if (!selectedKeys.length) return toast('Select at least one metric', 'warning');
   const fd = new FormData(); fd.append('file', selectedFile); fd.append('metrics', JSON.stringify(selectedKeys)); fd.append('credId', 'secondary');
   try {
-    const r = await fetch(API + '/live-data/v2/upload', { method: 'POST', body: fd }).then(r => r.json());
+    const r = await fetch(API + '/live-data/v2/upload', { method: 'POST', headers: authHeaders(), body: fd }).then(r => r.json());
     if (r.success) {
       currentJobId = r.jobId;
       document.getElementById('progressSection').classList.add('active');
@@ -601,7 +605,7 @@ function startProgressPolling() {
 async function pollProgress() {
   if (!currentJobId) return;
   try {
-    const r = await fetch(API + `/live-data/v2/progress/${currentJobId}`).then(r => r.json());
+    const r = await fetch(API + `/live-data/v2/progress/${currentJobId}`, { headers: authHeaders() }).then(r => r.json());
     if (!r.success) return;
     const d = r.data;
     document.getElementById('progressPercent').textContent = d.percent + '%';
@@ -628,20 +632,29 @@ async function pollProgress() {
 
 async function cancelJob() {
   if (!currentJobId) return;
-  await fetch(API + `/live-data/v2/cancel/${currentJobId}`, { method: 'POST' });
+  await fetch(API + `/live-data/v2/cancel/${currentJobId}`, { method: 'POST', headers: authHeaders() });
   toast('Job cancelled', 'warning');
 }
 
 async function downloadJobResults() {
   if (!currentJobId) return;
-  window.location.href = API + `/live-data/v2/download/${currentJobId}`;
-  toast('Downloading...', 'success');
+  try {
+    const r = await fetch(API + `/live-data/v2/download/${currentJobId}`, { headers: authHeaders() });
+    if (!r.ok) { toast('Download failed (' + r.status + ')', 'error'); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'live-data-results-' + currentJobId + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+    toast('Downloading...', 'success');
+  } catch (e) { toast('Download error: ' + e.message, 'error'); }
 }
 
 async function loadJobResults() {
   if (!currentJobId) return;
   try {
-    const r = await fetch(API + `/live-data/v2/results/${currentJobId}`).then(r => r.json());
+    const r = await fetch(API + `/live-data/v2/results/${currentJobId}`, { headers: authHeaders() }).then(r => r.json());
     if (r.success) { results = r.data || []; notFound = r.notFound || []; renderResults(); switchTab('manual');
       document.getElementById('exportBtn').style.display = results.length ? '' : 'none'; document.getElementById('csvBtn').style.display = results.length ? '' : 'none';
       if (results.length || notFound.length) saveResultsToDB('upload_' + Date.now(), { data: results, notFound, metrics: selectedKeys, total: results.length + notFound.length }).then(() => renderSavedHistory()); }

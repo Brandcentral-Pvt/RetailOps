@@ -71,8 +71,21 @@ async function deleteJob(jobId) {
     }
 }
 
-const BATCH_SIZE = 10;
-const BATCH_DELAY_MS = 1100;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ── Config (env-driven, sensible defaults) ──────────────────────────────
+const CONFIG = {
+    batchSize: Math.max(1, parseInt(process.env.LIVE_SYNC_BATCH_SIZE || '10', 10)),
+    batchDelayMs: Math.max(0, parseInt(process.env.LIVE_SYNC_BATCH_DELAY_MS || '1200', 10)),
+    rateLimitPerSec: Math.max(0.05, parseFloat(process.env.LIVE_SYNC_RATE_LIMIT_RPS || '1')),
+    rateLimitBurst: Math.max(1, parseInt(process.env.LIVE_SYNC_RATE_LIMIT_BURST || '3', 10)),
+    maxConcurrentJobs: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_CONCURRENT_JOBS || '2', 10)),
+    maxFetchAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_FETCH_ASINS || '100', 10)),
+    maxUploadAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_UPLOAD_ASINS || '50000', 10)),
+};
+
+const BATCH_SIZE = CONFIG.batchSize;
+const BATCH_DELAY_MS = CONFIG.batchDelayMs;
 
 const API_RESOURCES = [
     'itemInfo.title', 'itemInfo.byLineInfo',
@@ -88,19 +101,77 @@ const API_RESOURCES = [
 const CreatorsApiCredentials = require('../../services/creatorsApiCredentials');
 const TOKEN_CACHE = new Map(); // credId -> { token, expiry }
 
-// Per-credential request queue — serializes API calls so we never exceed rate limits
-const credentialQueues = new Map(); // credId -> Promise chain
-function getQueue(credId = 'default') {
-    if (!credentialQueues.has(credId)) credentialQueues.set(credId, Promise.resolve());
-    return credentialQueues.get(credId);
-}
-function enqueue(credId, fn) {
-    const queue = getQueue(credId);
-    const next = queue.then(() => fn());
-    credentialQueues.set(credId, next.catch(() => {}));
-    return next;
+// ── Per-credential rate limiter (token bucket) ─────────────────────────
+class TokenBucket {
+    constructor(rate, capacity) {
+        this.rate = rate;
+        this.capacity = capacity;
+        this.tokens = capacity;
+        this.last = Date.now();
+    }
+    _refill() {
+        const now = Date.now();
+        this.tokens = Math.min(this.capacity, this.tokens + ((now - this.last) / 1000) * this.rate);
+        this.last = now;
+    }
+    // Consumes one token. Returns a promise that resolves once a token is available.
+    async take() {
+        for (;;) {
+            this._refill();
+            if (this.tokens >= 1) { this.tokens -= 1; return; }
+            const waitMs = Math.max(10, Math.ceil(((1 - this.tokens) / this.rate) * 1000));
+            await sleep(waitMs);
+        }
+    }
 }
 
+const buckets = new Map();    // credId -> TokenBucket
+const credChains = new Map(); // credId -> Promise chain (serializes API calls)
+
+function getBucket(credId) {
+    if (!buckets.has(credId)) buckets.set(credId, new TokenBucket(CONFIG.rateLimitPerSec, CONFIG.rateLimitBurst));
+    return buckets.get(credId);
+}
+
+/**
+ * Run a single Creators API request on a credential.
+ * 1) Waits for a rate-limit token (token bucket per credential).
+ * 2) Chains onto the per-credential serial queue so calls never overlap.
+ * This guarantees we never exceed the configured requests-per-second even
+ * when multiple fetches / upload jobs are running at the same time.
+ */
+async function throttledCall(credId, fn) {
+    await getBucket(credId).take();
+    const prev = credChains.get(credId) || Promise.resolve();
+    const run = prev.then(() => fn());
+    credChains.set(credId, run.then(() => {}, () => {}));
+    return run;
+}
+
+// ── Global job concurrency (FIFO, bounded) ─────────────────────────────
+let activeJobs = 0;
+const jobWaiters = [];
+
+function acquireJobSlot() {
+    return new Promise((resolve) => {
+        if (activeJobs < CONFIG.maxConcurrentJobs) { activeJobs++; resolve(); }
+        else jobWaiters.push(resolve);
+    });
+}
+
+function releaseJobSlot() {
+    activeJobs = Math.max(0, activeJobs - 1);
+    const next = jobWaiters.shift();
+    if (next) { activeJobs++; next(); }
+}
+
+async function withJobSlot(fn) {
+    await acquireJobSlot();
+    try { return await fn(); }
+    finally { releaseJobSlot(); }
+}
+
+// ── Token management ───────────────────────────────────────────────────
 function getCreds() {
     return {
         pt: process.env.LIVE_SYNC_PARTNER_TAG,
@@ -108,13 +179,13 @@ function getCreds() {
     };
 }
 
-async function getToken(credId) {
+async function getTokenInfo(credId) {
     const cred = credId
         ? CreatorsApiCredentials.credentials.find(c => c.id === credId) || CreatorsApiCredentials.get()
         : CreatorsApiCredentials.get();
     const cacheKey = cred.id;
     const cached = TOKEN_CACHE.get(cacheKey);
-    if (cached && Date.now() < cached.expiry) return cached.token;
+    if (cached && Date.now() < cached.expiry) return { token: cached.token, credId: cred.id };
 
     const r = await axios.post('https://api.amazon.co.uk/auth/o2/token', new URLSearchParams({
         grant_type: 'client_credentials', client_id: cred.clientId,
@@ -124,11 +195,15 @@ async function getToken(credId) {
     const token = r.data.access_token;
     TOKEN_CACHE.set(cacheKey, { token, expiry: Date.now() + (r.data.expires_in * 1000) - 120000 });
     CreatorsApiCredentials.markSuccess(cred);
-    return token;
+    return { token, credId: cred.id };
+}
+
+async function getToken(credId) {
+    const info = await getTokenInfo(credId);
+    return info.token;
 }
 
 async function callCreatorsAPI(token, batch, creds) {
-    const cred = CreatorsApiCredentials.get();
     const r = await axios.post('https://creatorsapi.amazon/catalog/v1/getItems', {
         itemIds: batch, itemIdType: 'ASIN', marketplace: creds.mk,
         partnerTag: creds.pt, resources: API_RESOURCES,
@@ -137,6 +212,63 @@ async function callCreatorsAPI(token, batch, creds) {
         timeout: 30000,
     });
     return r.data;
+}
+
+// ── Batch fetching with retry + rate limiting ──────────────────────────
+const MAX_BATCH_RETRIES = 5;
+const RETRY_DELAYS = [3000, 8000, 20000, 40000, 80000]; // exponential backoff per retry
+const RATE_LIMIT_DELAY = 30000; // 30s on 429
+const STALE_DELAY = 5000; // 5s after any error before next batch
+
+function isNetworkError(err) {
+    if (!err) return false;
+    if (!err.response) return true;
+    return ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(err.code)
+        || /timeout/i.test(err.message || '');
+}
+
+/**
+ * Fetch one batch of ASINs with per-credential rate limiting, retries and backoff.
+ * Returns the full API response body on success; throws the last error after retries.
+ */
+async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
+    let lastErr = null;
+    for (let attempt = 0; attempt < MAX_BATCH_RETRIES; attempt++) {
+        try {
+            return await throttledCall(credId, () => callCreatorsAPI(token, batch, creds));
+        } catch (err) {
+            lastErr = err;
+            const status = err.response?.status;
+
+            if (status === 429) {
+                const retryAfter = parseInt(err.response?.headers?.['retry-after'] || '0');
+                const waitMs = Math.max(retryAfter * 1000, RATE_LIMIT_DELAY);
+                console.log(`[LiveData] Rate limited (429) on ${credId}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${Math.round(waitMs / 1000)}s...`);
+                TOKEN_CACHE.clear();
+                if (refreshToken) { try { token = await refreshToken(); } catch { } }
+                await sleep(waitMs);
+                continue;
+            }
+
+            if (status === 401 || status === 403) {
+                console.log(`[LiveData] Auth error (${status}) on ${credId}, rotating credential...`);
+                TOKEN_CACHE.clear();
+                if (refreshToken) { try { token = await refreshToken(); } catch { } }
+                continue;
+            }
+
+            // Permanent 4xx client error — retrying will not help
+            if (status && status >= 400 && status < 500) {
+                throw err;
+            }
+
+            // Network / 5xx — backoff and retry
+            const waitMs = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
+            console.log(`[LiveData] API error ${status || err.code || 'unknown'} on ${credId}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${Math.round(waitMs / 1000)}s...`);
+            await sleep(waitMs);
+        }
+    }
+    throw lastErr || new Error('Failed after retries');
 }
 
 function parseApiErrors(apiErrors) {
@@ -223,6 +355,14 @@ exports.getMetrics = (req, res) => {
     res.json({ success: true, data: AVAILABLE_METRICS.map(m => ({ key: m.key, label: m.label })) });
 };
 
+exports.disabledV1 = (req, res) => {
+    res.status(410).json({
+        success: false,
+        error: 'The v1 Live Data Inspector API is disabled. Use the v2 endpoints (/api/live-data/v2/*) instead.',
+        v2: true,
+    });
+};
+
 exports.fetchLiveData = async (req, res) => {
     try {
         const { asins, metrics, credId } = req.body;
@@ -230,8 +370,8 @@ exports.fetchLiveData = async (req, res) => {
             return res.status(400).json({ success: false, error: 'ASINs array required' });
         if (!metrics || !Array.isArray(metrics) || metrics.length === 0)
             return res.status(400).json({ success: false, error: 'Metrics array required' });
-        if (asins.length > 100)
-            return res.status(400).json({ success: false, error: 'Maximum 100 ASINs per request' });
+        if (asins.length > CONFIG.maxFetchAsins)
+            return res.status(400).json({ success: false, error: `Maximum ${CONFIG.maxFetchAsins} ASINs per request` });
 
         const selectedMetrics = metrics.filter(m => AVAILABLE_METRICS.some(am => am.key === m));
         if (selectedMetrics.length === 0)
@@ -244,70 +384,50 @@ exports.fetchLiveData = async (req, res) => {
             return res.status(500).json({ success: false, error: 'Live Sync credentials not configured on server' });
 
         const creds = getCreds();
-        const BATCH_SIZE = 10;
-        const BATCH_DELAY = 1800;
 
-        // ── Shared batch processor ───────────────────────────────
-        async function processBatches(token, asins, selectedMetrics) {
+        // ── Shared batch processor (rate-limited + queued) ───────────
+        async function processBatches(credId, token, asinList, selectedMetrics) {
             const results = [];
             const notFound = [];
-            for (let i = 0; i < asins.length; i += BATCH_SIZE) {
-                const batch = asins.slice(i, i + BATCH_SIZE);
-                let batchOk = false;
-                for (let attempt = 0; attempt < 3; attempt++) {
-                    if (batchOk) break;
-                    try {
-                        const apiRes = await axios.post('https://creatorsapi.amazon/catalog/v1/getItems',
-                            { itemIds: batch, itemIdType: 'ASIN', marketplace: creds.mk, partnerTag: creds.pt, resources: API_RESOURCES },
-                            { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': creds.mk }, timeout: 30000 }
-                        );
-                        const items = apiRes.data?.itemsResult?.items || [];
-                        const apiErrors = apiRes.data?.errors || [];
-                        const errorMap = new Map();
-                        for (const err of apiErrors) {
-                            let asin = err.asin || err.itemId || err.resourceId;
-                            if (!asin && err.message) { const m = err.message.match(/(?:ItemId|ASIN|Item)\s+(B[A-Z0-9]{9,})/i); if (m) asin = m[1]; }
-                            if (asin) errorMap.set(asin, err.message);
-                        }
-                        for (const asinCode of batch) {
-                            const item = items.find(i => i.asin === asinCode);
-                            if (!item) { notFound.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not returned' }); continue; }
-                            const row = { asin: asinCode, seller: extractMetricValue('seller', item) };
-                            for (const key of selectedMetrics) row[key] = extractMetricValue(key, item);
-                            results.push(row);
-                        }
-                        batchOk = true;
-                    } catch (batchErr) {
-                        const status = batchErr.response?.status;
-                        console.log(`[Inspector] API error ${status || batchErr.code || 'unknown'}: ${batchErr.message?.substring(0, 100)}`);
-                        if (status === 429) {
-                            const retryAfter = parseInt(batchErr.response?.headers?.['retry-after'] || '0') * 1000;
-                            const waitMs = Math.max(retryAfter, [5000, 15000, 30000][attempt]);
-                            console.log(`[Inspector] 429 rate limit, attempt ${attempt + 1}/3, waiting ${waitMs / 1000}s...`);
-                            await new Promise(r => setTimeout(r, waitMs));
-                            continue;
-                        }
-                        if (status === 401) { TOKEN_CACHE.clear(); continue; }
-                        const waitMs = [3000, 8000, 20000][attempt];
-                        await new Promise(r => setTimeout(r, waitMs));
+            const refreshToken = () => getToken(credId);
+            for (let i = 0; i < asinList.length; i += BATCH_SIZE) {
+                const batch = asinList.slice(i, i + BATCH_SIZE);
+                let apiData;
+                try {
+                    apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
+                } catch (batchErr) {
+                    for (const a of batch) {
+                        notFound.push({ asin: a, reason: 'Failed after retries: ' + (batchErr.response?.status || batchErr.message || 'API error') });
                     }
+                    continue;
                 }
-                if (!batchOk) { for (const a of batch) notFound.push({ asin: a, reason: 'Failed after retries' }); }
-                if (i + BATCH_SIZE < asins.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
+                const items = apiData?.itemsResult?.items || [];
+                const errorMap = parseApiErrors(apiData?.errors || []);
+                for (const asinCode of batch) {
+                    const item = items.find(i => i.asin === asinCode);
+                    if (!item) { notFound.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not returned' }); continue; }
+                    const row = { asin: asinCode, seller: extractMetricValue('seller', item) };
+                    for (const key of selectedMetrics) row[key] = extractMetricValue(key, item);
+                    results.push(row);
+                }
+                if (i + BATCH_SIZE < asinList.length) await sleep(BATCH_DELAY_MS);
             }
             return { results, notFound };
         }
 
-        // ── Dual-credential: split ASINs across both keys ──────
+        // ── Credential selection ─────────────────────────────────────
         let apiResult;
-        if (CreatorsApiCredentials.count >= 2 && !targetCredId) {
+        if (targetCredId) {
+            const info = await getTokenInfo(targetCredId);
+            apiResult = await processBatches(info.credId, info.token, asinList, selectedMetrics);
+        } else if (CreatorsApiCredentials.count >= 2) {
             const mid = Math.ceil(asinList.length / 2);
             const half1 = asinList.slice(0, mid);
             const half2 = asinList.slice(mid);
 
             let token1, token2;
             try {
-                [token1, token2] = await Promise.all([getToken('primary'), getToken('secondary')]);
+                [token1, token2] = await Promise.all([getTokenInfo('primary'), getTokenInfo('secondary')]);
             } catch (tokenErr) {
                 console.error('[Inspector] Token error:', tokenErr.message);
                 return res.status(500).json({ success: false, error: 'Failed to get API token: ' + tokenErr.message });
@@ -316,8 +436,8 @@ exports.fetchLiveData = async (req, res) => {
             console.log(`[Inspector] Dual-key: ${half1.length} ASINs → primary, ${half2.length} ASINs → secondary`);
 
             const [r1, r2] = await Promise.all([
-                enqueue('primary', () => processBatches(token1.token, half1, selectedMetrics)),
-                enqueue('secondary', () => processBatches(token2.token, half2, selectedMetrics)),
+                processBatches(token1.credId, token1.token, half1, selectedMetrics),
+                processBatches(token2.credId, token2.token, half2, selectedMetrics),
             ]);
 
             apiResult = {
@@ -326,10 +446,8 @@ exports.fetchLiveData = async (req, res) => {
             };
             console.log(`[Inspector] Dual-key result: ${r1.results.length} (primary) + ${r2.results.length} (secondary) = ${apiResult.results.length} total`);
         } else {
-            // Single key fallback
-            const queueKey = targetCredId || 'primary';
-            const { token } = await getToken(queueKey);
-            apiResult = await enqueue(queueKey, () => processBatches(token, asinList, selectedMetrics));
+            const info = await getTokenInfo(null);
+            apiResult = await processBatches(info.credId, info.token, asinList, selectedMetrics);
         }
 
         res.json({
@@ -376,7 +494,7 @@ exports.uploadAndProcess = async (req, res) => {
 
         const asinList = [...asinSet];
         if (asinList.length === 0) return res.status(400).json({ success: false, error: 'No valid ASINs found in file.' });
-        if (asinList.length > 50000) return res.status(400).json({ success: false, error: 'Maximum 50,000 ASINs per upload' });
+        if (asinList.length > CONFIG.maxUploadAsins) return res.status(400).json({ success: false, error: `Maximum ${CONFIG.maxUploadAsins} ASINs per upload` });
 
         const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const job = {
@@ -387,7 +505,8 @@ exports.uploadAndProcess = async (req, res) => {
         };
         await saveJob(job);
 
-        processJob(jobId, asinList, selectedMetrics, req.body._credId || req.body.credId || null).catch(async (err) => {
+        const targetCredId = req.body._credId || req.body.credId || null;
+        processJob(jobId, asinList, selectedMetrics, targetCredId).catch(async (err) => {
             console.error(`Job ${jobId} failed:`, err.message);
             const j = await loadJob(jobId);
             if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
@@ -462,42 +581,40 @@ exports.cancelJob = async (req, res) => {
     });
 };
 
-// ── Background job processor (bulletproof — never lose accessible ASINs) ──
-const MAX_BATCH_RETRIES = 5;
-const RETRY_DELAYS = [3000, 8000, 20000, 40000, 80000]; // exponential backoff per retry
-const BASE_BATCH_DELAY = 1500; // 1.5s between batches
-const RATE_LIMIT_DELAY = 30000; // 30s on 429
-const STALE_DELAY = 5000; // 5s after any error before next batch
-
+// ── Background job processor ────────────────────────────────────────────
+// Runs inside the global job-slot pool (bounded concurrency) and every API
+// call goes through the per-credential rate limiter + serial queue.
 async function processJob(jobId, asinList, selectedMetrics, credId) {
     if (CreatorsApiCredentials.count === 0) throw new Error('Live Sync credentials not configured');
 
-    const creds = getCreds();
-    let token = await getToken(credId);
-    let tokenExpiry = Date.now() + 3600000;
-    let results = [];
-    let notFoundList = [];
-    let processed = 0, found = 0, notFound = 0;
-    let consecutiveErrors = 0;
+    await withJobSlot(async () => {
+        const creds = getCreds();
+        let token = await getToken(credId);
+        let tokenExpiry = Date.now() + 3600000;
+        let results = [];
+        let notFoundList = [];
+        let processed = 0, found = 0, notFound = 0;
+        let consecutiveErrors = 0;
 
-    for (let i = 0; i < asinList.length; i += BATCH_SIZE) {
-        const job = await loadJob(jobId);
-        if (!job || job.status === 'cancelled') break;
+        const refreshToken = async () => {
+            const t = await getToken(credId);
+            tokenExpiry = Date.now() + 3600000;
+            return t;
+        };
 
-        const batch = asinList.slice(i, i + BATCH_SIZE);
-        let batchSucceeded = false;
+        for (let i = 0; i < asinList.length; i += BATCH_SIZE) {
+            const job = await loadJob(jobId);
+            if (!job || job.status === 'cancelled') break;
 
-        // Refresh token if expired or about to expire
-        if (Date.now() > tokenExpiry - 120000) {
-            try { token = await getToken(credId); tokenExpiry = Date.now() + 3600000; consecutiveErrors = 0; } catch { }
-        }
+            const batch = asinList.slice(i, i + BATCH_SIZE);
 
-        // Retry loop — up to MAX_BATCH_RETRIES attempts
-        for (let attempt = 0; attempt < MAX_BATCH_RETRIES; attempt++) {
-            if (batchSucceeded) break;
+            // Refresh token if expired or about to expire
+            if (Date.now() > tokenExpiry - 120000) {
+                try { token = await refreshToken(); consecutiveErrors = 0; } catch { }
+            }
 
             try {
-                const apiData = await callCreatorsAPI(token, batch, creds);
+                const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
                 const items = apiData?.itemsResult?.items || [];
                 const errorMap = parseApiErrors(apiData?.errors || []);
 
@@ -514,97 +631,54 @@ async function processJob(jobId, asinList, selectedMetrics, credId) {
                     }
                     processed++;
                 }
-                batchSucceeded = true;
                 consecutiveErrors = 0;
 
             } catch (batchErr) {
-                const status = batchErr.response?.status;
-                const isRateLimit = status === 429;
-                const isAuth = status === 401 || status === 403;
-                const isNetwork = !status || batchErr.code === 'ECONNRESET' || batchErr.code === 'ETIMEDOUT' || batchErr.code === 'ECONNREFUSED' || batchErr.message?.includes('timeout');
+                consecutiveErrors++;
+                // If all retries failed — queue failed ASINs for the retry pass
+                for (const a of batch) { notFoundList.push({ asin: a, reason: 'API error after all retries' }); notFound++; processed++; }
+                console.warn(`Batch ${i / BATCH_SIZE + 1} FAILED after ${MAX_BATCH_RETRIES} retries — ${batch.length} ASINs queued for retry`);
+            }
 
-                if (isRateLimit) {
-                    const retryAfter = batchErr.response?.headers?.['retry-after'];
-                    const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : RATE_LIMIT_DELAY;
-                    console.log(`Rate limited (429) on batch ${i / BATCH_SIZE + 1}, rotating credential, waiting ${waitMs / 1000}s...`);
-                    TOKEN_CACHE.clear(); // Force new credential selection
-                    await new Promise(r => setTimeout(r, waitMs));
-                    try { token = await getToken(credId); tokenExpiry = Date.now() + 3600000; } catch { }
-                    continue; // retry same batch
-                }
+            // Save progress to Redis every batch
+            job.processed = processed; job.found = found; job.notFound = notFound;
+            job.results = results; job.notFoundList = notFoundList;
+            await saveJob(job);
 
-                if (isAuth) {
-                    console.log(`Auth error (${status}) on batch ${i / BATCH_SIZE + 1}, rotating credential...`);
-                    TOKEN_CACHE.clear(); // Force new credential selection
-                    try { token = await getToken(credId); tokenExpiry = Date.now() + 3600000; } catch {}
-                    continue;
-                }
-
-                if (isNetwork) {
-                    // Network error — wait with backoff and retry
-                    const waitMs = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-                    console.log(`Network error on batch ${i / BATCH_SIZE + 1}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${waitMs / 1000}s...`);
-                    await new Promise(r => setTimeout(r, waitMs));
-                    continue; // retry same batch
-                }
-
-                // Other error (4xx/5xx) — backoff and retry
-                const waitMs = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-                console.log(`API error ${status} on batch ${i / BATCH_SIZE + 1}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${waitMs / 1000}s...`);
-                await new Promise(r => setTimeout(r, waitMs));
+            // Delay between batches — longer after errors
+            if (i + BATCH_SIZE < asinList.length) {
+                const delay = consecutiveErrors > 0
+                    ? Math.min(STALE_DELAY * consecutiveErrors, 30000) // scale up on consecutive errors, max 30s
+                    : BATCH_DELAY_MS;
+                await sleep(delay);
             }
         }
 
-        // If all retries failed — queue failed ASINs for retry after main loop
-        if (!batchSucceeded) {
-            consecutiveErrors++;
-            // Mark as not-found for now, will retry after all batches
-            for (const a of batch) { notFoundList.push({ asin: a, reason: 'API error after all retries' }); notFound++; processed++; }
-            console.warn(`Batch ${i / BATCH_SIZE + 1} FAILED after ${MAX_BATCH_RETRIES} retries — ${batch.length} ASINs queued for retry`);
-        }
+        // ── RETRY PASS 2: Re-fetch all failed ASINs with fresh token ──
+        const failedAsins = notFoundList.map(n => n.asin);
+        if (failedAsins.length > 0 && failedAsins.length <= 5000) {
+            console.log(`Retry pass 2: re-fetching ${failedAsins.length} failed ASINs...`);
+            // Clear not-found list and re-process
+            notFoundList = [];
+            notFound = 0;
+            const retryResults = [];
+            let retryFound = 0;
 
-        // Save progress to Redis every batch
-        job.processed = processed; job.found = found; job.notFound = notFound;
-        job.results = results; job.notFoundList = notFoundList;
-        await saveJob(job);
+            // Get fresh token
+            try { token = await refreshToken(); } catch { }
 
-        // Delay between batches — longer after errors
-        if (i + BATCH_SIZE < asinList.length) {
-            const delay = consecutiveErrors > 0
-                ? Math.min(STALE_DELAY * consecutiveErrors, 30000) // scale up on consecutive errors, max 30s
-                : BASE_BATCH_DELAY;
-            await new Promise(r => setTimeout(r, delay));
-        }
-    }
+            for (let i = 0; i < failedAsins.length; i += BATCH_SIZE) {
+                const job = await loadJob(jobId);
+                if (!job || job.status === 'cancelled') break;
 
-    // ── RETRY PASS 2: Re-fetch all failed ASINs with fresh token ──
-    const failedAsins = notFoundList.map(n => n.asin);
-    if (failedAsins.length > 0 && failedAsins.length <= 5000) {
-        console.log(`Retry pass 2: re-fetching ${failedAsins.length} failed ASINs...`);
-        // Clear not-found list and re-process
-        notFoundList = [];
-        notFound = 0;
-        const retryResults = [];
-        let retryFound = 0;
+                const batch = failedAsins.slice(i, i + BATCH_SIZE);
+                let retryBatchOk = false;
 
-        // Get fresh token
-        try { token = await getToken(credId); tokenExpiry = Date.now() + 3600000; } catch { }
-
-        for (let i = 0; i < failedAsins.length; i += BATCH_SIZE) {
-            const job = await loadJob(jobId);
-            if (!job || job.status === 'cancelled') break;
-
-            const batch = failedAsins.slice(i, i + BATCH_SIZE);
-            let retryBatchOk = false;
-
-            for (let attempt = 0; attempt < MAX_BATCH_RETRIES; attempt++) {
-                if (retryBatchOk) break;
                 try {
-                    // Refresh token if needed
                     if (Date.now() > tokenExpiry - 120000) {
-                        try { token = await getToken(credId); tokenExpiry = Date.now() + 3600000; } catch { }
+                        try { token = await refreshToken(); } catch { }
                     }
-                    const apiData = await callCreatorsAPI(token, batch, creds);
+                    const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
                     const items = apiData?.itemsResult?.items || [];
                     const errorMap = parseApiErrors(apiData?.errors || []);
 
@@ -622,56 +696,58 @@ async function processJob(jobId, asinList, selectedMetrics, credId) {
                     }
                     retryBatchOk = true;
                 } catch (err) {
-                    const status = err.response?.status;
-                    if (status === 429) {
-                        const waitMs = err.response?.headers?.['retry-after'] ? parseInt(err.response.headers['retry-after']) * 1000 : RATE_LIMIT_DELAY;
-                        await new Promise(r => setTimeout(r, waitMs));
-                        try { token = await getToken(credId); tokenExpiry = Date.now() + 3600000; } catch { }
-                        continue;
-                    }
-                    const waitMs = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-                    await new Promise(r => setTimeout(r, waitMs));
+                    console.warn(`Retry batch ${i / BATCH_SIZE + 1} failed:`, err.message);
                 }
+
+                if (!retryBatchOk) {
+                    for (const a of batch) { notFoundList.push({ asin: a, reason: 'Not accessible after retries' }); notFound++; }
+                }
+
+                if (i + BATCH_SIZE < failedAsins.length) await sleep(BATCH_DELAY_MS * 2);
             }
 
-            if (!retryBatchOk) {
-                for (const a of batch) { notFoundList.push({ asin: a, reason: 'Not accessible after retries' }); notFound++; }
-            }
-
-            if (i + BATCH_SIZE < failedAsins.length) await new Promise(r => setTimeout(r, BASE_BATCH_DELAY * 2));
+            // Merge retry results
+            results = [...results, ...retryResults];
+            found += retryFound;
         }
 
-        // Merge retry results
-        results = [...results, ...retryResults];
-        found += retryFound;
-    }
+        const finalJob = await loadJob(jobId);
+        if (finalJob && finalJob.status !== 'cancelled') {
+            finalJob.status = 'completed';
+            finalJob.completedAt = new Date().toISOString();
+            await saveJob(finalJob);
 
-    const finalJob = await loadJob(jobId);
-    if (finalJob && finalJob.status !== 'cancelled') {
-        finalJob.status = 'completed';
-        finalJob.completedAt = new Date().toISOString();
-        await saveJob(finalJob);
-
-        logActivity('LIVE_DATA_COMPLETE', `Job completed: ${finalJob.found}/${finalJob.totalAsins} ASINs found, ${finalJob.notFound} not found`, {
-            jobId, foundCount: finalJob.found, notFoundCount: finalJob.notFound,
-            totalAsins: finalJob.totalAsins, metrics: finalJob.metrics,
-            duration: finalJob.completedAt ? Math.round((new Date(finalJob.completedAt) - new Date(finalJob.startedAt)) / 1000) + 's' : 'unknown',
-        });
-    }
+            logActivity('LIVE_DATA_COMPLETE', `Job completed: ${finalJob.found}/${finalJob.totalAsins} ASINs found, ${finalJob.notFound} not found`, {
+                jobId, foundCount: finalJob.found, notFoundCount: finalJob.notFound,
+                totalAsins: finalJob.totalAsins, metrics: finalJob.metrics,
+                duration: finalJob.completedAt ? Math.round((new Date(finalJob.completedAt) - new Date(finalJob.startedAt)) / 1000) + 's' : 'unknown',
+            });
+        }
+    });
 }
 
 function jobId_safe(id) { return id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40); }
 
+function requireSecondaryCred() {
+    const cred = CreatorsApiCredentials.credentials.find(c => c.id === 'secondary');
+    if (!cred || !cred.clientId || !cred.clientSecret) {
+        return null;
+    }
+    return cred;
+}
+
 // ── V2: Locked to secondary credential only ──────────────────────────
 exports.fetchLiveDataV2 = async (req, res) => {
+    if (!requireSecondaryCred())
+        return res.status(500).json({ success: false, error: 'V2 requires the secondary Creators API credential (CREATORS_API_CLIENT_ID_2 / CREATORS_API_CLIENT_SECRET_2).' });
     req.body.credId = 'secondary';
     return exports.fetchLiveData(req, res);
 };
 
 exports.uploadAndProcessV2 = async (req, res) => {
+    if (!requireSecondaryCred())
+        return res.status(500).json({ success: false, error: 'V2 requires the secondary Creators API credential (CREATORS_API_CLIENT_ID_2 / CREATORS_API_CLIENT_SECRET_2).' });
     req.body._credId = 'secondary';
-    // Inject credId into the job creation
-    const origSaveJob = saveJob;
     return exports.uploadAndProcess(req, res);
 };
 

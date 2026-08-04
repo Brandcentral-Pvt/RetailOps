@@ -16,9 +16,9 @@ dayjs.extend(relativeTime);
 const { Text, Title } = Typography;
 const API_BASE = import.meta.env?.VITE_API_URL || '/api';
 
-const authHeaders = () => {
+const authHeaders = (extra) => {
   const token = localStorage.getItem('authToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
 };
 
 export default function LiveSyncPage() {
@@ -54,7 +54,7 @@ export default function LiveSyncPage() {
 
   const loadMetrics = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/live-data/metrics`).then(r => r.json());
+      const res = await fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json());
       if (res.success) { setMetrics(res.data); setSelectedMetrics(res.data.map(m => m.key)); }
     } catch (e) { /* metrics endpoint may not exist */ }
   }, []);
@@ -130,8 +130,8 @@ export default function LiveSyncPage() {
     if (selectedMetrics.length === 0) { message.warning('Select at least one metric'); return; }
     setInspectorLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/live-data/fetch`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`${API_BASE}/live-data/v2/fetch`, {
+        method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ asins, metrics: selectedMetrics }),
       }).then(r => r.json());
       if (res.success) { setInspectorResults(res.data || []); setLastFetch(new Date()); message.success(`Fetched data for ${res.total} ASINs`); }

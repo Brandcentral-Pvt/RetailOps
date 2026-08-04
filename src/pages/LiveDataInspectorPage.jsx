@@ -7,6 +7,11 @@ import * as XLSX from 'xlsx';
 const { Text } = Typography;
 const API_BASE = import.meta.env?.VITE_API_URL || '/api';
 
+const authHeaders = (extra) => {
+  const token = localStorage.getItem('authToken');
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
+};
+
 export default function LiveDataInspectorPage() {
   const [metrics, setMetrics] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
@@ -16,7 +21,7 @@ export default function LiveDataInspectorPage() {
   const [lastFetch, setLastFetch] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/live-data/metrics`).then(r => r.json()).then(r => {
+    fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json()).then(r => {
       if (r.success) { setMetrics(r.data); setSelectedMetrics(r.data.map(m => m.key)); }
     }).catch(() => {});
   }, []);
@@ -28,9 +33,9 @@ export default function LiveDataInspectorPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/live-data/fetch`, {
+      const res = await fetch(`${API_BASE}/live-data/v2/fetch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ asins, metrics: selectedMetrics }),
       }).then(r => r.json());
 
