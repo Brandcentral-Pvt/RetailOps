@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Table, Tag, Typography, Space, Spin, Button, Checkbox, Input, Empty, Select, message, Divider } from 'antd';
-import { ReloadOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, TableOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Table, Tag, Typography, Space, Spin, Button, Checkbox, Input, Empty, Select, message, Divider, Collapse } from 'antd';
+import { ReloadOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, TableOutlined, BulbOutlined, TagsOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 
 const { Text } = Typography;
@@ -95,6 +95,52 @@ export default function LiveDataInspectorPage() {
         render: renderValue,
       };
     }),
+    {
+      title: 'Optimization',
+      key: 'optimization',
+      width: 320,
+      fixed: 'right',
+      render: (_, record) => {
+        const optimization = record.optimization || null;
+        if (!optimization) return <Text type="secondary">No optimization data</Text>;
+        return (
+          <Collapse size="small" ghost>
+            <Collapse.Panel
+              header={<span style={{ fontSize: 11, fontWeight: 600 }}><BulbOutlined style={{ marginRight: 4 }} />{optimization.summary || 'Optimization insights'}</span>}
+              key="optimization"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Tag color={optimization.priority === 'high' ? 'red' : optimization.priority === 'medium' ? 'orange' : 'green'}>{String(optimization.priority || 'medium').toUpperCase()}</Tag>
+                {Array.isArray(optimization.recommendations) && optimization.recommendations.length > 0 && (
+                  <div>
+                    {optimization.recommendations.slice(0, 3).map((item, idx) => (
+                      <div key={`${record.asin}-${idx}`} style={{ padding: '6px 8px', borderRadius: 6, background: '#f8fafc', marginBottom: 6 }}>
+                        <div style={{ fontWeight: 700, fontSize: 11, textTransform: 'capitalize' }}>{item.area}</div>
+                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{item.remarks?.[0] || item.suggestedUpdate || 'Improve alignment with current search intent.'}</div>
+                        {item.seoFocus?.length > 0 && (
+                          <div style={{ marginTop: 4 }}>
+                            <TagsOutlined style={{ marginRight: 4, color: '#94a3b8' }} />
+                            {item.seoFocus.slice(0, 3).map((term, termIdx) => <Tag key={`${record.asin}-${idx}-${termIdx}`} style={{ fontSize: 10, marginTop: 4 }}>{term}</Tag>)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {Array.isArray(optimization.keywords) && optimization.keywords.length > 0 && (
+                  <div>
+                    <Text style={{ fontSize: 10, fontWeight: 600 }}>Keywords</Text>
+                    <div style={{ marginTop: 4 }}>
+                      {optimization.keywords.slice(0, 4).map((kw, idx) => <Tag key={`${record.asin}-kw-${idx}`} style={{ fontSize: 10, marginTop: 4 }}>{kw.term}</Tag>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Collapse.Panel>
+          </Collapse>
+        );
+      },
+    },
   ];
 
   return (

@@ -360,6 +360,14 @@ function extractImages(item) {
     return urls;
 }
 
+function extractDescription(item) {
+    return item.itemInfo?.contentInfo?.description || item.ProductDescription || item.description || null;
+}
+
+function extractBullets(item) {
+    return item.itemInfo?.features?.displayValues || [];
+}
+
 function extractCategory(item) {
     const nodes = item.browseNodeInfo?.browseNodes || [];
     return nodes.map(n => n.displayName || n.contextFreeName).filter(Boolean).join(' > ') || item.category || null;
@@ -606,6 +614,11 @@ exports.fetchLiveData = async (req, res) => {
                     if (!item) { notFound.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not returned' }); continue; }
                     const row = { asin: asinCode, seller: extractMetricValue('seller', item) };
                     for (const key of selectedMetrics) row[key] = extractMetricValue(key, item);
+                    row.title = extractMetricValue('title', item);
+                    row.description = extractDescription(item);
+                    row.bulletPoints = extractBullets(item);
+                    row.imageUrls = extractImages(item);
+                    row.optimization = item.__aiLqs?.optimization || null;
                     results.push(row);
                 }
                 if (i + BATCH_SIZE < asinList.length) await sleep(BATCH_DELAY_MS);

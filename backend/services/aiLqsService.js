@@ -183,6 +183,170 @@ Return JSON ONLY (no markdown):
 }`;
 }
 
+function extractKeywords(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(word => word.length > 2 && !['the','and','with','for','that','this','your','from','into','have','were','will','when','daily','product','premium','wireless','earbuds','audio','device','using','best','high','quality'].includes(word))
+    .slice(0, 6);
+}
+
+function buildFallbackOptimization(item) {
+  const title = getTitle(item);
+  const bullets = getBullets(item);
+  const description = getDescription(item);
+  const images = getImages(item);
+  const category = getCategory(item) || 'general';
+  const keywords = extractKeywords(`${title} ${bullets.join(' ')} ${description}`);
+  const recommendations = [];
+
+  if (!title || title.length < 90) {
+    recommendations.push({
+      area: 'title',
+      score: 58,
+      priority: 'high',
+      remarks: ['Make the title more descriptive and include the most relevant product attribute or use case.'],
+      seoFocus: keywords.slice(0, 3),
+      suggestedUpdate: 'Add the core product type, key feature, and brand naturally near the front of the title.',
+    });
+  }
+
+  if (!Array.isArray(bullets) || bullets.length < 3) {
+    recommendations.push({
+      area: 'bullets',
+      score: 62,
+      priority: 'high',
+      remarks: ['Add benefit-led bullet points that explain the product experience and usage clearly.'],
+      seoFocus: keywords.slice(0, 3),
+      suggestedUpdate: 'Expand the bullet list with customer-facing benefits, use cases, and compatibility details.',
+    });
+  }
+
+  if (!images.length || images.length < 3) {
+    recommendations.push({
+      area: 'images',
+      score: 65,
+      priority: 'medium',
+      remarks: ['Add more images to support trust, detail, and discovery.'],
+      seoFocus: keywords.slice(0, 3),
+      suggestedUpdate: 'Add lifestyle, size, packaging, and feature-closeup images to strengthen the listing.',
+    });
+  }
+
+  if (!description || description.length < 180) {
+    recommendations.push({
+      area: 'description',
+      score: 60,
+      priority: 'medium',
+      remarks: ['Expand the description with plain-language product benefits, usage context, and key differentiators.'],
+      seoFocus: keywords.slice(0, 3),
+      suggestedUpdate: 'Write a fuller description that explains how the product solves the customer need.',
+    });
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      area: 'content',
+      score: 78,
+      priority: 'medium',
+      remarks: ['The listing already contains strong core content; enrich it with a recent benefit or customer use case to keep it fresh.'],
+      seoFocus: keywords.slice(0, 3),
+      suggestedUpdate: 'Refresh the listing with one new keyword-led detail that matches current customer intent.',
+    });
+  }
+
+  return {
+    summary: `The ${category} listing needs focused improvement in ${recommendations.map(r => r.area).slice(0, 3).join(', ')} to improve search relevance and conversion.`,
+    priority: recommendations.some(r => r.priority === 'high') ? 'high' : 'medium',
+    recommendations,
+    keywords: keywords.slice(0, 4).map(term => ({ term, reason: 'Derived from the live title, bullet points, and description' })),
+  };
+}
+
+function buildOptimizationPrompt(item) {
+  const title = getTitle(item);
+  const bullets = getBullets(item);
+  const description = getDescription(item);
+  const images = getImages(item);
+  const brand = item.itemInfo?.byLineInfo?.brand?.displayValue || 'Unknown';
+  const market = getMarketplace(item);
+  const criteria = criteriaFor(item);
+
+  return `You are an Amazon listing optimization strategist for ${market}. Use only the live product data supplied below and generate a dynamic optimization plan for SEO, content quality, and conversion.
+
+Marketplace: ${market}
+Category: ${getCategory(item) || 'Unknown'}
+Brand: ${brand}
+Criteria context: ${JSON.stringify({
+    title: criteria.title,
+    bullets: criteria.bullets,
+    images: criteria.images,
+    description: criteria.description,
+    amazonInCompliance: criteria.amazonInCompliance,
+  }, null, 2)}
+
+PRODUCT DATA:
+Title: ${title || 'MISSING'}
+Bullets:
+${bullets.length ? bullets.map((b, i) => `${i + 1}. ${b}`).join('\n') : '- NONE'}
+Description: ${description || 'MISSING'}
+Images:
+${images.length ? images.join('\n') : '- NONE'}
+
+Return JSON ONLY with this exact structure:
+{
+  "summary": "short overall optimization summary",
+  "priority": "high|medium|low",
+  "recommendations": [
+    {
+      "area": "title|bullets|images|description|content",
+      "score": 0,
+      "priority": "high|medium|low",
+      "remarks": ["one short remark", "another short remark"],
+      "seoFocus": ["keyword1", "keyword2"],
+      "suggestedUpdate": "one concise action"
+    }
+  ],
+  "keywords": [{"term": "keyword", "reason": "why it matters"}]
+}`;
+}
+
+async function analyzeOptimization(item) {
+  if (!item) return buildFallbackOptimization(item);
+
+  try {
+    const content = await nimService.chat([
+      { role: 'system', content: 'You are an Amazon listing optimization expert. Always return valid JSON.' },
+      { role: 'user', content: buildOptimizationPrompt(item) },
+    ], { json: true, max_tokens: 2200 });
+
+    const parsed = nimService.cleanJSON(content);
+    const recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations.map((rec) => ({
+      area: typeof rec.area === 'string' ? rec.area : 'content',
+      score: typeof rec.score === 'number' ? Math.max(0, Math.min(100, rec.score)) : 60,
+      priority: ['high', 'medium', 'low'].includes(rec.priority) ? rec.priority : 'medium',
+      remarks: Array.isArray(rec.remarks) ? rec.remarks.filter(Boolean) : [],
+      seoFocus: Array.isArray(rec.seoFocus) ? rec.seoFocus.filter(Boolean).slice(0, 3) : [],
+      suggestedUpdate: typeof rec.suggestedUpdate === 'string' ? rec.suggestedUpdate : '',
+    })) : [];
+
+    return {
+      summary: typeof parsed.summary === 'string' && parsed.summary.trim() ? parsed.summary : buildFallbackOptimization(item).summary,
+      priority: ['high', 'medium', 'low'].includes(parsed.priority) ? parsed.priority : 'medium',
+      recommendations: recommendations.length ? recommendations : buildFallbackOptimization(item).recommendations,
+      keywords: Array.isArray(parsed.keywords) ? parsed.keywords.filter(Boolean).map(k => ({
+        term: typeof k.term === 'string' ? k.term : '',
+        reason: typeof k.reason === 'string' ? k.reason : 'Derived from the live product content',
+      })).filter(k => k.term) : buildFallbackOptimization(item).keywords,
+    };
+  } catch (error) {
+    console.warn(`[AI-LQS] Optimization analysis failed for ${item.asin || '?'}: ${error.message}`);
+    return buildFallbackOptimization(item);
+  }
+}
+
 async function analyzeText(item) {
   const content = await nimService.chat([
     { role: 'system', content: 'You are an Amazon Seller Central listing policy expert. Always return valid JSON.' },
@@ -245,6 +409,7 @@ async function analyzeItem(item) {
     const images = getImages(item);
     let text = null;
     let vision = null;
+    let optimization = null;
 
     try {
       text = await withTimeout(analyzeText(item), CONFIG.textTimeoutMs);
@@ -256,8 +421,13 @@ async function analyzeItem(item) {
     } catch (e) {
       console.warn(`[AI-LQS] Vision analysis failed for ${item.asin || '?'}: ${e.message}`);
     }
+    try {
+      optimization = await withTimeout(analyzeOptimization(item), CONFIG.textTimeoutMs);
+    } catch (e) {
+      console.warn(`[AI-LQS] Optimization analysis failed for ${item.asin || '?'}: ${e.message}`);
+    }
 
-    if (!text && !vision) return null;
+    if (!text && !vision && !optimization) return null;
 
     // Merge: overall from text if present, else vision-derived
     const overall = text?.overall != null ? text.overall
@@ -271,6 +441,7 @@ async function analyzeItem(item) {
       grade,
       fields: text?.fields || null,
       vision,
+      optimization,
       summary: text?.summary || null,
     };
   });
@@ -280,4 +451,4 @@ function isAvailable() {
   return CONFIG.enabled && !!(process.env.NVIDIA_NIM_API_KEY);
 }
 
-module.exports = { analyzeItem, isAvailable, CONFIG, LQS_CRITERIA, criteriaFor, buildTextPrompt, buildSystemPrompt };
+module.exports = { analyzeItem, isAvailable, CONFIG, LQS_CRITERIA, criteriaFor, buildTextPrompt, buildSystemPrompt, buildOptimizationPrompt, analyzeOptimization };
