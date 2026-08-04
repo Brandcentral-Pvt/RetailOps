@@ -359,7 +359,7 @@ const UploadForm = () => {
         >
           {isLoading ? (
             <>
-              <span className="spinner-border spinner-border-sm me-2"></span>
+              <span className="icon-[svg-spinners--eclipse] me-2" aria-hidden="true"></span>
               {uploadType === 'monthly' ? 'Uploading...' : uploadType === 'ads' ? 'Importing Ads...' : 'Syncing...'}
             </>
           ) : (

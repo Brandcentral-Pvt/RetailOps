@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalBody, Spinner, Badge, Tooltip } from 'reactstrap';
+import { Modal, ModalBody, Badge, Tooltip } from 'reactstrap';
 import { 
     FileText, Target, TrendingUp, AlertTriangle, 
     Activity, ExternalLink, History, Sparkles, 
@@ -299,7 +299,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
                         <div className="ai-guide-box mt-2">
                             {loading ? (
                                 <div className="text-center py-4">
-                                    <Spinner size="sm" color="primary" />
+                                    <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 16, color: '#0d6efd' }} aria-hidden="true" />
                                     <div className="mt-2 smallest text-muted">Analyzing task data...</div>
                                 </div>
                             ) : error ? (

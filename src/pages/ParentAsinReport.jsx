@@ -301,7 +301,7 @@ const ParentAsinReport = () => {
         <Segmented size="small" value={view} onChange={setView}
           options={[{ label: <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><LayoutList size={13} />Table</span>, value: 'table' },
           { label: <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><BarChart2 size={13} />Charts</span>, value: 'charts' }]} />
-        <Button size="small" icon={<RefreshCw size={13} className={loading ? 'spin-animation' : ''} />} loading={loading} onClick={loadData} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Refresh</Button>
+        <Button size="small" icon={<RefreshCw size={13} />} loading={loading} onClick={loadData} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Refresh</Button>
       </div>
 
       {/* KPI STRIP */}

@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo, Suspense, lazy, useCallback } from
 import {
     PlayCircle,
     RefreshCw,
-    Loader2,
     Search,
     ChevronDown,
     List,
@@ -904,7 +903,7 @@ const ScheduledRunsPage = () => {
                     <Tooltip title="Refresh telemetry data">
                         <Button
                             onClick={() => fetchData()}
-                            icon={<RefreshCw size={14} className={loading ? 'spin' : ''} />}
+                            icon={loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
                             style={{ height: '36px', fontWeight: 600, borderRadius: tokens.radius.sm, borderColor: tokens.border }}
                         >
                             Sync
@@ -1001,7 +1000,7 @@ const ScheduledRunsPage = () => {
             >
                 {logsLoading ? (
                     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                        <Loader2 size={32} className="spin" style={{ color: tokens.brand.primary }} />
+                        <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 32, color: tokens.brand.primary }} aria-hidden="true" />
                     </div>
                 ) : sellerLogs.length === 0 ? (
                     <Empty description="No logs found for this seller" style={{ marginTop: '80px' }} />

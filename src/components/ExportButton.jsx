@@ -53,7 +53,7 @@ const ExportButton = ({ data, fileName = 'export', format = 'excel', className =
     >
       {isLoading ? (
         <>
-          <span className="spinner-border spinner-border-sm me-2"></span>
+          <span className="icon-[svg-spinners--eclipse] me-2" aria-hidden="true"></span>
           Exporting...
         </>
       ) : (

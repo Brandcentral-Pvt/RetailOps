@@ -15,7 +15,7 @@ import {
   PlayCircleOutlined, SendOutlined, CheckOutlined,
   CloseOutlined, CheckCircleOutlined, CloseCircleOutlined,
   SyncOutlined, EyeOutlined, ExclamationCircleOutlined,
-  ReloadOutlined, LoadingOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { canDoTransition, getDisplayStatus, getRejectionCount, getLastRejection, hasEverBeenStarted } from '../../services/workflowEngine';
 
@@ -123,7 +123,7 @@ const WorkflowActionButton = ({
           borderRadius: "var(--radius-md)",
           fontSize: size === 'small' ? 11 : 13,
         }}
-        icon={<LoadingOutlined />}
+        icon={<span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span>}
       >
         Updating...
       </Button>
