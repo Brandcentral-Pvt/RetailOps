@@ -91,7 +91,7 @@ const ResetPasswordPage = () => {
     return (
       <AuthLayout>
         <div className={styles.textCenter} style={{ padding: '40px 0' }}>
-          <div className={styles.spinner} />
+          <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 28 }} aria-hidden="true" />
           <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>Validating reset link...</Text>
         </div>
       </AuthLayout>

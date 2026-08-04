@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import * as XLSX from 'xlsx';
 import {
   X, TrendingUp, TrendingDown, IndianRupee, Search, Download,
-  ArrowUp, ArrowDown, Minus, ArrowUpDown, FileText, SlidersHorizontal, Loader2, Store, Calendar, ChevronDown
+  ArrowUp, ArrowDown, Minus, ArrowUpDown, FileText, SlidersHorizontal, Store, Calendar, ChevronDown
 } from 'lucide-react';
 import { asinApi, sellerApi } from '../services/api';
 import InfiniteScrollSelect from './common/InfiniteScrollSelect';
@@ -406,10 +406,6 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
     .dd-no { color:#d1d5db; }
     .inp-sm { font-size:11px; height:28px; border:1.5px solid #e5e7eb; border-radius:8px; padding:2px 10px; width:80px; outline:none; }
     .inp-sm:focus { border-color:${C.primary}; }
-    .loader-pulse { height:30px; display:flex; align-items:center; justify-content:center; gap:6px; margin:16px 0; }
-    .pulse-dot { width:6px; height:6px; background:${C.primary}; border-radius:50%; animation:pulse 1.5s infinite; }
-    .pulse-dot:nth-child(2) { animation-delay:0.2s; }
-    .pulse-dot:nth-child(3) { animation-delay:0.4s; }
     @keyframes pulse { 0%,100% { transform:scale(1); opacity:0.3; } 50% { transform:scale(1.5); opacity:1; } }
     .table input[type="checkbox"] { width:13px; height:13px; cursor:pointer; accent-color:${C.primary}; }
     .price-cell { font-variant-numeric:tabular-nums; }
@@ -444,7 +440,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
           <Space size={8}>
             <div className="position-relative">
               <button className="chp" onClick={() => setShowExportMenu(!showExportMenu)} style={{ borderColor: C.primary, color: C.primary }} disabled={exporting}>
-                {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export
+                {exporting ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> : <Download size={13} />} Export
               </button>
               {showExportMenu && !exporting && (
                 <div className="position-absolute bg-white border rounded-lg shadow-xl p-1" style={{ top: '100%', right: 0, zIndex: 100, marginTop: 4, minWidth: 160 }}>
@@ -525,7 +521,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
 
         {loading && (
           <span className="d-flex align-items-center gap-1 ms-auto" style={{ fontSize: 'var(--font-size-xs)', color: C.textSecondary }}>
-            <Loader2 size={13} className="animate-spin" /> Updating...
+            <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> Updating...
           </span>
         )}
       </div>
@@ -662,9 +658,7 @@ const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', selle
           </tbody>
         </table>
         {(loading || hasMore) && (
-          <div ref={loaderRef} className="loader-pulse">
-            <div className="pulse-dot" /><div className="pulse-dot" /><div className="pulse-dot" />
-          </div>
+          <span ref={loaderRef} className="icon-[svg-spinners--eclipse]" style={{ fontSize: 18, color: C.primary, display: 'block', margin: '16px 0' }} aria-hidden="true" />
         )}
       </div>
 

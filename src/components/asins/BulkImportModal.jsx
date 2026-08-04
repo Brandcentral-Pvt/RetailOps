@@ -397,7 +397,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                             style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)', fontWeight: 600, background: '#18181b' }}
                         >
                             {uploading ? (
-                                <><RefreshCw size={15} className="spin" /> Processing...</>
+                                <><span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 15 }} aria-hidden="true" /> Processing...</>
                             ) : (
                                 <><Upload size={15} /> Start Import</>
                             )}

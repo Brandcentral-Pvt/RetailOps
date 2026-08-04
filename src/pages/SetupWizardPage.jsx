@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   UserCheck,
   Sparkles,
-  Loader2,
   ChevronRight,
   Info,
   ExternalLink,
@@ -670,7 +669,7 @@ const SetupWizardPage = () => {
                   >
                     {loading ? (
                       <>
-                        <Loader2 size={16} className="spin" />
+                        <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 16 }} aria-hidden="true" />
                         Processing...
                       </>
                     ) : (
@@ -688,7 +687,7 @@ const SetupWizardPage = () => {
                   >
                     {loading ? (
                       <>
-                        <Loader2 size={16} className="spin" />
+                        <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 16 }} aria-hidden="true" />
                         Loading...
                       </>
                     ) : (

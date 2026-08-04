@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Button, Select, Space, Typography, message, Dropdown } from 'antd';
-import { Download, FileSpreadsheet, FileText, File, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, File } from 'lucide-react';
 import { adsApi } from '../../services/api';
 import toast from '../../utils/toast';
 
@@ -83,7 +83,7 @@ const ReportExport = ({ data = [], filters = {} }) => {
         <Dropdown menu={{ items: exportOptions }} trigger={['click']}>
           <Button 
             type="primary" 
-            icon={exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+            icon={exporting ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> : <Download size={13} />}
             loading={exporting}
             style={{ borderRadius: "var(--radius-md)", fontWeight: 600 }}
           >

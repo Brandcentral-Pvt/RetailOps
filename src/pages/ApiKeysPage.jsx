@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, Check, ChevronRight, Eye, EyeOff, RefreshCw, Plus, Trash2, Edit, AlertCircle, Loader2, X } from 'lucide-react';
+import { Copy, Check, ChevronRight, Eye, EyeOff, RefreshCw, Plus, Trash2, Edit, AlertCircle, X } from 'lucide-react';
 import api from '../services/api';
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, Alert } from 'reactstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -222,7 +222,7 @@ return (
                         className="btn btn-link text-decoration-none text-muted p-0 d-flex align-items-center gap-1 smallest fw-semibold"
                         disabled={loading}
                     >
-                        <RefreshCw size={14} className={loading ? 'spin' : ''} /> Refresh List
+                        {loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />} Refresh List
                     </button>
                 </div>
 
@@ -404,7 +404,7 @@ return (
                             Cancel
                         </Button>
                         <Button color="primary" type="submit" disabled={saving} className="px-4 fw-bold shadow-sm" style={{ borderRadius: '10px' }}>
-                            {saving ? <Loader2 className="spin" size={16} /> : (editingKey ? 'Update Configuration' : 'Save Integration')}
+                            {saving ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 16 }} aria-hidden="true" /> : (editingKey ? 'Update Configuration' : 'Save Integration')}
                         </Button>
                     </ModalFooter>
                 </Form>

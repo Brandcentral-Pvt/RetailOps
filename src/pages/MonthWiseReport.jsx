@@ -191,7 +191,7 @@ const MonthWiseReport = () => {
 
           <div className="d-flex align-items-center gap-2">
             <button className="btn btn-dark btn-sm rounded-pill px-3 py-2 shadow-sm fw-700 d-flex align-items-center gap-2" onClick={loadMonthlyData}>
-              <RefreshCw size={14} className={loading ? 'spin' : ''} />
+              {loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
               REFRESH
             </button>
           </div>

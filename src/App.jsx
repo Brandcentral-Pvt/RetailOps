@@ -203,6 +203,7 @@ function App() {
                       <ToastProvider>
                         <ConfigProvider
                           theme={retailOpsTheme}
+                          spin={{ indicator: <span className="icon-[svg-spinners--eclipse]" aria-hidden="true" /> }}
                         >
                         <AntdApp>
                           <AppRoutes />
