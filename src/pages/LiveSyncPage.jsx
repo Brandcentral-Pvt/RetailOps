@@ -210,8 +210,14 @@ export default function LiveSyncPage() {
       const m = metrics.find(x => x.key === key);
       return {
         title: m?.label || key, dataIndex: key, key,
-        width: key === 'title' ? 200 : 100,
-        render: (v) => v != null ? <Text style={{ fontSize: 'var(--bc-text-xs)' }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
+        width: key === 'title' || key === 'lqsIssues' ? 220 : key === 'mainImage' ? 50 : 100,
+        render: (v) => {
+          if (v == null) return <Text type="secondary">-</Text>;
+          if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid var(--bc-border-default)', borderRadius: 6, background: '#fff' }} /></a>;
+          if (key === 'lqsGrade') return <Tag color={{ A: 'green', B: 'blue', C: 'orange', D: 'red' }[String(v)] || 'default'} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
+          if (key === 'mainImageBackground') return <Tag color={v === 'White' ? 'green' : v === 'Possibly non-white' ? 'orange' : v === 'Non-white' ? 'red' : 'default'} style={{ fontSize: 10 }}>{v}</Tag>;
+          return <Text style={{ fontSize: 'var(--bc-text-xs)' }}>{String(v)}</Text>;
+        },
       };
     }),
   ];
