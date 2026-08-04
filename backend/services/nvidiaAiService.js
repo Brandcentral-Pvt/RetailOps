@@ -1,8 +1,8 @@
 const { sql, getPool, generateId } = require('../database/db');
 
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const VISION_MODEL = "meta/llama-3.2-11b-vision-instruct";
-const FAST_MODEL = "meta/llama-3.1-8b-instruct";
+const DEFAULT_VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
+const DEFAULT_FAST_MODEL = "meta/llama-3.1-8b-instruct";
 
 /**
  * NVIDIA AI Service — Product Intelligence Platform
@@ -23,21 +23,36 @@ class NvidiaAiService {
         if (!this.apiKey) throw new Error('NVIDIA_NIM_API_KEY not configured');
     }
 
+    _getVisionModel() {
+        return process.env.NVIDIA_VISION_MODEL || DEFAULT_VISION_MODEL;
+    }
+
+    _getFastModel() {
+        return process.env.NVIDIA_FAST_MODEL || DEFAULT_FAST_MODEL;
+    }
+
     async _callNvidia(messages, options = {}) {
         this._checkKey();
+        const headers = {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+        };
+        if (options.accept) headers.Accept = options.accept;
+
+        const payload = {
+            model: options.model || this._getFastModel(),
+            messages,
+            max_tokens: options.max_tokens || 1024,
+            temperature: options.temperature ?? 0.3,
+            stream: options.stream ?? false,
+            ...(options.json ? { response_format: { type: 'json_object' } } : {}),
+            ...(options.extraBody || {}),
+        };
+
         const response = await fetch(NVIDIA_INVOKE_URL, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: options.model || FAST_MODEL,
-                messages,
-                max_tokens: options.max_tokens || 1024,
-                temperature: options.temperature || 0.3,
-                ...(options.json ? { response_format: { type: 'json_object' } } : {}),
-            }),
+            headers,
+            body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -49,18 +64,70 @@ class NvidiaAiService {
         return data.choices?.[0]?.message?.content || '';
     }
 
+    _extractJSON(text) {
+        const t = String(text || '');
+        const cleaned = t.replace(/```json\n?|```/g, '').trim();
+        if (cleaned) {
+            try { return JSON.parse(cleaned); } catch { /* fall through */ }
+        }
+        // Lenient extraction: pull out the first balanced {...} or [...] object
+        const start = Math.max(t.indexOf('{'), t.indexOf('['));
+        if (start >= 0) {
+            const open = t[start];
+            const close = open === '{' ? '}' : ']';
+            let depth = 0, inStr = false, esc = false;
+            for (let i = start; i < t.length; i++) {
+                const ch = t[i];
+                if (inStr) {
+                    if (esc) esc = false;
+                    else if (ch === '\\') esc = true;
+                    else if (ch === '"') inStr = false;
+                    continue;
+                }
+                if (ch === '"') { inStr = true; continue; }
+                if (ch === open) depth++;
+                else if (ch === close) {
+                    depth--;
+                    if (depth === 0) {
+                        try { return JSON.parse(t.slice(start, i + 1)); } catch { return null; }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     _parseJSON(text) {
-        try {
-            const cleaned = text.replace(/```json\n?|```/g, '').trim();
-            return JSON.parse(cleaned);
-        } catch (e) {
-            console.error('[NvidiaAI] JSON parse failed:', text.slice(0, 200));
+        const parsed = this._extractJSON(text);
+        if (parsed === null || parsed === undefined) {
+            console.error('[NvidiaAI] JSON parse failed:', String(text).slice(0, 200));
             throw new Error('AI returned invalid JSON');
         }
+        return parsed;
     }
 
     _getImageAsBase64(url) {
         return fetch(url).then(r => r.arrayBuffer()).then(buf => Buffer.from(buf).toString('base64')).catch(() => null);
+    }
+
+    _getImageMimeType(imageUrl) {
+        try {
+            const pathname = new URL(imageUrl).pathname.toLowerCase();
+            const ext = pathname.split('.').pop();
+            const mimeMap = {
+                png: 'image/png',
+                jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
+                webp: 'image/webp',
+            };
+            return mimeMap[ext] || 'image/jpeg';
+        } catch (error) {
+            return 'image/jpeg';
+        }
+    }
+
+    _buildImageDataUrl(imageBase64, imageUrl) {
+        return `data:${this._getImageMimeType(imageUrl)};base64,${imageBase64}`;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -73,16 +140,24 @@ class NvidiaAiService {
 
         const analysisType = options.type || 'full';
         const prompt = this._getImageAnalysisPrompt(analysisType);
+        const imageDataUrl = this._buildImageDataUrl(imageBase64, imageUrl);
 
         const content = await this._callNvidia([
+            { role: 'system', content: '/think' },
             {
                 role: 'user',
                 content: [
                     { type: 'text', text: prompt },
-                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+                    { type: 'image_url', image_url: { url: imageDataUrl } }
                 ]
             }
-        ], { model: VISION_MODEL, max_tokens: 1024, json: true });
+        ], {
+            model: this._getVisionModel(),
+            max_tokens: 2048,
+            stream: false,
+            accept: 'application/json',
+            json: true,
+        });
 
         return this._parseJSON(content);
     }
