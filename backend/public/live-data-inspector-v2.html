@@ -114,6 +114,14 @@
     .cell-null { color: var(--text-muted); font-style: italic; }
     .cell-num { font-family: var(--mono); font-weight: 500; font-size: 11.5px; }
     .cell-str { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cell-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .cell-badge.green { background: var(--success-light); color: var(--success); }
+    .cell-badge.blue { background: #eff6ff; color: #2563eb; }
+    .cell-badge.amber { background: var(--warning-light); color: var(--warning); }
+    .cell-badge.red { background: var(--danger-light); color: var(--danger); }
+    .cell-badge.gray { background: var(--border-light); color: var(--text-muted); }
+    .cell-thumb { display: block; }
+    .cell-thumb img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; border: 1px solid var(--border); background: #fff; }
 
     .table-scroll { max-height: calc(100vh - 220px); overflow: auto; }
     .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -496,6 +504,17 @@ const METRIC_META = {
   buyBoxWinner: { desc: 'BuyBox status' }, seller: { desc: 'BuyBox seller' },
   availability: { desc: 'Stock status' }, title: { desc: 'Product title' },
   brand: { desc: 'Brand name' }, category: { desc: 'Product category' }, dealBadge: { desc: 'Active deal type' },
+  imagesCount: { desc: 'Number of product images (LQS: 6+ recommended)' },
+  mainImage: { desc: 'Main product image URL' },
+  bulletPointCount: { desc: 'Number of bullet points (LQS: 5 recommended)' },
+  titleLength: { desc: 'Title character count (LQS: 60-80 ideal)' },
+  lqsScore: { desc: 'Listing Quality Score 0-10 (API-only inputs)', icon: '★' },
+  lqsGrade: { desc: 'LQS grade: A/B/C/D' },
+  lqsTitle: { desc: 'Title quality sub-score' },
+  lqsBullets: { desc: 'Bullet points quality sub-score' },
+  lqsImages: { desc: 'Image quality sub-score' },
+  mainImageBackground: { desc: 'Main image background (heuristic from URL)' },
+  lqsIssues: { desc: 'LQS improvement issues detected' },
 };
 
 async function init() {
@@ -671,13 +690,18 @@ function renderResults() {
   badges.innerHTML = `<span class="result-chip success">${results.length} found</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} not found</span>` : ''}`;
   bar.style.display = results.length ? '' : 'none';
   bar.innerHTML = `<span class="result-chip info">${selectedKeys.length} metrics</span><span class="result-chip info">${results.length} ASINs</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} unavailable</span>` : ''}`;
-  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount']);
+  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount','imagesCount','bulletPointCount','titleLength','lqsScore','lqsTitle','lqsBullets','lqsImages']);
   const ths = ['ASIN', 'Seller', ...selectedKeys.map(k => allMetrics.find(m => m.key === k)?.label || k)];
   const rows = results.map(row => {
     const tds = [`<td><span class="cell-asin">${esc(row.asin)}</span></td>`, `<td class="cell-seller">${esc(row.seller || '-')}</td>`,
-      ...selectedKeys.map(k => { const v = row[k]; if (v === null || v === undefined) return '<td class="cell-null">&mdash;</td>';
+      ...selectedKeys.map(k => {
+        const v = row[k]; if (v === null || v === undefined) return '<td class="cell-null">&mdash;</td>';
+        if (k === 'mainImage') return `<td><span class="cell-thumb"><a href="${esc(v)}" target="_blank" rel="noopener"><img src="${esc(v)}" alt="main" onerror="this.style.visibility='hidden'"></a></span></td>`;
+        if (k === 'lqsGrade') { const cls = ({ A: 'green', B: 'blue', C: 'amber', D: 'red' })[String(v)] || 'gray'; return `<td><span class="cell-badge ${cls}">${esc(String(v))}</span></td>`; }
+        if (k === 'mainImageBackground') { const s = String(v); const cls = s === 'White' ? 'green' : s === 'Possibly non-white' ? 'amber' : s === 'Non-white' ? 'red' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
         if (numKeys.has(k)) return `<td class="cell-num">${typeof v === 'number' ? v.toLocaleString('en-IN') : esc(String(v))}</td>`;
-        return `<td class="cell-str" title="${esc(String(v))}">${esc(String(v))}</td>`; })];
+        return `<td class="cell-str" title="${esc(String(v))}">${esc(String(v))}</td>`;
+      })];
     return '<tr>' + tds.join('') + '</tr>';
   }).join('');
   c.innerHTML = `<div class="table-scroll"><table><thead><tr>${ths.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;

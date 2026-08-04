@@ -65,12 +65,25 @@ export default function LiveDataInspectorPage() {
     { title: 'Seller', dataIndex: 'seller', key: 'seller', width: 160 },
     ...selectedMetrics.map(key => {
       const m = metrics.find(x => x.key === key);
+      const renderValue = (v) => {
+        if (v === null || v === undefined) return <Text type="secondary">-</Text>;
+        if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }} /></a>;
+        if (key === 'lqsGrade') {
+          const color = { A: '#059669', B: '#2563eb', C: '#d97706', D: '#dc2626' }[String(v)] || '#6b7280';
+          return <Tag color={color} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
+        }
+        if (key === 'mainImageBackground') {
+          const color = v === 'White' ? 'green' : v === 'Possibly non-white' ? 'orange' : v === 'Non-white' ? 'red' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        return <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text>;
+      };
       return {
         title: m?.label || key,
         dataIndex: key,
         key,
-        width: key === 'title' ? 200 : 100,
-        render: (v) => v !== null && v !== undefined ? <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
+        width: key === 'title' || key === 'lqsIssues' ? 220 : key === 'mainImage' ? 50 : 100,
+        render: renderValue,
       };
     }),
   ];

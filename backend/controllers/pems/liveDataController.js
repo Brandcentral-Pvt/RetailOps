@@ -4,6 +4,10 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const SystemLogService = require('../../services/SystemLogService');
+const lqsUtils = require('../../utils/lqs');
+const TitleAnalyzer = require('../../utils/titleAnalyzer');
+const BulletPointsAnalyzer = require('../../utils/bulletPointsAnalyzer');
+const ImageAnalyzer = require('../../utils/imageAnalyzer');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/live-data');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -88,8 +92,9 @@ const BATCH_SIZE = CONFIG.batchSize;
 const BATCH_DELAY_MS = CONFIG.batchDelayMs;
 
 const API_RESOURCES = [
-    'itemInfo.title', 'itemInfo.byLineInfo',
-    'images.primary.large', 'images.variants.large',
+    'itemInfo.title', 'itemInfo.byLineInfo', 'itemInfo.features',
+    'images.primary.small', 'images.primary.medium', 'images.primary.large', 'images.primary.highRes',
+    'images.variants.small', 'images.variants.medium', 'images.variants.large', 'images.variants.highRes',
     'offersV2.listings.price', 'offersV2.listings.availability',
     'offersV2.listings.merchantInfo', 'offersV2.listings.dealDetails',
     'offersV2.listings.isBuyBoxWinner', 'offersV2.listings.condition',
@@ -298,13 +303,99 @@ const AVAILABLE_METRICS = [
     { key: 'brand', label: 'Brand' },
     { key: 'category', label: 'Category' },
     { key: 'dealBadge', label: 'Deal Badge' },
+    // ── LQS raw inputs (all sourced from the Creators API) ──────────
+    { key: 'imagesCount', label: 'Image Count' },
+    { key: 'mainImage', label: 'Main Image' },
+    { key: 'bulletPointCount', label: 'Bullet Point Count' },
+    { key: 'titleLength', label: 'Title Length' },
+    // ── LQS computed (Listing Quality Score, API-only inputs) ────────
+    { key: 'lqsScore', label: 'LQS Score' },
+    { key: 'lqsGrade', label: 'LQS Grade' },
+    { key: 'lqsTitle', label: 'LQS Title Quality' },
+    { key: 'lqsBullets', label: 'LQS Bullets Quality' },
+    { key: 'lqsImages', label: 'LQS Image Quality' },
+    { key: 'mainImageBackground', label: 'Main Image Background' },
+    { key: 'lqsIssues', label: 'LQS Issues' },
 ];
 
-function extractMetricValue(key, item) {
-    const listing = item.offersV2?.listings?.find(l => l.isBuyBoxWinner)
+function getListing(item) {
+    const offers = item.offersV2?.listings?.find(l => l.isBuyBoxWinner)
         || item.offersV2?.listings?.[0]
         || item.buyBoxes?.find(b => b.isBuyBoxWinner)
         || item.buyBoxes?.[0];
+    return offers;
+}
+
+function extractImages(item) {
+    const img = item.images || {};
+    const urls = [];
+    const pick = (o) => o?.url || null;
+    const primary = pick(img.primary?.highRes) || pick(img.primary?.large) || pick(img.primary?.medium) || pick(img.primary?.small);
+    if (primary) urls.push(primary);
+    for (const v of (img.variants || [])) {
+        const u = pick(v.highRes) || pick(v.large) || pick(v.medium) || pick(v.small);
+        if (u && !urls.includes(u)) urls.push(u);
+    }
+    return urls;
+}
+
+function extractCategory(item) {
+    const nodes = item.browseNodeInfo?.browseNodes || [];
+    return nodes.map(n => n.displayName || n.contextFreeName).filter(Boolean).join(' > ') || item.category || null;
+}
+
+// ── LQS analysis (API-only inputs) ──────────────────────────────────────
+// Description and A+ flag are not available from the Creators API, so the
+// weighted score is renormalized over Title (30%), Bullets (25%), Images (25%).
+const LQS_CACHE = new WeakMap();
+function getLqs(item) {
+    let cached = LQS_CACHE.get(item);
+    if (cached) return cached;
+
+    const title = item.itemInfo?.title?.displayValue || item.productName || '';
+    const bullets = item.itemInfo?.features?.displayValues || [];
+    const images = extractImages(item);
+    const category = extractCategory(item) || '';
+
+    const titleAnalysis = TitleAnalyzer.analyze(title);
+    const bulletAnalysis = BulletPointsAnalyzer.analyze(bullets);
+    const imageAnalysis = ImageAnalyzer.analyze({
+        imageCount: images.length,
+        imageUrls: images,
+        metadata: { category, title },
+    });
+
+    const weights = { title: 0.30, bullets: 0.25, images: 0.25 };
+    const denom = weights.title + weights.bullets + weights.images;
+    const rawScore = (
+        titleAnalysis.score * weights.title
+        + bulletAnalysis.score * weights.bullets
+        + imageAnalysis.score * weights.images
+    ) / denom;
+    const score = parseFloat((rawScore / 10).toFixed(1));
+
+    const analysis = {
+        score,
+        grade: lqsUtils.getGrade(score),
+        components: {
+            titleQuality: parseFloat((titleAnalysis.score / 10).toFixed(1)),
+            bulletPoints: parseFloat((bulletAnalysis.score / 10).toFixed(1)),
+            imageQuality: parseFloat((imageAnalysis.score / 10).toFixed(1)),
+        },
+        imageCount: images.length,
+        imageChecks: imageAnalysis.details || {},
+        issues: [
+            ...(titleAnalysis.issues || []),
+            ...(bulletAnalysis.issues || []),
+            ...(imageAnalysis.issues || []),
+        ],
+    };
+    LQS_CACHE.set(item, analysis);
+    return analysis;
+}
+
+function extractMetricValue(key, item) {
+    const listing = getListing(item);
     switch (key) {
         case 'price': return listing?.price?.money?.amount || listing?.priceAmount || null;
         case 'mrp': return listing?.price?.savingBasis?.money?.amount || listing?.mrpAmount || null;
@@ -324,11 +415,39 @@ function extractMetricValue(key, item) {
         case 'availability': return listing?.availability?.message || listing?.availability?.status || item.stock?.status || null;
         case 'title': return item.itemInfo?.title?.displayValue || item.productName || null;
         case 'brand': return item.itemInfo?.byLineInfo?.brand?.displayValue || null;
-        case 'category': {
-            const nodes = item.browseNodeInfo?.browseNodes || [];
-            return nodes.map(n => n.displayName || n.contextFreeName).filter(Boolean).join(' > ') || item.category || null;
-        }
+        case 'category': return extractCategory(item);
         case 'dealBadge': return listing?.dealDetails?.badge || listing?.dealDetails?.type || (item.deals?.[0]?.badge) || null;
+        // ── LQS raw inputs ──────────────────────────────────────────
+        case 'imagesCount': {
+            const count = extractImages(item).length;
+            return count > 0 ? count : null;
+        }
+        case 'mainImage': return extractImages(item)[0] || null;
+        case 'bulletPointCount': {
+            const bullets = item.itemInfo?.features?.displayValues || [];
+            return bullets.length > 0 ? bullets.length : null;
+        }
+        case 'titleLength': {
+            const t = item.itemInfo?.title?.displayValue || item.productName || '';
+            return t ? t.length : null;
+        }
+        // ── LQS computed ────────────────────────────────────────────
+        case 'lqsScore': return getLqs(item).score;
+        case 'lqsGrade': return getLqs(item).grade;
+        case 'lqsTitle': return getLqs(item).components.titleQuality;
+        case 'lqsBullets': return getLqs(item).components.bulletPoints;
+        case 'lqsImages': return getLqs(item).components.imageQuality;
+        case 'mainImageBackground': {
+            const status = getLqs(item).imageChecks?.whiteBackground?.status;
+            if (!status) return 'N/A';
+            if (status === 'pass') return 'White';
+            if (status === 'warning') return 'Possibly non-white';
+            return 'Non-white';
+        }
+        case 'lqsIssues': {
+            const issues = getLqs(item).issues;
+            return issues.length > 0 ? issues.join(' | ') : 'None';
+        }
         default: return null;
     }
 }
@@ -343,9 +462,9 @@ async function logActivity(type, description, metadata = {}) {
             type,
             entityType: 'LIVE_DATA_INSPECTOR',
             entityId: String(metadata.jobId || metadata.asinCount || 'N/A'),
-            entityTitle: description,
+            entityTitle: String(description).slice(0, 100),
             user: metadata.userId || null,
-            description,
+            description: String(description).slice(0, 400),
             metadata: { ...metadata, source: 'live-data-inspector' },
         });
     } catch (e) { /* don't block on log failure */ }
