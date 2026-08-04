@@ -43,7 +43,7 @@ describe('NvidiaAiService vision requests', () => {
         const body = JSON.parse(visionRequest[1].body);
         expect(body.model).toBe(process.env.NVIDIA_VISION_MODEL || 'nvidia/nemotron-nano-12b-v2-vl');
         expect(body.stream).toBe(false);
-        expect(body.messages[0].content[0].text).toContain('Amazon product image');
-        expect(body.messages[0].content[1].image_url.url).toMatch(/^data:image\/jpeg;base64,/);
+        expect(body.messages[1].content[0].text).toContain('Amazon product image');
+        expect(body.messages[1].content[1].image_url.url).toMatch(/^data:image\/jpeg;base64,/);
     });
 });

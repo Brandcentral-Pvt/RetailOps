@@ -20,6 +20,7 @@ class NvidiaAiService {
     }
 
     _checkKey() {
+        this.apiKey = process.env.NVIDIA_NIM_API_KEY || this.apiKey;
         if (!this.apiKey) throw new Error('NVIDIA_NIM_API_KEY not configured');
     }
 
