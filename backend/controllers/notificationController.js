@@ -24,25 +24,25 @@ exports.getNotifications = async (req, res) => {
 
         let whereClause = '';
         const request = pool.request();
-        request.input('userId', sql.VarChar, userId);
+        const userParamName = 'userIdParam';
+        request.input(userParamName, sql.VarChar, userId);
 
         if (isAdminOrOps) {
             // Admins and ops managers see ALL notifications
             whereClause = 'WHERE 1=1';
         } else if (roleName === 'brand_manager') {
             // Brand managers see their own + notifications for their assigned sellers
-            request.input('userId', sql.VarChar, userId);
-            whereClause = `WHERE n.RecipientId = @userId
+            whereClause = `WHERE n.RecipientId = @${userParamName}
                 OR (n.ReferenceModel = 'Seller' AND n.ReferenceId IN (
                     SELECT Value FROM STRING_SPLIT(
-                        (SELECT STRING_SEPARATOR = ',' FROM Users WHERE Id = @userId), ','
+                        (SELECT STRING_SEPARATOR = ',' FROM Users WHERE Id = @${userParamName}), ','
                     )
                 ))`;
             // Simplified: brand managers see own + all seller notifications
-            whereClause = 'WHERE n.RecipientId = @userId OR n.ReferenceModel = \'Seller\'';
+            whereClause = `WHERE n.RecipientId = @${userParamName} OR n.ReferenceModel = 'Seller'`;
         } else {
             // Regular users see only their own
-            whereClause = 'WHERE n.RecipientId = @userId';
+            whereClause = `WHERE n.RecipientId = @${userParamName}`;
         }
 
         if (unreadOnly) {
@@ -54,7 +54,7 @@ exports.getNotifications = async (req, res) => {
         const total = countResult.recordset[0].total;
 
         const notificationsResult = await pool.request()
-            .input('userId', sql.VarChar, userId)
+            .input(userParamName, sql.VarChar, userId)
             .input('offset', sql.Int, offset)
             .input('limit', sql.Int, limit)
             .query(`
@@ -71,7 +71,7 @@ exports.getNotifications = async (req, res) => {
         const notifications = notificationsResult.recordset;
 
         const unreadResult = await pool.request()
-            .input('userId', sql.VarChar, userId)
+            .input(userParamName, sql.VarChar, userId)
             .query(`SELECT COUNT(*) as count FROM Notifications n ${whereClause.replace('AND n.IsRead = 0', '')} AND n.IsRead = 0`);
         const unreadCount = unreadResult.recordset[0].count;
 

@@ -246,6 +246,8 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + (dueDays[priority] || 7));
 
+        const safeCategory = String('Listing').slice(0, 50);
+
         await pool.request()
           .input('Id', sql.VarChar, id)
           .input('Title', sql.NVarChar, title)
@@ -253,7 +255,7 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
           .input('Priority', sql.NVarChar, priority)
           .input('Status', sql.NVarChar, 'PENDING')
           .input('Type', sql.NVarChar, 'automated')
-          .input('Category', sql.NVarChar, 'Listing')
+          .input('Category', sql.NVarChar, safeCategory)
           .input('Asins', sql.NVarChar, asinsJson)
           .input('SellerId', sql.VarChar, sellerIdStr)
           .input('CreatedBy', sql.VarChar, createdByUserId)
@@ -580,6 +582,7 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
     dueDate.setDate(dueDate.getDate() + dueDateMs);
 
     if (!dryRun) {
+      const categoryValue = String(group.entities[0]?.category || 'General').slice(0, 50);
       await pool.request()
         .input('Id', sql.VarChar, taskId)
         .input('Title', sql.NVarChar, mainTitle)
@@ -587,7 +590,7 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
         .input('Priority', sql.NVarChar, priority)
         .input('Status', sql.NVarChar, 'PENDING')
         .input('Type', sql.NVarChar, 'automated')
-        .input('Category', sql.NVarChar, group.entities[0]?.category || 'General')
+        .input('Category', sql.NVarChar, categoryValue)
         .input('Asins', sql.NVarChar, JSON.stringify(subTasks.map(st => st.asinCode)))
         .input('SubTasks', sql.NVarChar, JSON.stringify(subTasks))
         .input('SubTaskProgress', sql.NVarChar, `0/${entityCount}`)
