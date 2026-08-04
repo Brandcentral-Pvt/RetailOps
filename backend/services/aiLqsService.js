@@ -75,7 +75,65 @@ function getPrice(item) {
 
 function buildCriteriaBlock(item) {
   const c = criteriaFor(item);
-  return JSON.stringify({ ...c, weight: undefined }, null, 2);
+  return JSON.stringify({
+    ...c,
+    weight: undefined,
+    amazonInCompliance: c.amazonInCompliance,
+  }, null, 2);
+}
+
+function getPresentMetrics(item) {
+  const metrics = [];
+  if (getTitle(item)) metrics.push('title');
+  if (Array.isArray(getBullets(item)) && getBullets(item).length) metrics.push('bullets');
+  if (getDescription(item)) metrics.push('description');
+  if (getImages(item).length) metrics.push('images');
+  return metrics;
+}
+
+function buildSystemPrompt(item) {
+  const market = getMarketplace(item);
+  const wording = MARKETPLACE_WORDING[market] || MARKETPLACE_WORDING['www.amazon.in'];
+  const criteria = criteriaFor(item);
+  const presentMetrics = getPresentMetrics(item);
+  const metricList = presentMetrics.length ? presentMetrics.join(', ') : 'title, bullets, images, description';
+
+  return `You are a strict Amazon listing quality auditor for ${market}. Follow Amazon Seller Central policy and Amazon.in marketplace expectations. Use ONLY the data supplied in the payload and the rules below.
+
+Responsibilities:
+- Score every applicable metric independently and evidence-based.
+- If a required field is missing or empty, score it 0 and explicitly note that the data was missing from the API.
+- Use ${wording.currency} as the pricing context and ${wording.locale} as the locale context.
+- Be conservative with compliance: penalize promotional language, policy violations, missing product context, and weak imagery.
+- For each metric, provide specific issues and actionable recommendations.
+
+Applicable metrics from API payload: ${metricList}
+Category-specific guidance: ${criteria.amazonInCompliance ? Object.keys(criteria.amazonInCompliance).join(', ') : 'standard listing quality'}
+`;
+}
+
+function buildMetricInstructions(item) {
+  const criteria = criteriaFor(item);
+  const lines = [];
+  const metricNames = ['title', 'bullets', 'images', 'description'];
+
+  metricNames.forEach((metric) => {
+    const rules = criteria.amazonInCompliance?.[metric] || [];
+    if (metric === 'title') {
+      lines.push(`TITLE metric:\n- Check title length against the target band of ${criteria.title.idealMin}-${criteria.title.idealMax} chars.\n- Score below 60 as weak, 60-149 as acceptable, 150-200 as strong, and above ${criteria.title.maxChars} as non-compliant.\n- Apply the compliance rules below: ${rules.join(' ')}\n- If the title is missing or too short, mention that data is missing or insufficient.`);
+    }
+    if (metric === 'bullets') {
+      lines.push(`BULLETS metric:\n- Check bullet count against the target range of ${criteria.bullets.min}-${criteria.bullets.ideal} bullets, with ${criteria.bullets.ideal} as ideal.\n- Prefer concise, benefit-led bullets of roughly ${criteria.bullets.idealChar[0]}-${criteria.bullets.idealChar[1]} characters each.\n- Apply the compliance rules below: ${rules.join(' ')}\n- If bullets are absent, score them 0 and call out missing data.`);
+    }
+    if (metric === 'images') {
+      lines.push(`IMAGES metric:\n- Check image count against the target minimum of ${criteria.images.min} and the ideal of ${criteria.images.ideal}.\n- Penalize weak or non-compliant imagery, especially missing white background, poor resolution, or cluttered composition.\n- Apply the compliance rules below: ${rules.join(' ')}\n- If images are absent, score them 0 and call out missing data.`);
+    }
+    if (metric === 'description') {
+      lines.push(`DESCRIPTION metric:\n- Check whether the description is informative, readable, and useful for Amazon.in shoppers.\n- Penalize vague content, unsupported claims, or missing product context.\n- Apply the compliance rules below: ${rules.join(' ')}\n- If description is absent, score it 0 and call out missing data.`);
+    }
+  });
+
+  return lines.join('\n\n');
 }
 
 function buildTextPrompt(item) {
@@ -86,11 +144,15 @@ function buildTextPrompt(item) {
   const brand = item.itemInfo?.byLineInfo?.brand?.displayValue || '';
   const market = getMarketplace(item);
   const wording = MARKETPLACE_WORDING[market] || MARKETPLACE_WORDING['www.amazon.in'];
+  const presentMetrics = getPresentMetrics(item);
 
-  return `You are an Amazon listing quality expert. Score this listing against the PROVIDED CRITERIA (data-driven, not your assumptions).
+  return `${buildSystemPrompt(item)}
 
 CRITERIA (JSON):
 ${buildCriteriaBlock(item)}
+
+METRIC INSTRUCTIONS:
+${buildMetricInstructions(item)}
 
 PRODUCT DATA:
 ASIN: ${item.asin || item.AsinCode || 'N/A'}
@@ -104,8 +166,9 @@ Title (${title.length} chars): "${title || 'MISSING'}"
 Bullet points (${bullets.length}):${bullets.length ? '\n' + bullets.map((b, i) => `${i + 1}. ${b}`).join('\n') : '\n- NONE'}
 Description (${desc.length} chars): ${desc ? desc.slice(0, 600) + (desc.length > 600 ? '…' : '') : 'NONE'}
 Images (${images.length}): ${images.length ? images.join(', ') : 'NONE'}
+Present metrics from API: ${presentMetrics.length ? presentMetrics.join(', ') : 'none'}
 
-Score ONLY the fields present in PRODUCT DATA (fields marked NONE or MISSING should get score 0 with issue "data missing from API").
+Score ONLY the fields present in PRODUCT DATA. Fields that are missing or empty should get score 0 with issue "data missing from API".
 Return JSON ONLY (no markdown):
 {
   "overall_score": <0-100>,
@@ -217,4 +280,4 @@ function isAvailable() {
   return CONFIG.enabled && !!(process.env.NVIDIA_NIM_API_KEY);
 }
 
-module.exports = { analyzeItem, isAvailable, CONFIG, LQS_CRITERIA, criteriaFor };
+module.exports = { analyzeItem, isAvailable, CONFIG, LQS_CRITERIA, criteriaFor, buildTextPrompt, buildSystemPrompt };
