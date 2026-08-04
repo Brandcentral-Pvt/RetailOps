@@ -147,6 +147,9 @@
 
     .keyboard-hint { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 10px; }
     .keyboard-hint kbd { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-family: var(--mono); font-size: 10px; }
+    .ai-toggle { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 10px 12px; background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; color: #1e3a5f; }
+    .ai-toggle input { margin-top: 2px; accent-color: #2563eb; }
+    .ai-toggle .ai-note { display: block; font-size: 10px; font-weight: 400; color: #64748b; margin-top: 2px; line-height: 1.5; }
 
     .history-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
     .history-chip { font-family: var(--mono); font-size: 10px; background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 5px; cursor: pointer; color: var(--text-secondary); transition: all 0.1s; }
@@ -236,6 +239,12 @@
               </button>
               <div class="keyboard-hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to fetch</div>
             </div>
+            <label class="ai-toggle" title="Send the fetched listing to NVIDIA AI for real LQS (text + vision) analysis">
+              <input type="checkbox" id="aiToggle" checked>
+              <span>AI Analysis
+                <span class="ai-note">LQS scored by AI against Amazon criteria + vision check of the main image (slower, falls back to rules on error)</span>
+              </span>
+            </label>
           </div>
 
           <!-- File Upload Tab -->
@@ -250,6 +259,12 @@
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">
               File should have at least one column with ASIN codes (B0XXXXXXXX format). All columns are auto-detected.
             </div>
+            <label class="ai-toggle" title="Send the fetched listings to NVIDIA AI for real LQS (text + vision) analysis">
+              <input type="checkbox" id="aiToggleUpload" checked>
+              <span>AI Analysis
+                <span class="ai-note">LQS scored by AI against Amazon criteria + vision check of each main image (slower; skipped for very large files)</span>
+              </span>
+            </label>
             <div class="progress-section" id="progressSection">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;font-weight:600;color:var(--text)" id="progressLabel">Processing...</span>
@@ -513,8 +528,11 @@ const METRIC_META = {
   lqsTitle: { desc: 'Title quality sub-score' },
   lqsBullets: { desc: 'Bullet points quality sub-score' },
   lqsImages: { desc: 'Image quality sub-score' },
-  mainImageBackground: { desc: 'Main image background (heuristic from URL)' },
+  mainImageBackground: { desc: 'Main image background (AI vision; URL heuristic fallback)' },
   lqsIssues: { desc: 'LQS improvement issues detected' },
+  lqsSource: { desc: 'Where the score came from: AI, AI + Rules, or Rules only' },
+  titleCriteriaStatus: { desc: 'Title length vs Amazon criteria (below / within / above)' },
+  imageCompliance: { desc: 'AI vision compliance check on the main image' },
 };
 
 async function init() {
@@ -585,7 +603,7 @@ async function fetchData() {
   const btn = document.getElementById('fetchBtn'); btn.disabled = true; btn.classList.add('loading');
   document.getElementById('loadingOverlay').classList.add('active');
   try {
-    const r = await fetch(API + '/live-data/v2/fetch', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ asins, metrics: selectedKeys, credId: 'secondary' }) }).then(r => r.json());
+    const r = await fetch(API + '/live-data/v2/fetch', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ asins, metrics: selectedKeys, credId: 'secondary', ai: document.getElementById('aiToggle').checked }) }).then(r => r.json());
     if (r.success) { results = r.data || []; notFound = r.notFound || []; renderResults();
       document.getElementById('exportBtn').style.display = results.length ? '' : 'none'; document.getElementById('csvBtn').style.display = results.length ? '' : 'none';
       toast(`Fetched ${results.length} ASINs`, 'success'); saveHistory(asins.slice(0, 3).join(', ') + (asins.length > 3 ? ` +${asins.length - 3}` : ''));
@@ -599,7 +617,7 @@ async function fetchData() {
 async function uploadFile() {
   if (!selectedFile) return toast('Select a file first', 'warning');
   if (!selectedKeys.length) return toast('Select at least one metric', 'warning');
-  const fd = new FormData(); fd.append('file', selectedFile); fd.append('metrics', JSON.stringify(selectedKeys)); fd.append('credId', 'secondary');
+  const fd = new FormData(); fd.append('file', selectedFile); fd.append('metrics', JSON.stringify(selectedKeys)); fd.append('credId', 'secondary'); fd.append('ai', document.getElementById('aiToggleUpload').checked ? '1' : '0');
   try {
     const r = await fetch(API + '/live-data/v2/upload', { method: 'POST', headers: authHeaders(), body: fd }).then(r => r.json());
     if (r.success) {
@@ -699,6 +717,8 @@ function renderResults() {
         if (k === 'mainImage') return `<td><span class="cell-thumb"><a href="${esc(v)}" target="_blank" rel="noopener"><img src="${esc(v)}" alt="main" onerror="this.style.visibility='hidden'"></a></span></td>`;
         if (k === 'lqsGrade') { const cls = ({ A: 'green', B: 'blue', C: 'amber', D: 'red' })[String(v)] || 'gray'; return `<td><span class="cell-badge ${cls}">${esc(String(v))}</span></td>`; }
         if (k === 'mainImageBackground') { const s = String(v); const cls = s === 'White' ? 'green' : s === 'Possibly non-white' ? 'amber' : s === 'Non-white' ? 'red' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
+        if (k === 'lqsSource') { const cls = String(v) === 'AI' ? 'green' : String(v) === 'AI + Rules' ? 'blue' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(String(v))}</span></td>`; }
+        if (k === 'imageCompliance') { const s = String(v); const cls = s && s.startsWith('Pass') ? 'green' : s ? 'amber' : 'gray'; return `<td class="cell-str" title="${esc(s)}"><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
         if (numKeys.has(k)) return `<td class="cell-num">${typeof v === 'number' ? v.toLocaleString('en-IN') : esc(String(v))}</td>`;
         return `<td class="cell-str" title="${esc(String(v))}">${esc(String(v))}</td>`;
       })];

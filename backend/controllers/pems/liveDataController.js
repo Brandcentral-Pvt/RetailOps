@@ -4,6 +4,7 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const SystemLogService = require('../../services/SystemLogService');
+const aiLqsService = require('../../services/aiLqsService');
 const lqsUtils = require('../../utils/lqs');
 const TitleAnalyzer = require('../../utils/titleAnalyzer');
 const BulletPointsAnalyzer = require('../../utils/bulletPointsAnalyzer');
@@ -86,6 +87,8 @@ const CONFIG = {
     maxConcurrentJobs: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_CONCURRENT_JOBS || '2', 10)),
     maxFetchAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_FETCH_ASINS || '100', 10)),
     maxUploadAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_UPLOAD_ASINS || '50000', 10)),
+    aiEnabled: process.env.LIVE_SYNC_AI_ENABLED !== 'false',
+    aiMaxAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_AI_MAX_ASINS || '20', 10)),
 };
 
 const BATCH_SIZE = CONFIG.batchSize;
@@ -316,7 +319,25 @@ const AVAILABLE_METRICS = [
     { key: 'lqsImages', label: 'LQS Image Quality' },
     { key: 'mainImageBackground', label: 'Main Image Background' },
     { key: 'lqsIssues', label: 'LQS Issues' },
+    // ── LQS AI-assisted ───────────────────────────────────────────────
+    { key: 'lqsSource', label: 'LQS Source' },
+    { key: 'titleCriteriaStatus', label: 'Title vs Criteria' },
+    { key: 'imageCompliance', label: 'Main Image Compliance' },
 ];
+
+// Metrics that trigger AI-assisted LQS analysis (text + vision).
+const LQS_METRIC_KEYS = [
+    'imagesCount', 'mainImage', 'bulletPointCount', 'titleLength',
+    'lqsScore', 'lqsGrade', 'lqsTitle', 'lqsBullets', 'lqsImages',
+    'mainImageBackground', 'lqsIssues', 'lqsSource', 'titleCriteriaStatus', 'imageCompliance',
+];
+
+function dedupe(arr) {
+    const seen = new Set();
+    const out = [];
+    for (const s of arr) { if (s && !seen.has(s)) { seen.add(s); out.push(s); } }
+    return out;
+}
 
 function getListing(item) {
     const offers = item.offersV2?.listings?.find(l => l.isBuyBoxWinner)
@@ -344,9 +365,11 @@ function extractCategory(item) {
     return nodes.map(n => n.displayName || n.contextFreeName).filter(Boolean).join(' > ') || item.category || null;
 }
 
-// ── LQS analysis (API-only inputs) ──────────────────────────────────────
+// ── LQS analysis (AI-assisted, API-only inputs) ────────────────────────
 // Description and A+ flag are not available from the Creators API, so the
 // weighted score is renormalized over Title (30%), Bullets (25%), Images (25%).
+// When AI analysis is available (item.__aiLqs set by enrichWithAi), the AI
+// scores/issues replace the rule-based ones; otherwise the rules are used.
 const LQS_CACHE = new WeakMap();
 function getLqs(item) {
     let cached = LQS_CACHE.get(item);
@@ -356,6 +379,7 @@ function getLqs(item) {
     const bullets = item.itemInfo?.features?.displayValues || [];
     const images = extractImages(item);
     const category = extractCategory(item) || '';
+    const ai = item.__aiLqs || null;
 
     const titleAnalysis = TitleAnalyzer.analyze(title);
     const bulletAnalysis = BulletPointsAnalyzer.analyze(bullets);
@@ -365,33 +389,70 @@ function getLqs(item) {
         metadata: { category, title },
     });
 
+    // AI scores win where available; fall back per-part to the rules.
+    const titleScore = ai?.title?.score ?? titleAnalysis.score;
+    const bulletScore = ai?.bullets?.score ?? bulletAnalysis.score;
+    const imageScore = ai?.vision?.score ?? ai?.imagesText?.score ?? imageAnalysis.score;
+
+    const titleIssues = ai?.title?.issues?.length ? ai.title.issues.map(i => `[Title] ${i}`) : titleAnalysis.issues;
+    const bulletIssues = ai?.bullets?.issues?.length ? ai.bullets.issues.map(i => `[Bullets] ${i}`) : bulletAnalysis.issues;
+    const imageIssues = ai?.vision?.issues?.length
+        ? ai.vision.issues.map(i => `[Images] ${i}`)
+        : (ai?.imagesText?.issues?.length ? ai.imagesText.issues.map(i => `[Images] ${i}`) : imageAnalysis.issues);
+
+    const backgroundStatus = ai?.vision?.background ?? (imageAnalysis.details?.whiteBackground?.status || 'warning');
+
     const weights = { title: 0.30, bullets: 0.25, images: 0.25 };
     const denom = weights.title + weights.bullets + weights.images;
     const rawScore = (
-        titleAnalysis.score * weights.title
-        + bulletAnalysis.score * weights.bullets
-        + imageAnalysis.score * weights.images
+        titleScore * weights.title
+        + bulletScore * weights.bullets
+        + imageScore * weights.images
     ) / denom;
     const score = parseFloat((rawScore / 10).toFixed(1));
 
+    const hasAi = !!(ai && (ai.title || ai.bullets || ai.vision));
     const analysis = {
         score,
         grade: lqsUtils.getGrade(score),
+        source: hasAi ? (ai.full ? 'AI' : 'AI + Rules') : 'Rules',
         components: {
-            titleQuality: parseFloat((titleAnalysis.score / 10).toFixed(1)),
-            bulletPoints: parseFloat((bulletAnalysis.score / 10).toFixed(1)),
-            imageQuality: parseFloat((imageAnalysis.score / 10).toFixed(1)),
+            titleQuality: parseFloat((titleScore / 10).toFixed(1)),
+            bulletPoints: parseFloat((bulletScore / 10).toFixed(1)),
+            imageQuality: parseFloat((imageScore / 10).toFixed(1)),
         },
         imageCount: images.length,
-        imageChecks: imageAnalysis.details || {},
-        issues: [
-            ...(titleAnalysis.issues || []),
-            ...(bulletAnalysis.issues || []),
-            ...(imageAnalysis.issues || []),
-        ],
+        imageChecks: {
+            ...imageAnalysis.details,
+            whiteBackground: { status: backgroundStatus },
+            vision: ai?.vision || null,
+        },
+        titleCriteria: ai?.title?.criteria || null,
+        aiSummary: ai?.summary || null,
+        issues: dedupe([...titleIssues, ...bulletIssues, ...imageIssues]),
     };
     LQS_CACHE.set(item, analysis);
     return analysis;
+}
+
+// Run AI-assisted LQS on a batch of fetched items. Always safe — the service
+// never throws and falls back to rules internally.
+let aiSkippedLogged = false;
+async function enrichWithAi(items, selectedMetrics, totalRequested, aiFlag) {
+    if (aiFlag === false) return;
+    if (!CONFIG.aiEnabled || !aiLqsService.isAvailable()) return;
+    if (!items || items.length === 0) return;
+    if (!selectedMetrics.some(m => LQS_METRIC_KEYS.includes(m))) return;
+    if (totalRequested > CONFIG.aiMaxAsins) {
+        if (!aiSkippedLogged) {
+            console.log(`[Inspector] AI LQS skipped: ${totalRequested} ASINs > LIVE_SYNC_AI_MAX_ASINS (${CONFIG.aiMaxAsins})`);
+            aiSkippedLogged = true;
+        }
+        return;
+    }
+    await Promise.all(items.map(item =>
+        aiLqsService.analyzeItem(item).then(ai => { if (ai) item.__aiLqs = ai; })
+    ));
 }
 
 function extractMetricValue(key, item) {
@@ -448,6 +509,22 @@ function extractMetricValue(key, item) {
             const issues = getLqs(item).issues;
             return issues.length > 0 ? issues.join(' | ') : 'None';
         }
+        case 'lqsSource': return getLqs(item).source;
+        case 'titleCriteriaStatus': {
+            const c = getLqs(item).titleCriteria;
+            if (!c) return null;
+            const map = { below: 'Below ideal', within: 'Within criteria', above: 'Above max' };
+            const label = map[c.status] || c.status;
+            return c.note ? `${label} — ${c.note}` : label;
+        }
+        case 'imageCompliance': {
+            const v = getLqs(item).imageChecks?.vision;
+            if (!v) return null;
+            const violations = [...(v.compliance_issues || []), ...(v.visual_issues || [])];
+            if (violations.length === 0) return `Pass${v.image_type ? ` (${v.image_type})` : ''}`;
+            const preview = violations.slice(0, 2).join('; ');
+            return `${violations.length} issue(s): ${preview}${violations.length > 2 ? '...' : ''}`;
+        }
         default: return null;
     }
 }
@@ -498,6 +575,7 @@ exports.fetchLiveData = async (req, res) => {
 
         const asinList = asins.map(a => a.toUpperCase().trim());
         const targetCredId = credId || null;
+        const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
 
         if (CreatorsApiCredentials.count === 0)
             return res.status(500).json({ success: false, error: 'Live Sync credentials not configured on server' });
@@ -522,6 +600,7 @@ exports.fetchLiveData = async (req, res) => {
                 }
                 const items = apiData?.itemsResult?.items || [];
                 const errorMap = parseApiErrors(apiData?.errors || []);
+                await enrichWithAi(items, selectedMetrics, asinList.length, aiFlag);
                 for (const asinCode of batch) {
                     const item = items.find(i => i.asin === asinCode);
                     if (!item) { notFound.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not returned' }); continue; }
@@ -625,7 +704,8 @@ exports.uploadAndProcess = async (req, res) => {
         await saveJob(job);
 
         const targetCredId = req.body._credId || req.body.credId || null;
-        processJob(jobId, asinList, selectedMetrics, targetCredId).catch(async (err) => {
+        const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
+        processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag).catch(async (err) => {
             console.error(`Job ${jobId} failed:`, err.message);
             const j = await loadJob(jobId);
             if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
@@ -703,7 +783,7 @@ exports.cancelJob = async (req, res) => {
 // ── Background job processor ────────────────────────────────────────────
 // Runs inside the global job-slot pool (bounded concurrency) and every API
 // call goes through the per-credential rate limiter + serial queue.
-async function processJob(jobId, asinList, selectedMetrics, credId) {
+async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
     if (CreatorsApiCredentials.count === 0) throw new Error('Live Sync credentials not configured');
 
     await withJobSlot(async () => {
@@ -736,6 +816,7 @@ async function processJob(jobId, asinList, selectedMetrics, credId) {
                 const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
                 const items = apiData?.itemsResult?.items || [];
                 const errorMap = parseApiErrors(apiData?.errors || []);
+                await enrichWithAi(items, selectedMetrics, asinList.length, aiFlag);
 
                 for (const asinCode of batch) {
                     const item = items.find(it => it.asin === asinCode);
@@ -800,6 +881,7 @@ async function processJob(jobId, asinList, selectedMetrics, credId) {
                     const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
                     const items = apiData?.itemsResult?.items || [];
                     const errorMap = parseApiErrors(apiData?.errors || []);
+                    await enrichWithAi(items, selectedMetrics, asinList.length, aiFlag);
 
                     for (const asinCode of batch) {
                         const item = items.find(it => it.asin === asinCode);

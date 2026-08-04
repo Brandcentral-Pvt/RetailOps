@@ -19,6 +19,7 @@ export default function LiveDataInspectorPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastFetch, setLastFetch] = useState(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   useEffect(() => {
     fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json()).then(r => {
@@ -36,7 +37,7 @@ export default function LiveDataInspectorPage() {
       const res = await fetch(`${API_BASE}/live-data/v2/fetch`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ asins, metrics: selectedMetrics }),
+        body: JSON.stringify({ asins, metrics: selectedMetrics, ai: aiEnabled }),
       }).then(r => r.json());
 
       if (res.success) {
@@ -76,13 +77,21 @@ export default function LiveDataInspectorPage() {
           const color = v === 'White' ? 'green' : v === 'Possibly non-white' ? 'orange' : v === 'Non-white' ? 'red' : 'default';
           return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
         }
+        if (key === 'lqsSource') {
+          const color = v === 'AI' ? 'green' : v === 'AI + Rules' ? 'blue' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        if (key === 'imageCompliance') {
+          const color = String(v).startsWith('Pass') ? 'green' : 'orange';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
         return <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text>;
       };
       return {
         title: m?.label || key,
         dataIndex: key,
         key,
-        width: key === 'title' || key === 'lqsIssues' ? 220 : key === 'mainImage' ? 50 : 100,
+        width: key === 'title' || key === 'lqsIssues' || key === 'titleCriteriaStatus' ? 220 : key === 'mainImage' ? 50 : 100,
         render: renderValue,
       };
     }),
@@ -121,6 +130,14 @@ export default function LiveDataInspectorPage() {
               <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
                 {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
               </Text>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+              <Checkbox checked={aiEnabled} onChange={e => setAiEnabled(e.target.checked)} style={{ marginTop: 1 }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>AI Analysis
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', fontWeight: 400 }}>LQS scored by NVIDIA AI against Amazon criteria + vision check of the main image (slower; falls back to rules on error)</Text>
+                </Text>
+              </Checkbox>
             </div>
 
             <Button type="primary" block onClick={handleFetch} loading={loading} icon={<ThunderboltOutlined />}
