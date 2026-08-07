@@ -715,6 +715,15 @@ server.listen(PORT, '0.0.0.0', () => {
     const schedulerService = require('./services/schedulerService');
     schedulerService.init();
 
+    // Ensure PEMS event store table
+    const eventStore = require('./services/pems/eventStore');
+    eventStore.ensureEventStoreTable();
+
+    // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
+    // Primary worker only — avoids N concurrent runs in PM2 cluster mode.
+    const { runMigrationsAtStartup } = require('./database/migrate');
+    runMigrationsAtStartup();
+
     logger.info('Primary Node Worker [0] — initialized schedulers and background tasks');
   } else {
     logger.info(`Secondary Node Worker [${process.env.NODE_APP_INSTANCE}] — API request handler only`);
@@ -735,14 +744,6 @@ server.listen(PORT, '0.0.0.0', () => {
   // Register event handlers
   const { registerEventHandlers } = require('./jobs/eventHandlers');
   registerEventHandlers();
-
-  // Ensure PEMS event store table
-  const eventStore = require('./services/pems/eventStore');
-  eventStore.ensureEventStoreTable();
-
-  // Run DB migrations (idempotent; gated by RUN_MIGRATIONS_ON_STARTUP=false)
-  const { runMigrationsAtStartup } = require('./database/migrate');
-  runMigrationsAtStartup();
 });
 
 // Graceful shutdown — close the Redis cache connection before the process exits.
