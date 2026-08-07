@@ -4,6 +4,7 @@ const SystemLogService = require('./SystemLogService');
 const notificationController = require('../controllers/notificationController');
 const listingQualityService = require('./listingQualityService');
 const rulesetEngineService = require('./rulesetEngineService');
+const runLogService = require('./liveSyncRunLogService');
 const EventEmitter = require('events');
 
 class LiveDataSyncService extends EventEmitter {
@@ -109,6 +110,36 @@ class LiveDataSyncService extends EventEmitter {
 
         this.activeSyncs.set(sellerIdStr, stats);
 
+        // ── Run log: start tracking this run ──
+        let sellerName = options.sellerName || null;
+        if (!sellerName) {
+            try {
+                const pool = await getPool();
+                const nameResult = await pool.request()
+                    .input('id', sql.VarChar, sellerIdStr)
+                    .query('SELECT Name, Marketplace FROM Sellers WHERE Id = @id');
+                if (nameResult.recordset.length > 0) {
+                    sellerName = nameResult.recordset[0].Name;
+                    stats.marketplace = nameResult.recordset[0].Marketplace;
+                }
+            } catch (e) { /* fallback */ }
+        }
+        stats.sellerName = sellerName;
+        stats.triggerType = options.triggerType || 'MANUAL';
+        stats.triggeredBy = options.triggeredBy || null;
+        stats.source = options.source || 'SELLER';
+        stats.batchId = options.batchId || null;
+        stats.runId = (await runLogService.createRun({
+            triggerType: stats.triggerType,
+            source: stats.source,
+            triggeredBy: stats.triggeredBy,
+            sellerId: sellerIdStr,
+            sellerName,
+            marketplace: stats.marketplace,
+            batchId: stats.batchId,
+            metadata: { concurrency: options.concurrency || this._config.concurrency, maxPerRequest: this._config.maxPerRequest }
+        })).id;
+
         try {
             const pool = await getPool();
 
@@ -154,6 +185,7 @@ class LiveDataSyncService extends EventEmitter {
                     for (const asinRecord of batch) {
                         stats.failedCount++;
                         stats.failedAsinCodes.push(asinRecord.AsinCode);
+                        if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: asinRecord.AsinCode, asinId: asinRecord.Id, status: 'FAILED', error: 'No available credential (throttled or TPD exhausted)' });
                     }
                     continue;
                 }
@@ -174,6 +206,7 @@ class LiveDataSyncService extends EventEmitter {
                     for (const asinRecord of batch) {
                         stats.failedCount++;
                         stats.failedAsinCodes.push(asinRecord.AsinCode);
+                        if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: asinRecord.AsinCode, asinId: asinRecord.Id, status: 'FAILED', error: e.message });
                     }
                     console.log(`  ⏳ Batch failed: ${e.message}`);
                 }
@@ -240,6 +273,17 @@ class LiveDataSyncService extends EventEmitter {
             stats.status = 'COMPLETED';
             this.emit('liveSync:completed', stats);
 
+            // ── Run log: finalize this run ──
+            await runLogService.completeRun(stats.runId, {
+                status: stats.failedCount > 0 ? 'PARTIAL' : 'COMPLETED',
+                totalAsins: stats.totalAsins,
+                successCount: stats.successCount,
+                failedCount: stats.failedCount,
+                failedAsinCodes: stats.failedAsinCodes,
+                errors: stats.errors.slice(0, 100),
+                durationMs: stats.duration,
+            });
+
             return {
                 success: true,
                 sellerId: sellerIdStr,
@@ -248,7 +292,8 @@ class LiveDataSyncService extends EventEmitter {
                 failedAsins: stats.failedCount,
                 failedAsinCodes: stats.failedAsinCodes,
                 duration: stats.duration,
-                completedAt: stats.completedAt
+                completedAt: stats.completedAt,
+                runId: stats.runId
             };
 
         } catch (error) {
@@ -257,6 +302,17 @@ class LiveDataSyncService extends EventEmitter {
             console.error(`Live sync failed for seller ${sellerIdStr}:`, error);
 
             this.emit('liveSync:failed', { sellerId: sellerIdStr, error: error.message });
+
+            // ── Run log: finalize as FAILED ──
+            await runLogService.completeRun(stats.runId, {
+                status: 'FAILED',
+                totalAsins: stats.totalAsins,
+                successCount: stats.successCount,
+                failedCount: stats.failedCount,
+                failedAsinCodes: stats.failedAsinCodes,
+                errors: [{ fatal: error.message }],
+                durationMs: Date.now() - startTime,
+            });
 
             throw new Error(`Live sync failed: ${error.message}`);
 
@@ -272,6 +328,9 @@ class LiveDataSyncService extends EventEmitter {
     async syncAllSellers(options = {}) {
         const { concurrency = this._config.maxConcurrency, sellerIds = null, maxRetries = 2 } = options;
         const startTime = Date.now();
+        const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const triggerType = options.triggerType || 'MANUAL';
+        const triggeredBy = options.triggeredBy || null;
 
         // Prevent duplicate global sync
         if (this._globalSyncRunning) {
@@ -318,7 +377,14 @@ class LiveDataSyncService extends EventEmitter {
                             console.log(`  ${progress} 🔄 ${seller.Name} — retry ${attempt}/${maxRetries}`);
                             await this._delay(this._config.retryDelay);
                         }
-                        const result = await this.syncSellerLiveData(seller.Id);
+                        const result = await this.syncSellerLiveData(seller.Id, {
+                            triggerType,
+                            triggeredBy,
+                            batchId,
+                            sellerName: seller.Name,
+                            source: 'SYNC_ALL',
+                            concurrency: options.concurrency,
+                        });
                         results.push({
                             sellerId: seller.Id, name: seller.Name,
                             status: result.success ? 'SUCCESS' : 'PARTIAL',
@@ -505,15 +571,18 @@ class LiveDataSyncService extends EventEmitter {
 
                             stats.failedCount++;
                             stats.failedAsinCodes.push(asinRecord.AsinCode);
+                            if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: asinRecord.AsinCode, asinId: asinRecord.Id, status: 'FAILED', error: reason });
                             return;
                         }
 
                         await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord);
                         stats.successCount++;
+                        if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: asinRecord.AsinCode, asinId: asinRecord.Id, status: 'SUCCESS' });
                     } catch (e) {
                         stats.failedCount++;
                         stats.failedAsinCodes.push(asinRecord.AsinCode);
                         stats.errors.push({ asin: asinRecord.AsinCode, error: e.message });
+                        if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: asinRecord.AsinCode, asinId: asinRecord.Id, status: 'FAILED', error: e.message });
                     }
                 });
 
@@ -1125,6 +1194,15 @@ class LiveDataSyncService extends EventEmitter {
             errors: []
         };
 
+        // ── Run log: track the re-sync run ──
+        stats.runId = (await runLogService.createRun({
+            triggerType: 'RE_SYNC',
+            source: 'RESYNC',
+            sellerId,
+            sellerName: stats.sellerName,
+            metadata: { resyncOf: failedCodes.length }
+        })).id;
+
         try {
             console.log(`🔄 Re-sync: Starting for ${failedCodes.length} failed ASINs...`);
 
@@ -1151,14 +1229,14 @@ class LiveDataSyncService extends EventEmitter {
                 if (!credId) {
                     console.log(`⛔ Re-sync: No available credential (all throttled or TPD exhausted), skipping remaining`);
                     stats.failedCount += batch.length;
-                    batch.forEach(a => stats.failedAsinCodes.push(a.AsinCode));
+                    batch.forEach(a => { stats.failedAsinCodes.push(a.AsinCode); if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: a.AsinCode, asinId: a.Id, status: 'FAILED', error: 'No available credential' }); });
                     continue;
                 }
                 try {
                     await this._processBatch(sellerId, batch, credId, stats);
                 } catch (e) {
                     stats.errors.push({ error: e.message });
-                    batch.forEach(a => stats.failedAsinCodes.push(a.AsinCode));
+                    batch.forEach(a => { stats.failedAsinCodes.push(a.AsinCode); if (stats.runId) runLogService.addAsinLog(stats.runId, { asinCode: a.AsinCode, asinId: a.Id, status: 'FAILED', error: e.message }); });
                 }
             }
             stats.duration = Date.now() - startTime;
@@ -1214,8 +1292,27 @@ class LiveDataSyncService extends EventEmitter {
 
             await this._sendNotificationToAllAdmins('RE_SYNC', sellerId, sellerName, reSyncMsg);
 
+            await runLogService.completeRun(stats.runId, {
+                status: stats.failedCount > 0 ? 'PARTIAL' : 'COMPLETED',
+                totalAsins: stats.totalAsins,
+                successCount: stats.successCount,
+                failedCount: stats.failedCount,
+                failedAsinCodes: stats.failedAsinCodes,
+                errors: stats.errors.slice(0, 100),
+                durationMs: stats.duration,
+            });
+
         } catch (error) {
             console.error(`🔄 Re-sync error for seller ${sellerId}:`, error.message);
+            await runLogService.completeRun(stats.runId, {
+                status: 'FAILED',
+                totalAsins: stats.totalAsins,
+                successCount: stats.successCount,
+                failedCount: stats.failedCount,
+                failedAsinCodes: stats.failedAsinCodes,
+                errors: [{ fatal: error.message }],
+                durationMs: Date.now() - startTime,
+            });
             await SystemLogService.log({
                 type: 'RE_SYNC_ERROR',
                 entityType: 'SELLER',

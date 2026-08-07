@@ -4,8 +4,8 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const SystemLogService = require('../../services/SystemLogService');
+const runLogService = require('../../services/liveSyncRunLogService');
 const aiLqsService = require('../../services/aiLqsService');
-const creatorsApiQueueService = require('../../services/creatorsApiQueueService');
 const lqsUtils = require('../../utils/lqs');
 const TitleAnalyzer = require('../../utils/titleAnalyzer');
 const BulletPointsAnalyzer = require('../../utils/bulletPointsAnalyzer');
@@ -33,6 +33,10 @@ async function getRedis() {
 const JOB_PREFIX = 'ldi:job:';
 const JOB_RESULTS_PREFIX = 'ldi:results:';
 const JOB_TTL = 7200; // 2 hours
+
+// jobId -> LiveSyncRunLogs.Id (used to complete inspector-upload runs)
+const JOB_RUN_MAP = new Map();
+function jobRunId(jobId) { return JOB_RUN_MAP.get(jobId) || null; }
 
 async function saveJob(job) {
     const r = await getRedis();
@@ -237,28 +241,16 @@ function isNetworkError(err) {
 }
 
 /**
- * Fetch one batch of ASINs, routed through the queued Creators API client.
- *
- * The queue worker (creatorsApiQueueService) enforces the 1-request-per-second
- * rate limit, caches tokens, and rotates credentials, so the in-process token
- * bucket / serial chain here is no longer the primary throttle. Caching is
- * bypassed (cacheTtl: 0) so that retry pass 2 (re-fetch of failed ASINs) is
- * not served stale, identical batch responses.
- *
- * Returns the full API response body on success; throws the last error after retries.
+ * Fetch one batch of ASINs, routed through the per-credential rate limiter
+ * (token bucket + serial queue). Returns the full API response body on
+ * success; throws the last error after retries.
  */
 async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
     let lastErr = null;
     for (let attempt = 0; attempt < MAX_BATCH_RETRIES; attempt++) {
         try {
-            const res = await creatorsApiQueueService.getItems(batch, {
-                marketplace: creds.mk,
-                partnerTag: creds.pt,
-                credId: credId || undefined,
-                timeout: 30000,
-                cacheTtl: 0, // don't cache — retry passes must re-query
-            });
-            return res.data;
+            const res = await throttledCall(credId, () => callCreatorsAPI(token, batch, creds));
+            return res;
         } catch (err) {
             lastErr = err;
             const status = err.response?.status;
@@ -570,6 +562,47 @@ async function logActivity(type, description, metadata = {}) {
     } catch (e) { /* don't block on log failure */ }
 }
 
+/**
+ * Log an inspector-tool run (fetch or upload) into the Live Sync Tracker.
+ * Creates a run, appends per-ASIN rows, and completes it. Fire-and-forget.
+ */
+async function logToolRun({ req, source, asins, results, notFoundList, metadata = {}, durationMs } = {}) {
+    try {
+        const success = Array.isArray(results) ? results : [];
+        const notFound = Array.isArray(notFoundList) ? notFoundList : [];
+        const created = await runLogService.createRun({
+            triggerType: 'TOOL',
+            source,
+            triggeredBy: req?.user,
+            sellerName: 'Live Data Inspector',
+            marketplace: 'Amazon',
+            metadata: { ...metadata, ip: getClientIp(req) },
+        });
+        const runId = created.id;
+
+        const entries = [];
+        for (const row of success) entries.push({ asinCode: row?.asin, asinId: null, status: 'SUCCESS', error: null });
+        for (const nf of notFound) entries.push({ asinCode: nf?.asin, asinId: null, status: 'NOT_FOUND', error: nf?.reason || null });
+        await runLogService.addAsinLogs(runId, entries);
+
+        await runLogService.completeRun(runId, {
+            status: notFound.length > 0 && success.length > 0 ? 'PARTIAL'
+                : notFound.length === 0 && success.length > 0 ? 'COMPLETED'
+                : notFound.length > 0 && success.length === 0 ? 'FAILED' : 'COMPLETED',
+            totalAsins: Array.isArray(asins) ? asins.length : success.length + notFound.length,
+            successCount: success.length,
+            failedCount: notFound.length,
+            failedAsinCodes: notFound.map(n => n?.asin).filter(Boolean),
+            errors: notFound.slice(0, 100),
+            durationMs,
+        });
+        return runId;
+    } catch (e) {
+        console.error('[Inspector] logToolRun failed:', e.message);
+        return null;
+    }
+}
+
 exports.getMetrics = (req, res) => {
     res.json({ success: true, data: AVAILABLE_METRICS.map(m => ({ key: m.key, label: m.label })) });
 };
@@ -583,6 +616,7 @@ exports.disabledV1 = (req, res) => {
 };
 
 exports.fetchLiveData = async (req, res) => {
+    const startTs = Date.now();
     try {
         const { asins, metrics, credId } = req.body;
         if (!asins || !Array.isArray(asins) || asins.length === 0)
@@ -688,6 +722,15 @@ exports.fetchLiveData = async (req, res) => {
             ip: getClientIp(req), asinCount: asins.length, foundCount: apiResult.results.length,
             notFoundCount: apiResult.notFound.length, metrics: selectedMetrics,
         });
+        logToolRun({
+            req,
+            source: 'INSPECTOR_FETCH',
+            asins: asinList,
+            results: apiResult.results,
+            notFoundList: apiResult.notFound,
+            durationMs: Date.now() - startTs,
+            metadata: { metrics: selectedMetrics, credId: targetCredId || 'auto', asinCount: asins.length },
+        });
     } catch (err) {
         console.error('Live data fetch error:', err.message);
         res.status(500).json({ success: false, error: err.message });
@@ -733,10 +776,17 @@ exports.uploadAndProcess = async (req, res) => {
 
         const targetCredId = req.body._credId || req.body.credId || null;
         const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
-        processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag).catch(async (err) => {
+        processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag, req.user).catch(async (err) => {
             console.error(`Job ${jobId} failed:`, err.message);
             const j = await loadJob(jobId);
             if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
+            runLogService.completeRun(jobRunId(jobId), {
+                status: 'FAILED',
+                totalAsins: asinList.length,
+                successCount: 0,
+                failedCount: asinList.length,
+                errors: [{ fatal: err.message }],
+            });
         });
 
         res.json({ success: true, jobId, totalAsins: asinList.length, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
@@ -811,8 +861,19 @@ exports.cancelJob = async (req, res) => {
 // ── Background job processor ────────────────────────────────────────────
 // Runs inside the global job-slot pool (bounded concurrency) and every API
 // call goes through the per-credential rate limiter + serial queue.
-async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
+async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag, user = null) {
     if (CreatorsApiCredentials.count === 0) throw new Error('Live Sync credentials not configured');
+
+    // ── Run log: start tracking this upload job ──
+    const runCreated = await runLogService.createRun({
+        triggerType: 'TOOL',
+        source: 'INSPECTOR_UPLOAD',
+        triggeredBy: user,
+        sellerName: 'Live Data Inspector',
+        marketplace: 'Amazon',
+        metadata: { jobId, metrics: selectedMetrics, totalAsins: asinList.length },
+    });
+    JOB_RUN_MAP.set(jobId, runCreated.id);
 
     await withJobSlot(async () => {
         const creds = getCreds();
@@ -951,6 +1012,38 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
                 totalAsins: finalJob.totalAsins, metrics: finalJob.metrics,
                 duration: finalJob.completedAt ? Math.round((new Date(finalJob.completedAt) - new Date(finalJob.startedAt)) / 1000) + 's' : 'unknown',
             });
+
+            // ── Run log: finalize upload job ──
+            const runId = JOB_RUN_MAP.get(jobId);
+            if (runId) {
+                const entries = [
+                    ...finalJob.results.map(r => ({ asinCode: r?.asin, status: 'SUCCESS' })),
+                    ...finalJob.notFoundList.map(n => ({ asinCode: n?.asin, status: 'NOT_FOUND', error: n?.reason })),
+                ];
+                await runLogService.addAsinLogs(runId, entries);
+                await runLogService.completeRun(runId, {
+                    status: finalJob.notFound > 0 ? 'PARTIAL' : 'COMPLETED',
+                    totalAsins: finalJob.totalAsins,
+                    successCount: finalJob.found,
+                    failedCount: finalJob.notFound,
+                    failedAsinCodes: finalJob.notFoundList.map(n => n?.asin).filter(Boolean),
+                    errors: finalJob.notFoundList.slice(0, 100),
+                    durationMs: finalJob.completedAt ? Math.round(new Date(finalJob.completedAt) - new Date(finalJob.startedAt)) : null,
+                });
+                JOB_RUN_MAP.delete(jobId);
+            }
+        } else if (finalJob && finalJob.status === 'cancelled') {
+            const runId = JOB_RUN_MAP.get(jobId);
+            if (runId) {
+                await runLogService.completeRun(runId, {
+                    status: 'CANCELLED',
+                    totalAsins: finalJob.totalAsins,
+                    successCount: finalJob.found,
+                    failedCount: finalJob.totalAsins - finalJob.found,
+                    failedAsinCodes: finalJob.notFoundList.map(n => n?.asin).filter(Boolean),
+                });
+                JOB_RUN_MAP.delete(jobId);
+            }
         }
     });
 }

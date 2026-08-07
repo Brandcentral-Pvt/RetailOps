@@ -715,14 +715,6 @@ server.listen(PORT, '0.0.0.0', () => {
     const schedulerService = require('./services/schedulerService');
     schedulerService.init();
 
-    // Amazon Creators API queue worker (caching + BullMQ rate limiting).
-    // Runs on the primary worker only so the 1-request-per-second limiter
-    // is enforced globally across the PM2 cluster.
-    const creatorsApiQueueService = require('./services/creatorsApiQueueService');
-    creatorsApiQueueService.start().catch(err => {
-      logger.error('Failed to start Creators API queue service', { error: err.message });
-    });
-
     logger.info('Primary Node Worker [0] — initialized schedulers and background tasks');
   } else {
     logger.info(`Secondary Node Worker [${process.env.NODE_APP_INSTANCE}] — API request handler only`);
@@ -753,16 +745,13 @@ server.listen(PORT, '0.0.0.0', () => {
   runMigrationsAtStartup();
 });
 
-// Graceful shutdown — let the Creators API queue worker finish the current
-// job and release Redis connections before the process exits.
+// Graceful shutdown — close the Redis cache connection before the process exits.
 let shuttingDown = false;
 async function gracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info(`Received ${signal} — shutting down gracefully`);
   try {
-    const creatorsApiQueueService = require('./services/creatorsApiQueueService');
-    await creatorsApiQueueService.shutdown();
     const cacheService = require('./services/cacheService');
     await cacheService.disconnect();
   } catch (err) {

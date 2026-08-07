@@ -16,7 +16,14 @@ function registerProcessors() {
 
       if (type === 'live') {
         const LiveSyncService = require('../services/liveDataSyncService');
-        return LiveSyncService.syncSeller(sellerId);
+        // Scheduled live sync — sellerId '*' means "all sellers". Runs the
+        // global sync with triggerType AUTO so every run lands in the
+        // Live Sync Tracker log.
+        const opts = { triggerType: 'AUTO', ...(options || {}) };
+        if (sellerId && sellerId !== '*') {
+          return LiveSyncService.syncSellerLiveData(sellerId, opts);
+        }
+        return LiveSyncService.syncAllSellers(opts);
       }
 
       throw new Error(`Unknown market sync type: ${type}`);

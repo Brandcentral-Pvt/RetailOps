@@ -3,6 +3,7 @@
  * Tracks how many brands/sellers have completed live sync
  */
 const { sql, getPool } = require('../../database/db');
+const runLogService = require('../../services/liveSyncRunLogService');
 
 /**
  * GET /api/live-sync-tracker/overview
@@ -232,14 +233,66 @@ exports.triggerSync = async (req, res) => {
     }
 
     // Trigger sync via existing service
-    const liveSyncService = require('../liveDataSyncService');
-    liveSyncService.syncAllSellers({ targetSellers: sellerIds }).catch(err => {
-      console.error('Live sync trigger error:', err.message);
+    const liveSyncService = require('../../services/liveDataSyncService');
+    liveSyncService.syncAllSellers({
+        sellerIds,
+        triggerType: 'MANUAL',
+        triggeredBy: req.user
+    }).catch(err => {
+        console.error('Live sync trigger error:', err.message);
     });
 
     res.json({ success: true, message: `Live sync triggered for ${sellerIds.length} sellers`, sellerIds });
   } catch (err) {
     console.error('Live sync trigger error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * GET /api/live-sync-tracker/runs
+ * Complete run log — every live-sync run (manual/auto/re-sync/tool).
+ * Filters: sellerId, triggerType, source, status, from, to, limit, offset
+ */
+exports.getRuns = async (req, res) => {
+  try {
+    const { sellerId, triggerType, source, status, from, to, limit, offset } = req.query;
+    const result = await runLogService.listRuns({
+      sellerId, triggerType, source, status, from, to, limit, offset,
+    });
+    res.json({ success: true, data: result.rows, total: result.total });
+  } catch (err) {
+    console.error('Live sync tracker runs error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * GET /api/live-sync-tracker/runs/:runId
+ * One run with its full per-ASIN detail log.
+ */
+exports.getRunDetail = async (req, res) => {
+  try {
+    const run = await runLogService.getRun(req.params.runId);
+    if (!run) return res.status(404).json({ success: false, error: 'Run not found' });
+    res.json({ success: true, data: run });
+  } catch (err) {
+    console.error('Live sync tracker run detail error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * GET /api/live-sync-tracker/brands
+ * Brand-wise run summary (runs, success/fail counts, last run per brand).
+ */
+exports.getBrandRuns = async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const data = await runLogService.getBrandSummary({ days });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('Live sync tracker brand runs error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 };
