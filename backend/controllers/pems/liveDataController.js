@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const SystemLogService = require('../../services/SystemLogService');
 const aiLqsService = require('../../services/aiLqsService');
+const creatorsApiQueueService = require('../../services/creatorsApiQueueService');
 const lqsUtils = require('../../utils/lqs');
 const TitleAnalyzer = require('../../utils/titleAnalyzer');
 const BulletPointsAnalyzer = require('../../utils/bulletPointsAnalyzer');
@@ -236,14 +237,28 @@ function isNetworkError(err) {
 }
 
 /**
- * Fetch one batch of ASINs with per-credential rate limiting, retries and backoff.
+ * Fetch one batch of ASINs, routed through the queued Creators API client.
+ *
+ * The queue worker (creatorsApiQueueService) enforces the 1-request-per-second
+ * rate limit, caches tokens, and rotates credentials, so the in-process token
+ * bucket / serial chain here is no longer the primary throttle. Caching is
+ * bypassed (cacheTtl: 0) so that retry pass 2 (re-fetch of failed ASINs) is
+ * not served stale, identical batch responses.
+ *
  * Returns the full API response body on success; throws the last error after retries.
  */
 async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
     let lastErr = null;
     for (let attempt = 0; attempt < MAX_BATCH_RETRIES; attempt++) {
         try {
-            return await throttledCall(credId, () => callCreatorsAPI(token, batch, creds));
+            const res = await creatorsApiQueueService.getItems(batch, {
+                marketplace: creds.mk,
+                partnerTag: creds.pt,
+                credId: credId || undefined,
+                timeout: 30000,
+                cacheTtl: 0, // don't cache — retry passes must re-query
+            });
+            return res.data;
         } catch (err) {
             lastErr = err;
             const status = err.response?.status;
