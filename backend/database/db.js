@@ -33,8 +33,8 @@ const config = {
     connectionTimeout: 60000,
     cancelTimeout: 10000,
     pool: {
-        max: 200,
-        min: 10,
+        max: parseInt(process.env.DB_POOL_MAX, 10) || 200,
+        min: parseInt(process.env.DB_POOL_MIN, 10) || 10,
         idleTimeoutMillis: 10000
     }
 };
@@ -52,8 +52,8 @@ const readerConfig = process.env.DB_READER_SERVER ? {
     connectionTimeout: 30000,
     cancelTimeout: 10000,
     pool: {
-        max: parseInt(process.env.DB_READER_POOL_MAX || '100'),
-        min: parseInt(process.env.DB_READER_POOL_MIN || '10'),
+        max: parseInt(process.env.DB_READER_POOL_MAX || process.env.DB_POOL_MAX || '100', 10),
+        min: parseInt(process.env.DB_READER_POOL_MIN || process.env.DB_POOL_MIN || '10', 10),
         idleTimeoutMillis: 10000
     }
 } : null;

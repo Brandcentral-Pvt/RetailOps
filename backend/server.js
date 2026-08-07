@@ -138,6 +138,81 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── Health check endpoints ──
+// Registered BEFORE the app-level routers so they are not shadowed by
+// alertsRoutes' /api/health, and so /api/health/liveness + /api/health/readiness
+// are not intercepted by growthExecutionRoutes' router.use(protect).
+app.get('/api/health', async (req, res) => {
+  const mem = process.memoryUsage();
+  const checks = {};
+
+  // DB check
+  try {
+    const pool = await getPool();
+    await pool.request().query('SELECT 1 as test');
+    checks.database = { status: 'connected', poolSize: pool.size, poolAvailable: pool.available };
+  } catch (err) {
+    checks.database = { status: 'disconnected', error: err.message };
+  }
+
+  // Redis check — raw TCP PING so it also works with older Redis 3.x
+  // (the `redis` client's HELLO command is unsupported below Redis 6).
+  try {
+    const net = require('net');
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const parsed = new URL(redisUrl);
+    const port = Number(parsed.port) || 6379;
+    const host = parsed.hostname || 'localhost';
+    await new Promise((resolve, reject) => {
+      const socket = net.createConnection(port, host);
+      socket.setTimeout(3000);
+      socket.once('connect', () => socket.write('PING\r\n'));
+      socket.once('data', (data) => {
+        socket.destroy();
+        if (data.toString().includes('+PONG')) resolve();
+        else reject(new Error('Unexpected PING reply: ' + data.toString()));
+      });
+      socket.once('timeout', () => {
+        socket.destroy();
+        reject(new Error('PING timeout'));
+      });
+      socket.once('error', reject);
+    });
+    checks.redis = { status: 'connected' };
+  } catch (err) {
+    checks.redis = { status: 'disconnected', error: err.message };
+  }
+
+  const allOk = Object.values(checks).every(c => c.status === 'connected');
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    memory: {
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
+      rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+    },
+    env: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version,
+    checks,
+  });
+});
+
+app.get('/api/health/liveness', (req, res) => {
+  res.status(200).json({ status: 'alive', uptime: Math.floor(process.uptime()) });
+});
+
+app.get('/api/health/readiness', async (req, res) => {
+  try {
+    const pool = await getPool();
+    await pool.request().query('SELECT 1 as test');
+    res.status(200).json({ status: 'ready' });
+  } catch (err) {
+    res.status(503).json({ status: 'not-ready', error: err.message });
+  }
+});
+
 // Routes (same as before)
 const dataRoutes = require('./routes/dataRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
@@ -226,63 +301,6 @@ app.use('/api/pems', pemsRoutes);
 app.use('/api/live-sync-tracker', pemsLiveSyncRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/keyword-analysis', keywordAnalysisRoutes);
-
-// Health check endpoints
-app.get('/api/health', async (req, res) => {
-  const mem = process.memoryUsage();
-  const checks = {};
-
-  // DB check
-  try {
-    const pool = await getPool();
-    await pool.request().query('SELECT 1 as test');
-    checks.database = { status: 'connected', poolSize: pool.size, poolAvailable: pool.available };
-  } catch (err) {
-    checks.database = { status: 'disconnected', error: err.message };
-  }
-
-  // Redis check
-  try {
-    const { createClient } = require('redis');
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    const client = createClient({ url: redisUrl });
-    await client.connect();
-    await client.ping();
-    checks.redis = { status: 'connected' };
-    await client.quit();
-  } catch (err) {
-    checks.redis = { status: 'disconnected', error: err.message };
-  }
-
-  const allOk = Object.values(checks).every(c => c.status === 'connected');
-  res.status(allOk ? 200 : 503).json({
-    status: allOk ? 'ok' : 'degraded',
-    timestamp: new Date().toISOString(),
-    uptime: Math.floor(process.uptime()),
-    memory: {
-      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
-      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
-      rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
-    },
-    env: process.env.NODE_ENV || 'development',
-    nodeVersion: process.version,
-    checks,
-  });
-});
-
-app.get('/api/health/liveness', (req, res) => {
-  res.status(200).json({ status: 'alive', uptime: Math.floor(process.uptime()) });
-});
-
-app.get('/api/health/readiness', async (req, res) => {
-  try {
-    const pool = await getPool();
-    await pool.request().query('SELECT 1 as test');
-    res.status(200).json({ status: 'ready' });
-  } catch (err) {
-    res.status(503).json({ status: 'not-ready', error: err.message });
-  }
-});
 
 // Error handling
 app.use(async (err, req, res, next) => {
