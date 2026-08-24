@@ -42,6 +42,18 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
+// Process-level safety nets — log and keep serving, never take the worker down
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection (worker continues)', {
+    error: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+process.on('uncaughtException', (err) => {
+  logger.fatal('Uncaught exception (worker will exit for clean restart)', { error: err.message, stack: err.stack });
+  setTimeout(() => process.exit(1), 1000).unref();
+});
+
 const asyncLocalStorage = require('./utils/asyncStorage');
 const apiCallLogger = require('./middleware/apiCallLogger');
 
