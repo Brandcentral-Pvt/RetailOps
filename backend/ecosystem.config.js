@@ -1,40 +1,59 @@
-// PM2 Ecosystem Config — Production Deployment
-// Usage: pm2 start ecosystem.config.js
+// PM2 Ecosystem Config — Production (/var/www/retail-ops) & Local Dev
+// Usage (production): cd /var/www/retail-ops/backend && pm2 start ecosystem.config.js --env production
+// Usage (local dev):  pm2 start ecosystem.config.js
+
+const path = require('path');
+
+// Auto-detect: Linux = production VPS, Windows = local dev machine
+const isProduction = process.platform === 'linux';
+
+const PROD_ROOT = '/var/www/retail-ops';
+const DEV_BACKEND = 'G:\\Brandcentral Development\\RetailOps_V2.1\\RetailOps_V2.1\\retail-ops\\backend';
+
+const cwd = isProduction ? `${PROD_ROOT}/backend` : DEV_BACKEND;
+const logDir = isProduction ? `${PROD_ROOT}/logs` : path.join(__dirname, 'logs');
 
 module.exports = {
   apps: [
     {
       name: 'brand-central-api',
       script: './server.js',
-      cwd: 'G:\\Brandcentral Development\\RetailOps_V2.1\\RetailOps_V2.1\\retail-ops\\backend',
+      cwd,
+      // Cluster mode: one worker per CPU core — spreads load & prevents single-process heap blowups.
+      // Instance 0 runs schedulers/background jobs; all others serve API only (see server.js).
       instances: 'max',
       exec_mode: 'cluster',
-      max_memory_restart: '2G',
+
+      // Memory guardrails
+      max_memory_restart: '2G',           // Restart any worker crossing 2GB RSS
       node_args: '--max-old-space-size=4096',
+
       env: {
-        NODE_ENV: 'production',
+        NODE_ENV: isProduction ? 'production' : 'development',
         PORT: 3001,
       },
+
       // Restart policies
-      min_uptime: '10s',
-      max_restarts: 5,
+      min_uptime: '30s',
+      max_restarts: 10,
       restart_delay: 3000,
+      exp_backoff_restart_delay: 100,
+
       // Logging
-      error_file: '/opt/brand-central/logs/api-error.log',
-      out_file: '/opt/brand-central/logs/api-out.log',
+      error_file: `${logDir}/api-error.log`,
+      out_file: `${logDir}/api-out.log`,
       merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      // Watch disabled in production
+
       watch: false,
+      time: true,
+
       // Graceful shutdown
       kill_timeout: 5000,
       listen_timeout: 10000,
-      // Auto-restart on file changes (disabled in prod)
+      wait_ready: false,
+
       autorestart: true,
-      // Cluster settings
-      env: {
-        NODE_APP_INSTANCE: 0,
-      },
     },
   ],
 };
