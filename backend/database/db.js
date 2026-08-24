@@ -20,6 +20,13 @@ function resolveSqlOptions(host, { trustServerCertificate = false } = {}) {
   };
 }
 
+// Pool sizing is PER WORKER. With N PM2 cluster instances the total
+// connections to SQL Server ≈ N × max. Defaults keep 20 workers ≈ ≤160 total.
+const POOL_MAX = parseInt(process.env.DB_POOL_MAX || '8');
+const POOL_MIN = parseInt(process.env.DB_POOL_MIN || '1');
+const READER_POOL_MAX = parseInt(process.env.DB_READER_POOL_MAX || String(POOL_MAX));
+const READER_POOL_MIN = parseInt(process.env.DB_READER_POOL_MIN || String(POOL_MIN));
+
 const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -30,12 +37,13 @@ const config = {
       trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
     }),
     requestTimeout: 600000,
-    connectionTimeout: 60000,
+    connectionTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT_MS || '30000'),
     cancelTimeout: 10000,
     pool: {
-        max: parseInt(process.env.DB_POOL_MAX, 10) || 200,
-        min: parseInt(process.env.DB_POOL_MIN, 10) || 10,
-        idleTimeoutMillis: 10000
+        max: POOL_MAX,
+        min: POOL_MIN,
+        idleTimeoutMillis: 60000,
+        evictionRunIntervalMillis: 60000
     }
 };
 
@@ -52,14 +60,84 @@ const readerConfig = process.env.DB_READER_SERVER ? {
     connectionTimeout: 30000,
     cancelTimeout: 10000,
     pool: {
-        max: parseInt(process.env.DB_READER_POOL_MAX || process.env.DB_POOL_MAX || '100', 10),
-        min: parseInt(process.env.DB_READER_POOL_MIN || process.env.DB_POOL_MIN || '10', 10),
-        idleTimeoutMillis: 10000
+        max: READER_POOL_MAX,
+        min: READER_POOL_MIN,
+        idleTimeoutMillis: 60000,
+        evictionRunIntervalMillis: 60000
     }
 } : null;
 
 let poolPromise = null;
 let readerPoolPromise = null;
+let reconnectTimer = null;
+let keepAliveTimer = null;
+
+const CONNECT_RETRIES = parseInt(process.env.DB_CONNECT_RETRIES || '5');
+const CONNECT_BASE_DELAY_MS = parseInt(process.env.DB_CONNECT_RETRY_DELAY_MS || '2000');
+const RECONNECT_INTERVAL_MS = parseInt(process.env.DB_RECONNECT_INTERVAL_MS || '10000');
+const KEEPALIVE_INTERVAL_MS = parseInt(process.env.DB_KEEPALIVE_MS || '60000');
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function scheduleBackgroundReconnect(label) {
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(async () => {
+        reconnectTimer = null;
+        logger.info(`DB background reconnect attempt (${label})...`);
+        try {
+            if (label === 'primary') await getPool();
+            else await getReader();
+        } catch (_) { /* scheduleBackgroundReconnect fires again inside get* */ }
+    }, RECONNECT_INTERVAL_MS);
+    if (reconnectTimer.unref) reconnectTimer.unref();
+}
+
+/**
+ * Creates a ConnectionPool and connects with bounded exponential-backoff retries.
+ * A fresh pool object is used per attempt (mssql pools are single-use after fatal errors).
+ */
+async function createPoolWithRetry(cfg, label) {
+    let lastErr;
+    for (let attempt = 1; attempt <= CONNECT_RETRIES; attempt++) {
+        const pool = new sql.ConnectionPool(cfg);
+        pool.on('error', (err) => {
+            logger.error(`SQL ${label} pool error event`, { error: err.message });
+            // Fatal pool-level errors invalidate the cached promise; the next
+            // caller (or the background timer) transparently reconnects.
+            if (!pool.connected && !pool.connecting) {
+                if (label === 'primary') { if (poolPromise && poolPromise.value === pool) poolPromise = null; }
+                else { if (readerPoolPromise && readerPoolPromise.value === pool) readerPoolPromise = null; }
+                scheduleBackgroundReconnect(label);
+            }
+        });
+        try {
+            const connected = await pool.connect();
+            await initUdf(connected);
+            logger.info(`SQL Server ${label} pool connected (attempt ${attempt})`);
+            return connected;
+        } catch (err) {
+            lastErr = err;
+            try { await pool.close(); } catch (_) {}
+            if (attempt < CONNECT_RETRIES) {
+                const delay = CONNECT_BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500);
+                logger.warn(`SQL ${label} connect failed (${err.message}). Retry ${attempt}/${CONNECT_RETRIES} in ${delay}ms`);
+                await sleep(delay);
+            }
+        }
+    }
+    throw lastErr;
+}
+
+function startKeepAlive() {
+    if (keepAliveTimer) return;
+    keepAliveTimer = setInterval(async () => {
+        try {
+            const p = await getPool();
+            if (p.connected) await p.request().query('SELECT 1');
+        } catch (_) { /* errors logged by pool handlers; keeps socket warm */ }
+    }, KEEPALIVE_INTERVAL_MS);
+    if (keepAliveTimer.unref) keepAliveTimer.unref();
+}
 
 async function initUdf(pool) {
     const tz = process.env.AUTOMATION_TIMEZONE || 'Asia/Kolkata';
@@ -101,17 +179,11 @@ async function initUdf(pool) {
 
 function getPool() {
     if (!poolPromise) {
-        const pool = new sql.ConnectionPool(config);
-        // Prevent unhandled 'error' events from taking the process down
-        pool.on('error', (err) => logger.error('SQL pool error event', { error: err.message }));
-        poolPromise = pool.connect()
-            .then(async connected => {
-                await initUdf(connected);
-                return connected;
-            })
+        poolPromise = createPoolWithRetry(config, 'primary')
+            .then(pool => { startKeepAlive(); return pool; })
             .catch(err => {
-                logger.error('SQL Connection Pool Error', { error: err.message });
-                poolPromise = null;
+                poolPromise = null;                       // allow next call to retry
+                scheduleBackgroundReconnect('primary');   // self-heal without traffic
                 throw err;
             });
     }
@@ -121,16 +193,11 @@ function getPool() {
 function getReader() {
     if (!readerConfig) return getPool();
     if (!readerPoolPromise) {
-        const pool = new sql.ConnectionPool(readerConfig);
-        pool.on('error', (err) => logger.warn('SQL reader pool error event', { error: err.message }));
-        readerPoolPromise = pool.connect()
-            .then(async connected => {
-                await initUdf(connected);
-                return connected;
-            })
+        readerPoolPromise = createPoolWithRetry(readerConfig, 'reader')
             .catch(err => {
-                logger.warn('SQL Reader Pool failed — falling back to primary', { error: err.message });
                 readerPoolPromise = null;
+                logger.warn(`SQL Reader Pool failed — falling back to primary (${err.message})`);
+                scheduleBackgroundReconnect('reader');
                 return getPool();
             });
     }
