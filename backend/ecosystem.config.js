@@ -6,10 +6,10 @@ module.exports = {
     {
       name: 'brand-central-api',
       script: './server.js',
-      cwd: '/opt/brand-central/backend',
-      instances: 1, // Single instance (stateful sessions)
-      exec_mode: 'fork',
-      max_memory_restart: '3G',
+      cwd: 'G:\\Brandcentral Development\\RetailOps_V2.1\\RetailOps_V2.1\\retail-ops\\backend',
+      instances: 'max',
+      exec_mode: 'cluster',
+      max_memory_restart: '2G',
       node_args: '--max-old-space-size=4096',
       env: {
         NODE_ENV: 'production',
@@ -17,8 +17,8 @@ module.exports = {
       },
       // Restart policies
       min_uptime: '10s',
-      max_restarts: 10,
-      restart_delay: 5000,
+      max_restarts: 5,
+      restart_delay: 3000,
       // Logging
       error_file: '/opt/brand-central/logs/api-error.log',
       out_file: '/opt/brand-central/logs/api-out.log',
@@ -31,6 +31,10 @@ module.exports = {
       listen_timeout: 10000,
       // Auto-restart on file changes (disabled in prod)
       autorestart: true,
+      // Cluster settings
+      env: {
+        NODE_APP_INSTANCE: 0,
+      },
     },
   ],
 };
