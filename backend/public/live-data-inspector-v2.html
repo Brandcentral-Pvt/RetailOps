@@ -114,6 +114,14 @@
     .cell-null { color: var(--text-muted); font-style: italic; }
     .cell-num { font-family: var(--mono); font-weight: 500; font-size: 11.5px; }
     .cell-str { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cell-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .cell-badge.green { background: var(--success-light); color: var(--success); }
+    .cell-badge.blue { background: #eff6ff; color: #2563eb; }
+    .cell-badge.amber { background: var(--warning-light); color: var(--warning); }
+    .cell-badge.red { background: var(--danger-light); color: var(--danger); }
+    .cell-badge.gray { background: var(--border-light); color: var(--text-muted); }
+    .cell-thumb { display: block; }
+    .cell-thumb img { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; border: 1px solid var(--border); background: #fff; }
 
     .table-scroll { max-height: calc(100vh - 220px); overflow: auto; }
     .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -139,6 +147,9 @@
 
     .keyboard-hint { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 10px; }
     .keyboard-hint kbd { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-family: var(--mono); font-size: 10px; }
+    .ai-toggle { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 10px 12px; background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; color: #1e3a5f; }
+    .ai-toggle input { margin-top: 2px; accent-color: #2563eb; }
+    .ai-toggle .ai-note { display: block; font-size: 10px; font-weight: 400; color: #64748b; margin-top: 2px; line-height: 1.5; }
 
     .history-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
     .history-chip { font-family: var(--mono); font-size: 10px; background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 5px; cursor: pointer; color: var(--text-secondary); transition: all 0.1s; }
@@ -228,6 +239,12 @@
               </button>
               <div class="keyboard-hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to fetch</div>
             </div>
+            <label class="ai-toggle" title="Send the fetched listing to NVIDIA AI for real LQS (text + vision) analysis">
+              <input type="checkbox" id="aiToggle" checked>
+              <span>AI Analysis
+                <span class="ai-note">LQS scored by AI against Amazon criteria + vision check of the main image (slower, falls back to rules on error)</span>
+              </span>
+            </label>
           </div>
 
           <!-- File Upload Tab -->
@@ -242,6 +259,12 @@
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">
               File should have at least one column with ASIN codes (B0XXXXXXXX format). All columns are auto-detected.
             </div>
+            <label class="ai-toggle" title="Send the fetched listings to NVIDIA AI for real LQS (text + vision) analysis">
+              <input type="checkbox" id="aiToggleUpload" checked>
+              <span>AI Analysis
+                <span class="ai-note">LQS scored by AI against Amazon criteria + vision check of each main image (slower; skipped for very large files)</span>
+              </span>
+            </label>
             <div class="progress-section" id="progressSection">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;font-weight:600;color:var(--text)" id="progressLabel">Processing...</span>
@@ -323,6 +346,10 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const API = window.location.origin + '/api';
+function authHeaders(extra) {
+  const token = localStorage.getItem('authToken');
+  return Object.assign({}, token ? { Authorization: 'Bearer ' + token } : {}, extra || {});
+}
 let allMetrics = [], selectedKeys = [], results = [], notFound = [];
 let searchHistory = JSON.parse(localStorage.getItem('ldi_history') || '[]');
 let currentJobId = null, progressInterval = null, selectedFile = null;
@@ -492,11 +519,25 @@ const METRIC_META = {
   buyBoxWinner: { desc: 'BuyBox status' }, seller: { desc: 'BuyBox seller' },
   availability: { desc: 'Stock status' }, title: { desc: 'Product title' },
   brand: { desc: 'Brand name' }, category: { desc: 'Product category' }, dealBadge: { desc: 'Active deal type' },
+  imagesCount: { desc: 'Number of product images (LQS: 6+ recommended)' },
+  mainImage: { desc: 'Main product image URL' },
+  bulletPointCount: { desc: 'Number of bullet points (LQS: 5 recommended)' },
+  titleLength: { desc: 'Title character count (LQS: 60-80 ideal)' },
+  lqsScore: { desc: 'Listing Quality Score 0-10 (API-only inputs)', icon: '★' },
+  lqsGrade: { desc: 'LQS grade: A/B/C/D' },
+  lqsTitle: { desc: 'Title quality sub-score' },
+  lqsBullets: { desc: 'Bullet points quality sub-score' },
+  lqsImages: { desc: 'Image quality sub-score' },
+  mainImageBackground: { desc: 'Main image background (AI vision; URL heuristic fallback)' },
+  lqsIssues: { desc: 'LQS improvement issues detected' },
+  lqsSource: { desc: 'Where the score came from: AI, AI + Rules, or Rules only' },
+  titleCriteriaStatus: { desc: 'Title length vs Amazon criteria (below / within / above)' },
+  imageCompliance: { desc: 'AI vision compliance check on the main image' },
 };
 
 async function init() {
   try {
-    const r = await fetch(API + '/live-data/metrics').then(r => r.json());
+    const r = await fetch(API + '/live-data/metrics', { headers: authHeaders() }).then(r => r.json());
     if (r.success && r.data) { allMetrics = r.data; selectedKeys = r.data.map(m => m.key); renderMetrics();
       document.getElementById('apiStatus').textContent = 'API Connected'; document.getElementById('apiStatus').classList.add('active'); }
   } catch (e) {
@@ -562,7 +603,7 @@ async function fetchData() {
   const btn = document.getElementById('fetchBtn'); btn.disabled = true; btn.classList.add('loading');
   document.getElementById('loadingOverlay').classList.add('active');
   try {
-    const r = await fetch(API + '/live-data/v2/fetch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asins, metrics: selectedKeys, credId: 'secondary' }) }).then(r => r.json());
+    const r = await fetch(API + '/live-data/v2/fetch', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ asins, metrics: selectedKeys, credId: 'secondary', ai: document.getElementById('aiToggle').checked }) }).then(r => r.json());
     if (r.success) { results = r.data || []; notFound = r.notFound || []; renderResults();
       document.getElementById('exportBtn').style.display = results.length ? '' : 'none'; document.getElementById('csvBtn').style.display = results.length ? '' : 'none';
       toast(`Fetched ${results.length} ASINs`, 'success'); saveHistory(asins.slice(0, 3).join(', ') + (asins.length > 3 ? ` +${asins.length - 3}` : ''));
@@ -576,9 +617,9 @@ async function fetchData() {
 async function uploadFile() {
   if (!selectedFile) return toast('Select a file first', 'warning');
   if (!selectedKeys.length) return toast('Select at least one metric', 'warning');
-  const fd = new FormData(); fd.append('file', selectedFile); fd.append('metrics', JSON.stringify(selectedKeys)); fd.append('credId', 'secondary');
+  const fd = new FormData(); fd.append('file', selectedFile); fd.append('metrics', JSON.stringify(selectedKeys)); fd.append('credId', 'secondary'); fd.append('ai', document.getElementById('aiToggleUpload').checked ? '1' : '0');
   try {
-    const r = await fetch(API + '/live-data/v2/upload', { method: 'POST', body: fd }).then(r => r.json());
+    const r = await fetch(API + '/live-data/v2/upload', { method: 'POST', headers: authHeaders(), body: fd }).then(r => r.json());
     if (r.success) {
       currentJobId = r.jobId;
       document.getElementById('progressSection').classList.add('active');
@@ -601,7 +642,7 @@ function startProgressPolling() {
 async function pollProgress() {
   if (!currentJobId) return;
   try {
-    const r = await fetch(API + `/live-data/v2/progress/${currentJobId}`).then(r => r.json());
+    const r = await fetch(API + `/live-data/v2/progress/${currentJobId}`, { headers: authHeaders() }).then(r => r.json());
     if (!r.success) return;
     const d = r.data;
     document.getElementById('progressPercent').textContent = d.percent + '%';
@@ -628,20 +669,29 @@ async function pollProgress() {
 
 async function cancelJob() {
   if (!currentJobId) return;
-  await fetch(API + `/live-data/v2/cancel/${currentJobId}`, { method: 'POST' });
+  await fetch(API + `/live-data/v2/cancel/${currentJobId}`, { method: 'POST', headers: authHeaders() });
   toast('Job cancelled', 'warning');
 }
 
 async function downloadJobResults() {
   if (!currentJobId) return;
-  window.location.href = API + `/live-data/v2/download/${currentJobId}`;
-  toast('Downloading...', 'success');
+  try {
+    const r = await fetch(API + `/live-data/v2/download/${currentJobId}`, { headers: authHeaders() });
+    if (!r.ok) { toast('Download failed (' + r.status + ')', 'error'); return; }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'live-data-results-' + currentJobId + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+    toast('Downloading...', 'success');
+  } catch (e) { toast('Download error: ' + e.message, 'error'); }
 }
 
 async function loadJobResults() {
   if (!currentJobId) return;
   try {
-    const r = await fetch(API + `/live-data/v2/results/${currentJobId}`).then(r => r.json());
+    const r = await fetch(API + `/live-data/v2/results/${currentJobId}`, { headers: authHeaders() }).then(r => r.json());
     if (r.success) { results = r.data || []; notFound = r.notFound || []; renderResults(); switchTab('manual');
       document.getElementById('exportBtn').style.display = results.length ? '' : 'none'; document.getElementById('csvBtn').style.display = results.length ? '' : 'none';
       if (results.length || notFound.length) saveResultsToDB('upload_' + Date.now(), { data: results, notFound, metrics: selectedKeys, total: results.length + notFound.length }).then(() => renderSavedHistory()); }
@@ -658,13 +708,20 @@ function renderResults() {
   badges.innerHTML = `<span class="result-chip success">${results.length} found</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} not found</span>` : ''}`;
   bar.style.display = results.length ? '' : 'none';
   bar.innerHTML = `<span class="result-chip info">${selectedKeys.length} metrics</span><span class="result-chip info">${results.length} ASINs</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} unavailable</span>` : ''}`;
-  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount']);
+  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount','imagesCount','bulletPointCount','titleLength','lqsScore','lqsTitle','lqsBullets','lqsImages']);
   const ths = ['ASIN', 'Seller', ...selectedKeys.map(k => allMetrics.find(m => m.key === k)?.label || k)];
   const rows = results.map(row => {
     const tds = [`<td><span class="cell-asin">${esc(row.asin)}</span></td>`, `<td class="cell-seller">${esc(row.seller || '-')}</td>`,
-      ...selectedKeys.map(k => { const v = row[k]; if (v === null || v === undefined) return '<td class="cell-null">&mdash;</td>';
+      ...selectedKeys.map(k => {
+        const v = row[k]; if (v === null || v === undefined) return '<td class="cell-null">&mdash;</td>';
+        if (k === 'mainImage') return `<td><span class="cell-thumb"><a href="${esc(v)}" target="_blank" rel="noopener"><img src="${esc(v)}" alt="main" onerror="this.style.visibility='hidden'"></a></span></td>`;
+        if (k === 'lqsGrade') { const cls = ({ A: 'green', B: 'blue', C: 'amber', D: 'red' })[String(v)] || 'gray'; return `<td><span class="cell-badge ${cls}">${esc(String(v))}</span></td>`; }
+        if (k === 'mainImageBackground') { const s = String(v); const cls = s === 'White' ? 'green' : s === 'Possibly non-white' ? 'amber' : s === 'Non-white' ? 'red' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
+        if (k === 'lqsSource') { const cls = String(v) === 'AI' ? 'green' : String(v) === 'AI + Rules' ? 'blue' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(String(v))}</span></td>`; }
+        if (k === 'imageCompliance') { const s = String(v); const cls = s && s.startsWith('Pass') ? 'green' : s ? 'amber' : 'gray'; return `<td class="cell-str" title="${esc(s)}"><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
         if (numKeys.has(k)) return `<td class="cell-num">${typeof v === 'number' ? v.toLocaleString('en-IN') : esc(String(v))}</td>`;
-        return `<td class="cell-str" title="${esc(String(v))}">${esc(String(v))}</td>`; })];
+        return `<td class="cell-str" title="${esc(String(v))}">${esc(String(v))}</td>`;
+      })];
     return '<tr>' + tds.join('') + '</tr>';
   }).join('');
   c.innerHTML = `<div class="table-scroll"><table><thead><tr>${ths.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;

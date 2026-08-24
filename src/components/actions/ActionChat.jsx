@@ -357,7 +357,7 @@ const ActionChat = ({ actionId, messages: initialMessages = [], onSendMessage, u
                         onClick={handleSubmit}
                     >
                         {isSending ? (
-                            <div className="spinner-border spinner-border-sm" role="status"></div>
+                            <span className="icon-[svg-spinners--eclipse]" role="status" aria-label="Sending"></span>
                         ) : (
                             <Send size={18} fill="currentColor" />
                         )}

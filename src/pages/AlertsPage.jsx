@@ -411,7 +411,7 @@ const AlertsPage = () => {
                     <Space size="middle">
                         <Button 
                             onClick={() => fetchNotifications(true)} 
-                            icon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
+                            icon={loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
                             disabled={loading}
                             style={{ borderRadius: 'var(--radius-md)', height: 38, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >

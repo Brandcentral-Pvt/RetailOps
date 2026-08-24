@@ -803,7 +803,10 @@ exports.triggerLiveSync = async (req, res) => {
         
         // Start sync in background (returns immediately to client)
         // The frontend polls /sync/status/:sellerId for completion
-        liveDataSyncService.syncSellerLiveData(sellerId)
+        liveDataSyncService.syncSellerLiveData(sellerId, {
+            triggerType: 'MANUAL',
+            triggeredBy: req.user
+        })
             .then(result => {
                 console.log(`Live sync completed for seller ${sellerId}:`, {
                     success: result.success,
@@ -1163,7 +1166,9 @@ exports.syncAllLiveSync = async (req, res) => {
         // Start sync in background
         liveDataSyncService.syncAllSellers({ 
             concurrency: concurrency || 3,
-            sellerIds: sellerIds || null
+            sellerIds: sellerIds || null,
+            triggerType: 'MANUAL',
+            triggeredBy: req.user
         })
             .then(result => {
                 console.log('Global live sync completed:', result.summary);

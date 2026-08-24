@@ -136,7 +136,7 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
         confirmIcon={<Upload size={14} />}
         extra={
           <Button
-            icon={<RefreshCw size={14} className={isSyncing ? 'spin' : ''} />}
+            icon={isSyncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
             onClick={handleFullSync}
             loading={isSyncing}
             className={styles.modalFooterCancel}

@@ -170,7 +170,7 @@ export default function WebhookSettingsPage() {
   // ── render ──
   if (loading) return (
     <div className="ws-loading">
-      <div className="ws-spinner" /><span>Loading webhook settings…</span>
+      <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 18 }} aria-hidden="true" /><span>Loading webhook settings…</span>
     </div>
   );
 
@@ -285,7 +285,7 @@ export default function WebhookSettingsPage() {
                           disabled={isTesting}
                           title="Send test event"
                         >
-                          {isTesting ? <RefreshCw size={13} className="spin" /> : <Send size={13} />}
+                          {isTesting ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> : <Send size={13} />}
                           {isTesting ? 'Sending…' : 'Test'}
                         </button>
                         <button className="ws-btn ws-btn--sm" onClick={() => openEdit(wh)} title="Edit"><Edit3 size={13} /></button>
@@ -416,7 +416,7 @@ export default function WebhookSettingsPage() {
             <div className="ws-modal-footer">
               <button type="button" className="ws-btn ws-btn--ghost" onClick={() => setShowForm(false)}>Cancel</button>
               <button type="submit" className="ws-btn ws-btn--primary" disabled={saving}>
-                {saving ? <><RefreshCw size={13} className="spin" /> Saving…</> : editingId ? 'Update Webhook' : 'Create Webhook'}
+                {saving ? <><span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 13 }} aria-hidden="true" /> Saving…</> : editingId ? 'Update Webhook' : 'Create Webhook'}
               </button>
             </div>
           </form>

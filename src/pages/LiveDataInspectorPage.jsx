@@ -1,11 +1,16 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Table, Tag, Typography, Space, Spin, Button, Checkbox, Input, Empty, Select, message, Divider } from 'antd';
-import { ReloadOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, TableOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Table, Tag, Typography, Space, Spin, Button, Checkbox, Input, Empty, Select, message, Divider, Collapse } from 'antd';
+import { ReloadOutlined, DownloadOutlined, SearchOutlined, ThunderboltOutlined, TableOutlined, BulbOutlined, TagsOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 
 const { Text } = Typography;
 const API_BASE = import.meta.env?.VITE_API_URL || '/api';
+
+const authHeaders = (extra) => {
+  const token = localStorage.getItem('authToken');
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
+};
 
 export default function LiveDataInspectorPage() {
   const [metrics, setMetrics] = useState([]);
@@ -14,9 +19,10 @@ export default function LiveDataInspectorPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastFetch, setLastFetch] = useState(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/live-data/metrics`).then(r => r.json()).then(r => {
+    fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json()).then(r => {
       if (r.success) { setMetrics(r.data); setSelectedMetrics(r.data.map(m => m.key)); }
     }).catch(() => {});
   }, []);
@@ -28,10 +34,10 @@ export default function LiveDataInspectorPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/live-data/fetch`, {
+      const res = await fetch(`${API_BASE}/live-data/v2/fetch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asins, metrics: selectedMetrics }),
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ asins, metrics: selectedMetrics, ai: aiEnabled }),
       }).then(r => r.json());
 
       if (res.success) {
@@ -60,14 +66,81 @@ export default function LiveDataInspectorPage() {
     { title: 'Seller', dataIndex: 'seller', key: 'seller', width: 160 },
     ...selectedMetrics.map(key => {
       const m = metrics.find(x => x.key === key);
+      const renderValue = (v) => {
+        if (v === null || v === undefined) return <Text type="secondary">-</Text>;
+        if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }} /></a>;
+        if (key === 'lqsGrade') {
+          const color = { A: '#059669', B: '#2563eb', C: '#d97706', D: '#dc2626' }[String(v)] || '#6b7280';
+          return <Tag color={color} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
+        }
+        if (key === 'mainImageBackground') {
+          const color = v === 'White' ? 'green' : v === 'Possibly non-white' ? 'orange' : v === 'Non-white' ? 'red' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        if (key === 'lqsSource') {
+          const color = v === 'AI' ? 'green' : v === 'AI + Rules' ? 'blue' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        if (key === 'imageCompliance') {
+          const color = String(v).startsWith('Pass') ? 'green' : 'orange';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        return <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text>;
+      };
       return {
         title: m?.label || key,
         dataIndex: key,
         key,
-        width: key === 'title' ? 200 : 100,
-        render: (v) => v !== null && v !== undefined ? <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
+        width: key === 'title' || key === 'lqsIssues' || key === 'titleCriteriaStatus' ? 220 : key === 'mainImage' ? 50 : 100,
+        render: renderValue,
       };
     }),
+    {
+      title: 'Optimization',
+      key: 'optimization',
+      width: 320,
+      fixed: 'right',
+      render: (_, record) => {
+        const optimization = record.optimization || null;
+        if (!optimization) return <Text type="secondary">No optimization data</Text>;
+        return (
+          <Collapse size="small" ghost>
+            <Collapse.Panel
+              header={<span style={{ fontSize: 11, fontWeight: 600 }}><BulbOutlined style={{ marginRight: 4 }} />{optimization.summary || 'Optimization insights'}</span>}
+              key="optimization"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Tag color={optimization.priority === 'high' ? 'red' : optimization.priority === 'medium' ? 'orange' : 'green'}>{String(optimization.priority || 'medium').toUpperCase()}</Tag>
+                {Array.isArray(optimization.recommendations) && optimization.recommendations.length > 0 && (
+                  <div>
+                    {optimization.recommendations.slice(0, 3).map((item, idx) => (
+                      <div key={`${record.asin}-${idx}`} style={{ padding: '6px 8px', borderRadius: 6, background: '#f8fafc', marginBottom: 6 }}>
+                        <div style={{ fontWeight: 700, fontSize: 11, textTransform: 'capitalize' }}>{item.area}</div>
+                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{item.remarks?.[0] || item.suggestedUpdate || 'Improve alignment with current search intent.'}</div>
+                        {item.seoFocus?.length > 0 && (
+                          <div style={{ marginTop: 4 }}>
+                            <TagsOutlined style={{ marginRight: 4, color: '#94a3b8' }} />
+                            {item.seoFocus.slice(0, 3).map((term, termIdx) => <Tag key={`${record.asin}-${idx}-${termIdx}`} style={{ fontSize: 10, marginTop: 4 }}>{term}</Tag>)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {Array.isArray(optimization.keywords) && optimization.keywords.length > 0 && (
+                  <div>
+                    <Text style={{ fontSize: 10, fontWeight: 600 }}>Keywords</Text>
+                    <div style={{ marginTop: 4 }}>
+                      {optimization.keywords.slice(0, 4).map((kw, idx) => <Tag key={`${record.asin}-kw-${idx}`} style={{ fontSize: 10, marginTop: 4 }}>{kw.term}</Tag>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Collapse.Panel>
+          </Collapse>
+        );
+      },
+    },
   ];
 
   return (
@@ -103,6 +176,14 @@ export default function LiveDataInspectorPage() {
               <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
                 {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
               </Text>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+              <Checkbox checked={aiEnabled} onChange={e => setAiEnabled(e.target.checked)} style={{ marginTop: 1 }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>AI Analysis
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', fontWeight: 400 }}>LQS scored by NVIDIA AI against Amazon criteria + vision check of the main image (slower; falls back to rules on error)</Text>
+                </Text>
+              </Checkbox>
             </div>
 
             <Button type="primary" block onClick={handleFetch} loading={loading} icon={<ThunderboltOutlined />}

@@ -31,6 +31,11 @@ module.exports = {
       env: {
         NODE_ENV: isProduction ? 'production' : 'development',
         PORT: 3001,
+        // Cap SQL pool per worker — with N cluster workers the previous
+        // default (200/worker) could reach N×200 connections to the remote
+        // SQL Server, causing connection saturation + worker memory spikes.
+        DB_POOL_MAX: 40,
+        DB_POOL_MIN: 5,
       },
 
       // Restart policies
@@ -53,6 +58,7 @@ module.exports = {
       listen_timeout: 10000,
       wait_ready: false,
 
+      // Auto-restart on crash
       autorestart: true,
     },
   ],

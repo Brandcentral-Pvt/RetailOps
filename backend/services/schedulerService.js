@@ -297,8 +297,14 @@ class SchedulerService {
                         }
                         return { seller, success: true, status: normalized };
                     } catch (err) {
-                        logger.error(`❌ [RECOVERY] Failed to check task for seller ${seller.Name}:`, err.message);
-                        return { seller, success: false, error: err.message };
+                        logger.error(`❌ [RECOVERY] Failed to check task for seller ${seller.Name}:`, {
+                            message: err?.message,
+                            stack: err?.stack,
+                            code: err?.code,
+                            response: err?.response?.data,
+                            raw: String(err)
+                        });
+                        return { seller, success: false, error: err?.message || String(err) };
                     }
                 }));
                 
