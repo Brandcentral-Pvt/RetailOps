@@ -23,9 +23,36 @@ jobs:
           fetch-depth: 1
 
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::SSH_PRIVATE_KEY secret is empty or missing"
+            exit 1
+          fi
+
+          # Normalize the stored key: strip CR characters (Windows copy/paste
+          # contamination) and guarantee a trailing newline so ssh-add/libcrypto
+          # can parse it. Fixes: 'Error loading key "(stdin)": error in libcrypto'
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Fail fast with a clear message if the key still cannot be parsed
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
+            echo "::error::SSH_PRIVATE_KEY is not a valid OpenSSH private key even after normalization. Re-save the secret: full key including -----BEGIN/END----- lines, LF newlines, trailing newline."
+            exit 1
+          fi
+          echo "🔑 Key loaded, fingerprint: $(ssh-keygen -lf ~/.ssh/deploy_key)"
+
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+          # Persist agent env for subsequent steps
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
 
       - name: Deploy to VPS
         env:
@@ -67,11 +94,17 @@ jobs:
           DEPLOY
 
       - name: Health check
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          echo "⏳ Waiting for server..."
+          case "$HOST" in
+            http://*|https://*) URL="$HOST" ;;
+            *) URL="http://$HOST" ;;
+          esac
+          echo "⏳ Waiting for server at $URL ..."
           for i in 1 2 3 4 5; do
             sleep 5
-            if curl -sf --max-time 10 ${{ secrets.DEPLOY_HOST }}/api/health 2>/dev/null; then
+            if curl -sf --max-time 10 "$URL/api/health" 2>/dev/null; then
               echo "✅ Health check passed"
               exit 0
             fi
