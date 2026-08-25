@@ -48,6 +48,24 @@ class TrustedDeviceService {
     await pool.request().input('userId', sql.NVarChar, userId).query(`UPDATE TrustedDevices SET IsRevoked = 1 WHERE UserId = @userId AND IsRevoked = 0`);
   }
 
+  /**
+   * Revoke a single trusted device by Id, scoped to its owner.
+   * SECURITY (RB4): the userId predicate is mandatory — a user can never
+   * revoke another user's device by guessing device ids. Parameterized
+   * UPDATE (soft revoke, mirrors revokeAll); rows are kept for audit.
+   * @returns {Promise<boolean>} true when exactly one live row was revoked.
+   */
+  async revoke(userId, deviceId) {
+    const id = parseInt(deviceId, 10);
+    if (!userId || !Number.isInteger(id)) return false;
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('userId', sql.NVarChar, userId)
+      .query(`UPDATE TrustedDevices SET IsRevoked = 1 WHERE Id = @id AND UserId = @userId AND IsRevoked = 0`);
+    return Array.isArray(result.rowsAffected) ? result.rowsAffected[0] > 0 : false;
+  }
+
   async getUserDevices(userId) {
     const pool = await getPool();
     const result = await pool.request().input('userId', sql.NVarChar, userId).query(`SELECT Id, DeviceName, IpAddress, LastUsedAt, ExpiresAt FROM TrustedDevices WHERE UserId = @userId AND IsRevoked = 0 AND ExpiresAt > GETDATE() ORDER BY LastUsedAt DESC`);

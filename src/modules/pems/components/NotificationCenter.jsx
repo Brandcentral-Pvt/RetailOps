@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge, Button, Typography, Space, Divider, Tooltip, Empty, Spin } from 'antd';
 import {
   BellOutlined, CheckCircleOutlined, ClockCircleOutlined, WarningOutlined,
   ThunderboltOutlined, EyeOutlined, CloseCircleOutlined, CheckOutlined
 } from '@ant-design/icons';
 import pemsApi from '../services/pemsApi';
+import { useAuth } from '../../../contexts/AuthContext';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -28,25 +29,18 @@ export default function NotificationCenter() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
 
-  useEffect(() => {
-    // Get current user ID from auth context
-    try {
-      const stored = localStorage.getItem('authToken');
-      if (stored) {
-        // Decode JWT to get user ID
-        const payload = JSON.parse(atob(stored.split('.')[1]));
-        setCurrentUserId(payload.id || payload.userId);
-      }
-    } catch {}
-  }, []);
+  // SECURITY (audit #10): identity comes from AuthContext — never hand-decode
+  // the JWT payload client-side (atob on the token segment).
+  const { user } = useAuth();
+  const currentUserId = user?.Id || user?._id || user?.id || null;
 
+  // NOTE: no userId query param is sent — server-side scoping by token identity
+  // is authoritative (backend notificationController.getNotifications reads
+  // req.user.Id; a client-supplied userId is ignored and must not be trusted).
   const loadNotifications = async () => {
-    if (!currentUserId) return;
-    setLoading(true);
     try {
-      const res = await pemsApi.getNotifications({ userId: currentUserId });
+      const res = await pemsApi.getNotifications({});
       if (res.success) {
         setNotifications(res.data || []);
         setUnreadCount(res.unreadCount || 0);
@@ -55,16 +49,23 @@ export default function NotificationCenter() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    if (open) loadNotifications();
-  }, [open, currentUserId]);
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    // Loading state is flipped in this event handler (not in an effect) and
+    // every fetch is awaited before further setState calls.
+    if (next && currentUserId) {
+      setLoading(true);
+      loadNotifications();
+    }
+  };
 
   // Poll for new notifications every 30s
   useEffect(() => {
     if (!currentUserId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await pemsApi.getNotifications({ userId: currentUserId, unreadOnly: 'true' });
+        const res = await pemsApi.getNotifications({ unreadOnly: 'true' });
         if (res.success) setUnreadCount(res.unreadCount || 0);
       } catch {}
     }, 30000);
@@ -94,7 +95,7 @@ export default function NotificationCenter() {
           <Button
             type="text"
             icon={<BellOutlined />}
-            onClick={() => setOpen(!open)}
+            onClick={toggleOpen}
             style={{ fontSize: 'var(--font-size-lg)', color: unreadCount > 0 ? '#2563eb' : '#64748b' }}
           />
         </Badge>

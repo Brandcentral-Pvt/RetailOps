@@ -23,7 +23,9 @@ exports.authenticate = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Token revoked' });
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret);
+    // SECURITY (RB1): algorithm pinning — tokens are signed HS256; refusing
+    // other algos prevents algorithm-confusion attacks (e.g. 'none'/RS256).
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
 
     // SECURITY: token-type pinning — only access tokens may authenticate API
     // requests. Prevents refresh/temp tokens from being replayed as session

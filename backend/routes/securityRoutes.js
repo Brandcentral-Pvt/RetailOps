@@ -72,7 +72,12 @@ router.delete('/trusted-devices/all', authenticate, async (req, res) => {
 
 router.delete('/trusted-devices/:deviceId', authenticate, async (req, res) => {
   try {
-    await trustedDeviceService.revoke(req.user.Id || req.user._id, parseInt(req.params.deviceId));
+    // SECURITY (RB4): revoke is scoped to req.user server-side; unknown or
+    // already-revoked devices return 404 instead of a silent success.
+    const revoked = await trustedDeviceService.revoke(req.user.Id || req.user._id, req.params.deviceId);
+    if (!revoked) {
+      return res.status(404).json({ success: false, message: 'Device not found' });
+    }
     res.json({ success: true, message: 'Device revoked' });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });

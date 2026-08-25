@@ -26,7 +26,14 @@ function getPasswordStrength(pw) {
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('token');
+
+  // Contract C: the backend emails `<frontend>/reset-password#token=X`.
+  // Parse the hash fragment FIRST (#token=...), then fall back to ?token=
+  // search params for legacy links still in circulation. The token is never
+  // logged client-side.
+  const rawHash = window.location.hash.replace(/^#/, '');
+  const hashParams = new URLSearchParams(rawHash);
+  const token = hashParams.get('token') || searchParams.get('token');
 
   const [loading, setLoading] = useState(true);
   const [valid, setValid] = useState(false);
