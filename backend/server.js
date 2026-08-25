@@ -394,6 +394,25 @@ app.set('io', io);
 
 const onlineUsers = new Map();
 
+const tokenBlacklist = require('./services/tokenBlacklistService');
+const { isGlobalUserRole } = require('./utils/roleUtils');
+
+// True if userId is a participant of conversationId (SQL-backed).
+async function isConversationParticipant(conversationId, userId) {
+  if (!conversationId || !userId) return false;
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('convId', sql.VarChar, conversationId)
+      .input('userId', sql.VarChar, userId)
+      .query(`SELECT 1 FROM ConversationParticipants WHERE ConversationId = @convId AND UserId = @userId`);
+    return result.recordset.length > 0;
+  } catch (err) {
+    logger.error('Conversation participant check failed', { error: err.message, conversationId });
+    return false;
+  }
+}
+
 io.on('connection', async (socket) => {
   // Validate JWT token from handshake
   const token = socket.handshake.auth?.token;
@@ -401,7 +420,7 @@ io.on('connection', async (socket) => {
     socket.disconnect(true);
     return;
   }
-  
+
   let decoded;
   try {
     const jwt = require('jsonwebtoken');
@@ -415,14 +434,60 @@ io.on('connection', async (socket) => {
     socket.disconnect(true);
     return;
   }
-  
+
+  // SECURITY: only access tokens may open a socket session (never refresh/temp tokens)
+  if (decoded.type !== 'access') {
+    logger.warn('Socket handshake rejected: non-access token type', { userId: decoded.userId });
+    socket.disconnect(true);
+    return;
+  }
+
+  // SECURITY: honor revoked tokens and invalidated sessions
+  if (await tokenBlacklist.isBlacklisted(token)) {
+    logger.warn('Socket handshake rejected: blacklisted token', { userId: decoded.userId });
+    socket.disconnect(true);
+    return;
+  }
+  if (await tokenBlacklist.isUserBlacklisted(decoded.userId, decoded.iat)) {
+    logger.warn('Socket handshake rejected: user session invalidated', { userId: decoded.userId });
+    socket.disconnect(true);
+    return;
+  }
+
   const userId = decoded.userId;
   if (!userId) {
     socket.disconnect(true);
     return;
   }
 
+  // SECURITY: load user fresh from DB — reject unknown/deactivated accounts
+  // explicitly instead of letting the IsOnline UPDATE silently affect 0 rows.
+  let authUser = null;
+  try {
+    const authPool = await getPool();
+    const authResult = await authPool.request()
+      .input('id', sql.VarChar, userId)
+      .query(`
+        SELECT U.Id, U.IsActive, U.RoleId, R.Name AS RoleName
+        FROM Users U
+        LEFT JOIN Roles R ON U.RoleId = R.Id
+        WHERE U.Id = @id
+      `);
+    authUser = authResult.recordset[0];
+  } catch (err) {
+    logger.error('Socket handshake DB check failed', { error: err.message, userId });
+    socket.disconnect(true);
+    return;
+  }
+
+  if (!authUser || !authUser.IsActive) {
+    logger.warn('Socket handshake rejected: unknown or deactivated user', { userId });
+    socket.disconnect(true);
+    return;
+  }
+
   socket.userId = userId;
+  socket.userRoleName = authUser.RoleName || null;
   onlineUsers.set(userId, socket.id);
 
   // Update user status in DB using SQL
@@ -446,16 +511,133 @@ io.on('connection', async (socket) => {
 
   io.emit('user_status_change', { userId, status: 'online' });
 
-  socket.on('join_room', (roomId) => {
-    if (typeof roomId === 'string') {
-      socket.join(roomId);
-      logger.debug(`Socket ${socket.id} joined room: ${roomId}`);
+  // SECURITY: whitelist rooms — only own personal room or assigned-seller
+  // rooms. Never allow joining arbitrary conversation/user rooms.
+  socket.on('join_room', async (roomId) => {
+    try {
+      if (typeof roomId !== 'string' || !roomId) return;
+
+      // Own personal room (both naming conventions used in this codebase).
+      if (roomId === socket.userId || roomId === `user:${socket.userId}`) {
+        socket.join(roomId);
+        logger.debug(`Socket ${socket.id} joined room: ${roomId}`);
+        return;
+      }
+
+      // Seller rooms — require seller assignment or a global-bypass role.
+      if (roomId.startsWith('seller:')) {
+        const sellerId = roomId.slice('seller:'.length);
+        if (!sellerId) {
+          socket.emit('error', { code: 'FORBIDDEN', message: 'Room not allowed' });
+          logger.warn('Socket join_room denied: empty seller id', { userId: socket.userId });
+          return;
+        }
+
+        let allowed = isGlobalUserRole(socket.userRoleName);
+        if (!allowed) {
+          const pool = await getPool();
+          const res = await pool.request()
+            .input('userId', sql.VarChar, socket.userId)
+            .input('sellerId', sql.VarChar, sellerId)
+            .query('SELECT 1 FROM UserSellers WHERE UserId = @userId AND SellerId = @sellerId');
+          allowed = res.recordset.length > 0;
+        }
+
+        if (!allowed) {
+          socket.emit('error', { code: 'FORBIDDEN', message: 'Room not allowed' });
+          logger.warn('Socket join_room denied: no seller access', { userId: socket.userId, sellerId });
+          return;
+        }
+
+        socket.join(roomId);
+        logger.debug(`Socket ${socket.id} joined room: ${roomId}`);
+        return;
+      }
+
+      socket.emit('error', { code: 'FORBIDDEN', message: 'Room not allowed' });
+      logger.warn('Socket join_room denied: non-whitelisted room', { userId: socket.userId, roomId });
+    } catch (err) {
+      logger.error('Socket join_room error', { error: err.message, userId: socket.userId });
     }
   });
 
-  socket.on('update_role_permissions', async ({ roleId, permissions }) => {
+  // SECURITY: server-side RBAC gate. Mirrors requirePermission's admin bypass
+  // (middleware/auth.js): role 'admin'/'super_admin' OR explicit 'roles_manage'
+  // permission loaded FRESH from SQL for socket.userId (client identity never trusted).
+  const PROTECTED_ROLE_NAMES = ['admin', 'super_admin'];
+  socket.on('update_role_permissions', async ({ roleId, permissions } = {}) => {
     try {
+      if (typeof roleId !== 'string' || !roleId) return;
+      if (permissions !== undefined && !Array.isArray(permissions)) return;
+
       const pool = await getPool();
+
+      // Load requester's role + permissions fresh from SQL.
+      const requesterResult = await pool.request()
+        .input('id', sql.VarChar, socket.userId)
+        .query(`
+          SELECT U.Id, U.RoleId, R.Name AS RoleName, R.IsSystem AS RoleIsSystem
+          FROM Users U
+          LEFT JOIN Roles R ON U.RoleId = R.Id
+          WHERE U.Id = @id
+        `);
+      const requester = requesterResult.recordset[0];
+
+      if (!requester || !requester.RoleId) {
+        socket.emit('error', { code: 'FORBIDDEN', message: 'Not authorized to modify role permissions' });
+        logger.warn('[SOCKET] update_role_permissions denied: requester has no resolvable role', { userId: socket.userId, roleId });
+        return;
+      }
+
+      let canManageRoles = requester.RoleName === 'admin'
+        || requester.RoleName === 'super_admin';
+
+      if (!canManageRoles && requester.RoleName) {
+        const permResult = await pool.request()
+          .input('roleId', sql.VarChar, requester.RoleId)
+          .input('permName', sql.VarChar, 'roles_manage')
+          .query(`
+            SELECT 1 FROM Permissions P
+            JOIN RolePermissions RP ON P.Id = RP.PermissionId
+            WHERE RP.RoleId = @roleId AND P.Name = @permName
+          `);
+        canManageRoles = permResult.recordset.length > 0;
+      }
+
+      if (!canManageRoles) {
+        socket.emit('error', { code: 'FORBIDDEN', message: 'Not authorized to modify role permissions' });
+        logger.warn('[SOCKET] update_role_permissions denied: missing roles_manage/admin', { userId: socket.userId, roleId });
+        return;
+      }
+
+      // Resolve target role.
+      const roleResult = await pool.request()
+        .input('roleId', sql.VarChar, roleId)
+        .query('SELECT * FROM Roles WHERE Id = @roleId');
+
+      if (roleResult.recordset.length === 0) {
+        socket.emit('error', { code: 'NOT_FOUND', message: 'Role not found' });
+        logger.warn('[SOCKET] update_role_permissions denied: unknown role', { userId: socket.userId, roleId });
+        return;
+      }
+
+      const targetRole = roleResult.recordset[0];
+      const targetIsSystem = targetRole.IsSystem === 1 || targetRole.IsSystem === true
+        || PROTECTED_ROLE_NAMES.includes(String(targetRole.Name || '').toLowerCase());
+
+      // Block protected/system roles on the socket path entirely; block
+      // privilege escalation into the requester's OWN role otherwise.
+      if (targetIsSystem || String(requester.RoleId) === String(roleId)) {
+        socket.emit('error', { code: 'FORBIDDEN', message: 'This role cannot be modified here' });
+        logger.warn('[SOCKET] update_role_permissions denied: protected or self role', {
+          userId: socket.userId,
+          roleId,
+          roleName: targetRole.Name,
+          isSystem: targetIsSystem,
+          isSelfRole: String(requester.RoleId) === String(roleId),
+        });
+        return;
+      }
 
       await pool.request()
         .input('roleId', sql.VarChar, roleId)
@@ -469,10 +651,6 @@ io.on('connection', async (socket) => {
             .query('INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@roleId, @permId)');
         }
       }
-
-      const roleResult = await pool.request()
-        .input('roleId', sql.VarChar, roleId)
-        .query('SELECT * FROM Roles WHERE Id = @roleId');
 
       if (roleResult.recordset.length > 0) {
         const role = roleResult.recordset[0];
@@ -510,16 +688,30 @@ io.on('connection', async (socket) => {
     }
   });
 
-  socket.on('typing', ({ conversationId, senderId, isTyping }) => {
-    socket.to(conversationId).emit('typing', { conversationId, senderId, isTyping });
+  // SECURITY: identity is always socket.userId; relay requires conversation
+  // membership (same participant check as send_message).
+  socket.on('typing', async ({ conversationId, isTyping } = {}) => {
+    try {
+      if (typeof conversationId !== 'string' || !conversationId) return;
+      if (!(await isConversationParticipant(conversationId, socket.userId))) {
+        logger.warn('Socket typing denied: not a conversation participant', { userId: socket.userId, conversationId });
+        return;
+      }
+      socket.to(conversationId).emit('typing', { conversationId, senderId: socket.userId, isTyping });
+    } catch (err) {
+      logger.error('Socket typing error', { error: err.message, userId: socket.userId });
+    }
   });
 
   socket.on('send_message', async (data) => {
     try {
-      const { conversationId, senderId, content, type, fileUrl, replyTo } = data;
+      const { conversationId, content, type, fileUrl, replyTo } = data;
+      // SECURITY: sender identity comes from the authenticated socket only —
+      // never from the client-supplied payload.
+      const senderId = socket.userId;
       const pool = await getPool();
 
-      // Check participant
+      // Check participant (validates socket.userId's membership)
       const partCheck = await pool.request()
         .input('convId', sql.VarChar, conversationId)
         .input('userId', sql.VarChar, senderId)
@@ -565,14 +757,22 @@ io.on('connection', async (socket) => {
     }
   });
 
-  socket.on('add_reaction', async ({ messageId, emoji, userId }) => {
+  socket.on('add_reaction', async ({ messageId, emoji } = {}) => {
     try {
+      if (!messageId || typeof messageId !== 'string') return;
       const pool = await getPool();
-      const { sql } = require('./database/db');
+
+      // SECURITY: reactor identity is socket.userId; verify the message exists
+      // and that this user belongs to the message's conversation first.
+      const convId = await conversationIdFromMessage(messageId);
+      if (!convId || !(await isConversationParticipant(convId, socket.userId))) {
+        logger.warn('Socket add_reaction denied: not a conversation participant', { userId: socket.userId, messageId });
+        return;
+      }
 
       await pool.request()
         .input('msgId', sql.VarChar, messageId)
-        .input('uid', sql.VarChar, userId)
+        .input('uid', sql.VarChar, socket.userId)
         .input('emoji', sql.NVarChar, emoji)
         .query(`
           IF NOT EXISTS (
@@ -588,24 +788,31 @@ io.on('connection', async (socket) => {
         .input('msgId', sql.VarChar, messageId)
         .query(`SELECT Emoji, COUNT(*) as count FROM MessageReactions WHERE MessageId = @msgId GROUP BY Emoji`);
 
-      const convId = await conversationIdFromMessage(messageId);
-      if (convId) {
-        io.to(convId).emit('message_reaction_updated', {
-          messageId,
-          reactions: reactionsResult.recordset
-        });
-      }
+      io.to(convId).emit('message_reaction_updated', {
+        messageId,
+        reactions: reactionsResult.recordset
+      });
     } catch (err) {
-      logger.error('Socket add_reaction error', { error: err.message });
+      logger.error('Socket add_reaction error', { error: err.message, userId: socket.userId });
     }
   });
 
-  socket.on('message_read', async ({ messageId, userId }) => {
+  socket.on('message_read', async ({ messageId } = {}) => {
     try {
+      if (!messageId || typeof messageId !== 'string') return;
+
+      // SECURITY: reader identity is socket.userId; require conversation
+      // membership before recording read state.
+      const convId = await conversationIdFromMessage(messageId);
+      if (!convId || !(await isConversationParticipant(convId, socket.userId))) {
+        logger.warn('Socket message_read denied: not a conversation participant', { userId: socket.userId, messageId });
+        return;
+      }
+
       const pool = await getPool();
       await pool.request()
         .input('msgId', sql.VarChar, messageId)
-        .input('userId', sql.VarChar, userId)
+        .input('userId', sql.VarChar, socket.userId)
         .query(`
           IF NOT EXISTS (
             SELECT 1 FROM MessageStatus WHERE MessageId = @msgId AND UserId = @userId
@@ -616,14 +823,35 @@ io.on('connection', async (socket) => {
           END
         `);
     } catch (err) {
-      logger.error('Socket message_read error', { error: err.message });
+      logger.error('Socket message_read error', { error: err.message, userId: socket.userId });
     }
   });
 
-  socket.on('invite_to_call', async ({ conversationId, callerId, type, receiverId }) => {
+  socket.on('invite_to_call', async ({ conversationId, type, receiverId } = {}) => {
     try {
+      if (typeof conversationId !== 'string' || !conversationId) return;
+      if (!receiverId || typeof receiverId !== 'string') return;
+
+      // SECURITY: caller identity is socket.userId — client value ignored.
+      const callerId = socket.userId;
       const pool = await getPool();
-      const { sql, generateId } = require('./database/db');
+
+      // Validate the call target exists and is active.
+      const targetCheck = await pool.request()
+        .input('receiverId', sql.VarChar, receiverId)
+        .query(`SELECT 1 FROM Users WHERE Id = @receiverId AND IsActive = 1`);
+      if (targetCheck.recordset.length === 0) {
+        logger.warn('Socket invite_to_call denied: unknown or inactive target', { userId: callerId, receiverId });
+        return;
+      }
+
+      // Caller must belong to the conversation they are calling from.
+      if (!(await isConversationParticipant(conversationId, callerId))) {
+        logger.warn('Socket invite_to_call denied: not a conversation participant', { userId: callerId, conversationId });
+        return;
+      }
+
+      const { generateId } = require('./database/db');
       const callId = generateId();
 
       await pool.request()
@@ -641,13 +869,27 @@ io.on('connection', async (socket) => {
       io.to(receiverId).emit('incoming_call', { callId, conversationId, callerId, type, status: 'INITIATED' });
       socket.emit('call_initiated', { callId, conversationId, callerId, type, status: 'INITIATED' });
     } catch (err) {
-      logger.error('Socket invite_to_call error', { error: err.message });
+      logger.error('Socket invite_to_call error', { error: err.message, userId: socket.userId });
     }
   });
 
-  socket.on('accept_call', async ({ callId }) => {
+  socket.on('accept_call', async ({ callId } = {}) => {
     try {
+      if (!callId || typeof callId !== 'string') return;
       const pool = await getPool();
+
+      // SECURITY: only the callee this call was invited to may accept it.
+      const ownerCheck = await pool.request()
+        .input('callId', sql.VarChar, callId)
+        .input('userId', sql.VarChar, socket.userId)
+        .query(`SELECT 1 FROM CallLogs WHERE Id = @callId AND ReceiverId = @userId AND Status = 'INITIATED'`);
+
+      if (ownerCheck.recordset.length === 0) {
+        socket.emit('error', { code: 'FORBIDDEN', message: 'Call cannot be accepted by this user' });
+        logger.warn('Socket accept_call denied: user is not the invited callee', { userId: socket.userId, callId });
+        return;
+      }
+
       await pool.request()
         .input('callId', sql.VarChar, callId)
         .query(`UPDATE CallLogs SET Status = 'ONGOING', StartedAt = dbo.GetEnvDate() WHERE Id = @callId AND Status = 'INITIATED'`);
@@ -668,31 +910,42 @@ io.on('connection', async (socket) => {
         io.to(call.ReceiverId).emit('call_accepted', call);
       }
     } catch (err) {
-      logger.error('Socket accept_call error', { error: err.message });
+      logger.error('Socket accept_call error', { error: err.message, userId: socket.userId });
     }
   });
 
-  socket.on('reject_call', async ({ callId }) => {
+  socket.on('reject_call', async ({ callId } = {}) => {
     try {
+      if (!callId || typeof callId !== 'string') return;
       const pool = await getPool();
+
+      // SECURITY: only a call participant (callee rejecting an initiated
+      // call) may reject it.
+      const callInfo = await pool.request()
+        .input('callId', sql.VarChar, callId)
+        .query(`SELECT CallerId, ReceiverId FROM CallLogs WHERE Id = @callId AND Status = 'INITIATED'`);
+
+      const callRow = callInfo.recordset[0];
+      if (!callRow) return;
+
+      if (socket.userId !== callRow.ReceiverId && socket.userId !== callRow.CallerId) {
+        logger.warn('Socket reject_call denied: user is not a call participant', { userId: socket.userId, callId });
+        return;
+      }
+
       await pool.request()
         .input('callId', sql.VarChar, callId)
         .query(`UPDATE CallLogs SET Status = 'REJECTED' WHERE Id = @callId AND Status = 'INITIATED'`);
 
-      const callResult = await pool.request()
-        .input('callId', sql.VarChar, callId)
-        .query(`SELECT CallerId FROM CallLogs WHERE Id = @callId`);
-
-      if (callResult.recordset.length > 0) {
-        io.to(callResult.recordset[0].CallerId).emit('call_rejected', { callId });
-      }
+      io.to(callRow.CallerId).emit('call_rejected', { callId });
     } catch (err) {
-      logger.error('Socket reject_call error', { error: err.message });
+      logger.error('Socket reject_call error', { error: err.message, userId: socket.userId });
     }
   });
 
-  socket.on('end_call', async ({ callId }) => {
+  socket.on('end_call', async ({ callId } = {}) => {
     try {
+      if (!callId || typeof callId !== 'string') return;
       const pool = await getPool();
       const callResult = await pool.request()
         .input('callId', sql.VarChar, callId)
@@ -701,6 +954,13 @@ io.on('connection', async (socket) => {
       if (callResult.recordset.length === 0) return;
 
       const call = callResult.recordset[0];
+
+      // SECURITY: only a participant of the ongoing call may end it.
+      if (socket.userId !== call.CallerId && socket.userId !== call.ReceiverId) {
+        logger.warn('Socket end_call denied: user is not a call participant', { userId: socket.userId, callId });
+        return;
+      }
+
       const endedAt = new Date();
       const duration = call.StartedAt ? Math.floor((endedAt - new Date(call.StartedAt)) / 1000) : 0;
 

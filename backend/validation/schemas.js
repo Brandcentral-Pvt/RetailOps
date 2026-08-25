@@ -41,6 +41,13 @@ const schemas = {
     password: Joi.string().max(128).required(),
   }),
 
+  // SECURITY: request-otp now requires credentials (2FA bypass fix) —
+  // mirrors the login schema.
+  requestOtp: Joi.object({
+    email: emailField,
+    password: Joi.string().max(128).required(),
+  }),
+
   register: Joi.object({
     email: emailField,
     password: passwordField,

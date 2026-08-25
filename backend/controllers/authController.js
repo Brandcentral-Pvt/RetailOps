@@ -49,32 +49,104 @@ exports.register = async (req, res) => {
 
 exports.requestOtp = async (req, res) => {
   try {
-    const { email } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
+    const { email, password } = req.body;
+    const pool = await getPool();
+    const clientIp = req._authMetadata?.clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    // SECURITY: uniform response for all "valid credentials but restricted
+    // account" outcomes — identical shape so the endpoint cannot be used to
+    // enumerate accounts. Discriminating details are logged server-side only.
+    const genericSuccess = (reason) => {
+      console.warn(`[REQUEST_OTP] Blocked OTP request (${reason}). Email: ${email} | IP: ${clientIp}`);
+      return res.json({ success: true, requiresOtp: true });
+    };
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: GENERIC_BLOCK });
     }
 
-    const pool = await getPool();
     const result = await pool.request()
       .input('email', sql.VarChar, email.toLowerCase().trim())
       .query('SELECT * FROM Users WHERE Email = @email');
 
     const user = result.recordset[0];
 
+    // SECURITY: unknown email is indistinguishable from a wrong password —
+    // same 401 GENERIC_BLOCK shape as login, and it counts as a failed
+    // attempt so lockout applies.
     if (!user) {
-      return res.status(404).json({ success: false, message: 'No account found with this email' });
+      console.warn(`[REQUEST_OTP] Account not found. Email: ${email} | IP: ${clientIp}`);
+      await recordFailedAttempt(email, clientIp);
+      await SystemLogService.log({
+        type: 'AUTH_FAILURE', entityType: 'USER', entityTitle: email,
+        description: `Failed OTP request: User not found (${email})`,
+        metadata: { ip: clientIp, email }
+      });
+      return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
 
+    if (user.LockUntil && new Date(user.LockUntil) > new Date()) {
+      await SystemLogService.log({
+        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
+        entityTitle: email, user: user.Id,
+        description: `Locked account OTP request: ${email}`,
+        metadata: { ip: clientIp }
+      });
+      return res.status(423).json({ success: false, message: GENERIC_BLOCK });
+    }
+
+    // SECURITY: verify the password EXACTLY as login does before minting any
+    // session token. Previously this endpoint only checked email existence,
+    // allowing full 2FA bypass.
+    const isMatch = await bcrypt.compare(password, user.Password);
+    if (!isMatch) {
+      const attempts = (user.LoginAttempts || 0) + 1;
+      let lockUntil = null;
+      if (attempts >= 5) lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+
+      await pool.request()
+        .input('id', sql.VarChar, user.Id)
+        .input('attempts', sql.Int, attempts)
+        .input('lockUntil', sql.DateTime, lockUntil)
+        .query('UPDATE Users SET LoginAttempts = @attempts, LockUntil = @lockUntil WHERE Id = @id');
+
+      console.warn(`[REQUEST_OTP] Password mismatch. Email: ${email} | IP: ${clientIp} | Attempt: ${attempts}`);
+
+      await SystemLogService.log({
+        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
+        entityTitle: email, user: user.Id,
+        description: `OTP request password mismatch. Attempt: ${attempts}`,
+        metadata: { ip: clientIp, attempts }
+      });
+
+      await recordFailedAttempt(email, clientIp);
+
+      return res.status(401).json({ success: false, message: GENERIC_BLOCK });
+    }
+
+    // Password verified — clear failure counters (same as login).
+    await recordSuccessfulLogin(email);
+    await pool.request()
+      .input('id', sql.VarChar, user.Id)
+      .query('UPDATE Users SET LoginAttempts = 0, LockUntil = NULL WHERE Id = @id');
+
+    // From here on, every rejection uses the uniform success response so no
+    // account state can be probed with valid credentials.
     if (!user.IsActive) {
-      return res.status(403).json({ success: false, message: 'Account is deactivated' });
+      await SystemLogService.log({
+        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
+        entityTitle: email, user: user.Id,
+        description: `OTP request blocked: deactivated account (${email})`,
+        metadata: { ip: clientIp }
+      });
+      return genericSuccess('deactivated');
     }
 
     // Check if user is associated with any active seller
     const sellerCheck = await pool.request()
       .input('userId', sql.VarChar, user.Id)
       .query(`
-        SELECT COUNT(*) as sellerCount 
+        SELECT COUNT(*) as sellerCount
         FROM UserSellers US
         JOIN Sellers S ON US.SellerId = S.Id
         WHERE US.UserId = @userId AND S.IsActive = 1
@@ -83,10 +155,13 @@ exports.requestOtp = async (req, res) => {
     const sellerCount = sellerCheck.recordset[0]?.sellerCount || 0;
 
     if (sellerCount === 0) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'No seller account associated with this email. Please contact your administrator.' 
+      await SystemLogService.log({
+        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
+        entityTitle: email, user: user.Id,
+        description: `OTP request blocked: no active seller associated (${email})`,
+        metadata: { ip: clientIp }
       });
+      return genericSuccess('no-seller');
     }
 
     // Generate temp token for OTP verification (must match verifyOtp's expected step)
@@ -98,14 +173,13 @@ exports.requestOtp = async (req, res) => {
 
     // Send OTP
     try {
-      const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
       const otpResult = await otpService.sendOtp(
         user.Id,
         user.Email,
         'LOGIN',
         { ipAddress: clientIp, userAgent: req.headers['user-agent'], source: req.headers['x-platform'] || 'web' }
       );
-      
+
       return res.json({
         success: true,
         requiresOtp: true,
@@ -297,7 +371,26 @@ exports.refreshToken = async (req, res) => {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(400).json({ success: false, message: 'Token required' });
 
-    const decoded = jwt.verify(refreshToken, config.jwt.secret);
+    // SECURITY: consult revocation list before verifying (mirrors authenticate).
+    if (await tokenBlacklist.isBlacklisted(refreshToken)) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+
+    // SECURITY: verify with the dedicated refresh secret (access-secret tokens
+    // must never refresh a session). Falls back to JWT_SECRET only when
+    // JWT_REFRESH_SECRET is unset (config/env.js).
+    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+
+    // SECURITY: token-type pinning — only refresh tokens may mint new pairs.
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+
+    // SECURITY: honor per-user invalidation cutoff.
+    if (await tokenBlacklist.isUserBlacklisted(decoded.userId, decoded.iat)) {
+      return res.status(401).json({ success: false, message: 'Session invalidated' });
+    }
+
     const pool = await getPool();
 
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT * FROM Users WHERE Id = @id');
