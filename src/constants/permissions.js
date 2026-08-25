@@ -5,11 +5,12 @@
  * Never use substring matching here: role names like 'supervisor' must NOT
  * escalate to admin just because they contain 'super'.
  *
- * NOTE: 'supert admin' is a real DB role carrying a typo — keep it literally
- * until the DB role is migrated.
- * TODO(security): migrate DB role name and drop from this whitelist.
+ * DEPLOY ORDERING: the legacy typo'd role ('supert admin') was renamed to
+ * 'super_admin' in the DB by backend/scripts/rename-legacy-admin-role.js —
+ * run that script when this bundle deploys (admins may need re-login in the
+ * transition window).
  */
-export const ADMIN_ROLES = ['admin', 'super_admin', 'supert admin'];
+export const ADMIN_ROLES = ['admin', 'super_admin'];
 
 export const PERMISSIONS = {
     // Target vs Achievement Permissions

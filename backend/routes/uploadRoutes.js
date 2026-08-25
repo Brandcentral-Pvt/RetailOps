@@ -3,12 +3,15 @@ const multer = require('multer');
 const router = express.Router();
 const uploadController = require('../controllers/uploadController');
 const { authenticate, requirePermission } = require('../middleware/auth');
+// SECURITY (F1 capability URLs): files land inside the PUBLICLY served
+// uploads/ root until post-processing deletes them, so names must be
+// unguessable — never derived from client-supplied originalname/timestamps.
+const { randomFileName } = require('../utils/safeUploadName');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads'),
   filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    cb(null, Date.now() + '-' + safeName);
+    cb(null, randomFileName(file.originalname, ['.csv', '.json', '.xlsx', '.xls']));
   }
 });
 

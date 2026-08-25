@@ -14,6 +14,16 @@ const ImageAnalyzer = require('../../utils/imageAnalyzer');
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/live-data');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+// SECURITY (F1): the job id doubles as the on-disk filename inside the
+// publicly served uploads/ tree (`<id>.json` holds scrape results). The old
+// timestamp+6-char-PRNG id was enumerable — use a 192-bit random token.
+const { randomToken, resolveIfInside } = require('../../utils/safeUploadName');
+function jobIdPath(jobId) {
+    // Containment guard: `jobId` arrives from req.params on progress/results/
+    // download/cancel routes and must never escape UPLOADS_DIR ('..' etc).
+    return resolveIfInside(UPLOADS_DIR, path.join(UPLOADS_DIR, `${jobId}.json`));
+}
+
 // Redis-backed job store (works across PM2 cluster workers)
 let redis = null;
 async function getRedis() {
@@ -65,8 +75,9 @@ async function loadJob(jobId) {
         const nfStr = await r.get(JOB_RESULTS_PREFIX + jobId + ':nf');
         return { ...meta, results: dataStr ? JSON.parse(dataStr) : [], notFoundList: nfStr ? JSON.parse(nfStr) : [] };
     } else {
-        const filePath = path.join(UPLOADS_DIR, jobId + '.json');
-        if (!fs.existsSync(filePath)) return null;
+        // SECURITY (F1): containment guard — jobId is request-controlled.
+        const filePath = jobIdPath(jobId);
+        if (!filePath || !fs.existsSync(filePath)) return null;
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         return { ...data.meta, results: data.results || [], notFoundList: data.notFoundList || [] };
     }
@@ -77,7 +88,10 @@ async function deleteJob(jobId) {
     if (r) {
         await r.del(JOB_PREFIX + jobId, JOB_RESULTS_PREFIX + jobId + ':data', JOB_RESULTS_PREFIX + jobId + ':nf');
     } else {
-        try { fs.unlinkSync(path.join(UPLOADS_DIR, jobId + '.json')); } catch { }
+        // SECURITY (F1): containment guard — jobId is request-controlled.
+        const filePath = jobIdPath(jobId);
+        if (!filePath) return;
+        try { fs.unlinkSync(filePath); } catch { }
     }
 }
 
@@ -765,7 +779,9 @@ exports.uploadAndProcess = async (req, res) => {
         if (asinList.length === 0) return res.status(400).json({ success: false, error: 'No valid ASINs found in file.' });
         if (asinList.length > CONFIG.maxUploadAsins) return res.status(400).json({ success: false, error: `Maximum ${CONFIG.maxUploadAsins} ASINs per upload` });
 
-        const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        // SECURITY (F1): capability id — unguessable, doubles as the on-disk
+        // filename for the Redis-fallback job store under /uploads/live-data.
+        const jobId = `job_${randomToken()}`;
         const job = {
             id: jobId, status: 'processing', totalAsins: asinList.length,
             processed: 0, found: 0, notFound: 0, failed: 0,

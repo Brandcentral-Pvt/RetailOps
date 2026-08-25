@@ -6,6 +6,7 @@ import { queryClient } from '../lib/queryClient';
 import { disconnectAll as disconnectRealtime } from '../services/realtimeService';
 import { disconnectActiveSocket } from './SocketContext';
 import { ADMIN_ROLES } from '../constants/permissions';
+import { setRefreshToken, clearRefreshToken } from '../lib/authMemory';
 
 const AuthContext = createContext(null);
 
@@ -229,6 +230,7 @@ export const AuthProvider = ({ children }) => {
                 sessionStorage.removeItem(key);
             } catch { /* storage may be unavailable */ }
         });
+        clearRefreshToken();
 
         // 3) CometChat teardown — best-effort, non-blocking.
         try {
@@ -305,7 +307,8 @@ export const AuthProvider = ({ children }) => {
 
             // Store tokens
             localStorage.setItem('authToken', accessToken);
-            if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+            // SECURITY: refresh token in memory only — httpOnly cookie carries it across reloads
+            if (refreshToken) setRefreshToken(refreshToken);
             localStorage.setItem('user', JSON.stringify(normalized));
             setUser(normalized);
 

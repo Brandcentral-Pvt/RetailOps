@@ -5,6 +5,11 @@ const path = require('path');
 const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
 const fileController = require('../controllers/fileController');
+// SECURITY (F1 capability URLs): files are served publicly under /uploads —
+// stored names must be unguessable. The old timestamp+weak-PRNG name is
+// replaced by a 192-bit random token; Files.OriginalName keeps the display
+// name in the DB (see fileController.uploadFiles).
+const { randomFileName } = require('../utils/safeUploadName');
 
 /* ── Per-user upload directory ────────────────────────────────────── */
 const storage = multer.diskStorage({
@@ -14,9 +19,7 @@ const storage = multer.diskStorage({
         cb(null, dir);
     },
     filename: (req, file, cb) => {
-        const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-        const ext = path.extname(file.originalname);
-        cb(null, `${unique}${ext}`);
+        cb(null, randomFileName(file.originalname));
     },
 });
 

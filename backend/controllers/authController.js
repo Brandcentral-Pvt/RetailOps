@@ -9,6 +9,10 @@ const tokenBlacklist = require('../services/tokenBlacklistService');
 const { recordFailedAttempt, recordSuccessfulLogin, GENERIC_BLOCK } = require('../middleware/loginRateLimiter');
 const { getClientIp } = require('../utils/clientIp');
 const PasswordPolicy = require('../utils/passwordPolicy');
+// F2 dual-mode refresh: JSON body tokens remain the primary contract (mobile);
+// an httpOnly `retailops_rt` cookie is set/cleared ADDITIVELY at every token
+// lifecycle point below. Cookie contents are never logged.
+const { setRefreshCookie, clearRefreshCookie } = require('../utils/refreshCookie');
 
 // SECURITY: rows come from SELECT * — strip credential material before any
 // user object is serialized to a client (getMe / login / verifyOtp /
@@ -374,6 +378,7 @@ exports.login = async (req, res) => {
         .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
       const resolvedUser = await getResolvedUserResponse(user, pool);
       await SystemLogService.log({ type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id, entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id, description: `${resolvedUser.FirstName} logged in (trusted device)`, metadata: { ip: clientIp } });
+      setRefreshCookie(res, refreshToken); // F2: additive cookie for browser sessions
       return res.json({ success: true, data: { user: resolvedUser, accessToken, refreshToken }, trustedDevice: true, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
     }
 
@@ -393,7 +398,11 @@ exports.login = async (req, res) => {
 
 exports.refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    // F2 dual-mode: token comes from the JSON body (mobile/back-compat) OR
+    // from the httpOnly `retailops_rt` cookie (browser sessions). Body wins.
+    // When a cookie was used, routes/authRoutes.js has already enforced the
+    // Origin/Referer allowlist CSRF guard before this controller runs.
+    const refreshToken = (req.body && req.body.refreshToken) || req.cookieRefreshToken || null;
     if (!refreshToken) return res.status(400).json({ success: false, message: 'Token required' });
 
     // SECURITY: consult revocation list before verifying (mirrors authenticate).
@@ -431,6 +440,9 @@ exports.refreshToken = async (req, res) => {
       .input('token', sql.NVarChar, tokens.refreshToken)
       .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
 
+    // F2: rotate the cookie alongside the rotated DB token.
+    setRefreshCookie(res, tokens.refreshToken);
+
     res.json({ success: true, data: tokens });
   } catch (error) {
     res.status(401).json({ success: false, message: 'Invalid token' });
@@ -441,7 +453,11 @@ exports.logout = async (req, res) => {
   try {
     const pool = await getPool();
     await pool.request().input('id', sql.VarChar, req.userId).query('UPDATE Users SET RefreshToken = NULL WHERE Id = @id');
-    
+
+    // F2: expire the refresh cookie so the browser session cannot mint new
+    // access tokens after logout.
+    clearRefreshCookie(res);
+
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       await tokenBlacklist.blacklist(authHeader.split(' ')[1]);
@@ -638,6 +654,9 @@ exports.changePasswordWithOtp = async (req, res) => {
 
     await tokenBlacklist.blacklistUser(decoded.userId);
 
+    // F2: the refresh token was nulled in DB above — expire the cookie too.
+    clearRefreshCookie(res);
+
     res.json({ success: true, message: 'Password changed successfully. Please login again.' });
   } catch (error) {
     if (error.message && error.message.includes('OTP')) {
@@ -690,6 +709,9 @@ exports.changePassword = async (req, res) => {
 
     await tokenBlacklist.blacklistUser(req.userId);
 
+    // F2: the refresh token was nulled in DB above — expire the cookie too.
+    clearRefreshCookie(res);
+
     res.json({ success: true, message: 'Password changed. Please login again.' });
   } catch (error) {
     console.error('[AUTH] Change password error:', error.message);
@@ -740,6 +762,7 @@ exports.verifyOtp = async (req, res) => {
     await SystemLogService.log({ type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id, entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id, description: `${resolvedUser.FirstName} logged in (OTP verified)`, metadata: { ip: clientIp } });
 
     const needsPasswordReset = !!(user.ForcePasswordReset) || (user.PasswordExpiresAt && new Date(user.PasswordExpiresAt) < new Date());
+    setRefreshCookie(res, refreshToken); // F2: additive cookie for browser sessions
     res.json({ success: true, data: { user: resolvedUser, accessToken, refreshToken }, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
   } catch (error) {
     if (error.message && error.message.includes('OTP')) {

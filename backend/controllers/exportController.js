@@ -135,12 +135,19 @@ exports.startExport = async (req, res) => {
         const userId = (req.user?._id || req.user?.id || '').toString();
         const pool = await getPool();
 
+        // SECURITY (F1): `format` is client-supplied and flows into the served
+        // file path below (`${downloadId}_${fileName}`) — pin it to known
+        // values so it cannot inject separators/'..' or arbitrary extensions.
+        // The capability token in the served name is the crypto-random
+        // downloadId prefix; fileName remains the display/download name.
+        const safeFormat = ['csv', 'xlsx'].includes(String(format).toLowerCase()) ? String(format).toLowerCase() : 'csv';
+
         // Create download record
         const downloadId = generateId();
         const now = new Date();
         const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
         const dateStr = istTime.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        const fileName = `asin_export_${dateStr}.${format}`;
+        const fileName = `asin_export_${dateStr}.${safeFormat}`;
         const filePath = path.join(EXPORTS_DIR, `${downloadId}_${fileName}`);
 
         await pool.request()
@@ -148,7 +155,7 @@ exports.startExport = async (req, res) => {
             .input('userId', sql.VarChar, userId)
             .input('fileName', sql.NVarChar, fileName)
             .input('filePath', sql.NVarChar, filePath)
-            .input('format', sql.NVarChar, format)
+            .input('format', sql.NVarChar, safeFormat)
             .input('status', sql.NVarChar, 'processing')
             .input('params', sql.NVarChar, JSON.stringify(req.body))
             .query(`
@@ -1094,13 +1101,20 @@ exports.downloadFile = async (req, res) => {
 
         // Find the actual file
         const exportDir = path.join(__dirname, '../uploads/exports');
+        // SECURITY (F1): `id` is user input used in a substring match over
+        // directory entries; resolve the winner and require containment in the
+        // exports root before touching the filesystem.
+        const { resolveIfInside } = require('../utils/safeUploadName');
         const files = fs.readdirSync(exportDir).filter(f => f.includes(id));
 
         if (files.length === 0) {
             return res.status(404).json({ success: false, error: 'File not found on disk' });
         }
 
-        const filePath = path.join(exportDir, files[0]);
+        const filePath = resolveIfInside(exportDir, path.join(exportDir, files[0]));
+        if (!filePath) {
+            return res.status(403).json({ success: false, error: 'Invalid file path' });
+        }
 
         // Update download count
         await pool.request()

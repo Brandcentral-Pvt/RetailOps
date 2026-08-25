@@ -91,9 +91,36 @@ async function cacheSetEx(key, value, ttlSeconds) {
 
 const IP_WINDOW        = 60;       // 1 minute IP rate limit window
 const IP_MAX           = 10;       // max 10 requests per IP per minute
-const FAIL_LOCKOUT     = 900;      // 15 minutes lockout after 5 failures
 const FAIL_THRESHOLD   = 5;        // failures before lockout
 const PROGRESSIVE_DELAYS = [0, 1, 2, 4, 8, 16]; // seconds per attempt (index 0 = attempt 1)
+
+// F3 — Progressive lock durations. Flat 15-minute locks gave an attacker a
+// cheap, predictable DoS cost. Lock length now escalates with the number of
+// lock cycles the account has already burned TODAY (the daily counter in
+// `lock_cycles:<email>:<yyyymmdd>`, which also drives the email cap below):
+//
+//   lock cycle today | duration
+//   -----------------+------------------
+//   1                | 15 minutes
+//   2                | 30 minutes
+//   3                | 60 minutes
+//   4+               | 120 minutes (cap)
+//
+// The counter resets at local midnight, so a legitimate user who trips one
+// accidental lockout still gets the base 15-minute duration.
+//
+// NOTE: this raises attacker cost only. A CAPTCHA / vendor challenge on
+// repeated failures remains the proper long-term fix and should be revisited.
+const LOCK_DURATION_SECONDS_BY_CYCLE = [900, 1800, 3600, 7200];
+// TTL for the consecutive-failure counter: must outlive the shortest (base)
+// lock so the count survives one full lockout cycle. Lock gating itself is
+// done by the separate lock key, so this only affects progressive delays.
+const FAIL_COUNTER_TTL = 900 + 60;
+function getLockDurationSeconds(priorCyclesToday) {
+    // priorCyclesToday === 0 → this is cycle 1 → index 0.
+    const idx = Math.min(Math.max(priorCyclesToday, 0), LOCK_DURATION_SECONDS_BY_CYCLE.length - 1);
+    return LOCK_DURATION_SECONDS_BY_CYCLE[idx];
+}
 
 function getProgressiveDelay(attemptNumber) {
     const idx = Math.min(attemptNumber, PROGRESSIVE_DELAYS.length - 1);
@@ -207,21 +234,28 @@ async function recordFailedAttempt(email, clientIp) {
     const failKey = `rl:fail:${normalizedEmail}`;
     const lockKey = `rl:lock:${normalizedEmail}`;
 
-    const count = await cacheIncr(failKey, FAIL_LOCKOUT + 60);
+    const count = await cacheIncr(failKey, FAIL_COUNTER_TTL);
     console.warn(`[FAILED_ATTEMPT] ${normalizedEmail} — attempt ${count}/${FAIL_THRESHOLD} | IP: ${clientIp}`);
 
     if (count >= FAIL_THRESHOLD) {
-        const lockUntil = Date.now() + FAIL_LOCKOUT * 1000;
-        await cacheSetEx(lockKey, String(lockUntil), FAIL_LOCKOUT + 60);
-        console.warn(`[LOCKOUT] ${normalizedEmail} locked for 15 minutes. IP: ${clientIp}`);
-
-        // RB5: bookkeeping for the daily cumulative cap. The counter is keyed
-        // per local day and expires at local midnight.
+        // F3: read the DAILY lock-cycle counter FIRST — it determines this
+        // lock's duration (15m → 30m → 60m → 120m cap) and, incremented by
+        // one, the email-suppression accounting below.
         const now = new Date();
         const dayKey = localDateKey(now);
         const cyclesKey = `lock_cycles:${normalizedEmail}:${dayKey}`;
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
         const dayTtl = Math.max(60, Math.floor((endOfDay - now) / 1000));
+        const priorCycles = parseInt(await cacheGet(cyclesKey) || '0', 10);
+
+        // F3: escalating duration replaces the flat 15-minute lockout.
+        const lockSeconds = getLockDurationSeconds(priorCycles);
+        const lockUntil = Date.now() + lockSeconds * 1000;
+        await cacheSetEx(lockKey, String(lockUntil), lockSeconds + 60);
+        console.warn(`[LOCKOUT] ${normalizedEmail} locked for ${lockSeconds / 60} minutes (lock cycle ${priorCycles + 1} today). IP: ${clientIp}`);
+
+        // RB5: bookkeeping for the daily cumulative cap. The counter is keyed
+        // per local day and expires at local midnight.
         const cycles = await cacheIncr(cyclesKey, dayTtl);
 
         if (cycles > MAX_LOCK_CYCLES_PER_DAY) {
