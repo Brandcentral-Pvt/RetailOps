@@ -96,5 +96,10 @@ module.exports = {
   },
   octoparse: {
     apiKey: process.env.OCTOPARSE_API_KEY
+  },
+  cometChat: {
+    appId: process.env.COMETCHAT_APP_ID,
+    region: process.env.COMETCHAT_REGION,
+    authKey: process.env.COMETCHAT_AUTH_KEY
   }
 };

@@ -8,6 +8,8 @@ const chatWebhookController = require('../controllers/chatWebhookController');
 
 router.post('/webhook', chatWebhookController.handleCometChatWebhook);
 router.get('/users', authenticate, chatController.getUsersForChat);
+// CometChat auth-token minting for the authenticated user (AUTH_KEY stays server-side)
+router.get('/token', authenticate, chatController.getCometChatToken);
 router.get('/sellers', authenticate, chatController.getSellersForChat);
 router.get('/conversations', authenticate, chatController.getConversations);
 router.post('/conversations', authenticate, chatController.getOrCreateConversation);

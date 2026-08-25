@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const seedController = require('../controllers/seedController');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 
 // Get dashboard summary from database
 router.get('/dashboard', authenticate, seedController.getDashboardSummary);
-router.post('/seed-all', authenticate, seedController.seedAll);
+// SECURITY: seeding endpoint — admin-level gate for consistency (currently a no-op handler)
+router.post('/seed-all', authenticate, requirePermission('settings_manage'), seedController.seedAll);
 
 module.exports = router;

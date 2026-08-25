@@ -7,6 +7,31 @@ const otpService = require('../services/otpService');
 const trustedDeviceService = require('../services/trustedDeviceService');
 const tokenBlacklist = require('../services/tokenBlacklistService');
 const { recordFailedAttempt, recordSuccessfulLogin, GENERIC_BLOCK } = require('../middleware/loginRateLimiter');
+const { getClientIp } = require('../utils/clientIp');
+const PasswordPolicy = require('../utils/passwordPolicy');
+
+// SECURITY: rows come from SELECT * — strip credential material before any
+// user object is serialized to a client (getMe / login / verifyOtp /
+// register_disabled / updateProfile).
+const SENSITIVE_USER_FIELDS = ['Password', 'RefreshToken', 'LockUntil', 'LoginAttempts', 'TwoFactorSecret'];
+const sanitizeUserRow = (user) => {
+  if (!user || typeof user !== 'object') return user;
+  const clean = { ...user };
+  for (const field of SENSITIVE_USER_FIELDS) delete clean[field];
+  return clean;
+};
+
+// SECURITY: shared strength gate for every password-set path (documented
+// policy: min 12 chars + zxcvbn score >= 3). Returns a generic message so
+// we never disclose which rule failed.
+const assertPasswordPolicy = (res, newPassword) => {
+  const verdict = PasswordPolicy.validate(newPassword);
+  if (!verdict.isValid) {
+    res.status(400).json({ success: false, message: 'Password does not meet security requirements.' });
+    return false;
+  }
+  return true;
+};
 
 const generateTokens = (userId, fingerprint) => {
   const accessToken = jwt.sign({ userId, type: 'access', fp: fingerprint || null }, config.jwt.secret, { expiresIn: config.jwt.expiresIn || '2h' });
@@ -32,7 +57,7 @@ const getResolvedUserResponse = async (user, pool) => {
     `);
   
   return {
-    ...user,
+    ...sanitizeUserRow(user),
     _id: user.Id,
     id: user.Id,
     role: {
@@ -51,7 +76,7 @@ exports.requestOtp = async (req, res) => {
   try {
     const { email, password } = req.body;
     const pool = await getPool();
-    const clientIp = req._authMetadata?.clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = req._authMetadata?.clientIp || getClientIp(req);
 
     // SECURITY: uniform response for all "valid credentials but restricted
     // account" outcomes — identical shape so the endpoint cannot be used to
@@ -254,7 +279,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const pool = await getPool();
-    const clientIp = req._authMetadata?.clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = req._authMetadata?.clientIp || getClientIp(req);
 
     const result = await pool.request()
       .input('email', sql.NVarChar, email)
@@ -491,7 +516,9 @@ exports.updateProfile = async (req, res) => {
       `);
 
     const result = await pool.request().input('id', sql.VarChar, req.userId).query('SELECT * FROM Users WHERE Id = @id');
-    res.json({ success: true, data: result.recordset[0] });
+    // SECURITY: SELECT * includes Password hash / RefreshToken / lockout
+    // counters — strip credential material before responding.
+    res.json({ success: true, data: sanitizeUserRow(result.recordset[0]) });
   } catch (error) {
     res.status(500).json({ success: false });
   }
@@ -516,7 +543,7 @@ exports.requestPasswordChange = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     const otpResult = await otpService.sendOtp(
@@ -548,12 +575,15 @@ exports.requestPasswordChange = async (req, res) => {
 exports.changePasswordWithOtp = async (req, res) => {
   try {
     const { tempToken, otp, newPassword } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     if (!tempToken || !otp || !newPassword) {
       return res.status(400).json({ success: false, message: 'Token, OTP, and new password are required' });
     }
+
+    // SECURITY: enforce documented password policy on the new password.
+    if (!assertPasswordPolicy(res, newPassword)) return;
 
     let decoded;
     try {
@@ -627,6 +657,9 @@ exports.changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.Password);
     if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
 
+    // SECURITY: enforce documented password policy on the new password.
+    if (!assertPasswordPolicy(res, newPassword)) return;
+
     const historyResult = await pool.request()
       .input('id', sql.VarChar, req.userId)
       .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
@@ -665,7 +698,7 @@ exports.changePassword = async (req, res) => {
 exports.verifyOtp = async (req, res) => {
   try {
     const { tempToken, otp, trustDevice } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     if (!tempToken || !otp) return res.status(400).json({ success: false, message: 'Token and OTP are required' });
@@ -726,7 +759,7 @@ exports.resendOtp = async (req, res) => {
     const user = result.recordset[0];
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
-    const otpResult = await otpService.resendOtp(decoded.userId, user.Email, 'LOGIN', { ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress, userAgent: req.headers['user-agent'] });
+    const otpResult = await otpService.resendOtp(decoded.userId, user.Email, 'LOGIN', { ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] });
 
     res.json({ success: true, destination: otpResult.destination, expiresIn: otpResult.expiresIn, message: `New code sent to ${otpResult.destination}` });
   } catch (error) {
@@ -747,7 +780,7 @@ exports.forgotPassword = async (req, res) => {
     
     if (result.success) {
       const resetUrl = `${config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in'}/reset-password?token=${result.token}`;
-      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const ipAddress = getClientIp(req);
       
       const html = passwordResetTemplate({
         userName: result.user.firstName,
@@ -794,7 +827,9 @@ exports.resetPassword = async (req, res) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Token and new password are required' });
 
-    if (newPassword.length < 8) return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    // SECURITY: enforce the documented password policy (min length 12 +
+    // zxcvbn score >= 3) — previously only a length<8 check existed here.
+    if (!assertPasswordPolicy(res, newPassword)) return;
 
     const passwordResetService = require('../services/passwordResetService');
     const result = await passwordResetService.resetPassword(token, newPassword);

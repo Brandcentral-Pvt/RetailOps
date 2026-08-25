@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate, requirePermission, checkUserHierarchyAccess } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 // Role & Seller endpoints (must be BEFORE /:id routes)
@@ -13,7 +13,9 @@ router.get('/permissions', authenticate, userController.getGroupedPermissions);
 // User CRUD
 router.get('/', authenticate, requirePermission('users_view'), userController.getUsers);
 router.post('/', authenticate, requirePermission('users_manage'), validate('createUser'), userController.createUser);
-router.get('/:id', authenticate, userController.getUser);
+// SECURITY: hierarchy gate (self, supervisor, users_view holders, global
+// roles) — previously ANY authenticated user could read any profile.
+router.get('/:id', authenticate, checkUserHierarchyAccess, userController.getUser);
 router.put('/:id', authenticate, requirePermission('users_manage'), validate('updateUser'), userController.updateUser);
 router.delete('/:id', authenticate, requirePermission('users_manage'), userController.deleteUser);
 

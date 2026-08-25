@@ -1,4 +1,5 @@
 const emailService = require('../services/emailService');
+const { getClientIp } = require('../utils/clientIp');
 
 /**
  * Login Rate Limiter with progressive delay, account lockout, and email notification.
@@ -127,7 +128,7 @@ async function sendLockoutEmail(email, clientIp) {
  * Returns early with generic error if exceeded.
  */
 async function ipRateLimiter(req, res, next) {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req); // SECURITY: server-derived (trust proxy aware) — XFF is spoofable
     const key = `rl:ip:${ip}`;
     const count = await cacheIncr(key, IP_WINDOW);
 
@@ -149,7 +150,7 @@ async function accountLockoutCheck(req, res, next) {
     const normalizedEmail = email.toLowerCase().trim();
     const lockKey = `rl:lock:${normalizedEmail}`;
     const failKey = `rl:fail:${normalizedEmail}`;
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+    const clientIp = getClientIp(req); // SECURITY: server-derived — XFF is spoofable
 
     // Check if account is currently locked
     const lockUntil = await cacheGet(lockKey);

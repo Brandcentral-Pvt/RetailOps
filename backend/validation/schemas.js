@@ -15,12 +15,12 @@ const emailField = Joi.string()
   .required();
 
 const passwordField = Joi.string()
-  .min(8)
+  .min(12)
   .max(128)
   .regex(/^(?!.*<)/, 'no HTML tags')
   .required()
   .messages({
-    'string.min': 'Password must be at least 8 characters',
+    'string.min': 'Password must be at least 12 characters',
     'string.max': 'Password must be at most 128 characters',
   });
 

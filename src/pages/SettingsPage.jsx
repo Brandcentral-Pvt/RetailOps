@@ -20,6 +20,13 @@ dayjs.extend(customParseFormat);
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
 
+// CONTRACT B: GET /api/settings returns '__MASKED__' for secret fields and the
+// backend ignores '__MASKED__'/'' values on save (keeps stored value). The UI
+// must never bind that sentinel into an editable input or send it back.
+const MASKED_SECRET = '__MASKED__';
+const SECRET_SETTINGS_KEYS = ['octoparseApiKey', 'smtpPass'];
+const SECRET_CONFIGURED_PLACEHOLDER = '•••••••• (configured - leave blank to keep)';
+
 const SectionCard = ({ icon: Icon, iconColor = '#475569', title, children, extra }) => (
     <Card
         style={{
@@ -164,6 +171,9 @@ const SettingsPage = () => {
     const [testTargetEmail, setTestTargetEmail] = useState('');
     const [sendingTestEmail, setSendingTestEmail] = useState(false);
 
+    // Secrets the server reported as configured (masked) - shown via placeholder only.
+    const [configuredSecrets, setConfiguredSecrets] = useState(() => new Set());
+
     const [messageApi, messageContextHolder] = message.useMessage();
     const [notificationApi, notificationContextHolder] = notification.useNotification();
 
@@ -182,7 +192,27 @@ const SettingsPage = () => {
         try {
             const dbSettings = await db.getSettings();
             if (dbSettings && Object.keys(dbSettings).length > 0) {
-                setSettings(prev => ({ ...prev, ...dbSettings }));
+                setSettings(prev => {
+                    const merged = { ...prev, ...dbSettings };
+                    // Never bind the '__MASKED__' sentinel into an editable input.
+                    SECRET_SETTINGS_KEYS.forEach((key) => {
+                        if (merged[key] === MASKED_SECRET) {
+                            merged[key] = '';
+                        }
+                    });
+                    return merged;
+                });
+                setConfiguredSecrets(prev => {
+                    const next = new Set(prev);
+                    SECRET_SETTINGS_KEYS.forEach((key) => {
+                        if (dbSettings[key] === MASKED_SECRET) {
+                            next.add(key);
+                        } else {
+                            next.delete(key);
+                        }
+                    });
+                    return next;
+                });
             }
         } catch (error) {
             console.error('Failed to load settings:', error);
@@ -199,7 +229,17 @@ const SettingsPage = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await db.updateSettings(settings);
+            // Omit secret fields the user did not actually type, so a stored
+            // value is never overwritten by '' or the '__MASKED__' sentinel
+            // (belt-and-braces with the backend guard).
+            const payload = { ...settings };
+            SECRET_SETTINGS_KEYS.forEach((key) => {
+                const value = payload[key];
+                if (value === undefined || value === null || value === MASKED_SECRET || String(value).trim() === '') {
+                    delete payload[key];
+                }
+            });
+            await db.updateSettings(payload);
             notificationApi.success({
                 message: 'Configuration Saved',
                 description: 'All settings have been updated successfully.',
@@ -221,7 +261,7 @@ const SettingsPage = () => {
         setTestingOctoparse(true);
         setTestResult(null);
         await new Promise(resolve => setTimeout(resolve, 1500));
-        if (settings.octoparseApiKey && settings.octoparseTaskId) {
+        if ((settings.octoparseApiKey || configuredSecrets.has('octoparseApiKey')) && settings.octoparseTaskId) {
             setTestResult({ success: true, message: 'Connection verified successfully' });
             messageApi.success('API connection verified');
         } else {
@@ -374,7 +414,7 @@ const SettingsPage = () => {
                             <Col span={24}>
                                 <FieldLabel>API Key</FieldLabel>
                                 <Input.Password
-                                    placeholder="Enter Octoparse API key"
+                                    placeholder={configuredSecrets.has('octoparseApiKey') ? SECRET_CONFIGURED_PLACEHOLDER : 'Enter Octoparse API key'}
                                     value={settings.octoparseApiKey}
                                     onChange={e => handleFieldChange('octoparseApiKey', e.target.value)}
                                     prefix={<Lock size={13} style={{ color: '#94a3b8', marginRight: 4 }} />}
@@ -474,7 +514,7 @@ const SettingsPage = () => {
                             <Col xs={24} md={12}>
                                 <FieldLabel>Password</FieldLabel>
                                 <Input.Password
-                                    placeholder="Enter password"
+                                    placeholder={configuredSecrets.has('smtpPass') ? SECRET_CONFIGURED_PLACEHOLDER : 'Enter password'}
                                     value={settings.smtpPass}
                                     onChange={e => handleFieldChange('smtpPass', e.target.value)}
                                     style={{ height: 38 }}

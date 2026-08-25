@@ -80,6 +80,21 @@ class PasswordResetService {
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
+    // SECURITY: archive the OLD password hash so the last-5 reuse policy
+    // holds across resets too (mirrors changePassword).
+    const previous = await pool.request()
+      .input('userId', sql.VarChar, validation.userId)
+      .query('SELECT Password FROM Users WHERE Id = @userId');
+    const previousHash = previous.recordset[0]?.Password;
+    if (previousHash) {
+      const histId = crypto.randomBytes(12).toString('hex');
+      await pool.request()
+        .input('hid', sql.VarChar, histId)
+        .input('userId', sql.VarChar, validation.userId)
+        .input('hash', sql.NVarChar, previousHash)
+        .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @userId, @hash, dbo.GetEnvDate())');
+    }
+
     await pool.request()
       .input('userId', sql.VarChar, validation.userId)
       .input('password', sql.NVarChar, hashedPassword)

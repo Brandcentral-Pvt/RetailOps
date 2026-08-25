@@ -34,7 +34,7 @@ const validate = (schemaName, source = 'body') => {
       console.warn(`[VALIDATION_FAILURE] schema=${schemaName} fields=${details.map(d => d.field).join(',')} ip=${req.ip} ua=${req.headers['user-agent']}`);
 
       // Auth-related schemas get generic error (don't expose field names)
-      const isAuthSchema = ['login', 'requestOtp', 'register', 'changePassword', 'verifyOtp', 'resendOtp'].includes(schemaName);
+      const isAuthSchema = ['login', 'requestOtp', 'register', 'changePassword', 'changePasswordWithOtp', 'verifyOtp', 'resendOtp'].includes(schemaName);
       if (isAuthSchema) {
         return res.status(400).json({
           success: false,
