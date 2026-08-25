@@ -43,7 +43,7 @@ const config = {
         max: POOL_MAX,
         min: POOL_MIN,
         idleTimeoutMillis: 60000,
-        evictionRunIntervalMillis: 60000
+        reapIntervalMillis: 60000
     }
 };
 
@@ -63,7 +63,7 @@ const readerConfig = process.env.DB_READER_SERVER ? {
         max: READER_POOL_MAX,
         min: READER_POOL_MIN,
         idleTimeoutMillis: 60000,
-        evictionRunIntervalMillis: 60000
+        reapIntervalMillis: 60000
     }
 } : null;
 

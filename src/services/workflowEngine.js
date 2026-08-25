@@ -6,6 +6,7 @@
 
 import { db } from './db';
 import dayjs from 'dayjs';
+import { ADMIN_ROLES } from '../constants/permissions';
 
 // ─── STATE MACHINE ────────────────────────────────────────────────────────────
 //
@@ -47,11 +48,11 @@ export const canDoTransition = (currentUser, task, transitionKey) => {
 
   const isAdmin =
     ['admin', 'super_admin', 'developer', 'operational_manager'].includes(role) ||
-    role.includes('super');
+    ADMIN_ROLES.includes(role); // EXACT match only — no substring leniency
 
   const isManager =
     ['admin', 'super_admin', 'developer', 'operational_manager', 'manager'].includes(role) ||
-    role.includes('super') ||
+    ADMIN_ROLES.includes(role) ||
     role.includes('operational');
 
   const assignedToList = task?.assignedTo

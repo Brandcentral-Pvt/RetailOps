@@ -24,6 +24,13 @@ exports.authenticate = async (req, res, next) => {
 
     const decoded = jwt.verify(token, config.jwt.secret);
 
+    // SECURITY: token-type pinning — only access tokens may authenticate API
+    // requests. Prevents refresh/temp tokens from being replayed as session
+    // credentials (critical while JWT_REFRESH_SECRET may equal JWT_SECRET).
+    if (decoded.type !== 'access') {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+
     if (await tokenBlacklist.isUserBlacklisted(decoded.userId, decoded.iat)) {
       return res.status(401).json({ success: false, message: 'Session invalidated' });
     }

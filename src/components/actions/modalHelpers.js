@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { ADMIN_ROLES } from '../../constants/permissions';
 
 export const TASK_TYPES = [
   { value: 'A+_CONTENT', label: 'A+ Content' },
@@ -71,9 +72,11 @@ const PERMISSIONS = {
 export const can = (currentUser, action) => {
   if (!currentUser) return false;
   let role = (currentUser?.role?.name || currentUser?.role || '').toLowerCase();
-  
-  // Normalize to permission keys
-  if (role.includes('super')) {
+
+  // Normalize to permission keys — EXACT matches only (substring matching
+  // let roles like 'supervisor' escalate to super_admin).
+  // ADMIN_ROLES: ['admin', 'super_admin', 'supert admin'] — see constants/permissions.js
+  if (role !== 'admin' && ADMIN_ROLES.includes(role)) {
     role = 'super_admin';
   } else if (role === 'admin' || role === 'developer') {
     role = 'admin';

@@ -1,7 +1,33 @@
 // contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { CometChatUIKit } from '@cometchat/chat-uikit-react';
+import { authApi } from '../services/api';
+import { queryClient } from '../lib/queryClient';
+import { disconnectAll as disconnectRealtime } from '../services/realtimeService';
+import { disconnectActiveSocket } from './SocketContext';
+import { ADMIN_ROLES } from '../constants/permissions';
 
 const AuthContext = createContext(null);
+
+// Every auth-relevant / audit-relevant key this app writes to storage.
+// Cleared together on logout (grep-verified against src/).
+const AUTH_STORAGE_KEYS = [
+    'authToken',
+    'refreshToken',
+    'user',
+    'fba_keepa_key',        // services/db.js saveKeepaKey
+    'keepa-api-key',        // legacy slot read by services/keepaService.js
+    'seller_hub_settings',  // legacy slot read by services/octoparseService.js
+    'selectedSeller',       // useAdsFilters / AdsManagerPage / AsinManagerPage
+    'selectedMarketplace',  // AsinManagerPage
+    'dash-cache',           // store/dashboardStore.ts (zustand persist)
+];
+
+// Exact-match admin test for the current user's role name.
+const isAdminRole = (user) => {
+    const roleName = (user?.role?.name || user?.role || '').toString().toLowerCase();
+    return ADMIN_ROLES.includes(roleName);
+};
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -188,11 +214,38 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // ----- Logout (single teardown path for every caller) -----
     const logout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
+        // 1) Best-effort server revocation — never blocks the UI on failure.
+        //    (authApi.logout reads the token synchronously, so call it before clearing storage.)
+        try {
+            Promise.resolve(authApi.logout()).catch(() => { /* revocation is best-effort */ });
+        } catch { /* noop */ }
+
+        // 2) Clear ALL auth/audit-relevant storage keys.
+        AUTH_STORAGE_KEYS.forEach((key) => {
+            try {
+                localStorage.removeItem(key);
+                sessionStorage.removeItem(key);
+            } catch { /* storage may be unavailable */ }
+        });
+
+        // 3) CometChat teardown — best-effort, non-blocking.
+        try {
+            Promise.resolve(CometChatUIKit.logout()).catch(() => { /* noop */ });
+        } catch { /* UIKit may not be initialized */ }
+
+        // 4) Socket teardown — realtimeService singleton + per-user SocketContext socket.
+        try { disconnectRealtime(); } catch { /* noop */ }
+        try { disconnectActiveSocket(); } catch { /* noop */ }
+
+        // 5) Drop all cached React Query state (in-memory data from the dead session).
+        try { queryClient.clear(); } catch { /* noop */ }
+
         setUser(null);
         setError(null);
+
+        // 6) Full reload so every in-memory state dies with the session.
         if (window.location.pathname !== '/login') {
             window.location.href = '/login';
         }
@@ -207,7 +260,7 @@ export const AuthProvider = ({ children }) => {
     const hasPermission = (permissionName) => {
         if (!user) return false;
         const roleName = (user.role?.name || user.role || '').toString().toLowerCase();
-        const isRoleAdmin = roleName === 'admin' || roleName === 'super_admin' || roleName === 'super admin' || roleName === 'supert admin' || roleName.includes('super') || roleName.includes('supert');
+        const isRoleAdmin = ADMIN_ROLES.includes(roleName); // EXACT match only — see constants/permissions.js
         if (isRoleAdmin) return true;
         
         // Priority 1: Check database/profile explicit permissions
@@ -239,7 +292,7 @@ export const AuthProvider = ({ children }) => {
     const hasAnyPermission = (permissionNames) => {
         if (!user || !user.role) return false;
         const roleName = (user.role?.name || user.role || '').toString().toLowerCase();
-        const isRoleAdmin = roleName === 'admin' || roleName === 'super_admin' || roleName === 'super admin' || roleName === 'supert admin' || roleName.includes('super') || roleName.includes('supert');
+        const isRoleAdmin = ADMIN_ROLES.includes(roleName); // EXACT match only — see constants/permissions.js
         if (isRoleAdmin) return true;
         return permissionNames.some(name => hasPermission(name));
     };
@@ -296,9 +349,10 @@ export const AuthProvider = ({ children }) => {
         hasPermission,
         hasAnyPermission,
         isAuthenticated: !!user,
-        isAdmin: ['admin', 'super_admin', 'super admin', 'supert admin'].includes((user?.role?.name || user?.role || '').toString().toLowerCase()) || (user?.role?.name || user?.role || '').toString().toLowerCase().includes('super') || (user?.role?.name || user?.role || '').toString().toLowerCase().includes('supert'),
+        // EXACT match against ADMIN_ROLES — no substring leniency (see constants/permissions.js)
+        isAdmin: isAdminRole(user),
         isOperationalManager: (user?.role?.name || user?.role || '').toString().toLowerCase() === 'operational_manager',
-        isGlobalUser: ['admin', 'super_admin', 'super admin', 'supert admin', 'operational_manager'].includes((user?.role?.name || user?.role || '').toString().toLowerCase()) || (user?.role?.name || user?.role || '').toString().toLowerCase().includes('super') || (user?.role?.name || user?.role || '').toString().toLowerCase().includes('supert'),
+        isGlobalUser: isAdminRole(user) || (user?.role?.name || user?.role || '').toString().toLowerCase() === 'operational_manager',
         isFirstLogin: !!user?.isFirstLogin,
     };
 
