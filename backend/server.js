@@ -82,13 +82,14 @@ app.use(cors({
   ].filter(Boolean),
   credentials: true
 }));
-// ── F-21 / RB8: strict Content-Security-Policy behind a feature flag ─────────
-// ROLLOUT STEPS (default OFF until validated):
-//   1. Set ENABLE_STRICT_CSP=true in STAGING.
-//   2. Exercise: login/OTP, CometChat (chat + calls + media), Keepa charts,
-//      Google Fonts / bootstrap-icons, image-heavy ASIN pages, file uploads.
-//   3. Watch browser console for CSP violation reports and fix directives.
-//   4. Flip in production, then remove the flag to make the policy permanent.
+// ── F-21 / RB8 / F4: Content-Security-Policy rollout ladder ────────────────
+//   1. NOW        — production ALWAYS receives the policy as
+//                   Content-Security-Policy-Report-Only (zero breakage; every
+//                   violation is surfaced in browser devtools/console for
+//                   telemetry). Dev sends no CSP header unless the flag is set.
+//   2. NEXT       — watch/collect violation reports, fix directives as needed.
+//   3. ENFORCE    — set ENABLE_STRICT_CSP=true to send an enforcing
+//                   Content-Security-Policy header instead of report-only.
 // Origins below were derived from the frontend bundle:
 //   - fonts.googleapis.com / fonts.gstatic.com  → Google Fonts (index.html, index.css)
 //   - cdn.jsdelivr.net                          → bootstrap-icons CSS+font, CometChat embed icons
@@ -96,9 +97,12 @@ app.use(cors({
 //   - *.cometchat.io (+wss)                     → CometChat REST/websocket endpoints
 //   - 'unsafe-inline' style-src                 → antd/cssinjs injects inline styles
 const ENABLE_STRICT_CSP = process.env.ENABLE_STRICT_CSP === 'true';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 app.use(helmet({
-  contentSecurityPolicy: ENABLE_STRICT_CSP ? {
+  contentSecurityPolicy: (ENABLE_STRICT_CSP || IS_PRODUCTION) ? {
     useDefaults: false,
+    // F4: Report-Only by default — enforcing requires ENABLE_STRICT_CSP=true.
+    reportOnly: !ENABLE_STRICT_CSP,
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
@@ -138,6 +142,13 @@ app.use(apiCallLogger);
 const path = require('path');
 const requestGuard = require('./middleware/requestGuard');
 app.use(requestGuard);
+// SECURITY (F1 capability URLs): /uploads is PUBLIC BY DESIGN — access
+// control for uploaded files is the unguessable filename (see
+// utils/safeUploadName.js; all NEW upload names are 192-bit random tokens).
+// express.static serves no directory listings by default, and the mount root
+// is backend/uploads (not a webroot), so traversal above it is not possible.
+// HISTORICAL files keep their pre-hardening names — DB rows referencing them
+// are untouched by this change.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/tools', express.static(path.join(__dirname, 'public')));
 

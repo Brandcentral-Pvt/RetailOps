@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { getRefreshToken, setRefreshToken } from './authMemory';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string) || '/api';
 
@@ -40,17 +41,20 @@ export function handleSessionExpired(): void {
 let refreshInFlight: Promise<string> | null = null;
 
 async function doRefresh(): Promise<string> {
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) {
-    throw Object.assign(new Error('No refresh token available'), { fatal: true });
-  }
+  // Transition: legacy sessions may hold a refresh token in memory (migrated
+  // out of localStorage on first read). New/reloaded sessions rely on the
+  // httpOnly `retailops_rt` cookie instead — always attempt the call and let
+  // the server decide; only its rejection is fatal.
+  const refreshToken = getRefreshToken();
 
   // Raw fetch — deliberately NOT apiClient, so a failing refresh can never
   // re-enter the 401 handler below (no recursion, no infinite loops).
+  // credentials:'include' sends the httpOnly refresh cookie (same-origin).
   const res = await fetch(`${API_BASE}/auth/refresh-token`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify(refreshToken ? { refreshToken } : {}),
   });
 
   // 400/401/403 from the refresh endpoint itself => refresh token is invalid/
@@ -71,10 +75,9 @@ async function doRefresh(): Promise<string> {
   }
 
   // Persist under the existing keys (rotation-aware).
+  // SECURITY: the rotated refresh token goes to MEMORY only — never localStorage.
   localStorage.setItem('authToken', accessToken);
-  if (data?.data?.refreshToken) {
-    localStorage.setItem('refreshToken', data.data.refreshToken);
-  }
+  setRefreshToken(data?.data?.refreshToken);
   return accessToken;
 }
 
@@ -94,6 +97,9 @@ export function refreshAccessToken(): Promise<string> {
 
 export const apiClient = axios.create({
   baseURL: API_BASE,
+  // Send the httpOnly refresh cookie on same-origin API calls (logout clears
+  // it server-side; refresh uses it when no in-memory token exists).
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },

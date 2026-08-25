@@ -6,6 +6,10 @@ const asinController = require('../controllers/asinController');
 const tagController = require('../controllers/tagController');
 const { authenticate: protect, requirePermission, checkSellerAccess } = require('../middleware/auth');
 const { getTagsHistory, getTagsSummary } = require('../controllers/tagsHistoryController');
+// SECURITY (F1 capability URLs): import files are written inside the publicly
+// served uploads/ root — the served name must be unguessable (timestamp-only
+// names were trivially enumerable). Original name is not needed on disk.
+const { randomFileName } = require('../utils/safeUploadName');
 
 // Configure multer for CSV uploads
 const storage = multer.diskStorage({
@@ -13,7 +17,7 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    cb(null, `asin-import-${Date.now()}${path.extname(file.originalname)}`);
+    cb(null, randomFileName(file.originalname, ['.csv', '.txt', '.xlsx']));
   }
 });
 

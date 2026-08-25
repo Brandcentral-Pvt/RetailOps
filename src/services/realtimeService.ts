@@ -72,7 +72,10 @@ function ensureSocket() {
         const message = err?.message ? String(err.message) : '';
         const looksAuthRelated = /(401|403|unauthorized|forbidden|token|auth)/i.test(message);
         if (!looksAuthRelated || reauthAttempted) return;
-        if (!getAuthToken() || !localStorage.getItem('refreshToken')) return;
+        // Session presence = access token in storage. The refresh credential
+        // itself is the httpOnly cookie (or in-memory token) — silent refresh
+        // decides; we only gate on having had a session at all.
+        if (!getAuthToken()) return;
 
         reauthAttempted = true;
         refreshAccessToken()

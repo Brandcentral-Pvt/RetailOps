@@ -1,5 +1,6 @@
 import { cachedFetch, invalidateCachePattern } from './apiCache';
 import { toApiError } from '../lib/apiError';
+import { setRefreshToken, clearRefreshToken, getRefreshToken } from '../lib/authMemory';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -36,7 +37,8 @@ export const authApi = {
     // Only store tokens if this is a direct login (trusted device)
     if (data.success && data.data?.accessToken) {
       localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
+      // SECURITY: refresh token lives in memory only (httpOnly cookie carries it across reloads)
+      setRefreshToken(data.data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.data.user));
     }
     return data;
@@ -52,7 +54,8 @@ export const authApi = {
     if (!res.ok) throw new Error(data.message || 'OTP verification failed');
     if (data.success && data.data?.accessToken) {
       localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
+      // SECURITY: refresh token lives in memory only (httpOnly cookie carries it across reloads)
+      setRefreshToken(data.data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.data.user));
     }
     return data;
@@ -112,7 +115,8 @@ export const authApi = {
     const data = await res.json();
     if (data.success) {
       localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
+      // SECURITY: refresh token lives in memory only (httpOnly cookie carries it across reloads)
+      setRefreshToken(data.data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.data.user));
     }
     return data;
@@ -121,10 +125,11 @@ export const authApi = {
   logout: async () => {
     const res = await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
+      credentials: 'include', // server clears the httpOnly refresh cookie
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
     });
     localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
+    clearRefreshToken();
     localStorage.removeItem('user');
     return res.json();
   },
@@ -232,11 +237,14 @@ export const authApi = {
   },
 
   refreshToken: async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
+    // In-memory token only (legacy path). Cookie-only sessions are handled by
+    // the silent-refresh flow in src/lib/api-client.ts.
+    const refreshToken = getRefreshToken();
     if (!refreshToken) throw new Error('No refresh token');
 
     const res = await fetch(`${API_BASE}/auth/refresh-token`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
@@ -245,7 +253,7 @@ export const authApi = {
     const data = await res.json();
     if (data.success) {
       localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
+      setRefreshToken(data.data.refreshToken);
     }
     return data;
   },

@@ -1,6 +1,10 @@
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+// SECURITY (F1 capability URLs): chat files are served publicly under
+// /uploads/chat — the old fieldname+timestamp+weak-PRNG name was guessable.
+// New uploads get a 192-bit random name; the original name is returned to
+// the client (and stored with the message) for display only.
+const { randomFileName } = require('../utils/safeUploadName');
 
 // Configure storage
 const storage = multer.diskStorage({
@@ -12,8 +16,9 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc',
+            '.docx', '.xls', '.xlsx', '.txt', '.mp4', '.mp3', '.wav', '.ogg', '.webm'];
+        cb(null, randomFileName(file.originalname, allowedExts));
     }
 });
 

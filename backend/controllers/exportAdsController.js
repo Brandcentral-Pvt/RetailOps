@@ -33,12 +33,18 @@ exports.startAdsExport = async (req, res) => {
 
         const pool = await getPool();
 
+        // SECURITY (F1): client-supplied `format` flows into the served file
+        // path (`${downloadId}_${fileName}` below) — pin it to the single
+        // value this writer actually produces. The crypto-random downloadId
+        // prefix is the unguessable capability token in the served name.
+        const safeFormat = String(format).toLowerCase() === 'xlsx' ? 'xlsx' : 'xlsx';
+
         // 1. Create Download Record
         const insertQuery = `
             INSERT INTO Downloads (Id, UserId, FileName, FilePath, Format, Status, Params, CreatedAt)
             VALUES (@id, @userId, @fileName, '', @format, 'pending', @params, dbo.GetEnvDate())
         `;
-        const fileName = `ads_export_${Date.now()}.${format}`;
+        const fileName = `ads_export_${Date.now()}.${safeFormat}`;
 
         await pool.request()
             .input('id', sql.VarChar, downloadId)

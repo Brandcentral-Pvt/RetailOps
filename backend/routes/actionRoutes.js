@@ -11,6 +11,10 @@ const validate = require('../middleware/validate');
 const listingAnalysisService = require('../services/listingAnalysisService');
 
 // Configure multer for audio file uploads
+// SECURITY (F1 capability URLs): audio files are served publicly from
+// /uploads/audio — names embed the action id + timestamp + weak PRNG today.
+// New uploads get a 192-bit random name; the action id stays in the DB row.
+const { randomFileName } = require('../utils/safeUploadName');
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../uploads/audio');
@@ -22,8 +26,7 @@ const storage = multer.diskStorage({
         }
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `action-${req.params.id}-${uniqueSuffix}${path.extname(file.originalname)}`);
+        cb(null, randomFileName(file.originalname, ['.webm', '.mp3', '.wav', '.m4a', '.ogg']));
     }
 });
 
