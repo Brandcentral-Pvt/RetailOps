@@ -77,6 +77,18 @@ export const authApi = {
     return data;
   },
 
+  // POST /auth/request-otp — contract requires BOTH email and password.
+  requestOtp: async (email, password) => {
+    const res = await fetch(`${API_BASE}/auth/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to request OTP');
+    return data;
+  },
+
   post: async (endpoint, body = {}) => {
     const token = localStorage.getItem('authToken');
     const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -1278,20 +1290,11 @@ export const dashboardApi = {
 };
 
 export const revenueApi = {
-  // Auth
-  login: async (email, password) => {
-    const res = await fetch(`${REVENUE_API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) throw new Error('Login failed');
-    return res.json();
-  },
-
   // Fees
   getFees: async (type) => {
-    const res = await fetch(`${REVENUE_API_BASE}/fees/${type}`);
+    const res = await fetch(`${REVENUE_API_BASE}/fees/${type}`, {
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error(`Failed to fetch ${type} fees`);
     return res.json();
   },
@@ -1299,7 +1302,7 @@ export const revenueApi = {
   saveFee: async (type, fee) => {
     const res = await fetch(`${REVENUE_API_BASE}/fees/${type}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(fee),
     });
     if (!res.ok) throw new Error(`Failed to save ${type} fee`);
@@ -1307,14 +1310,19 @@ export const revenueApi = {
   },
 
   deleteFee: async (type, id) => {
-    const res = await fetch(`${REVENUE_API_BASE}/fees/${type}/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${REVENUE_API_BASE}/fees/${type}/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error(`Failed to delete ${type} fee`);
     return res.json();
   },
 
   // Mappings
   getCategoryMappings: async () => {
-    const res = await fetch(`${REVENUE_API_BASE}/mappings`);
+    const res = await fetch(`${REVENUE_API_BASE}/mappings`, {
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error('Failed to fetch category mappings');
     return res.json();
   },
@@ -1322,7 +1330,7 @@ export const revenueApi = {
   saveCategoryMapping: async (mapping) => {
     const res = await fetch(`${REVENUE_API_BASE}/mappings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(mapping),
     });
     if (!res.ok) throw new Error('Failed to save category mapping');
@@ -1330,7 +1338,9 @@ export const revenueApi = {
   },
 
   getNodeMaps: async () => {
-    const res = await fetch(`${REVENUE_API_BASE}/nodemaps`);
+    const res = await fetch(`${REVENUE_API_BASE}/nodemaps`, {
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error('Failed to fetch node maps');
     return res.json();
   },
@@ -1338,7 +1348,7 @@ export const revenueApi = {
   saveNodeMap: async (nodeMap) => {
     const res = await fetch(`${REVENUE_API_BASE}/nodemaps`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(nodeMap),
     });
     if (!res.ok) throw new Error('Failed to save node map');
@@ -1347,7 +1357,9 @@ export const revenueApi = {
 
   // ASINs
   getAsins: async () => {
-    const res = await fetch(`${REVENUE_API_BASE}/asins`);
+    const res = await fetch(`${REVENUE_API_BASE}/asins`, {
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error('Failed to fetch ASINs');
     return res.json();
   },
@@ -1355,7 +1367,7 @@ export const revenueApi = {
   addAsinsBulk: async (asins) => {
     const res = await fetch(`${REVENUE_API_BASE}/asins/bulk`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(asins),
     });
     if (!res.ok) throw new Error('Failed to add ASINs');
@@ -1365,7 +1377,7 @@ export const revenueApi = {
   updateAsin: async (id, updates) => {
     const res = await fetch(`${REVENUE_API_BASE}/asins/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error('Failed to update ASIN');
@@ -1373,20 +1385,28 @@ export const revenueApi = {
   },
 
   deleteAsin: async (id) => {
-    const res = await fetch(`${REVENUE_API_BASE}/asins/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${REVENUE_API_BASE}/asins/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error('Failed to delete ASIN');
     return res.json();
   },
 
   deleteAllAsins: async () => {
-    const res = await fetch(`${REVENUE_API_BASE}/asins`, { method: 'DELETE' });
+    const res = await fetch(`${REVENUE_API_BASE}/asins`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error('Failed to delete all ASINs');
     return res.json();
   },
 
   // Health check
   healthCheck: async () => {
-    const res = await fetch(`${REVENUE_API_BASE}/health`);
+    const res = await fetch(`${REVENUE_API_BASE}/health`, {
+      headers: { ...getAuthHeader() }
+    });
     if (!res.ok) throw new Error('Health check failed');
     return res.json();
   },

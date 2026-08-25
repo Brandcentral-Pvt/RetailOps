@@ -6,6 +6,17 @@ const SocketContext = createContext();
 
 export const useSocket = () => useContext(SocketContext);
 
+// Module-level handle to the live per-user socket so non-React code
+// (AuthContext performLogout) can force teardown during logout.
+let activeSocket = null;
+
+export const disconnectActiveSocket = () => {
+    if (activeSocket) {
+        try { activeSocket.disconnect(); } catch { /* already torn down */ }
+        activeSocket = null;
+    }
+};
+
 export const SocketProvider = ({ children }) => {
     const { user } = useAuth();
     const [socket, setSocket] = useState(null);
@@ -38,6 +49,7 @@ export const SocketProvider = ({ children }) => {
                 reconnectionAttempts: Infinity,
                 auth: { token }
             });
+            activeSocket = newSocket;
             setSocket(newSocket);
 
             // Notification handling
@@ -63,9 +75,10 @@ export const SocketProvider = ({ children }) => {
                 newSocket.off('receive_message');
                 newSocket.off('incoming_call');
                 newSocket.close();
+                if (activeSocket === newSocket) activeSocket = null;
             };
         } else if (socket) {
-            socket.close();
+            disconnectActiveSocket();
             setSocket(null);
         }
     }, [user]);

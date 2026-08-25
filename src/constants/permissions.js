@@ -1,5 +1,16 @@
 // src/constants/permissions.js
 
+/**
+ * Roles granted implicit admin access — EXACT match only.
+ * Never use substring matching here: role names like 'supervisor' must NOT
+ * escalate to admin just because they contain 'super'.
+ *
+ * NOTE: 'supert admin' is a real DB role carrying a typo — keep it literally
+ * until the DB role is migrated.
+ * TODO(security): migrate DB role name and drop from this whitelist.
+ */
+export const ADMIN_ROLES = ['admin', 'super_admin', 'supert admin'];
+
 export const PERMISSIONS = {
     // Target vs Achievement Permissions
     TARGETS_VIEW: 'targets_view',

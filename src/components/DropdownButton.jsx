@@ -9,9 +9,10 @@ export const DropdownButton = () => {
     const navigate = useNavigate();
     const { user, logout, hasPermission } = useAuth();
 
+    // Single navigation path: AuthContext.logout() owns the redirect
+    // (full reload to /login) — no competing navigate() here.
     const handleLogout = () => {
         logout();
-        navigate('/login');
     };
 
     return (

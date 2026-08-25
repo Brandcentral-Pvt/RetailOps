@@ -59,7 +59,8 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                     }
                 };
 
-                const token = localStorage.getItem('token');
+                // App-wide token key is 'authToken' (kept inline: multipart upload needs raw axios for progress events)
+                const token = localStorage.getItem('authToken');
                 if (token) { config.headers.Authorization = `Bearer ${token}`; }
 
                 const response = await axios.post(backendUrl, formData, config);
