@@ -110,11 +110,11 @@ class OtpService {
         await emailService.send({ to: email, subject, html });
       }
     } catch (e) {
-      console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-      console.log(`📧 Email delivery failed: ${e.message}`);
-      console.log(`🔐 OTP for ${email}: ${otp}`);
-      console.log(`⏰ Expires in ${this.OTP_EXPIRY_MINUTES} minutes`);
-      console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+      // SECURITY: never log the OTP code itself — log failure metadata only
+      // (masked recipient + error message), then re-throw so the caller can
+      // tell the user delivery failed instead of silently swallowing it.
+      console.error(`📧 OTP email delivery FAILED to ${this._maskEmail(email)}: ${e.message}`);
+      throw e;
     }
   }
 

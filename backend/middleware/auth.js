@@ -3,6 +3,7 @@ const { sql, getPool } = require('../database/db');
 const config = require('../config/env');
 const tokenBlacklist = require('../services/tokenBlacklistService');
 const { isGlobalUserRole } = require('../utils/roleUtils');
+const { getClientIp } = require('../utils/clientIp');
 const eventBus = require('../services/eventBus');
 
 /**
@@ -59,9 +60,11 @@ exports.authenticate = async (req, res, next) => {
     }
 
     if (decoded.fp) {
-      const currentFp = Buffer.from(`${req.headers['user-agent'] || ''}|${req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''}`).toString('base64').slice(0, 32);
+      // SECURITY: IP half of the fingerprint is server-derived (trust proxy
+      // aware) — raw XFF was client-spoofable and defeated the binding.
+      const currentFp = Buffer.from(`${req.headers['user-agent'] || ''}|${getClientIp(req)}`).toString('base64').slice(0, 32);
       if (decoded.fp !== currentFp) {
-        console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId} from ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
+        console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId} from ${getClientIp(req)}`);
         if (process.env.NODE_ENV === 'production') {
           return res.status(401).json({ success: false, message: 'Session invalid: device mismatch' });
         }

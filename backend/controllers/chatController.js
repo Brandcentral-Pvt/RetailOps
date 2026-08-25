@@ -1011,3 +1011,86 @@ exports.updateMemberRole = async (req, res) => {
 exports.getSharedMedia = async (req, res) => {
     res.json({ success: true, data: [] });
 };
+
+// ── CometChat auth-token minting ─────────────────────────────────────────────
+const axios = require('axios');
+const config = require('../config/env');
+const cacheService = require('../services/cacheService');
+
+// UID convention MUST match the frontend (src/components/chat/ChatContainer.jsx):
+// email with '@' and '.' replaced by '_', lowercased.
+const cometchatUidFromEmail = (email) =>
+    String(email || '').replace(/[@.]/g, '_').toLowerCase();
+
+/**
+ * GET /api/chat/token
+ * Mints (or returns cached) CometChat auth token for the authenticated user.
+ * The COMETCHAT_AUTH_KEY never leaves the server.
+ */
+exports.getCometChatToken = async (req, res) => {
+    try {
+        const { appId, region, authKey } = config.cometChat;
+        if (!appId || !region || !authKey) {
+            return res.status(501).json({
+                success: false,
+                message: 'Chat is not configured on this deployment: missing CometChat settings (COMETCHAT_APP_ID / COMETCHAT_REGION / COMETCHAT_AUTH_KEY).'
+            });
+        }
+
+        const uid = cometchatUidFromEmail(req.user.Email);
+        if (!uid) {
+            return res.status(400).json({ success: false, message: 'Account has no email on file' });
+        }
+
+        // Avoid minting a fresh token on every connect — cache ~20h per user.
+        const cacheKey = cacheService.key('cometchat', 'authtoken', uid);
+        const cachedToken = await cacheService.get(cacheKey);
+        if (cachedToken) {
+            return res.json({ success: true, data: { uid, authToken: cachedToken, appId, region } });
+        }
+
+        const baseUrl = `https://${region}.api-${region}.cometchat.io/v3`;
+        const headers = {
+            apikey: authKey,
+            accept: 'application/json',
+            'Content-Type': 'application/json',
+        };
+
+        let authToken = null;
+        try {
+            const mintRes = await axios.post(
+                `${baseUrl}/users/${encodeURIComponent(uid)}/auth_tokens`,
+                { force: false },
+                { headers, timeout: 10000 }
+            );
+            authToken = mintRes.data?.data?.authToken || null;
+        } catch (mintErr) {
+            const status = mintErr.response?.status;
+            const errCode = mintErr.response?.data?.error?.code || '';
+            if (status === 404 || /NOT_FOUND/i.test(errCode)) {
+                // User doesn't exist yet in CometChat — create it, then retry once.
+                const displayName = [req.user.FirstName, req.user.LastName].filter(Boolean).join(' ').trim() || uid;
+                await axios.post(`${baseUrl}/users`, { uid, name: displayName }, { headers, timeout: 10000 });
+                const retryRes = await axios.post(
+                    `${baseUrl}/users/${encodeURIComponent(uid)}/auth_tokens`,
+                    {},
+                    { headers, timeout: 10000 }
+                );
+                authToken = retryRes.data?.data?.authToken || null;
+            } else {
+                throw mintErr;
+            }
+        }
+
+        if (!authToken) {
+            return res.status(502).json({ success: false, message: 'Failed to create chat session' });
+        }
+
+        await cacheService.set(cacheKey, authToken, 20 * 60 * 60); // ~20h
+        return res.json({ success: true, data: { uid, authToken, appId, region } });
+    } catch (error) {
+        console.error('[CHAT] CometChat token error:',
+            error.response?.data?.error?.message || error.message);
+        return res.status(502).json({ success: false, message: 'Failed to create chat session' });
+    }
+};

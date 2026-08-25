@@ -18,6 +18,7 @@ backend/.env.example
 # Config files with potential secrets
 backend/config/env.js
 backend/config/proxies.json
+backend/superagent-10.3.0.tgz
 
 # Logs
 logs/

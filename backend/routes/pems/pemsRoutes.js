@@ -77,7 +77,8 @@ router.get('/brand-managers', auth, cacheRoute('pems:meta', 300), ctrl.getBrandM
 router.get('/reviewers', auth, cacheRoute('pems:meta', 300), ctrl.getReviewers);
 
 // ── Demo Seed ──
-router.post('/seed-demo', auth, async (req, res) => {
+// SECURITY: seeds/overwrites demo data — settings_manage holders only.
+router.post('/seed-demo', auth, requirePermission('settings_manage'), async (req, res) => {
   try {
     const { seedDemo } = require('../../services/pems/seedDemo');
     const result = await seedDemo();

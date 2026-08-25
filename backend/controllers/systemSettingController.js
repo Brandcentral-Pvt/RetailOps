@@ -1,5 +1,18 @@
 const { sql, getPool } = require('../database/db');
 
+// ── Secret masking (Contract B) ──────────────────────────────────────────────
+const SECRET_MASK = '__MASKED__';
+const SECRET_KEY_PATTERN = /(pass|secret|token|apikey|api_key|api\.key|credential|private)/i;
+const isSecretKey = (key) => SECRET_KEY_PATTERN.test(String(key || ''));
+const maskSecretSettings = (map) => {
+    for (const key of Object.keys(map)) {
+        if (isSecretKey(key) && map[key] !== null && map[key] !== undefined && map[key] !== '') {
+            map[key] = SECRET_MASK;
+        }
+    }
+    return map;
+};
+
 /**
  * Get all settings (SQL Version)
  */
@@ -22,6 +35,9 @@ exports.getSettings = async (req, res) => {
         result.recordset.forEach(s => {
             settingsMap[s.Key] = s.Value;
         });
+
+        // SECURITY: never return secret-shaped values to any client.
+        maskSecretSettings(settingsMap);
 
         res.json({ success: true, data: settingsMap });
     } catch (error) {
@@ -50,7 +66,13 @@ exports.getSettingByKey = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Setting not found' });
         }
 
-        res.json({ success: true, data: result.recordset[0] });
+        const row = result.recordset[0];
+        // SECURITY: single-key reads must not leak secret values either.
+        if (isSecretKey(row.Key) && row.Value) {
+            row.Value = SECRET_MASK;
+        }
+
+        res.json({ success: true, data: row });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -69,7 +91,15 @@ exports.updateSettings = async (req, res) => {
         const pool = await getPool();
         const userId = req.user?.Id || req.user?._id;
 
+        const skippedSecrets = [];
         for (const [key, value] of Object.entries(settings)) {
+            // SECURITY: a masked placeholder (or blank) submitted for a
+            // secret-shaped key means "unchanged" — keep the stored value
+            // instead of persisting the mask over the real credential.
+            if (isSecretKey(key) && (value === SECRET_MASK || value === '')) {
+                skippedSecrets.push(key);
+                continue;
+            }
             await pool.request()
                 .input('key', sql.NVarChar, key)
                 .input('val', sql.NVarChar, String(value))
@@ -85,6 +115,9 @@ exports.updateSettings = async (req, res) => {
                         INSERT ([Key], Value, Description, CreatedAt, UpdatedAt)
                         VALUES (@key, @val, @desc, dbo.GetEnvDate(), dbo.GetEnvDate());
                 `);
+        }
+        if (skippedSecrets.length > 0) {
+            console.info(`[SETTINGS] Kept existing values for unchanged secrets: ${skippedSecrets.join(', ')}`);
         }
 
         // Dynamically trigger rescheduling if schedule settings were updated

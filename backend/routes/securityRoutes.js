@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { sql, getPool } = require('../database/db');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireRole } = require('../middleware/auth');
 const trustedDeviceService = require('../services/trustedDeviceService');
 
-// OTP Audit Log (paginated)
-router.get('/otp-logs', authenticate, async (req, res) => {
+// OTP Audit Log (paginated) — SECURITY: admin-only (audit data for all users)
+router.get('/otp-logs', authenticate, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
     const { page = 1, limit = 50, action, status, email } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
