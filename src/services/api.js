@@ -1,4 +1,5 @@
 import { cachedFetch, invalidateCachePattern } from './apiCache';
+import { toApiError } from '../lib/apiError';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -8,24 +9,15 @@ const getAuthHeader = () => {
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
+// Legacy stack: normalize failures into a typed ApiError carrying the HTTP
+// status (src/lib/apiError.js). Deliberately NO silent refresh here — 401
+// handling lives in src/lib/api-client.ts; migrating these namespaces onto
+// api-client is a documented follow-up so refresh applies globally.
 const handleResponse = async (res, defaultErrorMsg = 'Request failed') => {
   if (res.ok) {
     return res.json();
   }
-  let errorMsg = defaultErrorMsg;
-  try {
-    const contentType = res.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const error = await res.json();
-      errorMsg = error.error || error.message || errorMsg;
-    } else {
-      const text = await res.text();
-      errorMsg = text ? (text.length > 150 ? text.substring(0, 150) + '...' : text) : `HTTP Error ${res.status}: ${res.statusText}`;
-    }
-  } catch (e) {
-    errorMsg = `HTTP Error ${res.status}: ${res.statusText}`;
-  }
-  throw new Error(errorMsg);
+  throw await toApiError(res, defaultErrorMsg);
 };
 
 // Auth API
@@ -208,7 +200,21 @@ export const authApi = {
   },
 
   validateResetToken: async (token) => {
-    const res = await fetch(`${API_BASE}/auth/validate-reset-token?token=${token}`);
+    // SECURITY (Contract C): the token travels in the JSON BODY — never in the
+    // URL query going forward (URLs leak into browser history / proxy & access
+    // logs). The controller accepts both shapes; the transitional GET fallback
+    // below only fires against backends whose route table predates POST
+    // support (404/405), so the reset flow keeps working during migration.
+    const res = await fetch(`${API_BASE}/auth/validate-reset-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (res.status === 404 || res.status === 405) {
+      // TRANSITIONAL — delete once POST /auth/validate-reset-token ships everywhere.
+      const legacy = await fetch(`${API_BASE}/auth/validate-reset-token?token=${encodeURIComponent(token)}`);
+      return legacy.json();
+    }
     return res.json();
   },
 
@@ -255,22 +261,9 @@ export const authApi = {
 };
 
 // Seed API - Comprehensive demo data seeding
-export const seedApi = {
-  seedAll: async () => {
-    const res = await fetch(`${API_BASE}/seed/seed-all`, { method: 'POST' });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Failed to seed demo data');
-    }
-    return res.json();
-  },
-
-  getDashboard: async () => {
-    const res = await fetch(`${API_BASE}/seed/dashboard`);
-    if (!res.ok) throw new Error('Failed to get dashboard data');
-    return res.json();
-  },
-};
+// REMOVED (audit #13): seedApi hit unauthenticated /seed/* endpoints and had
+// zero consumers in src/ (grep-verified) — dead code that shipped an
+// unauthenticated data-mutation trigger to production bundles.
 
 // Market Sync API
 export const marketSyncApi = {
@@ -1603,7 +1596,6 @@ const api = {
 
   // Namespaced APIs
   authApi,
-  seedApi,
   dashboardApi,
   userApi,
   roleApi,

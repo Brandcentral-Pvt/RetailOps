@@ -82,8 +82,39 @@ app.use(cors({
   ].filter(Boolean),
   credentials: true
 }));
+// ── F-21 / RB8: strict Content-Security-Policy behind a feature flag ─────────
+// ROLLOUT STEPS (default OFF until validated):
+//   1. Set ENABLE_STRICT_CSP=true in STAGING.
+//   2. Exercise: login/OTP, CometChat (chat + calls + media), Keepa charts,
+//      Google Fonts / bootstrap-icons, image-heavy ASIN pages, file uploads.
+//   3. Watch browser console for CSP violation reports and fix directives.
+//   4. Flip in production, then remove the flag to make the policy permanent.
+// Origins below were derived from the frontend bundle:
+//   - fonts.googleapis.com / fonts.gstatic.com  → Google Fonts (index.html, index.css)
+//   - cdn.jsdelivr.net                          → bootstrap-icons CSS+font, CometChat embed icons
+//   - api.keepa.com                             → Keepa is called browser-direct today
+//   - *.cometchat.io (+wss)                     → CometChat REST/websocket endpoints
+//   - 'unsafe-inline' style-src                 → antd/cssinjs injects inline styles
+const ENABLE_STRICT_CSP = process.env.ENABLE_STRICT_CSP === 'true';
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: ENABLE_STRICT_CSP ? {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      // cssinjs/antd require inline styles; fonts CSS loads from Google/jsdelivr.
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'], // ui-avatars, brandfetch, wikimedia, amazon images
+      // Chat media (voice notes/call recordings) are served from region-dependent CDNs.
+      mediaSrc: ["'self'", 'blob:', 'https:'],
+      connectSrc: ["'self'", 'https://api.keepa.com', 'https://*.cometchat.io', 'wss://*.cometchat.io', 'https://*.cometchat.com', 'wss://*.cometchat.com'],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  } : false,
   hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
   crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy: { policy: 'same-origin' },
@@ -154,7 +185,15 @@ app.use((req, res, next) => {
 // Registered BEFORE the app-level routers so they are not shadowed by
 // alertsRoutes' /api/health, and so /api/health/liveness + /api/health/readiness
 // are not intercepted by growthExecutionRoutes' router.use(protect).
-app.get('/api/health', async (req, res) => {
+//
+// SECURITY (RB2): the unauthenticated endpoints disclose ONLY liveness/
+// readiness status. Detailed diagnostics (pool sizes, Redis state, env,
+// versions) moved to /api/health/detailed behind authenticate +
+// settings_manage. Docker HEALTHCHECK only inspects the HTTP status of
+// /api/health (wget --spider), so the 200/503 semantics below keep it valid.
+const { authenticate, requirePermission } = require('./middleware/auth');
+
+async function runHealthChecks() {
   const mem = process.memoryUsage();
   const checks = {};
 
@@ -195,8 +234,21 @@ app.get('/api/health', async (req, res) => {
     checks.redis = { status: 'disconnected', error: err.message };
   }
 
+  return { mem, checks };
+}
+
+// Liveness/readiness probe — minimal body by design.
+app.get('/api/health', async (req, res) => {
+  const { checks } = await runHealthChecks();
   const allOk = Object.values(checks).every(c => c.status === 'connected');
-  res.status(allOk ? 200 : 503).json({
+  res.status(allOk ? 200 : 503).json({ status: allOk ? 'ok' : 'degraded' });
+});
+
+// Detailed diagnostics — authenticated admins/settings managers only.
+app.get('/api/health/detailed', authenticate, requirePermission('settings_manage'), async (req, res) => {
+  const { mem, checks } = await runHealthChecks();
+  const allOk = Object.values(checks).every(c => c.status === 'connected');
+  res.status(200).json({
     status: allOk ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
@@ -220,8 +272,10 @@ app.get('/api/health/readiness', async (req, res) => {
     const pool = await getPool();
     await pool.request().query('SELECT 1 as test');
     res.status(200).json({ status: 'ready' });
-  } catch (err) {
-    res.status(503).json({ status: 'not-ready', error: err.message });
+  } catch (_err) {
+    // SECURITY (RB2): no error text to unauthenticated callers (may embed DB
+    // host/driver detail); detailed failure reason lives in /api/health/detailed.
+    res.status(503).json({ status: 'not-ready' });
   }
 });
 
@@ -429,7 +483,8 @@ io.on('connection', async (socket) => {
       socket.disconnect(true);
       return;
     }
-    decoded = jwt.verify(token, config.jwt.secret);
+    // SECURITY (RB1): algorithm pinning — HS256 only.
+    decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
   } catch (err) {
     socket.disconnect(true);
     return;

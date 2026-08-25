@@ -11,6 +11,7 @@
 
 import { io } from 'socket.io-client';
 import { EVENT_BUS } from '../store/eventBus';
+import { refreshAccessToken, handleSessionExpired } from '../lib/api-client';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -28,13 +29,28 @@ function getSocketUrl() {
     return base;
 }
 
+function getAuthToken(): string | null {
+    try {
+        return localStorage.getItem('authToken');
+    } catch {
+        return null;
+    }
+}
+
 function ensureSocket() {
     if (socket?.connected) return socket;
 
     if (socket) socket.disconnect();
 
+    // One silent-refresh reconnect attempt per established session; reset on
+    // successful (re)connect so a later expiry can refresh again.
+    let reauthAttempted = false;
+
     socket = io(getSocketUrl(), {
         transports: ['websocket'],
+        // SECURITY (audit #11): authenticate this client like
+        // contexts/SocketContext.jsx does — it previously connected anonymously.
+        auth: { token: getAuthToken() },
         reconnection: true,
         reconnectionDelay: RECONNECT_DELAY,
         reconnectionDelayMax: RECONNECT_DELAY_MAX,
@@ -43,11 +59,30 @@ function ensureSocket() {
     });
 
     socket.on('connect', () => {
+        reauthAttempted = false;
         EVENT_BUS.emit('realtime:connected');
     });
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (err: Error) => {
         EVENT_BUS.emit('realtime:error', { type: 'connection', code: 'connection_failed' });
+
+        // 401 / token-expired semantics -> run the same single-flight silent
+        // refresh used by api-client, then reconnect ONCE with the new token.
+        // Never for anonymous sessions or when there is no refresh token.
+        const message = err?.message ? String(err.message) : '';
+        const looksAuthRelated = /(401|403|unauthorized|forbidden|token|auth)/i.test(message);
+        if (!looksAuthRelated || reauthAttempted) return;
+        if (!getAuthToken() || !localStorage.getItem('refreshToken')) return;
+
+        reauthAttempted = true;
+        refreshAccessToken()
+            .then((token) => {
+                if (socket) {
+                    socket.auth = { token };
+                    socket.connect();
+                }
+            })
+            .catch(() => handleSessionExpired());
     });
 
     socket.on('disconnect', (reason) => {

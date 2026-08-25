@@ -115,8 +115,23 @@ export function useRealTimeDashboard(options?: RealTimeDashboardOptions) {
 
     const openSse = useCallback(async () => {
         if (!sseEndpoint) return;
-        const token = localStorage.getItem('authToken') ?? '';
-        const url   = `${sseEndpoint}?token=${encodeURIComponent(token)}`;
+
+        // SECURITY (audit #8): EventSource cannot send an Authorization header,
+        // and appending the JWT as a query param (the old behavior here) leaks
+        // credentials into browser history, proxies and server access logs.
+        // The endpoint must arrive WITHOUT embedded credentials; if this
+        // fallback is ever activated, SSE auth MUST use a cookie/one-time
+        // ticket pattern negotiated via authenticated endpoints.
+        if (/([?&])(token|access_token|jwt|auth)=/i.test(sseEndpoint)) {
+            if (import.meta.env.DEV) {
+                console.warn(
+                    '[useRealTimeDashboard] sseEndpoint contains credential query params — refusing to open (audit #8). ' +
+                    'Use the cookie/ticket auth pattern for SSE instead.',
+                );
+            }
+            return;
+        }
+        const url = sseEndpoint;
 
         let es: EventSource | null;
         if (hasNativeEventSource()) {

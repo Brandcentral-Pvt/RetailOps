@@ -8,9 +8,11 @@
  *     non-upload routes (default 10 MB).  Upload routes already have a much
  *     larger server-level timeout set in server.js, so we skip them.
  *
- *  2. Sets a per-request timeout (default 30 s).  If the handler does not
- *     send a response within that window the middleware sends a 408 and
- *     aborts the socket, preventing hanging connections from accumulating.
+ *  2. Sets a per-request timeout (REQUEST_TIMEOUT_MS below).  If the handler
+ *     does not send a response within that window the middleware sends a 408,
+ *     flags req.timedout, and destroys the client socket once the 408 has
+ *     flushed (bounded by SOCKET_DESTROY_GRACE_MS), preventing hanging
+ *     connections from accumulating.
  *
  * Usage:
  *   const requestGuard = require('./middleware/requestGuard');
@@ -20,6 +22,9 @@
 
 const PAYLOAD_LIMIT_BYTES = 10 * 1024 * 1024; // 10 MB
 const REQUEST_TIMEOUT_MS = 75_000;            // 60 seconds (increased from 30)
+// RB6: how long the 408 response gets to flush before the socket is force-
+// destroyed anyway (covers handlers that never finish after the timeout).
+const SOCKET_DESTROY_GRACE_MS = 5_000;
 
 // Routes that handle large file uploads — skip payload guard + use longer timeout
 const UPLOAD_PATH_PREFIXES = [
@@ -59,15 +64,36 @@ function requestGuard(req, res, next) {
   // Skip timeout for upload routes (server.js already sets 600 s server timeout)
   if (!isUploadRoute(req.path)) {
     const timer = setTimeout(() => {
-      if (!res.headersSent) {
-        console.warn(
-          `⏱  [requestGuard] Timeout on ${req.method} ${req.originalUrl} after ${REQUEST_TIMEOUT_MS}ms`
-        );
-        res.status(408).json({
-          error: 'Request Timeout',
-          message: 'The server did not receive a complete request within the allowed time.',
-        });
-      }
+      // Handler already started responding — never stomp on it.
+      if (res.headersSent || res.writableFinished) return;
+
+      req.timedout = true; // downstream middleware can short-circuit on this flag
+
+      console.warn(
+        `⏱  [requestGuard] Timeout on ${req.method} ${req.originalUrl} after ${REQUEST_TIMEOUT_MS}ms`
+      );
+      res.status(408).json({
+        error: 'Request Timeout',
+        message: 'The server did not receive a complete request within the allowed time.',
+      });
+
+      // SECURITY/RESILIENCE (RB6): previously the 408 was sent while handler
+      // work continued silently. LEAST-RISK abort strategy: after the 408
+      // body has flushed, destroy the client socket so hanging handlers stop
+      // holding connections. We deliberately do NOT cancel in-flight handler
+      // work via AbortSignal into mssql — that risks partial writes across
+      // many call sites; pool connections are bounded by their own request
+      // timeouts instead.
+      const destroySocket = () => {
+        if (!res.socket || res.socket.destroyed) return;
+        try { res.socket.destroy(); } catch (_) { /* socket already gone */ }
+      };
+      const grace = setTimeout(destroySocket, SOCKET_DESTROY_GRACE_MS);
+      if (grace.unref) grace.unref();
+      res.once('finish', () => {
+        clearTimeout(grace);
+        destroySocket();
+      });
     }, REQUEST_TIMEOUT_MS);
 
     // Clear the timer once the response is sent so it doesn't fire spuriously

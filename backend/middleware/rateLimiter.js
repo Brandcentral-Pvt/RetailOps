@@ -1,4 +1,5 @@
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const { getClientIp } = require('../utils/clientIp');
 
 const TIERS = {
   PUBLIC: { windowMs: 60 * 1000, max: 100 },
@@ -21,9 +22,15 @@ function createLimiter(tierName) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-      // Per-user limiting when authenticated; IPv6-safe IP fallback otherwise.
-      if (req.user?.Id) return `user:${req.user.Id}`;
-      return ipKeyGenerator(req.ip) || 'unknown';
+      // SECURITY (RB7): IP-only keying. The previous `req.user?.Id` branch was
+      // dead code — these limiters run BEFORE authenticate(), so req.user was
+      // always undefined and the branch never fired. getClientIp is the
+      // server-derived, trust-proxy-aware helper (see utils/clientIp.js).
+      try {
+        return ipKeyGenerator(getClientIp(req));
+      } catch (_) {
+        return 'unknown';
+      }
     },
   });
 }

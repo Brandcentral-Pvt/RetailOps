@@ -102,6 +102,21 @@ function getProgressiveDelay(attemptNumber) {
 
 // ─── Email notification on lockout ────────────────────────────────────────────
 
+// RB5 (F-14 mitigation): lockout emails are attacker-triggerable (anyone who
+// knows a victim's email can fail logins 5x). Two caps:
+//   1. Per-recipient throttle — max ONE lockout email per address per 30 min.
+//   2. Daily cumulative cap — after MAX_LOCK_CYCLES_PER_DAY lock cycles in a
+//      day, accounts keep LOCKING (security unchanged) but no further emails
+//      are sent for the rest of that day.
+const LOCKOUT_EMAIL_THROTTLE_SECONDS = 1800; // 30 minutes
+const MAX_LOCK_CYCLES_PER_DAY = 5;
+
+function localDateKey(now = new Date()) {
+    // App runs under AUTOMATION_TIMEZONE (process.env.TZ), so local date parts
+    // are the operational "day".
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+}
+
 async function sendLockoutEmail(email, clientIp) {
     try {
         const { accountLockout } = require('../emails');
@@ -199,6 +214,30 @@ async function recordFailedAttempt(email, clientIp) {
         const lockUntil = Date.now() + FAIL_LOCKOUT * 1000;
         await cacheSetEx(lockKey, String(lockUntil), FAIL_LOCKOUT + 60);
         console.warn(`[LOCKOUT] ${normalizedEmail} locked for 15 minutes. IP: ${clientIp}`);
+
+        // RB5: bookkeeping for the daily cumulative cap. The counter is keyed
+        // per local day and expires at local midnight.
+        const now = new Date();
+        const dayKey = localDateKey(now);
+        const cyclesKey = `lock_cycles:${normalizedEmail}:${dayKey}`;
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+        const dayTtl = Math.max(60, Math.floor((endOfDay - now) / 1000));
+        const cycles = await cacheIncr(cyclesKey, dayTtl);
+
+        if (cycles > MAX_LOCK_CYCLES_PER_DAY) {
+            // Security unchanged: the account stays locked. Only the email is
+            // suppressed so lockouts cannot be turned into mail-bombing.
+            console.warn(`[LOCKOUT] ${normalizedEmail}: daily lock-cycle cap reached (${cycles}/${MAX_LOCK_CYCLES_PER_DAY}) — locking WITHOUT email`);
+            return count;
+        }
+
+        // RB5: per-recipient throttle — at most one lockout email / 30 min.
+        const throttleKey = `lockout_email_throttle:${normalizedEmail}`;
+        if (await cacheGet(throttleKey)) {
+            console.warn(`[LOCKOUT EMAIL] Suppressed for ${normalizedEmail} — throttled (max 1 per ${LOCKOUT_EMAIL_THROTTLE_SECONDS / 60} min)`);
+            return count;
+        }
+        await cacheSetEx(throttleKey, '1', LOCKOUT_EMAIL_THROTTLE_SECONDS);
 
         // Send email notification (fire-and-forget)
         sendLockoutEmail(normalizedEmail, clientIp).catch(() => {});

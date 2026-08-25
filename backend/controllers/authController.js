@@ -404,7 +404,8 @@ exports.refreshToken = async (req, res) => {
     // SECURITY: verify with the dedicated refresh secret (access-secret tokens
     // must never refresh a session). Falls back to JWT_SECRET only when
     // JWT_REFRESH_SECRET is unset (config/env.js).
-    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+    // SECURITY (RB1): algorithm pinning.
+    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret, { algorithms: ['HS256'] });
 
     // SECURITY: token-type pinning — only refresh tokens may mint new pairs.
     if (decoded.type !== 'refresh') {
@@ -587,7 +588,8 @@ exports.changePasswordWithOtp = async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(tempToken, config.jwt.secret);
+      // SECURITY (RB1): algorithm pinning.
+      decoded = jwt.verify(tempToken, config.jwt.secret, { algorithms: ['HS256'] });
     } catch (e) {
       return res.status(401).json({ success: false, message: 'Session expired. Please start again.' });
     }
@@ -705,7 +707,8 @@ exports.verifyOtp = async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(tempToken, config.jwt.secret);
+      // SECURITY (RB1): algorithm pinning.
+      decoded = jwt.verify(tempToken, config.jwt.secret, { algorithms: ['HS256'] });
     } catch (e) {
       return res.status(401).json({ success: false, message: 'Session expired. Please login again.', code: 'SESSION_EXPIRED' });
     }
@@ -752,7 +755,8 @@ exports.resendOtp = async (req, res) => {
     if (!tempToken) return res.status(400).json({ success: false, message: 'Token required' });
 
     let decoded;
-    try { decoded = jwt.verify(tempToken, config.jwt.secret); } catch (e) { return res.status(401).json({ success: false, message: 'Session expired' }); }
+    // SECURITY (RB1): algorithm pinning.
+    try { decoded = jwt.verify(tempToken, config.jwt.secret, { algorithms: ['HS256'] }); } catch (e) { return res.status(401).json({ success: false, message: 'Session expired' }); }
 
     const pool = await getPool();
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT Email FROM Users WHERE Id = @id AND IsActive = 1');
@@ -779,7 +783,13 @@ exports.forgotPassword = async (req, res) => {
     const result = await passwordResetService.generateResetToken(email);
     
     if (result.success) {
-      const resetUrl = `${config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in'}/reset-password?token=${result.token}`;
+      // SECURITY (Contract C): the token travels in the URL FRAGMENT
+      // (#token=...), which browsers never send to servers — it stays out of
+      // access logs, proxies, Referer headers and browser history sync.
+      // BACKWARD COMPAT: the frontend reset page also accepts ?token= query
+      // links during the transition window; token generation/validation is
+      // unchanged.
+      const resetUrl = `${config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in'}/reset-password#token=${result.token}`;
       const ipAddress = getClientIp(req);
       
       const html = passwordResetTemplate({
@@ -805,7 +815,10 @@ exports.forgotPassword = async (req, res) => {
 
 exports.validateResetToken = async (req, res) => {
   try {
-    const { token } = req.query;
+    // Contract C: the frontend extracts the token from the URL fragment
+    // (#token=...) and forwards it here; legacy clients may still send it as
+    // ?token= (query) or in the JSON body — accept all three shapes.
+    const token = req.query.token || (req.body && req.body.token);
     if (!token) return res.status(400).json({ success: false, message: 'Token is required' });
 
     const passwordResetService = require('../services/passwordResetService');
