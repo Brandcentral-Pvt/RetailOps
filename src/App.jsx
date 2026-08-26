@@ -61,8 +61,6 @@ const TaskInstancesPage = lazy(() => import('./modules/pems/pages/TaskInstancesP
 const ReviewQueuePage = lazy(() => import('./modules/pems/pages/ReviewQueuePage'));
 const PemsAnalyticsPage = lazy(() => import('./modules/pems/pages/PemsAnalyticsPage'));
 const TemplateDetailPage = lazy(() => import('./modules/pems/pages/TemplateDetailPage'));
-const LiveSyncTrackerPage = lazy(() => import('./pages/LiveSyncTrackerPage'));
-const LiveDataInspectorPage = lazy(() => import('./pages/LiveDataInspectorPage'));
 const LiveSyncPage = lazy(() => import('./pages/LiveSyncPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ChatContainer = lazy(() => import('./components/chat/ChatContainer'));
