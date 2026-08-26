@@ -78,7 +78,7 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
           <Col span={8}>
             <Card variant="borderless" style={{ background: 'var(--bg-success-subtle, #f0fdf4)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
-                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: '#166534', textTransform: 'uppercase' }}>Available</Text>} 
+                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-green-800)', textTransform: 'uppercase' }}>Available</Text>} 
                 value={stats.available} 
                 styles={{ content: { fontWeight: 700, color: 'var(--text-success, #2E7D32)' } }}
               />
@@ -87,7 +87,7 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
           <Col span={8}>
             <Card variant="borderless" style={{ background: 'var(--bg-info-subtle, #eff6ff)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
-                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: '#1e40af', textTransform: 'uppercase' }}>Assigned</Text>} 
+                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-blue-800)', textTransform: 'uppercase' }}>Assigned</Text>} 
                 value={stats.assigned} 
                 styles={{ content: { fontWeight: 700, color: '#0288D1' } }}
               />

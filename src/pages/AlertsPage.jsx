@@ -131,7 +131,7 @@ const AlertsPage = () => {
             });
             message.info({
                 content: `Incoming: ${normMsg.substring(0, 50)}${normMsg.length > 50 ? '...' : ''}`,
-                icon: <BellRing size={16} style={{ color: '#1976D2' }} />,
+                icon: <BellRing size={16} style={{ color: 'var(--bc-ro-500)' }} />,
                 duration: 3
             });
         };
@@ -169,7 +169,7 @@ const AlertsPage = () => {
             content: 'Are you sure you want to clear the active unread queue?',
             okText: 'Acknowledge All',
             cancelText: 'Cancel',
-            okButtonProps: { type: 'primary', style: { borderRadius: "var(--radius-md)", backgroundColor: '#1976D2', borderColor: '#1976D2' } },
+            okButtonProps: { type: 'primary', style: { borderRadius: "var(--radius-md)", backgroundColor: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)' } },
             cancelButtonProps: { style: { borderRadius: "var(--radius-md)" } },
             icon: <CheckCircle style={{ color: '#2E7D32', marginRight: 8 }} size={22} />,
             async onOk() {
@@ -306,7 +306,7 @@ const AlertsPage = () => {
             case 'SYSTEM': return '#ED6C02'; // amber
             case 'ACTION_ASSIGNED': return '#2E7D32'; // green
             case 'CHAT_MESSAGE':
-            case 'CHAT_MENTION': return '#9C27B0'; // purple
+            case 'CHAT_MENTION': return 'var(--bc-purple-500)'; // purple
             default: return '#0288D1'; // blue
         }
     };
@@ -376,7 +376,7 @@ const AlertsPage = () => {
             theme={{
                 token: {
                     borderRadius: "var(--radius-lg)",
-                    colorPrimary: '#1976D2'
+                    colorPrimary: 'var(--bc-ro-500)'
                 }
             }}
         >
@@ -390,7 +390,7 @@ const AlertsPage = () => {
                         width: '100%', 
                         height: '3px', 
                         zIndex: 9999, 
-                        backgroundColor: '#e0e7ff'
+                        backgroundColor: 'var(--bc-indigo-100)'
                     }}>
                         <div className="sync-bar-pulse" />
                     </div>
@@ -400,7 +400,7 @@ const AlertsPage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
                     <div>
                         <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.025em', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <Bell style={{ color: '#1976D2' }} size={26} />
+                            <Bell style={{ color: 'var(--bc-ro-500)' }} size={26} />
                             Operational Alerts
                         </Title>
                         <Text style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
@@ -421,7 +421,7 @@ const AlertsPage = () => {
                             type="primary" 
                             onClick={acknowledgeAll} 
                             disabled={stats.unreadCount === 0 || actionLoading}
-                            style={{ borderRadius: 'var(--radius-md)', height: 38, fontWeight: 600, backgroundColor: '#1976D2', borderColor: '#1976D2', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)' }}
+                            style={{ borderRadius: 'var(--radius-md)', height: 38, fontWeight: 600, backgroundColor: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)' }}
                         >
                             Mark All As Read
                         </Button>
@@ -431,10 +431,10 @@ const AlertsPage = () => {
                 {/* Professional Scoreboard KPIs */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>
                     {[
-                        { label: 'Unread Buffer', value: stats.unreadCount, icon: Bell, color: '#1976D2', bgColor: '#eeebff' },
-                        { label: 'Critical Incidents', value: stats.critical, icon: XCircle, color: '#D32F2F', bgColor: '#fef2f2' },
-                        { label: 'Completed Operations', value: stats.success, icon: CheckCircle, color: '#2E7D32', bgColor: '#f0fdf4' },
-                        { label: 'System Invocations', value: stats.warning, icon: ShieldAlert, color: '#ED6C02', bgColor: '#fffbeb' }
+                        { label: 'Unread Buffer', value: stats.unreadCount, icon: Bell, color: 'var(--bc-ro-500)', bgColor: '#eeebff' },
+                        { label: 'Critical Incidents', value: stats.critical, icon: XCircle, color: '#D32F2F', bgColor: 'var(--bc-red-50)' },
+                        { label: 'Completed Operations', value: stats.success, icon: CheckCircle, color: '#2E7D32', bgColor: 'var(--bc-green-50)' },
+                        { label: 'System Invocations', value: stats.warning, icon: ShieldAlert, color: '#ED6C02', bgColor: 'var(--bc-amber-50)' }
                     ].map((stat, idx) => (
                         <Col xs={12} md={6} key={idx}>
                             <Card variant="borderless" style={{ 
@@ -619,7 +619,7 @@ const AlertsPage = () => {
                                                             </Tag>
                                                             {!item.isRead && (
                                                                 <Badge status="processing" style={{ marginLeft: 4 }} text={
-                                                                    <span style={{ fontSize: 10, fontWeight: 800, color: '#1976D2' }}>NEW</span>
+                                                                    <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--bc-ro-500)' }}>NEW</span>
                                                                 } />
                                                             )}
                                                         </Space>
@@ -658,7 +658,7 @@ const AlertsPage = () => {
                                                                     onClick={() => acknowledgeNotification(item.id)}
                                                                     icon={<Check size={15} style={{ color: '#2E7D32' }} />}
                                                                     style={{ 
-                                                                        backgroundColor: '#f0fdf4', 
+                                                                        backgroundColor: 'var(--bc-green-50)', 
                                                                         border: '1px solid #dcfce7',
                                                                         borderRadius: "var(--radius-md)",
                                                                         width: 32,
@@ -687,7 +687,7 @@ const AlertsPage = () => {
                                                                     danger
                                                                     icon={<Trash2 size={14} />}
                                                                     style={{ 
-                                                                        backgroundColor: '#fef2f2', 
+                                                                        backgroundColor: 'var(--bc-red-50)', 
                                                                         border: '1px solid #fee2e2',
                                                                         borderRadius: "var(--radius-md)",
                                                                         width: 32,

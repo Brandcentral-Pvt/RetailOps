@@ -115,24 +115,24 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
     const t = tag.toLowerCase();
     // Green
     if (t.includes('best') || t.includes('high margin') || t.includes('won') || t.includes('high potential')) 
-      return { bg: '#2E7D32', text: '#ffffff' };
+      return { bg: '#2E7D32', text: 'var(--bc-white)' };
     // Red
     if (t.includes('low') || t.includes('lost') || t.includes('alert') || t.includes('missing') || t.includes('hijacker') || t.includes('violation'))
-      return { bg: '#D32F2F', text: '#ffffff' };
+      return { bg: '#D32F2F', text: 'var(--bc-white)' };
     // Amber/Orange
     if (t.includes('optim') || t.includes('drop') || t.includes('map') || t.includes('inventory') || t.includes('out of stock'))
-      return { bg: '#ED6C02', text: '#ffffff' };
+      return { bg: '#ED6C02', text: 'var(--bc-white)' };
     // Blue
     if (t.includes('new') || t.includes('ad active') || t.includes('seasonal') || t.includes('growth') || t.includes('trending'))
-      return { bg: '#0288D1', text: '#ffffff' };
+      return { bg: '#0288D1', text: 'var(--bc-white)' };
     // Indigo/Purple
     if (t.includes('days') || t.includes('phase') || t.includes('mature') || t.includes('veteran') || t.includes('legacy') || t.includes('established'))
-      return { bg: '#1976D2', text: '#ffffff' };
+      return { bg: 'var(--bc-ro-500)', text: 'var(--bc-white)' };
     // Orange-Red
     if (t.includes('clearance') || t.includes('replenishment') || t.includes('discontinued'))
-      return { bg: '#ED6C02', text: '#ffffff' };
+      return { bg: '#ED6C02', text: 'var(--bc-white)' };
     // Default Gray
-    return { bg: '#71717a', text: '#ffffff' };
+    return { bg: '#71717a', text: 'var(--bc-white)' };
   };
 
   if (!isOpen) return null;
@@ -259,7 +259,7 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                       </span>
                     ))}
                   </div>
-                  <div className="mt-1" style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  <div className="mt-1" style={{ fontSize: '10px', color: 'var(--bc-slate-400)' }}>
                     These tags are already present on one or more selected ASINs.
                   </div>
                 </div>
@@ -334,9 +334,9 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                   return (
                     <button key={idx} className={`bulk-tag-item ${isSelected ? 'selected' : ''}`}
                       style={{ 
-                        backgroundColor: isSelected ? color.bg : '#f8fafc', 
-                        color: isSelected ? color.text : '#475569', 
-                        borderColor: isSelected ? 'transparent' : '#e2e8f0',
+                        backgroundColor: isSelected ? color.bg : 'var(--bc-slate-50)', 
+                        color: isSelected ? color.text : 'var(--bc-slate-600)', 
+                        borderColor: isSelected ? 'transparent' : 'var(--bc-slate-200)',
                         boxShadow: isSelected ? `0 4px 12px ${color.bg}33` : 'none'
                       }}
                       onClick={() => toggleTag(tag)}>

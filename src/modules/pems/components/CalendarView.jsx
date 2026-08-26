@@ -86,8 +86,8 @@ export default function CalendarView({ instances, onView, loading }) {
                   <Tooltip key={task.Id} title={`${task.Title} — ${task.Status}`}>
                     <div onClick={() => onView(task)} style={{
                       padding: '2px 4px', borderRadius: 3, marginBottom: 1,
-                      background: `${cfg.color || '#64748b'}12`, border: `1px solid ${cfg.color || '#64748b'}20`,
-                      fontSize: 8, color: cfg.color || '#64748b', fontWeight: 600,
+                      background: `${cfg.color || 'var(--bc-slate-500)'}12`, border: `1px solid ${cfg.color || 'var(--bc-slate-500)'}20`,
+                      fontSize: 8, color: cfg.color || 'var(--bc-slate-500)', fontWeight: 600,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       cursor: 'pointer', lineHeight: '12px',
                     }}>

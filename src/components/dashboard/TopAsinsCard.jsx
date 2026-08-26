@@ -264,8 +264,8 @@ const TopAsinsCard = ({ products = [] }) => {
                                     border: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
                                     borderRadius: "var(--radius-lg)"
                                 }}>
-                                    <BarChart3 size={11} style={{ color: '#9C27B0' }} strokeWidth={2.5} />
-                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: '#9C27B0' }}>
+                                    <BarChart3 size={11} style={{ color: 'var(--bc-purple-500)' }} strokeWidth={2.5} />
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--bc-purple-500)' }}>
                                         {formatCurrency(stats.totalRevenue)}
                                     </span>
                                     <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>

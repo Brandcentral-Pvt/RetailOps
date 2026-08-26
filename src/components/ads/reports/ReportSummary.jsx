@@ -51,7 +51,7 @@ const ReportMetricCard = ({
           <Tag style={{ 
             fontSize: 9, 
             borderRadius: "var(--radius-sm)", 
-            background: isGood ? '#ecfdf5' : '#fef2f2', 
+            background: isGood ? '#ecfdf5' : 'var(--bc-red-50)', 
             color: isGood ? '#2E7D32' : '#C62828',
             border: 'none'
           }}>

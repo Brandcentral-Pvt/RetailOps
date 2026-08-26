@@ -6,7 +6,7 @@ export const ReadOnlyBanner = ({ isBrandManager }) => {
     return (
         <Alert
             message={
-                <span style={{ fontWeight: 600, color: '#D97706' }}>
+                <span style={{ fontWeight: 600, color: 'var(--bc-amber-600)' }}>
                     {isBrandManager ? 'Assigned Brands View' : 'Read-Only Mode'}
                 </span>
             }
@@ -19,7 +19,7 @@ export const ReadOnlyBanner = ({ isBrandManager }) => {
             }
             type="warning"
             showIcon
-            icon={<EyeOutlined style={{ color: '#D97706', fontSize: '18px' }} />}
+            icon={<EyeOutlined style={{ color: 'var(--bc-amber-600)', fontSize: '18px' }} />}
             style={{
                 marginBottom: '20px',
                 borderRadius: 'var(--radius-lg)',

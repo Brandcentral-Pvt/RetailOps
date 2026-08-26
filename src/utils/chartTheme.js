@@ -5,26 +5,26 @@
 
 // 8-color palette — RetailOps design system chart palette
 export const CHART_COLORS = [
-    '#1976D2', // Primary — Operations & Trust
-    '#42A5F5', // Primary Light
+    'var(--bc-ro-500)', // Primary — Operations & Trust
+    'var(--bc-ro-400)', // Primary Light
     '#0288D1', // Info — Analytics
-    '#9C27B0', // Secondary — Growth
-    '#BA68C8', // Secondary Light
+    'var(--bc-purple-500)', // Secondary — Growth
+    'var(--bc-purple-300)', // Secondary Light
     '#4CAF50', // Success — Revenue
     '#FF9800', // Warning — Attention
     '#D32F2F', // Error — Critical
-    '#64748B', // Neutral — Governance
+    'var(--bc-slate-500)', // Neutral — Governance
 ];
 
 // Base configuration applied to all charts
 export const defaultApexOptions = {
     fontFamily: 'Calibri, system-ui, sans-serif',
-    foreColor: '#475569', // var(--color-text-secondary) equivalent
+    foreColor: 'var(--bc-slate-600)', // var(--color-text-secondary) equivalent
     toolbar: {
         show: false // Remove ApexCharts toolbar from all charts
     },
     grid: {
-        borderColor: '#E2E8F0',
+        borderColor: 'var(--bc-slate-200)',
         strokeDashArray: 3
     },
     tooltip: {

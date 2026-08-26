@@ -140,25 +140,25 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
     const getTagColor = (tag) => {
         const t = tag.toLowerCase();
         if (t.includes('top 20 by gms') || t.includes('top 80% contributor'))
-            return { bg: '#fefce8', color: '#92400e', border: '#facc15' };
+            return { bg: '#fefce8', color: 'var(--bc-amber-800)', border: '#facc15' };
         if (t.includes('bottom 20% contributor'))
-            return { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' };
+            return { bg: 'var(--bc-red-50)', color: 'var(--bc-red-800)', border: 'var(--bc-red-200)' };
         if (t.includes('best') || t.includes('high margin') || t.includes('won') || t.includes('high potential'))
-            return { bg: '#ecfdf5', color: '#166534', border: '#86efac' };
+            return { bg: '#ecfdf5', color: 'var(--bc-green-800)', border: '#86efac' };
         if (t.includes('low') || t.includes('lost') || t.includes('alert') || t.includes('missing') || t.includes('hijacker') || t.includes('violation'))
-            return { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' };
+            return { bg: 'var(--bc-red-50)', color: 'var(--bc-red-700)', border: '#fca5a5' };
         if (t.includes('price dispute'))
             return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
         if (t.includes('optim') || t.includes('drop') || t.includes('map') || t.includes('inventory') || t.includes('out of stock'))
             return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
         if (t.includes('new 20') || t.includes('ad active') || t.includes('seasonal') || t.includes('growth') || t.includes('trending'))
-            return { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' };
+            return { bg: 'var(--bc-blue-50)', color: 'var(--bc-blue-800)', border: 'var(--bc-blue-200)' };
         if (t.includes('gms top 20'))
-            return { bg: '#fffbeb', color: '#b45309', border: '#fcd34d' };
+            return { bg: 'var(--bc-amber-50)', color: 'var(--bc-amber-700)', border: '#fcd34d' };
         if (t.includes('< 60 days'))
-            return { bg: '#ecfdf5', color: '#166534', border: '#86efac' };
+            return { bg: '#ecfdf5', color: 'var(--bc-green-800)', border: '#86efac' };
         if (t.includes('days') || t.includes('phase') || t.includes('mature') || t.includes('veteran') || t.includes('legacy') || t.includes('established'))
-            return { bg: '#f5f3ff', color: '#7c3aed', border: '#ddd6fe' };
+            return { bg: 'var(--bc-violet-50)', color: 'var(--bc-violet-600)', border: '#ddd6fe' };
         if (t.includes('clearance') || t.includes('replenishment') || t.includes('discontinued'))
             return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' };
         return { bg: '#f4f4f5', color: '#52525b', border: '#e4e4e7' };
@@ -196,7 +196,7 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
             {/* TAGS DISPLAY - Click to open */}
             <Tooltip
                 title={tags.length > 0 ? tooltipContent : null}
-                color="#ffffff"
+                color="var(--bc-white)"
                 styles={{ padding: '8px' }}
                 mouseEnterDelay={0.3}
             >
@@ -283,7 +283,7 @@ const TagsCell = ({ asin, onUpdate, onRefresh }) => {
 
                     {/* View/Edit Tags button */}
                     <button
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', marginLeft: 'auto', color: '#cbd5e1', opacity: tags.length > 0 ? 1 : 0, transition: 'opacity 0.2s' }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', marginLeft: 'auto', color: 'var(--bc-slate-300)', opacity: tags.length > 0 ? 1 : 0, transition: 'opacity 0.2s' }}
                         onClick={(e) => {
                             e.stopPropagation();
                             if (hasPermission('asinmanager_manage')) {

@@ -121,53 +121,53 @@ export default function ReviewQueuePage() {
       render: (_, r) => <Checkbox checked={selectedIds.has(r.Id)} onChange={(e) => { e.stopPropagation(); toggleSelect(r.Id); }} /> },
     { title: 'Task', key: 'task', render: (_, r) => (
       <Space>
-        <Button type="text" size="small" icon={expandedRows.has(r.Id) ? <DownOutlined /> : <RightOutlined />} onClick={(e) => toggleExpand(r.Id, e)} style={{ color: '#94a3b8' }} />
+        <Button type="text" size="small" icon={expandedRows.has(r.Id) ? <DownOutlined /> : <RightOutlined />} onClick={(e) => toggleExpand(r.Id, e)} style={{ color: 'var(--bc-slate-400)' }} />
         <div>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#2563eb', cursor: 'pointer' }} onClick={() => openWorkspace(r)}>{r.Title || 'Untitled'}</Text>
-          <Text style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>{r.InstanceCode}</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-blue-600)', cursor: 'pointer' }} onClick={() => openWorkspace(r)}>{r.Title || 'Untitled'}</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block' }}>{r.InstanceCode}</Text>
         </div>
       </Space>
     )},
     { title: 'Seller', dataIndex: 'SellerName', width: 100, render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)' }}>{v || '-'}</Text> },
-    { title: 'Category', dataIndex: 'Department', width: 90, render: (d) => <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{d || '-'}</Tag> },
+    { title: 'Category', dataIndex: 'Department', width: 90, render: (d) => <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", background: 'var(--bc-blue-50)', color: 'var(--bc-blue-700)', border: '1px solid #bfdbfe' }}>{d || '-'}</Tag> },
     { title: 'Priority', dataIndex: 'Priority', width: 70, render: (p) => {
       const c = PRIORITIES[p] || {};
       return p ? <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", background: c.bg, color: c.color, border: `1px solid ${c.color}25`, fontWeight: 600 }}>{p}</Tag> : '-';
     }},
     { title: 'Submitted By', dataIndex: 'AssigneeName', width: 100, render: (v) => v ? (
       <Space size={4}>
-        <div style={{ width: 20, height: 20, borderRadius: 5, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: 9, fontWeight: 600 }}>{v?.charAt(0)}</div>
+        <div style={{ width: 20, height: 20, borderRadius: 5, background: 'var(--bc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-blue-600)', fontSize: 9, fontWeight: 600 }}>{v?.charAt(0)}</div>
         <Text style={{ fontSize: 'var(--font-size-xs)' }}>{v.split(' ')[0]}</Text>
       </Space>
     ) : <Text style={{ fontSize: 'var(--font-size-xs)', color: '#d1d5db' }}>-</Text> },
     { title: 'Review Age', key: 'age', width: 80, render: (_, r) => {
       if (!r.SubmittedAt) return <Text style={{ fontSize: 10, color: '#d1d5db' }}>-</Text>;
       const hours = Math.floor(dayjs().diff(dayjs(r.SubmittedAt), 'hour'));
-      const color = hours > 48 ? '#D32F2F' : hours > 24 ? '#ED6C02' : '#64748b';
+      const color = hours > 48 ? '#D32F2F' : hours > 24 ? '#ED6C02' : 'var(--bc-slate-500)';
       const text = hours < 1 ? `${Math.floor(dayjs().diff(dayjs(r.SubmittedAt), 'minute'))}m` : hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`;
       return <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color }}>{text}</Text>;
     }},
     { title: 'Evidence', key: 'evidence', width: 80, align: 'center', render: (_, r) => {
       const count = r.evidence?.length || 0;
-      return count > 0 ? <Badge count={count} style={{ backgroundColor: '#2563eb', fontSize: 9 }} /> : <Text style={{ fontSize: 10, color: '#d1d5db' }}>0</Text>;
+      return count > 0 ? <Badge count={count} style={{ backgroundColor: 'var(--bc-blue-600)', fontSize: 9 }} /> : <Text style={{ fontSize: 10, color: '#d1d5db' }}>0</Text>;
     }},
     { title: 'Due', dataIndex: 'DueDate', width: 80, render: (d, r) => {
       const dd = getDueDateLabel(r);
-      return dd ? <Text style={{ fontSize: 10, fontWeight: 600, color: dd.color }}>{dd.text}</Text> : <Text style={{ fontSize: 10, color: '#94a3b8' }}>-</Text>;
+      return dd ? <Text style={{ fontSize: 10, fontWeight: 600, color: dd.color }}>{dd.text}</Text> : <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>-</Text>;
     }},
-    { title: 'SLA', dataIndex: 'SLAStatus', width: 80, render: (s) => <Tag style={{ fontSize: 8, borderRadius: 6, background: SLA_STATUSES[s]?.bg || '#f1f5f9', color: SLA_STATUSES[s]?.color || '#64748b', border: 'none' }}>{s?.replace(/_/g, ' ')}</Tag> },
+    { title: 'SLA', dataIndex: 'SLAStatus', width: 80, render: (s) => <Tag style={{ fontSize: 8, borderRadius: 6, background: SLA_STATUSES[s]?.bg || 'var(--bc-slate-100)', color: SLA_STATUSES[s]?.color || 'var(--bc-slate-500)', border: 'none' }}>{s?.replace(/_/g, ' ')}</Tag> },
     { title: '', key: 'actions', width: 40, align: 'center',
-      render: (_, r) => <Button type="text" icon={<EyeOutlined />} size="small" onClick={(e) => { e.stopPropagation(); openWorkspace(r); }} style={{ color: '#2563eb' }} /> },
+      render: (_, r) => <Button type="text" icon={<EyeOutlined />} size="small" onClick={(e) => { e.stopPropagation(); openWorkspace(r); }} style={{ color: 'var(--bc-blue-600)' }} /> },
   ];
 
   // Expandable row content
   const expandedRowRender = (record) => {
     const dueLabel = getDueDateLabel(record);
     return (
-      <div style={{ padding: '12px 20px', background: '#f8fafc', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+      <div style={{ padding: '12px 20px', background: 'var(--bc-slate-50)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
         {/* Task Info */}
         <div>
-          <Text style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Task Info</Text>
+          <Text style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Task Info</Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
             {[
               { label: 'Seller', value: record.SellerName || '-' },
@@ -176,8 +176,8 @@ export default function ReviewQueuePage() {
               { label: 'Due', value: dueLabel?.text || '-', color: dueLabel?.color },
             ].map(item => (
               <div key={item.label} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9' }}>
-                <Text style={{ fontSize: 8, color: '#94a3b8', fontWeight: 600 }}>{item.label}</Text>
-                <Text style={{ fontSize: 10, fontWeight: 600, color: item.color || '#334155', display: 'block' }}>{item.value}</Text>
+                <Text style={{ fontSize: 8, color: 'var(--bc-slate-400)', fontWeight: 600 }}>{item.label}</Text>
+                <Text style={{ fontSize: 10, fontWeight: 600, color: item.color || 'var(--bc-slate-700)', display: 'block' }}>{item.value}</Text>
               </div>
             ))}
           </div>
@@ -185,24 +185,24 @@ export default function ReviewQueuePage() {
 
         {/* Evidence */}
         <div>
-          <Text style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Evidence ({record.evidence?.length || 0})</Text>
+          <Text style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Evidence ({record.evidence?.length || 0})</Text>
           {(record.evidence || []).slice(0, 3).map(ev => (
             <div key={ev.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <FileTextOutlined style={{ fontSize: 'var(--font-size-xs)', color: '#2563eb' }} />
+              <FileTextOutlined style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-blue-600)' }} />
               <Text style={{ fontSize: 10 }}>{ev.FileName}</Text>
             </div>
           ))}
-          {(!record.evidence || record.evidence.length === 0) && <Text style={{ fontSize: 10, color: '#94a3b8' }}>No evidence</Text>}
+          {(!record.evidence || record.evidence.length === 0) && <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>No evidence</Text>}
         </div>
 
         {/* Subtasks */}
         <div>
-          <Text style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Sub Tasks</Text>
+          <Text style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Sub Tasks</Text>
           {(record.subtasks || []).slice(0, 4).map(st => (
             <div key={st.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginBottom: 3 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 10, color: '#334155' }}>{st.Title}</Text>
-                {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 10 }} /> : <ClockCircleOutlined style={{ color: '#94a3b8', fontSize: 10 }} />}
+                <Text style={{ fontSize: 10, color: 'var(--bc-slate-700)' }}>{st.Title}</Text>
+                {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 10 }} /> : <ClockCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 10 }} />}
               </div>
             </div>
           ))}
@@ -212,18 +212,18 @@ export default function ReviewQueuePage() {
   };
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Text strong style={{ fontSize: 18 }}>Review Queue</Text>
-            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block', marginTop: 2 }}>Pending Reviews: <Text strong style={{ color: '#7c3aed' }}>{kpiData.pending || 0}</Text></Text>
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', display: 'block', marginTop: 2 }}>Pending Reviews: <Text strong style={{ color: 'var(--bc-violet-600)' }}>{kpiData.pending || 0}</Text></Text>
           </div>
           <Space>
             {selectedIds.size > 0 && (
               <Space>
-                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#2563eb' }}>{selectedIds.size} selected</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-blue-600)' }}>{selectedIds.size} selected</Text>
                 {hasPermission(currentUser, 'review.approve') && (
                   <Button size="small" icon={<CheckCircleOutlined />} onClick={handleBulkApprove} style={{ borderRadius: 6, background: '#2E7D32', color: '#fff', borderColor: '#2E7D32' }}>Bulk Approve</Button>
                 )}
@@ -245,8 +245,8 @@ export default function ReviewQueuePage() {
           {quickViews.map(qv => (
             <div key={qv.key} onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
               style={{ padding: '5px 14px', borderRadius: 20, fontSize: 'var(--font-size-xs)', fontWeight: quickView === qv.key ? 700 : 500,
-                background: quickView === qv.key ? '#7c3aed' : '#fff', color: quickView === qv.key ? '#fff' : '#475569',
-                border: `1px solid ${quickView === qv.key ? '#7c3aed' : '#e5e7eb'}`,
+                background: quickView === qv.key ? 'var(--bc-violet-600)' : '#fff', color: quickView === qv.key ? '#fff' : 'var(--bc-slate-600)',
+                border: `1px solid ${quickView === qv.key ? 'var(--bc-violet-600)' : '#e5e7eb'}`,
                 cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
               {qv.icon} {qv.label}
             </div>

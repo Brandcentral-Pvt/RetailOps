@@ -211,7 +211,7 @@ const SalesTrendChart = ({
             axisTicks: { show: false },
             labels: {
                 style: {
-                    colors: '#94a3b8',
+                    colors: 'var(--bc-slate-400)',
                     fontSize: '10px',
                     fontWeight: 600
                 },
@@ -221,7 +221,7 @@ const SalesTrendChart = ({
         yaxis: {
             labels: {
                 style: {
-                    colors: '#94a3b8',
+                    colors: 'var(--bc-slate-400)',
                     fontSize: '10px',
                     fontWeight: 600
                 },
@@ -427,7 +427,7 @@ const SalesTrendChart = ({
                                 gap: 6,
                                 padding: '4px 10px',
                                 background: showRevenue ? 'var(--bg-info-subtle, #eff6ff)' : 'var(--border-light, #d9e6e9)',
-                                border: `1px solid ${showRevenue ? '#bfdbfe' : 'var(--border-light, #d9e6e9)'}`,
+                                border: `1px solid ${showRevenue ? 'var(--bc-blue-200)' : 'var(--border-light, #d9e6e9)'}`,
                                 borderRadius: "var(--radius-md)"
                             }}
                         >
@@ -443,7 +443,7 @@ const SalesTrendChart = ({
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: showRevenue ? '#1e40af' : 'var(--text-tertiary, #94a3b8)'
+                                color: showRevenue ? 'var(--bc-blue-800)' : 'var(--text-tertiary, #94a3b8)'
                             }}>
                                 Revenue
                             </span>
@@ -458,7 +458,7 @@ const SalesTrendChart = ({
                                 gap: 6,
                                 padding: '4px 10px',
                                 background: showSpend ? 'var(--bg-warning-subtle, #fffbeb)' : 'var(--border-light, #d9e6e9)',
-                                border: `1px solid ${showSpend ? '#fde68a' : 'var(--border-light, #d9e6e9)'}`,
+                                border: `1px solid ${showSpend ? 'var(--bc-amber-200)' : 'var(--border-light, #d9e6e9)'}`,
                                 borderRadius: "var(--radius-md)"
                             }}
                         >
@@ -474,7 +474,7 @@ const SalesTrendChart = ({
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: showSpend ? '#92400e' : 'var(--text-tertiary, #94a3b8)'
+                                color: showSpend ? 'var(--bc-amber-800)' : 'var(--text-tertiary, #94a3b8)'
                             }}>
                                 Ad Spend
                             </span>
@@ -490,8 +490,8 @@ const SalesTrendChart = ({
                             gap: 5,
                             fontSize: 'var(--font-size-xs)',
                             fontWeight: 600,
-                            color: '#9C27B0',
-                            background: '#f5f3ff',
+                            color: 'var(--bc-purple-500)',
+                            background: 'var(--bc-violet-50)',
                                 padding: '3px 9px',
                                 borderRadius: "var(--radius-lg)",
                                 border: '1px solid #ddd6fe',

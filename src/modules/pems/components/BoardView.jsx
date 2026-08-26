@@ -7,12 +7,12 @@ import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
 const { Text } = Typography;
 
 const COLUMN_CONFIG = [
-  { key: 'ASSIGNED', label: 'Assigned', color: '#2563eb', bg: '#eff6ff' },
-  { key: 'ACCEPTED', label: 'Accepted', color: '#7c3aed', bg: '#f5f3ff' },
-  { key: 'IN_PROGRESS', label: 'In Progress', color: '#2563eb', bg: '#eff6ff' },
-  { key: 'SUBMITTED', label: 'Submitted', color: '#d97706', bg: '#fffbeb' },
-  { key: 'UNDER_REVIEW', label: 'Under Review', color: '#7c3aed', bg: '#f5f3ff' },
-  { key: 'APPROVED', label: 'Approved', color: '#16a34a', bg: '#f0fdf4' },
+  { key: 'ASSIGNED', label: 'Assigned', color: 'var(--bc-blue-600)', bg: 'var(--bc-blue-50)' },
+  { key: 'ACCEPTED', label: 'Accepted', color: 'var(--bc-violet-600)', bg: 'var(--bc-violet-50)' },
+  { key: 'IN_PROGRESS', label: 'In Progress', color: 'var(--bc-blue-600)', bg: 'var(--bc-blue-50)' },
+  { key: 'SUBMITTED', label: 'Submitted', color: 'var(--bc-amber-600)', bg: 'var(--bc-amber-50)' },
+  { key: 'UNDER_REVIEW', label: 'Under Review', color: 'var(--bc-violet-600)', bg: 'var(--bc-violet-50)' },
+  { key: 'APPROVED', label: 'Approved', color: 'var(--bc-green-600)', bg: 'var(--bc-green-50)' },
 ];
 
 function TaskCard({ task, onView }) {

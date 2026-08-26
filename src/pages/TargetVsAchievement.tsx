@@ -46,20 +46,20 @@ const getWeekHeadersForMonth = (year: number, month: number) => {
 };
 
 const GOAL_META: Record<string, { label: string; unit: string; color: string; bg: string }> = {
-    GMS: { label: 'GMS', unit: '₹', color: '#1976D2', bg: '#ede9fe' },
-    ADS: { label: 'ADS', unit: '₹', color: '#0288D1', bg: '#dbeafe' },
-    ACOS: { label: 'ACOS', unit: '%', color: '#C62828', bg: '#fee2e2' },
+    GMS: { label: 'GMS', unit: '₹', color: 'var(--bc-ro-500)', bg: 'var(--bc-violet-100)' },
+    ADS: { label: 'ADS', unit: '₹', color: '#0288D1', bg: 'var(--bc-blue-100)' },
+    ACOS: { label: 'ACOS', unit: '%', color: '#C62828', bg: 'var(--bc-red-100)' },
     NEW_RC: { label: 'New RC', unit: '#', color: '#2E7D32', bg: '#d1fae5' },
-    RNR: { label: 'RNR', unit: '#', color: '#0288D1', bg: '#eff6ff' },
-    PO_FULFILMENT: { label: 'PO Fulfilment', unit: '%', color: '#0891b2', bg: '#cffafe' },
+    RNR: { label: 'RNR', unit: '#', color: '#0288D1', bg: 'var(--bc-blue-50)' },
+    PO_FULFILMENT: { label: 'PO Fulfilment', unit: '%', color: 'var(--bc-cyan-600)', bg: 'var(--bc-cyan-100)' },
     PO_DAYS: { label: 'PO Days', unit: 'd', color: '#be185d', bg: '#fce7f3' },
-    SELLER_CENTRAL_BUSINESS: { label: 'SC Business', unit: '₹', color: '#b45309', bg: '#fef3c7' },
+    SELLER_CENTRAL_BUSINESS: { label: 'SC Business', unit: '₹', color: 'var(--bc-amber-700)', bg: 'var(--bc-amber-100)' },
 };
 
 const ALL_GOAL_TYPES = Object.keys(GOAL_META);
 
 function getMeta(key: string) {
-    return GOAL_META[key] ?? { label: key || 'GMS', unit: '₹', color: '#1976D2', bg: '#ede9fe' };
+    return GOAL_META[key] ?? { label: key || 'GMS', unit: '₹', color: 'var(--bc-ro-500)', bg: 'var(--bc-violet-100)' };
 }
 
 function resolveGoalType(row: any): string {
@@ -91,7 +91,7 @@ const PeriodCell = memo(({
 
     return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, padding: '8px 12px', fontSize: 12 }}>
-            <span style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: hasData ? '#1e293b' : '#cbd5e1' }}>
+            <span style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: hasData ? 'var(--bc-slate-800)' : 'var(--bc-slate-300)' }}>
                 {hasData ? fmtVal(target, unit) : '—'}
             </span>
             <span style={{ flex: 1, textAlign: 'center', fontWeight: 600, color: achColor }}>
@@ -99,7 +99,7 @@ const PeriodCell = memo(({
             </span>
             <span style={{
                 flex: 1, textAlign: 'right',
-                fontSize: 10, fontWeight: 800, color: hasData ? tier.color : '#cbd5e1',
+                fontSize: 10, fontWeight: 800, color: hasData ? tier.color : 'var(--bc-slate-300)',
                 background: hasData ? `${tier.color}12` : 'transparent',
                 border: hasData ? `1px solid ${tier.color}20` : 'none',
                 borderRadius: 4, padding: '1px 4px',
@@ -173,7 +173,7 @@ const GoalDataRow = memo(({
                 borderBottom: '1px solid #e2e8f0',
                 position: 'sticky', left: 46, zIndex: 2, minWidth: 180
             }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--bc-slate-800)' }}>
                     {displayName}
                 </div>
             </td>
@@ -190,15 +190,15 @@ const GoalDataRow = memo(({
                         <>
                             <div style={{
                                 width: 18, height: 18, borderRadius: '50%',
-                                background: '#e0e7ff', flexShrink: 0,
-                                fontSize: 9, fontWeight: 700, color: '#1976D2',
+                                background: 'var(--bc-indigo-100)', flexShrink: 0,
+                                fontSize: 9, fontWeight: 700, color: 'var(--bc-ro-500)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 border: '1px solid #c7d2fe'
                             }}>
                                 {record.BrandManager[0].toUpperCase()}
                             </div>
                             <Text style={{
-                                fontSize: 12, color: '#475569', fontWeight: 500,
+                                fontSize: 12, color: 'var(--bc-slate-600)', fontWeight: 500,
                                 whiteSpace: 'nowrap', overflow: 'hidden',
                                 textOverflow: 'ellipsis', maxWidth: 130
                             }}>
@@ -206,7 +206,7 @@ const GoalDataRow = memo(({
                             </Text>
                         </>
                     ) : (
-                        <Text style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                        <Text style={{ fontSize: 11, color: 'var(--bc-slate-400)', fontStyle: 'italic' }}>
                             Unassigned
                         </Text>
                     )}
@@ -220,7 +220,7 @@ const GoalDataRow = memo(({
                 borderBottom: '1px solid #e2e8f0',
                 minWidth: 120
             }}>
-                <div style={{ fontSize: 12, color: '#475569', fontWeight: 500 }}>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', fontWeight: 500 }}>
                     {record.TargetType === 'YEARLY' ? (
                         <span>Yearly ({record.Year})</span>
                     ) : (
@@ -246,7 +246,7 @@ const GoalDataRow = memo(({
                 padding: '10px 16px', verticalAlign: 'middle', textAlign: 'right',
                 background: cellBg, borderRight: '1px solid #f1f5f9', width: 130
             }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--bc-slate-800)' }}>
                     {fmtVal(total, meta.unit)}
                 </div>
             </td>
@@ -291,7 +291,7 @@ const GoalDataRow = memo(({
                         <td key={idx} style={{
                             padding: '8px 4px', borderRight: '1px solid #f1f5f9',
                             verticalAlign: 'middle', background: cellBg, minWidth: 40, textAlign: 'center',
-                            fontSize: 10, fontWeight: 700, color: hasData ? tier.color : '#cbd5e1'
+                            fontSize: 10, fontWeight: 700, color: hasData ? tier.color : 'var(--bc-slate-300)'
                         }}>
                             {hasData ? `${pct}%` : '—'}
                         </td>
@@ -304,7 +304,7 @@ const GoalDataRow = memo(({
                         <td style={{
                             padding: '8px 12px', borderRight: '1px solid #f1f5f9',
                             verticalAlign: 'middle', background: cellBg, minWidth: 60, textAlign: 'right',
-                            fontWeight: 600, color: hasData ? '#1e293b' : '#cbd5e1', fontSize: 12
+                            fontWeight: 600, color: hasData ? 'var(--bc-slate-800)' : 'var(--bc-slate-300)', fontSize: 12
                         }}>
                             {hasData ? fmtVal(tgt, meta.unit) : '—'}
                         </td>
@@ -320,7 +320,7 @@ const GoalDataRow = memo(({
                         <td style={{
                             padding: '8px 12px', borderRight: '1px solid #f1f5f9',
                             verticalAlign: 'middle', background: cellBg, minWidth: 60, textAlign: 'right',
-                            fontSize: 10, fontWeight: 800, color: hasData ? tier.color : '#cbd5e1'
+                            fontSize: 10, fontWeight: 800, color: hasData ? tier.color : 'var(--bc-slate-300)'
                         }}>
                             {hasData && (
                                 <span style={{
@@ -353,7 +353,7 @@ const GoalDataRow = memo(({
                                 icon={<Edit3 size={13} />}
                                 onClick={() => onEdit(record)}
                                 style={{
-                                    background: '#1976D2', borderColor: '#1976D2',
+                                    background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)',
                                     width: 30, height: 30,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     boxShadow: '0 2px 8px rgba(79,70,229,0.15)'
@@ -404,16 +404,16 @@ const GroupedTable = memo(({
                     style={{ padding: '64px 24px', textAlign: 'center', background: '#fff' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                         <div style={{
-                            width: 56, height: 56, borderRadius: '50%', background: '#f1f5f9',
+                            width: 56, height: 56, borderRadius: '50%', background: 'var(--bc-slate-100)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
-                            <TrendingUp size={24} color="#94a3b8" />
+                            <TrendingUp size={24} color="var(--bc-slate-400)" />
                         </div>
                         <div>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--bc-slate-600)', marginBottom: 4 }}>
                                 No targets found
                             </div>
-                            <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                            <div style={{ fontSize: 12, color: 'var(--bc-slate-400)' }}>
                                 Add your first target to start tracking performance
                             </div>
                         </div>
@@ -787,17 +787,17 @@ const TargetVsAchievement = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: 0 }}>Target vs Achievements</h2>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--bc-slate-900)', margin: 0 }}>Target vs Achievements</h2>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                                 {totalGroups} brands · {totalGoalRows} goals
                             </span>
                         </div>
-                        <p style={{ fontSize: 13, color: '#64748b', margin: 0, marginTop: 4, lineHeight: 1.5 }}>Manage revenue targets, distribution splits, and sales achievements.</p>
+                        <p style={{ fontSize: 13, color: 'var(--bc-slate-500)', margin: 0, marginTop: 4, lineHeight: 1.5 }}>Manage revenue targets, distribution splits, and sales achievements.</p>
                     </div>
 
                     <Space size={8} wrap>
                         <Space.Compact>
-                            <Button style={{ fontWeight: 600, fontSize: 12, background: '#f5f3ff', borderColor: '#c084fc', color: '#9C27B0' }}>
+                            <Button style={{ fontWeight: 600, fontSize: 12, background: 'var(--bc-violet-50)', borderColor: '#c084fc', color: 'var(--bc-purple-500)' }}>
                                 Table View
                             </Button>
                             <Button icon={<BarChart3 size={13} />}
@@ -813,8 +813,8 @@ const TargetVsAchievement = () => {
                                 style={{
                                     fontWeight: 600, fontSize: 12,
                                     ...(planType === 'YEARLY'
-                                        ? { background: '#1976D2', borderColor: '#1976D2', color: '#fff' }
-                                        : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' })
+                                        ? { background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', color: '#fff' }
+                                        : { background: '#fff', borderColor: 'var(--bc-slate-200)', color: 'var(--bc-slate-500)' })
                                 }}>
                                 Yearly Plans
                             </Button>
@@ -823,8 +823,8 @@ const TargetVsAchievement = () => {
                                 style={{
                                     fontWeight: 600, fontSize: 12,
                                     ...(planType === 'MONTHLY'
-                                        ? { background: '#1976D2', borderColor: '#1976D2', color: '#fff' }
-                                        : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' })
+                                        ? { background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', color: '#fff' }
+                                        : { background: '#fff', borderColor: 'var(--bc-slate-200)', color: 'var(--bc-slate-500)' })
                                 }}>
                                 Monthly Plans
                             </Button>
@@ -862,7 +862,7 @@ const TargetVsAchievement = () => {
                         {perms.canCreate && (
                             <Button type="primary" icon={<Plus size={14} />}
                                 onClick={() => navigate('/target-achievement/create')}
-                                style={{ background: '#1976D2', borderColor: '#1976D2', fontWeight: 600, boxShadow: '0 4px 12px rgba(79,70,229,0.25)' }}>
+                                style={{ background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', fontWeight: 600, boxShadow: '0 4px 12px rgba(79,70,229,0.25)' }}>
                                 Establish Targets
                             </Button>
                         )}
@@ -879,7 +879,7 @@ const TargetVsAchievement = () => {
                 {/* Row 1: Search + stats + legend */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                     <Input
-                        prefix={<Search size={14} style={{ color: '#94a3b8' }} />}
+                        prefix={<Search size={14} style={{ color: 'var(--bc-slate-400)' }} />}
                         placeholder="Search by brand name or manager..."
                         value={searchText}
                         onChange={e => { setSearchText(e.target.value); setPage(1); }}
@@ -888,7 +888,7 @@ const TargetVsAchievement = () => {
                     />
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                        <Text style={{ fontSize: 12, color: '#64748b' }}>
+                        <Text style={{ fontSize: 12, color: 'var(--bc-slate-500)' }}>
                             <Text strong>{totalGroups}</Text> brands
                             {' · '}
                             <Text strong>{totalGoalRows}</Text> goal rows
@@ -897,8 +897,8 @@ const TargetVsAchievement = () => {
                         <Space size={6}>
                             {[
                                 { label: 'Elite (100%+)', color: '#2E7D32', bg: '#d1fae5' },
-                                { label: 'High (80%+)', color: '#0288D1', bg: '#dbeafe' },
-                                { label: 'Track (50%+)', color: '#E65100', bg: '#fef3c7' },
+                                { label: 'High (80%+)', color: '#0288D1', bg: 'var(--bc-blue-100)' },
+                                { label: 'Track (50%+)', color: '#E65100', bg: 'var(--bc-amber-100)' },
                             ].map(item => (
                                 <Tag key={item.label} style={{
                                     borderRadius: 20, fontWeight: 600, fontSize: 10,
@@ -914,7 +914,7 @@ const TargetVsAchievement = () => {
 
                 {/* Row 2: Filter dropdowns */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, flexShrink: 0 }}>
+                    <Text style={{ fontSize: 11, color: 'var(--bc-slate-400)', fontWeight: 600, flexShrink: 0 }}>
                         Filters:
                     </Text>
 
@@ -966,7 +966,7 @@ const TargetVsAchievement = () => {
                                             background: m.color, display: 'inline-block', flexShrink: 0
                                         }} />
                                         <span style={{ fontWeight: 600, color: m.color }}>{m.label}</span>
-                                        <span style={{ fontSize: 10, color: '#94a3b8' }}>({m.unit})</span>
+                                        <span style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>({m.unit})</span>
                                     </div>
                                 ),
                                 value: gt
@@ -986,8 +986,8 @@ const TargetVsAchievement = () => {
                                     onClose={() => setFilterSeller('')}
                                     style={{
                                         borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                        background: '#ede9fe', border: '1px solid #c4b5fd',
-                                        color: '#9C27B0', margin: 0, padding: '1px 8px'
+                                        background: 'var(--bc-violet-100)', border: '1px solid #c4b5fd',
+                                        color: 'var(--bc-purple-500)', margin: 0, padding: '1px 8px'
                                     }}
                                 >
                                     Brand: {sellerMap.get(filterSeller) || 'Unknown Brand'}
@@ -999,8 +999,8 @@ const TargetVsAchievement = () => {
                                     onClose={() => setFilterManager('')}
                                     style={{
                                         borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                        background: '#e0e7ff', border: '1px solid #a5b4fc',
-                                        color: '#1976D2', margin: 0, padding: '1px 8px'
+                                        background: 'var(--bc-indigo-100)', border: '1px solid #a5b4fc',
+                                        color: 'var(--bc-ro-500)', margin: 0, padding: '1px 8px'
                                     }}
                                 >
                                     Manager: {filterManager}
@@ -1026,8 +1026,8 @@ const TargetVsAchievement = () => {
                                     onClose={() => setSearchText('')}
                                     style={{
                                         borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                        background: '#f1f5f9', border: '1px solid #e2e8f0',
-                                        color: '#64748b', margin: 0, padding: '1px 8px'
+                                        background: 'var(--bc-slate-100)', border: '1px solid #e2e8f0',
+                                        color: 'var(--bc-slate-500)', margin: 0, padding: '1px 8px'
                                     }}
                                 >
                                     Search: "{searchText}"
@@ -1065,14 +1065,14 @@ const TargetVsAchievement = () => {
                                 minWidth: (12 - collapsedMonths.length) * 180 + collapsedMonths.length * 40 + 560
                             }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
                                         {headerCols.map((col, i) => (
                                             <th key={i} rowSpan={2} style={{
                                                 padding: col.isCheckbox ? '12px 12px' : '12px 16px',
                                                 textAlign: i >= 3 ? 'right' : col.isCheckbox ? 'center' : 'left',
-                                                fontSize: 11, fontWeight: 600, color: '#475569',
+                                                fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                                 letterSpacing: '0.06em', textTransform: 'uppercase',
-                                                background: '#f8fafc',
+                                                background: 'var(--bc-slate-50)',
                                                 borderRight: '1px solid #f1f5f9',
                                                 borderBottom: '1px solid #e2e8f0',
                                                 whiteSpace: 'nowrap',
@@ -1141,8 +1141,8 @@ const TargetVsAchievement = () => {
                                             return (
                                                 <th key={i} colSpan={isCollapsed ? 1 : 3} rowSpan={isCollapsed ? 2 : 1} style={{
                                                     padding: '8px 12px', textAlign: 'center',
-                                                    fontSize: 11, fontWeight: 600, color: '#475569',
-                                                    background: '#f8fafc',
+                                                    fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
+                                                    background: 'var(--bc-slate-50)',
                                                     borderRight: '1px solid #f1f5f9',
                                                     borderBottom: '1px solid #e2e8f0',
                                                     minWidth: isCollapsed ? 40 : 180, whiteSpace: 'nowrap'
@@ -1158,7 +1158,7 @@ const TargetVsAchievement = () => {
                                                                     prev.includes(monthNum) ? prev.filter(m => m !== monthNum) : [...prev, monthNum]
                                                                 );
                                                             }}
-                                                            style={{ fontSize: 9, padding: '0 4px', height: 16, width: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#1976D2' }}
+                                                            style={{ fontSize: 9, padding: '0 4px', height: 16, width: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-ro-500)' }}
                                                         >
                                                             {isCollapsed ? '+' : '−'}
                                                         </Button>
@@ -1168,9 +1168,9 @@ const TargetVsAchievement = () => {
                                         })}
                                         <th rowSpan={2} style={{
                                             padding: '12px 12px', textAlign: 'center',
-                                            fontSize: 11, fontWeight: 600, color: '#475569',
+                                            fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                             letterSpacing: '0.06em', textTransform: 'uppercase',
-                                            background: '#f8fafc',
+                                            background: 'var(--bc-slate-50)',
                                             borderLeft: '1px solid #f1f5f9',
                                             borderBottom: '1px solid #e2e8f0',
                                             position: 'sticky', right: 0, zIndex: 6, width: 80
@@ -1178,16 +1178,16 @@ const TargetVsAchievement = () => {
                                             Actions
                                         </th>
                                     </tr>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
                                         {periods.map((p, i) => {
                                             const monthNum = i + 1;
                                             const isCollapsed = collapsedMonths.includes(monthNum);
                                             if (isCollapsed) return null;
                                             return (
                                                 <React.Fragment key={i}>
-                                                    <th style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>TGT</th>
-                                                    <th style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>ACH</th>
-                                                    <th style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>%</th>
+                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>TGT</th>
+                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>ACH</th>
+                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>%</th>
                                                 </React.Fragment>
                                             );
                                         })}
@@ -1197,7 +1197,7 @@ const TargetVsAchievement = () => {
                                     {loading && grouped.length === 0 ? (
                                         <tr>
                                             <td colSpan={7 + (periods.length * 3) + 1}
-                                                style={{ padding: '48px', textAlign: 'center', color: '#94a3b8' }}>
+                                                style={{ padding: '48px', textAlign: 'center', color: 'var(--bc-slate-400)' }}>
                                                 Loading targets...
                                             </td>
                                         </tr>
@@ -1224,14 +1224,14 @@ const TargetVsAchievement = () => {
                                 minWidth: WEEKS_SHORT.length * 180 + 560
                             }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
                                         {headerCols.map((col, i) => (
                                             <th key={i} rowSpan={2} style={{
                                                 padding: col.isCheckbox ? '12px 12px' : '12px 16px',
                                                 textAlign: i >= 3 ? 'right' : col.isCheckbox ? 'center' : 'left',
-                                                fontSize: 11, fontWeight: 600, color: '#475569',
+                                                fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                                 letterSpacing: '0.06em', textTransform: 'uppercase',
-                                                background: '#f8fafc',
+                                                background: 'var(--bc-slate-50)',
                                                 borderRight: '1px solid #f1f5f9',
                                                 borderBottom: '1px solid #e2e8f0',
                                                 whiteSpace: 'nowrap',
@@ -1297,8 +1297,8 @@ const TargetVsAchievement = () => {
                                         {WEEKS_SHORT.map((p, i) => (
                                             <th key={i} colSpan={3} style={{
                                                 padding: '8px 12px', textAlign: 'center',
-                                                fontSize: 11, fontWeight: 600, color: '#475569',
-                                                background: '#f8fafc',
+                                                fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
+                                                background: 'var(--bc-slate-50)',
                                                 borderRight: '1px solid #f1f5f9',
                                                 borderBottom: '1px solid #e2e8f0',
                                                 minWidth: 180, whiteSpace: 'nowrap'
@@ -1308,9 +1308,9 @@ const TargetVsAchievement = () => {
                                         ))}
                                         <th rowSpan={2} style={{
                                             padding: '12px 12px', textAlign: 'center',
-                                            fontSize: 11, fontWeight: 600, color: '#475569',
+                                            fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                             letterSpacing: '0.06em', textTransform: 'uppercase',
-                                            background: '#f8fafc',
+                                            background: 'var(--bc-slate-50)',
                                             borderLeft: '1px solid #f1f5f9',
                                             borderBottom: '1px solid #e2e8f0',
                                             position: 'sticky', right: 0, zIndex: 6, width: 80
@@ -1318,12 +1318,12 @@ const TargetVsAchievement = () => {
                                             Actions
                                         </th>
                                     </tr>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
                                         {WEEKS_SHORT.map((p, i) => (
                                             <React.Fragment key={i}>
-                                                <th style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>TGT</th>
-                                                <th style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>ACH</th>
-                                                <th style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>%</th>
+                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>TGT</th>
+                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>ACH</th>
+                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>%</th>
                                             </React.Fragment>
                                         ))}
                                     </tr>
@@ -1332,7 +1332,7 @@ const TargetVsAchievement = () => {
                                     {loading && grouped.length === 0 ? (
                                         <tr>
                                             <td colSpan={7 + (WEEKS_SHORT.length * 3) + 1}
-                                                style={{ padding: '48px', textAlign: 'center', color: '#94a3b8' }}>
+                                                style={{ padding: '48px', textAlign: 'center', color: 'var(--bc-slate-400)' }}>
                                                 Loading targets...
                                             </td>
                                         </tr>
@@ -1358,7 +1358,7 @@ const TargetVsAchievement = () => {
                         <div style={{
                             position: 'absolute', bottom: 76, left: '50%',
                             transform: 'translateX(-50%)', zIndex: 50,
-                            background: '#0f172a', borderRadius: 12, padding: '10px 20px',
+                            background: 'var(--bc-slate-900)', borderRadius: 12, padding: '10px 20px',
                             display: 'flex', alignItems: 'center', gap: 16,
                             boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
                             border: '1px solid #1e293b',
@@ -1367,7 +1367,7 @@ const TargetVsAchievement = () => {
                             <Text style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
                                 {selectedRowKeys.length} {selectedRowKeys.length === 1 ? 'row' : 'rows'} selected
                             </Text>
-                            <Divider orientation="vertical" style={{ background: '#334155', margin: 0, height: 20 }} />
+                            <Divider orientation="vertical" style={{ background: 'var(--bc-slate-700)', margin: 0, height: 20 }} />
                             <Button type="primary" size="small" icon={<Edit3 size={12} />}
                                 onClick={() => {
                                     const recs = grouped.filter(g => {
@@ -1385,7 +1385,7 @@ const TargetVsAchievement = () => {
                                     });
                                     handleEdit(recs);
                                 }}
-                                style={{ background: '#1976D2', borderColor: '#1976D2', fontSize: 12, fontWeight: 600 }}>
+                                style={{ background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', fontSize: 12, fontWeight: 600 }}>
                                 Edit Selected
                             </Button>
                             {perms.canDelete && (
@@ -1422,7 +1422,7 @@ const TargetVsAchievement = () => {
                                 </Popconfirm>
                             )}
                             <Button type="text" size="small" onClick={() => setSelectedRowKeys([])}
-                                style={{ color: '#94a3b8', fontSize: 12 }}>
+                                style={{ color: 'var(--bc-slate-400)', fontSize: 12 }}>
                                 Cancel
                             </Button>
                         </div>
@@ -1435,7 +1435,7 @@ const TargetVsAchievement = () => {
                             background: '#fff', display: 'flex', alignItems: 'center',
                             justifyContent: 'space-between', flexShrink: 0
                         }}>
-                            <Text style={{ fontSize: 12, color: '#64748b' }}>
+                            <Text style={{ fontSize: 12, color: 'var(--bc-slate-500)' }}>
                                 {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalGroups)} of{' '}
                                 <Text strong>{totalGroups}</Text> brands
                                 {' · '}
@@ -1443,8 +1443,8 @@ const TargetVsAchievement = () => {
                                 {hasActiveFilters && (
                                     <Tag style={{
                                         marginLeft: 8, borderRadius: 20, fontSize: 10,
-                                        background: '#ede9fe', border: '1px solid #c4b5fd',
-                                        color: '#9C27B0', fontWeight: 600
+                                        background: 'var(--bc-violet-100)', border: '1px solid #c4b5fd',
+                                        color: 'var(--bc-purple-500)', fontWeight: 600
                                     }}>
                                         Filtered
                                     </Tag>
@@ -1502,9 +1502,9 @@ export const ConnectionBanner = memo(({ targets }: { targets: any[] }) => {
     if (!targets || targets.length > 0) return null;
     return (
         <div style={{
-            padding: '10px 16px', background: '#fffbeb',
+            padding: '10px 16px', background: 'var(--bc-amber-50)',
             border: '1px solid #fde68a', borderRadius: 8,
-            marginBottom: 12, fontSize: 12, fontWeight: 500, color: '#92400e'
+            marginBottom: 12, fontSize: 12, fontWeight: 500, color: 'var(--bc-amber-800)'
         }}>
             ⚠ No target data loaded. Create targets or check your connection.
         </div>

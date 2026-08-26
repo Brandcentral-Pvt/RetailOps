@@ -150,7 +150,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
         {/* Label row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <label style={{
-            fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569',
+            fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-600)',
             letterSpacing: '0.05em', textTransform: 'uppercase',
             display: 'flex', alignItems: 'center', gap: 5
           }}>

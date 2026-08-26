@@ -30,11 +30,11 @@ const C = {
   bg: '#f4f5f7',
   white: '#fff',
   success: '#2E7D32',
-  successBg: '#f0fdf4',
+  successBg: 'var(--bc-green-50)',
   warning: '#ED6C02',
-  warningBg: '#fffbeb',
+  warningBg: 'var(--bc-amber-50)',
   danger: '#D32F2F',
-  dangerBg: '#fef2f2',
+  dangerBg: 'var(--bc-red-50)',
 };
 
 const getLastValidData = (asin, field, defaultValue = 0) => {
@@ -290,7 +290,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
     if (!subBsrTrend || !subBsrTrend.trends || subBsrTrend.trends.length === 0) {
       return { subBsrSeries: [], subBsrOptions: {} };
     }
-    const colors = [C.primary, C.success, C.warning, '#9C27B0', '#0288D1', '#9C27B0'];
+    const colors = [C.primary, C.success, C.warning, 'var(--bc-purple-500)', '#0288D1', 'var(--bc-purple-500)'];
     const series = subBsrTrend.trends.map(t => ({
       name: t.category.length > 30 ? t.category.substring(0, 30) + '...' : t.category,
       data: t.data.map(d => d.rank),
@@ -607,13 +607,13 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                     {(() => {
                       const dealActive = asin.dealBadge && asin.dealBadge !== 'No deal found' && asin.dealBadge !== '' && asin.dealStartTime && asin.dealEndTime && new Date(asin.dealStartTime) <= new Date() && new Date() <= new Date(asin.dealEndTime);
                       return dealActive ? (
-                      <div style={{ padding: '8px 10px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: "var(--radius-md)" }}>
+                      <div style={{ padding: '8px 10px', background: 'var(--bc-amber-100)', border: '1px solid #fde68a', borderRadius: "var(--radius-md)" }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#92400e' }}>{asin.dealBadge}</span>
+                          <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-amber-800)' }}>{asin.dealBadge}</span>
                           <Tag color="warning" style={{ border: 'none', fontSize: 9, padding: '0 4px', lineHeight: '16px', fontWeight: 600 }}>ACTIVE</Tag>
                         </div>
                         {asin.dealStartTime && (
-                          <div style={{ fontSize: 10, color: '#92400e', display: 'flex', gap: 8 }}>
+                          <div style={{ fontSize: 10, color: 'var(--bc-amber-800)', display: 'flex', gap: 8 }}>
                             <span>Start: {new Date(asin.dealStartTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
                             {asin.dealEndTime && <span>End: {new Date(asin.dealEndTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>}
                           </div>

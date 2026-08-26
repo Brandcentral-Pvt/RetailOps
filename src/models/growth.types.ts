@@ -30,13 +30,13 @@ export interface MetricUnit {
 
 export const METRIC_CONFIG: Record<MetricType, { label: string; unit: MetricUnit; icon: string; color: string }> = {
     GMS: { label: 'Gross Merchandise Sales', unit: { symbol: '₹', format: 'currency' }, icon: 'TrendingUp', color: '#10b981' },
-    ADS_SPEND: { label: 'Ads Spend', unit: { symbol: '₹', format: 'currency' }, icon: 'DollarSign', color: '#f59e0b' },
-    AD_REVENUE: { label: 'Ad Revenue', unit: { symbol: '₹', format: 'currency' }, icon: 'Wallet', color: '#8b5cf6' },
-    ACOS: { label: 'Advertising Cost of Sales', unit: { symbol: '%', format: 'percentage' }, icon: 'Target', color: '#ef4444' },
-    PO_FULFILLMENT: { label: 'PO Fulfillment Rate', unit: { symbol: '%', format: 'percentage' }, icon: 'Package', color: '#3b82f6' },
-    LISTING_SCORE: { label: 'Listing Quality Score', unit: { symbol: '', format: 'number' }, icon: 'Star', color: '#ec4899' },
-    CVR: { label: 'Conversion Rate', unit: { symbol: '%', format: 'percentage' }, icon: 'Percent', color: '#06b6d4' },
-    RETURNS: { label: 'Return Rate', unit: { symbol: '%', format: 'percentage' }, icon: 'RotateCcw', color: '#f97316' },
+    ADS_SPEND: { label: 'Ads Spend', unit: { symbol: '₹', format: 'currency' }, icon: 'DollarSign', color: 'var(--bc-amber-500)' },
+    AD_REVENUE: { label: 'Ad Revenue', unit: { symbol: '₹', format: 'currency' }, icon: 'Wallet', color: 'var(--bc-violet-500)' },
+    ACOS: { label: 'Advertising Cost of Sales', unit: { symbol: '%', format: 'percentage' }, icon: 'Target', color: 'var(--bc-red-500)' },
+    PO_FULFILLMENT: { label: 'PO Fulfillment Rate', unit: { symbol: '%', format: 'percentage' }, icon: 'Package', color: 'var(--bc-blue-500)' },
+    LISTING_SCORE: { label: 'Listing Quality Score', unit: { symbol: '', format: 'number' }, icon: 'Star', color: 'var(--bc-pink-500)' },
+    CVR: { label: 'Conversion Rate', unit: { symbol: '%', format: 'percentage' }, icon: 'Percent', color: 'var(--bc-cyan-500)' },
+    RETURNS: { label: 'Return Rate', unit: { symbol: '%', format: 'percentage' }, icon: 'RotateCcw', color: 'var(--bc-accent-dispute)' },
     INVENTORY_HEALTH: { label: 'Inventory Health', unit: { symbol: '%', format: 'percentage' }, icon: 'Warehouse', color: '#84cc16' },
 };
 

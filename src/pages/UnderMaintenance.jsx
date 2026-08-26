@@ -31,7 +31,7 @@ function BrandLogo() {
   );
 }
 
-function PulsingDot({ size = 8, color = '#ef4444' }) {
+function PulsingDot({ size = 8, color = 'var(--bc-red-500)' }) {
   return (
     <span
       style={{
@@ -79,7 +79,7 @@ function TrafficIcon() {
         height="40"
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#dc2626"
+        stroke="var(--bc-red-600)"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -114,7 +114,7 @@ function ProgressBar() {
         maxWidth: 220,
         height: 4,
         borderRadius: 2,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: 'var(--bc-slate-100)',
         overflow: 'hidden',
         margin: '0 auto',
         position: 'relative',
@@ -296,9 +296,9 @@ export default function UnderMaintenance() {
           padding: '80px 20px 40px',
           fontFamily:
             "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          color: '#475569',
+          color: 'var(--bc-slate-600)',
           textAlign: 'center',
-          background: '#f8fafc',
+          background: 'var(--bc-slate-50)',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -361,12 +361,12 @@ export default function UnderMaintenance() {
               border: '1px solid rgba(239, 68, 68, 0.15)',
             }}
           >
-            <PulsingDot size={7} color="#ef4444" />
+            <PulsingDot size={7} color="var(--bc-red-500)" />
             <span
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#dc2626',
+                color: 'var(--bc-red-600)',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
               }}
@@ -387,7 +387,7 @@ export default function UnderMaintenance() {
             maxWidth: 540,
             padding: '52px 44px 44px',
             borderRadius: 24,
-            background: '#ffffff',
+            background: 'var(--bc-white)',
             border: '1px solid #e5e7eb',
             boxShadow:
               '0 0 0 1px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.03), 0 8px 16px rgba(0,0,0,0.04), 0 24px 48px rgba(0,0,0,0.06)',
@@ -430,13 +430,13 @@ export default function UnderMaintenance() {
               fontWeight: 700,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: '#dc2626',
-              backgroundColor: '#fef2f2',
+              color: 'var(--bc-red-600)',
+              backgroundColor: 'var(--bc-red-50)',
               border: '1px solid #fecaca',
               marginBottom: 24,
             }}
           >
-            <PulsingDot size={6} color="#ef4444" />
+            <PulsingDot size={6} color="var(--bc-red-500)" />
             Elevated Request Volume
           </div>
 
@@ -450,7 +450,7 @@ export default function UnderMaintenance() {
               fontWeight: 800,
               letterSpacing: '-0.03em',
               lineHeight: 1.25,
-              color: '#0f172a',
+              color: 'var(--bc-slate-900)',
             }}
           >
             {TITLE}
@@ -464,7 +464,7 @@ export default function UnderMaintenance() {
               margin: '0 auto 28px',
               fontSize: 15,
               lineHeight: 1.75,
-              color: '#64748b',
+              color: 'var(--bc-slate-500)',
               maxWidth: 420,
             }}
           >
@@ -476,7 +476,7 @@ export default function UnderMaintenance() {
             style={{
               padding: '20px 24px',
               borderRadius: 16,
-              backgroundColor: '#f8fafc',
+              backgroundColor: 'var(--bc-slate-50)',
               border: '1px solid #f1f5f9',
               marginBottom: 28,
             }}
@@ -495,7 +495,7 @@ export default function UnderMaintenance() {
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  backgroundColor: '#3b82f6',
+                  backgroundColor: 'var(--bc-blue-500)',
                   animation: 'bc-pulse 1.5s ease infinite',
                 }}
               />
@@ -503,7 +503,7 @@ export default function UnderMaintenance() {
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: '#3b82f6',
+                  color: 'var(--bc-blue-500)',
                   letterSpacing: '0.03em',
                 }}
               >
@@ -516,7 +516,7 @@ export default function UnderMaintenance() {
                 marginTop: 12,
                 fontSize: 11,
                 fontWeight: 500,
-                color: '#94a3b8',
+                color: 'var(--bc-slate-400)',
                 letterSpacing: '0.01em',
               }}
             >
@@ -535,7 +535,7 @@ export default function UnderMaintenance() {
                 gap: 10,
                 padding: '12px 20px',
                 borderRadius: 14,
-                backgroundColor: '#fffbeb',
+                backgroundColor: 'var(--bc-amber-50)',
                 border: '1px solid #fde68a',
                 marginBottom: 28,
               }}
@@ -545,7 +545,7 @@ export default function UnderMaintenance() {
                 height="16"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#d97706"
+                stroke="var(--bc-amber-600)"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -557,7 +557,7 @@ export default function UnderMaintenance() {
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: '#92400e',
+                  color: 'var(--bc-amber-800)',
                 }}
               >
                 Estimated restoration: {ETA}
@@ -652,11 +652,11 @@ export default function UnderMaintenance() {
                 fontSize: 14,
                 fontWeight: 600,
                 fontFamily: 'inherit',
-                color: '#1e293b',
+                color: 'var(--bc-slate-800)',
                 textDecoration: 'none',
                 backgroundColor: isHoveringStatus
-                  ? '#f1f5f9'
-                  : '#ffffff',
+                  ? 'var(--bc-slate-100)'
+                  : 'var(--bc-white)',
                 border: '1px solid #e2e8f0',
                 boxShadow: isHoveringStatus
                   ? '0 6px 16px rgba(0,0,0,0.07), 0 0 0 3px rgba(59,130,246,0.06)'
@@ -720,7 +720,7 @@ export default function UnderMaintenance() {
                 gap: 6,
                 fontSize: 13,
                 fontWeight: 500,
-                color: isHoveringEmail ? '#2563eb' : '#64748b',
+                color: isHoveringEmail ? 'var(--bc-blue-600)' : 'var(--bc-slate-500)',
                 textDecoration: 'none',
                 transition: 'color 0.15s ease',
               }}
@@ -744,7 +744,7 @@ export default function UnderMaintenance() {
               style={{
                 width: 1,
                 height: 14,
-                backgroundColor: '#e2e8f0',
+                backgroundColor: 'var(--bc-slate-200)',
                 flexShrink: 0,
               }}
             />
@@ -759,7 +759,7 @@ export default function UnderMaintenance() {
                 gap: 6,
                 fontSize: 13,
                 fontWeight: 500,
-                color: '#64748b',
+                color: 'var(--bc-slate-500)',
                 textDecoration: 'none',
                 transition: 'color 0.15s ease',
               }}
@@ -801,7 +801,7 @@ export default function UnderMaintenance() {
               alignItems: 'center',
               gap: 6,
               fontSize: 12,
-              color: '#94a3b8',
+              color: 'var(--bc-slate-400)',
             }}
           >
             <svg
@@ -825,7 +825,7 @@ export default function UnderMaintenance() {
           <div
             style={{
               fontSize: 11,
-              color: '#cbd5e1',
+              color: 'var(--bc-slate-300)',
               letterSpacing: '0.01em',
             }}
           >

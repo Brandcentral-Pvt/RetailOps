@@ -140,11 +140,11 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
     return (
       <Modal open={isOpen} onCancel={resetAndClose} footer={null} width={480} centered destroyOnHidden>
         <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-          <LockOutlined style={{ fontSize: 40, color: '#cbd5e1', display: 'block', marginBottom: 16 }} />
-          <Text strong style={{ fontSize: 'var(--font-size-lg)', color: '#1e293b', display: 'block', marginBottom: 8 }}>
+          <LockOutlined style={{ fontSize: 40, color: 'var(--bc-slate-300)', display: 'block', marginBottom: 16 }} />
+          <Text strong style={{ fontSize: 'var(--font-size-lg)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>
             Admin Only Feature
           </Text>
-          <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block', marginBottom: 24 }}>
+          <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', display: 'block', marginBottom: 24 }}>
             You need admin or super admin permissions to perform bulk operations.
           </Text>
           <Button onClick={resetAndClose} style={MODAL_STYLES.cancelBtn}>Close</Button>
@@ -166,10 +166,10 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
     >
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
             Bulk Actions
           </span>
-          <Badge count={`${taskCount} tasks selected`} style={{ background: '#1976D2', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }} />
+          <Badge count={`${taskCount} tasks selected`} style={{ background: 'var(--bc-ro-500)', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }} />
         </Space>
       </div>
 
@@ -200,7 +200,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
               );
             })}
             <div style={{ padding: '6px 12px', borderTop: '1px solid #f1f5f9' }}>
-              <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>All {taskCount} task{taskCount > 1 ? 's' : ''} will be affected</Text>
+              <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>All {taskCount} task{taskCount > 1 ? 's' : ''} will be affected</Text>
             </div>
           </div>
         )}
@@ -220,17 +220,17 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
                   style={{
                     display: 'flex', alignItems: 'center', width: '100%',
                     padding: '10px 14px', margin: 0,
-                    border: `1px solid ${actionType === action.value ? '#1976D2' : '#e2e8f0'}`,
+                    border: `1px solid ${actionType === action.value ? 'var(--bc-ro-500)' : 'var(--bc-slate-200)'}`,
                     borderRadius: "var(--radius-md)",
-                    background: actionType === action.value ? '#eef2ff' : 'white',
+                    background: actionType === action.value ? 'var(--bc-indigo-50)' : 'white',
                     height: 'auto',
                   }}
                 >
                   <Space size={10}>
-                    <span style={{ color: actionType === action.value ? '#1976D2' : '#64748b', fontSize: 'var(--font-size-lg)' }}>
+                    <span style={{ color: actionType === action.value ? 'var(--bc-ro-500)' : 'var(--bc-slate-500)', fontSize: 'var(--font-size-lg)' }}>
                       {action.icon}
                     </span>
-                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: actionType === action.value ? '#1976D2' : '#374151' }}>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: actionType === action.value ? 'var(--bc-ro-500)' : '#374151' }}>
                       {action.label}
                     </Text>
                   </Space>
@@ -335,7 +335,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
         )}
 
         {actionType === 'DELETE' && (
-          <div style={{ background: '#fef2f2', borderRadius: "var(--radius-md)", padding: 12, border: '1px solid #fecdd3', marginBottom: 16 }}>
+          <div style={{ background: 'var(--bc-red-50)', borderRadius: "var(--radius-md)", padding: 12, border: '1px solid #fecdd3', marginBottom: 16 }}>
             <Space orientation="vertical" size={8}>
               <Space>
                 <DeleteOutlined style={{ color: '#D32F2F' }} />
@@ -371,7 +371,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
           disabled={!actionType}
           style={{
             height: 36, borderRadius: "var(--radius-md)", fontWeight: 600,
-            background: actionType === 'DELETE' ? '#D32F2F' : '#1976D2',
+            background: actionType === 'DELETE' ? '#D32F2F' : 'var(--bc-ro-500)',
             border: 'none',
             boxShadow: actionType === 'DELETE' ? '0 2px 8px rgba(239,68,68,0.3)' : '0 2px 8px rgba(99,102,241,0.3)',
           }}

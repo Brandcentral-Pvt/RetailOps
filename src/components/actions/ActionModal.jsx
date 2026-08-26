@@ -162,7 +162,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
     >
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
             {isEditMode ? 'Edit Task' : 'Create Task'}
           </span>
           <Tag color={isEditMode ? (action?.status === 'COMPLETED' ? 'green' : action?.status === 'REVIEW' ? 'purple' : 'blue') : 'blue'}>
@@ -345,7 +345,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
                       style={{
                         flex: 1, textAlign: 'center', height: 34, lineHeight: '32px',
                         borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', fontWeight: 600,
-                        borderColor: '#e2e8f0',
+                        borderColor: 'var(--bc-slate-200)',
                       }}
                     >
                       <Space size={4}>
@@ -419,7 +419,7 @@ const ActionModal = ({ isOpen, onClose, onSave, action, currentUser, users, sell
                   maxTagCount={3}
                 />
               </Form.Item>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: -12 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', marginTop: -12 }}>
                 {form.getFieldValue('linkedAsins')?.length || 0} ASINs linked
               </div>
             </Col>

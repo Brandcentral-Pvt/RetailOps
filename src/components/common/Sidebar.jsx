@@ -128,7 +128,7 @@ const Sidebar = () => {
                                 overflowCount={9999}
                                 style={{ 
                                     backgroundColor: item.badgeColor || '#D32F2F', 
-                                    color: '#ffffff', 
+                                    color: 'var(--bc-white)', 
                                     boxShadow: 'none',
                                     fontSize: '10px',
                                     fontWeight: 650,
@@ -166,11 +166,11 @@ const Sidebar = () => {
                 theme={{
                     components: {
                         Menu: {
-                            itemSelectedColor: '#1565C0',
-                            itemSelectedBg: '#E3F2FD',
-                            itemHoverBg: '#F1F5F9',
-                            itemHoverColor: '#0F172A',
-                            groupTitleColor: '#94A3B8',
+                            itemSelectedColor: 'var(--bc-ro-600)',
+                            itemSelectedBg: 'var(--bc-ro-50)',
+                            itemHoverBg: 'var(--bc-slate-100)',
+                            itemHoverColor: 'var(--bc-slate-900)',
+                            groupTitleColor: 'var(--bc-slate-400)',
                             groupTitleFontSize: 9.5,
                             itemHeight: 34,
                             iconSize: 16,

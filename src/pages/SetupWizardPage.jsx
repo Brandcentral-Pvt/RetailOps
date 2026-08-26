@@ -182,13 +182,13 @@ const SetupWizardPage = () => {
       <Title level={2} className="step-title" style={{ textAlign: 'center', marginBottom: 12 }}>
         Welcome to RetailOps, {fullName}
       </Title>
-      <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 32, fontSize: 15, color: '#475569' }}>
+      <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 32, fontSize: 15, color: 'var(--bc-slate-600)' }}>
         Let's configure your account access and preferences in a few simple steps. This process secures your credentials and verifies platform policies.
       </Text>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
-          <div style={{ background: '#e0e7ff', padding: 8, borderRadius: "var(--radius-md)", color: '#1976D2', display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: 'var(--bc-slate-50)', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
+          <div style={{ background: 'var(--bc-indigo-100)', padding: 8, borderRadius: "var(--radius-md)", color: 'var(--bc-ro-500)', display: 'flex' }}>
             <Lock size={18} />
           </div>
           <div>
@@ -198,8 +198,8 @@ const SetupWizardPage = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
-          <div style={{ background: '#ecfeff', padding: 8, borderRadius: "var(--radius-md)", color: '#0288D1', display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: 'var(--bc-slate-50)', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
+          <div style={{ background: 'var(--bc-cyan-50)', padding: 8, borderRadius: "var(--radius-md)", color: '#0288D1', display: 'flex' }}>
             <Shield size={18} />
           </div>
           <div>
@@ -209,8 +209,8 @@ const SetupWizardPage = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: '#f8fafc', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
-          <div style={{ background: '#f0fdf4', padding: 8, borderRadius: "var(--radius-md)", color: '#2E7D32', display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #f1f5f9', background: 'var(--bc-slate-50)', padding: '16px 20px', borderRadius: "var(--radius-lg)" }}>
+          <div style={{ background: 'var(--bc-green-50)', padding: 8, borderRadius: "var(--radius-md)", color: '#2E7D32', display: 'flex' }}>
             <FileCheck size={18} />
           </div>
           <div>
@@ -228,7 +228,7 @@ const SetupWizardPage = () => {
       <Title level={2} className="step-title" style={{ textAlign: 'center', marginBottom: 12 }}>
         Security Guidelines
       </Title>
-      <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 32, fontSize: 15, color: '#475569' }}>
+      <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 32, fontSize: 15, color: 'var(--bc-slate-600)' }}>
         Please review these guidelines to ensure the safety and integrity of your operations.
       </Text>
 
@@ -237,31 +237,31 @@ const SetupWizardPage = () => {
           {
             title: 'Strong Password',
             desc: 'Create passwords that are difficult to guess. Avoid reusing passwords from other external sites.',
-            color: '#1976D2',
-            bg: '#eef2ff'
+            color: 'var(--bc-ro-500)',
+            bg: 'var(--bc-indigo-50)'
           },
           {
             title: 'Trusted Devices',
             desc: 'Only mark personal or company-issued computers as trusted. Never trust public terminals.',
             color: '#0288D1',
-            bg: '#ecfeff'
+            bg: 'var(--bc-cyan-50)'
           },
           {
             title: 'Protect OTPs',
             desc: 'One-time passwords are strictly confidential. No RetailOps representative will ever request your OTP.',
             color: '#ED6C02',
-            bg: '#fffbeb'
+            bg: 'var(--bc-amber-50)'
           },
           {
             title: 'Account Privacy',
             desc: 'Do not share accounts. Sharing credentials violates security protocols and dilutes activity audits.',
             color: '#2E7D32',
-            bg: '#f0fdf4'
+            bg: 'var(--bc-green-50)'
           }
         ].map((tip, i) => (
           <Col span={12} key={i}>
             <div style={{ height: '100%', border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 18 }}>
-              <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', marginBottom: 8, color: '#0f172a' }}>{tip.title}</Text>
+              <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', marginBottom: 8, color: 'var(--bc-slate-900)' }}>{tip.title}</Text>
               <Text type="secondary" style={{ fontSize: 12, lineHeight: '1.5' }}>{tip.desc}</Text>
             </div>
           </Col>
@@ -275,7 +275,7 @@ const SetupWizardPage = () => {
       <Title level={2} className="step-title" style={{ textAlign: 'center', marginBottom: 12 }}>
         Create Your Password
       </Title>
-      <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 24, fontSize: 15, color: '#475569' }}>
+      <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 24, fontSize: 15, color: 'var(--bc-slate-600)' }}>
         Please update your temporary password to continue securing your workspace.
       </Text>
 
@@ -293,7 +293,7 @@ const SetupWizardPage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 24 }}>
         {/* Current Password */}
         <div>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>Current Temporary Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)', display: 'block', marginBottom: 6 }}>Current Temporary Password</Text>
           <Input.Password
             value={passwordForm.current}
             onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })}
@@ -305,7 +305,7 @@ const SetupWizardPage = () => {
 
         {/* New Password */}
         <div>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>New Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)', display: 'block', marginBottom: 6 }}>New Password</Text>
           <Input.Password
             value={passwordForm.newPw}
             onChange={e => setPasswordForm({ ...passwordForm, newPw: e.target.value })}
@@ -314,9 +314,9 @@ const SetupWizardPage = () => {
             style={{ borderRadius: "var(--radius-md)" }}
           />
           {passwordForm.newPw && (
-            <div style={{ marginTop: 8, background: '#f8fafc', padding: 8, borderRadius: "var(--radius-md)" }}>
+            <div style={{ marginTop: 8, background: 'var(--bc-slate-50)', padding: 8, borderRadius: "var(--radius-md)" }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>Strength:</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>Strength:</Text>
                 <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: pwStrength.color }}>{pwStrength.label}</Text>
               </div>
               <Progress percent={pwStrength.percent} strokeColor={pwStrength.color} showInfo={false} size="small" strokeWidth={4} />
@@ -326,7 +326,7 @@ const SetupWizardPage = () => {
 
         {/* Confirm Password */}
         <div>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginBottom: 6 }}>Confirm Password</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)', display: 'block', marginBottom: 6 }}>Confirm Password</Text>
           <Input.Password
             value={passwordForm.confirm}
             onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
@@ -340,12 +340,12 @@ const SetupWizardPage = () => {
         </div>
 
         {/* Password Requirements */}
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#475569', display: 'block', marginBottom: 8 }}>Password Requirements</Text>
+        <div style={{ background: 'var(--bc-slate-50)', padding: 12, borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-600)', display: 'block', marginBottom: 8 }}>Password Requirements</Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
             {pwRequirements.map((req, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: req.met ? '#2E7D32' : '#64748b' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: req.met ? '#2E7D32' : '#cbd5e1' }} />
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: req.met ? '#2E7D32' : 'var(--bc-slate-500)' }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: req.met ? '#2E7D32' : 'var(--bc-slate-300)' }} />
                 <span>{req.text}</span>
               </div>
             ))}
@@ -383,7 +383,7 @@ const SetupWizardPage = () => {
         <Title level={2} className="step-title" style={{ textAlign: 'center', marginBottom: 12 }}>
           Terms & Policies
         </Title>
-        <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 24, fontSize: 15, color: '#475569' }}>
+        <Text className="step-description" style={{ display: 'block', textAlign: 'center', marginBottom: 24, fontSize: 15, color: 'var(--bc-slate-600)' }}>
           Please read and accept the terms of service, privacy practices, and compliance guidelines to complete your registration.
         </Text>
 
@@ -407,22 +407,22 @@ const SetupWizardPage = () => {
             
             <div style={{ maxHeight: 220, overflowY: 'auto', padding: 16 }}>
               <div style={{ marginBottom: 20 }}>
-                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: '#0f172a', marginBottom: 6 }}>1. Terms of Service</Text>
-                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', marginBottom: 6 }}>1. Terms of Service</Text>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
                   {policyTexts.tos}
                 </div>
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: '#0f172a', marginBottom: 6 }}>2. Privacy Policy</Text>
-                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', marginBottom: 6 }}>2. Privacy Policy</Text>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
                   {policyTexts.privacy}
                 </div>
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: '#0f172a', marginBottom: 6 }}>3. User Compliance & Responsibilities</Text>
-                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', marginBottom: 6 }}>3. User Compliance & Responsibilities</Text>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
                   {policyTexts.responsibilities}
                 </div>
               </div>
@@ -435,7 +435,7 @@ const SetupWizardPage = () => {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, tos: !policies.tos })}>
                 <input type="checkbox" checked={policies.tos} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
                 <div>
-                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>I agree to the Terms of Service</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>I agree to the Terms of Service</Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Read section 1 in the document viewer above.</Text>
                 </div>
@@ -444,7 +444,7 @@ const SetupWizardPage = () => {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, privacy: !policies.privacy })}>
                 <input type="checkbox" checked={policies.privacy} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
                 <div>
-                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>I accept the Privacy Policy</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>I accept the Privacy Policy</Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Read section 2 in the document viewer above.</Text>
                 </div>
@@ -453,7 +453,7 @@ const SetupWizardPage = () => {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, responsibilities: !policies.responsibilities })}>
                 <input type="checkbox" checked={policies.responsibilities} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
                 <div>
-                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>I understand and agree to User Responsibilities</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>I understand and agree to User Responsibilities</Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Read section 3 in the document viewer above.</Text>
                 </div>
@@ -498,7 +498,7 @@ const SetupWizardPage = () => {
           </Text>
 
           <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 20, textAlign: 'left', marginBottom: 16 }}>
-            <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: '#64748b', letterSpacing: 0.5 }}>
+            <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: 'var(--bc-slate-500)', letterSpacing: 0.5 }}>
               Setup Summary
             </Title>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -557,10 +557,10 @@ const SetupWizardPage = () => {
           {/* Sidebar - Steps */}
           <div className="wizard-sidebar">
             <div className="sidebar-header">
-              <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#0f172a' }}>
+              <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                 Account Setup
               </Title>
-              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', display: 'block', marginTop: 4 }}>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', display: 'block', marginTop: 4 }}>
                 Complete all steps to continue
               </Text>
             </div>
@@ -585,7 +585,7 @@ const SetupWizardPage = () => {
                         ) : (
                           <StepIcon
                             size={14}
-                            color={isActive ? 'white' : '#94a3b8'}
+                            color={isActive ? 'white' : 'var(--bc-slate-400)'}
                           />
                         )}
                       </div>
@@ -615,14 +615,14 @@ const SetupWizardPage = () => {
 
             <div className="sidebar-footer">
               <div className="help-card">
-                <Info size={14} color="#1976D2" />
+                <Info size={14} color="var(--bc-ro-500)" />
                 <div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>
+                  <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                     Need help?
                   </div>
                   <a
                     href="mailto:support@brandcentral.in"
-                    style={{ fontSize: 'var(--font-size-xs)', color: '#1976D2' }}
+                    style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-ro-500)' }}
                   >
                     Contact support
                   </a>

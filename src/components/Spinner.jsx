@@ -7,7 +7,7 @@ const antIcon = (
     className="icon-[svg-spinners--eclipse]"
     style={{
       fontSize: 28,
-      color: '#1976D2',
+      color: 'var(--bc-ro-500)',
     }}
     aria-hidden="true"
   />
@@ -18,7 +18,7 @@ const antIconSmall = (
     className="icon-[svg-spinners--eclipse]"
     style={{
       fontSize: 18,
-      color: '#1976D2',
+      color: 'var(--bc-ro-500)',
     }}
     aria-hidden="true"
   />
@@ -232,7 +232,7 @@ export function PageLoading({ message = 'Loading...' }) {
       <div style={{
         marginTop: 16,
         fontSize: 'var(--font-size-sm)',
-        color: '#64748b',
+        color: 'var(--bc-slate-500)',
         fontWeight: 500
       }}>
         {message}
@@ -248,7 +248,7 @@ export function CardLoading({ height = 200 }) {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      background: '#f8fafc',
+      background: 'var(--bc-slate-50)',
       borderRadius: "var(--radius-md)"
     }}>
       <Spin indicator={antIcon} />
@@ -265,7 +265,7 @@ export function InlineLoading({ tip = 'Loading...' }) {
       padding: '8px 0'
     }}>
       <Spin indicator={antIconSmall} size="small" />
-      <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>{tip}</span>
+      <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)' }}>{tip}</span>
     </div>
   );
 }
@@ -277,7 +277,7 @@ export function TableLoading({ rows = 5 }) {
         <div key={i} style={{
           height: 48,
           marginBottom: 8,
-          background: '#f1f5f9',
+          background: 'var(--bc-slate-100)',
           borderRadius: "var(--radius-sm)",
           animation: 'pulse 1.5s ease-in-out infinite',
           animationDelay: `${i * 0.1}s`
@@ -309,7 +309,7 @@ export const LoadingIndicator = ({ type = 'line-simple', size = 'md' }) => {
           style={{
             height,
             width: '100%',
-            backgroundColor: '#e2e8f0',
+            backgroundColor: 'var(--bc-slate-200)',
             borderRadius: 'var(--radius-sm)',
             overflow: 'hidden',
             position: 'relative',
@@ -322,7 +322,7 @@ export const LoadingIndicator = ({ type = 'line-simple', size = 'md' }) => {
               left: 0,
               height: '100%',
               width: '40%',
-              backgroundColor: '#1976D2',
+              backgroundColor: 'var(--bc-ro-500)',
               borderRadius: 'var(--radius-sm)',
               animation: 'loadingIndicatorSlide 1.5s ease-in-out infinite',
             }}

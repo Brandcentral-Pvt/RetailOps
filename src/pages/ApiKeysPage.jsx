@@ -10,18 +10,18 @@ import { PageLoader } from '@/components/application/loading-indicator/PageLoade
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const CATEGORY_COLORS = {
-    'Scraping': '#6366F1',
-    'Amazon Data': '#F59E0B',
+    'Scraping': 'var(--bc-indigo-500)',
+    'Amazon Data': 'var(--bc-amber-500)',
     'AI': '#10B981',
-    'Communication': '#EC4899',
-    'Other': '#64748B'
+    'Communication': 'var(--bc-pink-500)',
+    'Other': 'var(--bc-slate-500)'
 };
 
 /* ─── Sub-components ───────────────────────────────────────────── */
 const Toggle = ({ enabled }) => (
     <div style={{
         width: 44, height: 24, borderRadius: "var(--radius-lg)",
-        background: enabled ? '#4F46E5' : '#CBD5E1',
+        background: enabled ? 'var(--bc-indigo-600)' : 'var(--bc-slate-300)',
         position: 'relative', flexShrink: 0,
     }}>
         <span style={{
@@ -204,7 +204,7 @@ return (
             </div>
 
             {/* Security notice */}
-            <Alert color="primary" className="d-flex align-items-center gap-3 border-0 shadow-sm" style={{ borderRadius: 'var(--radius-lg)', backgroundColor: '#EEF2FF', color: '#3730A3' }}>
+            <Alert color="primary" className="d-flex align-items-center gap-3 border-0 shadow-sm" style={{ borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--bc-indigo-50)', color: '#3730A3' }}>
                 <span className="fs-4">🔒</span>
                 <span className="small">
                     <strong>Secure Storage:</strong> All keys are stored in the backend database.

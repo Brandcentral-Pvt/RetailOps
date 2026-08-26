@@ -5,7 +5,7 @@ import { ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 const antIcon = (
   <span
     className="icon-[svg-spinners--eclipse]"
-    style={{ fontSize: 'var(--font-size-2xl)', color: '#4F46E5' }}
+    style={{ fontSize: 'var(--font-size-2xl)', color: 'var(--bc-indigo-600)' }}
     aria-hidden="true"
   />
 );

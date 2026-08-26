@@ -129,7 +129,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                   <Zap size={10} fill="currentColor" /> {typeof asin.rating === 'number' ? asin.rating.toFixed(1) : (asin.rating || '0.0')}
                 </div>
               </div>
-              <Text strong style={{ color: '#ffffff', fontSize: 'var(--font-size-lg)', display: 'block', lineHeight: 1 }}>
+              <Text strong style={{ color: 'var(--bc-white)', fontSize: 'var(--font-size-lg)', display: 'block', lineHeight: 1 }}>
                 {asin.reviewCount?.toLocaleString() || '0'} Reviews
               </Text>
             </div>
@@ -207,7 +207,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                       borderRadius: 'var(--radius-md, 8px)',
                       fontWeight: 600,
                       fontSize: 'var(--font-size-xs)',
-                      color: '#475569',
+                      color: 'var(--bc-slate-600)',
                       margin: 0
                     }}>
                       {rank}
@@ -239,7 +239,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                     {asin.bulletPointsList.map((point, idx) => (
                       <li key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                         <CheckCircle2 size={12} style={{ color: 'var(--text-success, #2E7D32)', flexShrink: 0, marginTop: '2px' }} />
-                        <Text style={{ color: '#475569', fontSize: 'var(--font-size-xs)', lineHeight: 1.4 }}>{point}</Text>
+                        <Text style={{ color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-xs)', lineHeight: 1.4 }}>{point}</Text>
                       </li>
                     ))}
                   </ul>

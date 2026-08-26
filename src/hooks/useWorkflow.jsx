@@ -29,7 +29,7 @@ const TRANSITION_MESSAGES = {
     success: {
       message:     'Task Started',
       description: 'The task has moved to In Progress.',
-      icon:        <PlayCircleOutlined style={{ color: '#1976D2' }} />,
+      icon:        <PlayCircleOutlined style={{ color: 'var(--bc-ro-500)' }} />,
     },
     error: { message: 'Could not start task' },
   },
@@ -37,7 +37,7 @@ const TRANSITION_MESSAGES = {
     success: {
       message:     'Submitted for Review',
       description: 'The reviewer has been notified.',
-      icon:        <SendOutlined style={{ color: '#9C27B0' }} />,
+      icon:        <SendOutlined style={{ color: 'var(--bc-purple-500)' }} />,
     },
     error: { message: 'Submission failed' },
   },
@@ -77,7 +77,7 @@ const TRANSITION_MESSAGES = {
     success: {
       message:     'Task Reopened',
       description: 'Task has been moved back to In Progress.',
-      icon:        <PlayCircleOutlined style={{ color: '#1976D2' }} />,
+      icon:        <PlayCircleOutlined style={{ color: 'var(--bc-ro-500)' }} />,
     },
     error: { message: 'Could not reopen task' },
   },

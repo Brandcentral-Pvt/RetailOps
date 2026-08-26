@@ -5,10 +5,10 @@ import { ShoppingCart, BarChart3 } from 'lucide-react';
 const { Text } = Typography;
 
 const MARKETPLACE_COLORS = {
-  'amazon': '#FF9900',
-  'flipkart': '#2874F0',
+  'amazon': 'var(--bc-market-amazon)',
+  'flipkart': 'var(--bc-market-flipkart)',
   'ajio': '#D32F2F',
-  'myntra': '#FF3F6C',
+  'myntra': 'var(--bc-market-myntra)',
 };
 
 const getMarketplaceColor = (name) => {
@@ -16,7 +16,7 @@ const getMarketplaceColor = (name) => {
   for (const [key, color] of Object.entries(MARKETPLACE_COLORS)) {
     if (lower.includes(key)) return color;
   }
-  return '#1976D2';
+  return 'var(--bc-ro-500)';
 };
 
 const MarketplaceCard = ({ name, count, color }) => {

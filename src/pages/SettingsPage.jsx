@@ -27,7 +27,7 @@ const MASKED_SECRET = '__MASKED__';
 const SECRET_SETTINGS_KEYS = ['octoparseApiKey', 'smtpPass'];
 const SECRET_CONFIGURED_PLACEHOLDER = '•••••••• (configured - leave blank to keep)';
 
-const SectionCard = ({ icon: Icon, iconColor = '#475569', title, children, extra }) => (
+const SectionCard = ({ icon: Icon, iconColor = 'var(--bc-slate-600)', title, children, extra }) => (
     <Card
         style={{
             borderRadius: 6,
@@ -59,7 +59,7 @@ const SectionCard = ({ icon: Icon, iconColor = '#475569', title, children, extra
                         width: 28,
                         height: 28,
                         borderRadius: 5,
-                        background: '#f8fafc',
+                        background: 'var(--bc-slate-50)',
                         border: '1px solid #e5e7eb',
                         display: 'flex',
                         alignItems: 'center',
@@ -71,7 +71,7 @@ const SectionCard = ({ icon: Icon, iconColor = '#475569', title, children, extra
                     <span style={{
                         fontSize: 'var(--font-size-sm)',
                         fontWeight: 600,
-                        color: '#0f172a',
+                        color: 'var(--bc-slate-900)',
                         letterSpacing: '-0.01em'
                     }}>
                         {title}
@@ -89,7 +89,7 @@ const FieldLabel = ({ children }) => (
     <div style={{
         fontSize: 'var(--font-size-xs)',
         fontWeight: 600,
-        color: '#475569',
+        color: 'var(--bc-slate-600)',
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
         marginBottom: 6
@@ -103,7 +103,7 @@ const FieldHelp = ({ children }) => (
         fontSize: 'var(--font-size-xs)',
         display: 'block',
         marginTop: 5,
-        color: '#94a3b8',
+        color: 'var(--bc-slate-400)',
         fontWeight: 500,
         lineHeight: 1.4
     }}>
@@ -124,13 +124,13 @@ const ToggleRow = ({ title, description, checked, onChange }) => (
         <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
                 fontWeight: 600,
-                color: '#0f172a',
+                color: 'var(--bc-slate-900)',
                 fontSize: 'var(--font-size-sm)',
                 marginBottom: 2
             }}>
                 {title}
             </div>
-            <div style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>
+            <div style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>
                 {description}
             </div>
         </div>
@@ -393,14 +393,14 @@ const SettingsPage = () => {
                 {/* LEFT COLUMN */}
                 <Col xs={24} lg={16}>
                     {/* Scraper Integration */}
-                    <SectionCard icon={Cloud} iconColor="#1d4ed8" title="Scraper Integration">
+                    <SectionCard icon={Cloud} iconColor="var(--bc-blue-700)" title="Scraper Integration">
                         <Alert
                             message="Octoparse Cloud Integration"
                             description={
                                 <span>
                                     Connect to Octoparse for automated ASIN data extraction.
                                     Obtain credentials from{' '}
-                                    <a href="https://www.octoparse.com" target="_blank" rel="noreferrer" style={{ fontWeight: 600, color: '#1d4ed8' }}>
+                                    <a href="https://www.octoparse.com" target="_blank" rel="noreferrer" style={{ fontWeight: 600, color: 'var(--bc-blue-700)' }}>
                                         octoparse.com
                                     </a>.
                                 </span>
@@ -417,7 +417,7 @@ const SettingsPage = () => {
                                     placeholder={configuredSecrets.has('octoparseApiKey') ? SECRET_CONFIGURED_PLACEHOLDER : 'Enter Octoparse API key'}
                                     value={settings.octoparseApiKey}
                                     onChange={e => handleFieldChange('octoparseApiKey', e.target.value)}
-                                    prefix={<Lock size={13} style={{ color: '#94a3b8', marginRight: 4 }} />}
+                                    prefix={<Lock size={13} style={{ color: 'var(--bc-slate-400)', marginRight: 4 }} />}
                                     style={{ height: 38 }}
                                 />
                             </Col>
@@ -427,7 +427,7 @@ const SettingsPage = () => {
                                     placeholder="e.g. e8266a91-..."
                                     value={settings.octoparseTaskId}
                                     onChange={e => handleFieldChange('octoparseTaskId', e.target.value)}
-                                    prefix={<Terminal size={13} style={{ color: '#94a3b8', marginRight: 4 }} />}
+                                    prefix={<Terminal size={13} style={{ color: 'var(--bc-slate-400)', marginRight: 4 }} />}
                                     style={{ height: 38 }}
                                 />
                                 <FieldHelp>Specific crawling task identifier</FieldHelp>
@@ -468,8 +468,8 @@ const SettingsPage = () => {
                     </SectionCard>
 
                     {/* SMTP Configuration */}
-                    <SectionCard icon={Mail} iconColor="#b91c1c" title="SMTP Configuration">
-                        <Paragraph style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', marginBottom: 16 }}>
+                    <SectionCard icon={Mail} iconColor="var(--bc-red-700)" title="SMTP Configuration">
+                        <Paragraph style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-sm)', marginBottom: 16 }}>
                             Configure mail relay for outbound notifications, reports, and security alerts.
                         </Paragraph>
                         <Row gutter={[16, 16]}>
@@ -553,8 +553,8 @@ const SettingsPage = () => {
                                         marginBottom: 14
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF9900', display: 'inline-block' }} />
-                                            <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Amazon</span>
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--bc-market-amazon)', display: 'inline-block' }} />
+                                            <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>Amazon</span>
                                         </div>
                                         <Switch
                                             size="small"
@@ -582,8 +582,8 @@ const SettingsPage = () => {
                                         marginBottom: 14
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0891b2', display: 'inline-block' }} />
-                                            <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>AJIO</span>
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--bc-cyan-600)', display: 'inline-block' }} />
+                                            <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>AJIO</span>
                                         </div>
                                         <Switch
                                             size="small"
@@ -606,7 +606,7 @@ const SettingsPage = () => {
                     </SectionCard>
 
                     {/* Live Data Sync Schedule */}
-                    <SectionCard icon={Zap} iconColor="#9C27B0" title="Live Data Sync (Amazon Creators API)">
+                    <SectionCard icon={Zap} iconColor="var(--bc-purple-500)" title="Live Data Sync (Amazon Creators API)">
                         <Alert
                             message="Live Sync updates product data (Price, BSR, Rating, Reviews, Images) directly from Amazon's API in real-time."
                             type="info"
@@ -618,8 +618,8 @@ const SettingsPage = () => {
                             <Col xs={24} md={8}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9C27B0', display: 'inline-block' }} />
-                                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Live Sync</span>
+                                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--bc-purple-500)', display: 'inline-block' }} />
+                                        <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>Live Sync</span>
                                     </div>
                                     <Switch
                                         size="small"
@@ -655,8 +655,8 @@ const SettingsPage = () => {
                     </SectionCard>
 
                     {/* Catalog Quality Thresholds */}
-                    <SectionCard icon={Sliders} iconColor="#6d28d9" title="Catalog Quality Thresholds">
-                        <Paragraph style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', marginBottom: 16 }}>
+                    <SectionCard icon={Sliders} iconColor="var(--bc-violet-700)" title="Catalog Quality Thresholds">
+                        <Paragraph style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-sm)', marginBottom: 16 }}>
                             Listing Quality Score (LQS) engine thresholds. ASINs below these values trigger automatic review alerts.
                         </Paragraph>
                         <Row gutter={[16, 16]}>
@@ -728,15 +728,15 @@ const SettingsPage = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             <div>
                                 <div style={{
-                                    fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600,
+                                    fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600,
                                     textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4
                                 }}>
                                     License Tier
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>Enterprise</span>
+                                    <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>Enterprise</span>
                                     <Tag style={{
-                                        margin: 0, background: '#f0fdf4', color: '#2E7D32',
+                                        margin: 0, background: 'var(--bc-green-50)', color: '#2E7D32',
                                         border: '1px solid #bbf7d0', fontWeight: 600, fontSize: 10,
                                         borderRadius: "var(--radius-sm)", padding: '1px 8px', textTransform: 'uppercase'
                                     }}>
@@ -747,15 +747,15 @@ const SettingsPage = () => {
                             <Divider style={{ margin: '4px 0' }} />
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>API Usage</span>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>0 / 10</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>API Usage</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>0 / 10</span>
                                 </div>
-                                <Progress percent={0} strokeColor="#1e293b" showInfo={false} strokeWidth={6} style={{ margin: 0 }} />
+                                <Progress percent={0} strokeColor="var(--bc-slate-800)" showInfo={false} strokeWidth={6} style={{ margin: 0 }} />
                             </div>
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Catalog ASINs</span>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>6 / 1,000</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Catalog ASINs</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>6 / 1,000</span>
                                 </div>
                                 <Progress percent={0.6} strokeColor="#2E7D32" showInfo={false} strokeWidth={6} style={{ margin: 0 }} />
                             </div>
@@ -764,7 +764,7 @@ const SettingsPage = () => {
 
                     {/* XPath Reference */}
                     <SectionCard icon={Terminal} title="XPath Reference">
-                        <Paragraph style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginBottom: 14 }}>
+                        <Paragraph style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', marginBottom: 14 }}>
                             Standard extraction selectors for Octoparse configuration:
                         </Paragraph>
                         <List
@@ -773,12 +773,12 @@ const SettingsPage = () => {
                             renderItem={item => (
                                 <div style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                        <span style={{ fontWeight: 600, color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>{item.title}</span>
+                                        <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>{item.title}</span>
                                         <Tooltip title="Copy XPath">
                                             <Button
                                                 type="text"
                                                 size="small"
-                                                icon={<Link2 size={12} style={{ color: '#94a3b8' }} />}
+                                                icon={<Link2 size={12} style={{ color: 'var(--bc-slate-400)' }} />}
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(item.xpath);
                                                     messageApi.success(`${item.title} XPath copied`);
@@ -818,7 +818,7 @@ const SettingsPage = () => {
 
             {/* SAVE FOOTER (Bottom of page) */}
             <div className="save-footer">
-                <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 500, marginRight: 'auto' }}>
+                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', fontWeight: 500, marginRight: 'auto' }}>
                     All changes require saving to take effect
                 </span>
                 <Button
@@ -842,8 +842,8 @@ const SettingsPage = () => {
                     onClick={handleSave}
                     loading={saving}
                     style={{
-                        background: '#1e293b',
-                        borderColor: '#1e293b',
+                        background: 'var(--bc-slate-800)',
+                        borderColor: 'var(--bc-slate-800)',
                         fontSize: 'var(--font-size-sm)',
                         fontWeight: 600,
                         borderRadius: 6,
@@ -864,13 +864,13 @@ const SettingsPage = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
                             width: 28, height: 28, borderRadius: 5,
-                            background: '#f8fafc', border: '1px solid #e5e7eb',
+                            background: 'var(--bc-slate-50)', border: '1px solid #e5e7eb',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#475569'
+                            color: 'var(--bc-slate-600)'
                         }}>
                             <Send size={14} strokeWidth={2} />
                         </div>
-                        <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>
+                        <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                             Test SMTP Configuration
                         </span>
                     </div>
@@ -893,7 +893,7 @@ const SettingsPage = () => {
                         icon={<Send size={12} strokeWidth={2} />}
                         style={{
                             borderRadius: 6, fontWeight: 600, fontSize: 'var(--font-size-sm)',
-                            background: '#1e293b', borderColor: '#1e293b',
+                            background: 'var(--bc-slate-800)', borderColor: 'var(--bc-slate-800)',
                             display: 'inline-flex', alignItems: 'center', gap: 6
                         }}
                     >
@@ -904,7 +904,7 @@ const SettingsPage = () => {
                 centered
             >
                 <div style={{ padding: '8px 0' }}>
-                    <Paragraph style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 14 }}>
+                    <Paragraph style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', marginBottom: 14 }}>
                         Send a test email to verify SMTP relay configuration.
                     </Paragraph>
                     <FieldLabel>Recipient Email</FieldLabel>
@@ -912,7 +912,7 @@ const SettingsPage = () => {
                         placeholder="you@company.com"
                         value={testTargetEmail}
                         onChange={e => setTestTargetEmail(e.target.value)}
-                        prefix={<Mail size={13} style={{ color: '#94a3b8', marginRight: 4 }} />}
+                        prefix={<Mail size={13} style={{ color: 'var(--bc-slate-400)', marginRight: 4 }} />}
                         style={{ height: 38 }}
                     />
                 </div>

@@ -40,7 +40,7 @@ const { Text } = Typography;
 
 // Marketplace-based avatar colors — all sellers of same marketplace get same color
 const MARKETPLACE_COLORS = {
-  'amazon.in': { gradient: 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))', color: 'var(--text-brand, #1976D2)', bg: '#E3F2FD' },
+  'amazon.in': { gradient: 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))', color: 'var(--text-brand, #1976D2)', bg: 'var(--bc-ro-50)' },
   'ajio': { gradient: 'linear-gradient(135deg, #C2185B, #E91E63)', color: '#E91E63', bg: '#FCE4EC' },
   'myntra': { gradient: 'linear-gradient(135deg, #E65100, #FF5722)', color: '#FF5722', bg: '#FBE9E7' },
 };
@@ -748,9 +748,9 @@ const SellersPage = () => {
   const getMarketplaceBadge = useCallback((marketplace) => {
     const m = marketplace?.toLowerCase();
     const configs = {
-      'amazon.in': { label: 'AMZ', color: '#FF6200', bg: '#FFFFFF' },
+      'amazon.in': { label: 'AMZ', color: '#FF6200', bg: 'var(--bc-white)' },
       'ajio': { label: 'AJIO', color: '#2C2C2C', bg: '#FAF5E8' },
-      'myntra': { label: 'MYNTRA', color: '#FF356E', bg: '#FFFFFF' },
+      'myntra': { label: 'MYNTRA', color: '#FF356E', bg: 'var(--bc-white)' },
     };
     const cfg = configs[m] || { label: (m || '??').toUpperCase().slice(0, 4), color: 'var(--text-secondary, #64748b)', bg: 'var(--bg-secondary, #f8fafc)' };
     return (
@@ -832,8 +832,8 @@ const SellersPage = () => {
                   borderRadius: 'var(--radius-md, 8px)',
                   fontWeight: 600,
                   fontSize: 'var(--font-size-xs)',
-                  background: isLiveSyncing ? '#90CAF9' : 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))',
-                  borderColor: isLiveSyncing ? '#90CAF9' : 'var(--text-brand-dark, #1565C0)',
+                  background: isLiveSyncing ? 'var(--bc-ro-200)' : 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))',
+                  borderColor: isLiveSyncing ? 'var(--bc-ro-200)' : 'var(--text-brand-dark, #1565C0)',
                   color: isLiveSyncing ? 'var(--text-brand-dark, #1565C0)' : '#fff',
                   boxShadow: isLiveSyncing ? 'none' : '0 1px 3px rgba(25,118,210,0.3)',
                   height: 26,

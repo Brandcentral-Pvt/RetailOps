@@ -9,9 +9,9 @@ const { Text, Title } = Typography;
 
 const ActionCard = ({ icon: Icon, title, description, severity, count, assignee, dueDate, onAction }) => {
   const severityConfig = {
-    critical: { bg: '#fef2f2', border: '#fecaca', color: '#D32F2F', iconBg: '#fee2e2' },
-    warning: { bg: '#fffbeb', border: '#fed7aa', color: '#ED6C02', iconBg: '#fef3c7' },
-    info: { bg: '#eff6ff', border: '#bfdbfe', color: '#1976D2', iconBg: '#dbeafe' },
+    critical: { bg: 'var(--bc-red-50)', border: 'var(--bc-red-200)', color: '#D32F2F', iconBg: 'var(--bc-red-100)' },
+    warning: { bg: 'var(--bc-amber-50)', border: '#fed7aa', color: '#ED6C02', iconBg: 'var(--bc-amber-100)' },
+    info: { bg: 'var(--bc-blue-50)', border: 'var(--bc-blue-200)', color: 'var(--bc-ro-500)', iconBg: 'var(--bc-blue-100)' },
   };
 
   const config = severityConfig[severity] || severityConfig.info;

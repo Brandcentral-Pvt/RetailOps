@@ -9,7 +9,7 @@ export function LoadError({ message = 'Failed to load data', onRetry, style }) {
     <div style={{ 
       padding: '20px', 
       textAlign: 'center',
-      background: '#fef2f2',
+      background: 'var(--bc-red-50)',
       borderRadius: 10,
       border: '1px solid #fecaca',
       marginBottom: 16,

@@ -28,9 +28,9 @@ const EXT_MAP = {
 };
 
 const TYPE_COLORS = {
-    image: '#6366F1', video: '#EC4899', audio: '#F59E0B',
-    pdf: '#EF4444', doc: '#2563EB', xls: '#16A34A', ppt: '#F97316',
-    text: '#64748B', archive: '#92400E', folder: '#FBBF24', default: '#94A3B8',
+    image: 'var(--bc-indigo-500)', video: 'var(--bc-pink-500)', audio: 'var(--bc-amber-500)',
+    pdf: 'var(--bc-red-500)', doc: 'var(--bc-blue-600)', xls: 'var(--bc-green-600)', ppt: 'var(--bc-accent-dispute)',
+    text: 'var(--bc-slate-500)', archive: 'var(--bc-amber-800)', folder: '#FBBF24', default: 'var(--bc-slate-400)',
 };
 
 const getFileType = (name = '') => {
@@ -65,16 +65,16 @@ const StorageBar = ({ storage }) => {
     if (!storage) return null;
     return (
         <div style={{ padding: '1rem' }}>
-            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>Storage</div>
-            <div style={{ height: 6, background: '#E2E8F0', borderRadius: 99, overflow: 'hidden', marginBottom: 4 }}>
+            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-900)', marginBottom: 6 }}>Storage</div>
+            <div style={{ height: 6, background: 'var(--bc-slate-200)', borderRadius: 99, overflow: 'hidden', marginBottom: 4 }}>
                 <div style={{
                     height: '100%', borderRadius: 99,
                     width: `${Math.min(storage.percent, 100)}%`,
-                    background: storage.percent > 80 ? '#EF4444' : '#18181B',
+                    background: storage.percent > 80 ? 'var(--bc-red-500)' : '#18181B',
                     transition: 'width 400ms',
                 }} />
             </div>
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748B' }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
                 {storage.usedLabel} of {storage.limitLabel} used
             </div>
         </div>
@@ -88,8 +88,8 @@ const RenameModal = ({ file, onClose, onSave }) => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
             <div style={{ background: '#fff', borderRadius: 14, padding: '1.5rem', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <span style={{ fontWeight: 600, color: '#0f172a' }}>Rename File</span>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}><X size={18} /></button>
+                    <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)' }}>Rename File</span>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-slate-500)' }}><X size={18} /></button>
                 </div>
                 <input
                     autoFocus value={name} onChange={e => setName(e.target.value)}
@@ -98,7 +98,7 @@ const RenameModal = ({ file, onClose, onSave }) => {
                     onBlur={e => e.target.style.borderColor = '#E4E4E7'}
                 />
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: '1rem' }}>
-                    <button onClick={onClose} style={{ padding: '0.5rem 1rem', borderRadius: "var(--radius-md)", border: '1.5px solid #E4E4E7', background: '#F8FAFC', fontWeight: 600, fontSize: 'var(--font-size-sm)', cursor: 'pointer', color: '#71717A' }}>Cancel</button>
+                    <button onClick={onClose} style={{ padding: '0.5rem 1rem', borderRadius: "var(--radius-md)", border: '1.5px solid #E4E4E7', background: 'var(--bc-slate-50)', fontWeight: 600, fontSize: 'var(--font-size-sm)', cursor: 'pointer', color: '#71717A' }}>Cancel</button>
                     <button onClick={() => name.trim() && onSave(name.trim())} disabled={!name.trim()}
                         style={{ padding: '0.5rem 1.1rem', borderRadius: "var(--radius-md)", border: 'none', background: '#18181B', fontWeight: 600, fontSize: 'var(--font-size-sm)', cursor: 'pointer', color: '#fff', opacity: name.trim() ? 1 : 0.5 }}>
                         Save
@@ -122,9 +122,9 @@ const ContextMenu = ({ file, pos, onClose, actions }) => (
                     display: 'flex', alignItems: 'center', gap: 10,
                     width: '100%', padding: '0.6rem 1rem', border: 'none',
                     background: 'none', cursor: 'pointer', fontSize: 'var(--font-size-sm)',
-                    color: a.danger ? '#EF4444' : '#1e293b', textAlign: 'left',
+                    color: a.danger ? 'var(--bc-red-500)' : 'var(--bc-slate-800)', textAlign: 'left',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bc-slate-50)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
             >
                 {a.icon} {a.label}
@@ -277,7 +277,7 @@ const FileManagerPage = () => {
     ];
 
      return (
-         <div style={{ display: 'flex', height: 'calc(100vh - 73px)', overflow: 'hidden', margin: '-1.5rem -2rem', background: '#FFFFFF' }}>
+         <div style={{ display: 'flex', height: 'calc(100vh - 73px)', overflow: 'hidden', margin: '-1.5rem -2rem', background: 'var(--bc-white)' }}>
              {loading && (
                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
                      <LoadingIndicator type="line-simple" size="md" />
@@ -381,12 +381,12 @@ const FileManagerPage = () => {
 
                     {/* Refresh */}
                     <button onClick={fetchFiles} title="Refresh"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4, borderRadius: 6, display: 'flex' }}>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-slate-400)', padding: 4, borderRadius: 6, display: 'flex' }}>
                         <RefreshCw size={16} />
                     </button>
 
                     {/* View toggle */}
-                    <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: "var(--radius-md)", overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', background: 'var(--bc-slate-100)', borderRadius: "var(--radius-md)", overflow: 'hidden' }}>
                         {[{ id: 'grid', icon: <Grid size={15} /> }, { id: 'list', icon: <List size={15} /> }].map(v => (
                             <button key={v.id} onClick={() => setView(v.id)}
                                 style={{
@@ -416,8 +416,8 @@ const FileManagerPage = () => {
                              />
                          ) : (
                              <div style={{ textAlign: 'center', paddingTop: '5rem' }}>
-                                 <FolderOpen size={48} color="#CBD5E1" style={{ marginBottom: 12 }} />
-                                 <div style={{ color: '#94A3B8', fontSize: 'var(--font-size-base)', fontWeight: 600 }}>
+                                 <FolderOpen size={48} color="var(--bc-slate-300)" style={{ marginBottom: 12 }} />
+                                 <div style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-base)', fontWeight: 600 }}>
                                      {search ? 'No files match your search' : 'No files yet — upload to get started'}
                                  </div>
                              </div>
@@ -437,18 +437,18 @@ const FileManagerPage = () => {
                                         transition: 'box-shadow 150ms, border-color 150ms',
                                     }}
                                     onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(79,70,229,0.1)'; e.currentTarget.style.borderColor = '#C7D2FE'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--bc-slate-200)'; }}
                                 >
                                     {/* Star */}
                                     {section !== 'trash' && (
                                         <button onClick={() => toggleStar(file)}
-                                            style={{ position: 'absolute', top: 8, left: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: file.starred ? '#FBBF24' : '#CBD5E1' }}>
+                                            style={{ position: 'absolute', top: 8, left: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: file.starred ? '#FBBF24' : 'var(--bc-slate-300)' }}>
                                             <Star size={13} fill={file.starred ? '#FBBF24' : 'none'} />
                                         </button>
                                     )}
                                     {/* Menu */}
                                     <button onClick={e => openCtx(e, file)}
-                                        style={{ position: 'absolute', top: 6, right: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 2 }}>
+                                        style={{ position: 'absolute', top: 6, right: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-slate-400)', padding: 2 }}>
                                         <MoreVertical size={13} />
                                     </button>
 
@@ -525,33 +525,33 @@ const FileManagerPage = () => {
                                                     {section !== 'trash' ? (
                                                         <>
                                                             <button onClick={() => toggleStar(file)} title={file.starred ? 'Unstar' : 'Star'}
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: file.starred ? '#FBBF24' : '#CBD5E1', padding: 4, borderRadius: 6 }}>
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: file.starred ? '#FBBF24' : 'var(--bc-slate-300)', padding: 4, borderRadius: 6 }}>
                                                                 <Star size={14} fill={file.starred ? '#FBBF24' : 'none'} />
                                                             </button>
                                                             <button onClick={() => window.open(file.url)} title="Download"
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4, borderRadius: 6 }}
-                                                                onMouseEnter={e => e.currentTarget.style.color = '#4F46E5'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-slate-400)', padding: 4, borderRadius: 6 }}
+                                                                onMouseEnter={e => e.currentTarget.style.color = 'var(--bc-indigo-600)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--bc-slate-400)'}>
                                                                 <Download size={14} />
                                                             </button>
                                                             <button onClick={() => setRenameFile(file)} title="Rename"
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4, borderRadius: 6 }}
-                                                                onMouseEnter={e => e.currentTarget.style.color = '#4F46E5'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-slate-400)', padding: 4, borderRadius: 6 }}
+                                                                onMouseEnter={e => e.currentTarget.style.color = 'var(--bc-indigo-600)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--bc-slate-400)'}>
                                                                 <Pencil size={14} />
                                                             </button>
                                                             <button onClick={() => trashFile(file)} title="Move to Trash"
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4, borderRadius: 6 }}
-                                                                onMouseEnter={e => e.currentTarget.style.color = '#EF4444'} onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}>
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-slate-400)', padding: 4, borderRadius: 6 }}
+                                                                onMouseEnter={e => e.currentTarget.style.color = 'var(--bc-red-500)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--bc-slate-400)'}>
                                                                 <Trash2 size={14} />
                                                             </button>
                                                         </>
                                                     ) : (
                                                         <>
                                                             <button onClick={() => restoreFile(file)} title="Restore"
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16A34A', padding: 4, borderRadius: 6 }}>
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-green-600)', padding: 4, borderRadius: 6 }}>
                                                                 <RotateCcw size={14} />
                                                             </button>
                                                             <button onClick={() => deleteFile(file)} title="Delete Forever"
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4, borderRadius: 6 }}>
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bc-red-500)', padding: 4, borderRadius: 6 }}>
                                                                 <Trash2 size={14} />
                                                             </button>
                                                         </>

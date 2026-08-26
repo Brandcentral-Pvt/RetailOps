@@ -148,7 +148,7 @@ const RuleSetsPage = () => {
       render: (text, record) => (
         <div>
           <span 
-            style={{ fontWeight: 600, color: '#18181b', fontSize: 'var(--font-size-sm)', cursor: 'pointer', hoverColor: '#1976D2' }}
+            style={{ fontWeight: 600, color: '#18181b', fontSize: 'var(--font-size-sm)', cursor: 'pointer', hoverColor: 'var(--bc-ro-500)' }}
             onClick={() => navigate(`/rule-sets/${record._id || record.id}`)}
           >
             {text}
@@ -188,8 +188,8 @@ const RuleSetsPage = () => {
             fontWeight: 600, 
             borderRadius: 20, 
             padding: '2px 8px', 
-            background: '#eff6ff', 
-            color: '#1976D2', 
+            background: 'var(--bc-blue-50)', 
+            color: 'var(--bc-ro-500)', 
             border: '1px solid #bfdbfe',
             display: 'inline-flex',
             alignItems: 'center',
@@ -280,11 +280,11 @@ const RuleSetsPage = () => {
           </Tooltip>
           <Tooltip title="Duplicate">
             <Button type="text" size="small" icon={<Copy size={14} />}
-              onClick={() => handleDuplicate(record._id || record.id)} style={{ color: '#64748b', padding: 0 }} />
+              onClick={() => handleDuplicate(record._id || record.id)} style={{ color: 'var(--bc-slate-500)', padding: 0 }} />
           </Tooltip>
           <Tooltip title="Edit">
             <Button type="text" size="small" icon={<SlidersHorizontal size={14} />}
-              onClick={() => navigate(`/rule-sets/${record._id || record.id}`)} style={{ color: '#64748b', padding: 0 }} />
+              onClick={() => navigate(`/rule-sets/${record._id || record.id}`)} style={{ color: 'var(--bc-slate-500)', padding: 0 }} />
           </Tooltip>
           <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(record._id || record.id)} okText="Delete" okButtonProps={{ danger: true }}>
             <Button type="text" danger size="small" icon={<Trash2 size={14} />} style={{ padding: 0 }} />
@@ -331,13 +331,13 @@ const RuleSetsPage = () => {
               <div style={{ fontSize: 17, fontWeight: 600, color: '#065f46' }}>{activeCount}</div>
             </div>
           </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', borderRadius: "var(--radius-md)", border: '1px solid #bfdbfe' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'var(--bc-blue-50)', borderRadius: "var(--radius-md)", border: '1px solid #bfdbfe' }}>
             <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#0288D1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Activity size={13} color="#fff" />
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#0288D1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-run</div>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#1e40af' }}>{autoCount}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--bc-blue-800)' }}>{autoCount}</div>
             </div>
           </div>
         </div>
@@ -407,16 +407,16 @@ const RuleSetsPage = () => {
                 <div key={log.Id || i} style={{ padding: '12px 0', borderBottom: '1px solid #f4f4f5' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#10b981' : '#ef4444' }} />
-                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
+                      <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#10b981' : 'var(--bc-red-500)' }} />
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                         {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
                       </span>
                     </div>
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
+                    <span style={{ fontSize: 10, color: 'var(--bc-slate-400)', fontWeight: 500 }}>
                       {new Date(log.ExecutedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', gap: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--bc-slate-500)', marginTop: 4, display: 'flex', gap: 8 }}>
                     <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{log.TriggeredBy}</strong></span>
                     {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
                   </div>

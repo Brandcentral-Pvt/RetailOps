@@ -27,7 +27,7 @@ function SopPhaseBuilder({ phases, setPhases }) {
           {(phase.activities || []).map((act, ai) => (
             <div key={ai} style={{ padding: '10px 12px', background: '#fafbfc', borderRadius: 6, marginBottom: 6, border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: '#eef2ff', color: '#1976D2', borderRadius: "var(--radius-sm)" }}>Activity {ai + 1}</Tag>
+                <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)', borderRadius: "var(--radius-sm)" }}>Activity {ai + 1}</Tag>
                 <Input size="small" value={act.title} onChange={e => updateActivity(pi, ai, 'title', e.target.value)} placeholder="Activity name..." style={{ flex: 1, fontWeight: 500 }} bordered={false} />
                 {phase.activities.length > 1 && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeActivity(pi, ai)} />}
               </div>
@@ -56,7 +56,7 @@ function SubTaskBuilder({ subTasks, setSubTasks }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
           Total weight: <Text strong style={{ color: totalWeight === 100 ? '#2E7D32' : totalWeight > 100 ? '#D32F2F' : '#ED6C02' }}>{totalWeight}%</Text>
           {totalWeight < 100 && <Text type="secondary"> (should equal 100%)</Text>}
         </Text>
@@ -71,20 +71,20 @@ function SubTaskBuilder({ subTasks, setSubTasks }) {
             <Input.TextArea size="small" value={st.description} onChange={e => update(i, 'description', e.target.value)} placeholder="Description..." rows={1} bordered={false} style={{ marginBottom: 6 }} />
             <Row gutter={8}>
               <Col span={6}>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Owner Type</div>
+                <div style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginBottom: 2 }}>Owner Type</div>
                 <Select size="small" value={st.ownerType} onChange={v => update(i, 'ownerType', v)} style={{ width: '100%' }}
                   options={[{ value: 'Brand Manager', label: 'Brand Manager' }, { value: 'Catalog Team', label: 'Catalog Team' }, { value: 'Operations', label: 'Operations' }]} />
               </Col>
               <Col span={5}>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Weightage %</div>
+                <div style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginBottom: 2 }}>Weightage %</div>
                 <InputNumber size="small" value={st.weightagePct} onChange={v => update(i, 'weightagePct', v)} min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
               </Col>
               <Col span={5}>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Mandatory</div>
+                <div style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginBottom: 2 }}>Mandatory</div>
                 <Switch size="small" checked={st.isMandatory} onChange={v => update(i, 'isMandatory', v)} />
               </Col>
               <Col span={5}>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Review Required</div>
+                <div style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginBottom: 2 }}>Review Required</div>
                 <Switch size="small" checked={st.reviewRequired} onChange={v => update(i, 'reviewRequired', v)} />
               </Col>
             </Row>
@@ -259,7 +259,7 @@ export default function TaskTemplatesPage() {
   const columns = [
     { title: 'Code', dataIndex: 'TaskCode', width: 90, render: (code) => <Text code style={{ fontSize: 10 }}>{code}</Text> },
     { title: 'Name', dataIndex: 'Name', render: (name) => <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{name}</Text> },
-    { title: 'Department', dataIndex: 'Department', width: 110, render: (d) => <Tag style={{ borderRadius: 10, fontSize: 10, background: '#eff6ff', color: '#1d4ed8' }}>{d || '-'}</Tag> },
+    { title: 'Department', dataIndex: 'Department', width: 110, render: (d) => <Tag style={{ borderRadius: 10, fontSize: 10, background: 'var(--bc-blue-50)', color: 'var(--bc-blue-700)' }}>{d || '-'}</Tag> },
     { title: 'Category', dataIndex: 'Category', width: 90, render: (c) => <Tag style={{ borderRadius: 10, fontSize: 10 }}>{c}</Tag> },
     { title: 'Freq', dataIndex: 'Frequency', width: 80, render: (f) => <Tag color="blue" style={{ borderRadius: 10, fontSize: 9 }}>{FREQUENCIES.find(x => x.value === f)?.label || f}</Tag> },
     { title: 'Priority', dataIndex: 'Priority', width: 80, render: (p) => { const c = PRIORITIES[p] || PRIORITIES.MEDIUM; return <Tag style={{ background: c.bg, color: c.color, border: `1px solid ${c.color}30`, borderRadius: 10, fontSize: 10 }}>{c.label}</Tag>; } },
@@ -269,14 +269,14 @@ export default function TaskTemplatesPage() {
       title: 'SOP', key: 'sop', width: 80, align: 'center', render: (_, r) => {
         const st = r.SubTaskDefinitions || r.subTaskDefinitions || [];
         const acts = st.reduce((sum, s) => sum + (s.activities?.length || 0), 0);
-        return st.length > 0 ? <Tag color="success" style={{ fontSize: 9 }}>{st.length}P · {acts}A</Tag> : <Tag style={{ fontSize: 9, color: '#94a3b8' }}>No SOP</Tag>;
+        return st.length > 0 ? <Tag color="success" style={{ fontSize: 9 }}>{st.length}P · {acts}A</Tag> : <Tag style={{ fontSize: 9, color: 'var(--bc-slate-400)' }}>No SOP</Tag>;
       }
     },
     { title: 'Status', dataIndex: 'IsActive', width: 70, align: 'center', render: (a) => a ? <Tag color="success" style={{ borderRadius: 10, fontSize: 9 }}>Active</Tag> : <Tag style={{ borderRadius: 10, fontSize: 9 }}>Inactive</Tag> },
     {
       title: 'Actions', key: 'actions', width: 140, align: 'right', render: (_, record) => (
         <Space size={2}>
-          <Tooltip title="View"><Button type="text" icon={<EyeOutlined />} size="small" onClick={() => navigate(`/pems/templates/${record.Id}`)} style={{ color: '#2563eb' }} /></Tooltip>
+          <Tooltip title="View"><Button type="text" icon={<EyeOutlined />} size="small" onClick={() => navigate(`/pems/templates/${record.Id}`)} style={{ color: 'var(--bc-blue-600)' }} /></Tooltip>
           <Tooltip title="Edit"><Button type="text" icon={<EditOutlined />} size="small" onClick={() => openEditDrawer(record)} /></Tooltip>
           <Tooltip title="Clone"><Button type="text" icon={<CopyOutlined />} size="small" onClick={() => openDuplicateDrawer(record)} /></Tooltip>
           <Popconfirm title="Delete?" onConfirm={() => handleDelete(record.Id)}>
@@ -369,8 +369,8 @@ export default function TaskTemplatesPage() {
           <Divider style={{ margin: '4px 0' }} />
           <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 8 }}>Approval Level</Text>
           <Select value={approvalLevel} onChange={setApprovalLevel} style={{ width: 220 }} options={APPROVAL_LEVELS.map(a => ({ value: a.value, label: a.label }))} />
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
-            <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
               {approvalLevel === 'single' && 'Single approval: One reviewer approves to complete the task.'}
               {approvalLevel === 'dual' && 'Dual approval: Two independent reviewers must approve.'}
               {approvalLevel === 'multi' && 'Multi-level: Multiple approvals required at different stages.'}
@@ -382,7 +382,7 @@ export default function TaskTemplatesPage() {
   ];
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '0 24px' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100%', padding: '0 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
         <Space>
           <Text strong style={{ fontSize: 18 }}>Task Templates</Text>
@@ -409,7 +409,7 @@ export default function TaskTemplatesPage() {
       <Drawer
         title={
           <Space>
-            <ThunderboltOutlined style={{ color: '#2563eb' }} />
+            <ThunderboltOutlined style={{ color: 'var(--bc-blue-600)' }} />
             <Text strong style={{ fontSize: 15 }}>{editingTemplate ? `Edit: ${editingTemplate.TaskCode}` : 'Create Task Template'}</Text>
           </Space>
         }
@@ -420,7 +420,7 @@ export default function TaskTemplatesPage() {
         extra={
           <Space>
             <Button onClick={() => setDrawerOpen(false)} style={{ borderRadius: 6 }}>Cancel</Button>
-            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} style={{ borderRadius: 6, fontWeight: 600, background: '#2563eb', borderColor: '#2563eb' }}>
+            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} style={{ borderRadius: 6, fontWeight: 600, background: 'var(--bc-blue-600)', borderColor: 'var(--bc-blue-600)' }}>
               {editingTemplate ? 'Update Template' : 'Create Template'}
             </Button>
           </Space>

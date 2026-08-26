@@ -25,15 +25,15 @@ const PerformanceChart = ({ chartData, loading }) => {
       categories: chartData?.labels || [],
       axisBorder: { show: false },
       axisTicks: { show: false },
-      labels: { style: { colors: '#64748b', fontSize: '10px' } }
+      labels: { style: { colors: 'var(--bc-slate-500)', fontSize: '10px' } }
     },
     yaxis: {
       labels: {
-        style: { colors: '#64748b', fontSize: '10px' },
+        style: { colors: 'var(--bc-slate-500)', fontSize: '10px' },
         formatter: (val) => val >= 1000 ? `₹${(val / 1000).toFixed(1)}K` : `₹${val}`
       }
     },
-    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+    grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
     legend: {
       show: true,
       position: 'top',

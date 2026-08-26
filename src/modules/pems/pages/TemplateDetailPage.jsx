@@ -83,14 +83,14 @@ export default function TemplateDetailPage() {
             } style={{ borderRadius: "var(--radius-md)" }}>
               {(st.activities || []).map((act, actIdx) => (
                 <div key={actIdx} style={{ padding: '8px 12px', borderBottom: actIdx < st.activities.length - 1 ? '1px solid #f1f5f9' : 'none', display: 'flex', gap: 10 }}>
-                  <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: '#eef2ff', color: '#1976D2', borderRadius: "var(--radius-sm)", height: 20, alignSelf: 'flex-start' }}>Step {actIdx + 1}</Tag>
+                  <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)', borderRadius: "var(--radius-sm)", height: 20, alignSelf: 'flex-start' }}>Step {actIdx + 1}</Tag>
                   <div style={{ flex: 1 }}>
                     <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{act.title}</Text>
-                    {act.instructions && <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', display: 'block', marginTop: 2 }}>{act.instructions}</Text>}
+                    {act.instructions && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', display: 'block', marginTop: 2 }}>{act.instructions}</Text>}
                     <Space style={{ marginTop: 4 }} size={8}>
                       {act.expectedOutput && <Tag style={{ fontSize: 9, background: '#ecfdf5', color: '#2E7D32', borderRadius: "var(--radius-sm)" }}>Output: {act.expectedOutput}</Tag>}
                       {act.validationRules && <Tag style={{ fontSize: 9, background: '#fff7ed', color: '#E65100', borderRadius: "var(--radius-sm)" }}>Validation: {act.validationRules}</Tag>}
-                      {act.estimatedMinutes && <Tag style={{ fontSize: 9, background: '#f8fafc', color: '#64748b', borderRadius: "var(--radius-sm)" }}>{act.estimatedMinutes}m</Tag>}
+                      {act.estimatedMinutes && <Tag style={{ fontSize: 9, background: 'var(--bc-slate-50)', color: 'var(--bc-slate-500)', borderRadius: "var(--radius-sm)" }}>{act.estimatedMinutes}m</Tag>}
                     </Space>
                   </div>
                 </div>
@@ -156,7 +156,7 @@ export default function TemplateDetailPage() {
   ];
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '0 24px' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100%', padding: '0 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pems/templates')} size="small" />

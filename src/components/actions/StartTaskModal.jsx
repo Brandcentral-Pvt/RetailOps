@@ -56,19 +56,19 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
       destroyOnHidden
     >
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: '#1e293b' }}>Start Task</h3>
-        <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: '4px 0 0 0' }}>{task.action || task.title || task.name}</p>
+        <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: 'var(--bc-slate-800)' }}>Start Task</h3>
+        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', margin: '4px 0 0 0' }}>{task.action || task.title || task.name}</p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Block 1: Task Summary Card */}
-        <div style={{ background: '#eff6ff', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ background: 'var(--bc-blue-50)', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontWeight: 600, fontSize: 'var(--font-size-base)', color: '#1e3a8a' }}>
             {task.action || task.title || task.name}
           </div>
 
           <Space size={8} wrap>
-            <Tag style={{ background: '#dbeafe', color: '#1e40af', border: 'none' }}>
+            <Tag style={{ background: 'var(--bc-blue-100)', color: 'var(--bc-blue-800)', border: 'none' }}>
               {task.type || task.category || 'General'}
             </Tag>
             <Tag color={task.priority === 'HIGH' ? 'red' : task.priority === 'LOW' ? 'blue' : 'orange'} style={{ border: 'none' }}>
@@ -102,9 +102,9 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--font-size-sm)', color: '#1e293b', borderTop: '1px solid #dbeafe', paddingTop: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', borderTop: '1px solid #dbeafe', paddingTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: '#64748b', width: 80 }}>Assignee:</span>
+              <span style={{ color: 'var(--bc-slate-500)', width: 80 }}>Assignee:</span>
               <Avatar size={18} icon={<UserOutlined />} style={{ background: '#0288D1' }} />
               <span style={{ fontWeight: 500 }}>
                 {Array.isArray(task.assignedTo)
@@ -114,11 +114,11 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
             </div>
             {task.reviewer && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#64748b', width: 80 }}>Reviewer:</span>
-                <Avatar size={18} icon={<UserOutlined />} style={{ background: '#9C27B0' }} />
+                <span style={{ color: 'var(--bc-slate-500)', width: 80 }}>Reviewer:</span>
+                <Avatar size={18} icon={<UserOutlined />} style={{ background: 'var(--bc-purple-500)' }} />
                 <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
                   {formatUserName(task.reviewer)}
-                  <EyeOutlined style={{ color: '#94a3b8' }} />
+                  <EyeOutlined style={{ color: 'var(--bc-slate-400)' }} />
                 </span>
               </div>
             )}
@@ -129,7 +129,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="startNote"
-            label={<span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#334155' }}>Start Note (Optional)</span>}
+            label={<span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)' }}>Start Note (Optional)</span>}
           >
             <TextArea
               rows={2}
@@ -142,7 +142,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
 
           <Form.Item
             name="estimatedCompletion"
-            label={<span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#334155' }}>When do you expect to finish this?</span>}
+            label={<span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)' }}>When do you expect to finish this?</span>}
           >
             <DatePicker
               style={{ width: '100%', borderRadius: "var(--radius-md)" }}
@@ -172,7 +172,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
           disabled={!acknowledged}
           loading={submitting}
           style={{
-            background: acknowledged ? 'linear-gradient(135deg, #1976D2, #9C27B0)' : '#cbd5e1',
+            background: acknowledged ? 'linear-gradient(135deg, #1976D2, #9C27B0)' : 'var(--bc-slate-300)',
             border: 'none',
             borderRadius: "var(--radius-md)",
             height: 36,

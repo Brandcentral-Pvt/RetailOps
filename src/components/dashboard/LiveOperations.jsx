@@ -72,9 +72,9 @@ const LiveOperations = ({
 }) => {
   const operations = [
     { icon: RefreshCw, title: 'Marketplace Sync', count: marketplaceSync, status: marketplaceSync > 0 ? 'running' : 'completed', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/live-sync-tracker') },
-    { icon: FileText, title: 'Listing Pipeline', count: listingPipeline, status: listingPipeline > 0 ? 'running' : 'completed', color: '#1976D2', onClick: () => onNavigate('/scrape-tasks') },
+    { icon: FileText, title: 'Listing Pipeline', count: listingPipeline, status: listingPipeline > 0 ? 'running' : 'completed', color: 'var(--bc-ro-500)', onClick: () => onNavigate('/scrape-tasks') },
     { icon: CheckCircle, title: 'Publishing Queue', count: publishingQueue, status: publishingQueue > 0 ? 'queued' : 'completed', color: '#2E7D32', onClick: () => onNavigate('/scheduled-runs') },
-    { icon: Sparkles, title: 'AI Image Generation', count: aiImageGen, status: aiImageGen > 0 ? 'running' : 'completed', color: '#9C27B0', onClick: () => onNavigate('/pems/tasks') },
+    { icon: Sparkles, title: 'AI Image Generation', count: aiImageGen, status: aiImageGen > 0 ? 'running' : 'completed', color: 'var(--bc-purple-500)', onClick: () => onNavigate('/pems/tasks') },
     { icon: FileText, title: 'Content Generation', count: contentGen, status: contentGen > 0 ? 'queued' : 'completed', color: '#ED6C02', onClick: () => onNavigate('/pems/templates') },
     { icon: CheckCircle, title: 'Validation Queue', count: validationQueue, status: validationQueue > 0 ? 'queued' : 'completed', color: '#2E7D32', onClick: () => onNavigate('/pems/reviews') },
   ];
@@ -88,7 +88,7 @@ const LiveOperations = ({
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: 'var(--bc-green-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={14} color="#2E7D32" />
           </div>
           <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Live Operations</Text>

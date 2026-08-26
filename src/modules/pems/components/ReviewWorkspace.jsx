@@ -16,9 +16,9 @@ import dayjs from 'dayjs';
 const { Text } = Typography;
 
 const STATUS_COLORS = {
-  DRAFT: '#64748b', ASSIGNED: '#2563eb', ACCEPTED: '#9333ea', IN_PROGRESS: '#2563eb',
+  DRAFT: 'var(--bc-slate-500)', ASSIGNED: 'var(--bc-blue-600)', ACCEPTED: '#9333ea', IN_PROGRESS: 'var(--bc-blue-600)',
   SUBMITTED: '#ED6C02', UNDER_REVIEW: '#9333ea', APPROVED: '#2E7D32',
-  REJECTED: '#D32F2F', REWORK: '#ED6C02', ESCALATED: '#D32F2F', CANCELLED: '#94a3b8',
+  REJECTED: '#D32F2F', REWORK: '#ED6C02', ESCALATED: '#D32F2F', CANCELLED: 'var(--bc-slate-400)',
 };
 
 function ReviewInsights({ task, subTasks }) {
@@ -45,15 +45,15 @@ function ReviewInsights({ task, subTasks }) {
         <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
           <Space size={6}>
             {c.done ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-base)' }} /> : <CloseCircleOutlined style={{ color: '#D32F2F', fontSize: 'var(--font-size-base)' }} />}
-            <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155' }}>{c.label}</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-700)' }}>{c.label}</Text>
           </Space>
-          <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: c.done ? '#2E7D32' : '#64748b' }}>{c.value}</Text>
+          <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: c.done ? '#2E7D32' : 'var(--bc-slate-500)' }}>{c.value}</Text>
         </div>
       ))}
       <Divider style={{ margin: '8px 0' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b' }}>Recommendation</Text>
-        <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-md)", fontWeight: 600, background: recommendation === 'APPROVE' ? '#f0fdf4' : recommendation === 'REJECT' ? '#fef2f2' : '#fffbeb', color: recommendation === 'APPROVE' ? '#2E7D32' : recommendation === 'REJECT' ? '#D32F2F' : '#ED6C02', border: 'none' }}>
+        <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)' }}>Recommendation</Text>
+        <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-md)", fontWeight: 600, background: recommendation === 'APPROVE' ? 'var(--bc-green-50)' : recommendation === 'REJECT' ? 'var(--bc-red-50)' : 'var(--bc-amber-50)', color: recommendation === 'APPROVE' ? '#2E7D32' : recommendation === 'REJECT' ? '#D32F2F' : '#ED6C02', border: 'none' }}>
           {recommendation}
         </Tag>
       </div>
@@ -67,13 +67,13 @@ function ReviewerAnalytics({ task }) {
     <Card size="small" title="Reviewer Performance" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }} styles={{ body: { padding: '12px 14px' } }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {[
-          { label: 'Reviews Today', value: '18', color: '#2563eb' },
+          { label: 'Reviews Today', value: '18', color: 'var(--bc-blue-600)' },
           { label: 'Avg Time', value: '11m', color: '#2E7D32' },
           { label: 'Approval Rate', value: '92%', color: '#2E7D32' },
           { label: 'Rework Rate', value: '3%', color: '#ED6C02' },
         ].map(item => (
-          <div key={item.label} style={{ padding: '8px', background: '#f8fafc', borderRadius: 6, textAlign: 'center' }}>
-            <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{item.label}</Text>
+          <div key={item.label} style={{ padding: '8px', background: 'var(--bc-slate-50)', borderRadius: 6, textAlign: 'center' }}>
+            <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600, textTransform: 'uppercase' }}>{item.label}</Text>
             <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: item.color, marginTop: 2 }}>{item.value}</div>
           </div>
         ))}
@@ -87,7 +87,7 @@ function EvidenceCard({ evidence }) {
     pdf: <FileTextOutlined style={{ color: '#D32F2F', fontSize: 'var(--font-size-lg)' }} />,
     xlsx: <FileTextOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-lg)' }} />,
     xls: <FileTextOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-lg)' }} />,
-    csv: <FileTextOutlined style={{ color: '#2563eb', fontSize: 'var(--font-size-lg)' }} />,
+    csv: <FileTextOutlined style={{ color: 'var(--bc-blue-600)', fontSize: 'var(--font-size-lg)' }} />,
     png: <FileTextOutlined style={{ color: '#9333ea', fontSize: 'var(--font-size-lg)' }} />,
     jpg: <FileTextOutlined style={{ color: '#9333ea', fontSize: 'var(--font-size-lg)' }} />,
   };
@@ -95,22 +95,22 @@ function EvidenceCard({ evidence }) {
   return (
     <Card size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e5e7eb' }} styles={{ body: { padding: '10px 14px' } }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          {iconMap[ext] || <FileTextOutlined style={{ color: '#64748b', fontSize: 'var(--font-size-lg)' }} />}
+        <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: 'var(--bc-slate-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {iconMap[ext] || <FileTextOutlined style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-lg)' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{evidence.FileName}</Text>
-          <Text style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Uploaded by {evidence.UploadedByName}</Text>
-          <Text style={{ fontSize: 10, color: '#94a3b8' }}>{dayjs(evidence.UploadedAt).format('DD MMM YYYY [at] h:mm A')}</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block' }}>Uploaded by {evidence.UploadedByName}</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>{dayjs(evidence.UploadedAt).format('DD MMM YYYY [at] h:mm A')}</Text>
           {evidence.Remarks && (
-            <div style={{ marginTop: 4, padding: '6px 8px', background: '#f8fafc', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9' }}>
-              <Text style={{ fontSize: 'var(--font-size-xs)', color: '#475569' }}>{evidence.Remarks}</Text>
+            <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9' }}>
+              <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-600)' }}>{evidence.Remarks}</Text>
             </div>
           )}
         </div>
         <Space size={4}>
-          <Tooltip title="Preview"><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#2563eb' }} /></Tooltip>
-          <Tooltip title="Download"><Button type="text" size="small" icon={<DownloadOutlined />} style={{ color: '#64748b' }} /></Tooltip>
+          <Tooltip title="Preview"><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: 'var(--bc-blue-600)' }} /></Tooltip>
+          <Tooltip title="Download"><Button type="text" size="small" icon={<DownloadOutlined />} style={{ color: 'var(--bc-slate-500)' }} /></Tooltip>
         </Space>
       </div>
     </Card>
@@ -125,28 +125,28 @@ function CommentThread() {
   ]);
   const [newComment, setNewComment] = useState('');
 
-  const roleColors = { 'Brand Manager': '#2563eb', 'Reviewer': '#16a34a', 'Admin': '#dc2626' };
+  const roleColors = { 'Brand Manager': 'var(--bc-blue-600)', 'Reviewer': 'var(--bc-green-600)', 'Admin': 'var(--bc-red-600)' };
 
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
         {comments.map(c => (
           <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <Avatar size={28} style={{ background: roleColors[c.role] || '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 600, flexShrink: 0 }}>{c.avatar}</Avatar>
+            <Avatar size={28} style={{ background: roleColors[c.role] || 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', fontWeight: 600, flexShrink: 0 }}>{c.avatar}</Avatar>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                 <Text strong style={{ fontSize: 'var(--font-size-xs)' }}>{c.user}</Text>
                 <Tag style={{ fontSize: 8, borderRadius: "var(--radius-sm)", padding: '0 4px', margin: 0 }}>{c.role}</Tag>
-                <Text style={{ fontSize: 9, color: '#94a3b8' }}>{c.time}</Text>
+                <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)' }}>{c.time}</Text>
               </div>
-              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#334155' }}>{c.text}</Text>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)' }}>{c.text}</Text>
             </div>
           </div>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <Input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add a comment... (@mention, attach files)" style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-        <Button type="primary" icon={<SendOutlined />} style={{ borderRadius: "var(--radius-md)", background: '#2563eb' }} disabled={!newComment.trim()}>Send</Button>
+        <Button type="primary" icon={<SendOutlined />} style={{ borderRadius: "var(--radius-md)", background: 'var(--bc-blue-600)' }} disabled={!newComment.trim()}>Send</Button>
       </div>
     </div>
   );
@@ -224,7 +224,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
   const totalActs = subTasks.reduce((s, st) => s + (st.activities?.length || 0), 0);
   const doneActs = subTasks.reduce((s, st) => s + (st.activities?.filter(a => a.IsCompleted).length || 0), 0);
   const evidenceCount = task?.evidence?.length || 0;
-  const health = task ? calculateHealth(task) : { score: 0, label: 'Unknown', color: '#94a3b8' };
+  const health = task ? calculateHealth(task) : { score: 0, label: 'Unknown', color: 'var(--bc-slate-400)' };
 
   return (
     <Drawer
@@ -239,12 +239,12 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
           {/* ═══ HEADER (spans both columns) ═══ */}
           <div style={{ gridColumn: '1 / -1', padding: '12px 20px', borderBottom: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Space size={12}>
-              <Button type="text" onClick={onClose} style={{ fontSize: 'var(--font-size-lg)', color: '#64748b' }}>✕</Button>
+              <Button type="text" onClick={onClose} style={{ fontSize: 'var(--font-size-lg)', color: 'var(--bc-slate-500)' }}>✕</Button>
               <Text code style={{ fontSize: 'var(--font-size-xs)' }}>{task.InstanceCode}</Text>
               <Tag style={{ fontSize: 9, borderRadius: 10, background: STATUS_COLORS[task.Status] + '15', color: STATUS_COLORS[task.Status], border: `1px solid ${STATUS_COLORS[task.Status]}30`, fontWeight: 600 }}>{task.Status}</Tag>
               <Tag style={{ fontSize: 9, borderRadius: 6, background: PRIORITIES[task.Priority]?.bg, color: PRIORITIES[task.Priority]?.color }}>{task.Priority}</Tag>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: health.color }} />
-              <Text strong style={{ fontSize: 15, color: '#0f172a' }}>{task.Title || task.TemplateName}</Text>
+              <Text strong style={{ fontSize: 15, color: 'var(--bc-slate-900)' }}>{task.Title || task.TemplateName}</Text>
             </Space>
             <Space>
               {canEscalate && (
@@ -256,7 +256,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
           {/* ═══ TOP ROW: Overview + Evidence ═══ */}
           <div style={{ overflow: 'auto', padding: '16px 20px', borderRight: '1px solid #e5e7eb' }}>
             {/* Task Details */}
-            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Task Details</Text>
+            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Task Details</Text>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8, marginBottom: 16 }}>
               {[
                 { label: 'Seller', value: task.SellerName || '-' },
@@ -268,40 +268,40 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
                 { label: 'SLA', value: `${task.SLAHours}h` },
                 { label: 'Created', value: task.CreatedAt ? dayjs(task.CreatedAt).format('DD MMM') : '-' },
               ].map(item => (
-                <div key={item.label} style={{ padding: '6px 8px', background: '#f8fafc', borderRadius: 6 }}>
-                  <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{item.label}</Text>
-                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: item.color || '#0f172a', display: 'block' }}>{item.value}</Text>
+                <div key={item.label} style={{ padding: '6px 8px', background: 'var(--bc-slate-50)', borderRadius: 6 }}>
+                  <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600, textTransform: 'uppercase' }}>{item.label}</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: item.color || 'var(--bc-slate-900)', display: 'block' }}>{item.value}</Text>
                 </div>
               ))}
             </div>
 
             {/* Performance Metrics */}
-            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Performance</Text>
+            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Performance</Text>
             <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
               {[
-                { label: 'Target', value: task.Target || 0, color: '#2563eb' },
+                { label: 'Target', value: task.Target || 0, color: 'var(--bc-blue-600)' },
                 { label: 'Achievement', value: task.Achievement || 0, color: '#2E7D32' },
                 { label: 'Achiev %', value: `${task.AchievementPct || 0}%`, color: (task.AchievementPct || 0) >= 80 ? '#2E7D32' : '#ED6C02' },
                 { label: 'Variance', value: `${(task.Variance || 0) >= 0 ? '+' : ''}${task.Variance || 0}`, color: (task.Variance || 0) >= 0 ? '#2E7D32' : '#D32F2F' },
                 { label: 'Progress', value: `${task.WeightedProgressPct || task.ProgressPct || 0}%`, color: '#9333ea' },
               ].map(m => (
                 <div key={m.label} style={{ flex: 1, padding: '8px 10px', borderRadius: "var(--radius-md)", background: `${m.color}08`, border: `1px solid ${m.color}15`, textAlign: 'center' }}>
-                  <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{m.label}</Text>
+                  <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600, textTransform: 'uppercase' }}>{m.label}</Text>
                   <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: m.color, marginTop: 1 }}>{m.value}</div>
                 </div>
               ))}
             </div>
 
             {/* Sub Tasks */}
-            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Sub Tasks ({doneActs}/{totalActs})</Text>
+            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Sub Tasks ({doneActs}/{totalActs})</Text>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
               {subTasks.map(st => {
                 const stDone = st.activities?.filter(a => a.IsCompleted).length || 0;
                 const stTotal = st.activities?.length || 0;
                 const stPct = stTotal > 0 ? Math.round((stDone / stTotal) * 100) : 0;
                 return (
-                  <div key={st.Id} style={{ padding: '6px 8px', borderRadius: 6, background: st.IsCompleted ? '#f0fdf4' : '#fafbfc', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-sm)' }} /> : <ClockCircleOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }} />}
+                  <div key={st.Id} style={{ padding: '6px 8px', borderRadius: 6, background: st.IsCompleted ? 'var(--bc-green-50)' : '#fafbfc', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-sm)' }} /> : <ClockCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }} />}
                     <Text style={{ fontSize: 'var(--font-size-xs)', flex: 1 }}>{st.Title}</Text>
                     <Progress percent={stPct} size="small" style={{ width: 50, margin: 0 }} />
                   </div>
@@ -310,24 +310,24 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
             </div>
 
             {/* Timeline */}
-            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Timeline</Text>
+            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Timeline</Text>
             {task.auditLogs?.length > 0 ? (
               <Timeline items={task.auditLogs.slice(0, 6).map(log => ({
-                color: log.Action === 'CREATED' ? '#2563eb' : '#2E7D32',
+                color: log.Action === 'CREATED' ? 'var(--bc-blue-600)' : '#2E7D32',
                 children: (
                   <div>
                     <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{log.Action.replace(/_/g, ' ')}</Text>
-                    <Text style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>{log.ActorName || 'System'} · {dayjs(log.CreatedAt).format('HH:mm')}</Text>
+                    <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block' }}>{log.ActorName || 'System'} · {dayjs(log.CreatedAt).format('HH:mm')}</Text>
                   </div>
                 ),
               }))} />
-            ) : <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>No events</Text>}
+            ) : <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>No events</Text>}
           </div>
 
           {/* ═══ BOTTOM-LEFT: Evidence + Comments ═══ */}
           <div style={{ overflow: 'auto', padding: '16px 20px' }}>
             {/* Evidence */}
-            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Evidence ({evidenceCount})</Text>
+            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Evidence ({evidenceCount})</Text>
             {evidenceCount === 0 ? (
               <Empty description="No evidence submitted" style={{ padding: '20px 0' }} />
             ) : (
@@ -339,16 +339,16 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
             {/* Submission Remarks */}
             {task.SubmissionRemarks && (
               <div style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 6, display: 'block' }}>Submission Notes</Text>
-                <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: "var(--radius-md)", borderLeft: '3px solid #2563eb' }}>
-                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{task.AssigneeName} · {task.SubmittedAt ? dayjs(task.SubmittedAt).format('DD MMM HH:mm') : ''}</Text>
-                  <Text style={{ fontSize: 'var(--font-size-sm)', color: '#334155', display: 'block', marginTop: 4, whiteSpace: 'pre-wrap' }}>{task.SubmissionRemarks}</Text>
+                <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 6, display: 'block' }}>Submission Notes</Text>
+                <div style={{ padding: '10px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", borderLeft: '3px solid #2563eb' }}>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>{task.AssigneeName} · {task.SubmittedAt ? dayjs(task.SubmittedAt).format('DD MMM HH:mm') : ''}</Text>
+                  <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)', display: 'block', marginTop: 4, whiteSpace: 'pre-wrap' }}>{task.SubmissionRemarks}</Text>
                 </div>
               </div>
             )}
 
             {/* Comments */}
-            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Comments</Text>
+            <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Comments</Text>
             <CommentThread />
           </div>
 
@@ -360,7 +360,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
               <Divider style={{ margin: '10px 0' }} />
 
               {/* Structured Scoring */}
-              <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Quality Assessment</Text>
+              <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Quality Assessment</Text>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
                   { key: 'accuracy', label: 'Accuracy' },
@@ -369,11 +369,11 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
                   { key: 'compliance', label: 'Process Compliance' },
                 ].map(item => (
                   <div key={item.key}>
-                    <Text style={{ fontSize: 'var(--font-size-xs)', color: '#334155' }}>{item.label}</Text>
+                    <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-700)' }}>{item.label}</Text>
                     <Rate value={scores[item.key]} onChange={v => setScores(s => ({ ...s, [item.key]: v }))} style={{ fontSize: 'var(--font-size-base)' }} />
                   </div>
                 ))}
-                <div style={{ padding: '8px 10px', background: '#f0fdf4', borderRadius: "var(--radius-md)", border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                <div style={{ padding: '8px 10px', background: 'var(--bc-green-50)', borderRadius: "var(--radius-md)", border: '1px solid #bbf7d0', textAlign: 'center' }}>
                   <Text style={{ fontSize: 9, color: '#2E7D32', fontWeight: 600, textTransform: 'uppercase' }}>Overall Score</Text>
                   <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#2E7D32' }}>{totalScore}/100</div>
                 </div>
@@ -382,10 +382,10 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
 
             {/* Right: Review Actions */}
             <div style={{ padding: '16px 20px', overflow: 'auto' }}>
-              <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, display: 'block' }}>Review Decision</Text>
+              <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 8, display: 'block' }}>Review Decision</Text>
 
               <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Comments <Text type="danger">*</Text></Text>
-              <Text style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Describe your review decision, what was done well, and what needs improvement.</Text>
+              <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block', marginBottom: 6 }}>Describe your review decision, what was done well, and what needs improvement.</Text>
               <Input.TextArea rows={4} value={reviewFeedback} onChange={e => setReviewFeedback(e.target.value)}
                 placeholder={"Describe your review decision...\n\n• What was done well\n• What needs improvement\n• Action items..."}
                 style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', marginBottom: 12 }} />
@@ -406,7 +406,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
               </div>
 
               {showEscalate && (
-                <div style={{ padding: '10px 12px', background: '#fef2f2', borderRadius: "var(--radius-md)", border: '1px solid #fecdd3', marginBottom: 12 }}>
+                <div style={{ padding: '10px 12px', background: 'var(--bc-red-50)', borderRadius: "var(--radius-md)", border: '1px solid #fecdd3', marginBottom: 12 }}>
                   <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#D32F2F', display: 'block', marginBottom: 6 }}>Escalation Reason *</Text>
                   <Input.TextArea rows={3} value={escalateReason} onChange={e => setEscalateReason(e.target.value)}
                     placeholder="Describe the issue..." style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }} />
@@ -420,9 +420,9 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
 
               {/* Previous Review */}
               {task.ReviewRemarks && (
-                <div style={{ marginTop: 12, padding: '10px 12px', background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e5e7eb' }}>
-                  <Text style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Previous Review</Text>
-                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', whiteSpace: 'pre-wrap' }}>{task.ReviewRemarks}</Text>
+                <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e5e7eb' }}>
+                  <Text style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', display: 'block', marginBottom: 4 }}>Previous Review</Text>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', whiteSpace: 'pre-wrap' }}>{task.ReviewRemarks}</Text>
                 </div>
               )}
             </div>

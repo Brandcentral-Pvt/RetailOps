@@ -93,9 +93,9 @@ const MonthWiseReport = () => {
       : '0.0';
 
     return [
-      { title: 'Annual Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', trend: '+22.4%' },
-      { title: 'Portfolio Units', value: totalUnits.toLocaleString(), icon: Package, color: '#8B5CF6', trend: '+14.2%' },
-      { title: 'Mean ACoS', value: `${avgAcos}%`, icon: Target, color: '#EC4899', trend: '-2.1%' },
+      { title: 'Annual Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: IndianRupee, color: 'var(--bc-indigo-600)', trend: '+22.4%' },
+      { title: 'Portfolio Units', value: totalUnits.toLocaleString(), icon: Package, color: 'var(--bc-violet-500)', trend: '+14.2%' },
+      { title: 'Mean ACoS', value: `${avgAcos}%`, icon: Target, color: 'var(--bc-pink-500)', trend: '-2.1%' },
       { title: 'Portfolio ROAS', value: `${avgRoas}x`, icon: Trophy, color: '#10B981', trend: '+0.4x' },
     ];
   }, [data]);
@@ -127,14 +127,14 @@ const MonthWiseReport = () => {
 
   const trendChartOptions = {
     chart: { type: 'area', toolbar: { show: false }, background: 'transparent' },
-    colors: ['#4F46E5', '#10B981'],
+    colors: ['var(--bc-indigo-600)', '#10B981'],
     stroke: { curve: 'smooth', width: 2 },
     fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
     dataLabels: { enabled: false },
-    xaxis: { categories: [...data].reverse().map(d => d.month.split(' ')[0]), labels: { style: { colors: '#64748b', fontWeight: 600 } } },
+    xaxis: { categories: [...data].reverse().map(d => d.month.split(' ')[0]), labels: { style: { colors: 'var(--bc-slate-500)', fontWeight: 600 } } },
     yaxis: { labels: { formatter: (val) => `₹${(val / 100000).toFixed(1)}L` } },
     tooltip: { theme: 'light', y: { formatter: (val) => `₹${val.toLocaleString()}` } },
-    grid: { show: true, borderColor: '#f1f5f9', strokeDashArray: 4 }
+    grid: { show: true, borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 }
   };
 
   const MetricPill = ({ title, value, icon: Icon, color, trend }) => (
@@ -225,10 +225,10 @@ const MonthWiseReport = () => {
           <DashboardCard title="Conversion Efficiency" icon={Activity}>
             <div className="h-100 d-flex flex-column justify-content-center gap-4 py-2">
               {[
-                { label: 'Q1 (Jan-Mar)', value: 85, color: '#4F46E5' },
+                { label: 'Q1 (Jan-Mar)', value: 85, color: 'var(--bc-indigo-600)' },
                 { label: 'Q2 (Apr-Jun)', value: 92, color: '#10B981' },
-                { label: 'Q3 (Jul-Sep)', value: 78, color: '#F59E0B' },
-                { label: 'Q4 (Oct-Dec)', value: 95, color: '#8B5CF6' }
+                { label: 'Q3 (Jul-Sep)', value: 78, color: 'var(--bc-amber-500)' },
+                { label: 'Q4 (Oct-Dec)', value: 95, color: 'var(--bc-violet-500)' }
               ].map((q, idx) => (
                 <div key={idx}>
                   <div className="d-flex justify-content-between mb-1">

@@ -61,31 +61,31 @@ const { Title, Text } = Typography;
 
 // ─── Design Tokens ───────────────────────────────────────────────
 const tokens = {
-    bg: '#f8fafc',
-    surface: '#ffffff',
+    bg: 'var(--bc-slate-50)',
+    surface: 'var(--bc-white)',
     surfaceElevated: '#fafbfc',
     border: '#e8ecf1',
-    borderLight: '#f1f5f9',
+    borderLight: 'var(--bc-slate-100)',
     text: {
-        primary: '#0f172a',
-        secondary: '#475569',
-        tertiary: '#94a3b8',
-        inverse: '#ffffff'
+        primary: 'var(--bc-slate-900)',
+        secondary: 'var(--bc-slate-600)',
+        tertiary: 'var(--bc-slate-400)',
+        inverse: 'var(--bc-white)'
     },
     brand: {
-        primary: '#1e40af',
-        primaryLight: '#dbeafe',
-        accent: '#0ea5e9'
+        primary: 'var(--bc-blue-800)',
+        primaryLight: 'var(--bc-blue-100)',
+        accent: 'var(--bc-accent-content)'
     },
     semantic: {
         success: '#2E7D32',
         successLight: '#d1fae5',
         warning: '#E65100',
-        warningLight: '#fef3c7',
+        warningLight: 'var(--bc-amber-100)',
         error: '#C62828',
-        errorLight: '#fee2e2',
+        errorLight: 'var(--bc-red-100)',
         info: '#0288D1',
-        infoLight: '#dbeafe'
+        infoLight: 'var(--bc-blue-100)'
     },
     radius: { sm: '6px', md: '10px', lg: '14px' },
     shadow: {
@@ -149,7 +149,7 @@ const StatusDot = ({ status }) => {
     return (
         <span style={{
             display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-            backgroundColor: colors[status] || '#94a3b8',
+            backgroundColor: colors[status] || 'var(--bc-slate-400)',
             boxShadow: isRunning ? `0 0 0 3px ${colors.RUNNING}30` : 'none',
             animation: isRunning ? 'pulse-dot 1.5s ease-in-out infinite' : 'none'
         }} />

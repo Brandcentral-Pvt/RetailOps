@@ -33,7 +33,7 @@ const AIActionPanel = ({ suggestions, loading }) => {
                   <div 
                     className="p-1.5 rounded-circle d-flex align-items-center justify-content-center"
                     style={{ 
-                      backgroundColor: suggestion.type === 'STOCK' ? '#fef2f2' : suggestion.type === 'ADS' ? '#eff6ff' : '#f0fdf4',
+                      backgroundColor: suggestion.type === 'STOCK' ? 'var(--bc-red-50)' : suggestion.type === 'ADS' ? 'var(--bc-blue-50)' : 'var(--bc-green-50)',
                       color: suggestion.type === 'STOCK' ? '#D32F2F' : suggestion.type === 'ADS' ? '#0288D1' : '#2E7D32'
                     }}
                   >

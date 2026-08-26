@@ -102,15 +102,15 @@ function RunLogsTab() {
     },
     {
       title: 'Triggered By', dataIndex: 'TriggeredByName', key: 'by', width: 170,
-      render: (v) => v ? <Space size={4}><UserOutlined style={{ fontSize: 10, color: '#64748b' }} /><Text style={{ fontSize: 10, color: '#334155' }}>{v}</Text></Space> : <Text type="secondary" style={{ fontSize: 10 }}>System</Text>,
+      render: (v) => v ? <Space size={4}><UserOutlined style={{ fontSize: 10, color: 'var(--bc-slate-500)' }} /><Text style={{ fontSize: 10, color: 'var(--bc-slate-700)' }}>{v}</Text></Space> : <Text type="secondary" style={{ fontSize: 10 }}>System</Text>,
     },
     {
       title: 'ASINs', key: 'asins', width: 130, align: 'center',
       render: (_, r) => (
         <Space size={6} style={{ fontSize: 10 }}>
-          <Text style={{ color: '#475569' }}>{r.TotalAsins}</Text>
-          <Text style={{ color: '#2563eb', fontWeight: 600 }}>✓ {r.SuccessCount}</Text>
-          <Text style={{ color: '#dc2626', fontWeight: 600 }}>✗ {r.FailedCount}</Text>
+          <Text style={{ color: 'var(--bc-slate-600)' }}>{r.TotalAsins}</Text>
+          <Text style={{ color: 'var(--bc-blue-600)', fontWeight: 600 }}>✓ {r.SuccessCount}</Text>
+          <Text style={{ color: 'var(--bc-red-600)', fontWeight: 600 }}>✗ {r.FailedCount}</Text>
         </Space>
       ),
     },
@@ -120,7 +120,7 @@ function RunLogsTab() {
     },
     {
       title: 'Duration', dataIndex: 'DurationMs', key: 'duration', width: 90, align: 'center',
-      render: (v) => <Text style={{ fontSize: 10, color: '#64748b' }}>{fmtDuration(v)}</Text>,
+      render: (v) => <Text style={{ fontSize: 10, color: 'var(--bc-slate-500)' }}>{fmtDuration(v)}</Text>,
     },
     {
       title: '', key: 'action', width: 70, align: 'center',
@@ -212,7 +212,7 @@ function RunLogsTab() {
               <Descriptions.Item label="Batch">{detail.BatchId || '—'}</Descriptions.Item>
               <Descriptions.Item label="Total ASINs"><Text strong>{detail.TotalAsins}</Text></Descriptions.Item>
               <Descriptions.Item label="Success / Failed">
-                <Space size={6}><Text style={{ color: '#2563eb', fontWeight: 600 }}>{detail.SuccessCount} ✓</Text><Text style={{ color: '#dc2626', fontWeight: 600 }}>{detail.FailedCount} ✗</Text></Space>
+                <Space size={6}><Text style={{ color: 'var(--bc-blue-600)', fontWeight: 600 }}>{detail.SuccessCount} ✓</Text><Text style={{ color: 'var(--bc-red-600)', fontWeight: 600 }}>{detail.FailedCount} ✗</Text></Space>
               </Descriptions.Item>
             </Descriptions>
 
@@ -240,7 +240,7 @@ function RunLogsTab() {
               columns={[
                 { title: 'ASIN', dataIndex: 'AsinCode', key: 'asin', width: 120, render: (v) => <Text style={{ fontSize: 10, fontWeight: 600 }}>{v}</Text> },
                 { title: 'Status', dataIndex: 'Status', key: 'status', width: 110, render: (v) => statusTag(v === 'SUCCESS' ? 'COMPLETED' : v === 'NOT_FOUND' ? 'PARTIAL' : v === 'SKIPPED' ? 'CANCELLED' : 'FAILED') },
-                { title: 'Error', dataIndex: 'ErrorMessage', key: 'err', render: (v) => <Text style={{ fontSize: 10, color: v ? '#dc2626' : '#475569' }}>{v || '—'}</Text> },
+                { title: 'Error', dataIndex: 'ErrorMessage', key: 'err', render: (v) => <Text style={{ fontSize: 10, color: v ? 'var(--bc-red-600)' : 'var(--bc-slate-600)' }}>{v || '—'}</Text> },
               ]}
             />
           </div>
@@ -274,12 +274,12 @@ export default function LiveSyncTrackerPage() {
   const syncedAsins = sellers.reduce((s, sell) => s + (sell.liveSyncedAsins || 0), 0);
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '0 24px' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100%', padding: '0 24px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginBottom: 16 }}>
         <Space>
           <Text strong style={{ fontSize: 18 }}>Live Sync Tracker</Text>
-          {lastRefresh && <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>Last refresh: {dayjs(lastRefresh).format('HH:mm:ss')}</Text>}
+          {lastRefresh && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>Last refresh: {dayjs(lastRefresh).format('HH:mm:ss')}</Text>}
         </Space>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading} size="small">Refresh</Button>
       </div>
@@ -295,22 +295,22 @@ export default function LiveSyncTrackerPage() {
                 <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
                   <Col xs={8}>
                     <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #2563eb' }}>
-                      <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#0f172a' }}>{synced}/{total}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Brands Synced</div>
+                      <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: 'var(--bc-slate-900)' }}>{synced}/{total}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>Brands Synced</div>
                       <Progress showInfo={false} percent={total > 0 ? Math.round((synced / total) * 100) : 0} size="small" strokeColor="#2E7D32" style={{ marginTop: 4 }} />
                     </Card>
                   </Col>
                   <Col xs={8}>
                     <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #2E7D32' }}>
                       <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#2E7D32' }}>{syncedAsins.toLocaleString()}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>ASINs Synced</div>
-                      <Progress showInfo={false} percent={totalAsins > 0 ? Math.round((syncedAsins / totalAsins) * 100) : 0} size="small" strokeColor="#2563eb" style={{ marginTop: 4 }} />
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>ASINs Synced</div>
+                      <Progress showInfo={false} percent={totalAsins > 0 ? Math.round((syncedAsins / totalAsins) * 100) : 0} size="small" strokeColor="var(--bc-blue-600)" style={{ marginTop: 4 }} />
                     </Card>
                   </Col>
                   <Col xs={8}>
                     <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #94a3b8' }}>
-                      <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: '#94a3b8' }}>{total - synced}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Pending Sync</div>
+                      <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: 'var(--bc-slate-400)' }}>{total - synced}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>Pending Sync</div>
                     </Card>
                   </Col>
                 </Row>
@@ -337,7 +337,7 @@ export default function LiveSyncTrackerPage() {
                       },
                       {
                         title: 'Live Synced', dataIndex: 'liveSyncedAsins', key: 'live', width: 90, align: 'center',
-                        render: (v) => <Text style={{ fontWeight: 600, color: '#2563eb' }}>{v}</Text>,
+                        render: (v) => <Text style={{ fontWeight: 600, color: 'var(--bc-blue-600)' }}>{v}</Text>,
                       },
                       {
                         title: 'Progress', key: 'progress', width: 140,
@@ -355,14 +355,14 @@ export default function LiveSyncTrackerPage() {
                         render: (_, r) => {
                           if (r.syncPercentage >= 80) return <Tag color="success" style={{ fontSize: 9, borderRadius: "var(--radius-md)" }}><CheckCircleOutlined /> Synced</Tag>;
                           if (r.syncPercentage > 0) return <Tag color="warning" style={{ fontSize: 9, borderRadius: "var(--radius-md)" }}><SyncOutlined /> Partial</Tag>;
-                          return <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", color: '#94a3b8' }}><ClockCircleOutlined /> Pending</Tag>;
+                          return <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", color: 'var(--bc-slate-400)' }}><ClockCircleOutlined /> Pending</Tag>;
                         },
                       },
                       {
                         title: 'Last Sync', key: 'lastSync', width: 130,
                         render: (_, r) => r.lastLiveSyncAt ? (
                           <Tooltip title={dayjs(r.lastLiveSyncAt).format('DD MMM YYYY HH:mm')}>
-                            <Text style={{ fontSize: 10, color: '#64748b' }}>{dayjs(r.lastLiveSyncAt).fromNow?.() || dayjs(r.lastLiveSyncAt).format('DD MMM HH:mm')}</Text>
+                            <Text style={{ fontSize: 10, color: 'var(--bc-slate-500)' }}>{dayjs(r.lastLiveSyncAt).fromNow?.() || dayjs(r.lastLiveSyncAt).format('DD MMM HH:mm')}</Text>
                           </Tooltip>
                         ) : <Text type="secondary" style={{ fontSize: 10 }}>Never synced</Text>,
                       },

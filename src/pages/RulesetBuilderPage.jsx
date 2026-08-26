@@ -664,14 +664,14 @@ const RuleCard = ({
             {rule.action?.actionType === 'create_group_task' ? (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                 <div>
-                  <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Group by</Text>
+                  <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600 }}>Group by</Text>
                   <Select size="small" value={rule.action?.groupBy || 'seller'}
                     onChange={v => onActionChange({ groupBy: v })}
                     style={{ width: 110, borderRadius: 6 }}
                     options={GROUP_BY_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
                 </div>
                 <div>
-                  <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Priority</Text>
+                  <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600 }}>Priority</Text>
                   <Select size="small" value={rule.action?.priority || 'Medium'}
                     onChange={v => onActionChange({ priority: v })}
                     style={{ width: 90, borderRadius: 6 }}
@@ -681,7 +681,7 @@ const RuleCard = ({
                     }))} />
                 </div>
                 <div>
-                  <Text style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>SOP</Text>
+                  <Text style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600 }}>SOP</Text>
                   <Select size="small" value={rule.action?.sopPreset || 'auto'}
                     onChange={v => {
                       const sop = v === 'auto' ? null : SOP_PRESETS[v] || null;

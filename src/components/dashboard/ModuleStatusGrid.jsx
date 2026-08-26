@@ -20,7 +20,7 @@ const ModuleStatusGrid = ({ moduleStats }) => {
             title: 'Target Management',
             subtitle: 'Revenue & sales tracking',
             path: '/target-achievement/dashboard',
-            color: '#1976D2',
+            color: 'var(--bc-ro-500)',
             gradient: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
             icon: Target,
             badge: {
@@ -38,7 +38,7 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                 { label: 'Completed', value: moduleStats.targets.completed, color: '#2E7D32', icon: CheckCircle2 },
                 { label: 'On Track', value: moduleStats.targets.onTrack, color: 'var(--color-info-blue, #0288D1)', icon: TrendingUp },
                 { label: 'At Risk', value: moduleStats.targets.atRisk, color: 'var(--text-danger, #D32F2F)', icon: AlertTriangle },
-                { label: 'Plans', value: moduleStats.targets.total, color: '#1976D2', icon: Layers }
+                { label: 'Plans', value: moduleStats.targets.total, color: 'var(--bc-ro-500)', icon: Layers }
             ],
             segments: [
                 { label: 'Completed', value: moduleStats.targets.completed, color: '#2E7D32' },
@@ -70,7 +70,7 @@ const ModuleStatusGrid = ({ moduleStats }) => {
             stats: [
                 { label: 'Active', value: formatNumber(moduleStats.asins.active), color: '#2E7D32', icon: CheckCircle2 },
                 { label: 'Out of Stock', value: moduleStats.asins.outOfStock, color: 'var(--text-danger, #D32F2F)', icon: AlertCircle, pulse: moduleStats.asins.outOfStock > 0 },
-                { label: 'New', value: moduleStats.asins.newThisMonth, color: '#9C27B0', icon: Sparkles },
+                { label: 'New', value: moduleStats.asins.newThisMonth, color: 'var(--bc-purple-500)', icon: Sparkles },
                 { label: 'Total', value: formatNumber(moduleStats.asins.total), color: 'var(--color-info-blue, #0288D1)', icon: Package }
             ],
             statusText: 'Catalog Healthy',

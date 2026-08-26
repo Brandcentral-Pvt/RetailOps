@@ -77,7 +77,7 @@ const PRIORITY_META = {
 /* ─── UTILITIES ──────────────────────────────────────────────── */
 const getSellerColor = (name) => {
   if (!name) return 'var(--bc-ro-500, #1976D2)';
-  const palette = ['#1976D2', '#2E7D32', '#9C27B0', '#ED6C02', '#0288D1', '#D32F2F', '#00796B', '#512DA8', '#E64A19', '#1976D2'];
+  const palette = ['var(--bc-ro-500)', '#2E7D32', 'var(--bc-purple-500)', '#ED6C02', '#0288D1', '#D32F2F', '#00796B', '#512DA8', '#E64A19', 'var(--bc-ro-500)'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
   return palette[Math.abs(hash) % palette.length];
@@ -818,7 +818,7 @@ export default function TaskInstancesPage() {
                       <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', fontSize: 'var(--bc-text-xs, 11px)', background: 'var(--bc-surface-subtle, #f1f5f9)', color: 'var(--bc-text-secondary, #64748b)', border: '1px solid var(--bc-border-default, #e2e8f0)' }}>{group.objectives.length} objective{group.objectives.length !== 1 ? 's' : ''}</Tag>
                       <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', fontSize: 'var(--bc-text-xs, 11px)', background: 'var(--bc-surface-subtle, #f1f5f9)', color: 'var(--bc-text-secondary, #64748b)', border: '1px solid var(--bc-border-default, #e2e8f0)' }}>{totalTasks} task{totalTasks !== 1 ? 's' : ''}</Tag>
                       {overdueTasks > 0 && <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', fontSize: 'var(--bc-text-xs, 11px)', background: 'var(--bc-red-50, #fef2f2)', color: 'var(--bc-red-600, #dc2626)', border: '1px solid var(--bc-red-200, #fecaca)' }}><ExclamationCircleOutlined style={{ marginRight: 4 }} />{overdueTasks} overdue</Tag>}
-                      {reviewTasks > 0 && <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', fontSize: 'var(--bc-text-xs, 11px)', background: '#f5f3ff', color: '#9C27B0', border: '1px solid #ddd6fe' }}><EyeOutlined style={{ marginRight: 4 }} />{reviewTasks} needs review</Tag>}
+                      {reviewTasks > 0 && <Tag style={{ borderRadius: 'var(--bc-radius-full, 9999px)', fontSize: 'var(--bc-text-xs, 11px)', background: 'var(--bc-violet-50)', color: 'var(--bc-purple-500)', border: '1px solid #ddd6fe' }}><EyeOutlined style={{ marginRight: 4 }} />{reviewTasks} needs review</Tag>}
                     </Space>
                   </Col>
                   <Col>

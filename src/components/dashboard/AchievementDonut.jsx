@@ -51,7 +51,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 description: 'Strong performance',
                 value: high,
                 color: 'var(--color-info-blue, #0288D1)',
-                bg: '#dbeafe',
+                bg: 'var(--bc-blue-100)',
                 icon: Star
             },
             {
@@ -61,7 +61,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 description: 'Steady progress',
                 value: onTrack,
                 color: '#ED6C02',
-                bg: '#fef3c7',
+                bg: 'var(--bc-amber-100)',
                 icon: Activity
             },
             {
@@ -71,7 +71,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 description: 'Needs attention',
                 value: critical,
                 color: 'var(--text-danger, #D32F2F)',
-                bg: '#fee2e2',
+                bg: 'var(--bc-red-100)',
                 icon: AlertTriangle
             }
         ];
@@ -94,24 +94,24 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
         if (overallRate >= 80) return {
             label: 'High Performance',
             color: 'var(--color-info-blue, #0288D1)',
-            bg: '#dbeafe',
-            border: '#bfdbfe',
+            bg: 'var(--bc-blue-100)',
+            border: 'var(--bc-blue-200)',
             icon: TrendingUp,
             message: 'Strong overall achievement'
         };
         if (overallRate >= 50) return {
             label: 'On Track',
             color: '#ED6C02',
-            bg: '#fef3c7',
-            border: '#fde68a',
+            bg: 'var(--bc-amber-100)',
+            border: 'var(--bc-amber-200)',
             icon: Activity,
             message: 'Steady progress towards goals'
         };
         return {
             label: 'Critical',
             color: 'var(--text-danger, #D32F2F)',
-            bg: '#fee2e2',
-            border: '#fecaca',
+            bg: 'var(--bc-red-100)',
+            border: 'var(--bc-red-200)',
             icon: AlertTriangle,
             message: 'Immediate attention required'
         };
@@ -387,7 +387,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                         <span style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 700,
-                                            color: parseInt(insights.criticalPct) > 30 ? '#D32F2F' : '#64748b',
+                                            color: parseInt(insights.criticalPct) > 30 ? '#D32F2F' : 'var(--bc-slate-500)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em'
                                         }}>
@@ -397,7 +397,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                     <div style={{
                                         fontSize: 'var(--font-size-lg)',
                                         fontWeight: 700,
-                                        color: parseInt(insights.criticalPct) > 30 ? '#D32F2F' : '#64748b',
+                                        color: parseInt(insights.criticalPct) > 30 ? '#D32F2F' : 'var(--bc-slate-500)',
                                         letterSpacing: '-0.3px'
                                     }}>
                                         {tiers[3].value}/{total}

@@ -69,7 +69,7 @@ const RolesPage = () => {
         displayName: '',
         description: '',
         level: 10,
-        color: '#4F46E5',
+        color: 'var(--bc-indigo-600)',
         permissions: [],
     });
 
@@ -136,7 +136,7 @@ const RolesPage = () => {
                 displayName: role.displayName || '',
                 description: role.description || '',
                 level: role.level || 10,
-                color: role.color || '#4F46E5',
+                color: role.color || 'var(--bc-indigo-600)',
                 permissions: role.permissions?.map(p => p._id || p.id) || [],
             });
             setSelectedPermissions(role.permissions?.map(p => p._id || p.id) || []);
@@ -147,7 +147,7 @@ const RolesPage = () => {
                 displayName: '',
                 description: '',
                 level: 10,
-                color: '#4F46E5',
+                color: 'var(--bc-indigo-600)',
                 permissions: [],
             });
             setSelectedPermissions([]);
@@ -464,7 +464,7 @@ const RolesPage = () => {
             {/* HEADER */}
             <div className="roles-header">
                 <Space align="center" size={12}>
-                    <div style={{ background: '#F5F3FF', color: '#8B5CF6', padding: 8, borderRadius: 10, display: 'flex' }}>
+                    <div style={{ background: 'var(--bc-violet-50)', color: 'var(--bc-violet-500)', padding: 8, borderRadius: 10, display: 'flex' }}>
                         <Shield size={20} />
                     </div>
                     <div>
@@ -476,7 +476,7 @@ const RolesPage = () => {
                     icon={<Plus size={14} />} 
                     shape="round"
                     onClick={() => handleOpenRoleModal()}
-                    style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 600, fontSize: 12 }}
+                    style={{ background: 'var(--bc-slate-900)', borderColor: 'var(--bc-slate-900)', fontWeight: 600, fontSize: 12 }}
                 >
                     Deploy Custom Role
                 </Button>
@@ -490,24 +490,24 @@ const RolesPage = () => {
                     <Col xs={12} sm={8}>
                         <Card className="kpi-stat-card" variant="borderless">
                             <Space align="start" size={16} style={{ width: '100%', justifyContent: 'space-between' }}>
-                                <Statistic title={<span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Strategic Roles</span>} value={roles.length} styles={{ content: { color: '#0f172a', fontWeight: 800, fontSize: 22 } }} />
-                                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Shield size={18} /></div>
+                                <Statistic title={<span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Strategic Roles</span>} value={roles.length} styles={{ content: { color: 'var(--bc-slate-900)', fontWeight: 800, fontSize: 22 } }} />
+                                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Shield size={18} /></div>
                             </Space>
                         </Card>
                     </Col>
                     <Col xs={12} sm={8}>
                         <Card className="kpi-stat-card" variant="borderless">
                             <Space align="start" size={16} style={{ width: '100%', justifyContent: 'space-between' }}>
-                                <Statistic title={<span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Secured Modules</span>} value={Object.keys(permissionsGrouped).length} styles={{ content: { color: '#9C27B0', fontWeight: 800, fontSize: 22 } }} />
-                                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F5F3FF', color: '#9C27B0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Key size={18} /></div>
+                                <Statistic title={<span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Secured Modules</span>} value={Object.keys(permissionsGrouped).length} styles={{ content: { color: 'var(--bc-purple-500)', fontWeight: 800, fontSize: 22 } }} />
+                                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--bc-violet-50)', color: 'var(--bc-purple-500)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Key size={18} /></div>
                             </Space>
                         </Card>
                     </Col>
                     <Col xs={24} sm={8}>
                         <Card className="kpi-stat-card" variant="borderless">
                             <Space align="start" size={16} style={{ width: '100%', justifyContent: 'space-between' }}>
-                                <Statistic title={<span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Mapped Capabilities</span>} value={permissions.length} styles={{ content: { color: '#E65100', fontWeight: 800, fontSize: 22 } }} />
-                                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF3C7', color: '#E65100', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Lock size={18} /></div>
+                                <Statistic title={<span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', fontWeight: 750, textTransform: 'uppercase' }}>Mapped Capabilities</span>} value={permissions.length} styles={{ content: { color: '#E65100', fontWeight: 800, fontSize: 22 } }} />
+                                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--bc-amber-100)', color: '#E65100', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Lock size={18} /></div>
                             </Space>
                         </Card>
                     </Col>
@@ -521,7 +521,7 @@ const RolesPage = () => {
                             size="large"
                             value={activeTab}
                             onChange={v => setActiveTab(v)}
-                            style={{ background: '#f1f5f9', borderRadius: 10, padding: 3 }}
+                            style={{ background: 'var(--bc-slate-100)', borderRadius: 10, padding: 3 }}
                             options={[
                                 { label: <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px' }}><Layout size={13} /> <span>Blueprint Cards</span></div>, value: 'overview' },
                                 { label: <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px' }}><Lock size={13} /> <span>Direct Matrix</span></div>, value: 'matrix' }
@@ -531,7 +531,7 @@ const RolesPage = () => {
                         {activeTab === 'matrix' && (
                             <div style={{ flex: 1, display: 'flex', gap: 8, maxWidth: 650, justifyContent: 'flex-end', alignItems: 'center' }}>
                                 <Input 
-                                    prefix={<Search size={13} style={{ color: '#94a3b8', marginRight: 4 }} />} 
+                                    prefix={<Search size={13} style={{ color: 'var(--bc-slate-400)', marginRight: 4 }} />} 
                                     placeholder="Query permissions matrix..." 
                                     allowClear
                                     value={matrixSearch}
@@ -557,10 +557,10 @@ const RolesPage = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                         
                         {/* Info Disclaimer */}
-                        <div style={{ display: 'flex', gap: 12, background: '#eff6ff', border: '1px solid #bfdbfe', padding: 16, borderRadius: "var(--radius-xl)" }}>
+                        <div style={{ display: 'flex', gap: 12, background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe', padding: 16, borderRadius: "var(--radius-xl)" }}>
                             <Info size={18} className="text-blue-600" style={{ marginTop: 2, flexShrink: 0 }} />
                             <div>
-                                <strong style={{ display: 'block', color: '#1e40af', fontSize: 'var(--font-size-sm)', marginBottom: 2 }}>Hierarchical Priority Architecture</strong>
+                                <strong style={{ display: 'block', color: 'var(--bc-blue-800)', fontSize: 'var(--font-size-sm)', marginBottom: 2 }}>Hierarchical Priority Architecture</strong>
                                 <p style={{ color: '#1e3a8a', margin: 0, fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>
                                     Access scopes are regulated by technical priority thresholds. Highest priority (100) delegates administrative governance over core settings. Default configuration models operate under strict immutability protection.
                                 </p>
@@ -576,13 +576,13 @@ const RolesPage = () => {
                             return (
                                 <div key={level}>
                                     <div className="group-header-strip">
-                                        <PriorityIcon size={16} style={{ color: '#1976D2', marginRight: 10 }} />
+                                        <PriorityIcon size={16} style={{ color: 'var(--bc-ro-500)', marginRight: 10 }} />
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ fontWeight: 800, color: '#0f172a', fontSize: 12 }}>Priority Index {level}</span>
-                                            <Divider orientation="vertical" style={{ borderColor: '#cbd5e1', margin: 0 }} />
-                                            <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 600 }}>{getPriorityDescription(levelNum)}</span>
+                                            <span style={{ fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 12 }}>Priority Index {level}</span>
+                                            <Divider orientation="vertical" style={{ borderColor: 'var(--bc-slate-300)', margin: 0 }} />
+                                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>{getPriorityDescription(levelNum)}</span>
                                         </div>
-                                        <Badge count={`${rolesInGroup.length} Roles`} style={{ backgroundColor: '#e0e7ff', color: '#1976D2', boxShadow: 'none', marginLeft: 'auto', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} />
+                                        <Badge count={`${rolesInGroup.length} Roles`} style={{ backgroundColor: 'var(--bc-indigo-100)', color: 'var(--bc-ro-500)', boxShadow: 'none', marginLeft: 'auto', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} />
                                     </div>
 
                                     <Row gutter={[16, 16]}>
@@ -633,20 +633,20 @@ const RolesPage = () => {
                                                         </div>
 
                                                         <div style={{ marginBottom: 12 }}>
-                                                            <h4 style={{ margin: '0 0 4px 0', fontWeight: 800, color: '#0f172a', fontSize: 15 }}>{role.displayName}</h4>
-                                                            <code style={{ fontSize: 10, color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontWeight: 600 }}>
+                                                            <h4 style={{ margin: '0 0 4px 0', fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 15 }}>{role.displayName}</h4>
+                                                            <code style={{ fontSize: 10, color: 'var(--bc-slate-500)', backgroundColor: 'var(--bc-slate-100)', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontWeight: 600 }}>
                                                                 {role.name}
                                                             </code>
                                                         </div>
 
-                                                        <p style={{ color: '#64748b', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: '0 0 20px 0' }}>
+                                                        <p style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-sm)', lineHeight: 1.5, height: 36, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: '0 0 20px 0' }}>
                                                             {role.description || 'Platform capabilities profile mapped to enterprise governance and operations access logs.'}
                                                         </p>
 
                                                         <Divider style={{ margin: '0 0 14px 0' }} />
 
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <Space size={6} style={{ color: '#1976D2', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
+                                                            <Space size={6} style={{ color: 'var(--bc-ro-500)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                                                                 <Key size={12} />
                                                                 <span>{role.permissions?.length || 0} Rules Enabled</span>
                                                             </Space>
@@ -674,7 +674,7 @@ const RolesPage = () => {
                             <table className="matrix-primary-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '32%', textAlign: 'left', background: '#f8fafc' }}>System Module / Permission Key</th>
+                                        <th style={{ width: '32%', textAlign: 'left', background: 'var(--bc-slate-50)' }}>System Module / Permission Key</th>
                                         <th style={{ textAlign: 'center' }}>Super Admin</th>
                                         <th style={{ textAlign: 'center' }}>Operational Mgr</th>
                                         <th style={{ textAlign: 'center' }}>Brand Mgr</th>
@@ -692,11 +692,11 @@ const RolesPage = () => {
 
                                         return (
                                             <React.Fragment key={category}>
-                                                <tr style={{ background: '#f8fafc' }}>
+                                                <tr style={{ background: 'var(--bc-slate-50)' }}>
                                                     <td colSpan={6} style={{ padding: '14px 16px', borderTop: '1px solid #e2e8f0' }}>
                                                         <Space size={8}>
-                                                            <div style={{ display: 'flex', background: '#e0e7ff', padding: 5, borderRadius: 6, color: '#1976D2' }}><Shield size={12} /></div>
-                                                            <span style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#1e293b' }}>{category} Module Policies</span>
+                                                            <div style={{ display: 'flex', background: 'var(--bc-indigo-100)', padding: 5, borderRadius: 6, color: 'var(--bc-ro-500)' }}><Shield size={12} /></div>
+                                                            <span style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--bc-slate-800)' }}>{category} Module Policies</span>
                                                         </Space>
                                                     </td>
                                                 </tr>
@@ -705,9 +705,9 @@ const RolesPage = () => {
                                                         <tr key={perm._id || perm.id}>
                                                             <td>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                                                    <span style={{ fontWeight: 600, fontSize: 12, color: '#334155' }}>{perm.displayName}</span>
-                                                                    <span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)' }}>{perm.description || `Grants capability to execute '${perm.displayName}' triggers.`}</span>
-                                                                    <code style={{ alignSelf: 'flex-start', fontSize: 9.5, color: '#94a3b8', background: '#f8fafc', padding: '1px 4px', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginTop: 2 }}>
+                                                                    <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--bc-slate-700)' }}>{perm.displayName}</span>
+                                                                    <span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)' }}>{perm.description || `Grants capability to execute '${perm.displayName}' triggers.`}</span>
+                                                                    <code style={{ alignSelf: 'flex-start', fontSize: 9.5, color: 'var(--bc-slate-400)', background: 'var(--bc-slate-50)', padding: '1px 4px', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginTop: 2 }}>
                                                                         {perm.name}
                                                                     </code>
                                                                 </div>
@@ -759,7 +759,7 @@ const RolesPage = () => {
             <Modal
                 title={
                     <Space align="center" size={12}>
-                        <div style={{ background: '#EEF2FF', color: '#4F46E5', padding: 6, borderRadius: "var(--radius-md)", display: 'flex' }}>
+                        <div style={{ background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-600)', padding: 6, borderRadius: "var(--radius-md)", display: 'flex' }}>
                             <Shield size={16} />
                         </div>
                         <span style={{ fontWeight: 800 }}>{editingRole ? 'Modify Role Specifications' : 'Initialize Policy Blueprint'}</span>
@@ -778,7 +778,7 @@ const RolesPage = () => {
                         type="primary" 
                         shape="round" 
                         onClick={handleSaveRole}
-                        style={{ background: '#0f172a', borderColor: '#0f172a', fontWeight: 600 }}
+                        style={{ background: 'var(--bc-slate-900)', borderColor: 'var(--bc-slate-900)', fontWeight: 600 }}
                     >
                         {editingRole ? 'Save Definition' : 'Deploy Role'}
                     </Button>
@@ -787,10 +787,10 @@ const RolesPage = () => {
                 <div style={{ padding: '8px 0', maxHeight: '68vh', overflowY: 'auto', overflowX: 'hidden' }}>
                     
                     {/* Row 1: Core Attributes */}
-                    <Card variant="borderless" style={{ background: '#f8fafc', borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', marginBottom: 24 }} styles={{ body: { padding: 16 } }}>
+                    <Card variant="borderless" style={{ background: 'var(--bc-slate-50)', borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', marginBottom: 24 }} styles={{ body: { padding: 16 } }}>
                         <Row gutter={[16, 16]}>
                             <Col span={8}>
-                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Technical Unique Key</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)', textTransform: 'uppercase', marginBottom: 6 }}>Technical Unique Key</label>
                                 <Input 
                                     placeholder="e.g. support_tier_1" 
                                     disabled={editingRole?.isSystem}
@@ -800,7 +800,7 @@ const RolesPage = () => {
                                 />
                             </Col>
                             <Col span={8}>
-                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Display Label *</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)', textTransform: 'uppercase', marginBottom: 6 }}>Display Label *</label>
                                 <Input 
                                     placeholder="e.g. Support Technician" 
                                     value={roleFormData.displayName}
@@ -809,7 +809,7 @@ const RolesPage = () => {
                                 />
                             </Col>
                             <Col span={4}>
-                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Priority Index</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)', textTransform: 'uppercase', marginBottom: 6 }}>Priority Index</label>
                                 <Input 
                                     type="number" min={0} max={100}
                                     value={roleFormData.level}
@@ -818,19 +818,19 @@ const RolesPage = () => {
                                 />
                             </Col>
                             <Col span={4}>
-                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Color Scope</label>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#ffffff', border: '1px solid #d9d9d9', padding: '4px 8px', borderRadius: "var(--radius-md)", height: 36 }}>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)', textTransform: 'uppercase', marginBottom: 6 }}>Color Scope</label>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--bc-white)', border: '1px solid #d9d9d9', padding: '4px 8px', borderRadius: "var(--radius-md)", height: 36 }}>
                                     <input 
                                         type="color" 
                                         value={roleFormData.color} 
                                         onChange={e => setRoleFormData({ ...roleFormData, color: e.target.value })} 
                                         style={{ width: 24, height: 24, border: 'none', cursor: 'pointer', padding: 0, background: 'transparent' }} 
                                     />
-                                    <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: '#64748b' }}>{roleFormData.color}</span>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: 'var(--bc-slate-500)' }}>{roleFormData.color}</span>
                                 </div>
                             </Col>
                             <Col span={24}>
-                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: 6 }}>Strategic Description</label>
+                                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)', textTransform: 'uppercase', marginBottom: 6 }}>Strategic Description</label>
                                 <TextArea 
                                     rows={2} 
                                     placeholder="Describe the scope of responsibilities assumed by entities of this role profile..."
@@ -844,9 +844,9 @@ const RolesPage = () => {
 
                     {/* Row 2: Permissions Selector Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                        <span style={{ fontWeight: 800, fontSize: 12, color: '#0f172a' }}>Access Control Boundary Scopes</span>
+                        <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--bc-slate-900)' }}>Access Control Boundary Scopes</span>
                         <Divider style={{ flex: 1, margin: 0 }} />
-                        <Badge count={`${selectedPermissions.length} Active Rules`} style={{ backgroundColor: '#1976D2', fontWeight: 750, fontSize: 'var(--font-size-xs)' }} />
+                        <Badge count={`${selectedPermissions.length} Active Rules`} style={{ backgroundColor: 'var(--bc-ro-500)', fontWeight: 750, fontSize: 'var(--font-size-xs)' }} />
                     </div>
 
                     {/* Row 3: Two-Column Grid of Modules */}
@@ -861,8 +861,8 @@ const RolesPage = () => {
                                     <div className="perm-picker-panel">
                                         <div className="header">
                                             <Space size={8}>
-                                                <div style={{ display: 'flex', background: '#e0e7ff', color: '#1976D2', padding: 5, borderRadius: 6 }}><CatIcon size={12} /></div>
-                                                <span style={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', color: '#334155' }}>{cat} MODULE</span>
+                                                <div style={{ display: 'flex', background: 'var(--bc-indigo-100)', color: 'var(--bc-ro-500)', padding: 5, borderRadius: 6 }}><CatIcon size={12} /></div>
+                                                <span style={{ fontWeight: 800, fontSize: 11, textTransform: 'uppercase', color: 'var(--bc-slate-700)' }}>{cat} MODULE</span>
                                             </Space>
                                             <Button 
                                                 size="small" 
@@ -886,8 +886,8 @@ const RolesPage = () => {
                                                         <div 
                                                             style={{ 
                                                                 width: 16, height: 16, borderRadius: "var(--radius-sm)", 
-                                                                border: `1.5px solid ${isSel ? '#1976D2' : '#cbd5e1'}`,
-                                                                background: isSel ? '#1976D2' : 'transparent',
+                                                                border: `1.5px solid ${isSel ? 'var(--bc-ro-500)' : 'var(--bc-slate-300)'}`,
+                                                                background: isSel ? 'var(--bc-ro-500)' : 'transparent',
                                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                 marginRight: 10, transition: 'all 0.1s'
                                                             }}
@@ -895,7 +895,7 @@ const RolesPage = () => {
                                                             {isSel && <Check size={10} strokeWidth={3} className="text-white" />}
                                                         </div>
                                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 650, color: isSel ? '#312e81' : '#334155' }}>{p.displayName}</span>
+                                                            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 650, color: isSel ? '#312e81' : 'var(--bc-slate-700)' }}>{p.displayName}</span>
                                                         </div>
                                                     </div>
                                                 );

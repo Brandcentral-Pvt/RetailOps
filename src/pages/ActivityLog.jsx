@@ -29,12 +29,12 @@ const TYPE_STYLES = {
     STATUS_CHANGE: { icon: <Activity size={13} />, color: '#ED6C02', label: 'Status Change' },
     AUTH_SUCCESS: { icon: <LogIn size={13} />, color: '#2E7D32', label: 'Login' },
     AUTH_FAILURE: { icon: <XCircle size={13} />, color: '#D32F2F', label: 'Login Failed' },
-    AUTH_LOGOUT: { icon: <LogOut size={13} />, color: '#64748b', label: 'Logout' },
+    AUTH_LOGOUT: { icon: <LogOut size={13} />, color: 'var(--bc-slate-500)', label: 'Logout' },
     SYSTEM_ERROR: { icon: <AlertTriangle size={13} />, color: '#C62828', label: 'Error' },
     IMPORT: { icon: <ClipboardList size={13} />, color: '#0288D1', label: 'Import' },
-    LIVE_SYNC: { icon: <Zap size={13} />, color: '#9C27B0', label: 'Live Sync' },
-    LIVE_SYNC_TEST: { icon: <Zap size={13} />, color: '#9C27B0', label: 'Sync Test' },
-    AUTOMATION_TASK: { icon: <Cpu size={13} />, color: '#1976D2', label: 'Automation' },
+    LIVE_SYNC: { icon: <Zap size={13} />, color: 'var(--bc-purple-500)', label: 'Live Sync' },
+    LIVE_SYNC_TEST: { icon: <Zap size={13} />, color: 'var(--bc-purple-500)', label: 'Sync Test' },
+    AUTOMATION_TASK: { icon: <Cpu size={13} />, color: 'var(--bc-ro-500)', label: 'Automation' },
     TARGET_UPDATE: { icon: <Edit3 size={13} />, color: '#0284c7', label: 'Target Update' },
     TARGET_IMPORT: { icon: <ClipboardList size={13} />, color: '#0d9488', label: 'Target Import' },
     TARGET_DELETE: { icon: <Trash2 size={13} />, color: '#e11d48', label: 'Target Delete' },
@@ -69,9 +69,9 @@ function renderMetadata(metadata) {
     if (!metadata) return <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>No additional data.</Text>;
     let data = metadata;
     if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch { return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{data}</pre>; }
+        try { data = JSON.parse(data); } catch { return <pre style={{ margin: 0, padding: 12, background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{data}</pre>; }
     }
-    if (typeof data !== 'object') return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{String(data)}</pre>;
+    if (typeof data !== 'object') return <pre style={{ margin: 0, padding: 12, background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{String(data)}</pre>;
     return (
         <Descriptions bordered size="small" column={1}>
             {Object.entries(data).map(([key, value]) => (
@@ -192,7 +192,7 @@ const ActivityLog = () => {
             key: 'event',
             width: 150,
             render: (_, r) => {
-                const s = TYPE_STYLES[r.type] || { icon: <Info size={13} />, color: '#64748b', label: r.type || 'Event' };
+                const s = TYPE_STYLES[r.type] || { icon: <Info size={13} />, color: 'var(--bc-slate-500)', label: r.type || 'Event' };
                 return (
                     <Tag style={{
                         background: `${s.color}10`, color: s.color, border: `1px solid ${s.color}25`,
@@ -209,10 +209,10 @@ const ActivityLog = () => {
             key: 'details',
             render: (_, r) => (
                 <div style={{ cursor: 'pointer' }} onClick={() => { setSelectedLog(r); setDetailOpen(true); }}>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a', marginBottom: 2 }}>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)', marginBottom: 2 }}>
                         {r.entityTitle || r.entityType || 'System Activity'}
                     </div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', lineHeight: 1.4, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', lineHeight: 1.4, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.description || 'No description'}
                     </div>
                 </div>
@@ -251,8 +251,8 @@ const ActivityLog = () => {
                             {name.charAt(0)}
                         </div>
                         <div>
-                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>{name}</div>
-                            {email && <div style={{ fontSize: 10, color: '#94a3b8' }}>{email}</div>}
+                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>{name}</div>
+                            {email && <div style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>{email}</div>}
                         </div>
                     </div>
                 );
@@ -265,7 +265,7 @@ const ActivityLog = () => {
             sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
             render: (_, r) => (
                 <Tooltip title={formatTime(r.createdAt)}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#475569', fontWeight: 500 }}>{relativeTime(r.createdAt)}</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-600)', fontWeight: 500 }}>{relativeTime(r.createdAt)}</div>
                 </Tooltip>
             )
         },
@@ -276,7 +276,7 @@ const ActivityLog = () => {
             render: (_, r) => (
                 <Tooltip title="View details">
                     <Button type="text" size="small" icon={<Eye size={13} />}
-                        style={{ color: '#1976D2' }}
+                        style={{ color: 'var(--bc-ro-500)' }}
                         onClick={() => { setSelectedLog(r); setDetailOpen(true); }} />
                 </Tooltip>
             )
@@ -288,7 +288,7 @@ const ActivityLog = () => {
         {
             title: 'Time', dataIndex: 'CreatedAt', key: 'CreatedAt', width: 150,
             sorter: (a, b) => new Date(a.CreatedAt) - new Date(b.CreatedAt),
-            render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: '#475569' }}>{formatTime(v)}</span>
+            render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-600)' }}>{formatTime(v)}</span>
         },
         {
             title: 'User', key: 'user', width: 180,
@@ -297,10 +297,10 @@ const ActivityLog = () => {
                 const initial = (r.FirstName || r.Email || 'U')[0].toUpperCase();
                 return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: "var(--radius-md)", background: '#1976D2', color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initial}</div>
+                        <div style={{ width: 26, height: 26, borderRadius: "var(--radius-md)", background: 'var(--bc-ro-500)', color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initial}</div>
                         <div>
                             <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{name}</div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>{r.Email}</div>
+                            <div style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>{r.Email}</div>
                         </div>
                     </div>
                 );
@@ -310,20 +310,20 @@ const ActivityLog = () => {
             title: 'Action', dataIndex: 'Action', key: 'Action', width: 130,
             render: (v) => {
                 const m = { 'OTP_SENT': { color: '#0288D1', label: 'Sent' }, 'OTP_VERIFIED': { color: '#2E7D32', label: 'Verified' }, 'OTP_FAILED': { color: '#D32F2F', label: 'Failed' } };
-                const s = m[v] || { color: '#64748b', label: v };
+                const s = m[v] || { color: 'var(--bc-slate-500)', label: v };
                 return <Tag style={{ background: `${s.color}10`, color: s.color, border: `1px solid ${s.color}25`, borderRadius: 6, fontWeight: 600, fontSize: 10 }}>{s.label}</Tag>;
             }
         },
         {
             title: 'Status', dataIndex: 'Status', key: 'Status', width: 90,
             render: (v) => (
-                <Tag style={{ borderRadius: 6, fontWeight: 600, fontSize: 10, background: v === 'SUCCESS' ? '#dcfce7' : '#fee2e2', color: v === 'SUCCESS' ? '#2E7D32' : '#C62828', border: `1px solid ${v === 'SUCCESS' ? '#bbf7d0' : '#fecaca'}` }}>
+                <Tag style={{ borderRadius: 6, fontWeight: 600, fontSize: 10, background: v === 'SUCCESS' ? 'var(--bc-green-100)' : 'var(--bc-red-100)', color: v === 'SUCCESS' ? '#2E7D32' : '#C62828', border: `1px solid ${v === 'SUCCESS' ? 'var(--bc-green-200)' : 'var(--bc-red-200)'}` }}>
                     {v}
                 </Tag>
             )
         },
-        { title: 'Reason', dataIndex: 'Reason', key: 'Reason', width: 160, ellipsis: true, render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: v ? '#475569' : '#d4d4d8' }}>{v || '—'}</span> },
-        { title: 'IP', dataIndex: 'IpAddress', key: 'IpAddress', width: 120, render: (v) => <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: '#64748b' }}>{v || '—'}</span> },
+        { title: 'Reason', dataIndex: 'Reason', key: 'Reason', width: 160, ellipsis: true, render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: v ? 'var(--bc-slate-600)' : '#d4d4d8' }}>{v || '—'}</span> },
+        { title: 'IP', dataIndex: 'IpAddress', key: 'IpAddress', width: 120, render: (v) => <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: 'var(--bc-slate-500)' }}>{v || '—'}</span> },
     ];
 
     return (
@@ -333,16 +333,16 @@ const ActivityLog = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+                            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: 'var(--bc-slate-900)', margin: 0 }}>
                                 {activeTab === 'activity' ? 'Activity Log' : 'OTP Audit'}
                             </h2>
                             {activeTab === 'activity' && total > 0 && (
-                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                                     {total.toLocaleString()} events
                                 </span>
                             )}
                         </div>
-                        <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
+                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
                             {activeTab === 'activity' ? 'Track system events, user actions, and automation logs.' : 'OTP verification attempts and security events.'}
                         </p>
                     </div>
@@ -369,7 +369,7 @@ const ActivityLog = () => {
                     <>
                         {/* Filters */}
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-                            <Input prefix={<Search size={13} style={{ color: '#94a3b8' }} />} size="small" allowClear
+                            <Input prefix={<Search size={13} style={{ color: 'var(--bc-slate-400)' }} />} size="small" allowClear
                                 placeholder="Search events..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
                                 style={{ width: 240, borderRadius: "var(--radius-md)" }} />
                             <Select size="small" value={filterType} onChange={v => { setFilterType(v); setPage(1); }}
@@ -381,10 +381,10 @@ const ActivityLog = () => {
                             <RangePicker size="small" value={dateRange} onChange={v => { setDateRange(v); setPage(1); }}
                                 style={{ width: 230, borderRadius: "var(--radius-md)" }} />
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 500 }}>Show all</span>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 500 }}>Show all</span>
                                 <input type="checkbox" checked={showAllEvents}
                                     onChange={e => { setShowAllEvents(e.target.checked); setPage(1); }}
-                                    style={{ accentColor: '#1976D2' }} />
+                                    style={{ accentColor: 'var(--bc-ro-500)' }} />
                             </div>
                             {hasFilters && (
                                 <Button size="small" danger onClick={clearFilters} style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)' }}>Clear</Button>
@@ -399,8 +399,8 @@ const ActivityLog = () => {
                                     current: page, pageSize, total,
                                     showSizeChanger: true, pageSizeOptions: ['25', '50', '100'],
                                     showTotal: (t, range) => (
-                                        <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 500 }}>
-                                            Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{range[0]}-{range[1]}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{t.toLocaleString()}</span> events
+                                        <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', fontWeight: 500 }}>
+                                            Showing <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)' }}>{range[0]}-{range[1]}</span> of <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)' }}>{t.toLocaleString()}</span> events
                                         </span>
                                     ),
                                     onChange: (p, ps) => { setPage(p); if (ps !== pageSize) setPageSize(ps); }
@@ -424,7 +424,7 @@ const ActivityLog = () => {
                             <Table className="activity-table" columns={otpColumns} dataSource={otpLogs} rowKey={r => r.Id || r.id}
                                 loading={otpLoading} size="small" scroll={{ x: 'max-content' }}
                                 pagination={{ current: otpPage, pageSize: 20, total: otpTotal, onChange: fetchOtpLogs,
-                                    showTotal: t => <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>{t} records</span> }} />
+                                    showTotal: t => <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)' }}>{t} records</span> }} />
                         </div>
                     </>
                 )}
@@ -438,8 +438,8 @@ const ActivityLog = () => {
                             <Activity size={15} style={{ color: '#fff' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Event Details</div>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{selectedLog?.type || 'Activity'}</div>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--bc-slate-900)' }}>Event Details</div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>{selectedLog?.type || 'Activity'}</div>
                         </div>
                     </div>
                 }
@@ -459,13 +459,13 @@ const ActivityLog = () => {
                             </Descriptions.Item>
                         </Descriptions>
                         <div>
-                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Description</Text>
-                            <div style={{ padding: 14, background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, color: '#1e293b' }}>
+                            <Text strong style={{ display: 'block', marginBottom: 6, color: 'var(--bc-slate-500)', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Description</Text>
+                            <div style={{ padding: 14, background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, color: 'var(--bc-slate-800)' }}>
                                 {selectedLog.description || 'No description available.'}
                             </div>
                         </div>
                         <div>
-                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Metadata</Text>
+                            <Text strong style={{ display: 'block', marginBottom: 6, color: 'var(--bc-slate-500)', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Metadata</Text>
                             <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: "var(--radius-md)", border: '1px solid #f1f5f9' }}>
                                 {renderMetadata(selectedLog.metadata)}
                             </div>

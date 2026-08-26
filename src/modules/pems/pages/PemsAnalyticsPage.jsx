@@ -61,7 +61,7 @@ export default function PemsAnalyticsPage() {
 
   // Summary cards
   const summaryCards = [
-    { title: 'Total Tasks', value: summaryKpis.allTasks, color: '#1976D2', icon: <AimOutlined /> },
+    { title: 'Total Tasks', value: summaryKpis.allTasks, color: 'var(--bc-ro-500)', icon: <AimOutlined /> },
     { title: 'Completion Rate', value: `${summaryKpis.avgCompletion}%`, color: '#2E7D32', icon: <CheckCircleOutlined /> },
     { title: 'Avg Achievement', value: `${summaryKpis.avgAchievement}%`, color: '#ED6C02', icon: <TrophyOutlined /> },
     { title: 'SLA Compliance', value: `${summaryKpis.avgSla}%`, color: summaryKpis.avgSla >= 90 ? '#2E7D32' : '#D32F2F', icon: <ClockCircleOutlined /> },
@@ -73,7 +73,7 @@ export default function PemsAnalyticsPage() {
     { title: 'Department', dataIndex: 'Department', key: 'dept', width: 140,
       render: (d) => (
         <Space>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: d === 'Operations' ? '#1976D2' : d === 'Brand Managers' ? '#9C27B0' : '#0288D1' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: d === 'Operations' ? 'var(--bc-ro-500)' : d === 'Brand Managers' ? 'var(--bc-purple-500)' : '#0288D1' }} />
           <Text strong>{d}</Text>
         </Space>
       ),
@@ -85,7 +85,7 @@ export default function PemsAnalyticsPage() {
       render: (v) => <Text style={{ color: '#2E7D32', fontWeight: 600 }}>{v}</Text>,
     },
     { title: 'Active', dataIndex: 'activeTasks', width: 70, align: 'center',
-      render: (v) => <Text style={{ color: '#1976D2', fontWeight: 600 }}>{v}</Text>,
+      render: (v) => <Text style={{ color: 'var(--bc-ro-500)', fontWeight: 600 }}>{v}</Text>,
     },
     { title: 'Completion %', key: 'cr', width: 130,
       render: (_, r) => (
@@ -115,7 +115,7 @@ export default function PemsAnalyticsPage() {
     { title: 'Seller', dataIndex: 'SellerName', key: 'seller', width: 200,
       render: (name) => (
         <Space>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1976D2', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
+          <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--bc-indigo-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-ro-500)', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
             {(name || '?')[0]}
           </div>
           <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{name || 'Unknown'}</Text>
@@ -147,7 +147,7 @@ export default function PemsAnalyticsPage() {
     { title: 'Brand Manager', dataIndex: 'AssigneeName', key: 'mgr', width: 200,
       render: (name) => (
         <Space>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9C27B0', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
+          <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--bc-violet-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-purple-500)', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
             {(name || '?')[0]}
           </div>
           <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{name || 'Unknown'}</Text>
@@ -173,7 +173,7 @@ export default function PemsAnalyticsPage() {
       render: (v) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Progress percent={v || 0} size="small" style={{ width: 60, margin: 0 }} />
-          <Text style={{ fontSize: 10, color: '#64748b' }}>{v}%</Text>
+          <Text style={{ fontSize: 10, color: 'var(--bc-slate-500)' }}>{v}%</Text>
         </div>
       ),
     },
@@ -221,7 +221,7 @@ export default function PemsAnalyticsPage() {
       ),
     },
     { title: 'Avg Time', dataIndex: 'avgReviewTime', width: 90,
-      render: (v) => v > 0 ? <Text style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>{Math.round(v)}m</Text> : <Text type="secondary">-</Text>,
+      render: (v) => v > 0 ? <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>{Math.round(v)}m</Text> : <Text type="secondary">-</Text>,
     },
   ];
 
@@ -264,7 +264,7 @@ export default function PemsAnalyticsPage() {
   ];
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '0 24px' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100%', padding: '0 24px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginBottom: 12 }}>
         <Space>
@@ -295,8 +295,8 @@ export default function PemsAnalyticsPage() {
                   {card.icon}
                 </div>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{card.value}</div>
-                  <div style={{ fontSize: 9, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>{card.title}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--bc-slate-900)', lineHeight: 1 }}>{card.value}</div>
+                  <div style={{ fontSize: 9, color: 'var(--bc-slate-400)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>{card.title}</div>
                 </div>
               </div>
             </Card>

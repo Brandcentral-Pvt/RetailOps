@@ -50,10 +50,10 @@ const getFileIcon = (format) => {
     const f = String(format || '').toLowerCase();
     if (f.includes('csv')) return { Icon: FileText, color: '#2E7D32', bg: '#ecfdf5', border: '#a7f3d0' };
     if (f.includes('xls') || f.includes('xlsx')) return { Icon: FileSpreadsheet, color: '#2E7D32', bg: '#ecfdf5', border: '#a7f3d0' };
-    if (f.includes('json')) return { Icon: FileJson, color: '#E65100', bg: '#fffbeb', border: '#fef3c7' };
-    if (f.includes('xml')) return { Icon: FileCode2, color: '#9C27B0', bg: '#f5f3ff', border: '#ddd6fe' };
-    if (f.includes('pdf')) return { Icon: FileText, color: '#C62828', bg: '#fef2f2', border: '#fee2e2' };
-    if (f.includes('zip')) return { Icon: Archive, color: '#1976D2', bg: '#eef2ff', border: '#e0e7ff' };
+    if (f.includes('json')) return { Icon: FileJson, color: '#E65100', bg: 'var(--bc-amber-50)', border: 'var(--bc-amber-100)' };
+    if (f.includes('xml')) return { Icon: FileCode2, color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)', border: '#ddd6fe' };
+    if (f.includes('pdf')) return { Icon: FileText, color: '#C62828', bg: 'var(--bc-red-50)', border: 'var(--bc-red-100)' };
+    if (f.includes('zip')) return { Icon: Archive, color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-50)', border: 'var(--bc-indigo-100)' };
     return { Icon: File, color: 'var(--text-secondary)', bg: '#f3f4f6', border: '#e5e7eb' };
 };
 
@@ -240,12 +240,12 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
             theme={{
                 token: {
                     borderRadius: "var(--radius-md)",
-                    colorPrimary: '#1976D2',
-                    colorBgLayout: '#f8fafc'
+                    colorPrimary: 'var(--bc-ro-500)',
+                    colorBgLayout: 'var(--bc-slate-50)'
                 },
                 components: {
                     Card: {
-                        colorBorderSecondary: '#e2e8f0'
+                        colorBorderSecondary: 'var(--bc-slate-200)'
                     }
                 }
             }}
@@ -261,13 +261,13 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#ffffff',
+                            color: 'var(--bc-white)',
                             boxShadow: '0 4px 10px rgba(79,70,229,0.2)'
                         }}>
                             <DownloadCloud size={18} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <Title level={5} style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>
+                            <Title level={5} style={{ margin: 0, fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                                 Exports Center
                             </Title>
                             <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', marginTop: 1 }}>
@@ -298,8 +298,8 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                 }
                 styles={{
                     wrapper: { width: 420 },
-                    body: { padding: '16px', background: '#f8fafc' },
-                    header: { padding: '16px 20px', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }
+                    body: { padding: '16px', background: 'var(--bc-slate-50)' },
+                    header: { padding: '16px 20px', background: 'var(--bc-white)', borderBottom: '1px solid #e2e8f0' }
                 }}
             >
                 <Spin spinning={loading} size="large">
@@ -313,7 +313,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                         <Statistic
                                             title={<Text type="secondary" style={{ fontSize: 10, fontWeight: 600 }}>TOTAL</Text>}
                                             value={stats.total}
-                                            valueStyle={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a' }}
+                                            valueStyle={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--bc-slate-900)' }}
                                         />
                                     </Card>
                                 </Col>
@@ -512,7 +512,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                color: '#64748b'
+                                color: 'var(--bc-slate-500)'
                             }}>
                                 <Typography.Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
                                     Showing {filteredDownloads.length} of {stats.total} exports

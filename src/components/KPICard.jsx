@@ -6,12 +6,12 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
   const IconComponent = LucideIcons[icon] || LucideIcons.Activity;
 
   // Use design system colors: primary #1976D2, success #2E7D32, error #D32F2F
-  const cardColor = color || '#1976D2';
+  const cardColor = color || 'var(--bc-ro-500)';
 
   const getTrendConfig = () => {
     if (trendType === 'positive') return { icon: TrendingUp, bg: '#E8F5E9', textColor: '#2E7D32', borderColor: '#A5D6A7' };
     if (trendType === 'negative') return { icon: TrendingDown, bg: '#FFEBEE', textColor: '#D32F2F', borderColor: '#EF9A9A' };
-    return { icon: Minus, bg: '#F1F5F9', textColor: '#64748B', borderColor: '#CBD5E1' };
+    return { icon: Minus, bg: 'var(--bc-slate-100)', textColor: 'var(--bc-slate-500)', borderColor: 'var(--bc-slate-300)' };
   };
 
   const trendConfig = getTrendConfig();
@@ -20,7 +20,7 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
   return (
     <div className="kpi-card" style={{
       borderRadius: "var(--radius-lg)",
-      background: '#FFFFFF',
+      background: 'var(--bc-white)',
       border: '1px solid #E5E7EB',
       overflow: 'hidden',
       transition: 'all 0.2s ease',
@@ -50,7 +50,7 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
 
         <div>
           <div style={{
-            fontSize: 10, fontWeight: 600, color: '#64748B',
+            fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-500)',
             textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4,
           }}>{title}</div>
           <div style={{
@@ -58,7 +58,7 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
             letterSpacing: '-0.02em', lineHeight: 1.1,
           }}>{value}</div>
           {subtitle && (
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94A3B8', marginTop: 4 }}>{subtitle}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', marginTop: 4 }}>{subtitle}</div>
           )}
         </div>
       </div>

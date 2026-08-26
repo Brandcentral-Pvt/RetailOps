@@ -83,7 +83,7 @@ const getTrendInfo = (changePercent: number, metricType: MetricType) => {
 
     return {
         icon: Minus,
-        color: '#94a3b8',
+        color: 'var(--bc-slate-400)',
         label: '0%'
     };
 };
@@ -94,7 +94,7 @@ const getStatusColor = (status?: string) => {
         case 'AHEAD': return '#2E7D32';
         case 'ON_TRACK': return '#0288D1';
         case 'BEHIND': return '#ED6C02';
-        default: return '#94a3b8';
+        default: return 'var(--bc-slate-400)';
     }
 };
 

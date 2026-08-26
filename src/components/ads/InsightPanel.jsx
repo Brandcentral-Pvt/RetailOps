@@ -10,10 +10,10 @@ const { Text } = Typography;
 const InsightItem = ({ type, title, description, metric, value, color, onAction }) => {
   const typeConfig = {
     opportunity: { icon: Lightbulb, bg: '#ecfdf5', border: '#a7f3d0', color: '#2E7D32' },
-    warning: { icon: AlertTriangle, bg: '#fffbeb', border: '#fed7aa', color: '#ED6C02' },
-    critical: { icon: AlertTriangle, bg: '#fef2f2', border: '#fecaca', color: '#C62828' },
+    warning: { icon: AlertTriangle, bg: 'var(--bc-amber-50)', border: '#fed7aa', color: '#ED6C02' },
+    critical: { icon: AlertTriangle, bg: 'var(--bc-red-50)', border: 'var(--bc-red-200)', color: '#C62828' },
     success: { icon: CheckCircle, bg: '#ecfdf5', border: '#a7f3d0', color: '#2E7D32' },
-    ai: { icon: Zap, bg: '#f3e8ff', border: '#e9d5ff', color: '#9C27B0' },
+    ai: { icon: Zap, bg: '#f3e8ff', border: '#e9d5ff', color: 'var(--bc-purple-500)' },
   };
 
   const config = typeConfig[type] || typeConfig.info;
@@ -145,10 +145,10 @@ const InsightPanel = ({ data = [] }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 24, height: 24, borderRadius: 6, background: '#f3e8ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Lightbulb size={12} color="#9C27B0" />
+            <Lightbulb size={12} color="var(--bc-purple-500)" />
           </div>
           <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Executive Insights</Text>
-          <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: '#f3e8ff', color: '#9C27B0', border: 'none' }}>AI Powered</Tag>
+          <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: '#f3e8ff', color: 'var(--bc-purple-500)', border: 'none' }}>AI Powered</Tag>
         </div>
       }
       style={{ marginBottom: 16, borderRadius: 10 }}

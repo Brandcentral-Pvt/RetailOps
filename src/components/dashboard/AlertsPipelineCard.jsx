@@ -18,8 +18,8 @@ const getAlertSeverity = (type = '') => {
         return {
             level: 'critical',
             color: 'var(--text-danger, #D32F2F)',
-            bg: '#fef2f2',
-            border: '#fecaca',
+            bg: 'var(--bc-red-50)',
+            border: 'var(--bc-red-200)',
             icon: AlertCircle,
             label: 'CRITICAL'
         };
@@ -28,8 +28,8 @@ const getAlertSeverity = (type = '') => {
         return {
             level: 'warning',
             color: '#ED6C02',
-            bg: '#fffbeb',
-            border: '#fde68a',
+            bg: 'var(--bc-amber-50)',
+            border: 'var(--bc-amber-200)',
             icon: AlertTriangle,
             label: 'WARNING'
         };
@@ -57,8 +57,8 @@ const getAlertSeverity = (type = '') => {
     return {
         level: 'neutral',
         color: 'var(--color-info-blue, #0288D1)',
-        bg: '#eff6ff',
-        border: '#bfdbfe',
+        bg: 'var(--bc-blue-50)',
+        border: 'var(--bc-blue-200)',
         icon: Info,
         label: 'INFO'
     };
@@ -84,8 +84,8 @@ const getPipelineStatus = (status = '') => {
     if (s === 'RUNNING' || s === 'IN_PROGRESS') {
         return {
             color: 'var(--color-info-blue, #0288D1)',
-            bg: '#eff6ff',
-            border: '#bfdbfe',
+            bg: 'var(--bc-blue-50)',
+            border: 'var(--bc-blue-200)',
             icon: Loader2,
             label: 'RUNNING',
             isAnimated: true
@@ -103,15 +103,15 @@ const getPipelineStatus = (status = '') => {
     if (s === 'FAILED' || s === 'ERROR') {
         return {
             color: 'var(--text-danger, #D32F2F)',
-            bg: '#fef2f2',
-            border: '#fecaca',
+            bg: 'var(--bc-red-50)',
+            border: 'var(--bc-red-200)',
             icon: XCircle,
             label: 'FAILED'
         };
     }
     return {
         color: 'var(--text-secondary, #64748b)',
-        bg: '#f8fafc',
+        bg: 'var(--bc-slate-50)',
         border: 'var(--border-light, #d9e6e9)',
         icon: Clock,
         label: 'IDLE'
@@ -589,7 +589,7 @@ const AlertsPipelineCard = ({
                             <div style={{
                                 padding: '20px 12px',
                                 textAlign: 'center',
-                                background: '#f0fdf4',
+                                background: 'var(--bc-green-50)',
                                 border: '1px dashed var(--bg-success-subtle, #a7f3d0)',
                                 borderRadius: 10
                             }}>
@@ -634,8 +634,8 @@ const AlertsPipelineCard = ({
                                 gap: 5,
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 700,
-                                color: '#0891b2',
-                                background: '#ecfeff',
+                                color: 'var(--bc-cyan-600)',
+                                background: 'var(--bc-cyan-50)',
                                 padding: '3px 9px',
                                 borderRadius: "var(--radius-lg)",
                                 textTransform: 'uppercase',
@@ -648,7 +648,7 @@ const AlertsPipelineCard = ({
                             {pipelineStats.running > 0 && (
                                 <span style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: '#0891b2',
+                                    color: 'var(--bc-cyan-600)',
                                     fontWeight: 600,
                                     display: 'inline-flex',
                                     alignItems: 'center',
@@ -711,7 +711,7 @@ const AlertsPipelineCard = ({
                                     icon={Clock}
                                     value={pipelineStats.idle}
                                     label="Idle"
-                                    color="#64748b"
+                                    color="var(--bc-slate-500)"
                                 />
                             )}
                         </div>
@@ -753,7 +753,7 @@ const AlertsPipelineCard = ({
                             background: syncLoading
                                 ? 'linear-gradient(135deg, var(--text-tertiary, #94a3b8) 0%, var(--text-secondary, #64748b) 100%)'
                                 : 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
-                            color: '#ffffff',
+                            color: 'var(--bc-white)',
                             border: 'none',
                             borderRadius: 'var(--radius-md, 8px)',
                             fontSize: 'var(--font-size-sm)',

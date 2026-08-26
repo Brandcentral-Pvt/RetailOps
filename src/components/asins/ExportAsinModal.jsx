@@ -18,14 +18,14 @@ const { RangePicker } = DatePicker;
 
 // ─── Category metadata (icon + colour) ──────────────────────────────────────
 const CATEGORY_META = {
-  Basic:       { icon: <Package size={11} />,      color: '#6366f1', bg: '#ede9fe' },
-  Pricing:     { icon: <ShoppingBag size={11} />,  color: '#d97706', bg: '#fef3c7' },
+  Basic:       { icon: <Package size={11} />,      color: 'var(--bc-indigo-500)', bg: 'var(--bc-violet-100)' },
+  Pricing:     { icon: <ShoppingBag size={11} />,  color: 'var(--bc-amber-600)', bg: 'var(--bc-amber-100)' },
   Performance: { icon: <BarChart2 size={11} />,    color: '#059669', bg: '#d1fae5' },
-  LQS:         { icon: <Star size={11} />,          color: '#7c3aed', bg: '#f5f3ff' },
-  BuyBox:      { icon: <Shield size={11} />,        color: '#2563eb', bg: '#dbeafe' },
+  LQS:         { icon: <Star size={11} />,          color: 'var(--bc-violet-600)', bg: 'var(--bc-violet-50)' },
+  BuyBox:      { icon: <Shield size={11} />,        color: 'var(--bc-blue-600)', bg: 'var(--bc-blue-100)' },
   Content:     { icon: <ImageIcon size={11} />,    color: '#db2777', bg: '#fce7f3' },
-  Inventory:   { icon: <Layers size={11} />,        color: '#ea580c', bg: '#ffedd5' },
-  Dates:       { icon: <Clock size={11} />,         color: '#475569', bg: '#f1f5f9' },
+  Inventory:   { icon: <Layers size={11} />,        color: 'var(--bc-accent-inventory)', bg: '#ffedd5' },
+  Dates:       { icon: <Clock size={11} />,         color: 'var(--bc-slate-600)', bg: 'var(--bc-slate-100)' },
 };
 
 const ALL_ASIN_FIELDS = [
@@ -733,7 +733,7 @@ const ExportAsinModal = ({
                     <Progress
                       type="circle"
                       percent={Math.round(exportProgress)}
-                      strokeColor={{ '0%': '#0288D1', '100%': '#0f172a' }}
+                      strokeColor={{ '0%': '#0288D1', '100%': 'var(--bc-slate-900)' }}
                       strokeWidth={7}
                       size={108}
                       format={pct => (
@@ -757,8 +757,8 @@ const ExportAsinModal = ({
                   </>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 360, textAlign: 'center' }}>
-                    <AlertCircle size={44} style={{ color: '#ef4444', marginBottom: 14 }} />
-                    <Title level={4} style={{ color: '#ef4444', margin: '0 0 8px' }}>Export Failed</Title>
+                    <AlertCircle size={44} style={{ color: 'var(--bc-red-500)', marginBottom: 14 }} />
+                    <Title level={4} style={{ color: 'var(--bc-red-500)', margin: '0 0 8px' }}>Export Failed</Title>
                     <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>{error}</Text>
                     <Button
                       type="primary" size="large"

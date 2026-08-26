@@ -1,10 +1,10 @@
 export function getAchievementTier(pct: number, isAcos = false) {
     if (isAcos) {
         if (pct <= 100) return { label: 'Track (<=100%)', color: '#059669', bg: '#d1fae5' };
-        return { label: 'Over (>100%)', color: '#ef4444', bg: '#fee2e2' };
+        return { label: 'Over (>100%)', color: 'var(--bc-red-500)', bg: 'var(--bc-red-100)' };
     }
     if (pct >= 100) return { label: 'Elite (100%+) ', color: '#059669', bg: '#d1fae5' };
-    if (pct >= 80)  return { label: 'High (80%+)  ', color: '#2563eb', bg: '#dbeafe' };
-    if (pct >= 50)  return { label: 'Track (50%+) ', color: '#d97706', bg: '#fef3c7' };
-    return { label: 'Low (<50%)   ', color: '#ef4444', bg: '#fee2e2' };
+    if (pct >= 80)  return { label: 'High (80%+)  ', color: 'var(--bc-blue-600)', bg: 'var(--bc-blue-100)' };
+    if (pct >= 50)  return { label: 'Track (50%+) ', color: 'var(--bc-amber-600)', bg: 'var(--bc-amber-100)' };
+    return { label: 'Low (<50%)   ', color: 'var(--bc-red-500)', bg: 'var(--bc-red-100)' };
 }

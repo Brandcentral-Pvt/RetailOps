@@ -77,7 +77,7 @@ const CircularProgress = memo(({ percent = 0, color = '#2E7D32', size = 60 }) =>
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke="#f1f5f9"
+                    stroke="var(--bc-slate-100)"
                     strokeWidth="4"
                 />
                 <circle
@@ -241,7 +241,7 @@ const KpiStrip = ({
             trend: '+15.2% vs prior',
             isPositive: true,
             icon: <Package size={16} strokeWidth={2.5} />,
-            color: '#9C27B0',
+            color: 'var(--bc-purple-500)',
             gradient: 'linear-gradient(135deg, #a78bfa 0%, #9C27B0 100%)',
             sparkline: sparklineData.units || defaultSparklines.units,
         },
@@ -256,7 +256,7 @@ const KpiStrip = ({
             trend: 'Goal Set',
             isPositive: true,
             icon: <Target size={16} strokeWidth={2.5} />,
-            color: '#1976D2',
+            color: 'var(--bc-ro-500)',
             gradient: 'linear-gradient(135deg, #818cf8 0%, #1976D2 100%)',
             accentLeft: false,
         },
@@ -297,7 +297,7 @@ const KpiStrip = ({
             trend: 'Managed',
             isPositive: true,
             icon: <Users size={16} strokeWidth={2.5} />,
-            color: '#9C27B0',
+            color: 'var(--bc-purple-500)',
             gradient: 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)',
             accentLeft: false,
         },

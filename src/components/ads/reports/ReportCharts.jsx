@@ -5,7 +5,7 @@ import Chart from 'react-apexcharts';
 
 const { Text } = Typography;
 
-const COLORS = ['#4F46E5', '#2E7D32', '#D32F2F', '#ED6C02', '#9C27B0', '#0288D1', '#E65100', '#0d9488'];
+const COLORS = ['var(--bc-indigo-600)', '#2E7D32', '#D32F2F', '#ED6C02', 'var(--bc-purple-500)', '#0288D1', '#E65100', '#0d9488'];
 
 const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
   const chartData = useMemo(() => {
@@ -53,7 +53,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
         formatter: (v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v
       }
     },
-    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+    grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
     legend: { position: 'top', fontSize: '10px', fontWeight: 600 },
     tooltip: { shared: true, intersect: false }
   }), [chartData]);
@@ -76,7 +76,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
         formatter: (v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v
       }
     },
-    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+    grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
     legend: { position: 'top', fontSize: '10px', fontWeight: 600 },
     tooltip: { shared: true, intersect: false }
   }), [chartData]);
@@ -98,7 +98,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
         formatter: (v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v
       }
     },
-    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+    grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
     legend: { position: 'top', fontSize: '10px', fontWeight: 600 },
     tooltip: { shared: true, intersect: false }
   }), [chartData]);
@@ -112,7 +112,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 3, height: 14, background: '#4F46E5', borderRadius: 2 }} />
+            <div style={{ width: 3, height: 14, background: 'var(--bc-indigo-600)', borderRadius: 2 }} />
             <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Performance Trends</Text>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -134,7 +134,7 @@ const ReportCharts = ({ data = [], chartType = 'bar', setChartType }) => {
         {chartData.series.length > 0 ? (
           <Chart height="100%" type={chartType === 'line' ? 'line' : 'bar'} series={chartData.series} options={options} />
         ) : (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-slate-400)' }}>
             No data available for charts
           </div>
         )}

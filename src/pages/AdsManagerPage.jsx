@@ -25,14 +25,14 @@ const METRIC_MAP = {
   roas: { label: 'ROAS', color: '#E65100', type: 'ratio', seriesType: 'line' },
   orders: { label: 'Ads Orders', color: '#9333ea', type: 'number', seriesType: 'column' },
   organicSales: { label: 'Organic Sales', color: '#6b7280', type: 'currency', seriesType: 'column' },
-  organicOrders: { label: 'Organic Orders', color: '#64748b', type: 'number', seriesType: 'column' },
-  totalOrders: { label: 'Total Orders', color: '#475569', type: 'number', seriesType: 'column' },
+  organicOrders: { label: 'Organic Orders', color: 'var(--bc-slate-500)', type: 'number', seriesType: 'column' },
+  totalOrders: { label: 'Total Orders', color: 'var(--bc-slate-600)', type: 'number', seriesType: 'column' },
   totalSales: { label: 'Total Sales', color: '#374151', type: 'currency', seriesType: 'column' },
-  tacos: { label: 'TACOS', color: '#9C27B0', type: 'percent', seriesType: 'line' },
-  impressions: { label: 'Impressions', color: '#94a3b8', type: 'number', seriesType: 'column' },
-  clicks: { label: 'Clicks', color: '#94a3b8', type: 'number', seriesType: 'column' },
+  tacos: { label: 'TACOS', color: 'var(--bc-purple-500)', type: 'percent', seriesType: 'line' },
+  impressions: { label: 'Impressions', color: 'var(--bc-slate-400)', type: 'number', seriesType: 'column' },
+  clicks: { label: 'Clicks', color: 'var(--bc-slate-400)', type: 'number', seriesType: 'column' },
   cvr: { label: 'CVR', color: '#0d9488', type: 'percent', seriesType: 'line' },
-  ctr: { label: 'CTR', color: '#9C27B0', type: 'percent', seriesType: 'line' },
+  ctr: { label: 'CTR', color: 'var(--bc-purple-500)', type: 'percent', seriesType: 'line' },
 };
 
 const formatCompact = (val) => {
@@ -198,7 +198,7 @@ export default function AdsManagerPage() {
         seriesName: c.label, opposite: isP, show, axisTicks: { show: false }, axisBorder: { show: false },
         title: { style: { fontSize: '9px', fontWeight: 600, color: c.color } },
         labels: {
-          show, style: { fontSize: '10px', fontWeight: 500, colors: '#64748b' },
+          show, style: { fontSize: '10px', fontWeight: 500, colors: 'var(--bc-slate-500)' },
           formatter: (v) => { const val = Number(v); if (isP) return val.toFixed(1) + '%'; if (isC) { if (val >= 100000) return (val / 100000).toFixed(1) + 'L'; if (val >= 1000) return (val / 1000).toFixed(1) + 'k'; return val.toFixed(0); } return val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0); }
         }
       };
@@ -211,7 +211,7 @@ export default function AdsManagerPage() {
   if (loading && !data.length) return <Spinner />;
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100%', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <AdsImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} selectedSeller={selectedSeller} onComplete={() => { setShowImportModal(false); handleRefresh(); }} />
 
       <ExecutiveKPIs data={data} />
@@ -335,15 +335,15 @@ export default function AdsManagerPage() {
         <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 14px' } }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 3, height: 14, background: '#1976D2', borderRadius: 2 }} />
-              <Text strong style={{ color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Campaign Trends</Text>
+              <div style={{ width: 3, height: 14, background: 'var(--bc-ro-500)', borderRadius: 2 }} />
+              <Text strong style={{ color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>Campaign Trends</Text>
             </div>
             <Select mode="multiple" value={chartConfigMetrics} onChange={setChartConfigMetrics} style={{ minWidth: 200, maxWidth: 320 }} size="small" placeholder="Select metrics" maxTagCount="responsive" options={Object.keys(METRIC_MAP).map(k => ({ label: METRIC_MAP[k].label, value: k }))} />
           </div>
           <div style={{ height: 320 }}>
             {dynamicChartState.series.length > 0 ? (
-              <Chart height="100%" type="line" series={dynamicChartState.series} options={{ chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' }, stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' }, colors: dynamicChartState.colors, dataLabels: { enabled: false }, xaxis: { categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } } }, yaxis: dynamicChartState.yaxis, grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }, legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 600, fontSize: '10px' }, tooltip: { shared: true, intersect: false, theme: 'light' } }} />
-            ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>Select metrics to view chart</div>}
+              <Chart height="100%" type="line" series={dynamicChartState.series} options={{ chart: { type: 'line', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, system-ui, sans-serif' }, stroke: { width: dynamicChartState.series.map(s => s.type === 'line' ? 2.5 : 0), curve: 'smooth' }, colors: dynamicChartState.colors, dataLabels: { enabled: false }, xaxis: { categories: globalChartData.map(d => new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: 'var(--bc-slate-500)', fontWeight: 600, fontSize: '10px' } } }, yaxis: dynamicChartState.yaxis, grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 }, legend: { show: true, position: 'top', horizontalAlign: 'center', fontWeight: 600, fontSize: '10px' }, tooltip: { shared: true, intersect: false, theme: 'light' } }} />
+            ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>Select metrics to view chart</div>}
           </div>
         </Card>
       )}
@@ -353,9 +353,9 @@ export default function AdsManagerPage() {
         size="small"
         title={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>Campaign Performance Details</span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20 }}>
-              Showing <span style={{ color: '#0f172a', fontWeight: 600 }}>{data.length}</span> of <span style={{ color: '#0f172a', fontWeight: 600 }}>{totalCount}</span>
+            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>Campaign Performance Details</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-50)', border: '1px solid #e5e7eb', padding: '4px 12px', borderRadius: 20 }}>
+              Showing <span style={{ color: 'var(--bc-slate-900)', fontWeight: 600 }}>{data.length}</span> of <span style={{ color: 'var(--bc-slate-900)', fontWeight: 600 }}>{totalCount}</span>
             </span>
           </div>
         }

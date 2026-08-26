@@ -53,7 +53,7 @@ const PremiumDonutChart = memo(({ segments, total, overallRate, color }) => {
                     cy={center}
                     r={radius}
                     fill="none"
-                    stroke="#f1f5f9"
+                    stroke="var(--bc-slate-100)"
                     strokeWidth={strokeWidth}
                 />
 
@@ -84,7 +84,7 @@ const PremiumDonutChart = memo(({ segments, total, overallRate, color }) => {
                     cy={center}
                     r={radius - strokeWidth / 2 - 4}
                     fill="none"
-                    stroke="#f1f5f9"
+                    stroke="var(--bc-slate-100)"
                     strokeWidth="1"
                     strokeDasharray="2 4"
                     opacity="0.5"

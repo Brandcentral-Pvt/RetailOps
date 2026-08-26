@@ -43,18 +43,18 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
   // Case 1: Task in progress, user is assignee -> Submit for review banner
   if (currentStatus === 'IN_PROGRESS' && isAssignee) {
     return (
-      <div style={{ ...bannerContainerStyle, background: '#fffbeb', border: '1px solid #fde68a' }}>
+      <div style={{ ...bannerContainerStyle, background: 'var(--bc-amber-50)', border: '1px solid #fde68a' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <ThunderboltOutlined style={{ color: '#E65100', fontSize: 'var(--font-size-lg)' }} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#92400e' }}>Ready to submit?</div>
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#b45309' }}>Click below when your work is done.</div>
+            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-amber-800)' }}>Ready to submit?</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-amber-700)' }}>Click below when your work is done.</div>
           </div>
         </div>
         <Button
           size="small"
           type="primary"
-          style={{ background: '#9C27B0', borderColor: '#9C27B0', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }}
+          style={{ background: 'var(--bc-purple-500)', borderColor: 'var(--bc-purple-500)', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }}
           onClick={() => onAction('SUBMIT', task)}
         >
           Submit for Review
@@ -76,7 +76,7 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
     return (
       <div style={{
         ...bannerContainerStyle,
-        background: '#f5f3ff',
+        background: 'var(--bc-violet-50)',
         border: '1px solid #ddd6fe',
         animation: 'pulseGlow 2s infinite'
       }}>
@@ -84,11 +84,11 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="relative flex h-2 w-2 mr-1" style={{ display: 'inline-flex', alignSelf: 'center' }}>
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-            <BellOutlined style={{ color: '#9C27B0', fontSize: 'var(--font-size-lg)' }} />
+            <BellOutlined style={{ color: 'var(--bc-purple-500)', fontSize: 'var(--font-size-lg)' }} />
           </div>
           <div>
             <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#5b21b6' }}>This task needs your review.</div>
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#9C27B0' }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-purple-500)' }}>
               Submitted {task.timeTracking?.submittedAt ? formatRelativeTime(task.timeTracking.submittedAt) : ''} by {assigneeName}
             </div>
           </div>
@@ -96,7 +96,7 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
         <Button
           size="small"
           type="primary"
-          style={{ background: '#9C27B0', borderColor: '#9C27B0', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }}
+          style={{ background: 'var(--bc-purple-500)', borderColor: 'var(--bc-purple-500)', borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600 }}
           onClick={() => onAction('REVIEW', task)}
         >
           Review Now
@@ -108,11 +108,11 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
   // Case 3: Task is awaiting review, user is assignee -> informative banner
   if (currentStatus === 'REVIEW' && isAssignee) {
     return (
-      <div style={{ ...bannerContainerStyle, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+      <div style={{ ...bannerContainerStyle, background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <EyeOutlined style={{ color: '#0288D1', fontSize: 'var(--font-size-lg)' }} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#1e40af' }}>Your submission is being reviewed by {reviewerName}</div>
+            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-blue-800)' }}>Your submission is being reviewed by {reviewerName}</div>
             <div style={{ fontSize: 'var(--font-size-xs)', color: '#0288D1' }}>
               Submitted {task.timeTracking?.submittedAt ? formatRelativeTime(task.timeTracking.submittedAt) : ''}
             </div>
@@ -130,7 +130,7 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
     const reason = lastRejection?.reason || task.rejection?.reason || 'No comments left';
 
     return (
-      <div style={{ ...bannerContainerStyle, background: '#fef2f2', border: '1px solid #fecaca' }}>
+      <div style={{ ...bannerContainerStyle, background: 'var(--bc-red-50)', border: '1px solid #fecaca' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, marginRight: 16 }}>
           <ExclamationCircleOutlined style={{ color: '#C62828', fontSize: 'var(--font-size-lg)' }} />
           <div style={{ overflow: 'hidden' }}>

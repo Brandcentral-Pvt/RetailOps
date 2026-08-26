@@ -18,8 +18,8 @@ const FilterChip = ({ label, value, onRemove }) => (
       padding: '2px 8px', 
       fontSize: 'var(--font-size-xs)',
       fontWeight: 500,
-      background: '#eff6ff',
-      color: '#1976D2',
+      background: 'var(--bc-blue-50)',
+      color: 'var(--bc-ro-500)',
       border: '1px solid #bfdbfe'
     }}
   >

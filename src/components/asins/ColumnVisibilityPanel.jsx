@@ -287,7 +287,7 @@ const ColumnVisibilityPanel = ({
                     onChange={() => handleToggle(col.key)}
                   />
                   <div className="d-flex flex-column">
-                    <Text strong={isVisible} style={{ fontSize: 'var(--font-size-sm)', color: isVisible ? '#1e293b' : '#64748b' }}>
+                    <Text strong={isVisible} style={{ fontSize: 'var(--font-size-sm)', color: isVisible ? 'var(--bc-slate-800)' : 'var(--bc-slate-500)' }}>
                       {col.label}
                     </Text>
                     <Text type="secondary" style={{ fontSize: '10px' }}>
@@ -304,7 +304,7 @@ const ColumnVisibilityPanel = ({
                       width: '8px', 
                       height: '8px', 
                       borderRadius: '50%', 
-                      background: isVisible ? '#2E7D32' : '#e2e8f0' 
+                      background: isVisible ? '#2E7D32' : 'var(--bc-slate-200)' 
                     }} />
                   </div>
                 )}

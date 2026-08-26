@@ -65,7 +65,7 @@ const UserMenu = () => {
                 style={{
                   fontSize: 'var(--font-size-sm)',
                   fontWeight: 600,
-                  color: '#0F172A',
+                  color: 'var(--bc-slate-900)',
                   fontFamily: 'Inter, sans-serif',
                   letterSpacing: '-0.2px',
                 }}
@@ -75,7 +75,7 @@ const UserMenu = () => {
               <div
                 style={{
                   fontSize: 'var(--font-size-xs)',
-                  color: '#94A3B8',
+                  color: 'var(--bc-slate-400)',
                   fontFamily: 'Inter, sans-serif',
                   marginTop: '1px',
                   overflow: 'hidden',
@@ -92,12 +92,12 @@ const UserMenu = () => {
                   gap: '4px',
                   marginTop: '4px',
                   padding: '1px 6px',
-                  background: '#E3F2FD',
+                  background: 'var(--bc-ro-50)',
                   border: '1px solid #90CAF9',
                   borderRadius: '100px',
                   fontSize: '9.5px',
                   fontWeight: 600,
-                  color: '#1565C0',
+                  color: 'var(--bc-ro-600)',
                   fontFamily: 'Inter, sans-serif',
                   letterSpacing: '0.02em',
                 }}
@@ -107,7 +107,7 @@ const UserMenu = () => {
                     width: '4px',
                     height: '4px',
                     borderRadius: '50%',
-                    background: '#1976D2',
+                    background: 'var(--bc-ro-500)',
                   }}
                 />
                 {roleName}

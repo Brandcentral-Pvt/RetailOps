@@ -45,10 +45,10 @@ const AuthLayout = ({ children }) => (
   <ConfigProvider
     theme={{
       token: {
-        colorPrimary: '#1976D2',
+        colorPrimary: 'var(--bc-ro-500)',
         borderRadius: 8,
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-        colorBgContainer: '#FFFFFF',
+        colorBgContainer: 'var(--bc-white)',
         colorText: '#0B1526',
         colorTextDescription: '#5A6B85',
         colorBorder: '#E5E9F0',

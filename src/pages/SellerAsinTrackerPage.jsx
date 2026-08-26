@@ -99,10 +99,10 @@ const getLqsBadge = (lqs) => {
   if (lqs == null) return <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-xs)' }}>N/A</span>;
   const grade = lqs >= 80 ? 'A' : lqs >= 60 ? 'B' : lqs >= 40 ? 'C' : 'D';
   const colors = {
-    A: { bg: 'var(--bg-success-subtle, #f0fdf4)', text: '#15803d', border: 'var(--color-success-border, #bbf7d0)' },
-    B: { bg: 'var(--bg-info-subtle, #eff6ff)', text: '#1d4ed8', border: 'var(--color-info-border, #bfdbfe)' },
+    A: { bg: 'var(--bg-success-subtle, #f0fdf4)', text: 'var(--bc-green-700)', border: 'var(--color-success-border, #bbf7d0)' },
+    B: { bg: 'var(--bg-info-subtle, #eff6ff)', text: 'var(--bc-blue-700)', border: 'var(--color-info-border, #bfdbfe)' },
     C: { bg: 'var(--bg-warning-subtle, #fffbeb)', text: '#a16207', border: 'var(--color-warning-border, #fde68a)' },
-    D: { bg: 'var(--bg-danger-subtle, #fef2f2)', text: '#b91c1c', border: 'var(--color-danger-border, #fecaca)' }
+    D: { bg: 'var(--bg-danger-subtle, #fef2f2)', text: 'var(--bc-red-700)', border: 'var(--color-danger-border, #fecaca)' }
   };
   const c = colors[grade];
   return (
@@ -131,18 +131,18 @@ const ACTIVITY_TYPES = {
   ASIN_REMOVED: { icon: XCircle, color: 'var(--text-danger, #D32F2F)', label: 'ASIN Removed', bg: 'var(--bg-danger-subtle, #fef2f2)' },
   SYNC_COMPLETED: { icon: CheckCircle2, color: 'var(--text-success, #2E7D32)', label: 'Sync Completed', bg: 'var(--bg-success-subtle, #f0fdf4)' },
   SYNC_FAILED: { icon: XCircle, color: 'var(--text-danger, #D32F2F)', label: 'Sync Failed', bg: 'var(--bg-danger-subtle, #fef2f2)' },
-  SYNC_STARTED: { icon: Loader2, color: '#1d4ed8', label: 'Sync Initiated', bg: 'var(--bg-info-subtle, #eff6ff)' },
+  SYNC_STARTED: { icon: Loader2, color: 'var(--bc-blue-700)', label: 'Sync Initiated', bg: 'var(--bg-info-subtle, #eff6ff)' },
   PRICE_CHANGE: { icon: DollarSign, color: '#a16207', label: 'Price Updated', bg: 'var(--bg-warning-subtle, #fffbeb)' },
-  LQS_UPDATED: { icon: TrendingUp, color: '#6d28d9', label: 'LQS Score Updated', bg: 'var(--bg-info-subtle, #f5f3ff)' },
+  LQS_UPDATED: { icon: TrendingUp, color: 'var(--bc-violet-700)', label: 'LQS Score Updated', bg: 'var(--bg-info-subtle, #f5f3ff)' },
   NEW_ORDER: { icon: ShoppingBag, color: '#0e7490', label: 'Order Received', bg: 'var(--bg-info-subtle, #ecfeff)' },
   STOCK_LOW: { icon: AlertTriangle, color: '#a16207', label: 'Low Stock Alert', bg: 'var(--bg-warning-subtle, #fffbeb)' },
   STOCK_OUT: { icon: AlertCircle, color: 'var(--text-danger, #D32F2F)', label: 'Out of Stock', bg: 'var(--bg-danger-subtle, #fef2f2)' },
   REVIEW_RECEIVED: { icon: Star, color: '#a16207', label: 'Review Received', bg: 'var(--bg-warning-subtle, #fffbeb)' },
-  TASK_CREATED: { icon: ClipboardList, color: '#1d4ed8', label: 'Task Created', bg: 'var(--bg-info-subtle, #eff6ff)' },
+  TASK_CREATED: { icon: ClipboardList, color: 'var(--bc-blue-700)', label: 'Task Created', bg: 'var(--bg-info-subtle, #eff6ff)' },
   TASK_COMPLETED: { icon: CheckCircle2, color: 'var(--text-success, #2E7D32)', label: 'Task Completed', bg: 'var(--bg-success-subtle, #f0fdf4)' },
-  MANAGER_ASSIGNED: { icon: Users, color: '#6d28d9', label: 'Manager Assigned', bg: 'var(--bg-info-subtle, #f5f3ff)' },
-  MANAGER_CHANGE:   { icon: Users, color: '#0891b2', label: 'Manager Changed', bg: 'var(--bg-info-subtle, #ecfeff)' },
-  SETTINGS_UPDATED: { icon: Edit3, color: '#475569', label: 'Settings Updated', bg: 'var(--bg-secondary, #f8fafc)' }
+  MANAGER_ASSIGNED: { icon: Users, color: 'var(--bc-violet-700)', label: 'Manager Assigned', bg: 'var(--bg-info-subtle, #f5f3ff)' },
+  MANAGER_CHANGE:   { icon: Users, color: 'var(--bc-cyan-600)', label: 'Manager Changed', bg: 'var(--bg-info-subtle, #ecfeff)' },
+  SETTINGS_UPDATED: { icon: Edit3, color: 'var(--bc-slate-600)', label: 'Settings Updated', bg: 'var(--bg-secondary, #f8fafc)' }
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -172,7 +172,7 @@ const TimelineItem = memo(({ activity }) => {
       display: 'flex',
       gap: 14,
       padding: '14px 16px',
-      background: isManagerChange ? '#f0fdff' : '#ffffff',
+      background: isManagerChange ? '#f0fdff' : 'var(--bc-white)',
       border: `1px solid ${isManagerChange ? 'var(--color-info-border, #bae6fd)' : 'var(--border-light, #d9e6e9)'}`,
       borderLeft: isManagerChange ? '3px solid var(--color-info)' : '1px solid var(--border-light, #d9e6e9)',
       borderRadius: 'var(--radius-md, 8px)',
@@ -244,7 +244,7 @@ const TimelineItem = memo(({ activity }) => {
               gridTemplateColumns: '1fr auto 1fr',
               gap: 8,
               alignItems: 'center',
-              background: '#ffffff',
+              background: 'var(--bc-white)',
               border: '1px solid var(--color-info-border, #bae6fd)',
               borderRadius: "var(--radius-md)",
               padding: '12px 14px'
@@ -329,7 +329,7 @@ const UpcomingTaskItem = memo(({ task }) => {
   const isToday = diffDays === 0;
   const isTomorrow = diffDays === 1;
 
-  let dueColor = '#475569';
+  let dueColor = 'var(--bc-slate-600)';
   let dueBg = 'var(--bg-secondary, #f8fafc)';
   let dueBorder = 'var(--border-light, #d9e6e9)';
   let dueLabel = `In ${diffDays} days`;
@@ -361,7 +361,7 @@ const UpcomingTaskItem = memo(({ task }) => {
   return (
     <div className={styles.taskItemRow} style={{
       padding: '14px 16px',
-      background: '#ffffff',
+      background: 'var(--bc-white)',
       border: '1px solid var(--border-light, #d9e6e9)',
       borderLeft: `3px solid ${dueColor}`,
       borderRadius: 'var(--radius-md, 8px)',
@@ -472,7 +472,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
       className={`${styles.sellerCard} ${isActive ? styles.active : ''}`}
       style={{
         padding: '12px 14px',
-        background: isActive ? 'var(--bg-secondary, #f8fafc)' : '#ffffff',
+        background: isActive ? 'var(--bg-secondary, #f8fafc)' : 'var(--bc-white)',
         border: `1px solid ${isActive ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)'}`,
         borderLeft: `3px solid ${isActive ? 'var(--text-primary, #0f172a)' : 'transparent'}`,
         borderRadius: 'var(--radius-md, 8px)',
@@ -492,7 +492,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: isActive ? '#ffffff' : 'var(--text-secondary)',
+          color: isActive ? 'var(--bc-white)' : 'var(--text-secondary)',
           fontWeight: 600,
           fontSize: avatarFontSize,
           flexShrink: 0,
@@ -695,7 +695,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
         background: '#fafafa'
       }}>
         <div style={{
-          background: '#ffffff',
+          background: 'var(--bc-white)',
           padding: 48,
           borderRadius: "var(--radius-md)",
           border: '1px solid var(--border-light, #d9e6e9)',
@@ -713,7 +713,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             justifyContent: 'center',
             marginBottom: 16
           }}>
-            <Store size={24} color="#475569" strokeWidth={2} />
+            <Store size={24} color="var(--bc-slate-600)" strokeWidth={2} />
           </div>
           <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', marginBottom: 8 }}>
             No Seller Selected
@@ -811,7 +811,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             ═══════════════════════════════════════════════════ */}
       <div style={{
         padding: '20px 28px',
-        background: '#ffffff',
+        background: 'var(--bc-white)',
         borderBottom: '1px solid var(--color-border)',
         flexShrink: 0
       }}>
@@ -834,7 +834,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
+              color: 'var(--bc-white)',
               fontWeight: 600,
               fontSize: headerFontSize,
               fontFamily: parsed.hasNumber
@@ -980,7 +980,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 TABS
             ═══════════════════════════════════════════════════ */}
       <div style={{
-        background: '#ffffff',
+        background: 'var(--bc-white)',
         borderBottom: '1px solid var(--border-light, #d9e6e9)',
         padding: '0 28px',
         flexShrink: 0
@@ -999,7 +999,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     padding: '0 6px',
                     background: activeTab === 'activity' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)',
-                    color: activeTab === 'activity' ? '#ffffff' : 'var(--text-secondary)',
+                    color: activeTab === 'activity' ? 'var(--bc-white)' : 'var(--text-secondary)',
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
@@ -1019,7 +1019,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     padding: '0 6px',
                     background: overdueTasks > 0 ? 'var(--text-danger, #D32F2F)' : (activeTab === 'tasks' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)'),
-                    color: overdueTasks > 0 ? '#ffffff' : (activeTab === 'tasks' ? '#ffffff' : 'var(--text-secondary)'),
+                    color: overdueTasks > 0 ? 'var(--bc-white)' : (activeTab === 'tasks' ? 'var(--bc-white)' : 'var(--text-secondary)'),
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
@@ -1039,7 +1039,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   <span style={{
                     padding: '0 6px',
                     background: activeTab === 'asins' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)',
-                    color: activeTab === 'asins' ? '#ffffff' : 'var(--text-secondary)',
+                    color: activeTab === 'asins' ? 'var(--bc-white)' : 'var(--text-secondary)',
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
@@ -1116,7 +1116,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               <div style={{
                 padding: 60,
                 textAlign: 'center',
-                background: '#ffffff',
+                background: 'var(--bc-white)',
                 borderRadius: 'var(--radius-md, 8px)',
                 border: '1px dashed var(--border-medium)'
               }}>
@@ -1175,7 +1175,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               <div style={{
                 padding: 60,
                 textAlign: 'center',
-                background: '#ffffff',
+                background: 'var(--bc-white)',
                 borderRadius: 'var(--radius-md, 8px)',
                 border: '1px dashed var(--border-medium)'
               }}>
@@ -1538,7 +1538,7 @@ const SellerAsinTrackerPage = () => {
           {/* SELLER SIDEBAR */}
           <div style={{
             width: 290,
-            background: '#ffffff',
+            background: 'var(--bc-white)',
             borderRight: '1px solid var(--color-border)',
             display: 'flex',
             flexDirection: 'column',

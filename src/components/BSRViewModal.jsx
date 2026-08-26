@@ -15,9 +15,9 @@ const C = {
   primary: '#D32F2F', primaryLight: '#fce8e6', dark: '#121b1e',
   text: '#27272a', textSecondary: '#71717a', border: '#e4e4e7',
   borderLight: '#f0f0f3', bg: '#f4f5f7', white: '#fff',
-  success: '#2E7D32', successBg: '#f0fdf4',
-  warning: '#ED6C02', warningBg: '#fffbeb',
-  danger: '#D32F2F', dangerBg: '#fef2f2',
+  success: '#2E7D32', successBg: 'var(--bc-green-50)',
+  warning: '#ED6C02', warningBg: 'var(--bc-amber-50)',
+  danger: '#D32F2F', dangerBg: 'var(--bc-red-50)',
 };
 
 const parseRank = (str) => {
