@@ -218,7 +218,7 @@ export default function AdsManagerPage() {
       <InsightPanel data={data} />
 
       {/* FILTERS & CONTROLS */}
-      <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 16px' } }}>
+      <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-100)', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 16px' } }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Input.Search
             placeholder="Search ASIN, SKU..."
@@ -332,8 +332,8 @@ export default function AdsManagerPage() {
 
       {/* CHART */}
       {showDashboardCharts && (
-        <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 14px' } }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
+        <Card size="small" style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-100)', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} styles={{ body: { padding: '12px 14px' } }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--bc-slate-100)', paddingBottom: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 3, height: 14, background: 'var(--bc-ro-500)', borderRadius: 2 }} />
               <Text strong style={{ color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>Campaign Trends</Text>
@@ -359,7 +359,7 @@ export default function AdsManagerPage() {
             </span>
           </div>
         }
-        style={{ borderRadius: "var(--radius-lg)", border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
+        style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-100)', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}
         styles={{ body: { padding: 0 } }}
       >
         <AdsTable

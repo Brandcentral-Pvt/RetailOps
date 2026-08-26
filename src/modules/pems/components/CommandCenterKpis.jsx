@@ -22,12 +22,12 @@ function MiniTrend({ value, label }) {
   return (
     <span style={{
       fontSize: 11, fontWeight: 600,
-      color: isUp ? 'var(--bc-green-600, #16a34a)' : isDown ? 'var(--bc-red-600, #dc2626)' : 'var(--bc-text-muted, #94a3b8)',
+      color: isUp ? 'var(--bc-green-600, var(--bc-green-600))' : isDown ? 'var(--bc-red-600, var(--bc-red-600))' : 'var(--bc-text-muted, var(--bc-slate-400))',
       display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap',
     }}>
       {isUp ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : isDown ? <ArrowDownOutlined style={{ fontSize: 10 }} /> : <MinusOutlined style={{ fontSize: 10 }} />}
       {Math.abs(value).toFixed(1)}%
-      {label && <span style={{ color: 'var(--bc-text-muted, #94a3b8)', fontWeight: 400 }}> {label}</span>}
+      {label && <span style={{ color: 'var(--bc-text-muted, var(--bc-slate-400))', fontWeight: 400 }}> {label}</span>}
     </span>
   );
 }
@@ -61,7 +61,7 @@ function KpiCard({ card }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minHeight: 16 }}>
           {card.trend != null
             ? <MiniTrend value={card.trend} />
-            : <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>{card.subtitle}</Text>}
+            : <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, var(--bc-slate-400))' }}>{card.subtitle}</Text>}
         </div>
         <div className="pems-kpi-accent" style={{ background: `linear-gradient(90deg, ${card.color}B3, ${card.color}14)` }} />
       </div>
@@ -88,7 +88,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'Action Success Rate',
       value: successRate != null ? `${successRate}%` : '—',
       subtitle: 'Tasks approved vs total',
-      color: successRate >= 80 ? 'var(--bc-green-600, #16a34a)' : 'var(--bc-accent-inventory)',
+      color: successRate >= 80 ? 'var(--bc-green-600, var(--bc-green-600))' : 'var(--bc-accent-inventory)',
       icon: <AimOutlined />,
       trend: kpi.successTrend,
     },
@@ -106,7 +106,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'BuyBox Integrity',
       value: kpi.buyBoxPct != null ? `${kpi.buyBoxPct}%` : '—',
       subtitle: 'Listings holding BuyBox',
-      color: 'var(--bc-violet-600, #7c3aed)',
+      color: 'var(--bc-violet-600, var(--bc-violet-600))',
       icon: <ShoppingCartOutlined />,
       trend: kpi.buyBoxTrend,
     },
@@ -115,7 +115,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'Catalog Quality',
       value: kpi.avgHealth != null ? Number(kpi.avgHealth).toFixed(1) : '—',
       subtitle: 'Avg AI Health Score',
-      color: 'var(--bc-ro-500, #1976D2)',
+      color: 'var(--bc-ro-500, var(--bc-ro-500))',
       icon: <StarOutlined />,
       trend: kpi.qualityTrend,
     },
@@ -133,7 +133,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'SLA Compliance',
       value: `${kpi.slaCompliance ?? 100}%`,
       subtitle: 'Within SLA window',
-      color: (kpi.slaCompliance ?? 100) >= 90 ? 'var(--bc-green-600, #16a34a)' : 'var(--bc-red-600, #dc2626)',
+      color: (kpi.slaCompliance ?? 100) >= 90 ? 'var(--bc-green-600, var(--bc-green-600))' : 'var(--bc-red-600, var(--bc-red-600))',
       icon: <SafetyCertificateOutlined />,
     },
     {
@@ -141,7 +141,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       title: 'Overdue',
       value: kpi.overdue || 0,
       subtitle: 'Past SLA deadline',
-      color: 'var(--bc-red-600, #dc2626)',
+      color: 'var(--bc-red-600, var(--bc-red-600))',
       icon: <ClockCircleOutlined />,
       trend: kpi.overdueTrend,
     },
@@ -152,18 +152,18 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
         <Space size={8} align="center">
           <span className="pems-live-dot" />
-          <Text style={{ fontSize: 13, fontWeight: 700, color: 'var(--bc-text-heading, #0f172a)', letterSpacing: '0.02em' }}>
+          <Text style={{ fontSize: 13, fontWeight: 700, color: 'var(--bc-text-heading, var(--bc-slate-900))', letterSpacing: '0.02em' }}>
             {title}
           </Text>
           {lastUpdated && (
-            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>
+            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, var(--bc-slate-400))' }}>
               · synced {lastUpdated}
             </Text>
           )}
         </Space>
         <Space size={10} align="center">
-          <FilterOutlined style={{ color: disputesOnly ? 'var(--bc-red-500, #ef4444)' : 'var(--bc-text-muted, #94a3b8)', fontSize: 12, transition: 'color 0.15s' }} />
-          <Text style={{ fontSize: 11, fontWeight: disputesOnly ? 700 : 500, color: disputesOnly ? 'var(--bc-red-600, #dc2626)' : 'var(--bc-text-secondary, #64748b)' }}>
+          <FilterOutlined style={{ color: disputesOnly ? 'var(--bc-red-500, var(--bc-red-500))' : 'var(--bc-text-muted, var(--bc-slate-400))', fontSize: 12, transition: 'color 0.15s' }} />
+          <Text style={{ fontSize: 11, fontWeight: disputesOnly ? 700 : 500, color: disputesOnly ? 'var(--bc-red-600, var(--bc-red-600))' : 'var(--bc-text-secondary, var(--bc-slate-500))' }}>
             Disputes only
           </Text>
           <Switch
@@ -171,7 +171,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
             checked={disputesOnly}
             onChange={onDisputesToggle}
             loading={loading}
-            style={{ background: disputesOnly ? 'var(--bc-red-500, #ef4444)' : 'var(--bc-slate-300, #cbd5e1)' }}
+            style={{ background: disputesOnly ? 'var(--bc-red-500, var(--bc-red-500))' : 'var(--bc-slate-300, var(--bc-slate-300))' }}
           />
         </Space>
       </div>

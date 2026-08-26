@@ -21,7 +21,7 @@ const ModuleStatusGrid = ({ moduleStats }) => {
             subtitle: 'Revenue & sales tracking',
             path: '/target-achievement/dashboard',
             color: 'var(--bc-ro-500)',
-            gradient: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
+            gradient: 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)',
             icon: Target,
             badge: {
                 text: `${moduleStats.targets.rate.toFixed(0)}% Pacing`,
@@ -168,7 +168,7 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                 { label: 'Critical', value: moduleStats.alerts.critical, color: 'var(--text-danger, #D32F2F)', icon: AlertCircle, pulse: moduleStats.alerts.critical > 0 },
                 { label: 'Warning', value: moduleStats.alerts.warning, color: '#ED6C02', icon: AlertTriangle },
                 { label: 'Info', value: moduleStats.alerts.info, color: 'var(--color-info-blue, #0288D1)', icon: Activity },
-                { label: 'Total', value: moduleStats.alerts.total, color: 'var(--text-secondary, #64748b)', icon: Layers }
+                { label: 'Total', value: moduleStats.alerts.total, color: 'var(--text-secondary, var(--bc-slate-500))', icon: Layers }
             ],
             segments: [
                 { label: 'Critical', value: moduleStats.alerts.critical, color: 'var(--text-danger, #D32F2F)' },
@@ -192,7 +192,7 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                 icon: RefreshCw
             } : {
                 text: 'Idle',
-                color: 'var(--text-secondary, #64748b)',
+                color: 'var(--text-secondary, var(--bc-slate-500))',
                 icon: Clock
             },
             primaryMetric: {
@@ -204,13 +204,13 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                 { label: 'Running', value: moduleStats.pipeline.running, color: 'var(--color-info-blue, #0288D1)', icon: RefreshCw, animate: moduleStats.pipeline.running > 0 },
                 { label: 'Completed', value: moduleStats.pipeline.completed, color: '#2E7D32', icon: CheckCircle2 },
                 { label: 'Failed', value: moduleStats.pipeline.failed, color: 'var(--text-danger, #D32F2F)', icon: AlertCircle, pulse: moduleStats.pipeline.failed > 0 },
-                { label: 'Idle', value: moduleStats.pipeline.idle, color: 'var(--text-secondary, #64748b)', icon: Clock }
+                { label: 'Idle', value: moduleStats.pipeline.idle, color: 'var(--text-secondary, var(--bc-slate-500))', icon: Clock }
             ],
             segments: [
                 { label: 'Done', value: moduleStats.pipeline.completed, color: '#2E7D32' },
                 { label: 'Running', value: moduleStats.pipeline.running, color: 'var(--color-info-blue, #0288D1)' },
                 { label: 'Failed', value: moduleStats.pipeline.failed, color: 'var(--text-danger, #D32F2F)' },
-                { label: 'Idle', value: moduleStats.pipeline.idle, color: 'var(--text-secondary, #64748b)' }
+                { label: 'Idle', value: moduleStats.pipeline.idle, color: 'var(--text-secondary, var(--bc-slate-500))' }
             ]
         }
     ], [moduleStats]);
@@ -228,10 +228,10 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
+                    background: 'linear-gradient(135deg, var(--bg-danger-subtle, var(--bc-red-50)) 0%, var(--bg-danger-subtle, var(--bc-red-100)) 100%)',
                     padding: '5px 12px',
                     borderRadius: 20,
-                    border: '1px solid var(--bg-danger-subtle, #fecaca)'
+                    border: '1px solid var(--bg-danger-subtle, var(--bc-red-200))'
                 }}>
                     <Layers size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
                     <span style={{
@@ -247,11 +247,11 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                 <div style={{
                     flex: 1,
                     height: 1,
-                    background: 'linear-gradient(90deg, var(--border-light, #d9e6e9) 0%, transparent 100%)'
+                    background: 'linear-gradient(90deg, var(--border-light, var(--border-light)) 0%, transparent 100%)'
                 }} />
                 <span style={{
                     fontSize: 'var(--font-size-xs)',
-                    color: 'var(--text-secondary, #64748b)',
+                    color: 'var(--text-secondary, var(--bc-slate-500))',
                     fontWeight: 600
                 }}>
                     {modules.length} modules · Real-time sync

@@ -82,7 +82,7 @@ const Step1Brand = ({ sellers, selectedSeller, onSelect }) => {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search brands..."
-          style={{ width: '100%', padding: '8px 10px 8px 30px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: 'var(--bc-white)', outline: 'none', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '8px 10px 8px 30px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid var(--bc-slate-200)', background: 'var(--bc-white)', outline: 'none', boxSizing: 'border-box' }}
         />
       </div>
 
@@ -178,7 +178,7 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search ASIN or title..."
-            style={{ width: '100%', padding: '7px 10px 7px 30px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: 'var(--bc-white)', outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '7px 10px 7px 30px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid var(--bc-slate-200)', background: 'var(--bc-white)', outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
         <button
@@ -199,10 +199,10 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
           {sellerAsins.length === 0 ? `No ASINs found for ${seller?.name}` : 'No ASINs match search'}
         </div>
       ) : (
-        <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
+        <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
             <thead>
-              <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+              <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                 <th style={{ padding: '8px 12px', width: 40, textAlign: 'center' }}></th>
                 <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bc-slate-600)' }}>ASIN</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bc-slate-600)' }}>Title</th>
@@ -217,7 +217,7 @@ const Step2Asins = ({ asins, selectedAsins, onToggle, onSelectAll, seller }) => 
                     key={id || i}
                     onClick={() => onToggle(id)}
                     style={{
-                      borderBottom: '1px solid #f1f5f9',
+                      borderBottom: '1px solid var(--bc-slate-100)',
                       background: isSelected ? 'var(--bc-violet-50)' : i % 2 === 0 ? 'var(--bc-white)' : '#fafbfc',
                       cursor: 'pointer', transition: 'background 0.15s'
                     }}
@@ -335,7 +335,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
           value={formData.titlePrefix}
           onChange={e => onChange('titlePrefix', e.target.value)}
           placeholder="e.g. Q3 Optimization —"
-          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid #e2e8f0', background: 'var(--bc-white)', outline: 'none', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10, border: '1.5px solid var(--bc-slate-200)', background: 'var(--bc-white)', outline: 'none', boxSizing: 'border-box' }}
         />
         <div style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginTop: 4 }}>
           Tasks will be named: "{formData.titlePrefix || '[Prefix]'} — Title Optimization" etc.
@@ -378,7 +378,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
         <select
           value={formData.assignedTo}
           onChange={e => onChange('assignedTo', e.target.value)}
-          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', borderRadius: 10, border: '1.5px solid #e2e8f0', background: 'var(--bc-white)', outline: 'none' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', borderRadius: 10, border: '1.5px solid var(--bc-slate-200)', background: 'var(--bc-white)', outline: 'none' }}
         >
           <option value="">Unassigned</option>
           {users.map(u => (
@@ -415,7 +415,7 @@ const Step4Assign = ({ users, sellers, formData, onChange }) => (
           onChange={e => onChange('description', e.target.value)}
           placeholder="Add detailed instructions for the assignee..."
           rows={3}
-          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', borderRadius: 10, border: '1.5px solid #e2e8f0', background: 'var(--bc-white)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 'var(--font-size-sm)', borderRadius: 10, border: '1.5px solid var(--bc-slate-200)', background: 'var(--bc-white)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
         />
       </div>
     </div>
@@ -619,14 +619,14 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
         {/* Header */}
         <div style={{
           padding: '20px 24px 0',
-          background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+          background: 'linear-gradient(135deg, var(--bc-violet-50) 0%, var(--bc-violet-100) 100%)',
           borderBottom: '1px solid #e8e4fd'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
                 width: 40, height: 40, borderRadius: 11,
-                background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-purple-500))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--bc-white)', boxShadow: '0 6px 16px -4px rgba(99,102,241,0.5)'
               }}>
@@ -637,7 +637,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
                 <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--bc-purple-500)' }}>Create optimization tasks grouped by brand</p>
               </div>
             </div>
-            <button onClick={onClose} style={{ padding: 8, background: 'var(--bc-white)', border: '1px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', color: 'var(--bc-slate-500)', display: 'flex' }}>
+            <button onClick={onClose} style={{ padding: 8, background: 'var(--bc-white)', border: '1px solid var(--bc-slate-200)', borderRadius: 10, cursor: 'pointer', color: 'var(--bc-slate-500)', display: 'flex' }}>
               <X size={16} />
             </button>
           </div>
@@ -647,7 +647,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'var(--bc-red-50)', border: '1px solid #fecaca', borderRadius: 10, marginBottom: 16, fontSize: 'var(--font-size-sm)', color: '#D32F2F' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'var(--bc-red-50)', border: '1px solid var(--bc-red-200)', borderRadius: 10, marginBottom: 16, fontSize: 'var(--font-size-sm)', color: '#D32F2F' }}>
               <AlertCircle size={14} /> {error}
             </div>
           )}
@@ -661,7 +661,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
 
         {/* Footer */}
         <div style={{
-          padding: '16px 24px', borderTop: '1px solid #f1f5f9',
+          padding: '16px 24px', borderTop: '1px solid var(--bc-slate-100)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           background: '#fafbfc'
         }}>
@@ -670,7 +670,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: '9px 16px', background: 'var(--bc-white)', color: 'var(--bc-slate-500)',
-              border: '1.5px solid #e2e8f0', borderRadius: 10,
+              border: '1.5px solid var(--bc-slate-200)', borderRadius: 10,
               fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
@@ -694,7 +694,7 @@ const BrandTaskWizard = ({ isOpen, onClose, sellers = [], asins = [], users = []
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '9px 20px',
-                background: canNext() ? 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)' : 'var(--bc-slate-100)',
+                background: canNext() ? 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)' : 'var(--bc-slate-100)',
                 color: canNext() ? 'var(--bc-white)' : 'var(--bc-slate-400)',
                 border: 'none', borderRadius: 10, fontSize: 'var(--font-size-sm)', fontWeight: 600,
                 cursor: canNext() ? 'pointer' : 'not-allowed',

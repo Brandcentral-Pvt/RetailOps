@@ -9,8 +9,8 @@ const StatusItem = ({ icon, label, value, color, tooltip }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
       <div>
-        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{value}</div>
+        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>{value}</div>
       </div>
     </div>
   </Tooltip>
@@ -43,7 +43,7 @@ const GlobalStatusBar = ({
       padding: '12px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: "var(--radius-xl, 16px)",
-      border: '1px solid var(--border-light, #d9e6e9)',
+      border: '1px solid var(--border-light, var(--border-light))',
       marginBottom: 20,
       flexWrap: 'wrap',
       gap: 16
@@ -56,7 +56,7 @@ const GlobalStatusBar = ({
           color={getHealthColor(healthScore)}
           tooltip="Overall system health score"
         />
-        <div style={{ width: 1, height: 32, background: 'var(--border-light, #d9e6e9)' }} />
+        <div style={{ width: 1, height: 32, background: 'var(--border-light, var(--border-light))' }} />
         <StatusItem 
           icon={<AlertTriangle size={16} />}
           label="Alerts" 
@@ -64,15 +64,15 @@ const GlobalStatusBar = ({
           color={activeAlerts > 0 ? '#D32F2F' : '#2E7D32'}
           tooltip="Active alerts requiring attention"
         />
-        <div style={{ width: 1, height: 32, background: 'var(--border-light, #d9e6e9)' }} />
+        <div style={{ width: 1, height: 32, background: 'var(--border-light, var(--border-light))' }} />
         <StatusItem 
           icon={<RefreshCw size={16} />}
           label="Automations" 
           value={`${runningAutomations} Running`}
-          color="var(--text-brand, #1976D2)"
+          color="var(--text-brand, var(--bc-ro-500))"
           tooltip="Currently running automation jobs"
         />
-        <div style={{ width: 1, height: 32, background: 'var(--border-light, #d9e6e9)' }} />
+        <div style={{ width: 1, height: 32, background: 'var(--border-light, var(--border-light))' }} />
         <StatusItem 
           icon={<Zap size={16} />}
           label="Tasks" 
@@ -82,7 +82,7 @@ const GlobalStatusBar = ({
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Cloud size={16} style={{ color: 'var(--text-secondary, #64748b)' }} />
+        <Cloud size={16} style={{ color: 'var(--text-secondary, var(--bc-slate-500))' }} />
         <Tag color={marketplaceStatus === 'operational' ? 'green' : marketplaceStatus === 'degraded' ? 'orange' : 'red'} style={{ borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
           Marketplace {marketplaceStatus}
         </Tag>

@@ -113,7 +113,7 @@ const RenameModal = ({ file, onClose, onSave }) => {
 const ContextMenu = ({ file, pos, onClose, actions }) => (
     <div style={{
         position: 'fixed', top: pos.y, left: pos.x, zIndex: 1500,
-        background: '#fff', borderRadius: 10, border: '1px solid #E2E8F0',
+        background: '#fff', borderRadius: 10, border: '1px solid var(--bc-slate-200)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.15)', minWidth: 160, overflow: 'hidden',
     }}>
         {actions.map(a => (
@@ -287,7 +287,7 @@ const FileManagerPage = () => {
             {/* ── Left sidebar ─────────────────────────────────────── */}
             <div style={{
                 width: 200, flexShrink: 0, background: '#fff',
-                borderRight: '1px solid #E2E8F0',
+                borderRight: '1px solid var(--bc-slate-200)',
                 display: 'flex', flexDirection: 'column', padding: '1.25rem 0 0',
             }}>
                 <div style={{ padding: '0 1rem 1rem' }}>
@@ -430,7 +430,7 @@ const FileManagerPage = () => {
                                     onContextMenu={e => openCtx(e, file)}
                                     style={{
                                         background: '#fff', borderRadius: "var(--radius-lg)",
-                                        border: '1.5px solid #E2E8F0',
+                                        border: '1.5px solid var(--bc-slate-200)',
                                         padding: '1rem 0.85rem 0.75rem',
                                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                                         cursor: 'default', position: 'relative',

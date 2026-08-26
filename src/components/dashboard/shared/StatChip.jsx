@@ -20,7 +20,7 @@ const StatChip = memo(({ icon: Icon, value, label, color, animate, animateClass 
         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color }}>
             {value}
         </span>
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
             {label}
         </span>
     </div>

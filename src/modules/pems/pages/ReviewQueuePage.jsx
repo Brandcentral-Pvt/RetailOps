@@ -129,7 +129,7 @@ export default function ReviewQueuePage() {
       </Space>
     )},
     { title: 'Seller', dataIndex: 'SellerName', width: 100, render: (v) => <Text style={{ fontSize: 'var(--font-size-xs)' }}>{v || '-'}</Text> },
-    { title: 'Category', dataIndex: 'Department', width: 90, render: (d) => <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", background: 'var(--bc-blue-50)', color: 'var(--bc-blue-700)', border: '1px solid #bfdbfe' }}>{d || '-'}</Tag> },
+    { title: 'Category', dataIndex: 'Department', width: 90, render: (d) => <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", background: 'var(--bc-blue-50)', color: 'var(--bc-blue-700)', border: '1px solid var(--bc-blue-200)' }}>{d || '-'}</Tag> },
     { title: 'Priority', dataIndex: 'Priority', width: 70, render: (p) => {
       const c = PRIORITIES[p] || {};
       return p ? <Tag style={{ fontSize: 9, borderRadius: "var(--radius-md)", background: c.bg, color: c.color, border: `1px solid ${c.color}25`, fontWeight: 600 }}>{p}</Tag> : '-';
@@ -175,7 +175,7 @@ export default function ReviewQueuePage() {
               { label: 'Achievement', value: `${record.AchievementPct || 0}%` },
               { label: 'Due', value: dueLabel?.text || '-', color: dueLabel?.color },
             ].map(item => (
-              <div key={item.label} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9' }}>
+              <div key={item.label} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid var(--bc-slate-100)' }}>
                 <Text style={{ fontSize: 8, color: 'var(--bc-slate-400)', fontWeight: 600 }}>{item.label}</Text>
                 <Text style={{ fontSize: 10, fontWeight: 600, color: item.color || 'var(--bc-slate-700)', display: 'block' }}>{item.value}</Text>
               </div>
@@ -187,7 +187,7 @@ export default function ReviewQueuePage() {
         <div>
           <Text style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Evidence ({record.evidence?.length || 0})</Text>
           {(record.evidence || []).slice(0, 3).map(ev => (
-            <div key={ev.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div key={ev.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid var(--bc-slate-100)', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
               <FileTextOutlined style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-blue-600)' }} />
               <Text style={{ fontSize: 10 }}>{ev.FileName}</Text>
             </div>
@@ -199,7 +199,7 @@ export default function ReviewQueuePage() {
         <div>
           <Text style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Sub Tasks</Text>
           {(record.subtasks || []).slice(0, 4).map(st => (
-            <div key={st.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginBottom: 3 }}>
+            <div key={st.Id} style={{ padding: '4px 6px', background: '#fff', borderRadius: "var(--radius-sm)", border: '1px solid var(--bc-slate-100)', marginBottom: 3 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ fontSize: 10, color: 'var(--bc-slate-700)' }}>{st.Title}</Text>
                 {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 10 }} /> : <ClockCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 10 }} />}

@@ -44,10 +44,10 @@ const AsinDetailsModal = ({ asin, onClose }) => {
         {/* Sidebar Column (Left) */}
         <Col xs={24} md={8}>
           <div style={{ 
-            background: 'var(--bg-secondary, #f8fafc)', 
+            background: 'var(--bg-secondary, var(--bc-slate-50))', 
             borderRadius: 'var(--radius-xl)', 
             padding: '16px', 
-            border: '1px solid var(--border-light, #d9e6e9)',
+            border: '1px solid var(--border-light, var(--border-light))',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
@@ -58,7 +58,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
               padding: '12px', 
               background: '#fff', 
               borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border-light, #d9e6e9)',
+              border: '1px solid var(--border-light, var(--border-light))',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
@@ -96,35 +96,35 @@ const AsinDetailsModal = ({ asin, onClose }) => {
             </div>
 
             {/* Tech Specs Directory */}
-            <div style={{ background: '#fff', padding: '12px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light, #d9e6e9)' }}>
+            <div style={{ background: '#fff', padding: '12px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light, var(--border-light))' }}>
               <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '10px' }}>
                 Catalog Directory
               </Text>
               <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}><Store size={12} /> Sold By</Text>
-                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, #0f172a)', maxWidth: '130px' }} ellipsis>{asin.soldBy || 'N/A'}</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, var(--bc-slate-900))', maxWidth: '130px' }} ellipsis>{asin.soldBy || 'N/A'}</Text>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}><TagIcon size={12} /> Category</Text>
-                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, #0f172a)', maxWidth: '130px' }} ellipsis title={asin.category}>{asin.category || 'N/A'}</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, var(--bc-slate-900))', maxWidth: '130px' }} ellipsis title={asin.category}>{asin.category || 'N/A'}</Text>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', alignItems: 'center', gap: '4px' }}><Package size={12} /> Local SKU</Text>
-                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, #0f172a)', fontFamily: 'monospace' }}>{asin.sku || 'N/A'}</Text>
+                  <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary, var(--bc-slate-900))', fontFamily: 'monospace' }}>{asin.sku || 'N/A'}</Text>
                 </div>
               </Space>
             </div>
 
             {/* Dense Sentiment Block */}
             <div style={{ 
-              background: 'linear-gradient(135deg, var(--text-primary, #0f172a) 0%, var(--text-primary, #0f172a) 100%)', 
+              background: 'linear-gradient(135deg, var(--text-primary, var(--bc-slate-900)) 0%, var(--text-primary, var(--bc-slate-900)) 100%)', 
               borderRadius: 'var(--radius-lg)', 
               padding: '14px',
               color: '#fff'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <Text style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer Feedback</Text>
+                <Text style={{ color: 'var(--text-muted, var(--bc-slate-400))', fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer Feedback</Text>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: 'rgba(250, 204, 21, 0.15)', color: '#facc15', padding: '2px 6px', borderRadius: 'var(--radius-md, 8px)', fontSize: 'var(--font-size-xs)', fontWeight: 700 }}>
                   <Zap size={10} fill="currentColor" /> {typeof asin.rating === 'number' ? asin.rating.toFixed(1) : (asin.rating || '0.0')}
                 </div>
@@ -157,7 +157,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                   Open Marketplace
                 </Button>
               </div>
-              <Title level={5} style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary, #0f172a)', fontSize: 'var(--font-size-base)', lineHeight: 1.4 }}>
+              <Title level={5} style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', fontSize: 'var(--font-size-base)', lineHeight: 1.4 }}>
                 {asin.title || 'Listing title pending ingestion...'}
               </Title>
             </div>
@@ -169,7 +169,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                   title={<Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pricing</Text>}
                   value={asin.currentPrice || 0}
                   prefix="₹"
-                  styles={{ content: { color: 'var(--text-primary, #0f172a)', fontWeight: 700, fontSize: 'var(--font-size-lg)', lineHeight: 1.2 } }}
+                  styles={{ content: { color: 'var(--text-primary, var(--bc-slate-900))', fontWeight: 700, fontSize: 'var(--font-size-lg)', lineHeight: 1.2 } }}
                 />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                   {discountPct > 0 && (
@@ -186,7 +186,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                   title={<Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>BSR Rank</Text>}
                   value={asin.bsr || 0}
                   formatter={(val) => `#${val?.toLocaleString() || '—'}`}
-                  styles={{ content: { color: 'var(--text-brand, #1976D2)', fontWeight: 700, fontSize: 'var(--font-size-lg)', lineHeight: 1.2 } }}
+                  styles={{ content: { color: 'var(--text-brand, var(--bc-ro-500))', fontWeight: 700, fontSize: 'var(--font-size-lg)', lineHeight: 1.2 } }}
                 />
                 <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', marginTop: '2px' }}>Category Tier</Text>
               </div>
@@ -196,13 +196,13 @@ const AsinDetailsModal = ({ asin, onClose }) => {
             {asin.subBSRs?.length > 0 && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                  <BarChart size={11} style={{ color: 'var(--text-secondary, #64748b)' }} />
+                  <BarChart size={11} style={{ color: 'var(--text-secondary, var(--bc-slate-500))' }} />
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sub-Category Segments</Text>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {asin.subBSRs.map((rank, idx) => (
                     <Tag key={idx} variant="filled" style={{ 
-                      background: 'var(--bg-secondary, #f8fafc)', 
+                      background: 'var(--bg-secondary, var(--bc-slate-50))', 
                       padding: '2px 8px', 
                       borderRadius: 'var(--radius-md, 8px)',
                       fontWeight: 600,
@@ -221,14 +221,14 @@ const AsinDetailsModal = ({ asin, onClose }) => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Enhanced Bullets</Text>
-                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, #94a3b8)' }}>{asin.bulletPointsList?.length || 0} Total</Text>
+                <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, var(--bc-slate-400))' }}>{asin.bulletPointsList?.length || 0} Total</Text>
               </div>
               <div 
                 style={{ 
                   maxHeight: '180px', 
                   overflowY: 'auto', 
-                  background: 'var(--bg-secondary, #f8fafc)', 
-                  border: '1px solid var(--border-light, #d9e6e9)', 
+                  background: 'var(--bg-secondary, var(--bc-slate-50))', 
+                  border: '1px solid var(--border-light, var(--border-light))', 
                   borderRadius: 'var(--radius-lg)', 
                   padding: '12px' 
                 }} 
@@ -244,7 +244,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
                     ))}
                   </ul>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted, #94a3b8)' }}>
+                  <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted, var(--bc-slate-400))' }}>
                     <AlertCircle size={16} style={{ marginBottom: '4px' }} />
                     <Text type="secondary" style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>No structured bullet descriptions available.</Text>
                   </div>

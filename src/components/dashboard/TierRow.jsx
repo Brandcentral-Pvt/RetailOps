@@ -68,8 +68,8 @@ const TierRow = memo(({ tier, total }) => {
                         <span style={{
                             fontSize: 'var(--font-size-xs)',
                             fontWeight: 600,
-                            color: 'var(--text-secondary, #64748b)',
-                            background: 'var(--border-light, #d9e6e9)',
+                            color: 'var(--text-secondary, var(--bc-slate-500))',
+                            background: 'var(--border-light, var(--border-light))',
                             padding: '1px 5px',
                             borderRadius: "var(--radius-sm)"
                         }}>
@@ -78,7 +78,7 @@ const TierRow = memo(({ tier, total }) => {
                     </div>
                     <div style={{
                         fontSize: 'var(--font-size-xs)',
-                        color: 'var(--text-secondary, #64748b)',
+                        color: 'var(--text-secondary, var(--bc-slate-500))',
                         fontWeight: 500
                     }}>
                         {tier.description}
@@ -100,7 +100,7 @@ const TierRow = memo(({ tier, total }) => {
                     </div>
                     <div style={{
                         fontSize: 'var(--font-size-xs)',
-                        color: 'var(--text-secondary, #64748b)',
+                        color: 'var(--text-secondary, var(--bc-slate-500))',
                         fontWeight: 600,
                         marginTop: 2
                     }}>

@@ -127,7 +127,7 @@ const KpiCard = memo(({ card, isLast }) => {
             className="kpi-premium-card"
             style={{
                 borderRadius: "var(--radius-md)",
-                border: '1px solid var(--border-light, #d9e6e9)',
+                border: '1px solid var(--border-light, var(--border-light))',
                 background: 'var(--bg-primary, #fff)',
                 overflow: 'hidden',
                 height: 135,
@@ -139,22 +139,22 @@ const KpiCard = memo(({ card, isLast }) => {
         >
             <div style={{ padding: '12px 12px 6px 12px', display: 'flex', flexDirection: 'column', height: '100%', flexGrow: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)' }}>{label}</span>
+                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))' }}>{label}</span>
                     <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: indicatorColor }}>
                         {displayTrend}
                     </span>
                 </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary, #0f172a)', marginBottom: 6, fontFamily: 'system-ui, -apple-system' }}>
+                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary, var(--bc-slate-900))', marginBottom: 6, fontFamily: 'system-ui, -apple-system' }}>
                     {value}
                 </div>
                 {subValue && (
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 500, marginBottom: 4 }}>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 500, marginBottom: 4 }}>
                         {subValue}
                     </div>
                 )}
                 <div style={{ marginTop: 'auto', marginBottom: 4 }}>
                     {showProgress ? (
-                        <div style={{ height: 5, background: 'var(--border-light, #d9e6e9)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: 5, background: 'var(--border-light, var(--border-light))', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${Math.min(progressValue, 100)}%`, background: color, borderRadius: 3 }} />
                         </div>
                     ) : sparkline ? (
@@ -164,8 +164,8 @@ const KpiCard = memo(({ card, isLast }) => {
                     )}
                 </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-light, #d9e6e9)', padding: '6px 12px', background: 'var(--bg-primary, #fff)' }}>
-                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-light, var(--border-light))', padding: '6px 12px', background: 'var(--bg-primary, #fff)' }}>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
                     See more details <span style={{ fontSize: 'var(--font-size-xs)' }}>&gt;</span>
                 </span>
             </div>
@@ -242,7 +242,7 @@ const KpiStrip = ({
             isPositive: true,
             icon: <Package size={16} strokeWidth={2.5} />,
             color: 'var(--bc-purple-500)',
-            gradient: 'linear-gradient(135deg, #a78bfa 0%, #9C27B0 100%)',
+            gradient: 'linear-gradient(135deg, #a78bfa 0%, var(--bc-purple-500) 100%)',
             sparkline: sparklineData.units || defaultSparklines.units,
         },
     ];
@@ -257,7 +257,7 @@ const KpiStrip = ({
             isPositive: true,
             icon: <Target size={16} strokeWidth={2.5} />,
             color: 'var(--bc-ro-500)',
-            gradient: 'linear-gradient(135deg, #818cf8 0%, #1976D2 100%)',
+            gradient: 'linear-gradient(135deg, #818cf8 0%, var(--bc-ro-500) 100%)',
             accentLeft: false,
         },
         {
@@ -282,7 +282,7 @@ const KpiStrip = ({
             gradient: achievementRate >= 100
                 ? 'linear-gradient(135deg, #34d399 0%, #2E7D32 100%)'
                 : achievementRate >= 80
-                    ? 'linear-gradient(135deg, #60a5fa 0%, #0288D1 100%)'
+                    ? 'linear-gradient(135deg, var(--bc-blue-400) 0%, #0288D1 100%)'
                     : achievementRate >= 50
                         ? 'linear-gradient(135deg, #fbbf24 0%, #E65100 100%)'
                         : 'linear-gradient(135deg, #f87171 0%, #D32F2F 100%)',
@@ -312,10 +312,10 @@ const KpiStrip = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
+                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, var(--bc-red-50)) 0%, var(--bg-danger-subtle, var(--bc-red-100)) 100%)',
                         padding: '5px 12px',
                         borderRadius: 20,
-                        border: '1px solid var(--bg-danger-subtle, #fecaca)'
+                        border: '1px solid var(--bg-danger-subtle, var(--bc-red-200))'
                     }}>
                         <BarChart3 size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
                         <span style={{
@@ -360,10 +360,10 @@ const KpiStrip = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
+                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, var(--bc-red-50)) 0%, var(--bg-danger-subtle, var(--bc-red-100)) 100%)',
                         padding: '5px 12px',
                         borderRadius: 20,
-                        border: '1px solid var(--bg-danger-subtle, #fecaca)'
+                        border: '1px solid var(--bg-danger-subtle, var(--bc-red-200))'
                     }}>
                         <Target size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
                         <span style={{

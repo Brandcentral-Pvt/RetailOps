@@ -86,7 +86,7 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
       <div style={{ ...MODAL_STYLES.bodyStyle, maxHeight: '70vh', overflowY: 'auto' }}>
         <Card
           styles={{ body: { padding: '12px 16px' } }}
-          style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', marginBottom: 16, background: '#fafbfc' }}
+          style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)', marginBottom: 16, background: '#fafbfc' }}
         >
           <Space orientation="vertical" size={6} style={{ width: '100%' }}>
             <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-800)' }}>{action.title}</Text>

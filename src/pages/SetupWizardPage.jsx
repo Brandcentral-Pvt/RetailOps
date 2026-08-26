@@ -408,21 +408,21 @@ const SetupWizardPage = () => {
             <div style={{ maxHeight: 220, overflowY: 'auto', padding: 16 }}>
               <div style={{ marginBottom: 20 }}>
                 <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', marginBottom: 6 }}>1. Terms of Service</Text>
-                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid var(--bc-slate-100)' }}>
                   {policyTexts.tos}
                 </div>
               </div>
 
               <div style={{ marginBottom: 20 }}>
                 <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', marginBottom: 6 }}>2. Privacy Policy</Text>
-                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid var(--bc-slate-100)' }}>
                   {policyTexts.privacy}
                 </div>
               </div>
 
               <div style={{ marginBottom: 12 }}>
                 <Text strong style={{ display: 'block', fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', marginBottom: 6 }}>3. User Compliance & Responsibilities</Text>
-                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', lineHeight: 1.5, whiteSpace: 'pre-wrap', background: 'var(--bc-slate-50)', padding: 12, borderRadius: 6, border: '1px solid var(--bc-slate-100)' }}>
                   {policyTexts.responsibilities}
                 </div>
               </div>
@@ -430,7 +430,7 @@ const SetupWizardPage = () => {
           </div>
 
           {/* Individual accept Checkboxes */}
-          <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-md)", padding: 16 }}>
+          <div style={{ border: '1px solid var(--bc-slate-200)', background: '#fff', borderRadius: "var(--radius-md)", padding: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }} onClick={() => setPolicies({ ...policies, tos: !policies.tos })}>
                 <input type="checkbox" checked={policies.tos} readOnly style={{ marginTop: 3, cursor: 'pointer' }} />
@@ -497,13 +497,13 @@ const SetupWizardPage = () => {
             Congratulations, your credentials and privacy agreements have been successfully updated.
           </Text>
 
-          <div style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: "var(--radius-lg)", padding: 20, textAlign: 'left', marginBottom: 16 }}>
+          <div style={{ border: '1px solid var(--bc-slate-200)', background: '#fff', borderRadius: "var(--radius-lg)", padding: 20, textAlign: 'left', marginBottom: 16 }}>
             <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', color: 'var(--bc-slate-500)', letterSpacing: 0.5 }}>
               Setup Summary
             </Title>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {items.map(item => (
-                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', borderBottom: '1px solid #f1f5f9', paddingBottom: 6 }}>
+                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', borderBottom: '1px solid var(--bc-slate-100)', paddingBottom: 6 }}>
                   <Text type="secondary">{item.label}</Text>
                   <Text strong>{item.children}</Text>
                 </div>

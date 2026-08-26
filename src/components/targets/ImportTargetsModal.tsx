@@ -229,7 +229,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                 if (!rec.year || !rec.month) return <Text type="danger" style={{ fontSize: 11 }}>Invalid</Text>;
                 const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][rec.month - 1];
                 return (
-                    <Tag style={{ borderRadius: 12, background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe', color: '#0288D1', fontWeight: 600, fontSize: 11 }}>
+                    <Tag style={{ borderRadius: 12, background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-200)', color: '#0288D1', fontWeight: 600, fontSize: 11 }}>
                         {monthName} {rec.year}
                     </Tag>
                 );
@@ -294,7 +294,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                 <Space size={10}>
                     <div style={{
                         width: 36, height: 36, borderRadius: 10,
-                        background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                        background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-purple-500))',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                         <FileSpreadsheet size={18} color="white" />

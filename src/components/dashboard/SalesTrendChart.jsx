@@ -32,7 +32,7 @@ const MetricSummary = memo(({ label, value, change, color, icon: Icon, isPositiv
             <span style={{
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 700,
-                    color: 'var(--text-secondary, #64748b)',
+                    color: 'var(--text-secondary, var(--bc-slate-500))',
                     textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 whiteSpace: 'nowrap',
@@ -45,7 +45,7 @@ const MetricSummary = memo(({ label, value, change, color, icon: Icon, isPositiv
         <div style={{
             fontSize: 'var(--font-size-lg)',
             fontWeight: 700,
-            color: 'var(--text-primary, #0f172a)',
+            color: 'var(--text-primary, var(--bc-slate-900))',
             letterSpacing: '-0.3px',
             lineHeight: 1.1,
             marginBottom: 3
@@ -60,7 +60,7 @@ const MetricSummary = memo(({ label, value, change, color, icon: Icon, isPositiv
                 fontSize: 'var(--font-size-xs)',
                 fontWeight: 600,
                 color: isPositive ? '#2E7D32' : '#D32F2F',
-                background: isPositive ? 'var(--bg-success-subtle, #d1fae5)' : 'var(--bg-danger-subtle, #fee2e2)',
+                background: isPositive ? 'var(--bg-success-subtle, #d1fae5)' : 'var(--bg-danger-subtle, var(--bc-red-100))',
                 padding: '1px 6px',
                 borderRadius: "var(--radius-md)"
             }}>
@@ -229,7 +229,7 @@ const SalesTrendChart = ({
             }
         },
         grid: {
-            borderColor: 'var(--border-light, #d9e6e9)',
+            borderColor: 'var(--border-light, var(--border-light))',
             strokeDashArray: 4,
             xaxis: { lines: { show: false } },
             yaxis: { lines: { show: true } },
@@ -273,7 +273,7 @@ const SalesTrendChart = ({
                 styles={{ body: { padding: 0 } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
+                    border: '1px solid var(--border-light, var(--border-light))',
                     background: 'var(--bg-primary, #fff)',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
                     height: '100%',
@@ -285,7 +285,7 @@ const SalesTrendChart = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '18px 20px 14px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)'
+                    borderBottom: '1px solid var(--border-light, var(--border-light))'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -314,7 +314,7 @@ const SalesTrendChart = ({
                                 <div style={{
                                     fontSize: 'var(--font-size-base)',
                                     fontWeight: 700,
-                                    color: 'var(--text-primary, #0f172a)',
+                                    color: 'var(--text-primary, var(--bc-slate-900))',
                                     letterSpacing: '-0.01em',
                                     lineHeight: 1.2,
                                     display: 'flex',
@@ -332,7 +332,7 @@ const SalesTrendChart = ({
                                 </div>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 2
                                 }}>
@@ -361,7 +361,7 @@ const SalesTrendChart = ({
                                 }
                             ]}
                             style={{
-                                background: 'var(--border-light, #d9e6e9)',
+                                background: 'var(--border-light, var(--border-light))',
                                 fontWeight: 600
                             }}
                         />
@@ -414,8 +414,8 @@ const SalesTrendChart = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    background: 'var(--bg-secondary, #f8fafc)',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)'
+                    background: 'var(--bg-secondary, var(--bc-slate-50))',
+                    borderBottom: '1px solid var(--border-light, var(--border-light))'
                 }}>
                     <div style={{ display: 'flex', gap: 14 }}>
                         <div
@@ -426,24 +426,24 @@ const SalesTrendChart = ({
                                 alignItems: 'center',
                                 gap: 6,
                                 padding: '4px 10px',
-                                background: showRevenue ? 'var(--bg-info-subtle, #eff6ff)' : 'var(--border-light, #d9e6e9)',
-                                border: `1px solid ${showRevenue ? 'var(--bc-blue-200)' : 'var(--border-light, #d9e6e9)'}`,
+                                background: showRevenue ? 'var(--bg-info-subtle, var(--bc-blue-50))' : 'var(--border-light, var(--border-light))',
+                                border: `1px solid ${showRevenue ? 'var(--bc-blue-200)' : 'var(--border-light, var(--border-light))'}`,
                                 borderRadius: "var(--radius-md)"
                             }}
                         >
-                            {showRevenue ? <Eye size={10} style={{ color: 'var(--color-info-blue, #0288D1)' }} /> : <EyeOff size={10} style={{ color: 'var(--text-tertiary, #94a3b8)' }} />}
+                            {showRevenue ? <Eye size={10} style={{ color: 'var(--color-info-blue, #0288D1)' }} /> : <EyeOff size={10} style={{ color: 'var(--text-tertiary, var(--bc-slate-400))' }} />}
                             <div style={{
                                 width: 10,
                                 height: 10,
                                 borderRadius: 2,
                                 background: showRevenue
                                     ? 'linear-gradient(135deg, #0288D1 0%, #0288D1 100%)'
-                                    : 'var(--border-medium, #cbd5e1)'
+                                    : 'var(--border-medium, var(--bc-slate-300))'
                             }} />
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: showRevenue ? 'var(--bc-blue-800)' : 'var(--text-tertiary, #94a3b8)'
+                                color: showRevenue ? 'var(--bc-blue-800)' : 'var(--text-tertiary, var(--bc-slate-400))'
                             }}>
                                 Revenue
                             </span>
@@ -457,24 +457,24 @@ const SalesTrendChart = ({
                                 alignItems: 'center',
                                 gap: 6,
                                 padding: '4px 10px',
-                                background: showSpend ? 'var(--bg-warning-subtle, #fffbeb)' : 'var(--border-light, #d9e6e9)',
-                                border: `1px solid ${showSpend ? 'var(--bc-amber-200)' : 'var(--border-light, #d9e6e9)'}`,
+                                background: showSpend ? 'var(--bg-warning-subtle, var(--bc-amber-50))' : 'var(--border-light, var(--border-light))',
+                                border: `1px solid ${showSpend ? 'var(--bc-amber-200)' : 'var(--border-light, var(--border-light))'}`,
                                 borderRadius: "var(--radius-md)"
                             }}
                         >
-                            {showSpend ? <Eye size={10} style={{ color: '#E65100' }} /> : <EyeOff size={10} style={{ color: 'var(--text-tertiary, #94a3b8)' }} />}
+                            {showSpend ? <Eye size={10} style={{ color: '#E65100' }} /> : <EyeOff size={10} style={{ color: 'var(--text-tertiary, var(--bc-slate-400))' }} />}
                             <div style={{
                                 width: 10,
                                 height: 10,
                                 borderRadius: 2,
                                 background: showSpend
                                     ? 'linear-gradient(135deg, #fbbf24 0%, #ED6C02 100%)'
-                                    : 'var(--border-medium, #cbd5e1)'
+                                    : 'var(--border-medium, var(--bc-slate-300))'
                             }} />
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: showSpend ? 'var(--bc-amber-800)' : 'var(--text-tertiary, #94a3b8)'
+                                color: showSpend ? 'var(--bc-amber-800)' : 'var(--text-tertiary, var(--bc-slate-400))'
                             }}>
                                 Ad Spend
                             </span>
@@ -523,7 +523,7 @@ const SalesTrendChart = ({
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: 'var(--text-tertiary, #94a3b8)',
+                                color: 'var(--text-tertiary, var(--bc-slate-400))',
                                 gap: 8
                             }}>
                                 <EyeOff size={24} />
@@ -543,8 +543,8 @@ const SalesTrendChart = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '10px 20px',
-                    background: 'var(--bg-secondary, #f8fafc)',
-                    borderTop: '1px solid var(--border-light, #d9e6e9)',
+                    background: 'var(--bg-secondary, var(--bc-slate-50))',
+                    borderTop: '1px solid var(--border-light, var(--border-light))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -557,7 +557,7 @@ const SalesTrendChart = ({
                             alignItems: 'center',
                             gap: 4,
                             fontSize: 'var(--font-size-xs)',
-                            color: 'var(--text-secondary, #64748b)',
+                            color: 'var(--text-secondary, var(--bc-slate-500))',
                             fontWeight: 600
                         }}>
                             <Calendar size={10} />
@@ -568,7 +568,7 @@ const SalesTrendChart = ({
                             alignItems: 'center',
                             gap: 4,
                             fontSize: 'var(--font-size-xs)',
-                            color: 'var(--text-secondary, #64748b)',
+                            color: 'var(--text-secondary, var(--bc-slate-500))',
                             fontWeight: 600
                         }}>
                             <Activity size={10} />
@@ -583,10 +583,10 @@ const SalesTrendChart = ({
                         fontSize: 'var(--font-size-xs)',
                         fontWeight: 600,
                         color: stats.acos <= 25 ? '#2E7D32' : '#E65100',
-                        background: stats.acos <= 25 ? 'var(--bg-success-subtle, #d1fae5)' : 'var(--bg-warning-subtle, #fef3c7)',
+                        background: stats.acos <= 25 ? 'var(--bg-success-subtle, #d1fae5)' : 'var(--bg-warning-subtle, var(--bc-amber-100))',
                         padding: '3px 9px',
                         borderRadius: "var(--radius-lg)",
-                        border: `1px solid ${stats.acos <= 25 ? 'var(--bg-success-subtle, #a7f3d0)' : 'var(--bg-warning-subtle, #fde68a)'}`
+                        border: `1px solid ${stats.acos <= 25 ? 'var(--bg-success-subtle, #a7f3d0)' : 'var(--bg-warning-subtle, var(--bc-amber-200))'}`
                     }}>
                         Blended ACoS: {stats.acos.toFixed(1)}%
                     </div>

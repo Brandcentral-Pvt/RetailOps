@@ -290,12 +290,12 @@ const SellerAsinsModal = memo(({
             <img
               src={record.imageUrl}
               alt={record.asinCode}
-              style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, #d9e6e9)', cursor: 'pointer' }}
+              style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, var(--border-light))', cursor: 'pointer' }}
             />
           </Popover>
         ) : (
-          <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, #d9e6e9)', background: 'var(--bg-secondary, #f8fafc)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Package size={16} style={{ color: 'var(--text-muted, #94a3b8)' }} />
+          <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light, var(--border-light))', background: 'var(--bg-secondary, var(--bc-slate-50))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Package size={16} style={{ color: 'var(--text-muted, var(--bc-slate-400))' }} />
           </div>
         )
       ),
@@ -308,9 +308,9 @@ const SellerAsinsModal = memo(({
       sorter: (a, b) => (a.asinCode || '').localeCompare(b.asinCode || ''),
       render: (text, record) => (
         <div>
-          <Text strong code style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{text}</Text>
+          <Text strong code style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, var(--bc-slate-900))' }}>{text}</Text>
           {record.lastScraped && (
-            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))', marginTop: 2 }}>
               Synced {new Date(record.lastScraped).toLocaleDateString()}
             </div>
           )}
@@ -346,7 +346,7 @@ const SellerAsinsModal = memo(({
       render: (_, record) => (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, var(--bc-slate-900))' }}>
               ₹{record.currentPrice?.toLocaleString() || '0'}
             </Text>
             {record.buyBoxWin && (
@@ -374,14 +374,14 @@ const SellerAsinsModal = memo(({
           icon={
             status === 'Active'
               ? <CheckCircle2 size={14} color="var(--text-success, #2E7D32)" />
-              : <PauseCircle size={14} color="var(--text-muted, #94a3b8)" />
+              : <PauseCircle size={14} color="var(--text-muted, var(--bc-slate-400))" />
           }
           onClick={() => onToggleStatus(record._id, status)}
           style={{
             fontWeight: 600,
             fontSize: 'var(--font-size-xs)',
             textTransform: 'uppercase',
-            color: status === 'Active' ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, #94a3b8)',
+            color: status === 'Active' ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, var(--bc-slate-400))',
           }}
         >
           {status}
@@ -480,7 +480,7 @@ const SellerAsinsModal = memo(({
               {seller?.marketplace && (
                 <Tag style={{
                   background: 'var(--bg-secondary, #f4f4f5)',
-                  border: '1px solid var(--border-light, #d9e6e9)',
+                  border: '1px solid var(--border-light, var(--border-light))',
                   borderRadius: 'var(--radius-md, 8px)',
                   fontWeight: 600,
                   textTransform: 'uppercase',
@@ -508,7 +508,7 @@ const SellerAsinsModal = memo(({
         {selectedIds.size > 0 && (
           <div style={{
             padding: '10px 24px',
-            background: 'var(--text-primary, #0f172a)',
+            background: 'var(--text-primary, var(--bc-slate-900))',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -520,7 +520,7 @@ const SellerAsinsModal = memo(({
               <Tag color="blue" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
                 {selectedIds.size} Selected
               </Tag>
-              <Text style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-sm)' }}>
+              <Text style={{ color: 'var(--text-muted, var(--bc-slate-400))', fontSize: 'var(--font-size-sm)' }}>
                 Bulk actions for selected ASINs
               </Text>
             </Space>
@@ -564,7 +564,7 @@ const SellerAsinsModal = memo(({
               <Button
                 size="small"
                 onClick={() => setSelectedIds(new Set())}
-                style={{ color: 'var(--text-muted, #94a3b8)' }}
+                style={{ color: 'var(--text-muted, var(--bc-slate-400))' }}
               >
                 Clear
               </Button>
@@ -636,7 +636,7 @@ const SellerAsinsModal = memo(({
                   type="primary"
                   icon={<Plus size={13} />}
                   onClick={() => setShowAddAsinModal(true)}
-                  style={{ background: 'var(--text-primary, #0f172a)', borderColor: 'var(--text-primary, #0f172a)', fontWeight: 600 }}
+                  style={{ background: 'var(--text-primary, var(--bc-slate-900))', borderColor: 'var(--text-primary, var(--bc-slate-900))', fontWeight: 600 }}
                 >
                   Add ASIN(s)
                 </Button>

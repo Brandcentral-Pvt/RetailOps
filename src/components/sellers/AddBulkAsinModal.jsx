@@ -154,12 +154,12 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
             letterSpacing: '0.05em', textTransform: 'uppercase',
             display: 'flex', alignItems: 'center', gap: 5
           }}>
-            <Scan size={13} color="var(--text-secondary, #64748b)" /> ASIN List
+            <Scan size={13} color="var(--text-secondary, var(--bc-slate-500))" /> ASIN List
           </label>
           {hasContent && (
             <Button type="text" size="small" icon={<X size={11} />}
               onClick={handleClear}
-              style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', height: 'auto', padding: '2px 6px' }}>
+              style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))', height: 'auto', padding: '2px 6px' }}>
               Clear
             </Button>
           )}
@@ -177,12 +177,12 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
           style={{
             fontFamily: 'monospace', fontSize: 'var(--font-size-sm)',
             borderRadius: 'var(--radius-lg, 12px)', lineHeight: '20px',
-            resize: 'vertical', border: '1.5px solid var(--border-light, #d9e6e9)'
+            resize: 'vertical', border: '1.5px solid var(--border-light, var(--border-light))'
           }}
           aria-label="ASIN input"
           aria-describedby="asin-hint"
         />
-        <div id="asin-hint" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', marginTop: 5, fontStyle: 'italic' }}>
+        <div id="asin-hint" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))', marginTop: 5, fontStyle: 'italic' }}>
           Valid ASINs are exactly 10 alphanumeric characters (e.g. B07X6C9RMF)
         </div>
 
@@ -195,12 +195,12 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
               {/* Valid count */}
               <div style={{
                 flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-lg, 12px)',
-                background: valid.length > 0 ? 'var(--bg-success-subtle, #f0fdf4)' : 'var(--bg-secondary, #f8fafc)',
-                border: `1.5px solid ${valid.length > 0 ? '#86efac' : 'var(--border-light, #d9e6e9)'}`
+                background: valid.length > 0 ? 'var(--bg-success-subtle, var(--bc-green-50))' : 'var(--bg-secondary, var(--bc-slate-50))',
+                border: `1.5px solid ${valid.length > 0 ? '#86efac' : 'var(--border-light, var(--border-light))'}`
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <CheckCircle2 size={14} color={valid.length > 0 ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, #94a3b8)'} />
-                  <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: valid.length > 0 ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, #94a3b8)' }}>
+                  <CheckCircle2 size={14} color={valid.length > 0 ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, var(--bc-slate-400))'} />
+                  <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: valid.length > 0 ? 'var(--text-success, #2E7D32)' : 'var(--text-muted, var(--bc-slate-400))' }}>
                     {valid.length} Valid ASIN{valid.length !== 1 ? 's' : ''}
                   </Text>
                   {valid.length > 0 && (
@@ -220,7 +220,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
                       <Tag key={asin} style={{
                         fontFamily: 'monospace', fontSize: 'var(--font-size-xs)', fontWeight: 600,
                         borderRadius: "var(--radius-sm)", margin: 0,
-                        background: 'var(--bg-success-subtle, #dcfce7)', border: '1px solid var(--color-success-border, #bbf7d0)', color: 'var(--text-success, #2E7D32)'
+                        background: 'var(--bg-success-subtle, var(--bc-green-100))', border: '1px solid var(--color-success-border, var(--bc-green-200))', color: 'var(--text-success, #2E7D32)'
                       }}>
                         {asin}
                       </Tag>
@@ -228,7 +228,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
                     {valid.length > 5 && (
                       <Tag style={{
                         fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-sm)", margin: 0,
-                        background: 'var(--bg-success-subtle, #dcfce7)', border: '1px solid var(--color-success-border, #bbf7d0)', color: 'var(--text-success, #2E7D32)'
+                        background: 'var(--bg-success-subtle, var(--bc-green-100))', border: '1px solid var(--color-success-border, var(--bc-green-200))', color: 'var(--text-success, #2E7D32)'
                       }}>
                         +{valid.length - 5} more
                       </Tag>
@@ -241,7 +241,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
               {invalid.length > 0 && (
                 <div style={{
                   flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-lg, 12px)',
-                  background: 'var(--bg-danger-subtle, #fef2f2)', border: '1.5px solid #fca5a5'
+                  background: 'var(--bg-danger-subtle, var(--bc-red-50))', border: '1.5px solid #fca5a5'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <AlertCircle size={14} color="var(--text-danger, #D32F2F)" />
@@ -254,7 +254,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
                       <Tag key={val} style={{
                         fontFamily: 'monospace', fontSize: 'var(--font-size-xs)',
                         borderRadius: "var(--radius-sm)", margin: 0,
-                        background: 'var(--bg-danger-subtle, #fee2e2)', border: '1px solid #fca5a5', color: 'var(--text-danger, #D32F2F)'
+                        background: 'var(--bg-danger-subtle, var(--bc-red-100))', border: '1px solid #fca5a5', color: 'var(--text-danger, #D32F2F)'
                       }}>
                         {val}
                       </Tag>
@@ -262,7 +262,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
                     {invalid.length > 4 && (
                       <Tag style={{
                         fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-sm)", margin: 0,
-                        background: 'var(--bg-danger-subtle, #fee2e2)', border: '1px solid #fca5a5', color: 'var(--text-danger, #D32F2F)'
+                        background: 'var(--bg-danger-subtle, var(--bc-red-100))', border: '1px solid #fca5a5', color: 'var(--text-danger, #D32F2F)'
                       }}>
                         +{invalid.length - 4} more
                       </Tag>
@@ -295,7 +295,7 @@ const AddBulkAsinModal = memo(({ seller, onClose, onAdd, isSubmitting = false })
         disabled={!canSubmit}
         confirmIcon={!isSubmitting ? <Plus size={14} /> : undefined}
         extra={
-          <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)' }}>
+          <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))' }}>
             {valid.length > 0 ? `Ready to add ${valid.length} ASIN${valid.length !== 1 ? 's' : ''}` : 'Paste or type your ASINs above'}
           </Text>
         }

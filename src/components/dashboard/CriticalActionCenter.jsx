@@ -37,14 +37,14 @@ const ActionCard = ({ icon: Icon, title, description, severity, count, assignee,
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{title}</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, var(--bc-slate-900))' }}>{title}</Text>
           {count > 0 && <Badge count={count} style={{ backgroundColor: config.color, fontSize: 'var(--font-size-xs)' }} />}
         </div>
-        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'block', marginBottom: 4 }}>{description}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', display: 'block', marginBottom: 4 }}>{description}</Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {assignee && <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-sm)", margin: 0 }}>{assignee}</Tag>}
           {dueDate && (
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', display: 'flex', alignItems: 'center', gap: 3 }}>
               <Clock size={10} /> {dueDate}
             </span>
           )}
@@ -79,15 +79,15 @@ const CriticalActionCenter = ({
       padding: '16px 20px', 
       background: 'var(--bg-primary, #fff)', 
       borderRadius: "var(--radius-xl, 16px)", 
-      border: '1px solid var(--border-light, #d9e6e9)',
+      border: '1px solid var(--border-light, var(--border-light))',
       marginBottom: 20
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: 'var(--bg-danger-subtle, #fef2f2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: 'var(--bg-danger-subtle, var(--bc-red-50))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertTriangle size={14} color="#D32F2F" />
           </div>
-          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Critical Actions</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, var(--bc-slate-900))' }}>Critical Actions</Text>
           {hasActions && <Badge count={actions.reduce((a, b) => a + b.count, 0)} style={{ backgroundColor: 'var(--text-danger, #D32F2F)' }} />}
         </div>
         <Button type="link" size="small" style={{ fontSize: 'var(--font-size-sm)', padding: 0 }}>View All</Button>

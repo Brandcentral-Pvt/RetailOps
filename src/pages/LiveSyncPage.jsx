@@ -337,7 +337,7 @@ export default function LiveSyncPage() {
                         {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
                       </Text>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid var(--bc-blue-200)', borderRadius: 8 }}>
                       <Checkbox checked={aiEnabled} onChange={e => setAiEnabled(e.target.checked)} style={{ marginTop: 1 }}>
                         <Text style={{ fontSize: 'var(--bc-text-xs)', fontWeight: 600 }}>AI Analysis
                           <Text type="secondary" style={{ fontSize: 'var(--bc-text-xs)', display: 'block', fontWeight: 400 }}>LQS scored by NVIDIA AI vs Amazon criteria + vision check (slower)</Text>

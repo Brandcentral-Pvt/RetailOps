@@ -82,7 +82,7 @@ export default function TemplateDetailPage() {
               <Space><Tag style={{ fontWeight: 600, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: "var(--radius-sm)" }}>Phase {stIdx + 1}</Tag>{st.title || st.name}</Space>
             } style={{ borderRadius: "var(--radius-md)" }}>
               {(st.activities || []).map((act, actIdx) => (
-                <div key={actIdx} style={{ padding: '8px 12px', borderBottom: actIdx < st.activities.length - 1 ? '1px solid #f1f5f9' : 'none', display: 'flex', gap: 10 }}>
+                <div key={actIdx} style={{ padding: '8px 12px', borderBottom: actIdx < st.activities.length - 1 ? '1px solid var(--bc-slate-100)' : 'none', display: 'flex', gap: 10 }}>
                   <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)', borderRadius: "var(--radius-sm)", height: 20, alignSelf: 'flex-start' }}>Step {actIdx + 1}</Tag>
                   <div style={{ flex: 1 }}>
                     <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{act.title}</Text>
@@ -106,7 +106,7 @@ export default function TemplateDetailPage() {
       children: (
         <Row gutter={[12, 12]}>
           <Col xs={12} sm={6}>
-            <Card size="small" styles={{ body: { padding: '10px 14px' } }} style={{ borderRadius: "var(--radius-md)", borderLeft: '3px solid #2563eb' }}>
+            <Card size="small" styles={{ body: { padding: '10px 14px' } }} style={{ borderRadius: "var(--radius-md)", borderLeft: '3px solid var(--bc-blue-600)' }}>
               <Statistic title="Total Instances" value={analytics.totalInstances || 0} valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800 }} />
             </Card>
           </Col>
@@ -116,7 +116,7 @@ export default function TemplateDetailPage() {
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card size="small" styles={{ body: { padding: '10px 14px' } }} style={{ borderRadius: "var(--radius-md)", borderLeft: '3px solid #2563eb' }}>
+            <Card size="small" styles={{ body: { padding: '10px 14px' } }} style={{ borderRadius: "var(--radius-md)", borderLeft: '3px solid var(--bc-blue-600)' }}>
               <Statistic title="Completion Rate" value={`${analytics.completionRate || 0}%`} valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800 }} />
             </Card>
           </Col>

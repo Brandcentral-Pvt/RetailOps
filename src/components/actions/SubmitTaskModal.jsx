@@ -147,7 +147,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
       closable={!submitting} mask={{ closable: false }} destroyOnHidden
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: hasReviewer ? 'linear-gradient(135deg, #1976D2, #1976D2)' : 'linear-gradient(135deg, #2E7D32, #2E7D32)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${hasReviewer ? 'rgba(99,102,241,0.3)' : 'rgba(16,185,129,0.3)'}` }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: hasReviewer ? 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))' : 'linear-gradient(135deg, #2E7D32, #2E7D32)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 8px ${hasReviewer ? 'rgba(99,102,241,0.3)' : 'rgba(16,185,129,0.3)'}` }}>
             {hasReviewer ? <SendOutlined style={{ fontSize: 'var(--font-size-base)', color: '#fff' }} /> : <CheckCircleOutlined style={{ fontSize: 'var(--font-size-base)', color: '#fff' }} />}
           </div>
           <div>
@@ -273,7 +273,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
       </Form>
 
       {/* Footer */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: 14, marginTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--bc-slate-100)', paddingTop: 14, marginTop: 16 }}>
         <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
           {hasReviewer ? 'Your submission will be sent to the reviewer for approval.' : 'Task will be marked as completed.'}
         </Text>

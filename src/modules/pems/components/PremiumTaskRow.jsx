@@ -60,7 +60,7 @@ function CategoryMetrics({ task, categoryKey }) {
           </Tag>
         </Tooltip>
         {task.ImagesMissing > 0 && (
-          <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid var(--bc-red-200)', margin: 0, lineHeight: '16px', padding: '0 5px' }}>
             {task.ImagesMissing} img
           </Tag>
         )}
@@ -85,8 +85,8 @@ function CategoryMetrics({ task, categoryKey }) {
             {stock ?? '—'} units
           </Tag>
         </Tooltip>
-        {isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>OOS</Tag>}
-        {isLow && !isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-amber-50)', color: 'var(--bc-amber-600)', border: '1px solid #fde68a', margin: 0, lineHeight: '16px', padding: '0 5px' }}>Low</Tag>}
+        {isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid var(--bc-red-200)', margin: 0, lineHeight: '16px', padding: '0 5px' }}>OOS</Tag>}
+        {isLow && !isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-amber-50)', color: 'var(--bc-amber-600)', border: '1px solid var(--bc-amber-200)', margin: 0, lineHeight: '16px', padding: '0 5px' }}>Low</Tag>}
       </Space>
     );
   }

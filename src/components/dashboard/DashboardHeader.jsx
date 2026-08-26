@@ -38,7 +38,7 @@ const DashboardHeader = ({
           margin: 0,
           fontSize: 'var(--font-size-xl)',
           fontWeight: 600,
-          color: 'var(--text-primary, #0f172a)',
+          color: 'var(--text-primary, var(--bc-slate-900))',
           letterSpacing: '-0.3px',
           whiteSpace: 'nowrap',
         }}>
@@ -68,7 +68,7 @@ const DashboardHeader = ({
             }}
             size="middle"
             style={{ minWidth: 240 }}
-            separator={<span style={{ color: 'var(--text-secondary, #64748b)' }}>—</span>}
+            separator={<span style={{ color: 'var(--text-secondary, var(--bc-slate-500))' }}>—</span>}
           />
 
           <Select
@@ -115,7 +115,7 @@ const DashboardHeader = ({
               gap: 6,
               height: 32,
               padding: '0 14px',
-              background: loading ? 'var(--text-secondary, #64748b)' : 'var(--text-brand, #1976D2)',
+              background: loading ? 'var(--text-secondary, var(--bc-slate-500))' : 'var(--text-brand, var(--bc-ro-500))',
               color: 'var(--bg-primary, #fff)',
               border: 'none',
               borderRadius: 'var(--radius-md, 8px)',
@@ -137,8 +137,8 @@ const DashboardHeader = ({
             <span style={{
               fontSize: 'var(--font-size-xs)',
               fontWeight: 600,
-              color: 'var(--text-secondary, #64748b)',
-              background: 'var(--bg-secondary, #f8fafc)',
+              color: 'var(--text-secondary, var(--bc-slate-500))',
+              background: 'var(--bg-secondary, var(--bc-slate-50))',
               padding: '2px 8px',
               borderRadius: "var(--radius-sm)",
             }}>

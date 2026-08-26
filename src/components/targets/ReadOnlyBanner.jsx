@@ -24,7 +24,7 @@ export const ReadOnlyBanner = ({ isBrandManager }) => {
                 marginBottom: '20px',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid rgba(217, 119, 6, 0.15)',
-                background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
+                background: 'linear-gradient(135deg, var(--bc-amber-100) 0%, var(--bc-amber-50) 100%)',
                 boxShadow: '0 4px 12px rgba(217, 119, 6, 0.04)'
             }}
         />

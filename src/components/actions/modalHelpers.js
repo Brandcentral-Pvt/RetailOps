@@ -163,9 +163,9 @@ export const validateForm = async (values, rules) => {
 };
 
 export const MODAL_STYLES = {
-  headerStyle: { borderBottom: '1px solid #f1f5f9', padding: '16px 24px' },
+  headerStyle: { borderBottom: '1px solid var(--bc-slate-100)', padding: '16px 24px' },
   bodyStyle: { padding: '20px 24px' },
-  footerStyle: { borderTop: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', justifyContent: 'flex-end', gap: 8 },
+  footerStyle: { borderTop: '1px solid var(--bc-slate-100)', padding: '12px 24px', display: 'flex', justifyContent: 'flex-end', gap: 8 },
   primaryBtn: { height: 36, borderRadius: 8, fontWeight: 600, background: 'var(--bc-ro-500)', border: 'none', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' },
   dangerBtn: { height: 36, borderRadius: 8, fontWeight: 600 },
   cancelBtn: { height: 36, borderRadius: 8 },

@@ -186,13 +186,13 @@ const GoalRowComponent = memo(({
     const pctOk = row.totalTarget > 0 && Math.abs(totalPct - 100) < 0.5;
 
     return (
-        <tr style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}
+        <tr style={{ borderBottom: '1px solid var(--bc-slate-100)', transition: 'background 0.2s' }}
             onMouseEnter={(e) => e.currentTarget.style.background = '#fafbfc'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
             {/* Metric Name */}
             <td style={{
                 position: 'sticky', left: 0, zIndex: 3, padding: '12px 16px',
-                background: 'inherit', borderRight: '1px solid #e2e8f0',
+                background: 'inherit', borderRight: '1px solid var(--bc-slate-200)',
                 minWidth: 160, verticalAlign: 'middle',
                 boxShadow: '2px 0 4px -2px rgba(0,0,0,0.04)'
             }}>
@@ -225,7 +225,7 @@ const GoalRowComponent = memo(({
 
             {/* Unit */}
             <td style={{
-                padding: '12px 8px', borderRight: '1px solid #f1f5f9',
+                padding: '12px 8px', borderRight: '1px solid var(--bc-slate-100)',
                 textAlign: 'center', background: '#fafbfc'
             }}>
                 <Tag style={{
@@ -239,7 +239,7 @@ const GoalRowComponent = memo(({
             {/* Period Cells */}
             {periods.map((_, i) => (
                 <td key={i} style={{
-                    padding: '8px 6px', borderRight: '1px solid #f1f5f9',
+                    padding: '8px 6px', borderRight: '1px solid var(--bc-slate-100)',
                     verticalAlign: 'top', minWidth: showAchieved ? 130 : 95
                 }}>
                     <div style={{ display: 'flex', gap: 4 }}>
@@ -295,7 +295,7 @@ const GoalRowComponent = memo(({
             {/* Total Goal */}
             <td style={{
                 padding: '8px 10px', position: 'sticky', right: 50, zIndex: 4,
-                background: '#fafbff', borderLeft: '2px solid #e2e8f0', minWidth: 130,
+                background: '#fafbff', borderLeft: '2px solid var(--bc-slate-200)', minWidth: 130,
                 boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.04)'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -338,7 +338,7 @@ const GoalRowComponent = memo(({
             {/* Delete */}
             <td style={{
                 padding: '8px', textAlign: 'center', position: 'sticky', right: 0, zIndex: 4,
-                background: '#fafbff', width: 50, borderLeft: '1px solid #f1f5f9'
+                background: '#fafbff', width: 50, borderLeft: '1px solid var(--bc-slate-100)'
             }}>
                 <Tooltip title="Delete metric">
                     <Button type="text" danger icon={<Trash2 size={14} />} size="small" onClick={onDelete} />
@@ -620,7 +620,7 @@ export default function TargetCreationPage() {
             {/* Header */}
             <Header style={{
                 background: '#fff',
-                borderBottom: '1px solid #e2e8f0',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 padding: '0 32px',
                 height: 'auto',
                 lineHeight: 'normal',
@@ -725,7 +725,7 @@ export default function TargetCreationPage() {
                                     style={{
                                         borderRadius: 12,
                                         boxShadow: '0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
-                                        border: '1px solid #e2e8f0',
+                                        border: '1px solid var(--bc-slate-200)',
                                         overflow: 'hidden'
                                     }}
                                     styles={{ body: { padding: 0 } }}
@@ -733,8 +733,8 @@ export default function TargetCreationPage() {
                                     {/* Section Header */}
                                     <div style={{
                                         padding: '20px 24px',
-                                        background: 'linear-gradient(to right, #f8fafc, #fff)',
-                                        borderBottom: '1px solid #e2e8f0'
+                                        background: 'linear-gradient(to right, var(--bc-slate-50), #fff)',
+                                        borderBottom: '1px solid var(--bc-slate-200)'
                                     }}>
                                         <Row justify="space-between" align="middle" gutter={[16, 16]}>
                                             <Col flex="auto">
@@ -858,7 +858,7 @@ export default function TargetCreationPage() {
                                             <thead>
                                                 <tr style={{ background: 'var(--bc-slate-50)' }}>
                                                     <th style={{
-                                                        padding: '14px 16px', borderBottom: '2px solid #e2e8f0',
+                                                        padding: '14px 16px', borderBottom: '2px solid var(--bc-slate-200)',
                                                         textAlign: 'left', position: 'sticky', left: 0,
                                                         background: 'var(--bc-slate-50)', zIndex: 5, fontSize: 11,
                                                         fontWeight: 700, color: 'var(--bc-slate-600)', letterSpacing: 0.5,
@@ -867,7 +867,7 @@ export default function TargetCreationPage() {
                                                         GOAL METRIC
                                                     </th>
                                                     <th style={{
-                                                        padding: '14px 8px', borderBottom: '2px solid #e2e8f0',
+                                                        padding: '14px 8px', borderBottom: '2px solid var(--bc-slate-200)',
                                                         textAlign: 'center', fontSize: 11, fontWeight: 700,
                                                         color: 'var(--bc-slate-600)', letterSpacing: 0.5
                                                     }}>
@@ -875,7 +875,7 @@ export default function TargetCreationPage() {
                                                     </th>
                                                     {periodLabels(section.targetType).map((p, i) => (
                                                         <th key={i} style={{
-                                                            padding: '10px 6px', borderBottom: '2px solid #e2e8f0',
+                                                            padding: '10px 6px', borderBottom: '2px solid var(--bc-slate-200)',
                                                             textAlign: 'center', fontSize: 11, fontWeight: 700,
                                                             color: 'var(--bc-slate-600)', letterSpacing: 0.5
                                                         }}>
@@ -890,7 +890,7 @@ export default function TargetCreationPage() {
                                                         </th>
                                                     ))}
                                                     <th style={{
-                                                        padding: '14px 10px', borderBottom: '2px solid #e2e8f0',
+                                                        padding: '14px 10px', borderBottom: '2px solid var(--bc-slate-200)',
                                                         textAlign: 'center', position: 'sticky', right: 50,
                                                         background: 'var(--bc-slate-50)', zIndex: 5, fontSize: 11,
                                                         fontWeight: 700, color: 'var(--bc-slate-600)', letterSpacing: 0.5,
@@ -899,7 +899,7 @@ export default function TargetCreationPage() {
                                                         TOTAL GOAL
                                                     </th>
                                                     <th style={{
-                                                        padding: '14px 8px', borderBottom: '2px solid #e2e8f0',
+                                                        padding: '14px 8px', borderBottom: '2px solid var(--bc-slate-200)',
                                                         position: 'sticky', right: 0, background: 'var(--bc-slate-50)',
                                                         zIndex: 5, width: 50
                                                     }}></th>
@@ -926,7 +926,7 @@ export default function TargetCreationPage() {
                                     {/* Footer - Add Metric */}
                                     <div style={{
                                         padding: '16px 24px', background: '#fafbfc',
-                                        borderTop: '1px solid #e2e8f0',
+                                        borderTop: '1px solid var(--bc-slate-200)',
                                         display: 'flex', alignItems: 'center', gap: 12
                                     }}>
                                         <TrendingUp size={16} color="var(--bc-slate-500)" />

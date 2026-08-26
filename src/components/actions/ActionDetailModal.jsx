@@ -66,7 +66,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
             case 'REVIEW': return { bg: '#f0f4ff', text: '#5046e4', border: '0.5px solid #d1d9ff' };
             case 'COMPLETED': return { bg: '#e6f9f0', text: '#0f7a4a', border: '0.5px solid #b7ebcf' };
             case 'URGENT': return { bg: '#fdecea', text: '#a8230d', border: '0.5px solid #f5c0ba' };
-            default: return { bg: 'var(--bc-slate-50)', text: 'var(--bc-slate-500)', border: '0.5px solid #e2e8f0' };
+            default: return { bg: 'var(--bc-slate-50)', text: 'var(--bc-slate-500)', border: '0.5px solid var(--bc-slate-200)' };
         }
     };
 

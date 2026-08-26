@@ -269,7 +269,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
             {keyResults.length === 0 ? (
               <Card
                 styles={{ body: { padding: '20px 16px', textAlign: 'center' } }}
-                style={{ borderRadius: "var(--radius-md)", border: '1px dashed #e2e8f0', background: '#fafbfc' }}
+                style={{ borderRadius: "var(--radius-md)", border: '1px dashed var(--bc-slate-200)', background: '#fafbfc' }}
               >
                 <Empty
                   image={<FlagOutlined style={{ fontSize: 32, color: 'var(--bc-slate-300)' }} />}
@@ -287,7 +287,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                     key={i}
                     size="small"
                     style={{
-                      borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', marginBottom: 8,
+                      borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)', marginBottom: 8,
                       boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                     }}
                     styles={{ body: { padding: '12px' } }}

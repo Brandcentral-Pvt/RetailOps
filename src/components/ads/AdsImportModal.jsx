@@ -198,17 +198,17 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                     <Space wrap size={[8, 8]}>
                         {marketplace === 'ajio' ? (
                             <>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Jio Code</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Orders</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Jio Code</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Orders</span>
                             </>
                         ) : (
                             <>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>ASIN</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Impressions</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>ASIN</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
+                                <span style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Impressions</span>
                             </>
                         )}
                     </Space>
@@ -275,7 +275,7 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                                             {fileStatus.status === 'success' && (
                                                 <span
                                                     className="badge"
-                                                    style={{ backgroundColor: 'var(--bc-green-50)', color: '#2E7D32', border: '1px solid #bbf7d0', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
+                                                    style={{ backgroundColor: 'var(--bc-green-50)', color: '#2E7D32', border: '1px solid var(--bc-green-200)', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
                                                     title={`Processed ${fileStatus.rows} rows`}
                                                 >
                                                     Success ({fileStatus.rows.toLocaleString()})
@@ -284,7 +284,7 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                                             {fileStatus.status === 'error' && (
                                                 <span
                                                     className="badge"
-                                                    style={{ backgroundColor: 'var(--bc-red-50)', color: '#C62828', border: '1px solid #fecaca', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
+                                                    style={{ backgroundColor: 'var(--bc-red-50)', color: '#C62828', border: '1px solid var(--bc-red-200)', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
                                                     title={fileStatus.error}
                                                 >
                                                     Failed

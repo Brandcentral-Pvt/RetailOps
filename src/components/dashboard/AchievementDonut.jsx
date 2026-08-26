@@ -145,7 +145,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
+                    border: '1px solid var(--border-light, var(--border-light))',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
                     background: 'var(--bg-primary, #fff)',
                     height: '100%',
@@ -159,8 +159,8 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--border-light, var(--border-light))',
+                    background: 'linear-gradient(135deg, var(--bc-red-50) 0%, var(--bc-white) 100%)'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -187,7 +187,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                 <div style={{
                                     fontSize: 'var(--font-size-base)',
                                     fontWeight: 700,
-                                    color: 'var(--text-primary, #0f172a)',
+                                    color: 'var(--text-primary, var(--bc-slate-900))',
                                     letterSpacing: '-0.01em',
                                     lineHeight: 1.2
                                 }}>
@@ -195,7 +195,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                 </div>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 1
                                 }}>
@@ -244,7 +244,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                             width: 64,
                             height: 64,
                             borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                            background: 'linear-gradient(135deg, var(--bc-amber-100) 0%, var(--bc-amber-200) 100%)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -253,10 +253,10 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                         }}>
                             <Target size={28} style={{ color: 'var(--text-warning, #E65100)' }} strokeWidth={2.5} />
                         </div>
-                        <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', marginBottom: 4 }}>
+                        <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', marginBottom: 4 }}>
                             No Targets Defined
                         </div>
-                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>
+                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>
                             Create target plans to see achievement distribution
                         </div>
                     </div>
@@ -302,7 +302,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
 
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
-                                color: 'var(--text-secondary, #64748b)',
+                                color: 'var(--text-secondary, var(--bc-slate-500))',
                                 fontWeight: 500,
                                 marginTop: 6,
                                 textAlign: 'center'
@@ -323,8 +323,8 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                 <div style={{
                                     flex: 1,
                                     padding: '10px 12px',
-                                    background: insights.isHealthy ? 'var(--bg-success-subtle, #ecfdf5)' : 'var(--bg-warning-subtle, #fffbeb)',
-                                    border: `1px solid ${insights.isHealthy ? 'var(--bg-success-subtle, #a7f3d0)' : 'var(--bg-warning-subtle, #fde68a)'}`,
+                                    background: insights.isHealthy ? 'var(--bg-success-subtle, #ecfdf5)' : 'var(--bg-warning-subtle, var(--bc-amber-50))',
+                                    border: `1px solid ${insights.isHealthy ? 'var(--bg-success-subtle, #a7f3d0)' : 'var(--bg-warning-subtle, var(--bc-amber-200))'}`,
                                     borderRadius: 10
                                 }}>
                                     <div style={{
@@ -358,7 +358,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                     </div>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
-                                        color: 'var(--text-secondary, #64748b)',
+                                        color: 'var(--text-secondary, var(--bc-slate-500))',
                                         fontWeight: 600,
                                         marginTop: 1
                                     }}>
@@ -369,8 +369,8 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                 <div style={{
                                     flex: 1,
                                     padding: '10px 12px',
-                                    background: parseInt(insights.criticalPct) > 30 ? 'var(--bg-danger-subtle, #fef2f2)' : 'var(--bg-secondary, #f8fafc)',
-                                    border: `1px solid ${parseInt(insights.criticalPct) > 30 ? 'var(--bg-danger-subtle, #fecaca)' : 'var(--border-light, var(--border-light, #d9e6e9))'}`,
+                                    background: parseInt(insights.criticalPct) > 30 ? 'var(--bg-danger-subtle, var(--bc-red-50))' : 'var(--bg-secondary, var(--bc-slate-50))',
+                                    border: `1px solid ${parseInt(insights.criticalPct) > 30 ? 'var(--bg-danger-subtle, var(--bc-red-200))' : 'var(--border-light, var(--border-light, var(--border-light)))'}`,
                                     borderRadius: 10
                                 }}>
                                     <div style={{
@@ -382,7 +382,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                         {parseInt(insights.criticalPct) > 30 ? (
                                             <AlertTriangle size={11} style={{ color: 'var(--text-danger, #D32F2F)' }} strokeWidth={2.5} />
                                         ) : (
-                                            <Zap size={11} style={{ color: 'var(--text-secondary, #64748b)' }} strokeWidth={2.5} />
+                                            <Zap size={11} style={{ color: 'var(--text-secondary, var(--bc-slate-500))' }} strokeWidth={2.5} />
                                         )}
                                         <span style={{
                                             fontSize: 'var(--font-size-xs)',
@@ -404,7 +404,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                                     </div>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
-                                        color: 'var(--text-secondary, #64748b)',
+                                        color: 'var(--text-secondary, var(--bc-slate-500))',
                                         fontWeight: 600,
                                         marginTop: 1
                                     }}>
@@ -426,7 +426,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 700,
-                                color: 'var(--text-secondary, #64748b)',
+                                color: 'var(--text-secondary, var(--bc-slate-500))',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.08em',
                                 marginBottom: 4,

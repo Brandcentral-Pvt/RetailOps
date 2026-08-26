@@ -64,3 +64,6 @@ seed_api_keys.js
 
 # graphify skill cache artifacts
 backend/graphify-out/
+
+# Office lock files
+~$*

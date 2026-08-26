@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @plugin "@iconify/tailwind4";
 @import './styles/tokens.css';
+@import './styles/bootstrap-compat.css';
 @import './styles/antd-overrides.css';
 
 /* ==========================================================================

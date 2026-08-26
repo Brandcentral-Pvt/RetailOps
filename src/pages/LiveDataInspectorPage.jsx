@@ -68,7 +68,7 @@ export default function LiveDataInspectorPage() {
       const m = metrics.find(x => x.key === key);
       const renderValue = (v) => {
         if (v === null || v === undefined) return <Text type="secondary">-</Text>;
-        if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }} /></a>;
+        if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid var(--bc-slate-200)', borderRadius: 6, background: '#fff' }} /></a>;
         if (key === 'lqsGrade') {
           const color = { A: '#059669', B: 'var(--bc-blue-600)', C: 'var(--bc-amber-600)', D: 'var(--bc-red-600)' }[String(v)] || '#6b7280';
           return <Tag color={color} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
@@ -178,7 +178,7 @@ export default function LiveDataInspectorPage() {
               </Text>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid var(--bc-blue-200)', borderRadius: 8 }}>
               <Checkbox checked={aiEnabled} onChange={e => setAiEnabled(e.target.checked)} style={{ marginTop: 1 }}>
                 <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>AI Analysis
                   <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', fontWeight: 400 }}>LQS scored by NVIDIA AI against Amazon criteria + vision check of the main image (slower; falls back to rules on error)</Text>

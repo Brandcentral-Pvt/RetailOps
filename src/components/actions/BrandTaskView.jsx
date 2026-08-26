@@ -162,7 +162,7 @@ const BrandTaskView = ({
       {/* ── Stats summary bar ── */}
       <div style={{
         display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20,
-        padding: '14px 0', borderBottom: '1px solid #f1f5f9'
+        padding: '14px 0', borderBottom: '1px solid var(--bc-slate-100)'
       }}>
         {[
           { icon: Building2, label: 'Brands', value: stats.totalBrands, color: 'var(--bc-ro-500)' },
@@ -173,7 +173,7 @@ const BrandTaskView = ({
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--bc-white)', border: '1px solid #e2e8f0',
+            background: 'var(--bc-white)', border: '1px solid var(--bc-slate-200)',
             borderRadius: 10, padding: '8px 14px',
           }}>
             <div style={{
@@ -198,7 +198,7 @@ const BrandTaskView = ({
               marginLeft: 'auto',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '8px 16px',
-              background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
+              background: 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)',
               color: 'var(--bc-white)', border: 'none', borderRadius: 10,
               fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
               boxShadow: '0 4px 12px -2px rgba(99,102,241,0.4)',
@@ -227,7 +227,7 @@ const BrandTaskView = ({
             style={{
               width: '100%', padding: '7px 10px 7px 30px',
               fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10,
-              border: '1.5px solid #e2e8f0', background: 'var(--bc-white)',
+              border: '1.5px solid var(--bc-slate-200)', background: 'var(--bc-white)',
               outline: 'none', color: 'var(--bc-slate-900)', boxSizing: 'border-box'
             }}
             onFocus={e => e.target.style.borderColor = 'var(--bc-ro-500)'}
@@ -280,7 +280,7 @@ const BrandTaskView = ({
         }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #eef2ff 0%, #ddd6fe 100%)',
+            background: 'linear-gradient(135deg, var(--bc-indigo-50) 0%, #ddd6fe 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: '2px solid #c7d2fe'
           }}>
@@ -301,7 +301,7 @@ const BrandTaskView = ({
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   padding: '10px 20px',
-                  background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
+                  background: 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)',
                   color: 'var(--bc-white)', border: 'none', borderRadius: "var(--radius-lg)",
                   fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
                   boxShadow: '0 4px 12px -2px rgba(99,102,241,0.4)'

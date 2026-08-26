@@ -122,20 +122,20 @@ const ImportSellerModal = ({ onClose, onImport }) => {
             padding: '32px 24px', 
             background: '#fafafa', 
             borderRadius: "var(--radius-xl)", 
-            border: '2px dashed var(--border-light, #d9e6e9)' 
+            border: '2px dashed var(--border-light, var(--border-light))' 
           }}
         >
           <p className="ant-upload-drag-icon">
             <div style={{ width: 64, height: 64, background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0' }}>
-              <FileUp size={32} style={{ color: 'var(--text-primary, #0f172a)' }} />
+              <FileUp size={32} style={{ color: 'var(--text-primary, var(--bc-slate-900))' }} />
             </div>
           </p>
-          <Text strong style={{ fontSize: 'var(--font-size-lg)', display: 'block', marginTop: 16, color: 'var(--text-primary, #0f172a)' }}>Select Store File</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-lg)', display: 'block', marginTop: 16, color: 'var(--text-primary, var(--bc-slate-900))' }}>Select Store File</Text>
           <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginTop: 4 }}>
             Upload a .csv file containing store names, merchant IDs, and assigned managers.
           </Text>
           <Button 
-            style={{ marginTop: 24, borderRadius: 'var(--radius-full)', fontWeight: 600, padding: '0 24px', background: 'var(--text-primary, #0f172a)', color: '#fff' }}
+            style={{ marginTop: 24, borderRadius: 'var(--radius-full)', fontWeight: 600, padding: '0 24px', background: 'var(--text-primary, var(--bc-slate-900))', color: '#fff' }}
           >
             {isUploading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <ChevronRight size={14} />}
             <span style={{ marginLeft: 8 }}>Browse manifests</span>
@@ -156,12 +156,12 @@ const ImportSellerModal = ({ onClose, onImport }) => {
               </div>
             }
             type="success"
-            style={{ borderRadius: "var(--radius-lg)", padding: 16, border: 'none', background: 'var(--bg-success-subtle, #f0fdf4)' }}
+            style={{ borderRadius: "var(--radius-lg)", padding: 16, border: 'none', background: 'var(--bg-success-subtle, var(--bc-green-50))' }}
           />
           
-          <div style={{ padding: 16, background: 'var(--bg-secondary, #f8fafc)', borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light, #d9e6e9)' }}>
+          <div style={{ padding: 16, background: 'var(--bg-secondary, var(--bc-slate-50))', borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light, var(--border-light))' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', letterSpacing: '0.1em' }}>TARGET DATABASE</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))', letterSpacing: '0.1em' }}>TARGET DATABASE</Text>
               <Tag color="blue" style={{ borderRadius: 'var(--radius-full)', border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)', padding: '0 8px' }}>Live Sync</Tag>
             </div>
             <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)', lineHeight: 1.5 }}>

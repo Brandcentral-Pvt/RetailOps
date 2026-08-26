@@ -138,7 +138,7 @@ const AddSellerModal = memo(({
         <div style={{ paddingTop: 8 }}>
           {/* Brand Name */}
           <Form.Item name="name"
-            label={<FieldLabel icon={<LayoutGrid size={13} color="var(--text-muted, #94a3b8)" />} text="BRAND NAME" required />}
+            label={<FieldLabel icon={<LayoutGrid size={13} color="var(--text-muted, var(--bc-slate-400))" />} text="BRAND NAME" required />}
             rules={[{ required: true, message: 'Brand name is required' }]}
             style={{ marginBottom: 16 }}>
             <Input placeholder="e.g. 101-BHARVITA"
@@ -149,7 +149,7 @@ const AddSellerModal = memo(({
           {/* Marketplace + Seller ID */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <Form.Item name="marketplace"
-              label={<FieldLabel icon={<Globe size={13} color="var(--text-muted, #94a3b8)" />} text="MARKETPLACE" required />}
+              label={<FieldLabel icon={<Globe size={13} color="var(--text-muted, var(--bc-slate-400))" />} text="MARKETPLACE" required />}
               rules={[{ required: true }]}
               style={{ marginBottom: 0 }}>
               <Select size="small" style={{ borderRadius: "var(--radius-md)" }}>
@@ -160,7 +160,7 @@ const AddSellerModal = memo(({
             </Form.Item>
             <Form.Item name="sellerId"
               label={
-                <FieldLabel icon={<Key size={13} color="var(--text-muted, #94a3b8)" />}
+                <FieldLabel icon={<Key size={13} color="var(--text-muted, var(--bc-slate-400))" />}
                   text="SELLER ID"
                   required={watchedMarketplace === 'amazon.in'}
                   optional={watchedMarketplace !== 'amazon.in'} />
@@ -178,7 +178,7 @@ const AddSellerModal = memo(({
 
           {/* Email */}
           <Form.Item name="email"
-            label={<FieldLabel icon={<Globe size={13} color="var(--text-muted, #94a3b8)" />} text="EMAIL" />}
+            label={<FieldLabel icon={<Globe size={13} color="var(--text-muted, var(--bc-slate-400))" />} text="EMAIL" />}
             style={{ marginBottom: 16 }}>
             <Input placeholder="seller@example.com" type="email"
               style={{ height: 38, borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)' }} />
@@ -187,7 +187,7 @@ const AddSellerModal = memo(({
           {/* Active Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <Form.Item name="isActive" label={
-              <FieldLabel icon={<ToggleRight size={13} color="var(--text-muted, #94a3b8)" />} text="STATUS" />
+              <FieldLabel icon={<ToggleRight size={13} color="var(--text-muted, var(--bc-slate-400))" />} text="STATUS" />
             } valuePropName="checked" style={{ marginBottom: 0 }}>
               <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
             </Form.Item>
@@ -195,7 +195,7 @@ const AddSellerModal = memo(({
 
           {/* Brand Managers */}
           <Form.Item name="assignedUserIds"
-            label={<FieldLabel icon={<Users size={13} color="var(--text-muted, #94a3b8)" />} text="BRAND MANAGER" />}
+            label={<FieldLabel icon={<Users size={13} color="var(--text-muted, var(--bc-slate-400))" />} text="BRAND MANAGER" />}
             style={{ marginBottom: 0 }}>
             <Select mode="multiple" size="small"
               placeholder={loadingManagers ? 'Loading managers…' : '— Unassigned (Public Pool) —'}
@@ -205,7 +205,7 @@ const AddSellerModal = memo(({
               loading={loadingManagers}
               notFoundContent={
                 loadingManagers ? <Spin size="small" /> :
-                  <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, #94a3b8)' }}>No managers found</Text>
+                  <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, var(--bc-slate-400))' }}>No managers found</Text>
               }
               filterOption={(input, opt) =>
                 (opt?.label || '').toLowerCase().includes(input.toLowerCase())
@@ -227,12 +227,12 @@ const AddSellerModal = memo(({
 const FieldLabel = memo(({ icon, text, required, optional }) => (
   <Space size={4} style={{ marginBottom: 4 }}>
     {icon}
-    <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', letterSpacing: '0.05em' }}>
+    <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', letterSpacing: '0.05em' }}>
       {text}
     </Text>
     {required && <span style={{ color: 'var(--text-danger, #D32F2F)', fontSize: 'var(--font-size-sm)', lineHeight: 1 }}>*</span>}
     {optional && (
-      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', fontWeight: 400 }}>(optional)</Text>
+      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))', fontWeight: 400 }}>(optional)</Text>
     )}
   </Space>
 ));

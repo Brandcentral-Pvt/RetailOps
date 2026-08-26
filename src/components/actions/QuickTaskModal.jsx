@@ -131,7 +131,7 @@ const QuickTaskModal = ({ isOpen, onClose, onSave, currentUser, sellers, users }
           ) : (
             <div style={{ marginBottom: 16 }}>
               <span style={labelStyle}>Assign To</span>
-              <div style={{ marginTop: 6, padding: '6px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)' }}>
+              <div style={{ marginTop: 6, padding: '6px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)', fontSize: 'var(--font-size-sm)' }}>
                 <Avatar size={18} icon={<UserOutlined />} style={{ marginRight: 8 }} />
                 {formatUserName(currentUser)}
               </div>
@@ -185,7 +185,7 @@ const QuickTaskModal = ({ isOpen, onClose, onSave, currentUser, sellers, users }
         </Form>
       </div>
 
-      <div style={{ borderTop: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ borderTop: '1px solid var(--bc-slate-100)', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button
           type="link"
           onClick={handleOpenFullForm}

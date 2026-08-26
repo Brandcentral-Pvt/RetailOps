@@ -257,7 +257,7 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
         </div>
 
         {decision === 'REJECT' && (
-          <div style={{ background: '#fafbfc', borderRadius: "var(--radius-md)", padding: 12, border: '1px solid #e2e8f0' }}>
+          <div style={{ background: '#fafbfc', borderRadius: "var(--radius-md)", padding: 12, border: '1px solid var(--bc-slate-200)' }}>
             <Checkbox checked={setNewDueDate} onChange={e => setSetNewDueDate(e.target.checked)}>
               <Text style={{ fontSize: 'var(--font-size-sm)' }}>Set a new due date for resubmission</Text>
             </Checkbox>

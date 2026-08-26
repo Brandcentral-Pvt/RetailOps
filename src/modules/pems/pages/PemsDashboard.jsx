@@ -166,7 +166,7 @@ function ActivityFeed({ activities }) {
       {activities.length === 0 ? <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>No recent activity</Text> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {activities.map(a => (
-            <div key={a.Id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
+            <div key={a.Id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--bc-slate-50)' }}>
               <div style={{ width: 24, height: 24, borderRadius: 6, background: `${actionColors[a.Action] || 'var(--bc-slate-500)'}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: actionColors[a.Action] || 'var(--bc-slate-500)', flexShrink: 0 }}>
                 {actionIcons[a.Action] || <SyncOutlined style={{ fontSize: 10 }} />}
               </div>

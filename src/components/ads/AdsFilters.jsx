@@ -20,7 +20,7 @@ const FilterChip = ({ label, value, onRemove }) => (
       fontWeight: 500,
       background: 'var(--bc-blue-50)',
       color: 'var(--bc-ro-500)',
-      border: '1px solid #bfdbfe'
+      border: '1px solid var(--bc-blue-200)'
     }}
   >
     {label}: {value}

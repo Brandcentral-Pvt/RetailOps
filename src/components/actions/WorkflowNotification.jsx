@@ -43,7 +43,7 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
   // Case 1: Task in progress, user is assignee -> Submit for review banner
   if (currentStatus === 'IN_PROGRESS' && isAssignee) {
     return (
-      <div style={{ ...bannerContainerStyle, background: 'var(--bc-amber-50)', border: '1px solid #fde68a' }}>
+      <div style={{ ...bannerContainerStyle, background: 'var(--bc-amber-50)', border: '1px solid var(--bc-amber-200)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <ThunderboltOutlined style={{ color: '#E65100', fontSize: 'var(--font-size-lg)' }} />
           <div>
@@ -108,7 +108,7 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
   // Case 3: Task is awaiting review, user is assignee -> informative banner
   if (currentStatus === 'REVIEW' && isAssignee) {
     return (
-      <div style={{ ...bannerContainerStyle, background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe' }}>
+      <div style={{ ...bannerContainerStyle, background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-200)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <EyeOutlined style={{ color: '#0288D1', fontSize: 'var(--font-size-lg)' }} />
           <div>
@@ -130,7 +130,7 @@ const WorkflowNotification = ({ task, currentUser, onAction }) => {
     const reason = lastRejection?.reason || task.rejection?.reason || 'No comments left';
 
     return (
-      <div style={{ ...bannerContainerStyle, background: 'var(--bc-red-50)', border: '1px solid #fecaca' }}>
+      <div style={{ ...bannerContainerStyle, background: 'var(--bc-red-50)', border: '1px solid var(--bc-red-200)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, marginRight: 16 }}>
           <ExclamationCircleOutlined style={{ color: '#C62828', fontSize: 'var(--font-size-lg)' }} />
           <div style={{ overflow: 'hidden' }}>

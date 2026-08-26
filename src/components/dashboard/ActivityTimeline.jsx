@@ -12,24 +12,24 @@ const getEventConfig = (type, severity) => {
   const s = (severity || '').toLowerCase();
 
   if (s === 'error' || t.includes('error') || t.includes('failure')) {
-    return { icon: Bell, color: 'var(--text-danger, #D32F2F)', bg: 'var(--bg-danger-subtle, #fef2f2)', eventType: 'alert' };
+    return { icon: Bell, color: 'var(--text-danger, #D32F2F)', bg: 'var(--bg-danger-subtle, var(--bc-red-50))', eventType: 'alert' };
   }
   if (s === 'warning' || t.includes('warning') || t.includes('delete')) {
-    return { icon: AlertTriangle, color: 'var(--text-warning, #ED6C02)', bg: 'var(--bg-warning-subtle, #fffbeb)', eventType: 'warning' };
+    return { icon: AlertTriangle, color: 'var(--text-warning, #ED6C02)', bg: 'var(--bg-warning-subtle, var(--bc-amber-50))', eventType: 'warning' };
   }
   if (t.includes('create') || t.includes('insert') || t.includes('success')) {
     return { icon: CheckCircle, color: 'var(--text-success, #2E7D32)', bg: 'var(--bg-success-subtle, #ecfdf5)', eventType: 'success' };
   }
   if (t.includes('update') || t.includes('edit')) {
-    return { icon: Edit, color: 'var(--text-brand, #1976D2)', bg: 'var(--bg-info-subtle, #eff6ff)', eventType: 'action' };
+    return { icon: Edit, color: 'var(--text-brand, var(--bc-ro-500))', bg: 'var(--bg-info-subtle, var(--bc-blue-50))', eventType: 'action' };
   }
   if (t.includes('upload') || t.includes('import')) {
-    return { icon: Upload, color: 'var(--text-brand, #0288D1)', bg: 'var(--bg-info-subtle, #ecfeff)', eventType: 'upload' };
+    return { icon: Upload, color: 'var(--text-brand, #0288D1)', bg: 'var(--bg-info-subtle, var(--bc-cyan-50))', eventType: 'upload' };
   }
   if (t.includes('view') || t.includes('read')) {
-    return { icon: Eye, color: 'var(--text-secondary, #64748b)', bg: 'var(--bg-tertiary, #f4f4f5)', eventType: 'view' };
+    return { icon: Eye, color: 'var(--text-secondary, var(--bc-slate-500))', bg: 'var(--bg-tertiary, #f4f4f5)', eventType: 'view' };
   }
-  return { icon: Info, color: 'var(--text-brand, #1976D2)', bg: 'var(--bg-info-subtle, #eff6ff)', eventType: 'info' };
+  return { icon: Info, color: 'var(--text-brand, var(--bc-ro-500))', bg: 'var(--bg-info-subtle, var(--bc-blue-50))', eventType: 'info' };
 };
 
 const formatTime = (dateStr) => {
@@ -66,13 +66,13 @@ const TimelineEvent = ({ log }) => {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{title}</Text>
+          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>{title}</Text>
           {entityType && <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: 3, margin: 0, padding: '0 4px' }}>{entityType}</Tag>}
         </div>
-        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'block', marginBottom: 3 }}>{description}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', display: 'block', marginBottom: 3 }}>{description}</Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary, #a1a1aa)' }}>{formatTime(time)}</Text>
-          {user && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>by {user}</Text>}
+          {user && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>by {user}</Text>}
         </div>
       </div>
     </div>
@@ -87,14 +87,14 @@ const ActivityTimeline = ({ events = [] }) => {
       padding: '16px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: 'var(--radius-xl, 16px)',
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--border-light, var(--border-light))'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-tertiary, #f4f4f5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Clock size={14} color="var(--text-secondary, #64748b)" />
+            <Clock size={14} color="var(--text-secondary, var(--bc-slate-500))" />
           </div>
-          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Activity Timeline</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, var(--bc-slate-900))' }}>Activity Timeline</Text>
         </div>
       </div>
       <div style={{ maxHeight: 400, overflowY: 'auto' }}>

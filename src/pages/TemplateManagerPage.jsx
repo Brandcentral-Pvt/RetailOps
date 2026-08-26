@@ -576,7 +576,7 @@ const TemplateManagerPage = () => {
                 alignItems: 'center',
                 padding: '16px 24px',
                 background: 'var(--bc-white)',
-                borderBottom: '1px solid #e2e8f0',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 flexWrap: 'wrap',
                 gap: 16
             }}>
@@ -646,7 +646,7 @@ const TemplateManagerPage = () => {
                 {/* Content Table Grid */}
                 <Card 
                     styles={{ body: { padding: 0 } }}
-                    style={{ borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}
+                    style={{ borderRadius: "var(--radius-xl)", border: '1px solid var(--bc-slate-200)', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}
                 >
                     <Table 
                         dataSource={activeTab === 'task' ? filteredTasks : filteredGoals}
@@ -847,7 +847,7 @@ const TemplateManagerPage = () => {
                         padding: 12, 
                         background: 'var(--bc-slate-50)', 
                         borderRadius: "var(--radius-xl)", 
-                        border: '1px solid #e2e8f0'
+                        border: '1px solid var(--bc-slate-200)'
                     }}>
                         {goalFormData.goals.map((g, idx) => (
                             <div key={idx} className="metric-form-row">
@@ -949,7 +949,7 @@ const TemplateManagerPage = () => {
 
                     <div style={{ 
                         background: 'var(--bc-slate-50)', 
-                        border: '1px solid #e2e8f0', 
+                        border: '1px solid var(--bc-slate-200)', 
                         borderRadius: 20, 
                         padding: 8, 
                         display: 'flex', 
@@ -988,7 +988,7 @@ const TemplateManagerPage = () => {
                         <div style={{ 
                             marginTop: 24, 
                             background: 'var(--bc-white)', 
-                            border: '1px solid #e2e8f0', 
+                            border: '1px solid var(--bc-slate-200)', 
                             borderRadius: 20, 
                             padding: 20,
                             boxShadow: '0 10px 30px rgba(0,0,0,0.03)',
@@ -1017,7 +1017,7 @@ const TemplateManagerPage = () => {
                                 {(aiSuggestions.milestones || []).map((m, idx) => (
                                     <div key={idx} style={{ 
                                         background: 'var(--bc-slate-50)', 
-                                        border: '1px solid #f1f5f9', 
+                                        border: '1px solid var(--bc-slate-100)', 
                                         borderRadius: "var(--radius-lg)", 
                                         padding: '12px 16px',
                                         display: 'flex',

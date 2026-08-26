@@ -50,7 +50,7 @@ const RankBadge = memo(({ rank }) => {
                 width: 32,
                 height: 32,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, #cbd5e1 0%, #64748b 100%)',
+                background: 'linear-gradient(135deg, var(--bc-slate-300) 0%, var(--bc-slate-500) 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -68,7 +68,7 @@ const RankBadge = memo(({ rank }) => {
                 width: 32,
                 height: 32,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
+                background: 'linear-gradient(135deg, #fb923c 0%, var(--bc-accent-inventory) 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -85,12 +85,12 @@ const RankBadge = memo(({ rank }) => {
             width: 32,
             height: 32,
             borderRadius: 10,
-            background: 'var(--border-light, #d9e6e9)',
-            border: '1px solid var(--border-light, #d9e6e9)',
+            background: 'var(--border-light, var(--border-light))',
+            border: '1px solid var(--border-light, var(--border-light))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--text-secondary, #64748b)',
+            color: 'var(--text-secondary, var(--bc-slate-500))',
             fontSize: 'var(--font-size-sm)',
             fontWeight: 700,
             flexShrink: 0
@@ -122,7 +122,7 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                 background: isTop3
                     ? `linear-gradient(135deg, ${brandColor.bg}40 0%, #ffffff 100%)`
                     : 'var(--bg-primary, #fff)',
-                border: '1px solid var(--border-light, #d9e6e9)',
+                border: '1px solid var(--border-light, var(--border-light))',
                 borderRadius: 10,
                 marginBottom: 8,
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -158,7 +158,7 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                             style={{
                                 fontSize: 'var(--font-size-sm)',
                                 fontWeight: 600,
-                                color: 'var(--text-primary, #0f172a)',
+                                color: 'var(--text-primary, var(--bc-slate-900))',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -185,8 +185,8 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                         <span style={{
                             fontSize: 'var(--font-size-xs)',
                             fontWeight: 600,
-                            color: 'var(--text-secondary, #64748b)',
-                            background: 'var(--border-light, #d9e6e9)',
+                            color: 'var(--text-secondary, var(--bc-slate-500))',
+                            background: 'var(--border-light, var(--border-light))',
                             padding: '1px 6px',
                             borderRadius: "var(--radius-sm)",
                             fontFamily: 'JetBrains Mono, monospace',
@@ -219,7 +219,7 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                         {pctOfMax > 0 && (
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
-                                color: 'var(--text-secondary, #64748b)',
+                                color: 'var(--text-secondary, var(--bc-slate-500))',
                                 fontWeight: 600,
                                 marginLeft: 'auto',
                                 whiteSpace: 'nowrap'
@@ -239,7 +239,7 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                     <div style={{
                         fontSize: 'var(--font-size-lg)',
                         fontWeight: 700,
-                        color: 'var(--text-primary, #0f172a)',
+                        color: 'var(--text-primary, var(--bc-slate-900))',
                         lineHeight: 1,
                         letterSpacing: '-0.3px'
                     }}>
@@ -247,7 +247,7 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                     </div>
                     <div style={{
                         fontSize: 'var(--font-size-xs)',
-                        color: 'var(--text-secondary, #64748b)',
+                        color: 'var(--text-secondary, var(--bc-slate-500))',
                         fontWeight: 600,
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em',
@@ -264,7 +264,7 @@ const AsinRow = memo(({ product, rank, maxValue, sortBy }) => {
                             fontSize: 'var(--font-size-xs)',
                             fontWeight: 700,
                             color: isPositive ? '#2E7D32' : '#D32F2F',
-                            background: isPositive ? 'var(--bg-success-subtle, #d1fae5)' : 'var(--bg-danger-subtle, #fee2e2)',
+                            background: isPositive ? 'var(--bg-success-subtle, #d1fae5)' : 'var(--bg-danger-subtle, var(--bc-red-100))',
                             padding: '1px 5px',
                             borderRadius: "var(--radius-md)"
                         }}>

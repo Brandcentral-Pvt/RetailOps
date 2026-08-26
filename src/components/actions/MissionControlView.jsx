@@ -114,7 +114,7 @@ const MissionControlView = ({ isEmbed = false }) => {
   if (loading) return <div className="p-10 text-slate-400 font-medium">Loading Mission Control...</div>;
 
   return (
-    <div className={`${isEmbed ? '' : 'min-h-screen bg-[#F8FAFC] pb-20'}`}>
+    <div className={`${isEmbed ? '' : 'min-h-screen bg-[var(--bc-slate-50)] pb-20'}`}>
       {/* STRATEGIC HEADER */}
       {!isEmbed && (
         <div className="bg-white border-b border-slate-200 px-8 py-8">

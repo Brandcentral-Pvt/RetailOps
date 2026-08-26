@@ -11,7 +11,7 @@ export function LoadError({ message = 'Failed to load data', onRetry, style }) {
       textAlign: 'center',
       background: 'var(--bc-red-50)',
       borderRadius: 10,
-      border: '1px solid #fecaca',
+      border: '1px solid var(--bc-red-200)',
       marginBottom: 16,
       ...style 
     }}>

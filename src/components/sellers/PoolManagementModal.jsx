@@ -67,16 +67,16 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
       <div style={{ padding: '8px 0' }}>
         <Row gutter={16} style={{ marginBottom: '24px' }}>
           <Col span={8}>
-            <Card variant="borderless" style={{ background: 'var(--bg-secondary, #f8fafc)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
+            <Card variant="borderless" style={{ background: 'var(--bg-secondary, var(--bc-slate-50))', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
-                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase' }}>Total Tasks</Text>} 
+                title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase' }}>Total Tasks</Text>} 
                 value={stats.total} 
-                styles={{ content: { fontWeight: 700, color: 'var(--text-primary, #0f172a)' } }}
+                styles={{ content: { fontWeight: 700, color: 'var(--text-primary, var(--bc-slate-900))' } }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card variant="borderless" style={{ background: 'var(--bg-success-subtle, #f0fdf4)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
+            <Card variant="borderless" style={{ background: 'var(--bg-success-subtle, var(--bc-green-50))', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
                 title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-green-800)', textTransform: 'uppercase' }}>Available</Text>} 
                 value={stats.available} 
@@ -85,7 +85,7 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
             </Card>
           </Col>
           <Col span={8}>
-            <Card variant="borderless" style={{ background: 'var(--bg-info-subtle, #eff6ff)', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
+            <Card variant="borderless" style={{ background: 'var(--bg-info-subtle, var(--bc-blue-50))', textAlign: 'center', borderRadius: 'var(--radius-lg)' }} styles={{ body: { padding: '16px' } }}>
               <Statistic 
                 title={<Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-blue-800)', textTransform: 'uppercase' }}>Assigned</Text>} 
                 value={stats.assigned} 
@@ -106,8 +106,8 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
 
         <div style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase' }}>Manual Import Task IDs</Text>
-            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)' }}>Supports multi-line paste</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase' }}>Manual Import Task IDs</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))' }}>Supports multi-line paste</Text>
           </div>
           <TextArea
             rows={6}
@@ -118,7 +118,7 @@ const PoolManagementModal = ({ stats, onClose, onRefresh }) => {
               borderRadius: 'var(--radius-lg)', 
               fontSize: 'var(--font-size-xs)', 
               fontFamily: 'monospace',
-              border: '1px solid var(--border-light, #d9e6e9)'
+              border: '1px solid var(--border-light, var(--border-light))'
             }}
           />
           <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', marginTop: '8px' }}>
