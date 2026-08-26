@@ -88,14 +88,14 @@ const MissionControlView = ({ isEmbed = false }) => {
         stops: [20, 100]
       }
     },
-    colors: ['#4F46E5', '#10B981'],
+    colors: ['var(--bc-indigo-600)', '#10B981'],
     xaxis: {
       categories: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
       axisBorder: { show: false },
       axisTicks: { show: false }
     },
     yaxis: { show: false },
-    grid: { borderColor: '#F1F5F9', strokeDashArray: 4 },
+    grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
     dataLabels: { enabled: false },
     tooltip: { theme: 'light' }
   };

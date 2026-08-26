@@ -96,12 +96,12 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
     >
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>Review Task</span>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>Review Task</span>
         </Space>
       </div>
 
       <div style={{ ...MODAL_STYLES.bodyStyle, maxHeight: '70vh', overflowY: 'auto' }}>
-        <Text strong style={{ fontSize: 'var(--font-size-lg)', color: '#1e293b', display: 'block', marginBottom: 8 }}>
+        <Text strong style={{ fontSize: 'var(--font-size-lg)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>
           {action.title}
         </Text>
         <Space size={8} style={{ marginBottom: 16 }}>
@@ -120,8 +120,8 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
 
         {submittedBy && (
           <Space size={8} style={{ marginBottom: 16 }}>
-            <Avatar size={24} icon={<UserOutlined />} style={{ background: '#eef2ff', color: '#1976D2' }} />
-            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
+            <Avatar size={24} icon={<UserOutlined />} style={{ background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)' }} />
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)' }}>
               Submitted by {formatUserName(submittedBy)}
               {action.reviewSubmittedAt ? ` on ${dayjs(action.reviewSubmittedAt).format('MMM D, YYYY')}` : ''}
             </Text>
@@ -129,26 +129,26 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
         )}
 
         <div style={{
-          background: '#1e293b', color: 'white', borderRadius: 10, padding: 16,
+          background: 'var(--bc-slate-800)', color: 'white', borderRadius: 10, padding: 16,
           marginBottom: 16,
         }}>
-          <Text style={{ color: '#94a3b8', fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
+          <Text style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
             Completion Summary
           </Text>
-          <Text style={{ color: '#f1f5f9', fontSize: 'var(--font-size-sm)', display: 'block', whiteSpace: 'pre-wrap' }}>
+          <Text style={{ color: 'var(--bc-slate-100)', fontSize: 'var(--font-size-sm)', display: 'block', whiteSpace: 'pre-wrap' }}>
             {action.completionSummary || action.remarks || 'No summary provided'}
           </Text>
           {action.outcome && (
             <>
-              <Divider style={{ borderColor: '#334155', margin: '12px 0' }} />
-              <Text style={{ color: '#94a3b8', fontSize: 'var(--font-size-xs)', fontWeight: 600, display: 'block', marginBottom: 4 }}>
+              <Divider style={{ borderColor: 'var(--bc-slate-700)', margin: '12px 0' }} />
+              <Text style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-xs)', fontWeight: 600, display: 'block', marginBottom: 4 }}>
                 Outcome
               </Text>
               <Text style={{ color: '#2E7D32', fontSize: 'var(--font-size-sm)' }}>{action.outcome}</Text>
             </>
           )}
           {action.timeSpent && (
-            <div style={{ marginTop: 8, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+            <div style={{ marginTop: 8, color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>
               <CalendarOutlined style={{ marginRight: 4 }} />
               Time spent: {action.timeSpent} hours
             </div>
@@ -159,30 +159,30 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
           ghost
           items={[{
             key: 'details',
-            label: <Text style={{ fontSize: 'var(--font-size-sm)', color: '#1976D2', fontWeight: 600 }}>View Original Task Details</Text>,
+            label: <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-ro-500)', fontWeight: 600 }}>View Original Task Details</Text>,
             children: (
               <div style={{ padding: '8px 0' }}>
                 {action.description && (
                   <div style={{ marginBottom: 8 }}>
-                    <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', display: 'block' }}>Description</Text>
+                    <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', display: 'block' }}>Description</Text>
                     <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{action.description}</Text>
                   </div>
                 )}
                 <div style={{ marginBottom: 4 }}>
-                  <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', display: 'block' }}>
+                  <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', display: 'block' }}>
                     Assigned to: {Array.isArray(action.assignedTo) ? action.assignedTo.map(formatUserName).join(', ') : formatUserName(action.assignedTo)}
                   </Text>
                 </div>
                 {action.dueDate && (
                   <div style={{ marginBottom: 4 }}>
-                    <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', display: 'block' }}>
+                    <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', display: 'block' }}>
                       Due: {dayjs(action.dueDate).format('MMM D, YYYY')}
                     </Text>
                   </div>
                 )}
                 {action.asins && action.asins.length > 0 && (
                   <div>
-                    <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', display: 'block' }}>
+                    <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', display: 'block' }}>
                       Linked ASINs: {action.asins.length}
                     </Text>
                   </div>
@@ -194,7 +194,7 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
 
         <Divider style={{ margin: '16px 0' }} />
 
-        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 12 }}>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 12 }}>
           Review Decision
         </Text>
 
@@ -204,17 +204,17 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
             style={{
               flex: 1, height: 100, borderRadius: 10, padding: 16, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 12,
-              border: `2px solid ${decision === 'APPROVE' ? '#2E7D32' : '#e2e8f0'}`,
+              border: `2px solid ${decision === 'APPROVE' ? '#2E7D32' : 'var(--bc-slate-200)'}`,
               background: decision === 'APPROVE' ? '#ecfdf5' : 'white',
               transition: 'all 0.15s ease',
             }}
           >
-            <CheckCircleOutlined style={{ fontSize: 28, color: decision === 'APPROVE' ? '#2E7D32' : '#cbd5e1' }} />
+            <CheckCircleOutlined style={{ fontSize: 28, color: decision === 'APPROVE' ? '#2E7D32' : 'var(--bc-slate-300)' }} />
             <div>
-              <Text strong style={{ fontSize: 15, color: decision === 'APPROVE' ? '#2E7D32' : '#1e293b', display: 'block' }}>
+              <Text strong style={{ fontSize: 15, color: decision === 'APPROVE' ? '#2E7D32' : 'var(--bc-slate-800)', display: 'block' }}>
                 Approve
               </Text>
-              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>Mark this task as completed</Text>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)' }}>Mark this task as completed</Text>
             </div>
           </div>
 
@@ -223,17 +223,17 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
             style={{
               flex: 1, height: 100, borderRadius: 10, padding: 16, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 12,
-              border: `2px solid ${decision === 'REJECT' ? '#D32F2F' : '#e2e8f0'}`,
-              background: decision === 'REJECT' ? '#fef2f2' : 'white',
+              border: `2px solid ${decision === 'REJECT' ? '#D32F2F' : 'var(--bc-slate-200)'}`,
+              background: decision === 'REJECT' ? 'var(--bc-red-50)' : 'white',
               transition: 'all 0.15s ease',
             }}
           >
-            <CloseCircleOutlined style={{ fontSize: 28, color: decision === 'REJECT' ? '#D32F2F' : '#cbd5e1' }} />
+            <CloseCircleOutlined style={{ fontSize: 28, color: decision === 'REJECT' ? '#D32F2F' : 'var(--bc-slate-300)' }} />
             <div>
-              <Text strong style={{ fontSize: 15, color: decision === 'REJECT' ? '#e11d48' : '#1e293b', display: 'block' }}>
+              <Text strong style={{ fontSize: 15, color: decision === 'REJECT' ? '#e11d48' : 'var(--bc-slate-800)', display: 'block' }}>
                 Reject
               </Text>
-              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>Send back for rework</Text>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)' }}>Send back for rework</Text>
             </div>
           </div>
         </Space>
@@ -284,7 +284,7 @@ const ReviewModal = ({ isOpen, action, onClose, onReview }) => {
           disabled={!decision}
           style={{
             height: 36, borderRadius: "var(--radius-md)", fontWeight: 600,
-            background: decision === 'REJECT' ? '#D32F2F' : decision === 'APPROVE' ? '#2E7D32' : '#1976D2',
+            background: decision === 'REJECT' ? '#D32F2F' : decision === 'APPROVE' ? '#2E7D32' : 'var(--bc-ro-500)',
             border: 'none',
             boxShadow: decision ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
           }}

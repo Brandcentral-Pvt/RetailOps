@@ -5,15 +5,15 @@ const NumberChart = ({
     label,
     value,
     icon: Icon,
-    color = '#1976D2',
+    color = 'var(--bc-ro-500)',
     delta,
     deltaType = 'neutral',
     subtitle
 }) => {
     const getDeltaStyles = () => {
         if (deltaType === 'positive') return { color: '#2E7D32', bg: '#ecfdf5', icon: TrendingUp };
-        if (deltaType === 'negative') return { color: '#D32F2F', bg: '#fef2f2', icon: TrendingDown };
-        return { color: '#64748b', bg: '#f8fafc', icon: Minus };
+        if (deltaType === 'negative') return { color: '#D32F2F', bg: 'var(--bc-red-50)', icon: TrendingDown };
+        return { color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-50)', icon: Minus };
     };
 
     const deltaConfig = getDeltaStyles();

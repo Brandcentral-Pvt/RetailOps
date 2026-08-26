@@ -4,9 +4,9 @@ import { format, isToday, isTomorrow, isYesterday, differenceInDays } from 'date
 import { User, CheckCircle2, Clock, AlertTriangle, ListTodo, PlayCircle, Flag, Calendar, Zap } from 'lucide-react';
 
 const formatDueDate = (date) => {
-    if (!date) return { label: 'No due date', color: '#94a3b8', urgent: false };
+    if (!date) return { label: 'No due date', color: 'var(--bc-slate-400)', urgent: false };
     const d = new Date(date);
-    if (isNaN(d.getTime())) return { label: 'No due date', color: '#94a3b8', urgent: false };
+    if (isNaN(d.getTime())) return { label: 'No due date', color: 'var(--bc-slate-400)', urgent: false };
 
     const now = new Date();
     const days = differenceInDays(d, now);
@@ -23,7 +23,7 @@ const formatDueDate = (date) => {
     if (isTomorrow(d)) return { label: 'Due tomorrow', color: '#ED6C02', urgent: false };
     if (days <= 3) return { label: `Due in ${days}d`, color: '#ED6C02', urgent: false };
     if (days <= 7) return { label: format(d, 'EEE, MMM d'), color: 'var(--text-secondary, #64748b)', urgent: false };
-    return { label: format(d, 'MMM d, yyyy'), color: '#94a3b8', urgent: false };
+    return { label: format(d, 'MMM d, yyyy'), color: 'var(--bc-slate-400)', urgent: false };
 };
 
 const getStatusConfig = (task) => {
@@ -34,8 +34,8 @@ const getStatusConfig = (task) => {
         return {
             label: 'OVERDUE',
             color: 'var(--text-danger, #D32F2F)',
-            bg: '#fef2f2',
-            border: '#fecaca',
+            bg: 'var(--bc-red-50)',
+            border: 'var(--bc-red-200)',
             icon: AlertTriangle,
             pulse: true
         };
@@ -54,8 +54,8 @@ const getStatusConfig = (task) => {
             return {
                 label: 'ACTIVE',
                 color: 'var(--color-info-blue, #0288D1)',
-                bg: '#eff6ff',
-                border: '#bfdbfe',
+                bg: 'var(--bc-blue-50)',
+                border: 'var(--bc-blue-200)',
                 icon: PlayCircle,
                 pulse: true
             };
@@ -63,15 +63,15 @@ const getStatusConfig = (task) => {
             return {
                 label: 'PENDING',
                 color: '#ED6C02',
-                bg: '#fffbeb',
-                border: '#fde68a',
+                bg: 'var(--bc-amber-50)',
+                border: 'var(--bc-amber-200)',
                 icon: Clock
             };
         default:
             return {
                 label: 'TODO',
                 color: 'var(--text-secondary, #64748b)',
-                bg: '#f8fafc',
+                bg: 'var(--bc-slate-50)',
                 border: 'var(--border-light, #d9e6e9)',
                 icon: ListTodo
             };
@@ -98,15 +98,15 @@ const getInitials = (name) => {
 };
 
 const getAvatarColor = (name) => {
-    if (!name) return { bg: '#f1f5f9', text: '#64748b' };
+    if (!name) return { bg: 'var(--bc-slate-100)', text: 'var(--bc-slate-500)' };
     const colors = [
         { bg: 'var(--color-data-blue-bg, #dbeafe)', text: 'var(--color-info-blue, #0288D1)' },
         { bg: '#fce7f3', text: '#db2777' },
         { bg: '#d1fae5', text: '#2E7D32' },
-        { bg: '#fef3c7', text: '#E65100' },
-        { bg: '#e0e7ff', text: '#1976D2' },
-        { bg: '#fee2e2', text: '#D32F2F' },
-        { bg: '#cffafe', text: '#0891b2' },
+        { bg: 'var(--bc-amber-100)', text: '#E65100' },
+        { bg: 'var(--bc-indigo-100)', text: 'var(--bc-ro-500)' },
+        { bg: 'var(--bc-red-100)', text: '#D32F2F' },
+        { bg: 'var(--bc-cyan-100)', text: 'var(--bc-cyan-600)' },
         { bg: '#f3e8ff', text: '#9333ea' }
     ];
     const hash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -209,7 +209,7 @@ const TaskItem = memo(({ task, isLast }) => {
             <div style={{
                 fontSize: 'var(--font-size-sm)',
                 fontWeight: 600,
-                color: isCompleted ? '#64748b' : '#0f172a',
+                color: isCompleted ? 'var(--bc-slate-500)' : 'var(--bc-slate-900)',
                 lineHeight: 1.3,
                 marginBottom: 6,
                 textDecoration: isCompleted ? 'line-through' : 'none',

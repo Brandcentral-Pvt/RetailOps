@@ -13,7 +13,7 @@ export const SavingIndicator = memo(({
             <Tooltip title="Saving...">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Spin size="small" />
-                    <span style={{ fontSize: 10, color: '#94a3b8' }}>Saving</span>
+                    <span style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>Saving</span>
                 </div>
             </Tooltip>
         );

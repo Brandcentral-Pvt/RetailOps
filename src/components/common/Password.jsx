@@ -37,7 +37,7 @@ const Password = ({
                         backgroundColor: '#fff',
                         fontSize: 'var(--font-size-sm)',
                         borderWidth: '1px',
-                        borderColor: '#e2e8f0'
+                        borderColor: 'var(--bc-slate-200)'
                     }}
                 />
                 <button

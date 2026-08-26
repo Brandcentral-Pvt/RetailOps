@@ -33,7 +33,7 @@ class ErrorBoundary extends React.Component {
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          background: '#f8fafc',
+          background: 'var(--bc-slate-50)',
           padding: 20
         }}>
           <Result

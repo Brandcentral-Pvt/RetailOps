@@ -27,21 +27,21 @@ const getPriorityColor = (priority: TaskPriority): string => {
         case 'URGENT': return '#D32F2F';
         case 'HIGH': return '#ED6C02';
         case 'MEDIUM': return '#0288D1';
-        case 'LOW': return '#94a3b8';
-        default: return '#94a3b8';
+        case 'LOW': return 'var(--bc-slate-400)';
+        default: return 'var(--bc-slate-400)';
     }
 };
 
 // Status badge
 const getStatusBadge = (status: TaskStatus) => {
     const styles = {
-        TODO: { bg: '#f1f5f9', color: '#64748b', label: 'TODO' },
-        IN_PROGRESS: { bg: '#eff6ff', color: '#0288D1', label: 'IN PROGRESS' },
-        BLOCKED: { bg: '#fef2f2', color: '#D32F2F', label: 'BLOCKED' },
+        TODO: { bg: 'var(--bc-slate-100)', color: 'var(--bc-slate-500)', label: 'TODO' },
+        IN_PROGRESS: { bg: 'var(--bc-blue-50)', color: '#0288D1', label: 'IN PROGRESS' },
+        BLOCKED: { bg: 'var(--bc-red-50)', color: '#D32F2F', label: 'BLOCKED' },
         REVIEW: { bg: '#fefce8', color: '#eab308', label: 'REVIEW' },
-        COMPLETED: { bg: '#f0fdf4', color: '#2E7D32', label: 'COMPLETED' },
-        CANCELLED: { bg: '#f1f5f9', color: '#94a3b8', label: 'CANCELLED' },
-        REJECTED: { bg: '#fef2f2', color: '#C62828', label: 'REJECTED' },
+        COMPLETED: { bg: 'var(--bc-green-50)', color: '#2E7D32', label: 'COMPLETED' },
+        CANCELLED: { bg: 'var(--bc-slate-100)', color: 'var(--bc-slate-400)', label: 'CANCELLED' },
+        REJECTED: { bg: 'var(--bc-red-50)', color: '#C62828', label: 'REJECTED' },
     };
     const style = styles[status] || styles.TODO;
     return (

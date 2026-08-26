@@ -78,7 +78,7 @@ const TaskDetailDrawer = ({
     >
       <div style={{ borderLeft: '4px solid #1976D2', padding: '20px 24px 12px', borderBottom: '1px solid #f1f5f9' }}>
         <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-          <Text strong style={{ fontSize: 'var(--font-size-lg)', color: '#1e293b', lineHeight: 1.3 }}>
+          <Text strong style={{ fontSize: 'var(--font-size-lg)', color: 'var(--bc-slate-800)', lineHeight: 1.3 }}>
             {action.title || action.action || 'Untitled Task'}
           </Text>
           <Space size={8} wrap>
@@ -107,7 +107,7 @@ const TaskDetailDrawer = ({
           onAction={handleNotificationAction}
         />
 
-        <Descriptions column={1} size="small" colon={false} labelStyle={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', fontWeight: 500, paddingBottom: 4 }} contentStyle={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', paddingBottom: 8 }}>
+        <Descriptions column={1} size="small" colon={false} labelStyle={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', fontWeight: 500, paddingBottom: 4 }} contentStyle={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', paddingBottom: 8 }}>
           <Descriptions.Item label="Task ID">
             <Text copyable style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}>{action._id || action.id}</Text>
           </Descriptions.Item>
@@ -119,7 +119,7 @@ const TaskDetailDrawer = ({
           </Descriptions.Item>
           <Descriptions.Item label="Created by">
             <Space size={6}>
-              <Avatar size={22} icon={<UserOutlined />} style={{ background: '#eef2ff', color: '#1976D2' }} />
+              <Avatar size={22} icon={<UserOutlined />} style={{ background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)' }} />
               <span>{formatUserName(action.createdBy)}</span>
             </Space>
           </Descriptions.Item>
@@ -130,71 +130,71 @@ const TaskDetailDrawer = ({
 
         <Divider style={{ margin: '12px 0' }} />
 
-        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 8 }}>Assignment</Text>
-        <Descriptions column={1} size="small" colon={false} labelStyle={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', fontWeight: 500, paddingBottom: 4 }} contentStyle={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', paddingBottom: 8 }}>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>Assignment</Text>
+        <Descriptions column={1} size="small" colon={false} labelStyle={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', fontWeight: 500, paddingBottom: 4 }} contentStyle={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', paddingBottom: 8 }}>
           <Descriptions.Item label="Assigned To">
             {Array.isArray(action.assignedTo) && action.assignedTo.length > 0 ? (
               <Avatar.Group size={24} max={{ count: 3 }}>
                 {action.assignedTo.map((u, i) => (
                   <Tooltip key={i} title={getAssigneeName(u)}>
-                    <Avatar style={{ background: '#1976D2' }}>{getInitials(getAssigneeName(u))}</Avatar>
+                    <Avatar style={{ background: 'var(--bc-ro-500)' }}>{getInitials(getAssigneeName(u))}</Avatar>
                   </Tooltip>
                 ))}
               </Avatar.Group>
             ) : action.assignedTo ? (
               <Space size={6}>
-                <Avatar size={22} icon={<UserOutlined />} style={{ background: '#eef2ff', color: '#1976D2' }} />
+                <Avatar size={22} icon={<UserOutlined />} style={{ background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)' }} />
                 <span>{formatUserName(action.assignedTo)}</span>
               </Space>
             ) : (
-              <Text style={{ color: '#94a3b8' }}>—</Text>
+              <Text style={{ color: 'var(--bc-slate-400)' }}>—</Text>
             )}
           </Descriptions.Item>
           <Descriptions.Item label="Reviewer">
             {action.reviewer ? (
               <Space size={6}>
-                <Avatar size={22} icon={<UserOutlined />} style={{ background: '#f5f3ff', color: '#9C27B0' }} />
+                <Avatar size={22} icon={<UserOutlined />} style={{ background: 'var(--bc-violet-50)', color: 'var(--bc-purple-500)' }} />
                 <span>{formatUserName(action.reviewer)}</span>
               </Space>
             ) : (
-              <Text style={{ color: '#94a3b8' }}>—</Text>
+              <Text style={{ color: 'var(--bc-slate-400)' }}>—</Text>
             )}
           </Descriptions.Item>
           <Descriptions.Item label="Seller">
             {action.seller
               ? (typeof action.seller === 'string' ? action.seller : action.seller.name || action.seller.sellerName || action.seller.businessName || '—')
-              : <Text style={{ color: '#94a3b8' }}>—</Text>}
+              : <Text style={{ color: 'var(--bc-slate-400)' }}>—</Text>}
           </Descriptions.Item>
           <Descriptions.Item label="Linked Objective">
             {action.keyResultId ? (
               <Space size={4}>
-                <LinkOutlined style={{ color: '#1976D2', fontSize: 'var(--font-size-sm)' }} />
-                <Text style={{ color: '#1976D2' }}>
+                <LinkOutlined style={{ color: 'var(--bc-ro-500)', fontSize: 'var(--font-size-sm)' }} />
+                <Text style={{ color: 'var(--bc-ro-500)' }}>
                   {typeof action.keyResultId === 'string' ? action.keyResultId : action.keyResultId.title || 'Linked Objective'}
                 </Text>
               </Space>
             ) : (
-              <Text style={{ color: '#94a3b8' }}>—</Text>
+              <Text style={{ color: 'var(--bc-slate-400)' }}>—</Text>
             )}
           </Descriptions.Item>
         </Descriptions>
 
         <Divider style={{ margin: '12px 0' }} />
 
-        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 12 }}>Status Timeline</Text>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 12 }}>Status Timeline</Text>
         <TaskStatusTimeline task={action} compact={false} />
 
         <Divider style={{ margin: '12px 0' }} />
 
-        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 8 }}>Linked ASINs</Text>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>Linked ASINs</Text>
         {linkedAsins.length > 0 ? (
           <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#94a3b8', textAlign: 'left' }}>ASIN</th>
-                  <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#94a3b8', textAlign: 'left' }}>Title</th>
-                  <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#94a3b8', textAlign: 'left' }}>Status</th>
+                <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>ASIN</th>
+                  <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>Title</th>
+                  <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,7 +218,7 @@ const TaskDetailDrawer = ({
           </Card>
         ) : (
           <div style={{ padding: '12px 0' }}>
-            <Text style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>No ASINs linked</Text>
+            <Text style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>No ASINs linked</Text>
           </div>
         )}
 
@@ -228,7 +228,7 @@ const TaskDetailDrawer = ({
         {subTasks.length > 0 && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckSquareOutlined style={{ fontSize: 'var(--font-size-base)' }} />
                 Sub-Tasks ({subTaskProgress})
               </Text>
@@ -236,31 +236,31 @@ const TaskDetailDrawer = ({
                 percent={subTasks.length > 0 ? Math.round((completedSubTasks / subTasks.length) * 100) : 0}
                 size="small"
                 strokeColor="#2E7D32"
-                railColor="#f1f5f9"
+                railColor="var(--bc-slate-100)"
                 style={{ width: 100, margin: 0 }}
               />
             </div>
             <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', marginBottom: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'center', width: 36 }}></th>
-                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'left' }}>ASIN</th>
+                  <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'center', width: 36 }}></th>
+                    <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>ASIN</th>
                     {subTasks[0]?.currentPrice !== undefined && (
                       <>
-                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'right' }}>Channel</th>
-                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'right' }}>Market</th>
-                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'right' }}>Diff</th>
+                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'right' }}>Channel</th>
+                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'right' }}>Market</th>
+                        <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'right' }}>Diff</th>
                       </>
                     )}
                     {subTasks[0]?.currentPrice === undefined && subTasks[0]?.stockLevel !== undefined && (
-                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'right' }}>Stock</th>
+                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'right' }}>Stock</th>
                     )}
                     {subTasks[0]?.currentPrice === undefined && subTasks[0]?.lqs !== undefined && (
-                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'right' }}>LQS</th>
+                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'right' }}>LQS</th>
                     )}
                     {subTasks[0]?.currentPrice === undefined && subTasks[0]?.stockLevel === undefined && subTasks[0]?.lqs === undefined && (
-                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: '#94a3b8', textAlign: 'left' }}>Details</th>
+                      <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>Details</th>
                     )}
                   </tr>
                 </thead>
@@ -274,7 +274,7 @@ const TaskDetailDrawer = ({
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 'var(--font-size-sm)', fontFamily: 'monospace', fontWeight: 600 }}>
                           <span style={{ textDecoration: isCompleted ? 'line-through' : 'none' }}>{st.asinCode}</span>
-                          {st.brand && <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>{st.brand}</span>}
+                          {st.brand && <span style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginLeft: 4 }}>{st.brand}</span>}
                         </td>
                         {st.currentPrice !== undefined ? (
                           <>
@@ -293,7 +293,7 @@ const TaskDetailDrawer = ({
                             <Tag color={st.lqs < 50 ? 'error' : st.lqs < 70 ? 'warning' : 'success'} style={{ borderRadius: "var(--radius-sm)", fontSize: 10 }}>{st.lqs}</Tag>
                           </td>
                         ) : (
-                          <td style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+                          <td style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
                             {st.title || st.asinCode}
                           </td>
                         )}
@@ -307,27 +307,27 @@ const TaskDetailDrawer = ({
           </>
         )}
 
-        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 8 }}>Progress</Text>
+        <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>Progress</Text>
         <Progress
           percent={action.status === 'COMPLETED' ? 100 : action.status === 'IN_PROGRESS' ? 50 : 0}
           size="small"
-          strokeColor="#1976D2"
-          railColor="#f1f5f9"
+          strokeColor="var(--bc-ro-500)"
+          railColor="var(--bc-slate-100)"
           style={{ marginBottom: 12 }}
         />
 
         {(action.description || action.internalNotes || (action.tags && action.tags.length > 0)) && (
           <>
             <Divider style={{ margin: '12px 0' }} />
-            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 8 }}>Notes &amp; Description</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>Notes &amp; Description</Text>
             {action.description && (
-              <div style={{ background: '#f8fafc', borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8 }}>
+              <div style={{ background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8 }}>
                 <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{action.description}</Text>
               </div>
             )}
             {action.internalNotes && (
-              <div style={{ background: '#fffbeb', borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8, border: '1px solid #fde68a' }}>
-                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#92400e', fontWeight: 600, display: 'block', marginBottom: 4 }}>Internal Notes</Text>
+              <div style={{ background: 'var(--bc-amber-50)', borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8, border: '1px solid #fde68a' }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-amber-800)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Internal Notes</Text>
                 <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{action.internalNotes}</Text>
               </div>
             )}

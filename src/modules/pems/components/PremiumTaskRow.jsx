@@ -13,8 +13,8 @@ import pemsApi from '../services/pemsApi';
 const { Text } = Typography;
 
 const CATEGORY_BAR_COLORS = {
-  PRICING: '#0891B2', LISTING: '#2563EB', INVENTORY: '#7C3AED',
-  ADS: '#EA580C', ANALYTICS: '#16A34A', COMPLIANCE: '#DC2626', GENERAL: '#64748B',
+  PRICING: 'var(--bc-cyan-600)', LISTING: 'var(--bc-blue-600)', INVENTORY: 'var(--bc-violet-600)',
+  ADS: 'var(--bc-accent-inventory)', ANALYTICS: 'var(--bc-green-600)', COMPLIANCE: 'var(--bc-red-600)', GENERAL: 'var(--bc-slate-500)',
 };
 
 function CategoryMetrics({ task, categoryKey }) {
@@ -35,7 +35,7 @@ function CategoryMetrics({ task, categoryKey }) {
           </Tag>
         </Tooltip>
         {mismatch != null && (
-          <Tag style={{ fontSize: 9, borderRadius: 4, background: mismatch > 5 ? '#fef2f2' : '#f0fdf4', color: mismatch > 5 ? '#dc2626' : '#16a34a', border: `1px solid ${mismatch > 5 ? '#fecaca' : '#bbf7d0'}`, margin: 0, fontWeight: 600, lineHeight: '16px', padding: '0 5px' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: mismatch > 5 ? 'var(--bc-red-50)' : 'var(--bc-green-50)', color: mismatch > 5 ? 'var(--bc-red-600)' : 'var(--bc-green-600)', border: `1px solid ${mismatch > 5 ? 'var(--bc-red-200)' : 'var(--bc-green-200)'}`, margin: 0, fontWeight: 600, lineHeight: '16px', padding: '0 5px' }}>
             {mismatch > 0 ? '+' : ''}{mismatch}%
           </Tag>
         )}
@@ -51,16 +51,16 @@ function CategoryMetrics({ task, categoryKey }) {
       <Space size={4}>
         <Tooltip title={`AI Health: ${score ?? '—'} / Target: ${target}`}>
           <Tag style={{ fontSize: 9, borderRadius: 4, margin: 0, lineHeight: '16px', padding: '0 5px',
-            background: passing ? '#f0fdf4' : score >= 5 ? '#fffbeb' : '#fef2f2',
-            color: passing ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626',
-            border: `1px solid ${passing ? '#bbf7d0' : score >= 5 ? '#fde68a' : '#fecaca'}`,
+            background: passing ? 'var(--bc-green-50)' : score >= 5 ? 'var(--bc-amber-50)' : 'var(--bc-red-50)',
+            color: passing ? 'var(--bc-green-600)' : score >= 5 ? 'var(--bc-amber-600)' : 'var(--bc-red-600)',
+            border: `1px solid ${passing ? 'var(--bc-green-200)' : score >= 5 ? 'var(--bc-amber-200)' : 'var(--bc-red-200)'}`,
             fontWeight: 600, fontFamily: 'monospace',
           }}>
             <SafetyCertificateOutlined style={{ fontSize: 7 }} />{score ?? '—'}→{target}
           </Tag>
         </Tooltip>
         {task.ImagesMissing > 0 && (
-          <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>
             {task.ImagesMissing} img
           </Tag>
         )}
@@ -77,16 +77,16 @@ function CategoryMetrics({ task, categoryKey }) {
       <Space size={4}>
         <Tooltip title={`Stock: ${stock ?? '—'}`}>
           <Tag style={{ fontSize: 9, borderRadius: 4, margin: 0, lineHeight: '16px', padding: '0 5px',
-            background: isOut ? '#fef2f2' : isLow ? '#fffbeb' : '#f0fdf4',
-            color: isOut ? '#dc2626' : isLow ? '#d97706' : '#16a34a',
-            border: `1px solid ${isOut ? '#fecaca' : isLow ? '#fde68a' : '#bbf7d0'}`,
+            background: isOut ? 'var(--bc-red-50)' : isLow ? 'var(--bc-amber-50)' : 'var(--bc-green-50)',
+            color: isOut ? 'var(--bc-red-600)' : isLow ? 'var(--bc-amber-600)' : 'var(--bc-green-600)',
+            border: `1px solid ${isOut ? 'var(--bc-red-200)' : isLow ? 'var(--bc-amber-200)' : 'var(--bc-green-200)'}`,
             fontWeight: 600,
           }}>
             {stock ?? '—'} units
           </Tag>
         </Tooltip>
-        {isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>OOS</Tag>}
-        {isLow && !isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', margin: 0, lineHeight: '16px', padding: '0 5px' }}>Low</Tag>}
+        {isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-red-50)', color: 'var(--bc-red-600)', border: '1px solid #fecaca', margin: 0, lineHeight: '16px', padding: '0 5px' }}>OOS</Tag>}
+        {isLow && !isOut && <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-amber-50)', color: 'var(--bc-amber-600)', border: '1px solid #fde68a', margin: 0, lineHeight: '16px', padding: '0 5px' }}>Low</Tag>}
       </Space>
     );
   }
@@ -103,7 +103,7 @@ function CategoryMetrics({ task, categoryKey }) {
           </Tag>
         </Tooltip>
         {pct != null && (
-          <Tag style={{ fontSize: 9, borderRadius: 4, background: pct > 80 ? '#fef2f2' : '#f0fdf4', color: pct > 80 ? '#dc2626' : '#16a34a', border: `1px solid ${pct > 80 ? '#fecaca' : '#bbf7d0'}`, margin: 0, lineHeight: '16px', padding: '0 5px', fontWeight: 600 }}>
+          <Tag style={{ fontSize: 9, borderRadius: 4, background: pct > 80 ? 'var(--bc-red-50)' : 'var(--bc-green-50)', color: pct > 80 ? 'var(--bc-red-600)' : 'var(--bc-green-600)', border: `1px solid ${pct > 80 ? 'var(--bc-red-200)' : 'var(--bc-green-200)'}`, margin: 0, lineHeight: '16px', padding: '0 5px', fontWeight: 600 }}>
             {pct}%
           </Tag>
         )}
@@ -116,12 +116,12 @@ function CategoryMetrics({ task, categoryKey }) {
 
 function getSlaLevel(task) {
   const sla = task.SLAStatus;
-  if (sla === 'BREACHED') return { color: '#DC2626', bg: '#fef2f2', label: 'Breached', level: 'critical' };
-  if (sla === 'AT_RISK') return { color: '#EA580C', bg: '#fff7ed', label: 'At Risk', level: 'warning' };
+  if (sla === 'BREACHED') return { color: 'var(--bc-red-600)', bg: 'var(--bc-red-50)', label: 'Breached', level: 'critical' };
+  if (sla === 'AT_RISK') return { color: 'var(--bc-accent-inventory)', bg: '#fff7ed', label: 'At Risk', level: 'warning' };
   if (!task.DueDate) return null;
   const h = (new Date(task.DueDate) - new Date()) / (1000 * 60 * 60);
   if (h < 12) return { color: '#EAB308', bg: '#fefce8', label: '<12h', level: 'attention' };
-  return { color: '#16A34A', bg: '#f0fdf4', label: 'On Track', level: 'healthy' };
+  return { color: 'var(--bc-green-600)', bg: 'var(--bc-green-50)', label: 'On Track', level: 'healthy' };
 }
 
 export default function PremiumTaskRow({ task, index, selected, onSelect, onView, onRefresh }) {
@@ -194,8 +194,8 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
   };
 
   const btnStyle = (s) => {
-    if (s === 'IN_PROGRESS') return { background: '#1976D2', borderColor: '#1976D2', color: '#fff' };
-    if (s === 'SUBMITTED') return { background: '#2563eb', borderColor: '#2563eb', color: '#fff' };
+    if (s === 'IN_PROGRESS') return { background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', color: '#fff' };
+    if (s === 'SUBMITTED') return { background: 'var(--bc-blue-600)', borderColor: 'var(--bc-blue-600)', color: '#fff' };
     if (s === 'CANCELLED') return { background: '#D32F2F', borderColor: '#D32F2F', color: '#fff' };
     return { background: 'var(--bc-surface-card, #fff)', borderColor: 'var(--bc-border-strong, #d1d5db)', color: 'var(--bc-text-body, #374151)' };
   };
@@ -340,7 +340,7 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
       >
         <div style={{ padding: '4px 0' }}>
           <div style={{ padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: "var(--radius-md)", marginBottom: 12 }}>
-            <Text style={{ fontSize: 'var(--font-size-xs)', color: '#92400e', fontWeight: 600 }}>Describe what work was done before submitting.</Text>
+            <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-amber-800)', fontWeight: 600 }}>Describe what work was done before submitting.</Text>
           </div>
           <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Work Summary <Text type="danger">*</Text></Text>
           <Input.TextArea

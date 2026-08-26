@@ -23,7 +23,7 @@ const { TextArea } = Input;
 // Helpers
 // ─────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
-  '#1976D2', '#0891b2', '#2E7D32', '#E65100',
+  'var(--bc-ro-500)', 'var(--bc-cyan-600)', '#2E7D32', '#E65100',
   '#C62828', '#9333ea', '#db2777', '#0284c7'
 ];
 function avatarColor(str = '') {
@@ -278,8 +278,8 @@ const TeamManagementPage = () => {
               {initials(fullName).toUpperCase() || '?'}
             </Avatar>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>{fullName}</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)' }}>{fullName}</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
                 <MailOutlined style={{ marginRight: 4 }} />{email}
               </div>
             </div>
@@ -327,7 +327,7 @@ const TeamManagementPage = () => {
                 type="text"
                 icon={<EditOutlined />}
                 size="small"
-                style={{ color: '#1976D2' }}
+                style={{ color: 'var(--bc-ro-500)' }}
                 onClick={() => handleOpenEditMember(record)}
               />
             </Tooltip>
@@ -359,10 +359,10 @@ const TeamManagementPage = () => {
           {initials(team.name || 'T').toUpperCase() || 'T'}
         </Avatar>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: activeTeam?._id === team._id ? '#1976D2' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: activeTeam?._id === team._id ? 'var(--bc-ro-500)' : 'var(--bc-slate-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
             {team.name || 'Unnamed Team'}
           </div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>{team._memberCount || 0} members</div>
+          <div style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>{team._memberCount || 0} members</div>
         </div>
       </div>
     )
@@ -370,7 +370,7 @@ const TeamManagementPage = () => {
 
   // ─── Render ───────────────────────────────────────────────────
   return (
-    <div style={{ height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+    <div style={{ height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', background: 'var(--bc-slate-50)' }}>
       {contextHolder}
       <Layout style={{ height: '100%', background: 'transparent' }}>
 
@@ -378,7 +378,7 @@ const TeamManagementPage = () => {
         <Sider
           width={230}
           style={{
-            background: '#ffffff',
+            background: 'var(--bc-white)',
             borderRight: '1px solid #e2e8f0',
             overflowY: 'auto',
             height: '100%'
@@ -386,7 +386,7 @@ const TeamManagementPage = () => {
         >
           <div style={{ padding: '16px 14px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <Text style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <Text style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Teams
               </Text>
               <Tooltip title="Create Team">
@@ -395,7 +395,7 @@ const TeamManagementPage = () => {
                   size="small"
                   icon={<PlusOutlined />}
                   onClick={() => { teamForm.resetFields(); setCreateTeamOpen(true); }}
-                  style={{ borderRadius: 6, background: '#1976D2', borderColor: '#1976D2', padding: '0 8px' }}
+                  style={{ borderRadius: 6, background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', padding: '0 8px' }}
                 />
               </Tooltip>
             </div>
@@ -421,7 +421,7 @@ const TeamManagementPage = () => {
                       padding: '10px 10px',
                       borderRadius: "var(--radius-md)",
                       cursor: 'pointer',
-                      background: activeTeam?._id === team._id ? '#eef2ff' : 'transparent',
+                      background: activeTeam?._id === team._id ? 'var(--bc-indigo-50)' : 'transparent',
                       border: activeTeam?._id === team._id ? '1px solid #c7d2fe' : '1px solid transparent',
                       transition: 'all 0.15s ease'
                     }}
@@ -433,16 +433,16 @@ const TeamManagementPage = () => {
                       {(initials(team.name || 'T').toUpperCase() || 'T')[0]}
                     </Avatar>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 12, color: activeTeam?._id === team._id ? '#1976D2' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 600, fontSize: 12, color: activeTeam?._id === team._id ? 'var(--bc-ro-500)' : 'var(--bc-slate-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {team.name || 'Unnamed Team'}
                       </div>
-                      <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
+                      <div style={{ fontSize: 10.5, color: 'var(--bc-slate-400)' }}>
                         <TeamOutlined style={{ marginRight: 3 }} />
                         {team._memberCount !== undefined ? team._memberCount : '—'} members
                       </div>
                     </div>
                     {activeTeam?._id === team._id && (
-                      <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#1976D2', flexShrink: 0 }} />
+                      <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--bc-ro-500)', flexShrink: 0 }} />
                     )}
                   </div>
                 ))}
@@ -452,11 +452,11 @@ const TeamManagementPage = () => {
         </Sider>
 
         {/* ── Main Content ── */}
-        <Content style={{ overflowY: 'auto', padding: '24px 28px', background: '#f8fafc' }}>
+        <Content style={{ overflowY: 'auto', padding: '24px 28px', background: 'var(--bc-slate-50)' }}>
           {!activeTeam ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
               <Result
-                icon={<TeamOutlined style={{ color: '#1976D2' }} />}
+                icon={<TeamOutlined style={{ color: 'var(--bc-ro-500)' }} />}
                 title="Select or Create a Team"
                 subTitle="Choose a team from the sidebar or create a new one to get started."
                 extra={
@@ -464,7 +464,7 @@ const TeamManagementPage = () => {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => { teamForm.resetFields(); setCreateTeamOpen(true); }}
-                    style={{ background: '#1976D2', borderColor: '#1976D2', borderRadius: "var(--radius-md)", fontWeight: 600 }}
+                    style={{ background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', borderRadius: "var(--radius-md)", fontWeight: 600 }}
                   >
                     Create Team
                   </Button>
@@ -520,7 +520,7 @@ const TeamManagementPage = () => {
                       type="primary"
                       icon={<UserAddOutlined />}
                       onClick={() => { memberForm.resetFields(); setAddMemberOpen(true); }}
-                      style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: '#1976D2', borderColor: '#1976D2' }}
+                      style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)' }}
                     >
                       Add Member
                     </Button>
@@ -532,34 +532,34 @@ const TeamManagementPage = () => {
                 <Row gutter={16}>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Members</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Members</span>}
                       value={members.length}
-                      prefix={<TeamOutlined style={{ color: '#1976D2', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
+                      prefix={<TeamOutlined style={{ color: 'var(--bc-ro-500)', marginRight: 4 }} />}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: 'var(--bc-slate-900)' }}
                     />
                   </Col>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Team Leads</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Team Leads</span>}
                       value={teamLeads}
                       prefix={<CrownOutlined style={{ color: '#ED6C02', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: 'var(--bc-slate-900)' }}
                     />
                   </Col>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Operators</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Operators</span>}
                       value={members.length - teamLeads}
                       prefix={<UserOutlined style={{ color: '#2E7D32', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: 'var(--bc-slate-900)' }}
                     />
                   </Col>
                   <Col span={6}>
                     <Statistic
-                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sellers Mapped</span>}
+                      title={<span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sellers Mapped</span>}
                       value={sellersCount}
-                      prefix={<BankOutlined style={{ color: '#0891b2', marginRight: 4 }} />}
-                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#0f172a' }}
+                      prefix={<BankOutlined style={{ color: 'var(--bc-cyan-600)', marginRight: 4 }} />}
+                      valueStyle={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: 'var(--bc-slate-900)' }}
                     />
                   </Col>
                 </Row>
@@ -573,12 +573,12 @@ const TeamManagementPage = () => {
               >
                 {/* Table Header */}
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#0f172a' }}>
-                    <TeamOutlined style={{ marginRight: 8, color: '#1976D2' }} />
+                  <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)' }}>
+                    <TeamOutlined style={{ marginRight: 8, color: 'var(--bc-ro-500)' }} />
                     Members ({members.length})
                   </Text>
                   <Input
-                    prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+                    prefix={<SearchOutlined style={{ color: 'var(--bc-slate-400)' }} />}
                     placeholder="Search by name or email..."
                     value={searchText}
                     onChange={e => setSearchText(e.target.value)}
@@ -611,14 +611,14 @@ const TeamManagementPage = () => {
         onOk={handleCreateTeam}
         okText="Create Team"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
+        okButtonProps={{ style: { background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
         cancelButtonProps={{ style: { borderRadius: "var(--radius-md)" } }}
         title={
           <Space>
-            <Avatar size={32} style={{ background: '#1976D2' }} icon={<TeamOutlined />} />
+            <Avatar size={32} style={{ background: 'var(--bc-ro-500)' }} icon={<TeamOutlined />} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Create New Team</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>Set up a new operational workspace team</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 400 }}>Set up a new operational workspace team</div>
             </div>
           </Space>
         }
@@ -633,7 +633,7 @@ const TeamManagementPage = () => {
             rules={[{ required: true, message: 'Team name is required' }]}
           >
             <Input
-              prefix={<TeamOutlined style={{ color: '#94a3b8' }} />}
+              prefix={<TeamOutlined style={{ color: 'var(--bc-slate-400)' }} />}
               placeholder="e.g. Amazon SEO Ops"
               style={{ borderRadius: "var(--radius-md)", height: 40 }}
             />
@@ -660,10 +660,10 @@ const TeamManagementPage = () => {
         footer={null}
         title={
           <Space>
-            <Avatar size={32} style={{ background: '#0891b2' }} icon={<SettingOutlined />} />
+            <Avatar size={32} style={{ background: 'var(--bc-cyan-600)' }} icon={<SettingOutlined />} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Team Settings</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>Modify team name, description, or delete</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 400 }}>Modify team name, description, or delete</div>
             </div>
           </Space>
         }
@@ -678,7 +678,7 @@ const TeamManagementPage = () => {
             rules={[{ required: true, message: 'Team name is required' }]}
           >
             <Input
-              prefix={<TeamOutlined style={{ color: '#94a3b8' }} />}
+              prefix={<TeamOutlined style={{ color: 'var(--bc-slate-400)' }} />}
               placeholder="Team name"
               style={{ borderRadius: "var(--radius-md)", height: 40 }}
             />
@@ -716,7 +716,7 @@ const TeamManagementPage = () => {
               type="primary"
               loading={saving}
               onClick={handleUpdateTeam}
-              style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: '#1976D2', borderColor: '#1976D2' }}
+              style={{ borderRadius: "var(--radius-md)", fontWeight: 600, background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)' }}
             >
               Save Changes
             </Button>
@@ -740,7 +740,7 @@ const TeamManagementPage = () => {
             <Avatar size={32} style={{ background: '#2E7D32' }} icon={<UserAddOutlined />} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Add Team Member</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>Add a platform user to this team</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 400 }}>Add a platform user to this team</div>
             </div>
           </Space>
         }
@@ -775,7 +775,7 @@ const TeamManagementPage = () => {
           >
             <Select style={{ borderRadius: "var(--radius-md)" }}>
               <Select.Option value="member">
-                <Space><UserOutlined style={{ color: '#1976D2' }} />Member</Space>
+                <Space><UserOutlined style={{ color: 'var(--bc-ro-500)' }} />Member</Space>
               </Select.Option>
               <Select.Option value="lead">
                 <Space><CrownOutlined style={{ color: '#ED6C02' }} />Team Lead</Space>
@@ -789,7 +789,7 @@ const TeamManagementPage = () => {
               label={
                 <div>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Seller Access</span>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', fontWeight: 400 }}>Leave empty to grant full access to all sellers</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', fontWeight: 400 }}>Leave empty to grant full access to all sellers</div>
                 </div>
               }
             >
@@ -816,14 +816,14 @@ const TeamManagementPage = () => {
         onOk={handleSaveMember}
         okText="Save Changes"
         confirmLoading={saving}
-        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
+        okButtonProps={{ style: { background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)', borderRadius: "var(--radius-md)", fontWeight: 600 } }}
         cancelButtonProps={{ style: { borderRadius: "var(--radius-md)" } }}
         title={
           <Space>
-            <Avatar size={32} style={{ background: '#1976D2' }} icon={<EditOutlined />} />
+            <Avatar size={32} style={{ background: 'var(--bc-ro-500)' }} icon={<EditOutlined />} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 'var(--font-size-base)' }}>Edit Member Access</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 400 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 400 }}>
                 {selectedMember ? `${selectedMember.firstName || selectedMember.FirstName || ''} ${selectedMember.lastName || selectedMember.LastName || ''}`.trim() || 'Member' : 'Member'}
               </div>
             </div>
@@ -849,7 +849,7 @@ const TeamManagementPage = () => {
           >
             <Select style={{ borderRadius: "var(--radius-md)" }}>
               <Select.Option value="member">
-                <Space><UserOutlined style={{ color: '#1976D2' }} />Member</Space>
+                <Space><UserOutlined style={{ color: 'var(--bc-ro-500)' }} />Member</Space>
               </Select.Option>
               <Select.Option value="lead">
                 <Space><CrownOutlined style={{ color: '#ED6C02' }} />Team Lead</Space>
@@ -863,7 +863,7 @@ const TeamManagementPage = () => {
               label={
                 <div>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Seller Access</span>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', fontWeight: 400 }}>Leave empty for full access</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', fontWeight: 400 }}>Leave empty for full access</div>
                 </div>
               }
             >

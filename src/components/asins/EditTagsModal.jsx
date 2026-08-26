@@ -545,7 +545,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
                           borderRadius: 'var(--radius-lg)',
                           padding: '2px 10px',
                           fontSize: 'var(--font-size-xs)',
-                          backgroundColor: isCatSelected ? `${colorHex}15` : '#ffffff',
+                          backgroundColor: isCatSelected ? `${colorHex}15` : 'var(--bc-white)',
                           color: isCatSelected ? colorHex : '#595959',
                           transition: 'all 0.2s'
                         }}
@@ -582,7 +582,7 @@ const EditTagsModal = ({ isOpen, onClose, asin, onUpdate }) => {
                             border: isSelected ? `1px solid ${colorHex}` : '1px solid #d9d9d9',
                             padding: '4px 10px',
                             fontSize: 'var(--font-size-sm)',
-                            backgroundColor: isSelected ? `${colorHex}15` : '#ffffff',
+                            backgroundColor: isSelected ? `${colorHex}15` : 'var(--bc-white)',
                             color: isSelected ? colorHex : '#434343',
                             borderRadius: '6px',
                             userSelect: 'none',

@@ -47,18 +47,18 @@ const getAvatarGradient = (firstName = '', lastName = '') => {
 const getRoleColor = (roleName) => {
     const colors = {
         'super_admin': '#C62828',
-        'admin': '#ea580c',
-        'operational_manager': '#9C27B0',
-        'finance_manager': '#0891b2',
+        'admin': 'var(--bc-accent-inventory)',
+        'operational_manager': 'var(--bc-purple-500)',
+        'finance_manager': 'var(--bc-cyan-600)',
         'brand_manager': '#0288D1',
         'catalog_manager': '#db2777',
         'team_lead': '#9333ea',
-        'listing_team': '#16a34a',
+        'listing_team': 'var(--bc-green-600)',
         'senior_executive': '#0d9488',
-        'executive': '#64748b',
+        'executive': 'var(--bc-slate-500)',
         'viewer': '#71717a'
     };
-    return colors[roleName?.toLowerCase()] || '#64748b';
+    return colors[roleName?.toLowerCase()] || 'var(--bc-slate-500)';
 };
 
 // Field Label Component
@@ -66,7 +66,7 @@ const FieldLabel = ({ children }) => (
     <div style={{
         fontSize: 'var(--font-size-xs)',
         fontWeight: 600,
-        color: '#475569',
+        color: 'var(--bc-slate-600)',
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
         marginBottom: 6
@@ -108,7 +108,7 @@ const EnhancedAvatar = ({ firstName, lastName, size = 40, showStatus = false, is
                     width: size * 0.25,
                     height: size * 0.25,
                     borderRadius: '50%',
-                    background: isOnline ? '#2E7D32' : '#94a3b8',
+                    background: isOnline ? '#2E7D32' : 'var(--bc-slate-400)',
                     border: '2px solid white',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                     animation: isOnline ? 'pulse 2s infinite' : 'none'
@@ -173,12 +173,12 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
             overflow: 'hidden'
         }}
         onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.borderColor = 'var(--bc-slate-300)';
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
             e.currentTarget.style.transform = 'translateY(-2px)';
         }}
         onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#f1f5f9';
+            e.currentTarget.style.borderColor = 'var(--bc-slate-100)';
             e.currentTarget.style.boxShadow = 'none';
             e.currentTarget.style.transform = 'translateY(0)';
         }}
@@ -203,7 +203,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
                     alignItems: 'center',
                     gap: 3,
                     padding: '3px 8px',
-                    background: trend.positive ? '#dcfce7' : '#fee2e2',
+                    background: trend.positive ? 'var(--bc-green-100)' : 'var(--bc-red-100)',
                     color: trend.positive ? '#2E7D32' : '#C62828',
                     borderRadius: 6,
                     fontSize: 10,
@@ -218,7 +218,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
         <div style={{
             fontSize: 28,
             fontWeight: 800,
-            color: '#0f172a',
+            color: 'var(--bc-slate-900)',
             lineHeight: 1,
             marginBottom: 6,
             letterSpacing: '-0.02em'
@@ -229,7 +229,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
         <div style={{
             fontSize: 'var(--font-size-xs)',
             fontWeight: 600,
-            color: '#64748b',
+            color: 'var(--bc-slate-500)',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             marginBottom: 4
@@ -240,7 +240,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
         {subtitle && (
             <div style={{
                 fontSize: 'var(--font-size-sm)',
-                color: '#94a3b8',
+                color: 'var(--bc-slate-400)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4
@@ -262,7 +262,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
 
 // Format Last Active Time
 const formatLastActive = (timestamp) => {
-    if (!timestamp) return { text: 'Never', color: '#94a3b8', isOnline: false };
+    if (!timestamp) return { text: 'Never', color: 'var(--bc-slate-400)', isOnline: false };
 
     const date = new Date(timestamp);
     const now = new Date();
@@ -270,9 +270,9 @@ const formatLastActive = (timestamp) => {
 
     if (diff < 60000) return { text: 'Just now', color: '#2E7D32', isOnline: true };
     if (diff < 300000) return { text: 'Online now', color: '#2E7D32', isOnline: true };
-    if (diff < 3600000) return { text: `${Math.floor(diff / 60000)}m ago`, color: '#0891b2', isOnline: false };
+    if (diff < 3600000) return { text: `${Math.floor(diff / 60000)}m ago`, color: 'var(--bc-cyan-600)', isOnline: false };
     if (diff < 86400000) return { text: `${Math.floor(diff / 3600000)}h ago`, color: '#ED6C02', isOnline: false };
-    if (diff < 604800000) return { text: `${Math.floor(diff / 86400000)}d ago`, color: '#ea580c', isOnline: false };
+    if (diff < 604800000) return { text: `${Math.floor(diff / 86400000)}d ago`, color: 'var(--bc-accent-inventory)', isOnline: false };
     return {
         text: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
         color: '#D32F2F',
@@ -324,7 +324,7 @@ const UsersPage = () => {
     const [profileUser, setProfileUser] = useState(null);
     const [editingRole, setEditingRole] = useState(null);
     const [roleFormData, setRoleFormData] = useState({
-        name: '', displayName: '', description: '', level: 30, color: '#1e293b'
+        name: '', displayName: '', description: '', level: 30, color: 'var(--bc-slate-800)'
     });
 
     useEffect(() => {
@@ -659,11 +659,11 @@ const UsersPage = () => {
             setRoleFormData({
                 name: role.name || '', displayName: role.displayName || '',
                 description: role.description || '', level: role.level || 30,
-                color: role.color || '#1e293b'
+                color: role.color || 'var(--bc-slate-800)'
             });
         } else {
             setEditingRole(null);
-            setRoleFormData({ name: '', displayName: '', description: '', level: 30, color: '#1e293b' });
+            setRoleFormData({ name: '', displayName: '', description: '', level: 30, color: 'var(--bc-slate-800)' });
         }
         setShowRoleModal(true);
     };
@@ -773,7 +773,7 @@ const UsersPage = () => {
                             <div style={{
                                 fontSize: 'var(--font-size-base)',
                                 fontWeight: 600,
-                                color: '#0f172a',
+                                color: 'var(--bc-slate-900)',
                                 marginBottom: 2,
                                 transition: 'color 0.2s'
                             }}>
@@ -781,12 +781,12 @@ const UsersPage = () => {
                             </div>
                             <div style={{
                                 fontSize: 'var(--font-size-sm)',
-                                color: '#64748b',
+                                color: 'var(--bc-slate-500)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 4
                             }}>
-                                <Mail size={11} strokeWidth={2} style={{ color: '#94a3b8' }} />
+                                <Mail size={11} strokeWidth={2} style={{ color: 'var(--bc-slate-400)' }} />
                                 {record.email}
                             </div>
                         </div>
@@ -815,7 +815,7 @@ const UsersPage = () => {
                     return (
                         <span style={{
                             fontSize: 'var(--font-size-xs)',
-                            color: '#cbd5e1',
+                            color: 'var(--bc-slate-300)',
                             fontStyle: 'italic'
                         }}>—</span>
                     );
@@ -847,8 +847,8 @@ const UsersPage = () => {
                                     width: 28,
                                     height: 28,
                                     borderRadius: '50%',
-                                    background: '#f1f5f9',
-                                    color: '#475569',
+                                    background: 'var(--bc-slate-100)',
+                                    color: 'var(--bc-slate-600)',
                                     border: '2px solid white',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -877,13 +877,13 @@ const UsersPage = () => {
                         checked={isActive}
                         onChange={() => handleToggleStatus(record._id || record.id)}
                         style={{
-                            background: isActive ? '#2E7D32' : '#cbd5e1'
+                            background: isActive ? '#2E7D32' : 'var(--bc-slate-300)'
                         }}
                     />
                     <span style={{
                         fontSize: 'var(--font-size-sm)',
                         fontWeight: 600,
-                        color: isActive ? '#047857' : '#64748b',
+                        color: isActive ? '#047857' : 'var(--bc-slate-500)',
                         transition: 'color 0.2s'
                     }}>
                         {isActive ? 'Active' : 'Inactive'}
@@ -933,7 +933,7 @@ const UsersPage = () => {
                             onClick={() => { setProfileUser(record); setShowProfileDrawer(true); }}
                             icon={<Eye size={14} strokeWidth={2} />}
                             style={{
-                                color: '#64748b',
+                                color: 'var(--bc-slate-500)',
                                 width: 32,
                                 height: 32,
                                 borderRadius: 6
@@ -947,7 +947,7 @@ const UsersPage = () => {
                             onClick={() => handleSendEmail(record)}
                             icon={<Send size={14} strokeWidth={2} />}
                             style={{
-                                color: '#64748b',
+                                color: 'var(--bc-slate-500)',
                                 width: 32,
                                 height: 32,
                                 borderRadius: 6
@@ -961,7 +961,7 @@ const UsersPage = () => {
                             onClick={() => handleOpenUserModal(record)}
                             icon={<Pencil size={14} strokeWidth={2} />}
                             style={{
-                                color: '#64748b',
+                                color: 'var(--bc-slate-500)',
                                 width: 32,
                                 height: 32,
                                 borderRadius: 6
@@ -1008,23 +1008,23 @@ const UsersPage = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '12px 14px',
-                background: isChecked ? '#eff6ff' : '#ffffff',
-                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : '#e2e8f0'}`,
+                background: isChecked ? 'var(--bc-blue-50)' : 'var(--bc-white)',
+                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : 'var(--bc-slate-200)'}`,
                 borderRadius: "var(--radius-md)",
                 cursor: readOnly ? 'default' : 'pointer',
                 transition: 'all 0.2s ease'
             }}
             onMouseEnter={(e) => {
                 if (!readOnly && !isChecked) {
-                    e.currentTarget.style.borderColor = badge ? '#f97316' : '#cbd5e1';
+                    e.currentTarget.style.borderColor = badge ? 'var(--bc-accent-dispute)' : 'var(--bc-slate-300)';
                     e.currentTarget.style.background = '#fafbfc';
                     e.currentTarget.style.transform = 'translateX(2px)';
                 }
             }}
             onMouseLeave={(e) => {
                 if (!readOnly && !isChecked) {
-                    e.currentTarget.style.borderColor = badge ? '#ED6C02' : '#e2e8f0';
-                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = badge ? '#ED6C02' : 'var(--bc-slate-200)';
+                    e.currentTarget.style.background = 'var(--bc-white)';
                     e.currentTarget.style.transform = 'translateX(0)';
                 }
             }}
@@ -1033,16 +1033,16 @@ const UsersPage = () => {
                 <div style={{
                     width: 32, height: 32, borderRadius: "var(--radius-md)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: isChecked ? (iconBg || '#0288D1') : badge ? '#fff7ed' : '#f1f5f9',
-                    color: isChecked ? '#ffffff' : badge ? '#ED6C02' : '#64748b',
+                    background: isChecked ? (iconBg || '#0288D1') : badge ? '#fff7ed' : 'var(--bc-slate-100)',
+                    color: isChecked ? 'var(--bc-white)' : badge ? '#ED6C02' : 'var(--bc-slate-500)',
                     fontSize: 'var(--font-size-xs)', fontWeight: 600,
                     transition: 'all 0.2s'
                 }}>
                     {ItemIcon ? <ItemIcon size={14} /> : name?.charAt(0)?.toUpperCase()}
                 </div>
                 <div>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>{name}</div>
-                    {subtitle && <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginTop: 1 }}>{subtitle}</div>}
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>{name}</div>
+                    {subtitle && <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', marginTop: 1 }}>{subtitle}</div>}
                     {badge && !isChecked && (
                         <div style={{
                             fontSize: 'var(--font-size-xs)',
@@ -1061,12 +1061,12 @@ const UsersPage = () => {
             </div>
             <div style={{
                 width: 20, height: 20, borderRadius: '50%',
-                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : '#cbd5e1'}`,
-                background: isChecked ? '#0288D1' : '#ffffff',
+                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : 'var(--bc-slate-300)'}`,
+                background: isChecked ? '#0288D1' : 'var(--bc-white)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.2s'
             }}>
-                {isChecked && <Check size={12} color="#ffffff" strokeWidth={3} />}
+                {isChecked && <Check size={12} color="var(--bc-white)" strokeWidth={3} />}
             </div>
         </div>
     );
@@ -1139,7 +1139,7 @@ const UsersPage = () => {
                                 <h2 style={{
                                     fontSize: 'var(--font-size-xl)',
                                     fontWeight: 600,
-                                    color: '#0f172a',
+                                    color: 'var(--bc-slate-900)',
                                     margin: 0,
                                     letterSpacing: '-0.02em',
                                     lineHeight: 1.2
@@ -1148,8 +1148,8 @@ const UsersPage = () => {
                                 </h2>
                                 <span style={{
                                     padding: '3px 10px',
-                                    background: '#eef2ff',
-                                    color: '#1976D2',
+                                    background: 'var(--bc-indigo-50)',
+                                    color: 'var(--bc-ro-500)',
                                     borderRadius: "var(--radius-lg)",
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
@@ -1161,7 +1161,7 @@ const UsersPage = () => {
                             </div>
                             <p style={{
                                 fontSize: 'var(--font-size-sm)',
-                                color: '#64748b',
+                                color: 'var(--bc-slate-500)',
                                 margin: 0,
                                 lineHeight: 1.5
                             }}>
@@ -1288,7 +1288,7 @@ const UsersPage = () => {
                                     }
                                 ]}
                                 style={{
-                                    background: '#f1f5f9',
+                                    background: 'var(--bc-slate-100)',
                                     padding: 4,
                                     borderRadius: "var(--radius-md)"
                                 }}
@@ -1297,7 +1297,7 @@ const UsersPage = () => {
                             {activeTab === 'users' ? (
                                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                                     <Input
-                                        prefix={<Search size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Search size={14} style={{ color: 'var(--bc-slate-400)' }} />}
                                         placeholder="Search users..."
                                         allowClear
                                         value={searchText}
@@ -1315,7 +1315,7 @@ const UsersPage = () => {
                                         onChange={v => { setSelectedRole(v || ''); setCurrentPage(1); }}
                                         style={{ width: 160 }}
                                         size="middle"
-                                        suffixIcon={<SlidersHorizontal size={12} style={{ color: '#94a3b8' }} />}
+                                        suffixIcon={<SlidersHorizontal size={12} style={{ color: 'var(--bc-slate-400)' }} />}
                                     >
                                         {roles.map(r => (
                                             <Option key={r._id || r.id} value={r.name || r.id}>
@@ -1324,7 +1324,7 @@ const UsersPage = () => {
                                                         width: 8,
                                                         height: 8,
                                                         borderRadius: '50%',
-                                                        background: r.color || '#64748b',
+                                                        background: r.color || 'var(--bc-slate-500)',
                                                         flexShrink: 0
                                                     }} />
                                                     <span>{r.displayName}</span>
@@ -1348,7 +1348,7 @@ const UsersPage = () => {
                                         </Option>
                                         <Option value="false">
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#cbd5e1', flexShrink: 0 }} />
+                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--bc-slate-300)', flexShrink: 0 }} />
                                                 Inactive
                                             </span>
                                         </Option>
@@ -1357,7 +1357,7 @@ const UsersPage = () => {
                             ) : (
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                                     <Input
-                                        prefix={<Search size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Search size={14} style={{ color: 'var(--bc-slate-400)' }} />}
                                         placeholder="Search permissions..."
                                         allowClear
                                         value={permissionSearch}
@@ -1414,12 +1414,12 @@ const UsersPage = () => {
                                         gap: 14
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#cbd5e1';
+                                        e.currentTarget.style.borderColor = 'var(--bc-slate-300)';
                                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.borderColor = 'var(--bc-slate-200)';
                                         e.currentTarget.style.boxShadow = 'none';
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
@@ -1444,7 +1444,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--bc-slate-500)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 4
@@ -1459,7 +1459,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 26,
                                                 fontWeight: 800,
-                                                color: '#0f172a',
+                                                color: 'var(--bc-slate-900)',
                                                 lineHeight: 1,
                                                 letterSpacing: '-0.02em'
                                             }}>
@@ -1494,12 +1494,12 @@ const UsersPage = () => {
                                         gap: 14
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#cbd5e1';
+                                        e.currentTarget.style.borderColor = 'var(--bc-slate-300)';
                                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.borderColor = 'var(--bc-slate-200)';
                                         e.currentTarget.style.boxShadow = 'none';
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
@@ -1538,7 +1538,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--bc-slate-500)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 4
@@ -1553,7 +1553,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 26,
                                                 fontWeight: 800,
-                                                color: '#0f172a',
+                                                color: 'var(--bc-slate-900)',
                                                 lineHeight: 1,
                                                 letterSpacing: '-0.02em'
                                             }}>
@@ -1562,7 +1562,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 600,
-                                                color: '#64748b'
+                                                color: 'var(--bc-slate-500)'
                                             }}>
                                                 {totalRecordCount > 0 ? Math.round((activeCount / totalRecordCount) * 100) : 0}%
                                             </div>
@@ -1584,12 +1584,12 @@ const UsersPage = () => {
                                         gap: 14
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#cbd5e1';
+                                        e.currentTarget.style.borderColor = 'var(--bc-slate-300)';
                                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.borderColor = 'var(--bc-slate-200)';
                                         e.currentTarget.style.boxShadow = 'none';
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
@@ -1614,7 +1614,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--bc-slate-500)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 4
@@ -1629,7 +1629,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 26,
                                                 fontWeight: 800,
-                                                color: '#0f172a',
+                                                color: 'var(--bc-slate-900)',
                                                 lineHeight: 1,
                                                 letterSpacing: '-0.02em'
                                             }}>
@@ -1673,7 +1673,7 @@ const UsersPage = () => {
                                         showSizeChanger: true,
                                         pageSizeOptions: ['10', '20', '50', '100'],
                                         showTotal: (total, range) => (
-                                            <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
+                                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)' }}>
                                                 Showing <strong>{range[0]}-{range[1]}</strong> of <strong>{total}</strong> users
                                             </span>
                                         ),
@@ -1688,23 +1688,23 @@ const UsersPage = () => {
                                                     width: 80,
                                                     height: 80,
                                                     borderRadius: '50%',
-                                                    background: '#f1f5f9',
+                                                    background: 'var(--bc-slate-100)',
                                                     margin: '0 auto 16px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center'
                                                 }}>
-                                                    <Users size={40} color="#cbd5e1" />
+                                                    <Users size={40} color="var(--bc-slate-300)" />
                                                 </div>
                                                 <div style={{
                                                     fontSize: 'var(--font-size-lg)',
                                                     fontWeight: 600,
-                                                    color: '#475569',
+                                                    color: 'var(--bc-slate-600)',
                                                     marginBottom: 6
                                                 }}>
                                                     No users found
                                                 </div>
-                                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', marginBottom: 16 }}>
+                                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', marginBottom: 16 }}>
                                                     Try adjusting your filters or add a new user
                                                 </div>
                                                 <Button
@@ -1746,16 +1746,16 @@ const UsersPage = () => {
                                         width: 28,
                                         height: 28,
                                         borderRadius: 6,
-                                        background: '#eef2ff',
+                                        background: 'var(--bc-indigo-50)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
                                     }}>
-                                        <Shield size={14} style={{ color: '#1976D2' }} />
+                                        <Shield size={14} style={{ color: 'var(--bc-ro-500)' }} />
                                     </div>
                                     <span style={{
                                         fontWeight: 600,
-                                        color: '#0f172a',
+                                        color: 'var(--bc-slate-900)',
                                         fontSize: 'var(--font-size-sm)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em'
@@ -1765,7 +1765,7 @@ const UsersPage = () => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--bc-slate-500)',
                                         background: 'white',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)",
@@ -1783,7 +1783,7 @@ const UsersPage = () => {
                                                     padding: '12px 20px',
                                                     fontSize: 'var(--font-size-xs)',
                                                     fontWeight: 600,
-                                                    color: '#475569',
+                                                    color: 'var(--bc-slate-600)',
                                                     textAlign: 'left',
                                                     background: '#fafbfc',
                                                     textTransform: 'uppercase',
@@ -1797,7 +1797,7 @@ const UsersPage = () => {
                                                         padding: '12px 14px',
                                                         fontSize: 'var(--font-size-xs)',
                                                         fontWeight: 600,
-                                                        color: '#475569',
+                                                        color: 'var(--bc-slate-600)',
                                                         textAlign: 'center',
                                                         minWidth: 130,
                                                         borderLeft: '1px solid #f1f5f9',
@@ -1829,7 +1829,7 @@ const UsersPage = () => {
                                                             padding: '14px 20px',
                                                             fontSize: 'var(--font-size-sm)',
                                                             fontWeight: 600,
-                                                            color: '#0f172a',
+                                                            color: 'var(--bc-slate-900)',
                                                             background: '#fafbfc',
                                                             borderRight: '2px solid #f1f5f9'
                                                         }}>
@@ -1850,7 +1850,7 @@ const UsersPage = () => {
                                                                         size="small"
                                                                         onClick={() => handleOpenRoleModal(role)}
                                                                         icon={<Pencil size={12} />}
-                                                                        style={{ color: '#64748b' }}
+                                                                        style={{ color: 'var(--bc-slate-500)' }}
                                                                     />
                                                                     {role.name !== 'super_admin' && (
                                                                         <Popconfirm
@@ -1895,8 +1895,8 @@ const UsersPage = () => {
                                                                         }}
                                                                         onMouseEnter={(e) => {
                                                                             if (!isAssigned) {
-                                                                                e.currentTarget.style.borderColor = '#94a3b8';
-                                                                                e.currentTarget.style.background = '#f8fafc';
+                                                                                e.currentTarget.style.borderColor = 'var(--bc-slate-400)';
+                                                                                e.currentTarget.style.background = 'var(--bc-slate-50)';
                                                                             }
                                                                         }}
                                                                         onMouseLeave={(e) => {
@@ -1934,15 +1934,15 @@ const UsersPage = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#1976D2'
+                                color: 'var(--bc-ro-500)'
                             }}>
                                 <UserCheck size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-900)', lineHeight: 1.2 }}>
                                     {editingUser ? 'Edit User' : 'Add New User'}
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', marginTop: 2 }}>
                                     {editingUser ? 'Update user information' : 'Create a new team member'}
                                 </div>
                             </div>
@@ -1988,7 +1988,7 @@ const UsersPage = () => {
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: '#475569',
+                                color: 'var(--bc-slate-600)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
                                 marginBottom: 14,
@@ -2026,7 +2026,7 @@ const UsersPage = () => {
                                         value={userFormData.email}
                                         onChange={e => setUserFormData({ ...userFormData, email: e.target.value })}
                                         placeholder="user@example.com"
-                                        prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Mail size={14} style={{ color: 'var(--bc-slate-400)' }} />}
                                         style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
@@ -2036,7 +2036,7 @@ const UsersPage = () => {
                                         value={userFormData.phone}
                                         onChange={e => setUserFormData({ ...userFormData, phone: e.target.value })}
                                         placeholder="+91 12345 67890"
-                                        prefix={<Phone size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Phone size={14} style={{ color: 'var(--bc-slate-400)' }} />}
                                         style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
@@ -2047,7 +2047,7 @@ const UsersPage = () => {
                                             value={userFormData.password}
                                             onChange={e => setUserFormData({ ...userFormData, password: e.target.value })}
                                             placeholder="Enter strong password"
-                                            prefix={<Lock size={14} style={{ color: '#94a3b8' }} />}
+                                            prefix={<Lock size={14} style={{ color: 'var(--bc-slate-400)' }} />}
                                             style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                         />
                                     </Col>
@@ -2060,7 +2060,7 @@ const UsersPage = () => {
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: '#475569',
+                                color: 'var(--bc-slate-600)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
                                 marginBottom: 12,
@@ -2085,7 +2085,7 @@ const UsersPage = () => {
                                                 width: 8,
                                                 height: 8,
                                                 borderRadius: '50%',
-                                                background: r.color || '#64748b'
+                                                background: r.color || 'var(--bc-slate-500)'
                                             }} />
                                             {r.displayName}
                                         </div>
@@ -2100,7 +2100,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#475569',
+                                        color: 'var(--bc-slate-600)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         display: 'flex',
@@ -2113,8 +2113,8 @@ const UsersPage = () => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#1976D2',
-                                        background: '#eef2ff',
+                                        color: 'var(--bc-ro-500)',
+                                        background: 'var(--bc-indigo-50)',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)"
                                     }}>
@@ -2148,7 +2148,7 @@ const UsersPage = () => {
                                         );
                                     })}
                                     {filteredSupervisors.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                                        <div style={{ textAlign: 'center', padding: 20, color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>
                                             No supervisors found
                                         </div>
                                     )}
@@ -2162,7 +2162,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#475569',
+                                        color: 'var(--bc-slate-600)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         display: 'flex',
@@ -2175,8 +2175,8 @@ const UsersPage = () => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#1976D2',
-                                        background: '#eef2ff',
+                                        color: 'var(--bc-ro-500)',
+                                        background: 'var(--bc-indigo-50)',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)"
                                     }}>
@@ -2210,7 +2210,7 @@ const UsersPage = () => {
                                         );
                                     })}
                                     {filteredBrandManagers.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                                        <div style={{ textAlign: 'center', padding: 20, color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>
                                             No brand managers found
                                         </div>
                                     )}
@@ -2224,7 +2224,7 @@ const UsersPage = () => {
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
-                                    color: '#475569',
+                                    color: 'var(--bc-slate-600)',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.05em',
                                     display: 'flex',
@@ -2238,7 +2238,7 @@ const UsersPage = () => {
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
                                     color: '#2E7D32',
-                                    background: '#dcfce7',
+                                    background: 'var(--bc-green-100)',
                                     padding: '2px 10px',
                                     borderRadius: "var(--radius-lg)"
                                 }}>
@@ -2248,13 +2248,13 @@ const UsersPage = () => {
 
                             {isListingTeam && (
                                 <div style={{
-                                    background: '#eff6ff',
+                                    background: 'var(--bc-blue-50)',
                                     border: '1px solid #bfdbfe',
                                     borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
                                     fontSize: 'var(--font-size-sm)',
-                                    color: '#1d4ed8',
+                                    color: 'var(--bc-blue-700)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 8
@@ -2265,13 +2265,13 @@ const UsersPage = () => {
                             )}
                             {isCatalogManager && (
                                 <div style={{
-                                    background: '#fffbeb',
+                                    background: 'var(--bc-amber-50)',
                                     border: '1px solid #fde68a',
                                     borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
                                     fontSize: 'var(--font-size-sm)',
-                                    color: '#92400e',
+                                    color: 'var(--bc-amber-800)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 8
@@ -2336,7 +2336,7 @@ const UsersPage = () => {
                                     );
                                 })}
                                 {filteredSellers.length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>
                                         {isListingTeam ? 'Link brand managers to see brands' : 'No brands found'}
                                     </div>
                                 )}
@@ -2357,15 +2357,15 @@ const UsersPage = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#1976D2'
+                                color: 'var(--bc-ro-500)'
                             }}>
                                 <Shield size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                                     {editingRole ? 'Edit Role' : 'Create New Role'}
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', marginTop: 2 }}>
                                     {editingRole ? 'Modify role configuration' : 'Define a new role'}
                                 </div>
                             </div>
@@ -2448,7 +2448,7 @@ const UsersPage = () => {
                                             borderRadius: "var(--radius-md)"
                                         }}
                                     />
-                                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)' }}>
                                         {roleFormData.color}
                                     </span>
                                 </div>
@@ -2475,8 +2475,8 @@ const UsersPage = () => {
                                 <Mail size={16} color="#fff" />
                             </div>
                             <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Send Email</div>
-                                <div style={{ fontSize: 11, color: '#64748b' }}>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--bc-slate-900)' }}>Send Email</div>
+                                <div style={{ fontSize: 11, color: 'var(--bc-slate-500)' }}>
                                     To: {emailUser?.firstName} {emailUser?.lastName}
                                 </div>
                             </div>
@@ -2537,8 +2537,8 @@ const UsersPage = () => {
                             <Input
                                 value={emailUser?.email}
                                 disabled
-                                prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
-                                style={{ borderRadius: 8, height: 40, background: '#f8fafc' }}
+                                prefix={<Mail size={14} style={{ color: 'var(--bc-slate-400)' }} />}
+                                style={{ borderRadius: 8, height: 40, background: 'var(--bc-slate-50)' }}
                             />
                         </div>
 
@@ -2567,8 +2567,8 @@ const UsersPage = () => {
 
                         {/* Info Note */}
                         {emailForm.type === 'credentials' && (
-                            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fed7aa' }}>
-                                <Text style={{ fontSize: 11, color: '#92400e' }}>
+                            <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--bc-amber-50)', borderRadius: 8, border: '1px solid #fed7aa' }}>
+                                <Text style={{ fontSize: 11, color: 'var(--bc-amber-800)' }}>
                                     ℹ️ This will send the user their login credentials. Make sure to set a temporary password when creating the user.
                                 </Text>
                             </div>
@@ -2627,7 +2627,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--bc-slate-500)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         marginBottom: 10
@@ -2645,7 +2645,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--bc-slate-500)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         marginBottom: 10
@@ -2663,7 +2663,7 @@ const UsersPage = () => {
                                         <span style={{
                                             fontSize: 'var(--font-size-base)',
                                             fontWeight: 600,
-                                            color: profileUser.isActive ? '#047857' : '#64748b'
+                                            color: profileUser.isActive ? '#047857' : 'var(--bc-slate-500)'
                                         }}>
                                             {profileUser.isActive ? 'Active' : 'Inactive'}
                                         </span>
@@ -2675,7 +2675,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--bc-slate-500)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         marginBottom: 10
@@ -2683,8 +2683,8 @@ const UsersPage = () => {
                                         Last Active
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <Clock size={14} style={{ color: '#64748b' }} />
-                                        <span style={{ fontSize: 'var(--font-size-base)', color: '#0f172a' }}>
+                                        <Clock size={14} style={{ color: 'var(--bc-slate-500)' }} />
+                                        <span style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)' }}>
                                             {profileUser.lastSeen ? new Date(profileUser.lastSeen).toLocaleString() : 'Never logged in'}
                                         </span>
                                     </div>
@@ -2696,7 +2696,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--bc-slate-500)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 10
@@ -2716,10 +2716,10 @@ const UsersPage = () => {
                                                 }}>
                                                     <EnhancedAvatar firstName={s.firstName} lastName={s.lastName} size={32} />
                                                     <div>
-                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
+                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                                                             {s.firstName} {s.lastName}
                                                         </div>
-                                                        <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+                                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
                                                             {s.email}
                                                         </div>
                                                     </div>

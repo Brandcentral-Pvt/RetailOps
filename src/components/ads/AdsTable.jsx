@@ -79,23 +79,23 @@ const AdsTable = ({
 
     const children = [
       {
-        title: <span style={{ fontSize: 8, fontWeight: 600, color: '#64748b' }}>AVG</span>,
+        title: <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--bc-slate-500)' }}>AVG</span>,
         key, dataIndex: key, width: avgWidth, align: 'right', sorter: true,
         sortOrder: sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : null,
         render: (val, record) => {
           const numVal = Number(val || 0);
           const formattedVal = isCurrency ? `₹${numVal.toLocaleString('en-IN')}` : isPercent ? `${numVal.toFixed(2)}%` : numVal.toLocaleString();
-          return <span style={{ fontSize: 10.5, fontWeight: 600, color: '#0f172a' }}>{formattedVal}</span>;
+          return <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-slate-900)' }}>{formattedVal}</span>;
         }
       },
       {
-        title: <span style={{ fontSize: 8, fontWeight: 600, color: '#64748b' }}>TREND</span>,
+        title: <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--bc-slate-500)' }}>TREND</span>,
         key: `${key}_trn`, width: trendWidth, align: 'center',
         render: (_, record) => {
           const history = record.weekHistory || record.history || [];
-          if (history.length === 0) return <span style={{ color: '#cbd5e1' }}>-</span>;
+          if (history.length === 0) return <span style={{ color: 'var(--bc-slate-300)' }}>-</span>;
           const values = history.map(h => Number(h[key] || 0));
-          if (values.every(v => v === 0)) return <span style={{ color: '#cbd5e1' }}>-</span>;
+          if (values.every(v => v === 0)) return <span style={{ color: 'var(--bc-slate-300)' }}>-</span>;
           const isGood = key === 'acos' ? values[values.length - 1] < values[0] : values[values.length - 1] > values[0];
           return <div style={{ width: 40, margin: 'auto' }}><MiniSpark data={values} color={isGood ? '#2E7D32' : '#D32F2F'} /></div>;
         }
@@ -105,13 +105,13 @@ const AdsTable = ({
     if (isExpanded) {
       activeDates.forEach(d => {
         children.push({
-          title: <div style={{ textAlign: 'center', fontSize: 9, lineHeight: 1.1 }}><div style={{ color: '#94a3b8' }}>{d.month}</div><div style={{ fontWeight: 600, color: '#475569' }}>{d.day}</div></div>,
+          title: <div style={{ textAlign: 'center', fontSize: 9, lineHeight: 1.1 }}><div style={{ color: 'var(--bc-slate-400)' }}>{d.month}</div><div style={{ fontWeight: 600, color: 'var(--bc-slate-600)' }}>{d.day}</div></div>,
           key: `${key}_${d.raw}`, width: dateWidth, align: 'right',
           render: (_, record) => {
             const hist = record.weekHistory?.find(h => normalizeDateStr(h.date) === d.raw);
             const val = hist ? (hist[key] || 0) : 0;
-            if (val === 0) return <span style={{ color: '#cbd5e1' }}>-</span>;
-            return <span style={{ fontSize: 10, fontWeight: 600, color: '#475569' }}>
+            if (val === 0) return <span style={{ color: 'var(--bc-slate-300)' }}>-</span>;
+            return <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-600)' }}>
               {isCurrency ? `₹${val.toLocaleString('en-IN')}` : isPercent ? `${val.toFixed(2)}%` : val.toLocaleString()}
             </span>;
           }
@@ -124,8 +124,8 @@ const AdsTable = ({
         <div onClick={() => toggleCol(key)} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           cursor: 'pointer', padding: '4px 8px', borderRadius: "var(--radius-sm)",
-          background: '#f8fafc', border: '1px solid #e5e7eb',
-          color: '#475569', transition: 'all 0.15s', minWidth: avgWidth + trendWidth
+          background: 'var(--bc-slate-50)', border: '1px solid #e5e7eb',
+          color: 'var(--bc-slate-600)', transition: 'all 0.15s', minWidth: avgWidth + trendWidth
         }}>
           {icon}
           <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.03em' }}>{title}</span>
@@ -142,9 +142,9 @@ const AdsTable = ({
       {
         title: 'IMAGE', dataIndex: 'imageUrl', key: 'imageUrl', width: 48, fixed: 'left',
         render: (url, record) => (
-          <div style={{ width: 36, height: 36, margin: 'auto', background: '#f8fafc', borderRadius: "var(--radius-sm)", border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          <div style={{ width: 36, height: 36, margin: 'auto', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-sm)", border: '1px solid #e5e7eb', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             onClick={() => onSetActiveHistoryRow?.(record)}>
-            {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={14} style={{ color: '#cbd5e1' }} />}
+            {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Package size={14} style={{ color: 'var(--bc-slate-300)' }} />}
           </div>
         )
       },
@@ -157,13 +157,13 @@ const AdsTable = ({
               onClick={() => onSetActiveHistoryRow?.(record)}>
               {isParentRow && (
                 <div onClick={(e) => { e.stopPropagation(); toggleParentExpand(record.asin || record.parentAsin); }}
-                  style={{ width: 18, height: 18, borderRadius: "var(--radius-sm)", background: '#f1f5f9', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ width: 18, height: 18, borderRadius: "var(--radius-sm)", background: 'var(--bc-slate-100)', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                   {expandedParents.has(record.asin || record.parentAsin) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </div>
               )}
               <div>
-                <Text strong code style={{ fontSize: 10, color: '#0f172a', padding: '1px 4px' }}>{record.asin || record.parentAsin}</Text>
-                {isParentRow && <div style={{ fontSize: 9, fontWeight: 600, color: '#475569', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '1px 6px', borderRadius: "var(--radius-sm)", width: 'fit-content', marginTop: 2 }}>{record.childCount || 0} CHILDREN</div>}
+                <Text strong code style={{ fontSize: 10, color: 'var(--bc-slate-900)', padding: '1px 4px' }}>{record.asin || record.parentAsin}</Text>
+                {isParentRow && <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--bc-slate-600)', background: 'var(--bc-slate-100)', border: '1px solid #e5e7eb', padding: '1px 6px', borderRadius: "var(--radius-sm)", width: 'fit-content', marginTop: 2 }}>{record.childCount || 0} CHILDREN</div>}
               </div>
             </div>
           );
@@ -172,16 +172,16 @@ const AdsTable = ({
       {
         title: 'SKU', dataIndex: 'sku', key: 'sku', width: 80, fixed: 'left',
         render: (sku, record) => record.isParent || record.isParentView
-          ? <span style={{ fontSize: 9, fontWeight: 600, color: '#64748b', background: '#f1f5f9', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>GROUP</span>
-          : <span style={{ fontWeight: 600, color: '#475569', fontSize: 10 }}>{sku || '-'}</span>
+          ? <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', border: '1px solid #e5e7eb', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>GROUP</span>
+          : <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 10 }}>{sku || '-'}</span>
       },
       {
         title: 'PRODUCT DETAILS', key: 'productDetails', width: 170, fixed: 'left',
         render: (_, record) => (
-          <Tooltip title={<div><div style={{ fontWeight: 600, marginBottom: 4 }}>{record.title || 'Loading...'}</div>{record.brand && <div style={{ fontSize: 11, color: '#cbd5e1' }}>{record.brand}{record.category ? ` · ${record.category}` : ''}</div>}</div>}>
+          <Tooltip title={<div><div style={{ fontWeight: 600, marginBottom: 4 }}>{record.title || 'Loading...'}</div>{record.brand && <div style={{ fontSize: 11, color: 'var(--bc-slate-300)' }}>{record.brand}{record.category ? ` · ${record.category}` : ''}</div>}</div>}>
             <div style={{ width: '100%', overflow: 'hidden' }}>
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.title || 'Loading...'}</div>
-              <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.brand || ''}{record.brand && record.category ? ' · ' : ''}{record.category || ''}</div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-slate-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.title || 'Loading...'}</div>
+              <div style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.brand || ''}{record.brand && record.category ? ' · ' : ''}{record.category || ''}</div>
             </div>
           </Tooltip>
         )
@@ -257,11 +257,11 @@ const AdsTable = ({
   }, [tableColumns]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, width: '100%', background: '#ffffff', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, width: '100%', background: 'var(--bc-white)', overflow: 'hidden', position: 'relative' }}>
       <Spin spinning={loading} tip="Loading data..." size="large" style={{ maxHeight: 'none' }}>
         <div style={{ flex: 1, overflow: 'auto', position: 'relative', minHeight: data.length === 0 ? 300 : 'auto' }}>
           {data.length === 0 ? (
-            <div style={{ height: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+            <div style={{ height: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--bc-slate-400)' }}>
               {!loading && (
                 <>
                   <Package size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
@@ -278,13 +278,13 @@ const AdsTable = ({
                       const s = {
                         fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
                         letterSpacing: '0.04em', color: 'var(--text-secondary)', padding: '6px 6px',
-                        background: '#f8fafc', position: 'sticky', top: 0,
+                        background: 'var(--bc-slate-50)', position: 'sticky', top: 0,
                         border: '1px solid #e5e7eb', whiteSpace: 'nowrap',
                         ...(col.align === 'center' ? { textAlign: 'center' } : col.align === 'right' ? { textAlign: 'right' } : {}),
                       };
                       if (col.width) s.width = col.width;
-                      if (stickyLeft[col.key] !== undefined) { s.left = stickyLeft[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; }
-                      if (stickyRight[col.key] !== undefined) { s.right = stickyRight[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = '#f8fafc'; if (ri === 0) s.borderLeft = '1px solid #d1d5db'; }
+                      if (stickyLeft[col.key] !== undefined) { s.left = stickyLeft[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = 'var(--bc-slate-50)'; }
+                      if (stickyRight[col.key] !== undefined) { s.right = stickyRight[col.key]; s.zIndex = ri === 0 ? 22 : 17; s.background = 'var(--bc-slate-50)'; if (ri === 0) s.borderLeft = '1px solid #d1d5db'; }
                       let titleContent = col.title;
                       if (!col.isGroup && col.sorter) {
                         const isActive = sortBy === col.key;
@@ -310,7 +310,7 @@ const AdsTable = ({
                       const val = col.dataIndex ? record[col.dataIndex] : undefined;
                       const rendered = col.render ? col.render(val, record, idx) : (val ?? '');
                       const isFixed = stickyLeft[col.key] !== undefined || stickyRight[col.key] !== undefined;
-                      const bg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
+                      const bg = idx % 2 === 0 ? 'var(--bc-white)' : '#f9fafb';
                       const s = {
                         padding: '2px 5px', fontSize: '0.65rem',
                         border: '1px solid #f0f0f0', verticalAlign: 'middle',
@@ -331,7 +331,7 @@ const AdsTable = ({
         </div>
       </Spin>
       <div style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
-        <Suspense fallback={<div style={{ height: 40, background: '#f1f5f9' }} />}>
+        <Suspense fallback={<div style={{ height: 40, background: 'var(--bc-slate-100)' }} />}>
           <TablePagination
             component="div"
             count={pagination.total || 0}

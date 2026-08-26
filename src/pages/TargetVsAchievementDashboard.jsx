@@ -42,28 +42,28 @@ const MONTH_NAMES = [
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const COLOR = {
-    primary: '#1976D2',
+    primary: 'var(--bc-ro-500)',
     success: '#2E7D32',
     warning: '#ED6C02',
     danger: '#D32F2F',
-    muted: '#94a3b8',
+    muted: 'var(--bc-slate-400)',
     surface: '#f8faff',
-    border: '#e2e8f0',
+    border: 'var(--bc-slate-200)',
 };
 
 const GOAL_META = {
-    GMS: { label: 'GMS', unit: '₹', color: '#1976D2', bg: '#ede9fe' },
-    ADS: { label: 'ADS', unit: '₹', color: '#0288D1', bg: '#dbeafe' },
-    ACOS: { label: 'ACOS', unit: '%', color: '#C62828', bg: '#fee2e2' },
+    GMS: { label: 'GMS', unit: '₹', color: 'var(--bc-ro-500)', bg: 'var(--bc-violet-100)' },
+    ADS: { label: 'ADS', unit: '₹', color: '#0288D1', bg: 'var(--bc-blue-100)' },
+    ACOS: { label: 'ACOS', unit: '%', color: '#C62828', bg: 'var(--bc-red-100)' },
     NEW_RC: { label: 'New RC', unit: '#', color: '#2E7D32', bg: '#d1fae5' },
-    RNR: { label: 'RNR', unit: '#', color: '#0288D1', bg: '#eff6ff' },
-    PO_FULFILMENT: { label: 'PO Fulfilment', unit: '%', color: '#0891b2', bg: '#cffafe' },
+    RNR: { label: 'RNR', unit: '#', color: '#0288D1', bg: 'var(--bc-blue-50)' },
+    PO_FULFILMENT: { label: 'PO Fulfilment', unit: '%', color: 'var(--bc-cyan-600)', bg: 'var(--bc-cyan-100)' },
     PO_DAYS: { label: 'PO Days', unit: 'd', color: '#be185d', bg: '#fce7f3' },
-    SELLER_CENTRAL_BUSINESS: { label: 'SC Business', unit: '₹', color: '#b45309', bg: '#fef3c7' },
+    SELLER_CENTRAL_BUSINESS: { label: 'SC Business', unit: '₹', color: 'var(--bc-amber-700)', bg: 'var(--bc-amber-100)' },
 };
 
 const getGoalMeta = (goalType) => {
-    return GOAL_META[goalType] || { label: goalType || 'GMS', unit: '₹', color: '#1976D2', bg: '#ede9fe' };
+    return GOAL_META[goalType] || { label: goalType || 'GMS', unit: '₹', color: 'var(--bc-ro-500)', bg: 'var(--bc-violet-100)' };
 };
 
 const formatValue = (val, unit) => {
@@ -148,12 +148,12 @@ const AnimatedCounter = memo(({ end, duration = 1.0, unit = "₹" }) => {
 });
 
 // ─── Eased KPI Card Component ────────────────────────────────────────────────
-const KpiCard = memo(({ title, value, subtext, icon, color = '#1976D2', unit = "₹", trend = null, isAcos = false }) => {
+const KpiCard = memo(({ title, value, subtext, icon, color = 'var(--bc-ro-500)', unit = "₹", trend = null, isAcos = false }) => {
     return (
-        <div style={{ border: '1px solid #E5E7EB', borderRadius: "var(--radius-lg)", padding: 20, background: '#FFFFFF', height: '100%', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        <div style={{ border: '1px solid #E5E7EB', borderRadius: "var(--radius-lg)", padding: 20, background: 'var(--bc-white)', height: '100%', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
             className="kpi-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 14 }}>
-                <span style={{ color: '#64748B', fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.4, flex: 1 }}>{title}</span>
+                <span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.4, flex: 1 }}>{title}</span>
                 <div style={{
                     background: `${color}12`, color: color, padding: 8, borderRadius: 10,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
@@ -163,7 +163,7 @@ const KpiCard = memo(({ title, value, subtext, icon, color = '#1976D2', unit = "
             </div>
 
             <div style={{ marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                <h3 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--bc-slate-900)', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
                     <AnimatedCounter end={value} unit={unit} />
                 </h3>
             </div>
@@ -182,7 +182,7 @@ const KpiCard = memo(({ title, value, subtext, icon, color = '#1976D2', unit = "
                         </span>
                     );
                 })()}
-                <span style={{ color: '#64748b', fontSize: 'var(--font-size-xs)', lineHeight: 1.4 }}>{subtext}</span>
+                <span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)', lineHeight: 1.4 }}>{subtext}</span>
             </div>
         </div>
     );
@@ -191,25 +191,25 @@ const KpiCard = memo(({ title, value, subtext, icon, color = '#1976D2', unit = "
 // Achievement Tier helper
 function getAchievementTier(pct, isAcos = false) {
     if (isAcos) {
-        if (pct === 0) return { label: 'CRITICAL', color: '#D32F2F', bg: '#fef2f2', border: '#fca5a5' };
+        if (pct === 0) return { label: 'CRITICAL', color: '#D32F2F', bg: 'var(--bc-red-50)', border: '#fca5a5' };
         if (pct <= 100) return { label: 'ELITE STATUS', color: '#2E7D32', bg: '#ecfdf5', border: '#a7f3d0' };
-        if (pct <= 110) return { label: 'HIGH TARGET', color: '#1976D2', bg: '#e0e7ff', border: '#c7d2fe' };
-        if (pct <= 125) return { label: 'ON TRACK', color: '#ED6C02', bg: '#fffbeb', border: '#fde68a' };
-        return { label: 'CRITICAL', color: '#D32F2F', bg: '#fef2f2', border: '#fca5a5' };
+        if (pct <= 110) return { label: 'HIGH TARGET', color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-100)', border: '#c7d2fe' };
+        if (pct <= 125) return { label: 'ON TRACK', color: '#ED6C02', bg: 'var(--bc-amber-50)', border: 'var(--bc-amber-200)' };
+        return { label: 'CRITICAL', color: '#D32F2F', bg: 'var(--bc-red-50)', border: '#fca5a5' };
     }
     if (pct >= 100) return { label: 'ELITE STATUS', color: '#2E7D32', bg: '#ecfdf5', border: '#a7f3d0' };
-    if (pct >= 80) return { label: 'HIGH TARGET', color: '#1976D2', bg: '#e0e7ff', border: '#c7d2fe' };
-    if (pct >= 50) return { label: 'ON TRACK', color: '#ED6C02', bg: '#fffbeb', border: '#fde68a' };
-    return { label: 'CRITICAL', color: '#D32F2F', bg: '#fef2f2', border: '#fca5a5' };
+    if (pct >= 80) return { label: 'HIGH TARGET', color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-100)', border: '#c7d2fe' };
+    if (pct >= 50) return { label: 'ON TRACK', color: '#ED6C02', bg: 'var(--bc-amber-50)', border: 'var(--bc-amber-200)' };
+    return { label: 'CRITICAL', color: '#D32F2F', bg: 'var(--bc-red-50)', border: '#fca5a5' };
 }
 
 export const ConnectionBanner = memo(({ targets }) => {
     if (!targets || targets.length > 0) return null;
     return (
         <div style={{
-            padding: '10px 16px', background: '#fffbeb',
+            padding: '10px 16px', background: 'var(--bc-amber-50)',
             border: '1px solid #fde68a', borderRadius: "var(--radius-md)",
-            marginBottom: 12, fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#92400e'
+            marginBottom: 12, fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--bc-amber-800)'
         }}>
             ⚠ No target data loaded. Create targets or check your connection.
         </div>
@@ -524,7 +524,7 @@ const TargetVsAchievementDashboard = () => {
 
         return [
             { name: 'Elite (100%+)', value: elite, color: '#2E7D32' },
-            { name: 'High (80%+)', value: high, color: '#1976D2' },
+            { name: 'High (80%+)', value: high, color: 'var(--bc-ro-500)' },
             { name: 'Track (50%+)', value: track, color: '#ED6C02' },
             { name: 'Critical (<50%)', value: critical, color: '#D32F2F' }
         ].filter(item => item.value > 0);
@@ -548,7 +548,7 @@ const TargetVsAchievementDashboard = () => {
                         <div>
                             <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{displayName}</Text>
                             <div style={{ marginTop: 2 }}>
-                                <Tag color={tier.color === '#1976D2' ? 'blue' : tier.color === '#2E7D32' ? 'success' : tier.color === '#ED6C02' ? 'warning' : 'error'} style={{ fontSize: 9, fontWeight: 600 }}>
+                                <Tag color={tier.color === 'var(--bc-ro-500)' ? 'blue' : tier.color === '#2E7D32' ? 'success' : tier.color === '#ED6C02' ? 'warning' : 'error'} style={{ fontSize: 9, fontWeight: 600 }}>
                                     {tier.label}
                                 </Tag>
                             </div>
@@ -563,7 +563,7 @@ const TargetVsAchievementDashboard = () => {
             dataIndex: 'BrandManager',
             key: 'brandManager',
             render: (text) => (
-                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 650, color: '#475569' }}>{text || 'Unassigned'}</span>
+                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 650, color: 'var(--bc-slate-600)' }}>{text || 'Unassigned'}</span>
             ),
             width: 150
         },
@@ -574,7 +574,7 @@ const TargetVsAchievementDashboard = () => {
             render: (val, record) => {
                 const meta = getGoalMeta(record.GoalType);
                 return (
-                    <span style={{ color: '#1976D2', fontWeight: 800 }}>
+                    <span style={{ color: 'var(--bc-ro-500)', fontWeight: 800 }}>
                         {formatValue(val, meta.unit)}
                     </span>
                 );
@@ -606,7 +606,7 @@ const TargetVsAchievementDashboard = () => {
 
                 return (
                     <div style={{ width: '100%', minWidth: 120 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', fontWeight: 750, color: '#334155', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', fontWeight: 750, color: 'var(--bc-slate-700)', marginBottom: 4 }}>
                             <span>Pacing Rate</span>
                             <span>{pct.toFixed(1)}%</span>
                         </div>
@@ -621,7 +621,7 @@ const TargetVsAchievementDashboard = () => {
     const expandedRowRender = useCallback((record) => {
         if (!record.monthlyBreakdown || record.monthlyBreakdown.length === 0) {
             return (
-                <div style={{ padding: '12px 24px', background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+                <div style={{ padding: '12px 24px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
                     <Text type="secondary">No monthly breakdown allocations set for this target plan.</Text>
                 </div>
             );
@@ -630,9 +630,9 @@ const TargetVsAchievementDashboard = () => {
         const meta = getGoalMeta(record.GoalType);
 
         return (
-            <div style={{ padding: '16px 24px', background: '#f8fafc', borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
-                <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-sm)', color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Layers size={15} style={{ color: '#1976D2' }} />
+            <div style={{ padding: '16px 24px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-600)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Layers size={15} style={{ color: 'var(--bc-ro-500)' }} />
                     Monthly Breakdown Allocation Plan ({record.Year})
                 </Title>
                 <Row gutter={[12, 12]}>
@@ -646,21 +646,21 @@ const TargetVsAchievementDashboard = () => {
                         return (
                             <Col xs={12} sm={8} md={6} lg={4} key={monthName}>
                                 <Card size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #cbd5e1' }} styles={{ body: { padding: 10 } }}>
-                                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', textTransform: 'uppercase', marginBottom: 4 }}>
                                         {MONTH_SHORT[idx]}
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                        <div style={{ fontSize: 10, color: '#475569' }}>
+                                        <div style={{ fontSize: 10, color: 'var(--bc-slate-600)' }}>
                                             Goal: <strong>{formatValue(target, meta.unit)}</strong>
                                         </div>
-                                        <div style={{ fontSize: 10, color: '#0f172a' }}>
+                                        <div style={{ fontSize: 10, color: 'var(--bc-slate-900)' }}>
                                             Actual: <strong>{formatValue(achieved, meta.unit)}</strong>
                                         </div>
                                         <div style={{ marginTop: 4 }}>
                                             <Progress
                                                 percent={Math.min(pct, 100)}
                                                 size="tiny"
-                                                strokeColor={pct >= 100 ? '#2E7D32' : pct >= 80 ? '#1976D2' : pct >= 50 ? '#ED6C02' : '#D32F2F'}
+                                                strokeColor={pct >= 100 ? '#2E7D32' : pct >= 80 ? 'var(--bc-ro-500)' : pct >= 50 ? '#ED6C02' : '#D32F2F'}
                                             />
                                         </div>
                                     </div>
@@ -698,12 +698,12 @@ const TargetVsAchievementDashboard = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', margin: 0 }}>Analytics Dashboard</h2>
-                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: 'var(--bc-slate-900)', margin: 0 }}>Analytics Dashboard</h2>
+                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                                     {filteredTargets.length} targets
                                 </span>
                             </div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
+                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
                                 Analyze sales achievements, brand comparisons, and performance metrics in real-time.
                             </p>
                         </div>
@@ -750,7 +750,7 @@ const TargetVsAchievementDashboard = () => {
                             value={kpiStats.totalTarget}
                             unit={getGoalMeta(selectedGoalType).unit}
                             icon={<Target size={20} />}
-                            color="#1976D2"
+                            color="var(--bc-ro-500)"
                             subtext={`Across ${kpiStats.brandCount} brand targets`}
                         />
                     </Col>
@@ -795,8 +795,8 @@ const TargetVsAchievementDashboard = () => {
                         <Card
                             className="chart-container-card"
                             title={
-                                <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Sparkles size={16} style={{ color: '#1976D2' }} />
+                                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bc-slate-800)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Sparkles size={16} style={{ color: 'var(--bc-ro-500)' }} />
                                     Monthly Allocation Progress ({selectedYear})
                                 </span>
                             }
@@ -809,18 +809,18 @@ const TargetVsAchievementDashboard = () => {
                                     >
                                         <defs>
                                             <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#1976D2" stopOpacity={1} />
-                                                <stop offset="100%" stopColor="#4338ca" stopOpacity={0.8} />
+                                                <stop offset="0%" stopColor="var(--bc-ro-500)" stopOpacity={1} />
+                                                <stop offset="100%" stopColor="var(--bc-indigo-700)" stopOpacity={0.8} />
                                             </linearGradient>
                                             <linearGradient id="colorAchieved" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#2E7D32" stopOpacity={1} />
                                                 <stop offset="100%" stopColor="#2E7D32" stopOpacity={0.8} />
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bc-slate-100)" vertical={false} />
+                                        <XAxis dataKey="name" stroke="var(--bc-slate-400)" fontSize={11} tickLine={false} />
                                         <YAxis
-                                            stroke="#94a3b8"
+                                            stroke="var(--bc-slate-400)"
                                             fontSize={11}
                                             tickLine={false}
                                             axisLine={false}
@@ -844,8 +844,8 @@ const TargetVsAchievementDashboard = () => {
                         <Card
                             className="chart-container-card"
                             title={
-                                <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Grid size={16} style={{ color: '#1976D2' }} />
+                                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bc-slate-800)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Grid size={16} style={{ color: 'var(--bc-ro-500)' }} />
                                     Plan Performance Status Ratio
                                 </span>
                             }
@@ -882,7 +882,7 @@ const TargetVsAchievementDashboard = () => {
                                         {statusDistributionData.map((item) => (
                                             <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)' }}>
                                                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
-                                                <span style={{ color: '#475569', fontWeight: 600 }}>{item.name}: {item.value}</span>
+                                                <span style={{ color: 'var(--bc-slate-600)', fontWeight: 600 }}>{item.name}: {item.value}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -899,8 +899,8 @@ const TargetVsAchievementDashboard = () => {
                         <Card
                             className="chart-container-card"
                             title={
-                                <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <BarChart3 size={16} style={{ color: '#1976D2' }} />
+                                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bc-slate-800)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <BarChart3 size={16} style={{ color: 'var(--bc-ro-500)' }} />
                                     Manager-wise Fulfillment
                                 </span>
                             }
@@ -923,18 +923,18 @@ const TargetVsAchievementDashboard = () => {
                                             plotOptions: { bar: { horizontal: false, columnWidth: '55%', borderRadius: "var(--radius-sm)" } },
                                             dataLabels: { enabled: false },
                                             stroke: { show: true, width: 4, colors: ['transparent'] },
-                                            grid: { strokeDashArray: 4, borderColor: '#f1f5f9', xaxis: { lines: { show: false } } },
+                                            grid: { strokeDashArray: 4, borderColor: 'var(--bc-slate-100)', xaxis: { lines: { show: false } } },
                                             xaxis: {
                                                 categories: managerChartData.categories,
-                                                labels: { style: { fontSize: 'var(--font-size-xs)', fontWeight: 600, colors: '#64748b' } }
+                                                labels: { style: { fontSize: 'var(--font-size-xs)', fontWeight: 600, colors: 'var(--bc-slate-500)' } }
                                             },
                                             yaxis: {
                                                 labels: {
-                                                    style: { fontSize: 'var(--font-size-xs)', fontWeight: 600, colors: '#64748b' },
+                                                    style: { fontSize: 'var(--font-size-xs)', fontWeight: 600, colors: 'var(--bc-slate-500)' },
                                                     formatter: (val) => formatValueShort(val, getGoalMeta(selectedGoalType).unit)
                                                 }
                                             },
-                                            colors: ['#1976D2', '#2E7D32'],
+                                            colors: ['var(--bc-ro-500)', '#2E7D32'],
                                             fill: {
                                                 type: 'gradient',
                                                 gradient: { shade: 'light', type: 'vertical', shadeIntensity: 0.25, inverseColors: false, opacityFrom: 1, opacityTo: 0.8, stops: [0, 100] }
@@ -955,7 +955,7 @@ const TargetVsAchievementDashboard = () => {
                         <Card
                             className="chart-container-card"
                             title={
-                                <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--bc-slate-800)', display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <Layers size={16} style={{ color: '#ED6C02' }} />
                                     Brand-wise Progress Overview (Top 15)
                                 </span>
@@ -979,18 +979,18 @@ const TargetVsAchievementDashboard = () => {
                                             plotOptions: { bar: { horizontal: true, barHeight: '60%', borderRadius: 3 } },
                                             dataLabels: { enabled: false },
                                             stroke: { show: true, width: 3, colors: ['transparent'] },
-                                            grid: { strokeDashArray: 4, borderColor: '#f1f5f9', xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+                                            grid: { strokeDashArray: 4, borderColor: 'var(--bc-slate-100)', xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
                                             xaxis: {
                                                 categories: sellerChartData.categories,
                                                 labels: {
-                                                    style: { fontSize: '10px', fontWeight: 600, colors: '#64748b' },
+                                                    style: { fontSize: '10px', fontWeight: 600, colors: 'var(--bc-slate-500)' },
                                                     formatter: (val) => formatValueShort(val, getGoalMeta(selectedGoalType).unit)
                                                 }
                                             },
                                             yaxis: {
-                                                labels: { style: { fontSize: '10px', fontWeight: 600, colors: '#475569' } }
+                                                labels: { style: { fontSize: '10px', fontWeight: 600, colors: 'var(--bc-slate-600)' } }
                                             },
-                                            colors: ['#cbd5e1', '#34d399'],
+                                            colors: ['var(--bc-slate-300)', '#34d399'],
                                             fill: {
                                                 type: 'gradient',
                                                 gradient: { shade: 'light', type: 'horizontal', shadeIntensity: 0.25, inverseColors: false, opacityFrom: 1, opacityTo: 0.8, stops: [0, 100] }
@@ -1028,13 +1028,13 @@ const TargetVsAchievementDashboard = () => {
                                                 <div style={{ width: '100%' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                                                         <Space>
-                                                            <span style={{ fontWeight: 800, color: '#1976D2', minWidth: 20 }}>#{index + 1}</span>
-                                                            <Text strong style={{ color: '#0f172a' }}>{item.name}</Text>
+                                                            <span style={{ fontWeight: 800, color: 'var(--bc-ro-500)', minWidth: 20 }}>#{index + 1}</span>
+                                                            <Text strong style={{ color: 'var(--bc-slate-900)' }}>{item.name}</Text>
                                                         </Space>
                                                         <span style={{ fontWeight: 800, color: progressColor }}>{item.rate}%</span>
                                                     </div>
-                                                    <Progress percent={Math.min(item.rate, 100)} strokeColor={{ '0%': progressColor, '100%': progressColor === '#D32F2F' ? '#f87171' : progressColor === '#ED6C02' ? '#fbbf24' : progressColor === '#2E7D32' ? '#34d399' : '#818cf8' }} showInfo={false} size="small" trailColor="#f1f5f9" />
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#64748b', marginTop: 2 }}>
+                                                    <Progress percent={Math.min(item.rate, 100)} strokeColor={{ '0%': progressColor, '100%': progressColor === '#D32F2F' ? '#f87171' : progressColor === '#ED6C02' ? '#fbbf24' : progressColor === '#2E7D32' ? '#34d399' : '#818cf8' }} showInfo={false} size="small" trailColor="var(--bc-slate-100)" />
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--bc-slate-500)', marginTop: 2 }}>
                                                         <span>Goal: {formatValue(item.target, getGoalMeta(selectedGoalType).unit)}</span>
                                                         <span>Actual: {formatValue(item.achieved, getGoalMeta(selectedGoalType).unit)}</span>
                                                     </div>
@@ -1050,12 +1050,12 @@ const TargetVsAchievementDashboard = () => {
                     <Col xs={24} md={12}>
                         <Card className="chart-container-card" title="Operational Targets Breakdown recap">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                <div style={{ background: '#f8fafc', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                        <span style={{ fontWeight: 600, color: '#475569', fontSize: 'var(--font-size-sm)' }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-sm)' }}>
                                             {['ACOS', 'PO_FULFILMENT', 'PO_DAYS'].includes(selectedGoalType) ? "Average Target Goal" : "Cumulative Plans Target Pool"}
                                         </span>
-                                        <span style={{ fontWeight: 850, color: '#1976D2' }}>
+                                        <span style={{ fontWeight: 850, color: 'var(--bc-ro-500)' }}>
                                             {formatValue(kpiStats.totalTarget, getGoalMeta(selectedGoalType).unit)}
                                         </span>
                                     </div>
@@ -1066,9 +1066,9 @@ const TargetVsAchievementDashboard = () => {
                                     </Text>
                                 </div>
 
-                                <div style={{ background: '#f8fafc', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                        <span style={{ fontWeight: 600, color: '#475569', fontSize: 'var(--font-size-sm)' }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-sm)' }}>
                                             {['ACOS', 'PO_FULFILMENT', 'PO_DAYS'].includes(selectedGoalType) ? "Average Realized Achievement" : "Total Realized Achievement Value"}
                                         </span>
                                         <span style={{ fontWeight: 850, color: '#2E7D32' }}>
@@ -1082,9 +1082,9 @@ const TargetVsAchievementDashboard = () => {
                                     </Text>
                                 </div>
 
-                                <div style={{ background: '#f8fafc', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                        <span style={{ fontWeight: 600, color: '#475569', fontSize: 'var(--font-size-sm)' }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-sm)' }}>
                                             {getGoalMeta(selectedGoalType).unit === '₹' ? 'Unrealized Goal Target Gap' : 'Target vs Achievement Gap'}
                                         </span>
                                         <span style={{ fontWeight: 850, color: '#D32F2F' }}>
@@ -1108,20 +1108,20 @@ const TargetVsAchievementDashboard = () => {
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         borderBottom: '1px solid #e2e8f0', padding: '14px 20px', gap: 16, flexWrap: 'wrap'
                     }}>
-                        <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>
+                        <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                             Brand-wise Target Fulfillment Status
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <Input
                                 placeholder="Search brand or manager..."
-                                prefix={<Search size={13} style={{ color: '#94a3b8' }} />}
+                                prefix={<Search size={13} style={{ color: 'var(--bc-slate-400)' }} />}
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
                                 allowClear
                                 size="small"
                                 style={{ borderRadius: "var(--radius-md)", width: 220 }}
                             />
-                            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', whiteSpace: 'nowrap' }}>
                                 {filteredTargets.length} brands
                             </span>
                         </div>

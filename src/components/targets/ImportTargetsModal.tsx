@@ -216,7 +216,7 @@ const ImportTargetsModal: React.FC<Props> = ({
             key: 'manager',
             width: 130,
             render: (_: any, rec: ParsedRow) => (
-                <Text style={{ fontSize: 11, color: '#475569' }}>
+                <Text style={{ fontSize: 11, color: 'var(--bc-slate-600)' }}>
                     {rec.managerId || rec.managerName || <Text type="secondary" italic>Auto</Text>}
                 </Text>
             ),
@@ -229,7 +229,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                 if (!rec.year || !rec.month) return <Text type="danger" style={{ fontSize: 11 }}>Invalid</Text>;
                 const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][rec.month - 1];
                 return (
-                    <Tag style={{ borderRadius: 12, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#0288D1', fontWeight: 600, fontSize: 11 }}>
+                    <Tag style={{ borderRadius: 12, background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe', color: '#0288D1', fontWeight: 600, fontSize: 11 }}>
                         {monthName} {rec.year}
                     </Tag>
                 );
@@ -241,7 +241,7 @@ const ImportTargetsModal: React.FC<Props> = ({
             key: 'goalType',
             width: 110,
             render: (val: string) => val ? (
-                <Tag style={{ borderRadius: 12, background: '#ede9fe', border: '1px solid #c4b5fd', color: '#9C27B0', fontWeight: 700, fontSize: 11 }}>
+                <Tag style={{ borderRadius: 12, background: 'var(--bc-violet-100)', border: '1px solid #c4b5fd', color: 'var(--bc-purple-500)', fontWeight: 700, fontSize: 11 }}>
                     {val}
                 </Tag>
             ) : <Text type="danger" style={{ fontSize: 11 }}>Missing</Text>,
@@ -300,10 +300,10 @@ const ImportTargetsModal: React.FC<Props> = ({
                         <FileSpreadsheet size={18} color="white" />
                     </div>
                     <div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--bc-slate-900)' }}>
                             Import Target Achievements
                         </div>
-                        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+                        <div style={{ fontSize: 11, color: 'var(--bc-slate-500)', fontWeight: 500 }}>
                             Bulk import previous months' data via Excel
                         </div>
                     </div>
@@ -317,7 +317,7 @@ const ImportTargetsModal: React.FC<Props> = ({
             {/* ── STEP INDICATOR ───────────────────────── */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '16px 24px', background: '#f8fafc',
+                padding: '16px 24px', background: 'var(--bc-slate-50)',
                 borderBottom: '1px solid #e2e8f0', gap: 24,
             }}>
                 {[
@@ -334,8 +334,8 @@ const ImportTargetsModal: React.FC<Props> = ({
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{
                                     width: 28, height: 28, borderRadius: '50%',
-                                    background: isActive ? '#1976D2' : isComplete ? '#2E7D32' : '#e2e8f0',
-                                    color: isActive || isComplete ? '#fff' : '#64748b',
+                                    background: isActive ? 'var(--bc-ro-500)' : isComplete ? '#2E7D32' : 'var(--bc-slate-200)',
+                                    color: isActive || isComplete ? '#fff' : 'var(--bc-slate-500)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontWeight: 700, fontSize: 11,
                                     transition: 'all 0.3s',
@@ -344,7 +344,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                                 </div>
                                 <Text strong style={{
                                     fontSize: 12,
-                                    color: isActive ? '#1976D2' : isComplete ? '#2E7D32' : '#94a3b8',
+                                    color: isActive ? 'var(--bc-ro-500)' : isComplete ? '#2E7D32' : 'var(--bc-slate-400)',
                                 }}>
                                     {s.label}
                                 </Text>
@@ -352,7 +352,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                             {idx < 2 && (
                                 <div style={{
                                     width: 60, height: 2,
-                                    background: isComplete ? '#2E7D32' : '#e2e8f0',
+                                    background: isComplete ? '#2E7D32' : 'var(--bc-slate-200)',
                                     transition: 'background 0.3s',
                                 }} />
                             )}
@@ -387,7 +387,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                                 icon={<Download size={14} />}
                                 onClick={downloadTemplate}
                                 type="primary"
-                                style={{ background: '#1976D2', borderColor: '#1976D2' }}
+                                style={{ background: 'var(--bc-ro-500)', borderColor: 'var(--bc-ro-500)' }}
                             >
                                 Download Template
                             </Button>
@@ -403,22 +403,22 @@ const ImportTargetsModal: React.FC<Props> = ({
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 margin: '0 auto 16px',
                             }}>
-                                <UploadIcon size={28} color="#1976D2" />
+                                <UploadIcon size={28} color="var(--bc-ro-500)" />
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--bc-slate-900)', marginBottom: 6 }}>
                                 {parseLoading ? 'Reading file...' : 'Click or drag Excel file here'}
                             </div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>
+                            <div style={{ fontSize: 12, color: 'var(--bc-slate-500)' }}>
                                 Supports <Text strong>.xlsx</Text> and <Text strong>.xls</Text> files up to 10MB
                             </div>
                         </div>
                     </Dragger>
 
                     <div style={{
-                        marginTop: 20, padding: 16, background: '#f8fafc',
+                        marginTop: 20, padding: 16, background: 'var(--bc-slate-50)',
                         borderRadius: 10, border: '1px solid #e2e8f0',
                     }}>
-                        <Text strong style={{ fontSize: 12, color: '#475569', display: 'block', marginBottom: 8 }}>
+                        <Text strong style={{ fontSize: 12, color: 'var(--bc-slate-600)', display: 'block', marginBottom: 8 }}>
                             📋 Required Excel Headers (case-insensitive):
                         </Text>
                         <Space wrap size={6}>
@@ -440,17 +440,17 @@ const ImportTargetsModal: React.FC<Props> = ({
                     {/* Stats Row */}
                     <Row gutter={12} style={{ marginBottom: 16 }}>
                         <Col span={6}>
-                            <Card size="small" style={{ borderRadius: 10, borderColor: '#e2e8f0' }}>
+                            <Card size="small" style={{ borderRadius: 10, borderColor: 'var(--bc-slate-200)' }}>
                                 <Statistic
-                                    title={<Text style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>TOTAL ROWS</Text>}
+                                    title={<Text style={{ fontSize: 11, color: 'var(--bc-slate-500)', fontWeight: 600 }}>TOTAL ROWS</Text>}
                                     value={stats.total}
-                                    prefix={<Database size={14} style={{ color: '#1976D2' }} />}
-                                    valueStyle={{ fontSize: 22, color: '#0f172a', fontWeight: 800 }}
+                                    prefix={<Database size={14} style={{ color: 'var(--bc-ro-500)' }} />}
+                                    valueStyle={{ fontSize: 22, color: 'var(--bc-slate-900)', fontWeight: 800 }}
                                 />
                             </Card>
                         </Col>
                         <Col span={6}>
-                            <Card size="small" style={{ borderRadius: 10, borderColor: '#d1fae5', background: '#f0fdf4' }}>
+                            <Card size="small" style={{ borderRadius: 10, borderColor: '#d1fae5', background: 'var(--bc-green-50)' }}>
                                 <Statistic
                                     title={<Text style={{ fontSize: 11, color: '#2E7D32', fontWeight: 600 }}>VALID</Text>}
                                     value={stats.valid}
@@ -460,7 +460,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                             </Card>
                         </Col>
                         <Col span={6}>
-                            <Card size="small" style={{ borderRadius: 10, borderColor: '#fecaca', background: '#fef2f2' }}>
+                            <Card size="small" style={{ borderRadius: 10, borderColor: 'var(--bc-red-200)', background: 'var(--bc-red-50)' }}>
                                 <Statistic
                                     title={<Text style={{ fontSize: 11, color: '#C62828', fontWeight: 600 }}>WITH ERRORS</Text>}
                                     value={stats.invalid}
@@ -470,12 +470,12 @@ const ImportTargetsModal: React.FC<Props> = ({
                             </Card>
                         </Col>
                         <Col span={6}>
-                            <Card size="small" style={{ borderRadius: 10, borderColor: '#e2e8f0' }}>
-                                <Text style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block' }}>SUCCESS RATE</Text>
+                            <Card size="small" style={{ borderRadius: 10, borderColor: 'var(--bc-slate-200)' }}>
+                                <Text style={{ fontSize: 11, color: 'var(--bc-slate-500)', fontWeight: 600, display: 'block' }}>SUCCESS RATE</Text>
                                 <Progress
                                     percent={Math.round(stats.validPct)}
                                     status={stats.validPct === 100 ? 'success' : stats.validPct >= 80 ? 'active' : 'exception'}
-                                    strokeColor={stats.validPct === 100 ? '#2E7D32' : stats.validPct >= 80 ? '#1976D2' : '#D32F2F'}
+                                    strokeColor={stats.validPct === 100 ? '#2E7D32' : stats.validPct >= 80 ? 'var(--bc-ro-500)' : '#D32F2F'}
                                     style={{ marginTop: 8, marginBottom: 0 }}
                                 />
                             </Card>
@@ -521,7 +521,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                                 onClick={handleImport}
                                 disabled={stats.valid === 0}
                                 style={{
-                                    background: stats.valid === 0 ? '#cbd5e1' : 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                                    background: stats.valid === 0 ? 'var(--bc-slate-300)' : 'linear-gradient(135deg, #1976D2, #9C27B0)',
                                     borderColor: 'transparent',
                                     fontWeight: 700,
                                     height: 36,
@@ -550,17 +550,17 @@ const ImportTargetsModal: React.FC<Props> = ({
                     }}>
                         <Database size={36} color="white" />
                     </div>
-                    <Title level={4} style={{ margin: 0, color: '#0f172a' }}>
+                    <Title level={4} style={{ margin: 0, color: 'var(--bc-slate-900)' }}>
                         Importing your data...
                     </Title>
-                    <Text style={{ color: '#64748b', fontSize: 13, display: 'block', marginTop: 6 }}>
+                    <Text style={{ color: 'var(--bc-slate-500)', fontSize: 13, display: 'block', marginTop: 6 }}>
                         Please wait while we process {stats.valid} records
                     </Text>
                     <Progress
                         percent={50}
                         status="active"
                         showInfo={false}
-                        strokeColor={{ from: '#1976D2', to: '#9C27B0' }}
+                        strokeColor={{ from: 'var(--bc-ro-500)', to: 'var(--bc-purple-500)' }}
                         style={{ maxWidth: 320, margin: '24px auto 0' }}
                     />
                 </div>
@@ -587,10 +587,10 @@ const ImportTargetsModal: React.FC<Props> = ({
                                 ? <CheckCircle size={36} color="white" />
                                 : <XCircle size={36} color="white" />}
                         </div>
-                        <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
+                        <Title level={3} style={{ margin: 0, color: 'var(--bc-slate-900)' }}>
                             {importResult.success ? 'Import Successful!' : 'Import Failed'}
                         </Title>
-                        <Text style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>
+                        <Text style={{ color: 'var(--bc-slate-500)', fontSize: 13, marginTop: 6 }}>
                             {importResult.message || (importResult.success
                                 ? 'Your target achievement data has been imported successfully'
                                 : 'Some errors occurred during import')}
@@ -599,7 +599,7 @@ const ImportTargetsModal: React.FC<Props> = ({
 
                     <Row gutter={12} style={{ marginBottom: 20 }}>
                         <Col span={8}>
-                            <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderColor: '#d1fae5', background: '#f0fdf4' }}>
+                            <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderColor: '#d1fae5', background: 'var(--bc-green-50)' }}>
                                 <div style={{ fontSize: 28, fontWeight: 800, color: '#2E7D32' }}>
                                     {importResult.imported || 0}
                                 </div>
@@ -607,7 +607,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                             </Card>
                         </Col>
                         <Col span={8}>
-                            <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderColor: '#bfdbfe', background: '#eff6ff' }}>
+                            <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderColor: 'var(--bc-blue-200)', background: 'var(--bc-blue-50)' }}>
                                 <div style={{ fontSize: 28, fontWeight: 800, color: '#0288D1' }}>
                                     {importResult.updated || 0}
                                 </div>
@@ -615,7 +615,7 @@ const ImportTargetsModal: React.FC<Props> = ({
                             </Card>
                         </Col>
                         <Col span={8}>
-                            <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderColor: '#fde68a', background: '#fffbeb' }}>
+                            <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderColor: 'var(--bc-amber-200)', background: 'var(--bc-amber-50)' }}>
                                 <div style={{ fontSize: 28, fontWeight: 800, color: '#E65100' }}>
                                     {importResult.skipped || 0}
                                 </div>

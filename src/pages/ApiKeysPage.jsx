@@ -3,25 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Copy, Check, ChevronRight, Eye, EyeOff, RefreshCw, Plus, Trash2, Edit, AlertCircle, X } from 'lucide-react';
 import api from '../services/api';
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, Alert } from 'reactstrap';
-import { Button as AntdButton } from 'antd';
+import { Alert, Input, Modal, Select, Button as AntdButton } from 'antd';
 import styles from './ApiKeysPage.module.css';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
 const CATEGORY_COLORS = {
-    'Scraping': '#6366F1',
-    'Amazon Data': '#F59E0B',
+    'Scraping': 'var(--bc-indigo-500)',
+    'Amazon Data': 'var(--bc-amber-500)',
     'AI': '#10B981',
-    'Communication': '#EC4899',
-    'Other': '#64748B'
+    'Communication': 'var(--bc-pink-500)',
+    'Other': 'var(--bc-slate-500)'
 };
 
 /* ─── Sub-components ───────────────────────────────────────────── */
 const Toggle = ({ enabled }) => (
     <div style={{
         width: 44, height: 24, borderRadius: "var(--radius-lg)",
-        background: enabled ? '#4F46E5' : '#CBD5E1',
+        background: enabled ? 'var(--bc-indigo-600)' : 'var(--bc-slate-300)',
         position: 'relative', flexShrink: 0,
     }}>
         <span style={{
@@ -204,14 +203,21 @@ return (
             </div>
 
             {/* Security notice */}
-            <Alert color="primary" className="d-flex align-items-center gap-3 border-0 shadow-sm" style={{ borderRadius: 'var(--radius-lg)', backgroundColor: '#EEF2FF', color: '#3730A3' }}>
-                <span className="fs-4">🔒</span>
-                <span className="small">
-                    <strong>Secure Storage:</strong> All keys are stored in the backend database.
-                    Values are masked by default and only revealed upon secure request.
-                    Anonymized provider names are used to maintain abstraction and security.
-                </span>
-            </Alert>
+            <Alert
+                type="info"
+                className="border-0 shadow-sm"
+                style={{ borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--bc-indigo-50)', color: '#3730A3' }}
+                message={
+                    <div className="d-flex align-items-center gap-3">
+                        <span className="fs-4">🔒</span>
+                        <span className="small">
+                            <strong>Secure Storage:</strong> All keys are stored in the backend database.
+                            Values are masked by default and only revealed upon secure request.
+                            Anonymized provider names are used to maintain abstraction and security.
+                        </span>
+                    </div>
+                }
+            />
 
             {/* Main Content Card */}
             <div className="card border-0 shadow-sm overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
@@ -341,21 +347,37 @@ return (
             </div>
 
             {/* Add / Edit Modal */}
-            <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} centered size="md" contentClassName="border-0 shadow-lg" style={{ borderRadius: 'var(--radius-xl)' }}>
-                <ModalHeader toggle={() => setModalOpen(false)} className="border-0 pb-0 pt-4 px-4">
+            <Modal
+                open={modalOpen}
+                onCancel={() => setModalOpen(false)}
+                centered
+                width={500}
+                footer={null}
+                destroyOnHidden
+                classNames={{ container: 'border-0 shadow-lg' }}
+                styles={{ container: { borderRadius: 'var(--radius-xl)', padding: 0 }, body: { padding: 0 } }}
+            >
+                <div className="modal-header border-0 pb-0 pt-4 px-4">
                     <span className="fw-bold h5 mb-0 text-dark">
                         {editingKey ? 'Edit API Integration' : 'Add New Integration'}
                     </span>
-                </ModalHeader>
-                <Form onSubmit={handleSave}>
-                    <ModalBody className="p-4">
+                </div>
+                <form onSubmit={handleSave}>
+                    <div className="modal-body p-4">
                         {error && (
-                            <Alert color="danger" className="py-2 small border-0 d-flex align-items-center gap-2 mb-3">
-                                <AlertCircle size={14} /> {error}
-                            </Alert>
+                            <Alert
+                                type="error"
+                                className="small border-0 mb-3"
+                                style={{ padding: '8px 12px' }}
+                                message={
+                                    <span className="d-flex align-items-center gap-2">
+                                        <AlertCircle size={14} /> {error}
+                                    </span>
+                                }
+                            />
                         )}
-                        <FormGroup className="mb-3">
-                            <Label className="smallest fw-bold text-muted text-uppercase mb-2">Internal Alias Name</Label>
+                        <div className="mb-3">
+                            <label className="d-block smallest fw-bold text-muted text-uppercase mb-2">Internal Alias Name</label>
                             <Input
                                 type="text"
                                 placeholder="e.g. Data Provider Alpha"
@@ -365,9 +387,9 @@ return (
                                 className="border-0 bg-light px-3 py-2"
                                 style={{ borderRadius: 'var(--radius-md)' }}
                             />
-                        </FormGroup>
-                        <FormGroup className="mb-3">
-                            <Label className="smallest fw-bold text-muted text-uppercase mb-2">Service ID (Unique)</Label>
+                        </div>
+                        <div className="mb-3">
+                            <label className="d-block smallest fw-bold text-muted text-uppercase mb-2">Service ID (Unique)</label>
                             <Input
                                 type="text"
                                 placeholder="e.g. scraper_primary"
@@ -378,25 +400,20 @@ return (
                                 className="border-0 bg-light px-3 py-2"
                                 style={{ borderRadius: 'var(--radius-md)' }}
                             />
-                        </FormGroup>
-                        <FormGroup className="mb-3">
-                            <Label className="smallest fw-bold text-muted text-uppercase mb-2">Category</Label>
-                            <Input
-                                type="select"
+                        </div>
+                        <div className="mb-3">
+                            <label className="d-block smallest fw-bold text-muted text-uppercase mb-2">Category</label>
+                            <Select
                                 value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                className="border-0 bg-light px-3 py-2"
-                                style={{ borderRadius: 'var(--radius-md)' }}
-                            >
-                                <option>Scraping</option>
-                                <option>Amazon Data</option>
-                                <option>AI</option>
-                                <option>Communication</option>
-                                <option>Other</option>
-                            </Input>
-                        </FormGroup>
-                        <FormGroup className="mb-3">
-                            <Label className="smallest fw-bold text-muted text-uppercase mb-2">API Key Value</Label>
+                                onChange={(value) => setFormData({ ...formData, category: value })}
+                                variant="borderless"
+                                className="bg-light"
+                                style={{ width: '100%' }}
+                                options={['Scraping', 'Amazon Data', 'AI', 'Communication', 'Other'].map((c) => ({ value: c, label: c }))}
+                            />
+                        </div>
+                        <div className="mb-3">
+                            <label className="d-block smallest fw-bold text-muted text-uppercase mb-2">API Key Value</label>
                             <Input
                                 type="password"
                                 placeholder={editingKey ? "•••••••••••• (leave blank to keep current)" : "Paste your API key here"}
@@ -406,29 +423,39 @@ return (
                                 className="border-0 bg-light px-3 py-2"
                                 style={{ borderRadius: 'var(--radius-md)' }}
                             />
-                        </FormGroup>
-                        <FormGroup className="mb-0">
-                            <Label className="smallest fw-bold text-muted text-uppercase mb-2">Description (Optional)</Label>
-                            <Input
-                                type="textarea"
-                                rows="2"
+                        </div>
+                        <div className="mb-0">
+                            <label className="d-block smallest fw-bold text-muted text-uppercase mb-2">Description (Optional)</label>
+                            <Input.TextArea
+                                rows={2}
                                 placeholder="Briefly describe what this key is used for..."
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                                 className="border-0 bg-light px-3 py-2"
                                 style={{ borderRadius: 'var(--radius-md)' }}
                             />
-                        </FormGroup>
-                    </ModalBody>
-                    <ModalFooter className="border-0 pt-0 px-4 pb-4">
-                        <Button color="link" onClick={() => setModalOpen(false)} className="text-decoration-none text-muted smallest fw-bold me-2">
+                        </div>
+                    </div>
+                    <div className="modal-footer border-0 pt-0 px-4 pb-4">
+                        <AntdButton
+                            type="link"
+                            onClick={() => setModalOpen(false)}
+                            className="text-decoration-none text-muted smallest fw-bold me-2"
+                            style={{ padding: 0, height: 'auto' }}
+                        >
                             Cancel
-                        </Button>
-                        <Button color="primary" type="submit" disabled={saving} className="px-4 fw-bold shadow-sm" style={{ borderRadius: '10px' }}>
+                        </AntdButton>
+                        <AntdButton
+                            type="primary"
+                            htmlType="submit"
+                            disabled={saving}
+                            className="px-4 fw-bold shadow-sm"
+                            style={{ borderRadius: '10px' }}
+                        >
                             {saving ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 16 }} aria-hidden="true" /> : (editingKey ? 'Update Configuration' : 'Save Integration')}
-                        </Button>
-                    </ModalFooter>
-                </Form>
+                        </AntdButton>
+                    </div>
+                </form>
             </Modal>
 
             <style>{`

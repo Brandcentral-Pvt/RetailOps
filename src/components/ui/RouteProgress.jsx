@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const PRIMARY = '#1976D2';
+const PRIMARY = 'var(--bc-ro-500)';
 const COMPLETE_EVENT = 'route-progress-complete';
 
 export default function RouteProgress() {

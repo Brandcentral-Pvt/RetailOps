@@ -72,7 +72,7 @@ const OctoparseAutomationToggle = () => {
               style={{
                 width: '44px',
                 height: '44px',
-                background: enabled ? '#ecfdf5' : '#fef2f2',
+                background: enabled ? '#ecfdf5' : 'var(--bc-red-50)',
                 color: enabled ? '#2E7D32' : '#D32F2F'
               }}
             >

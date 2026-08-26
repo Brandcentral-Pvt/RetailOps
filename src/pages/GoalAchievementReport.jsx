@@ -78,7 +78,7 @@ const GoalAchievementReport = () => {
             sorter: (a, b) => a.title.localeCompare(b.title),
             render: (title, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a', letterSpacing: '-0.01em' }}>{title}</Text>
+                    <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)', letterSpacing: '-0.01em' }}>{title}</Text>
                     <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Calendar size={11} /> Started: {new Date(record.startedAt).toLocaleDateString()}
                     </Text>
@@ -93,12 +93,12 @@ const GoalAchievementReport = () => {
             render: (assignee) => (
                 <Space size={8}>
                     <Avatar 
-                        style={{ backgroundColor: '#e0e7ff', color: '#1976D2', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} 
+                        style={{ backgroundColor: 'var(--bc-indigo-100)', color: 'var(--bc-ro-500)', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} 
                         size="small"
                     >
                         {assignee ? assignee.charAt(0).toUpperCase() : '?'}
                     </Avatar>
-                    <Text style={{ fontSize: '12.5px', color: '#334155', fontWeight: 500 }}>{assignee}</Text>
+                    <Text style={{ fontSize: '12.5px', color: 'var(--bc-slate-700)', fontWeight: 500 }}>{assignee}</Text>
                 </Space>
             )
         },
@@ -111,7 +111,7 @@ const GoalAchievementReport = () => {
                     : 100;
                 return (
                     <div style={{ display: 'flex', flexDirection: 'column', width: 140 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b', marginBottom: 2 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--bc-slate-500)', marginBottom: 2 }}>
                             <span>Est: {record.plannedDuration || '--'}h</span>
                             <span>Act: {record.actualDuration}h</span>
                         </div>
@@ -130,7 +130,7 @@ const GoalAchievementReport = () => {
             dataIndex: 'actualDuration',
             key: 'actualDuration',
             sorter: (a, b) => a.actualDuration - b.actualDuration,
-            render: (duration) => <Text style={{ fontSize: '12.5px', fontWeight: 600, color: '#334155' }}>{duration}h</Text>
+            render: (duration) => <Text style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--bc-slate-700)' }}>{duration}h</Text>
         },
         {
             title: 'Difference',
@@ -189,7 +189,7 @@ const GoalAchievementReport = () => {
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    background: '#ffffff',
+                    background: 'var(--bc-white)',
                     border: '1px solid #e2e8f0',
                     borderRadius: "var(--radius-lg)",
                     padding: '10px 16px',
@@ -204,7 +204,7 @@ const GoalAchievementReport = () => {
                             icon={<ArrowLeft size={14} />}
                             style={{ 
                                 padding: '4px 8px', 
-                                color: '#475569', 
+                                color: 'var(--bc-slate-600)', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: 4,
@@ -216,16 +216,16 @@ const GoalAchievementReport = () => {
                         >
                             Back to Actions
                         </Button>
-                        <div style={{ width: 1, height: 16, background: '#cbd5e1' }} />
+                        <div style={{ width: 1, height: 16, background: 'var(--bc-slate-300)' }} />
                         <Space size={4}>
                             <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reports</Text>
-                            <span style={{ color: '#cbd5e1', fontSize: 'var(--font-size-xs)' }}>/</span>
-                            <Text strong style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0f172a' }}>Fulfillment Efficiency</Text>
+                            <span style={{ color: 'var(--bc-slate-300)', fontSize: 'var(--font-size-xs)' }}>/</span>
+                            <Text strong style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-900)' }}>Fulfillment Efficiency</Text>
                         </Space>
                     </Space>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                        <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginRight: 4 }}>Date Range:</Text>
+                        <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-600)', marginRight: 4 }}>Date Range:</Text>
                         <DateRangePicker
                             startDate={filters.startDate ? new Date(filters.startDate) : null}
                             endDate={filters.endDate ? new Date(filters.endDate) : null}
@@ -241,7 +241,7 @@ const GoalAchievementReport = () => {
                             compact={true}
                         />
                         <Button 
-                            icon={<RotateCcw size={13} style={{ color: '#64748b' }} />} 
+                            icon={<RotateCcw size={13} style={{ color: 'var(--bc-slate-500)' }} />} 
                             onClick={handleReset}
                             shape="circle" 
                             style={{ 
@@ -250,7 +250,7 @@ const GoalAchievementReport = () => {
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
-                                borderColor: '#cbd5e1' 
+                                borderColor: 'var(--bc-slate-300)' 
                             }} 
                             title="Reset Dates"
                         />
@@ -259,8 +259,8 @@ const GoalAchievementReport = () => {
                             shape="round"
                             icon={<Download size={13} />}
                             style={{ 
-                                background: '#1976D2', 
-                                borderColor: '#1976D2', 
+                                background: 'var(--bc-ro-500)', 
+                                borderColor: 'var(--bc-ro-500)', 
                                 fontWeight: 600,
                                 fontSize: 'var(--font-size-sm)',
                                 height: 32,
@@ -282,15 +282,15 @@ const GoalAchievementReport = () => {
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                    <div style={{ fontSize: 10, fontWeight: 750, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>On-Time Rate</div>
-                                    <h2 style={{ margin: 0, fontWeight: 800, color: '#0f172a', fontSize: 22, letterSpacing: '-0.02em' }}>{successRate}%</h2>
+                                    <div style={{ fontSize: 10, fontWeight: 750, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>On-Time Rate</div>
+                                    <h2 style={{ margin: 0, fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 22, letterSpacing: '-0.02em' }}>{successRate}%</h2>
                                     <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Flipped before deadline</Text>
                                 </div>
                                 <Progress 
                                     type="circle" 
                                     percent={successRate} 
                                     size={45} 
-                                    strokeColor="#1976D2"
+                                    strokeColor="var(--bc-ro-500)"
                                     strokeWidth={11}
                                 />
                             </div>
@@ -307,8 +307,8 @@ const GoalAchievementReport = () => {
                                     <CheckCircle size={18} />
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: 10, fontWeight: 750, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Tasks Completed</div>
-                                    <h2 style={{ margin: 0, fontWeight: 800, color: '#0f172a', fontSize: 22, letterSpacing: '-0.02em' }}>{summary.totalCompleted}</h2>
+                                    <div style={{ fontSize: 10, fontWeight: 750, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Tasks Completed</div>
+                                    <h2 style={{ margin: 0, fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 22, letterSpacing: '-0.02em' }}>{summary.totalCompleted}</h2>
                                     <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Successfully finished</Text>
                                 </div>
                             </div>
@@ -321,12 +321,12 @@ const GoalAchievementReport = () => {
                             styles={{ body: { padding: '16px 20px' } }}
                         >
                             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                <div style={{ background: '#fffbeb', color: '#ED6C02', padding: 10, borderRadius: 10, display: 'flex' }}>
+                                <div style={{ background: 'var(--bc-amber-50)', color: '#ED6C02', padding: 10, borderRadius: 10, display: 'flex' }}>
                                     <Clock size={18} />
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: 10, fontWeight: 750, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Avg. Task Duration</div>
-                                    <h2 style={{ margin: 0, fontWeight: 800, color: '#0f172a', fontSize: 22, letterSpacing: '-0.02em' }}>{summary.avgDuration}h</h2>
+                                    <div style={{ fontSize: 10, fontWeight: 750, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Avg. Task Duration</div>
+                                    <h2 style={{ margin: 0, fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 22, letterSpacing: '-0.02em' }}>{summary.avgDuration}h</h2>
                                     <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Fulfillment speed average</Text>
                                 </div>
                             </div>
@@ -340,8 +340,8 @@ const GoalAchievementReport = () => {
                         >
                             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                                 <div style={{ 
-                                    background: summary.overdue > 0 ? '#fef2f2' : '#f8fafc', 
-                                    color: summary.overdue > 0 ? '#D32F2F' : '#64748b', 
+                                    background: summary.overdue > 0 ? 'var(--bc-red-50)' : 'var(--bc-slate-50)', 
+                                    color: summary.overdue > 0 ? '#D32F2F' : 'var(--bc-slate-500)', 
                                     padding: 10, 
                                     borderRadius: 10, 
                                     display: 'flex' 
@@ -349,8 +349,8 @@ const GoalAchievementReport = () => {
                                     <AlertTriangle size={18} />
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: 10, fontWeight: 750, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Late Completions</div>
-                                    <h2 style={{ margin: 0, fontWeight: 800, color: summary.overdue > 0 ? '#D32F2F' : '#0f172a', fontSize: 22, letterSpacing: '-0.02em' }}>{summary.overdue}</h2>
+                                    <div style={{ fontSize: 10, fontWeight: 750, color: 'var(--bc-slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Late Completions</div>
+                                    <h2 style={{ margin: 0, fontWeight: 800, color: summary.overdue > 0 ? '#D32F2F' : 'var(--bc-slate-900)', fontSize: 22, letterSpacing: '-0.02em' }}>{summary.overdue}</h2>
                                     <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>Exceeded estimated window</Text>
                                 </div>
                             </div>
@@ -360,7 +360,7 @@ const GoalAchievementReport = () => {
 
                 {/* 3. PERFORMANCE RECORD MATRIX */}
                 <Card 
-                    title={<span style={{ fontWeight: 800, color: '#0f172a', fontSize: 'var(--font-size-base)', letterSpacing: '-0.01em' }}>Fulfillment Task Performance</span>}
+                    title={<span style={{ fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-base)', letterSpacing: '-0.01em' }}>Fulfillment Task Performance</span>}
                     styles={{ header: { borderBottom: '1px solid #f1f5f9', padding: '12px 20px' }, body: { padding: 0 } }}
                     style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                 >
@@ -370,7 +370,7 @@ const GoalAchievementReport = () => {
                         rowKey={record => record.id || record._id || record.title}
                         pagination={{
                             pageSize: 10,
-                            showTotal: (total, range) => <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>Viewing {range[0]}-{range[1]} of {total} records</span>,
+                            showTotal: (total, range) => <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>Viewing {range[0]}-{range[1]} of {total} records</span>,
                             position: ['bottomRight']
                         }}
                         scroll={{ x: 900, y: 'calc(100vh - 270px)' }}
@@ -378,7 +378,7 @@ const GoalAchievementReport = () => {
                         className="custom-table-ant"
                         locale={{
                             emptyText: (
-                                <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8' }}>
+                                <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--bc-slate-400)' }}>
                                     <TrendingUp className="mb-2 opacity-25" size={32} />
                                     <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>No performance data available yet</div>
                                 </div>

@@ -160,7 +160,7 @@ const ListView = ({
                             <div key={`skeleton-${i}`} className="list-row d-flex align-items-center px-4 py-3 border-bottom pulse">
                                 {columns.map((col, cIdx) => (
                                     <div key={cIdx} style={{ width: col.width || 'auto', flex: col.width ? 'none' : 1 }} className="pe-3">
-                                        <div className="skeleton-line" style={{ height: '14px', width: '80%', borderRadius: 'var(--radius-sm)', background: '#f1f5f9' }}></div>
+                                        <div className="skeleton-line" style={{ height: '14px', width: '80%', borderRadius: 'var(--radius-sm)', background: 'var(--bc-slate-100)' }}></div>
                                     </div>
                                 ))}
                             </div>

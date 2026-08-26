@@ -21,12 +21,12 @@ import { canDoTransition, getDisplayStatus, getRejectionCount, getLastRejection,
 
 // ─── STATUS COLOUR MAP ────────────────────────────────────────────────────────
 const STATUS_STYLE = {
-  PENDING:     { color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' },
-  IN_PROGRESS: { color: '#1976D2', bg: '#eef2ff', border: '#c7d2fe' },
-  REVIEW:      { color: '#9C27B0', bg: '#f5f3ff', border: '#ddd6fe' },
+  PENDING:     { color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', border: 'var(--bc-slate-200)' },
+  IN_PROGRESS: { color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-50)', border: '#c7d2fe' },
+  REVIEW:      { color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)', border: '#ddd6fe' },
   COMPLETED:   { color: '#2E7D32', bg: '#ecfdf5', border: '#a7f3d0' },
   REJECTED:    { color: '#e11d48', bg: '#fff1f2', border: '#fecdd3' },
-  OVERDUE:     { color: '#C62828', bg: '#fef2f2', border: '#fecaca' },
+  OVERDUE:     { color: '#C62828', bg: 'var(--bc-red-50)', border: 'var(--bc-red-200)' },
 };
 
 // ─── SHARED BUTTON STYLE ──────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ const StatusPill = ({ status, size, extra }) => {
         {status === 'IN_PROGRESS' && (
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: '#1976D2',
+            background: 'var(--bc-ro-500)',
             animation: 'wfPulse 1.5s ease infinite',
             display: 'inline-block',
           }} />
@@ -143,7 +143,7 @@ const WorkflowActionButton = ({
         <Button
           size={size}
           icon={<PlayCircleOutlined />}
-          style={btnStyle('#1976D2', size)}
+          style={btnStyle('var(--bc-ro-500)', size)}
           onClick={() => onStart?.(task)}
         >
           Start Task
@@ -177,7 +177,7 @@ const WorkflowActionButton = ({
         <Tag
           style={{
             fontSize: 10, borderRadius: "var(--radius-lg)", cursor: 'help',
-            background: '#fef2f2', color: '#e11d48',
+            background: 'var(--bc-red-50)', color: '#e11d48',
             border: '1px solid #fecdd3', padding: '0 6px',
           }}
         >
@@ -212,7 +212,7 @@ const WorkflowActionButton = ({
         <Button
           size={size}
           icon={<SendOutlined />}
-          style={btnStyle('#9C27B0', size)}
+          style={btnStyle('var(--bc-purple-500)', size)}
           onClick={() => onSubmit?.(task)}
         >
           Submit for Review
@@ -232,7 +232,7 @@ const WorkflowActionButton = ({
           <Tag
             icon={<EyeOutlined />}
             style={{
-              background: '#f5f3ff', color: '#9C27B0',
+              background: 'var(--bc-violet-50)', color: 'var(--bc-purple-500)',
               border: '1px solid #ddd6fe', borderRadius: 20,
               fontWeight: 600, fontSize: size === 'small' ? 10 : 11,
               padding: size === 'small' ? '0 7px' : '1px 9px',
@@ -241,7 +241,7 @@ const WorkflowActionButton = ({
           >
             <span style={{
               width: 6, height: 6, borderRadius: '50%',
-              background: '#9C27B0',
+              background: 'var(--bc-purple-500)',
               animation: 'wfPulse 1.5s ease infinite',
               display: 'inline-block',
             }} />
@@ -293,13 +293,13 @@ const WorkflowActionButton = ({
             onConfirm={() => onReopen?.(task)}
             okText="Reopen"
             cancelText="Cancel"
-            okButtonProps={{ danger: false, style: { background: '#1976D2', border: 'none' } }}
+            okButtonProps={{ danger: false, style: { background: 'var(--bc-ro-500)', border: 'none' } }}
           >
             <Button
               type="link"
               size="small"
               icon={<ReloadOutlined />}
-              style={{ fontSize: 10, color: '#94a3b8', height: 18, padding: 0 }}
+              style={{ fontSize: 10, color: 'var(--bc-slate-400)', height: 18, padding: 0 }}
             >
               Reopen
             </Button>

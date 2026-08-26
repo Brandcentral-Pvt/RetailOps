@@ -22,11 +22,11 @@ const C = {
   bg: '#f4f5f7',
   white: '#fff',
   success: '#2E7D32',
-  successBg: '#f0fdf4',
+  successBg: 'var(--bc-green-50)',
   warning: '#ED6C02',
-  warningBg: '#fffbeb',
+  warningBg: 'var(--bc-amber-50)',
   danger: '#D32F2F',
-  dangerBg: '#fef2f2',
+  dangerBg: 'var(--bc-red-50)',
 };
 
 const PriceViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sellerId: initialSellerId = '' }) => {

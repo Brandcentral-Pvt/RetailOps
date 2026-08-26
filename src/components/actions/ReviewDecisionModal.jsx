@@ -80,8 +80,8 @@ const ReviewDecisionModal = ({ isOpen, task, currentUser, onClose, onDecision })
       mask={{ closable: false }} destroyOnHidden
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EyeOutlined style={{ fontSize: 'var(--font-size-base)', color: '#9C27B0' }} />
+          <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'var(--bc-violet-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EyeOutlined style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-purple-500)' }} />
           </div>
           <div>
             <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b' }}>Review Submission</div>
@@ -91,7 +91,7 @@ const ReviewDecisionModal = ({ isOpen, task, currentUser, onClose, onDecision })
       }
     >
       {/* Worker's Submission */}
-      <div style={{ background: '#f8fafc', border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: 16, marginBottom: 16 }}>
+      <div style={{ background: 'var(--bc-slate-50)', border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
@@ -102,7 +102,7 @@ const ReviewDecisionModal = ({ isOpen, task, currentUser, onClose, onDecision })
               <div style={{ fontSize: 10, color: '#a1a1aa' }}>Assignee</div>
             </div>
           </div>
-          <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: '#f5f3ff', color: '#9C27B0', border: '1px solid #ddd6fe', fontWeight: 600, margin: 0 }}>SUBMITTED</Tag>
+          <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", background: 'var(--bc-violet-50)', color: 'var(--bc-purple-500)', border: '1px solid #ddd6fe', fontWeight: 600, margin: 0 }}>SUBMITTED</Tag>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -122,7 +122,7 @@ const ReviewDecisionModal = ({ isOpen, task, currentUser, onClose, onDecision })
 
           {(submission.before || submission.after) && (
             <div style={{ display: 'flex', gap: 8 }}>
-              {submission.before && <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", background: '#fef2f2', color: '#C62828', border: '1px solid #fecaca', fontWeight: 600, margin: 0 }}>Before: {submission.before}</Tag>}
+              {submission.before && <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", background: 'var(--bc-red-50)', color: '#C62828', border: '1px solid #fecaca', fontWeight: 600, margin: 0 }}>Before: {submission.before}</Tag>}
               {submission.after && <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", background: '#ecfdf5', color: '#2E7D32', border: '1px solid #a7f3d0', fontWeight: 600, margin: 0 }}>After: {submission.after}</Tag>}
             </div>
           )}
@@ -159,7 +159,7 @@ const ReviewDecisionModal = ({ isOpen, task, currentUser, onClose, onDecision })
           <div onClick={() => setDecision('REJECT')} style={{
             flex: 1, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
             display: 'flex', alignItems: 'center', gap: 10, border: decision === 'REJECT' ? '2px solid #C62828' : '1px solid #e4e4e7',
-            background: decision === 'REJECT' ? '#fef2f2' : '#fff'
+            background: decision === 'REJECT' ? 'var(--bc-red-50)' : '#fff'
           }}>
             <CloseCircleOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#C62828' }} />
             <div>

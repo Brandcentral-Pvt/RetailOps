@@ -198,26 +198,26 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                     <Space wrap size={[8, 8]}>
                         {marketplace === 'ajio' ? (
                             <>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Jio Code</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Orders</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Jio Code</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Orders</span>
                             </>
                         ) : (
                             <>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>ASIN</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
-                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Impressions</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>ASIN</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Spend</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Sales</span>
+                                <span style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Impressions</span>
                             </>
                         )}
                     </Space>
                 </div>
 
                 <div className="mb-4">
-                    <Dragger {...uploadProps} disabled={uploading} style={{ padding: '20px 0', background: '#f8fafc', borderColor: '#e2e8f0' }}>
+                    <Dragger {...uploadProps} disabled={uploading} style={{ padding: '20px 0', background: 'var(--bc-slate-50)', borderColor: 'var(--bc-slate-200)' }}>
                         <p className="ant-upload-drag-icon">
-                            <InboxOutlined style={{ color: '#1976D2' }} />
+                            <InboxOutlined style={{ color: 'var(--bc-ro-500)' }} />
                         </p>
                         <p className="ant-upload-text fw-bold" style={{ fontSize: 'var(--font-size-sm)' }}>Choose Advertising Data Files</p>
                         <p className="ant-upload-hint text-zinc-400" style={{ fontSize: 'var(--font-size-xs)' }}>Support for multiple uploads (CSV or Excel).</p>
@@ -238,8 +238,8 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                                         key={file.uid}
                                         className="d-flex align-items-center justify-content-between p-2.5 rounded-3 border"
                                         style={{
-                                            background: '#f8fafc',
-                                            borderColor: fileStatus.status === 'success' ? '#bbf7d0' : fileStatus.status === 'error' ? '#fecaca' : '#e2e8f0'
+                                            background: 'var(--bc-slate-50)',
+                                            borderColor: fileStatus.status === 'success' ? 'var(--bc-green-200)' : fileStatus.status === 'error' ? 'var(--bc-red-200)' : 'var(--bc-slate-200)'
                                         }}
                                     >
                                         <div className="d-flex align-items-center gap-2.5 flex-grow-1 min-w-0">
@@ -275,7 +275,7 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                                             {fileStatus.status === 'success' && (
                                                 <span
                                                     className="badge"
-                                                    style={{ backgroundColor: '#f0fdf4', color: '#2E7D32', border: '1px solid #bbf7d0', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
+                                                    style={{ backgroundColor: 'var(--bc-green-50)', color: '#2E7D32', border: '1px solid #bbf7d0', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
                                                     title={`Processed ${fileStatus.rows} rows`}
                                                 >
                                                     Success ({fileStatus.rows.toLocaleString()})
@@ -284,7 +284,7 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                                             {fileStatus.status === 'error' && (
                                                 <span
                                                     className="badge"
-                                                    style={{ backgroundColor: '#fef2f2', color: '#C62828', border: '1px solid #fecaca', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
+                                                    style={{ backgroundColor: 'var(--bc-red-50)', color: '#C62828', border: '1px solid #fecaca', fontSize: '10px', padding: '3px 6px', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}
                                                     title={fileStatus.error}
                                                 >
                                                     Failed

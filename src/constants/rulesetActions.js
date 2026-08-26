@@ -50,7 +50,7 @@ export const SOP_PRESETS = {
 export const TASK_PRIORITIES = [
   { value: 'Critical', label: 'Critical', color: '#C62828' },
   { value: 'High', label: 'High', color: '#ED6C02' },
-  { value: 'Medium', label: 'Medium', color: '#b45309' },
+  { value: 'Medium', label: 'Medium', color: 'var(--bc-amber-700)' },
   { value: 'Low', label: 'Low', color: '#6b7280' },
 ];
 

@@ -35,14 +35,14 @@ const typeStyles = {
   success: { color: '#2E7D32', bg: '#E8F5E9', border: '#A5D6A7' },
   warning: { color: '#ED6C02', bg: '#FFF3E0', border: '#FFCC80' },
   error: { color: '#D32F2F', bg: '#FFEBEE', border: '#EF9A9A' },
-  info: { color: '#64748B', bg: '#F1F5F9', border: '#E5E7EB' },
+  info: { color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', border: '#E5E7EB' },
   LIVE_SYNC: { color: '#2E7D32', bg: '#E8F5E9', border: '#A5D6A7' },
-  RE_SYNC: { color: '#1976D2', bg: '#E3F2FD', border: '#90CAF9' },
+  RE_SYNC: { color: 'var(--bc-ro-500)', bg: 'var(--bc-ro-50)', border: 'var(--bc-ro-200)' },
   RE_SYNC_ERROR: { color: '#D32F2F', bg: '#FFEBEE', border: '#EF9A9A' },
-  CHAT_MESSAGE: { color: '#64748B', bg: '#F1F5F9', border: '#E5E7EB' },
+  CHAT_MESSAGE: { color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', border: '#E5E7EB' },
   BUYBOX_LOST: { color: '#ED6C02', bg: '#FFF3E0', border: '#FFCC80' },
   PRICE_DISPUTE: { color: '#D32F2F', bg: '#FFEBEE', border: '#EF9A9A' },
-  RULE_TRIGGERED: { color: '#9C27B0', bg: '#f5f3ff', border: '#ddd6fe' },
+  RULE_TRIGGERED: { color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)', border: '#ddd6fe' },
 };
 
 const mapTypeToDisplay = (type, message) => {
@@ -231,7 +231,7 @@ const NotificationCenter = () => {
               <span>Notifications</span>
               {unreadCount > 0 && (
                 <span style={{
-                  background: '#1976D2', color: '#fff', fontSize: '10px', fontWeight: 600,
+                  background: 'var(--bc-ro-500)', color: '#fff', fontSize: '10px', fontWeight: 600,
                   padding: '2px 7px', borderRadius: '100px', fontFamily: 'Inter, sans-serif',
                 }}>
                   {unreadCount} new
@@ -241,12 +241,12 @@ const NotificationCenter = () => {
             <div style={{ display: 'flex', gap: '4px' }}>
               <Tooltip title="Mark all as read">
                 <Button type="text" size="small" icon={<CheckOutlined />}
-                  onClick={markAllRead} disabled={unreadCount === 0} style={{ color: '#94A3B8' }} />
+                  onClick={markAllRead} disabled={unreadCount === 0} style={{ color: 'var(--bc-slate-400)' }} />
               </Tooltip>
               <Tooltip title="Clear read notifications">
                 <Button type="text" size="small" icon={<DeleteOutlined />}
                   onClick={clearAllRead} disabled={!notifications.some(n => n.read)}
-                  style={{ color: '#94A3B8' }} />
+                  style={{ color: 'var(--bc-slate-400)' }} />
               </Tooltip>
             </div>
           </div>
@@ -279,7 +279,7 @@ const NotificationCenter = () => {
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                     description={
-                      <span style={{ color: '#94A3B8', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
+                      <span style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)', fontFamily: 'Inter, sans-serif' }}>
                         You're all caught up
                       </span>
                     }
@@ -313,12 +313,12 @@ const NotificationCenter = () => {
                       <div className="notif-item-content">
                         <div className="notif-item-title" style={{
                           fontWeight: !notif.read ? 700 : 500,
-                          color: !notif.read ? '#0F172A' : '#64748b',
+                          color: !notif.read ? 'var(--bc-slate-900)' : 'var(--bc-slate-500)',
                         }}>
                           {notif.type?.replace(/_/g, ' ') || 'Notification'}
                         </div>
                         <div className="notif-item-message" style={{
-                          color: !notif.read ? '#334155' : '#94a3b8',
+                          color: !notif.read ? 'var(--bc-slate-700)' : 'var(--bc-slate-400)',
                         }}>
                           {notif.message}
                         </div>
@@ -348,9 +348,9 @@ const NotificationCenter = () => {
         </div>
 
         {hasMore && !loading && notifications.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: '#F1F5F9', textAlign: 'center' }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: 'var(--bc-slate-100)', textAlign: 'center' }}>
             <Button type="link" size="small" onClick={loadMore}
-              style={{ color: '#1976D2', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+              style={{ color: 'var(--bc-ro-500)', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
               Load more
             </Button>
           </div>

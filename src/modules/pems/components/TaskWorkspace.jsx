@@ -21,18 +21,18 @@ import dayjs from 'dayjs';
 const { Text } = Typography;
 
 const STATUS_COLORS = {
-  DRAFT: '#64748b', ASSIGNED: '#2563eb', ACCEPTED: '#7c3aed', IN_PROGRESS: '#2563eb',
-  SUBMITTED: '#d97706', UNDER_REVIEW: '#7c3aed', APPROVED: '#16a34a',
-  REJECTED: '#dc2626', REWORK: '#ea580c', CANCELLED: '#94a3b8',
+  DRAFT: 'var(--bc-slate-500)', ASSIGNED: 'var(--bc-blue-600)', ACCEPTED: 'var(--bc-violet-600)', IN_PROGRESS: 'var(--bc-blue-600)',
+  SUBMITTED: 'var(--bc-amber-600)', UNDER_REVIEW: 'var(--bc-violet-600)', APPROVED: 'var(--bc-green-600)',
+  REJECTED: 'var(--bc-red-600)', REWORK: 'var(--bc-accent-inventory)', CANCELLED: 'var(--bc-slate-400)',
 };
 
 const CATEGORY_THEME = {
   PRICING: { headerBg: 'var(--bc-cyan-50)', borderColor: 'var(--bc-cyan-100)', bg: 'var(--bc-cyan-50)', accent: '#0d9488', label: 'Pricing Dispute' },
-  LISTING: { headerBg: 'var(--bc-blue-100)', borderColor: 'var(--bc-blue-200)', bg: 'var(--bc-indigo-50)', accent: '#2563eb', label: 'Catalog Audit' },
-  INVENTORY: { headerBg: 'var(--bc-violet-100)', borderColor: 'var(--bc-violet-100)', bg: 'var(--bc-violet-50)', accent: '#7c3aed', label: 'Inventory Check' },
-  ADS: { headerBg: 'var(--bc-amber-50)', borderColor: 'var(--bc-amber-200)', bg: 'var(--bc-amber-50)', accent: '#ea580c', label: 'Ad Review' },
-  COMPLIANCE: { headerBg: 'var(--bc-red-50)', borderColor: 'var(--bc-red-200)', bg: 'var(--bc-red-50)', accent: '#dc2626', label: 'Compliance Check' },
-  GENERAL: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#64748b', label: 'Task Review' },
+  LISTING: { headerBg: 'var(--bc-blue-100)', borderColor: 'var(--bc-blue-200)', bg: 'var(--bc-indigo-50)', accent: 'var(--bc-blue-600)', label: 'Catalog Audit' },
+  INVENTORY: { headerBg: 'var(--bc-violet-100)', borderColor: 'var(--bc-violet-100)', bg: 'var(--bc-violet-50)', accent: 'var(--bc-violet-600)', label: 'Inventory Check' },
+  ADS: { headerBg: 'var(--bc-amber-50)', borderColor: 'var(--bc-amber-200)', bg: 'var(--bc-amber-50)', accent: 'var(--bc-accent-inventory)', label: 'Ad Review' },
+  COMPLIANCE: { headerBg: 'var(--bc-red-50)', borderColor: 'var(--bc-red-200)', bg: 'var(--bc-red-50)', accent: 'var(--bc-red-600)', label: 'Compliance Check' },
+  GENERAL: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: 'var(--bc-slate-500)', label: 'Task Review' },
 };
 
 function SectionHeader({ title, icon: Icon, count, action }) {
@@ -491,11 +491,11 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
           {/* KPI Cards */}
           <SectionHeader title="Performance Metrics" icon={AimOutlined} />
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <MetricCard label="Target" value={task.Target || 0} color="#2563eb" />
-            <MetricCard label="Achievement" value={task.Achievement || 0} color="#16a34a" />
-            <MetricCard label="Achievement %" value={`${task.AchievementPct || 0}%`} color={task.AchievementPct >= 80 ? '#16a34a' : '#d97706'} />
-            <MetricCard label="Variance" value={`${(task.Variance || 0) >= 0 ? '+' : ''}${task.Variance || 0}`} color={(task.Variance || 0) >= 0 ? '#16a34a' : '#dc2626'} />
-            <MetricCard label="Progress" value={`${task.WeightedProgressPct || task.ProgressPct || 0}%`} color="#7c3aed" />
+            <MetricCard label="Target" value={task.Target || 0} color="var(--bc-blue-600)" />
+            <MetricCard label="Achievement" value={task.Achievement || 0} color="var(--bc-green-600)" />
+            <MetricCard label="Achievement %" value={`${task.AchievementPct || 0}%`} color={task.AchievementPct >= 80 ? 'var(--bc-green-600)' : 'var(--bc-amber-600)'} />
+            <MetricCard label="Variance" value={`${(task.Variance || 0) >= 0 ? '+' : ''}${task.Variance || 0}`} color={(task.Variance || 0) >= 0 ? 'var(--bc-green-600)' : 'var(--bc-red-600)'} />
+            <MetricCard label="Progress" value={`${task.WeightedProgressPct || task.ProgressPct || 0}%`} color="var(--bc-violet-600)" />
           </div>
 
           {/* Task Info Grid */}
@@ -512,10 +512,10 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
               { label: 'TAT', value: `${task.TATHours || '-'}h` },
               { label: 'Due Date', value: task.DueDate ? dayjs(task.DueDate).format('DD MMM YYYY') : '-', color: dueLabel?.color },
               { label: 'Created', value: task.CreatedAt ? dayjs(task.CreatedAt).format('DD MMM YYYY [at] h:mm A') : '-' },
-              { label: 'Started', value: task.StartedAt ? dayjs(task.StartedAt).format('DD MMM YYYY [at] h:mm A') : '-', color: task.StartedAt ? '#2563eb' : undefined },
-              { label: 'Submitted', value: task.SubmittedAt ? dayjs(task.SubmittedAt).format('DD MMM YYYY [at] h:mm A') : '-', color: task.SubmittedAt ? '#d97706' : undefined },
+              { label: 'Started', value: task.StartedAt ? dayjs(task.StartedAt).format('DD MMM YYYY [at] h:mm A') : '-', color: task.StartedAt ? 'var(--bc-blue-600)' : undefined },
+              { label: 'Submitted', value: task.SubmittedAt ? dayjs(task.SubmittedAt).format('DD MMM YYYY [at] h:mm A') : '-', color: task.SubmittedAt ? 'var(--bc-amber-600)' : undefined },
               { label: 'Reviewed', value: task.ReviewedAt ? dayjs(task.ReviewedAt).format('DD MMM YYYY [at] h:mm A') : '-' },
-              { label: 'Completed', value: task.CompletedAt ? dayjs(task.CompletedAt).format('DD MMM YYYY [at] h:mm A') : '-', color: task.CompletedAt ? '#16a34a' : undefined },
+              { label: 'Completed', value: task.CompletedAt ? dayjs(task.CompletedAt).format('DD MMM YYYY [at] h:mm A') : '-', color: task.CompletedAt ? 'var(--bc-green-600)' : undefined },
             ].map(item => (
               <div key={item.label} style={{ padding: '10px 12px', background: 'var(--bc-surface-subtle)', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-border-subtle)' }}>
                 <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', fontWeight: 600, display: 'block', marginBottom: 2 }}>{item.label}</Text>

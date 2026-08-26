@@ -9,10 +9,10 @@ const MarketplaceComparison = ({ data = [] }) => {
     // Group by marketplace (mock data since we don't have marketplace field in ads data)
     // In real implementation, this would come from API
     const marketplaces = [
-      { name: 'Amazon India', color: '#FF9900', status: 'active' },
-      { name: 'Flipkart', color: '#2874F0', status: 'active' },
-      { name: 'Ajio', color: '#D23B6C', status: 'active' },
-      { name: 'Myntra', color: '#FF3F6C', status: 'active' }
+      { name: 'Amazon India', color: 'var(--bc-market-amazon)', status: 'active' },
+      { name: 'Flipkart', color: 'var(--bc-market-flipkart)', status: 'active' },
+      { name: 'Ajio', color: 'var(--bc-market-ajio)', status: 'active' },
+      { name: 'Myntra', color: 'var(--bc-market-myntra)', status: 'active' }
     ];
 
     // Distribute data across marketplaces for demo
@@ -104,7 +104,7 @@ const MarketplaceComparison = ({ data = [] }) => {
       style={{ borderRadius: 10, marginBottom: 16 }}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 3, height: 14, background: '#1976D2', borderRadius: 2 }} />
+          <div style={{ width: 3, height: 14, background: 'var(--bc-ro-500)', borderRadius: 2 }} />
           <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>Marketplace Comparison</Text>
         </div>
       }

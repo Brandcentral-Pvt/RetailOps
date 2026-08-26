@@ -114,7 +114,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
       categories: filteredDateRange.map(d => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
       labels: { 
         show: true, 
-        style: { fontSize: '10px', fontWeight: 600, colors: '#64748b' },
+        style: { fontSize: '10px', fontWeight: 600, colors: 'var(--bc-slate-500)' },
         offsetY: 0
       },
       axisBorder: { show: false },
@@ -123,7 +123,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
     },
     yaxis: {
       labels: { 
-        style: { fontSize: '10px', fontWeight: 600, colors: '#475569' },
+        style: { fontSize: '10px', fontWeight: 600, colors: 'var(--bc-slate-600)' },
         formatter: (val) => val?.toLocaleString()
       }
     },
@@ -135,7 +135,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
       hover: { size: 6, strokeWidth: 3 } 
     },
     grid: { 
-      borderColor: '#f1f5f9', 
+      borderColor: 'var(--bc-slate-100)', 
       strokeDashArray: 3, 
       xaxis: { lines: { show: false } },
       yaxis: { lines: { show: true } },
@@ -348,7 +348,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
                       </h6>
                       <div className="bg-slate-50 p-2 rounded-3">
                          <Chart 
-                            options={chartOptions('#9C27B0', 'line')} 
+                            options={chartOptions('var(--bc-purple-500)', 'line')} 
                             series={[{ name: 'Images', data: generateSeriesData('imageCount', true) }]} 
                             type="line" 
                             height={150} 

@@ -1,16 +1,16 @@
 export const WORKFLOW_STATUSES = {
-  DRAFT: { label: 'Draft', color: '#64748b', bg: '#f1f5f9', antColor: 'default' },
+  DRAFT: { label: 'Draft', color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', antColor: 'default' },
   ASSIGNED: { label: 'Assigned', color: '#0288D1', bg: '#e0f2fe', antColor: 'processing' },
-  ACCEPTED: { label: 'Accepted', color: '#9C27B0', bg: '#f5f3ff', antColor: 'purple' },
-  IN_PROGRESS: { label: 'In Progress', color: '#1976D2', bg: '#eef2ff', antColor: 'processing' },
+  ACCEPTED: { label: 'Accepted', color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)', antColor: 'purple' },
+  IN_PROGRESS: { label: 'In Progress', color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-50)', antColor: 'processing' },
   SUBMITTED: { label: 'Submitted', color: '#ED6C02', bg: '#fff7ed', antColor: 'warning' },
-  UNDER_REVIEW: { label: 'Under Review', color: '#9C27B0', bg: '#f5f3ff', antColor: 'purple' },
+  UNDER_REVIEW: { label: 'Under Review', color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)', antColor: 'purple' },
   APPROVED: { label: 'Approved', color: '#2E7D32', bg: '#ecfdf5', antColor: 'success' },
-  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: '#fef2f2', antColor: 'error' },
+  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: 'var(--bc-red-50)', antColor: 'error' },
   REWORK: { label: 'Rework', color: '#E65100', bg: '#fff7ed', antColor: 'warning' },
   RESUBMITTED: { label: 'Resubmitted', color: '#0288D1', bg: '#e0f2fe', antColor: 'processing' },
-  ESCALATED: { label: 'Escalated', color: '#D32F2F', bg: '#fef2f2', antColor: 'error' },
-  CANCELLED: { label: 'Cancelled', color: '#94a3b8', bg: '#f8fafc', antColor: 'default' },
+  ESCALATED: { label: 'Escalated', color: '#D32F2F', bg: 'var(--bc-red-50)', antColor: 'error' },
+  CANCELLED: { label: 'Cancelled', color: 'var(--bc-slate-400)', bg: 'var(--bc-slate-50)', antColor: 'default' },
 };
 
 export const VALID_TRANSITIONS = {
@@ -29,7 +29,7 @@ export const VALID_TRANSITIONS = {
 export const SLA_STATUSES = {
   WITHIN_SLA: { label: 'Within SLA', color: '#2E7D32', bg: '#ecfdf5' },
   AT_RISK: { label: 'At Risk', color: '#ED6C02', bg: '#fff7ed' },
-  BREACHED: { label: 'SLA Breached', color: '#D32F2F', bg: '#fef2f2' },
+  BREACHED: { label: 'SLA Breached', color: '#D32F2F', bg: 'var(--bc-red-50)' },
 };
 
 export const FREQUENCIES = [
@@ -61,10 +61,10 @@ export const CATEGORIES = [
 ];
 
 export const PRIORITIES = {
-  CRITICAL: { label: 'Critical', color: '#b91c1c', bg: '#fee2e2' },
+  CRITICAL: { label: 'Critical', color: 'var(--bc-red-700)', bg: 'var(--bc-red-100)' },
   HIGH: { label: 'High', color: '#c2410c', bg: '#ffedd5' },
-  MEDIUM: { label: 'Medium', color: '#b45309', bg: '#fef3c7' },
-  LOW: { label: 'Low', color: '#475569', bg: '#f1f5f9' },
+  MEDIUM: { label: 'Medium', color: 'var(--bc-amber-700)', bg: 'var(--bc-amber-100)' },
+  LOW: { label: 'Low', color: 'var(--bc-slate-600)', bg: 'var(--bc-slate-100)' },
 };
 
 export const TARGET_TYPES = [
@@ -150,32 +150,32 @@ export const CATEGORY_METRIC_CONFIG = {
   PRICING: {
     compareLabel: 'Live Price vs Approved ASP',
     metrics: ['SellingPrice', 'StandardPrice'],
-    badge: { icon: 'DollarOutlined', color: '#0891B2' },
+    badge: { icon: 'DollarOutlined', color: 'var(--bc-cyan-600)' },
   },
   LISTING: {
     compareLabel: 'AI Health Score (Actual vs Target)',
     metrics: ['AIHealthScore', 'TargetScore'],
-    badge: { icon: 'SafetyCertificateOutlined', color: '#2563EB' },
+    badge: { icon: 'SafetyCertificateOutlined', color: 'var(--bc-blue-600)' },
   },
   INVENTORY: {
     compareLabel: 'Available Stock vs Min Threshold',
     metrics: ['AvailableStock', 'MinStockThreshold'],
-    badge: { icon: 'WarningOutlined', color: '#7C3AED' },
+    badge: { icon: 'WarningOutlined', color: 'var(--bc-violet-600)' },
   },
   ADS: {
     compareLabel: 'Actual Spend vs Budget',
     metrics: ['ActualSpend', 'Budget'],
-    badge: { icon: 'BarChartOutlined', color: '#EA580C' },
+    badge: { icon: 'BarChartOutlined', color: 'var(--bc-accent-inventory)' },
   },
   COMPLIANCE: {
     compareLabel: 'Docs Valid vs Required',
     metrics: ['ValidDocs', 'RequiredDocs'],
-    badge: { icon: 'SafetyCertificateOutlined', color: '#DC2626' },
+    badge: { icon: 'SafetyCertificateOutlined', color: 'var(--bc-red-600)' },
   },
   GENERAL: {
     compareLabel: 'Progress',
     metrics: ['ProgressPct'],
-    badge: { icon: 'InfoCircleOutlined', color: '#64748B' },
+    badge: { icon: 'InfoCircleOutlined', color: 'var(--bc-slate-500)' },
   },
 };
 

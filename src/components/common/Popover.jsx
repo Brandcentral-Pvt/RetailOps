@@ -97,7 +97,7 @@ const Popover = ({
                             ...getPlacementStyles()
                         }}
                     >
-                        <div className="popover-content" style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', lineHeight: '1.5' }}>
+                        <div className="popover-content" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', lineHeight: '1.5' }}>
                             {content}
                         </div>
                         {/* Arrow */}

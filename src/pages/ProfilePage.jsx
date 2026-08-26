@@ -244,7 +244,7 @@ const ProfilePage = () => {
                             <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>
                                 {user?.firstName} {user?.lastName}
                             </div>
-                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", padding: '2px 8px', fontWeight: 600, background: '#eff6ff', color: '#0288D1', border: '1px solid #bfdbfe' }}>
+                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", padding: '2px 8px', fontWeight: 600, background: 'var(--bc-blue-50)', color: '#0288D1', border: '1px solid #bfdbfe' }}>
                                 {roleDisplay}
                             </Tag>
 
@@ -328,7 +328,7 @@ const ProfilePage = () => {
                                     </div>
                                     <div style={{ gridColumn: '1 / -1' }}>
                                         <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Email</div>
-                                        <div style={{ padding: '6px 10px', background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#71717a', border: '1px dashed #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ padding: '6px 10px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#71717a', border: '1px dashed #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <span><Mail size={12} style={{ marginRight: 6 }} />{user?.email || '—'}</span>
                                             <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", padding: '1px 6px', background: '#ecfdf5', color: '#2E7D32', border: '1px solid #a7f3d0', fontWeight: 600 }}>Verified</Tag>
                                         </div>
@@ -361,7 +361,7 @@ const ProfilePage = () => {
                                     <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b' }}>Security</div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                    <div style={{ padding: '10px 12px', background: user?.isFirstLogin ? '#fef2f2' : '#ecfdf5', borderRadius: "var(--radius-md)", border: `1px solid ${user?.isFirstLogin ? '#fecaca' : '#d1fae5'}` }}>
+                                    <div style={{ padding: '10px 12px', background: user?.isFirstLogin ? 'var(--bc-red-50)' : '#ecfdf5', borderRadius: "var(--radius-md)", border: `1px solid ${user?.isFirstLogin ? 'var(--bc-red-200)' : '#d1fae5'}` }}>
                                         <div style={{ fontSize: 10, fontWeight: 600, color: user?.isFirstLogin ? '#C62828' : '#2E7D32', textTransform: 'uppercase' }}>Setup Status</div>
                                         <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginTop: 2 }}>{user?.setupCompletedAt ? 'Complete' : 'Pending Setup'}</div>
                                     </div>
@@ -440,7 +440,7 @@ const ProfilePage = () => {
                             ]}
                         />
                         <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                                 <ShieldCheck size={24} style={{ color: '#0288D1' }} />
                             </div>
                             <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>Verification Code Sent</div>

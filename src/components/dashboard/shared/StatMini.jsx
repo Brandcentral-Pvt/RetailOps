@@ -24,13 +24,13 @@ const StatMini = memo(({ label, value, color, icon: Icon, pulse, animate }) => (
                 <Icon
                     size={9}
                     className={animate ? 'rotating-icon-mini' : ''}
-                    style={{ color: color || '#64748b', flexShrink: 0 }}
+                    style={{ color: color || 'var(--bc-slate-500)', flexShrink: 0 }}
                 />
             )}
             <span style={{
                 fontSize: 'var(--font-size-xs)',
                 fontWeight: 600,
-                color: color || '#64748b',
+                color: color || 'var(--bc-slate-500)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
                 whiteSpace: 'nowrap',
@@ -43,7 +43,7 @@ const StatMini = memo(({ label, value, color, icon: Icon, pulse, animate }) => (
         <div style={{
             fontSize: 'var(--font-size-base)',
             fontWeight: 700,
-            color: color || '#0f172a',
+            color: color || 'var(--bc-slate-900)',
             lineHeight: 1,
             whiteSpace: 'nowrap',
             overflow: 'hidden',

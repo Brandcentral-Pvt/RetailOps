@@ -712,7 +712,7 @@ export default function GmsTrackerPage() {
               width: 130,
               render: (_, record) => {
                 const rev = record.monthlyRev[month.key] || 0;
-                return rev ? <span style={{ fontWeight: 800, color: '#0f172a' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
+                return rev ? <span style={{ fontWeight: 800, color: 'var(--bc-slate-900)' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
               },
               sorter: (a, b) => (a.monthlyRev[month.key] || 0) - (b.monthlyRev[month.key] || 0)
             },
@@ -723,7 +723,7 @@ export default function GmsTrackerPage() {
               width: 110,
               render: (_, record) => {
                 const trend = getTrend(record, 'month', month.key);
-                if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
+                if (trend === null) return <span style={{ color: 'var(--bc-slate-400)' }}>-</span>;
                 const isUp = trend >= 0;
                 return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
               },
@@ -763,7 +763,7 @@ export default function GmsTrackerPage() {
                 width: 120,
                 render: (_, record) => {
                   const rev = record.weeklyRev[week.key] || 0;
-                  return rev ? <span style={{ fontWeight: 600, color: '#1976D2' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
+                  return rev ? <span style={{ fontWeight: 600, color: 'var(--bc-ro-500)' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
                 },
                 sorter: (a, b) => (a.weeklyRev[week.key] || 0) - (b.weeklyRev[week.key] || 0)
               },
@@ -774,7 +774,7 @@ export default function GmsTrackerPage() {
                 width: 110,
                 render: (_, record) => {
                   const trend = getTrend(record, 'week', week.key);
-                  if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
+                  if (trend === null) return <span style={{ color: 'var(--bc-slate-400)' }}>-</span>;
                   const isUp = trend >= 0;
                   return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
                 },
@@ -811,7 +811,7 @@ export default function GmsTrackerPage() {
 
             dayCols.push({
               title: <Tooltip title={`Trend: ${dayjs(prevDayStr).format('DD MMM')} → ${dayjs(currDayStr).format('DD MMM')}`}>
-                <span style={{ fontSize: 'var(--font-size-xs)', color: '#1976D2', fontWeight: 600, whiteSpace: 'nowrap' }}>▸ {trendLabel}</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-ro-500)', fontWeight: 600, whiteSpace: 'nowrap' }}>▸ {trendLabel}</span>
               </Tooltip>,
               key: `dod-trend-${prevDayStr}-${currDayStr}`,
               align: 'center',
@@ -820,7 +820,7 @@ export default function GmsTrackerPage() {
                 const prevRev = record.dailyRev[prevDayStr] || 0;
                 const currRev = record.dailyRev[currDayStr] || 0;
 
-                if (!prevRev && !currRev) return <span style={{ color: '#94a3b8' }}>-</span>;
+                if (!prevRev && !currRev) return <span style={{ color: 'var(--bc-slate-400)' }}>-</span>;
                 if (!prevRev) return <Tag color="success" style={{ border: 'none', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>NEW</Tag>;
 
                 const change = ((currRev - prevRev) / prevRev) * 100;
@@ -855,7 +855,7 @@ export default function GmsTrackerPage() {
           width: 120,
           render: (_, record) => {
             const rev = record.weeklyRev[week.key] || 0;
-            return rev ? <span style={{ fontWeight: 600, color: '#1976D2' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
+            return rev ? <span style={{ fontWeight: 600, color: 'var(--bc-ro-500)' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
           },
           sorter: (a, b) => (a.weeklyRev[week.key] || 0) - (b.weeklyRev[week.key] || 0)
         });
@@ -868,7 +868,7 @@ export default function GmsTrackerPage() {
           width: 110,
           render: (_, record) => {
             const trend = getTrend(record, 'week', week.key);
-            if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
+            if (trend === null) return <span style={{ color: 'var(--bc-slate-400)' }}>-</span>;
             const isUp = trend >= 0;
             return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}%</Tag>;
           },
@@ -889,7 +889,7 @@ export default function GmsTrackerPage() {
         width: 130,
         render: (_, record) => {
           const rev = record.monthlyRev[month.key] || 0;
-          return rev ? <span style={{ fontWeight: 800, color: '#0f172a' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
+          return rev ? <span style={{ fontWeight: 800, color: 'var(--bc-slate-900)' }}>₹{rev.toLocaleString('en-IN')}</span> : '-';
         },
         sorter: (a, b) => (a.monthlyRev[month.key] || 0) - (b.monthlyRev[month.key] || 0)
       });
@@ -902,7 +902,7 @@ export default function GmsTrackerPage() {
         width: 110,
         render: (_, record) => {
           const trend = getTrend(record, 'month', month.key);
-          if (trend === null) return <span style={{ color: '#94a3b8' }}>-</span>;
+          if (trend === null) return <span style={{ color: 'var(--bc-slate-400)' }}>-</span>;
           const isUp = trend >= 0;
           return <Tag color={isUp ? 'success' : 'error'} style={{ border: 'none', fontWeight: 600 }}>{isUp ? '▲' : '▼'} {trend.toFixed(1)}%</Tag>;
         },
@@ -940,21 +940,21 @@ export default function GmsTrackerPage() {
     return {
       options: {
         chart: { id: 'gms-revenue-trend', type: 'area', toolbar: { show: false }, zoom: { enabled: false }, sparkline: { enabled: false } },
-        colors: ['#1976D2', '#2E7D32', '#D32F2F'],
+        colors: ['var(--bc-ro-500)', '#2E7D32', '#D32F2F'],
         stroke: { width: [2.5, 2, 1.5], curve: 'smooth', dashArray: [0, 0, 4] },
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.02, stops: [0, 90, 100] } },
         dataLabels: { enabled: false },
         markers: { size: 3, strokeWidth: 1, hover: { size: 6 } },
         xaxis: {
           categories: sortedDates.map(d => dayjs(d).format('DD MMM')),
-          labels: { style: { colors: '#64748b', fontSize: '10px', fontWeight: 600 } },
+          labels: { style: { colors: 'var(--bc-slate-500)', fontSize: '10px', fontWeight: 600 } },
           axisBorder: { show: false }, axisTicks: { show: false },
           tickAmount: Math.min(sortedDates.length, 10)
         },
         yaxis: [
-          { title: { text: 'Revenue (₹)', style: { fontSize: '10px', color: '#64748b', fontWeight: 600 } },
+          { title: { text: 'Revenue (₹)', style: { fontSize: '10px', color: 'var(--bc-slate-500)', fontWeight: 600 } },
             labels: { formatter: (val) => `₹${val >= 100000 ? (val / 100000).toFixed(1) + 'L' : val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`,
-            style: { colors: '#64748b', fontSize: '10px' } } },
+            style: { colors: 'var(--bc-slate-500)', fontSize: '10px' } } },
           { opposite: true, title: { text: 'Units', style: { fontSize: '10px', color: '#2E7D32', fontWeight: 600 } },
             labels: { style: { colors: '#2E7D32', fontSize: '10px' } } }
         ],
@@ -970,7 +970,7 @@ export default function GmsTrackerPage() {
             }
           }
         },
-        grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+        grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
         legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-xs)', fontWeight: 600, markers: { radius: 3 } }
       },
       series: [
@@ -1006,7 +1006,7 @@ export default function GmsTrackerPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60, flexWrap: 'wrap', gap: 8 }}>
         <Space orientation="vertical" size={2}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Text strong style={{ fontSize: 'var(--font-size-lg)', color: '#0f172a' }}>GMS Tracker</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-lg)', color: 'var(--bc-slate-900)' }}>GMS Tracker</Text>
             <Tag color="blue" style={{ border: 'none', fontWeight: 600, borderRadius: "var(--radius-sm)", fontSize: 10 }}>Interactive</Tag>
           </div>
           <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>
@@ -1056,7 +1056,7 @@ export default function GmsTrackerPage() {
           style={{ minWidth: 200, maxWidth: 320 }} showSearch
           filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())} />
         <Input.Search placeholder="Search ASIN, SKU, Parent, Title, Brand..." size="small" allowClear style={{ width: 260, borderRadius: "var(--radius-md)" }}
-          prefix={<SearchOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }} />}
+          prefix={<SearchOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }} />}
           value={searchQuery} onChange={e => startFilterTransition(() => setSearchQuery(e.target.value))} />
       </div>
 
@@ -1072,7 +1072,7 @@ export default function GmsTrackerPage() {
       ) : (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {[
-            { label: 'Ordered Revenue', value: `₹${kpiMetrics.orderedRevenue.toLocaleString('en-IN')}`, color: '#1976D2', change: percentageChanges.orderedRevenue },
+            { label: 'Ordered Revenue', value: `₹${kpiMetrics.orderedRevenue.toLocaleString('en-IN')}`, color: 'var(--bc-ro-500)', change: percentageChanges.orderedRevenue },
             { label: 'Ordered Units', value: kpiMetrics.orderedUnits.toLocaleString(), color: '#0288D1', change: percentageChanges.orderedUnits },
             { label: 'Shipped Units', value: kpiMetrics.shippedUnits.toLocaleString(), color: '#2E7D32', change: percentageChanges.shippedUnits },
             { label: 'Customer Returns', value: kpiMetrics.customerReturns.toLocaleString(), color: '#D32F2F', change: percentageChanges.customerReturns, invertColor: true },
@@ -1083,12 +1083,12 @@ export default function GmsTrackerPage() {
             return (
               <div key={idx} style={{
                 height: 32, minWidth: 'max-content', flexShrink: 0, borderRadius: 6,
-                border: '1px solid #e5e7eb', background: '#ffffff', display: 'flex',
+                border: '1px solid #e5e7eb', background: 'var(--bc-white)', display: 'flex',
                 alignItems: 'center', gap: 8, padding: '0 12px'
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color }} />
                 <span style={{ fontSize: 10, fontWeight: 600, color: kpi.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{kpi.label}</span>
-                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#0f172a' }}>{kpi.value}</span>
+                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>{kpi.value}</span>
                 <span style={{ fontSize: 9, fontWeight: 600, color: trendColor }}>
                   {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}%
                 </span>
@@ -1102,7 +1102,7 @@ export default function GmsTrackerPage() {
       {filteredData.length > 0 && (
         <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9', marginBottom: 16 }} styles={{ body: { padding: '10px 14px' } }}>
           <div style={{ marginBottom: 8 }}>
-            <Text strong style={{ color: '#0f172a', fontSize: 'var(--font-size-sm)' }}>Revenue · Orders · Returns Trend</Text>
+            <Text strong style={{ color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>Revenue · Orders · Returns Trend</Text>
           </div>
           <Chart
             options={chartSeries.options}
@@ -1116,9 +1116,9 @@ export default function GmsTrackerPage() {
       {/* DATA MATRIX TABLE */}
       <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
         <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>Spreadsheet Data Matrix</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>Spreadsheet Data Matrix</Text>
           <Tooltip title="Horizontal breakdown of Ordered Revenue by Month, Week, and Day.">
-            <InfoCircleOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-sm)' }} />
+            <InfoCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }} />
           </Tooltip>
         </div>
         {tableDataSource.length > 0 ? (
@@ -1165,18 +1165,18 @@ export default function GmsTrackerPage() {
       >
         {isUploading ? (
           <div style={{ padding: '20px 10px', textAlign: 'center' }}>
-            <Progress type="circle" percent={uploadProgress} strokeColor="#0f172a" />
-            <div style={{ marginTop: 16, fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
+            <Progress type="circle" percent={uploadProgress} strokeColor="var(--bc-slate-900)" />
+            <div style={{ marginTop: 16, fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
               {uploadStatus}
             </div>
-            <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+            <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
               Please do not close this window while processing is running.
             </div>
           </div>
         ) : (
           <div style={{ padding: '4px 0' }}>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-600)', marginBottom: 4 }}>
                 1. ASSOCIATE DATE / MONTH FOR REPORT
               </div>
               <DatePicker
@@ -1186,13 +1186,13 @@ export default function GmsTrackerPage() {
                 picker="date"
                 placeholder="Select date for this sheet"
               />
-              <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>
+              <div style={{ fontSize: 10, color: 'var(--bc-slate-500)', marginTop: 4 }}>
                 Assigns the loaded metrics to the chosen date for MoM/WoW/DoD trend comparison.
               </div>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-600)', marginBottom: 4 }}>
                 2. SELECT FILE TO PARSE
               </div>
               <Upload.Dragger
@@ -1203,12 +1203,12 @@ export default function GmsTrackerPage() {
                 maxCount={1}
               >
                 <p className="ant-upload-drag-icon" style={{ marginBottom: 8 }}>
-                  <UploadOutlined style={{ color: '#1976D2', fontSize: 'var(--font-size-2xl)' }} />
+                  <UploadOutlined style={{ color: 'var(--bc-ro-500)', fontSize: 'var(--font-size-2xl)' }} />
                 </p>
-                <p className="ant-upload-text" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#1e293b' }}>
+                <p className="ant-upload-text" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
                   Click or drag GMS CSV/Excel report here
                 </p>
-                <p className="ant-upload-hint" style={{ fontSize: 10, color: '#64748b', padding: '0 8px' }}>
+                <p className="ant-upload-hint" style={{ fontSize: 10, color: 'var(--bc-slate-500)', padding: '0 8px' }}>
                   Required headers: ASIN, Product Title, Brand, StoreCode, Ordered Revenue, Ordered Units, Shipped Revenue, Shipped COGS, Shipped Units, Customer Returns
                 </p>
               </Upload.Dragger>
@@ -1235,14 +1235,14 @@ export default function GmsTrackerPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
+              color: 'var(--bc-white)',
               boxShadow: '0 2px 6px rgba(79,70,229,0.2)'
             }}>
               <DownloadOutlined style={{ fontSize: 'var(--font-size-base)' }} />
             </div>
             <div>
-              <span style={{ fontWeight: 800, fontSize: 'var(--font-size-base)', color: '#0f172a', display: 'block' }}>Export GMS Report</span>
-              <span style={{ fontSize: 10.5, fontWeight: 500, color: '#64748b', display: 'block', marginTop: 1 }}>Configure and download GMS matrix spreadsheets</span>
+              <span style={{ fontWeight: 800, fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)', display: 'block' }}>Export GMS Report</span>
+              <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--bc-slate-500)', display: 'block', marginTop: 1 }}>Configure and download GMS matrix spreadsheets</span>
             </div>
           </div>
         }
@@ -1256,8 +1256,8 @@ export default function GmsTrackerPage() {
         <div style={{ padding: '12px 0 4px 0' }}>
           {/* Level Switcher Option */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>01</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-ro-500)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: 'var(--bc-indigo-50)', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>01</span>
               EXPORT LEVEL
             </div>
             <Segmented
@@ -1275,8 +1275,8 @@ export default function GmsTrackerPage() {
 
           {/* Data Type */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>02</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-ro-500)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: 'var(--bc-indigo-50)', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>02</span>
               DATA GRANULARITY
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
@@ -1290,13 +1290,13 @@ export default function GmsTrackerPage() {
                   onClick={() => setExportDataType(opt.key)}
                   style={{
                     padding: '8px 10px', borderRadius: "var(--radius-md)", cursor: 'pointer',
-                    border: `1.5px solid ${exportDataType === opt.key ? '#1976D2' : '#e5e7eb'}`,
-                    background: exportDataType === opt.key ? '#eff6ff' : '#fff',
+                    border: `1.5px solid ${exportDataType === opt.key ? 'var(--bc-ro-500)' : '#e5e7eb'}`,
+                    background: exportDataType === opt.key ? 'var(--bc-blue-50)' : '#fff',
                     transition: 'all 0.15s',
                   }}
                 >
-                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: exportDataType === opt.key ? '#1976D2' : '#1e293b' }}>{opt.label}</div>
-                  <div style={{ fontSize: 10, color: '#64748b' }}>{opt.desc}</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: exportDataType === opt.key ? 'var(--bc-ro-500)' : 'var(--bc-slate-800)' }}>{opt.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--bc-slate-500)' }}>{opt.desc}</div>
                 </div>
               ))}
             </div>
@@ -1304,8 +1304,8 @@ export default function GmsTrackerPage() {
 
           {/* File Format */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>03</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-ro-500)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: 'var(--bc-indigo-50)', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>03</span>
               FILE FORMAT
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -1318,13 +1318,13 @@ export default function GmsTrackerPage() {
                   onClick={() => setExportFileType(opt.key)}
                   style={{
                     flex: 1, padding: '8px 10px', borderRadius: "var(--radius-md)", cursor: 'pointer', textAlign: 'center',
-                    border: `1.5px solid ${exportFileType === opt.key ? '#1976D2' : '#e5e7eb'}`,
-                    background: exportFileType === opt.key ? '#eff6ff' : '#fff',
+                    border: `1.5px solid ${exportFileType === opt.key ? 'var(--bc-ro-500)' : '#e5e7eb'}`,
+                    background: exportFileType === opt.key ? 'var(--bc-blue-50)' : '#fff',
                     transition: 'all 0.15s',
                   }}
                 >
-                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: exportFileType === opt.key ? '#1976D2' : '#1e293b' }}>{opt.label}</div>
-                  <div style={{ fontSize: 10, color: '#64748b' }}>{opt.desc}</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: exportFileType === opt.key ? 'var(--bc-ro-500)' : 'var(--bc-slate-800)' }}>{opt.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--bc-slate-500)' }}>{opt.desc}</div>
                 </div>
               ))}
             </div>
@@ -1332,8 +1332,8 @@ export default function GmsTrackerPage() {
 
           {/* Date Filtering Options */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>02</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-ro-500)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: 'var(--bc-indigo-50)', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>02</span>
               DATE RANGE BREAKDOWN
             </div>
             <Radio.Group
@@ -1344,31 +1344,31 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportDateType === 'all' ? 'active' : ''}`} onClick={() => setExportDateType('all')}>
                 <Radio value="all">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>All Time Data</div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Export all historical records available in the database</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>All Time Data</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--bc-slate-500)', marginTop: 1 }}>Export all historical records available in the database</div>
                   </div>
                 </Radio>
               </div>
               <div className={`gms-export-option-card ${exportDateType === 'current' ? 'active' : ''}`} onClick={() => setExportDateType('current')}>
                 <Radio value="current">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
                       Currently Filtered Range
                       {startDate && endDate && (
-                        <span style={{ color: '#1976D2', fontWeight: 600, marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>
+                        <span style={{ color: 'var(--bc-ro-500)', fontWeight: 600, marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>
                           ({dayjs(startDate).format('DD MMM YYYY')} - {dayjs(endDate).format('DD MMM YYYY')})
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Export only records within the page's current date range filters</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--bc-slate-500)', marginTop: 1 }}>Export only records within the page's current date range filters</div>
                   </div>
                 </Radio>
               </div>
               <div className={`gms-export-option-card ${exportDateType === 'custom' ? 'active' : ''}`} onClick={() => setExportDateType('custom')}>
                 <Radio value="custom">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>Custom Range</div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Define a custom date range window for the exported report</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>Custom Range</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--bc-slate-500)', marginTop: 1 }}>Define a custom date range window for the exported report</div>
                   </div>
                 </Radio>
               </div>
@@ -1387,8 +1387,8 @@ export default function GmsTrackerPage() {
 
           {/* Brand Filtering Options */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1976D2', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
-              <span style={{ background: '#eef2ff', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>03</span>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--bc-ro-500)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.05em' }}>
+              <span style={{ background: 'var(--bc-indigo-50)', padding: '2px 6px', borderRadius: "var(--radius-sm)", fontSize: 9 }}>03</span>
               BRAND / SELLER FILTER
             </div>
             <Radio.Group
@@ -1399,31 +1399,31 @@ export default function GmsTrackerPage() {
               <div className={`gms-export-option-card ${exportBrandType === 'all' ? 'active' : ''}`} onClick={() => setExportBrandType('all')}>
                 <Radio value="all">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>All Brands / Sellers</div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Export records for all sellers and brands without filtering</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>All Brands / Sellers</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--bc-slate-500)', marginTop: 1 }}>Export records for all sellers and brands without filtering</div>
                   </div>
                 </Radio>
               </div>
               <div className={`gms-export-option-card ${exportBrandType === 'current' ? 'active' : ''}`} onClick={() => setExportBrandType('current')}>
                 <Radio value="current">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
                       Currently Selected Page Brands
                       {selectedBrands.length > 0 && (
-                        <span style={{ color: '#1976D2', fontWeight: 600, marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>
+                        <span style={{ color: 'var(--bc-ro-500)', fontWeight: 600, marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>
                           ({selectedBrands.length} selected)
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Export only records matching the currently active page brand filters</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--bc-slate-500)', marginTop: 1 }}>Export only records matching the currently active page brand filters</div>
                   </div>
                 </Radio>
               </div>
               <div className={`gms-export-option-card ${exportBrandType === 'custom' ? 'active' : ''}`} onClick={() => setExportBrandType('custom')}>
                 <Radio value="custom">
                   <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>Custom Selected Brands</div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Manually choose one or more specific brands/sellers to export</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>Custom Selected Brands</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--bc-slate-500)', marginTop: 1 }}>Manually choose one or more specific brands/sellers to export</div>
                   </div>
                 </Radio>
               </div>

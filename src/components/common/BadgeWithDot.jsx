@@ -12,12 +12,12 @@ const BadgeWithDot = ({ type = 'pill-color', color = 'brand', size = 'md', child
 
     const getColorStyles = (c) => {
         switch (c) {
-            case 'brand': return { bg: '#eff6ff', text: '#0288D1', dot: '#0288D1' }; // blue-50, blue-500
-            case 'success': return { bg: '#f0fdf4', text: '#2E7D32', dot: '#2E7D32' }; // green-50, green-500
+            case 'brand': return { bg: 'var(--bc-blue-50)', text: '#0288D1', dot: '#0288D1' }; // blue-50, blue-500
+            case 'success': return { bg: 'var(--bc-green-50)', text: '#2E7D32', dot: '#2E7D32' }; // green-50, green-500
             case 'warning': return { bg: '#fefce8', text: '#eab308', dot: '#eab308' }; // yellow-50, yellow-500
-            case 'danger': return { bg: '#fef2f2', text: '#D32F2F', dot: '#D32F2F' }; // red-50, red-500
-            case 'neutral': return { bg: '#f8fafc', text: '#64748b', dot: '#94a3b8' }; // slate-50, slate-500
-            default: return { bg: '#eff6ff', text: '#0288D1', dot: '#0288D1' };
+            case 'danger': return { bg: 'var(--bc-red-50)', text: '#D32F2F', dot: '#D32F2F' }; // red-50, red-500
+            case 'neutral': return { bg: 'var(--bc-slate-50)', text: 'var(--bc-slate-500)', dot: 'var(--bc-slate-400)' }; // slate-50, slate-500
+            default: return { bg: 'var(--bc-blue-50)', text: '#0288D1', dot: '#0288D1' };
         }
     };
 

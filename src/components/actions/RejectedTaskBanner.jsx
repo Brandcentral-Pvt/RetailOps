@@ -45,7 +45,7 @@ const RejectedTaskBanner = ({ task }) => {
             </Text>
             {isMultiple && (
               <Tag style={{
-                background: '#fee2e2', color: '#D32F2F',
+                background: 'var(--bc-red-100)', color: '#D32F2F',
                 border: '1px solid #fecaca', borderRadius: "var(--radius-lg)",
                 fontSize: 10, fontWeight: 600,
               }}>
@@ -65,16 +65,16 @@ const RejectedTaskBanner = ({ task }) => {
               marginBottom: isMultiple ? 8 : 0,
             }}>
               <Space size={6} style={{ marginBottom: 6 }}>
-                <ClockCircleOutlined style={{ color: '#94a3b8', fontSize: 'var(--font-size-xs)' }} />
-                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
+                <ClockCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-xs)' }} />
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
                   {dayjs(latest.rejectedAt).fromNow()}
                 </Text>
-                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>·</Text>
-                <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>·</Text>
+                <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
                   Most recent rejection
                 </Text>
               </Space>
-              <Text style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', lineHeight: 1.6 }}>
+              <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', lineHeight: 1.6 }}>
                 {latest.reason || 'No reason provided'}
               </Text>
             </div>
@@ -87,13 +87,13 @@ const RejectedTaskBanner = ({ task }) => {
                 expandIcon={({ isActive }) => (
                   <RightOutlined
                     rotate={isActive ? 90 : 0}
-                    style={{ fontSize: 10, color: '#94a3b8' }}
+                    style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}
                   />
                 )}
                 items={[{
                   key: 'history',
                   label: (
-                    <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
+                    <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
                       View {rejections.length - 1} earlier rejection{rejections.length - 1 > 1 ? 's' : ''}
                     </Text>
                   ),
@@ -106,13 +106,13 @@ const RejectedTaskBanner = ({ task }) => {
                           <div
                             key={i}
                             style={{
-                              background: '#f8fafc',
+                              background: 'var(--bc-slate-50)',
                               borderRadius: 6,
                               padding: '8px 12px',
                               border: '1px solid #e2e8f0',
                             }}
                           >
-                            <Text style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 3 }}>
+                            <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block', marginBottom: 3 }}>
                               Rejection #{rejections.length - 1 - i} · {dayjs(r.rejectedAt).fromNow()}
                             </Text>
                             <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>

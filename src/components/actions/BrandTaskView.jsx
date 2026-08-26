@@ -149,10 +149,10 @@ const BrandTaskView = ({
   }, [filteredGroups]);
 
   const STATUS_PILLS = [
-    { key: 'ALL', label: 'All Tasks', color: '#1976D2' },
+    { key: 'ALL', label: 'All Tasks', color: 'var(--bc-ro-500)' },
     { key: 'PENDING', label: 'Pending', color: '#ED6C02' },
     { key: 'IN_PROGRESS', label: 'In Progress', color: '#0288D1' },
-    { key: 'REVIEW', label: 'Review', color: '#9C27B0' },
+    { key: 'REVIEW', label: 'Review', color: 'var(--bc-purple-500)' },
     { key: 'COMPLETED', label: 'Completed', color: '#2E7D32' },
   ];
 
@@ -165,15 +165,15 @@ const BrandTaskView = ({
         padding: '14px 0', borderBottom: '1px solid #f1f5f9'
       }}>
         {[
-          { icon: Building2, label: 'Brands', value: stats.totalBrands, color: '#1976D2' },
+          { icon: Building2, label: 'Brands', value: stats.totalBrands, color: 'var(--bc-ro-500)' },
           { icon: CheckCircle2, label: 'Tasks', value: stats.totalTasks, color: '#0288D1' },
-          { icon: Package, label: 'ASINs', value: stats.totalAsins, color: '#9C27B0' },
+          { icon: Package, label: 'ASINs', value: stats.totalAsins, color: 'var(--bc-purple-500)' },
           { icon: TrendingUp, label: 'Completed', value: stats.completedTasks, color: '#2E7D32' },
           ...(stats.overdueTasks > 0 ? [{ icon: AlertTriangle, label: 'Overdue', value: stats.overdueTasks, color: '#D32F2F' }] : []),
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            background: '#ffffff', border: '1px solid #e2e8f0',
+            background: 'var(--bc-white)', border: '1px solid #e2e8f0',
             borderRadius: 10, padding: '8px 14px',
           }}>
             <div style={{
@@ -184,8 +184,8 @@ const BrandTaskView = ({
               <Icon size={14} strokeWidth={2.5} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</div>
-              <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+              <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--bc-slate-900)', lineHeight: 1 }}>{value}</div>
+              <div style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
             </div>
           </div>
         ))}
@@ -199,7 +199,7 @@ const BrandTaskView = ({
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '8px 16px',
               background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
-              color: '#ffffff', border: 'none', borderRadius: 10,
+              color: 'var(--bc-white)', border: 'none', borderRadius: 10,
               fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
               boxShadow: '0 4px 12px -2px rgba(99,102,241,0.4)',
               transition: 'all 0.2s',
@@ -218,7 +218,7 @@ const BrandTaskView = ({
         <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 300 }}>
           <Search size={13} style={{
             position: 'absolute', left: 10, top: '50%',
-            transform: 'translateY(-50%)', color: '#94a3b8'
+            transform: 'translateY(-50%)', color: 'var(--bc-slate-400)'
           }} />
           <input
             value={localSearch}
@@ -227,20 +227,20 @@ const BrandTaskView = ({
             style={{
               width: '100%', padding: '7px 10px 7px 30px',
               fontSize: 'var(--font-size-sm)', fontWeight: 600, borderRadius: 10,
-              border: '1.5px solid #e2e8f0', background: '#ffffff',
-              outline: 'none', color: '#0f172a', boxSizing: 'border-box'
+              border: '1.5px solid #e2e8f0', background: 'var(--bc-white)',
+              outline: 'none', color: 'var(--bc-slate-900)', boxSizing: 'border-box'
             }}
-            onFocus={e => e.target.style.borderColor = '#1976D2'}
-            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+            onFocus={e => e.target.style.borderColor = 'var(--bc-ro-500)'}
+            onBlur={e => e.target.style.borderColor = 'var(--bc-slate-200)'}
           />
           {localSearch && (
             <button
               onClick={() => setLocalSearch('')}
               style={{
                 position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                background: '#f1f5f9', border: 'none', width: 18, height: 18,
+                background: 'var(--bc-slate-100)', border: 'none', width: 18, height: 18,
                 borderRadius: '50%', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', cursor: 'pointer', color: '#64748b'
+                justifyContent: 'center', cursor: 'pointer', color: 'var(--bc-slate-500)'
               }}
             >
               <X size={10} />
@@ -250,7 +250,7 @@ const BrandTaskView = ({
 
         {/* Status pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Filter size={12} color="#94a3b8" />
+          <Filter size={12} color="var(--bc-slate-400)" />
           {STATUS_PILLS.map(pill => (
             <button
               key={pill.key}
@@ -258,9 +258,9 @@ const BrandTaskView = ({
               style={{
                 padding: '5px 12px',
                 borderRadius: "var(--radius-xl)",
-                border: `1.5px solid ${statusFilter === pill.key ? pill.color : '#e2e8f0'}`,
-                background: statusFilter === pill.key ? `${pill.color}10` : '#ffffff',
-                color: statusFilter === pill.key ? pill.color : '#64748b',
+                border: `1.5px solid ${statusFilter === pill.key ? pill.color : 'var(--bc-slate-200)'}`,
+                background: statusFilter === pill.key ? `${pill.color}10` : 'var(--bc-white)',
+                color: statusFilter === pill.key ? pill.color : 'var(--bc-slate-500)',
                 fontSize: 10, fontWeight: 600, cursor: 'pointer',
                 transition: 'all 0.2s',
                 boxShadow: statusFilter === pill.key ? `0 4px 10px -2px ${pill.color}30` : 'none'
@@ -284,13 +284,13 @@ const BrandTaskView = ({
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: '2px solid #c7d2fe'
           }}>
-            <Building2 size={32} color="#1976D2" strokeWidth={1.5} />
+            <Building2 size={32} color="var(--bc-ro-500)" strokeWidth={1.5} />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-900)', marginBottom: 8 }}>
               No Brand Tasks Found
             </div>
-            <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginBottom: 20, maxWidth: 320 }}>
+            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)', marginBottom: 20, maxWidth: 320 }}>
               {actions.length === 0
                 ? 'Create your first brand-level optimization task to get started.'
                 : 'No tasks match the current filters. Try adjusting your search or filter.'}
@@ -302,7 +302,7 @@ const BrandTaskView = ({
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   padding: '10px 20px',
                   background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
-                  color: '#ffffff', border: 'none', borderRadius: "var(--radius-lg)",
+                  color: 'var(--bc-white)', border: 'none', borderRadius: "var(--radius-lg)",
                   fontSize: 'var(--font-size-sm)', fontWeight: 600, cursor: 'pointer',
                   boxShadow: '0 4px 12px -2px rgba(99,102,241,0.4)'
                 }}

@@ -45,8 +45,8 @@ export function calculateHealth(task) {
   return {
     score,
     label: score >= 80 ? 'Healthy' : score >= 50 ? 'Attention' : 'Critical',
-    color: score >= 80 ? '#16a34a' : score >= 50 ? '#f59e0b' : '#dc2626',
-    bgColor: score >= 80 ? '#f0fdf4' : score >= 50 ? '#fffbeb' : '#fef2f2',
+    color: score >= 80 ? 'var(--bc-green-600)' : score >= 50 ? 'var(--bc-amber-500)' : 'var(--bc-red-600)',
+    bgColor: score >= 80 ? 'var(--bc-green-50)' : score >= 50 ? 'var(--bc-amber-50)' : 'var(--bc-red-50)',
   };
 }
 
@@ -76,10 +76,10 @@ export function getDueDateLabel(task) {
   const now = new Date();
   const diffHours = (due - now) / (1000 * 60 * 60);
 
-  if (diffHours < 0) return { text: `${Math.abs(Math.ceil(diffHours / 24))}d overdue`, color: '#DC2626', level: 'critical' };
-  if (diffHours < 12) return { text: `${Math.ceil(diffHours)}h left`, color: '#EA580C', level: 'warning' };
+  if (diffHours < 0) return { text: `${Math.abs(Math.ceil(diffHours / 24))}d overdue`, color: 'var(--bc-red-600)', level: 'critical' };
+  if (diffHours < 12) return { text: `${Math.ceil(diffHours)}h left`, color: 'var(--bc-accent-inventory)', level: 'warning' };
   if (diffHours < 24) return { text: `${Math.ceil(diffHours)}h left`, color: '#EAB308', level: 'attention' };
-  return { text: `${Math.ceil(diffHours / 24)}d left`, color: '#16A34A', level: 'healthy' };
+  return { text: `${Math.ceil(diffHours / 24)}d left`, color: 'var(--bc-green-600)', level: 'healthy' };
 }
 
 export function formatNumber(n) {

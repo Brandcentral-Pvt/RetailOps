@@ -103,7 +103,7 @@ const KPICard = ({
                 color: isGood ? '#2E7D32' : '#C62828',
                 padding: '2px 6px',
                 borderRadius: "var(--radius-sm)",
-                background: isGood ? '#ecfdf5' : '#fef2f2'
+                background: isGood ? '#ecfdf5' : 'var(--bc-red-50)'
               }}>
                 {isGood ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                 {Math.abs(change).toFixed(1)}%
@@ -182,7 +182,7 @@ const ExecutiveKPIs = ({ data = [] }) => {
         sparkData={data.slice(-7).map(d => Number(d.orders || 0))} />
       <KPICard label="CTR" value={kpis.ctr} format="percent" color="#0d9488"
         sparkData={data.slice(-7).map(d => { const i = Number(d.impressions || 0); return i > 0 ? (Number(d.clicks || 0) / i) * 100 : 0; })} />
-      <KPICard label="CVR" value={kpis.cvr} format="percent" color="#1976D2"
+      <KPICard label="CVR" value={kpis.cvr} format="percent" color="var(--bc-ro-500)"
         sparkData={data.slice(-7).map(d => { const c = Number(d.clicks || 0); return c > 0 ? (Number(d.orders || 0) / c) * 100 : 0; })} />
       <KPICard label="Organic Sales" value={kpis.organicSales} format="currency" color="#2E7D32"
         sparkData={data.slice(-7).map(d => Number(d.organicSales || 0))} />

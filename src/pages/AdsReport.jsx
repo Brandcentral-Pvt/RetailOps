@@ -268,13 +268,13 @@ const efficiencyMetrics = useMemo(() => {
     const dates = dailyData.map(d => d.date);
     const base = {
       chart: { background: 'transparent', toolbar: { show: true, tools: { download: true, selection: false, zoom: true, pan: true, reset: true } }, animations: { enabled: true, easing: 'easeinout', speed: 600 } },
-      grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+      grid: { borderColor: 'var(--bc-slate-100)', strokeDashArray: 4 },
       xaxis: {
         categories: dates,
         axisBorder: { show: false }, axisTicks: { show: false },
-        labels: { style: { colors: '#64748b', fontSize: '10px' }, rotate: -45, rotateAlways: dates.length > 14 }
+        labels: { style: { colors: 'var(--bc-slate-500)', fontSize: '10px' }, rotate: -45, rotateAlways: dates.length > 14 }
       },
-      legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-xs)', fontWeight: 600, labels: { colors: '#64748b' } },
+      legend: { position: 'top', horizontalAlign: 'right', fontSize: 'var(--font-size-xs)', fontWeight: 600, labels: { colors: 'var(--bc-slate-500)' } },
       tooltip: { theme: 'light' },
       markers: { size: 3, strokeWidth: 0, hover: { size: 5 } },
       dataLabels: { enabled: false },
@@ -284,10 +284,10 @@ const efficiencyMetrics = useMemo(() => {
       case 'revenue':
         return {
           options: {
-            ...base, chart: { ...base.chart, type: 'line' }, colors: ['#4F46E5', '#10B981', '#8B5CF6'],
+            ...base, chart: { ...base.chart, type: 'line' }, colors: ['var(--bc-indigo-600)', '#10B981', 'var(--bc-violet-500)'],
             stroke: { curve: 'smooth', width: [2, 2, 2], dashArray: [5, 0, 0] },
             fill: { type: 'solid', opacity: [0, 0.08, 0.08] },
-            yaxis: { labels: { style: { colors: '#64748b' }, formatter: v => fmt(v) } }, xaxis: base.xaxis
+            yaxis: { labels: { style: { colors: 'var(--bc-slate-500)' }, formatter: v => fmt(v) } }, xaxis: base.xaxis
           },
           series: [
             { name: 'Ad Spend', data: dailyData.map(d => d.ad_spend || 0) },
@@ -302,7 +302,7 @@ const efficiencyMetrics = useMemo(() => {
             ...base, chart: { ...base.chart, type: 'area' }, colors: ['#10B981'],
             stroke: { curve: 'smooth', width: 2 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
-            yaxis: { labels: { style: { colors: '#64748b' }, formatter: v => `${v.toFixed(1)}×` } },
+            yaxis: { labels: { style: { colors: 'var(--bc-slate-500)' }, formatter: v => `${v.toFixed(1)}×` } },
             annotations: {
               yaxis: [
                 { y: 1, borderColor: '#D32F2F', strokeDashArray: 4, label: { text: 'Break-even', style: { background: '#D32F2F', color: '#fff', fontSize: '10px' } } },
@@ -316,10 +316,10 @@ const efficiencyMetrics = useMemo(() => {
       case 'acos':
         return {
           options: {
-            ...base, chart: { ...base.chart, type: 'area' }, colors: ['#F59E0B'],
+            ...base, chart: { ...base.chart, type: 'area' }, colors: ['var(--bc-amber-500)'],
             stroke: { curve: 'smooth', width: 2 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
-            yaxis: { labels: { style: { colors: '#64748b' }, formatter: v => `${v.toFixed(1)}%` } },
+            yaxis: { labels: { style: { colors: 'var(--bc-slate-500)' }, formatter: v => `${v.toFixed(1)}%` } },
             annotations: {
               yaxis: [
                 { y: 15, borderColor: '#ED6C02', strokeDashArray: 4, label: { text: 'Target 15%', style: { background: '#ED6C02', color: '#fff', fontSize: '10px' } } },
@@ -332,12 +332,12 @@ const efficiencyMetrics = useMemo(() => {
       case 'clicks':
         return {
           options: {
-            ...base, chart: { ...base.chart, type: 'line' }, colors: ['#4F46E5', '#0288D1'],
+            ...base, chart: { ...base.chart, type: 'line' }, colors: ['var(--bc-indigo-600)', '#0288D1'],
             stroke: { curve: 'smooth', width: [0, 2] },
             plotOptions: { bar: { borderRadius: 3, columnWidth: '50%' } },
             yaxis: [
-              { title: { text: 'Clicks', style: { color: '#64748b', fontSize: 'var(--font-size-xs)' } }, labels: { style: { colors: '#64748b' }, formatter: v => fmtNum(v) } },
-              { opposite: true, title: { text: 'Impressions', style: { color: '#64748b', fontSize: 'var(--font-size-xs)' } }, labels: { style: { colors: '#64748b' }, formatter: v => fmt(v, '') } }
+              { title: { text: 'Clicks', style: { color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)' } }, labels: { style: { colors: 'var(--bc-slate-500)' }, formatter: v => fmtNum(v) } },
+              { opposite: true, title: { text: 'Impressions', style: { color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)' } }, labels: { style: { colors: 'var(--bc-slate-500)' }, formatter: v => fmt(v, '') } }
             ], xaxis: base.xaxis
           },
           series: [
@@ -349,10 +349,10 @@ const efficiencyMetrics = useMemo(() => {
       case 'funnel':
         return {
           options: {
-            ...base, chart: { ...base.chart, type: 'area', stacked: true }, colors: ['#e2e8f0', '#4F46E5', '#10B981'],
+            ...base, chart: { ...base.chart, type: 'area', stacked: true }, colors: ['var(--bc-slate-200)', 'var(--bc-indigo-600)', '#10B981'],
             stroke: { curve: 'smooth', width: 1 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.1 } },
-            yaxis: { labels: { style: { colors: '#64748b' }, formatter: v => fmtNum(v) } }, xaxis: base.xaxis
+            yaxis: { labels: { style: { colors: 'var(--bc-slate-500)' }, formatter: v => fmtNum(v) } }, xaxis: base.xaxis
           },
           series: [
             { name: 'Impressions', data: dailyData.map(d => d.impressions || 0) },
@@ -701,13 +701,13 @@ const efficiencyMetrics = useMemo(() => {
                       ...areaChartOptions(fmt),
                       xaxis: {
                         categories: dailyData.map(d => d.date),
-                        labels: { style: { colors: '#64748b', fontSize: '10px' } },
+                        labels: { style: { colors: 'var(--bc-slate-500)', fontSize: '10px' } },
                         axisBorder: { show: false },
                         axisTicks: { show: false }
                       },
-                      colors: ['#0f172a', '#2E7D32', '#1976D2'],
+                      colors: ['var(--bc-slate-900)', '#2E7D32', 'var(--bc-ro-500)'],
                       stroke: { width: 2, curve: 'smooth' },
-                      grid: { borderColor: '#f1f5f9' }
+                      grid: { borderColor: 'var(--bc-slate-100)' }
                     }}
                     series={[
                       { name: 'Ad Spend', data: dailyData.map(d => d.ad_spend || 0) },
@@ -734,11 +734,11 @@ const efficiencyMetrics = useMemo(() => {
               <Chart
                 options={{
                   labels: budgetDist.labels,
-                  colors: ['#f1f5f9', '#94a3b8', '#0f172a', '#1976D2'],
-                  legend: { position: 'bottom', fontSize: 'var(--font-size-xs)', fontWeight: 600, labels: { colors: '#64748b' } },
+                  colors: ['var(--bc-slate-100)', 'var(--bc-slate-400)', 'var(--bc-slate-900)', 'var(--bc-ro-500)'],
+                  legend: { position: 'bottom', fontSize: 'var(--font-size-xs)', fontWeight: 600, labels: { colors: 'var(--bc-slate-500)' } },
                   dataLabels: { enabled: false },
                   stroke: { width: 0 },
-                  plotOptions: { pie: { donut: { size: '80%', labels: { show: true, total: { show: true, label: 'TOTAL ASINS', color: '#64748b', fontSize: '10px', formatter: () => data.length } } } } },
+                  plotOptions: { pie: { donut: { size: '80%', labels: { show: true, total: { show: true, label: 'TOTAL ASINS', color: 'var(--bc-slate-500)', fontSize: '10px', formatter: () => data.length } } } } },
                   tooltip: { theme: 'light' }
                 }}
                 series={budgetDist.series}
@@ -942,7 +942,7 @@ const efficiencyMetrics = useMemo(() => {
                 <Chart
                   options={{
                     chart: { type: 'area', sparkline: { enabled: true }, background: 'transparent' },
-                    colors: ['#0f172a', '#2E7D32'],
+                    colors: ['var(--bc-slate-900)', '#2E7D32'],
                     stroke: { curve: 'smooth', width: 2 },
                     fill: { type: 'gradient', gradient: { opacityFrom: 0.1, opacityTo: 0 } },
                     tooltip: { theme: 'light', x: { show: true }, y: { formatter: v => `₹${v?.toLocaleString() || 0}` } },

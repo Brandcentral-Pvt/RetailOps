@@ -4,16 +4,16 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: { 
-      main: '#1976D2',
-      light: '#42A5F5',
-      dark: '#1565C0',
-      contrastText: '#ffffff',
+      main: 'var(--bc-ro-500)',
+      light: 'var(--bc-ro-400)',
+      dark: 'var(--bc-ro-600)',
+      contrastText: 'var(--bc-white)',
     },
     secondary: { 
-      main: '#9C27B0',
-      light: '#BA68C8',
-      dark: '#7B1FA2',
-      contrastText: '#ffffff',
+      main: 'var(--bc-purple-500)',
+      light: 'var(--bc-purple-300)',
+      dark: 'var(--bc-purple-700)',
+      contrastText: 'var(--bc-white)',
     },
     success: { 
       main: '#4CAF50',
@@ -37,7 +37,7 @@ const theme = createTheme({
     },
     background: { 
       default: '#F9FAFB',
-      paper: '#FFFFFF',
+      paper: 'var(--bc-white)',
     },
     text: {
       primary: '#111827',

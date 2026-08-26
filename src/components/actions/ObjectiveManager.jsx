@@ -165,7 +165,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
     <>
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
             {isEditMode ? 'Edit Objective' : 'Create Objective'}
           </span>
         </Space>
@@ -174,7 +174,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
       <div style={{ ...MODAL_STYLES.bodyStyle, maxHeight: '70vh', overflowY: 'auto' }}>
         <Row gutter={24}>
           <Col span={13}>
-            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b', display: 'block', marginBottom: 16 }}>
+            <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 16 }}>
               Objective Details
             </Text>
             <Form form={form} layout="vertical" scrollToFirstError>
@@ -250,7 +250,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
 
           <Col span={11}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}>Key Results</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)' }}>Key Results</Text>
               <Button
                 size="small"
                 icon={<PlusOutlined />}
@@ -262,7 +262,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
               </Button>
             </div>
 
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginBottom: 12 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', marginBottom: 12 }}>
               {keyResults.length} / 10 key results
             </div>
 
@@ -272,8 +272,8 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                 style={{ borderRadius: "var(--radius-md)", border: '1px dashed #e2e8f0', background: '#fafbfc' }}
               >
                 <Empty
-                  image={<FlagOutlined style={{ fontSize: 32, color: '#cbd5e1' }} />}
-                  description={<Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8' }}>Add at least one key result to measure progress</Text>}
+                  image={<FlagOutlined style={{ fontSize: 32, color: 'var(--bc-slate-300)' }} />}
+                  description={<Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)' }}>Add at least one key result to measure progress</Text>}
                 >
                   <Button size="small" icon={<PlusOutlined />} onClick={addKeyResult} style={{ borderRadius: 6, marginTop: 8 }}>
                     Add First Key Result
@@ -293,7 +293,7 @@ const ObjectiveManager = ({ objective, users, onClose, onObjectiveCreated }) => 
                     styles={{ body: { padding: '12px' } }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#1976D2' }}>KR #{i + 1}</Text>
+                      <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-ro-500)' }}>KR #{i + 1}</Text>
                       {keyResults.length > 1 && (
                         <Button
                           type="text"

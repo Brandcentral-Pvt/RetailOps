@@ -70,7 +70,7 @@ export default function LiveDataInspectorPage() {
         if (v === null || v === undefined) return <Text type="secondary">-</Text>;
         if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }} /></a>;
         if (key === 'lqsGrade') {
-          const color = { A: '#059669', B: '#2563eb', C: '#d97706', D: '#dc2626' }[String(v)] || '#6b7280';
+          const color = { A: '#059669', B: 'var(--bc-blue-600)', C: 'var(--bc-amber-600)', D: 'var(--bc-red-600)' }[String(v)] || '#6b7280';
           return <Tag color={color} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
         }
         if (key === 'mainImageBackground') {
@@ -114,12 +114,12 @@ export default function LiveDataInspectorPage() {
                 {Array.isArray(optimization.recommendations) && optimization.recommendations.length > 0 && (
                   <div>
                     {optimization.recommendations.slice(0, 3).map((item, idx) => (
-                      <div key={`${record.asin}-${idx}`} style={{ padding: '6px 8px', borderRadius: 6, background: '#f8fafc', marginBottom: 6 }}>
+                      <div key={`${record.asin}-${idx}`} style={{ padding: '6px 8px', borderRadius: 6, background: 'var(--bc-slate-50)', marginBottom: 6 }}>
                         <div style={{ fontWeight: 700, fontSize: 11, textTransform: 'capitalize' }}>{item.area}</div>
-                        <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{item.remarks?.[0] || item.suggestedUpdate || 'Improve alignment with current search intent.'}</div>
+                        <div style={{ fontSize: 10, color: 'var(--bc-slate-500)', marginTop: 2 }}>{item.remarks?.[0] || item.suggestedUpdate || 'Improve alignment with current search intent.'}</div>
                         {item.seoFocus?.length > 0 && (
                           <div style={{ marginTop: 4 }}>
-                            <TagsOutlined style={{ marginRight: 4, color: '#94a3b8' }} />
+                            <TagsOutlined style={{ marginRight: 4, color: 'var(--bc-slate-400)' }} />
                             {item.seoFocus.slice(0, 3).map((term, termIdx) => <Tag key={`${record.asin}-${idx}-${termIdx}`} style={{ fontSize: 10, marginTop: 4 }}>{term}</Tag>)}
                           </div>
                         )}
@@ -144,19 +144,19 @@ export default function LiveDataInspectorPage() {
   ];
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100%', padding: '0 24px' }}>
+    <div style={{ background: 'var(--bc-slate-50)', minHeight: '100%', padding: '0 24px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginBottom: 16 }}>
         <Space>
-          <ThunderboltOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#2563eb' }} />
+          <ThunderboltOutlined style={{ fontSize: 'var(--font-size-xl)', color: 'var(--bc-blue-600)' }} />
           <div>
             <Text strong style={{ fontSize: 18 }}>Live Data Inspector</Text>
-            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block' }}>Fetch real-time data from Amazon Creators API</Text>
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', display: 'block' }}>Fetch real-time data from Amazon Creators API</Text>
           </div>
         </Space>
         <Space>
           {results.length > 0 && <Button icon={<DownloadOutlined />} onClick={handleExport} size="small">Export ({results.length} rows)</Button>}
-          {lastFetch && <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>Last fetch: {lastFetch.toLocaleTimeString()}</Text>}
+          {lastFetch && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>Last fetch: {lastFetch.toLocaleTimeString()}</Text>}
         </Space>
       </div>
 
@@ -173,7 +173,7 @@ export default function LiveDataInspectorPage() {
                 placeholder={"B08FGPZNR6\nB09R9BGH3P\nB0D44SP9D7"}
                 style={{ borderRadius: "var(--radius-md)", fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}
               />
-              <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+              <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', marginTop: 4 }}>
                 {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
               </Text>
             </div>
@@ -194,7 +194,7 @@ export default function LiveDataInspectorPage() {
             {/* Metrics Selection */}
             <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Select Metrics to Fetch</Text>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 300, overflow: 'auto' }}>
-              <div style={{ padding: '4px 8px', borderRadius: 6, background: '#f8fafc', cursor: 'pointer', border: '1px solid #e5e7eb' }}
+              <div style={{ padding: '4px 8px', borderRadius: 6, background: 'var(--bc-slate-50)', cursor: 'pointer', border: '1px solid #e5e7eb' }}
                 onClick={() => setSelectedMetrics(selectedMetrics.length === metrics.length ? [] : metrics.map(m => m.key))}>
                 <Checkbox checked={selectedMetrics.length === metrics.length} indeterminate={selectedMetrics.length > 0 && selectedMetrics.length < metrics.length}>
                   <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>Select All ({selectedMetrics.length}/{metrics.length})</Text>

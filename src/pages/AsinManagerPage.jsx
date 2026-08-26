@@ -525,7 +525,7 @@ const AsinManagerPage = (props) => {
     if (appliedFilters.selectedTags?.length > 0) {
       appliedFilters.selectedTags.forEach(tag => {
         badges.push(
-          <div key={`tag-${tag}`} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: '#eef2ff', color: '#4338ca', borderColor: '#c7d2fe', borderRadius: '6px' }}>
+          <div key={`tag-${tag}`} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-700)', borderColor: '#c7d2fe', borderRadius: '6px' }}>
             <TagIcon size={10} className="opacity-80" />
             <span className="fw-bold">{tag}</span>
             <button
@@ -544,7 +544,7 @@ const AsinManagerPage = (props) => {
     if (selectedSeller) {
       const seller = sellers.find(s => s._id === selectedSeller);
       badges.unshift(
-        <div key="seller" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--text-primary)', color: '#ffffff', borderColor: 'var(--text-primary)', borderRadius: '6px' }}>
+        <div key="seller" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--text-primary)', color: 'var(--bc-white)', borderColor: 'var(--text-primary)', borderRadius: '6px' }}>
           <Store size={10} className="opacity-80" />
           <span className="fw-bold">{seller?.name || 'Selected Seller'}</span>
           <button
@@ -561,7 +561,7 @@ const AsinManagerPage = (props) => {
 
     if (appliedSearchQuery) {
       badges.unshift(
-        <div key="search" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-warning-subtle)', color: '#b45309', borderColor: '#fcd34d', borderRadius: '6px' }}>
+        <div key="search" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', borderColor: '#fcd34d', borderRadius: '6px' }}>
           <Search size={10} className="opacity-80" />
           <span className="fw-bold italic">"{appliedSearchQuery}"</span>
           <button
@@ -2100,7 +2100,7 @@ const AsinManagerPage = (props) => {
         <div className="mt-2 py-1 px-3 bg-amber-50 border border-amber-100 rounded-2 d-flex align-items-center gap-3">
           <span className="icon-[svg-spinners--eclipse] text-amber-500" style={{ fontSize: 12 }} aria-hidden="true" />
           <span className="smallest text-amber-900 fw-bold text-uppercase tracking-wider" style={{ fontSize: '9px' }}>Data Repair</span>
-          <div className="flex-grow-1" style={{ height: '4px', background: '#fef3c7', borderRadius: '2px', overflow: 'hidden' }}>
+          <div className="flex-grow-1" style={{ height: '4px', background: 'var(--bc-amber-100)', borderRadius: '2px', overflow: 'hidden' }}>
             <div style={{ height: '100%', background: 'var(--text-warning)', width: `${repairStatus.percentage}%`, transition: 'width 0.4s ease' }} />
           </div>
           <span className="smallest text-amber-600 fw-bold" style={{ fontSize: '9px' }}>{repairStatus.processed}/{repairStatus.total}</span>
@@ -2522,7 +2522,7 @@ const AsinManagerPage = (props) => {
                   className="btn btn-sm btn-white border shadow-sm fw-bold rounded-2 d-flex align-items-center gap-1.5"
                   onClick={handleAiListingAnalysis}
                   disabled={aiAnalysisLoading}
-                  style={{ fontSize: 'var(--font-size-xs)', borderColor: '#c4b5fd', color: '#6d28d9', backgroundColor: '#f5f3ff' }}
+                  style={{ fontSize: 'var(--font-size-xs)', borderColor: '#c4b5fd', color: 'var(--bc-violet-700)', backgroundColor: 'var(--bc-violet-50)' }}
                 >
                   <Sparkles size={12} /> {aiAnalysisLoading ? 'Analyzing...' : 'AI Analyze'}
                 </button>
@@ -2646,34 +2646,34 @@ const AsinManagerPage = (props) => {
 
                   {/* ===== PRICE COLUMNS (MRP, Price, Dispute, Price Trend) (Indigo Palette) ===== */}
                   {isVisible('mrp') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-700)', borderBottom: '2px solid #c7d2fe' }}>
                       {renderSortableHeader('MRP', 'mrp', 'right')}
                     </th>
                   )}
                   {isVisible('price') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-700)', borderBottom: '2px solid #c7d2fe' }}>
                       {renderSortableHeader('CHANNEL PRICE', 'uploadedPrice', 'right')}
                     </th>
                   )}
                   {isVisible('discountPercentage') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-700)', borderBottom: '2px solid #c7d2fe' }}>
                       {renderSortableHeader('DISCOUNT %', 'discountPercentage', 'center')}
                     </th>
                   )}
                   {isVisible('priceDispute') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-700)', borderBottom: '2px solid #c7d2fe' }}>
                       {renderSortableHeader('DISPUTE', 'priceDispute', 'center')}
                     </th>
                   )}
                   {visiblePriceTrendCount > 0 && (
                     <th colSpan={visiblePriceTrendCount}
-                      style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', borderBottom: '2px solid #c7d2fe', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bc-indigo-50)', color: 'var(--bc-indigo-700)', textAlign: 'center', borderBottom: '2px solid #c7d2fe', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{priceTrendExpanded ? 'Price Trend' : 'Price'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setPriceTrendExpanded(!priceTrendExpanded); }}
                           className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#4338ca', cursor: 'pointer' }}
+                          style={{ border: 'none', background: 'none', color: 'var(--bc-indigo-700)', cursor: 'pointer' }}
                           title={priceTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {priceTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2683,21 +2683,21 @@ const AsinManagerPage = (props) => {
                   )}
 
                   {isVisible('mainBsr') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bc-violet-50)', color: 'var(--bc-violet-700)', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('MAIN BSR', 'bsr', 'center')}
                     </th>
                   )}
-                  {isVisible('subBsr') && <th rowSpan={2} style={{ ...thStyle, width: '110px', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>SUB BSR</th>}
-                  {isVisible('bsrTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>BSR TR</th>}
+                  {isVisible('subBsr') && <th rowSpan={2} style={{ ...thStyle, width: '110px', background: 'var(--bc-violet-50)', color: 'var(--bc-violet-700)', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>SUB BSR</th>}
+                  {isVisible('bsrTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bc-violet-50)', color: 'var(--bc-violet-700)', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>BSR TR</th>}
                   {visibleBsrTrendCount > 0 && (
                     <th colSpan={visibleBsrTrendCount}
-                      style={{ ...thStyle, background: '#f5f3ff', color: '#6d28d9', textAlign: 'center', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bc-violet-50)', color: 'var(--bc-violet-700)', textAlign: 'center', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{bsrTrendExpanded ? 'SUB-BSR TREND' : 'Sub BSR'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setBsrTrendExpanded(!bsrTrendExpanded); }}
                           className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#6d28d9', cursor: 'pointer' }}
+                          style={{ border: 'none', background: 'none', color: 'var(--bc-violet-700)', cursor: 'pointer' }}
                           title={bsrTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {bsrTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2708,30 +2708,30 @@ const AsinManagerPage = (props) => {
 
                   {/* ===== RATING COLUMNS (Amber Palette) ===== */}
                   {isVisible('rating') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('RT', 'rating', 'center')}
                     </th>
                   )}
                   {isVisible('reviewCount') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('CNT', 'reviewCount', 'center')}
                     </th>
                   )}
                   {isVisible('ratingBreakdown') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
                       DISTRIBUTION
                     </th>
                   )}
-                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>RATING TR</th>}
+                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>RATING TR</th>}
                   {visibleRatingTrendCount > 0 && (
                     <th colSpan={visibleRatingTrendCount}
-                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{ratingTrendExpanded ? 'RATING TREND' : 'RT'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setRatingTrendExpanded(!ratingTrendExpanded); }}
                           className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#b45309', cursor: 'pointer' }}
+                          style={{ border: 'none', background: 'none', color: 'var(--bc-amber-700)', cursor: 'pointer' }}
                           title={ratingTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {ratingTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2739,16 +2739,16 @@ const AsinManagerPage = (props) => {
                       </div>
                     </th>
                   )}
-                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
+                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
                   {visibleReviewTrendCount > 0 && (
                     <th colSpan={visibleReviewTrendCount}
-                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: 'var(--bc-amber-700)', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{reviewTrendExpanded ? 'REVIEWS TREND' : 'REV'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setReviewTrendExpanded(!reviewTrendExpanded); }}
                           className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#b45309', cursor: 'pointer' }}
+                          style={{ border: 'none', background: 'none', color: 'var(--bc-amber-700)', cursor: 'pointer' }}
                           title={reviewTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {reviewTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2759,18 +2759,18 @@ const AsinManagerPage = (props) => {
 
                   {/* ===== VISUALS & CONTENT COLUMNS (Video, Images, Bullet Points, A+) (Pink Palette) ===== */}
                   {isVisible('video') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }} title="Video Present">
+                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: 'var(--bc-pink-50)', color: '#db2777', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }} title="Video Present">
                       {renderSortableHeader('Video', 'videoCount', 'center')}
                     </th>
                   )}
                   {isVisible('imagesCount') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', background: 'var(--bc-pink-50)', color: '#db2777', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('IMG', 'imagesCount', 'center')}
                     </th>
                   )}
                   {visibleImageTrendCount > 0 && (
                     <th colSpan={visibleImageTrendCount}
-                      style={{ ...thStyle, background: '#fdf2f8', color: '#db2777', textAlign: 'center', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, background: 'var(--bc-pink-50)', color: '#db2777', textAlign: 'center', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{imageTrendExpanded ? 'IMG TREND' : 'IMG'}</span>
                         <button
@@ -2784,13 +2784,13 @@ const AsinManagerPage = (props) => {
                       </div>
                     </th>
                   )}
-                  {isVisible('bulletPoints') && <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>B</th>}
+                  {isVisible('bulletPoints') && <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center', background: 'var(--bc-pink-50)', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>B</th>}
                   {isVisible('hasAplus') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', background: 'var(--bc-pink-50)', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>
                       {renderSortableHeader('A+', 'hasAplus', 'center')}
                     </th>
                   )}
-                  {isVisible('aplusDays') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>A+ DAYS</th>}
+                  {isVisible('aplusDays') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: 'var(--bc-pink-50)', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>A+ DAYS</th>}
                   <th rowSpan={2} style={{
                     ...thStyle,
                     width: '60px',
@@ -2893,8 +2893,8 @@ const AsinManagerPage = (props) => {
                         ...getTransitionStyle(priceTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#eef2ff',
-                        color: '#4338ca'
+                        background: 'var(--bc-indigo-50)',
+                        color: 'var(--bc-indigo-700)'
                       }}>
                         <div style={{
                           width: (priceTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2915,8 +2915,8 @@ const AsinManagerPage = (props) => {
                         ...getTransitionStyle(bsrTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#f5f3ff',
-                        color: '#6d28d9'
+                        background: 'var(--bc-violet-50)',
+                        color: 'var(--bc-violet-700)'
                       }}>
                         <div style={{
                           width: (bsrTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2938,7 +2938,7 @@ const AsinManagerPage = (props) => {
                         fontSize: 9,
                         textAlign: 'center',
                         background: 'var(--bg-warning-subtle)',
-                        color: '#b45309'
+                        color: 'var(--bc-amber-700)'
                       }}>
                         <div style={{
                           width: (ratingTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2960,7 +2960,7 @@ const AsinManagerPage = (props) => {
                         fontSize: 9,
                         textAlign: 'center',
                         background: 'var(--bg-warning-subtle)',
-                        color: '#b45309'
+                        color: 'var(--bc-amber-700)'
                       }}>
                         <div style={{
                           width: (reviewTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2981,7 +2981,7 @@ const AsinManagerPage = (props) => {
                         ...getTransitionStyle(imageTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#fdf2f8',
+                        background: 'var(--bc-pink-50)',
                         color: '#db2777'
                       }}>
                         <div style={{
@@ -3322,7 +3322,7 @@ const AsinManagerPage = (props) => {
                               ...tdStyle,
                               ...getTransitionStyle(gmsRevenueExpanded, mIdx, availableMonths.length + 1, '70px'),
                               textAlign: 'center',
-                              background: '#f0fdf4'
+                              background: 'var(--bc-green-50)'
                             }}>
                               <div style={{
                                 width: gmsRevenueExpanded ? 'auto' : '0px',
@@ -3416,9 +3416,9 @@ const AsinManagerPage = (props) => {
                           <td style={{ ...tdStyle, textAlign: 'center' }}>
                             {asin.dealAccessType ? (
                               <span className="badge" style={{
-                                backgroundColor: asin.dealAccessType === 'ALL' ? 'var(--bg-success-subtle)' : '#eff6ff',
+                                backgroundColor: asin.dealAccessType === 'ALL' ? 'var(--bg-success-subtle)' : 'var(--bc-blue-50)',
                                 color: asin.dealAccessType === 'ALL' ? 'var(--text-success)' : 'var(--text-brand)',
-                                border: `1px solid ${asin.dealAccessType === 'ALL' ? '#a7f3d0' : '#bfdbfe'}`,
+                                border: `1px solid ${asin.dealAccessType === 'ALL' ? '#a7f3d0' : 'var(--bc-blue-200)'}`,
                                 fontWeight: 600, fontSize: '0.6rem', padding: '2px 5px', borderRadius: 'var(--radius-sm)'
                               }}>
                                 {asin.dealAccessType}
@@ -3754,7 +3754,7 @@ const AsinManagerPage = (props) => {
                                   overflow: 'hidden',
                                   transition: 'all 0.3s ease'
                                 }}>
-                                  {(reviewsVal !== undefined && reviewsVal !== null && reviewsVal !== '') ? <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>{reviewsVal.toLocaleString()}</span> : '-'}
+                                  {(reviewsVal !== undefined && reviewsVal !== null && reviewsVal !== '') ? <span style={{ fontSize: '10px', color: 'var(--bc-amber-700)', fontWeight: 600 }}>{reviewsVal.toLocaleString()}</span> : '-'}
                                 </div>
                               </td>
                             );
@@ -4262,7 +4262,7 @@ const AsinManagerPage = (props) => {
             <div style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(85vh - 120px)' }}>
               {aiAnalysisLoading && (
                 <div style={{ textAlign: 'center', padding: 40 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border-light)', borderTopColor: '#6d28d9', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid var(--border-light)', borderTopColor: 'var(--bc-violet-700)', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
                   <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary)' }}>AI is analyzing your listings against Amazon policies...</div>
                   <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 4 }}>This may take 15-30 seconds per ASIN</div>
                 </div>

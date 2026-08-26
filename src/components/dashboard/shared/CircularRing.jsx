@@ -13,7 +13,7 @@ const CircularRing = memo(({ percent = 0, color = '#2E7D32', size = 50, strokeWi
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke="#f1f5f9"
+                    stroke="var(--bc-slate-100)"
                     strokeWidth={strokeWidth}
                 />
                 <circle

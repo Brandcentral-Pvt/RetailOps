@@ -9,14 +9,14 @@ const METRIC_MAP = {
   tacos: { label: 'TACOS', color: '#0284c7', type: 'percent', seriesType: 'line' },
   roas: { label: 'ROAS', color: '#E65100', type: 'ratio', seriesType: 'line' },
   cvr: { label: 'CVR', color: '#0d9488', type: 'percent', seriesType: 'line' },
-  cpc: { label: 'CPC', color: '#ea580c', type: 'currency', seriesType: 'line' },
-  ctr: { label: 'CTR', color: '#9C27B0', type: 'percent', seriesType: 'line' },
+  cpc: { label: 'CPC', color: 'var(--bc-accent-inventory)', type: 'currency', seriesType: 'line' },
+  ctr: { label: 'CTR', color: 'var(--bc-purple-500)', type: 'percent', seriesType: 'line' },
   orders: { label: 'Ads Orders', color: '#9333ea', type: 'number', seriesType: 'column' },
   organicOrders: { label: 'Organic Orders', color: '#db2777', type: 'number', seriesType: 'column' },
-  totalOrders: { label: 'Total Orders', color: '#9C27B0', type: 'number', seriesType: 'column' },
-  adSalesPct: { label: 'Ads Sales (%)', color: '#ea580c', type: 'percent', seriesType: 'line' },
-  impressions: { label: 'Impressions', color: '#94a3b8', type: 'number', seriesType: 'column' },
-  clicks: { label: 'Clicks', color: '#94a3b8', type: 'number', seriesType: 'column' }
+  totalOrders: { label: 'Total Orders', color: 'var(--bc-purple-500)', type: 'number', seriesType: 'column' },
+  adSalesPct: { label: 'Ads Sales (%)', color: 'var(--bc-accent-inventory)', type: 'percent', seriesType: 'line' },
+  impressions: { label: 'Impressions', color: 'var(--bc-slate-400)', type: 'number', seriesType: 'column' },
+  clicks: { label: 'Clicks', color: 'var(--bc-slate-400)', type: 'number', seriesType: 'column' }
 };
 
 export function useAdsChart(globalChartData = []) {
@@ -61,7 +61,7 @@ export function useAdsChart(globalChartData = []) {
         title: { style: { fontSize: '9px', fontWeight: 600, color: config.color } },
         labels: {
           show: shouldShow,
-          style: { fontSize: '10px', fontWeight: 500, colors: '#64748b' },
+          style: { fontSize: '10px', fontWeight: 500, colors: 'var(--bc-slate-500)' },
           formatter: (v) => {
             const val = Number(v);
             if (isPercent) return val.toFixed(1) + '%';
@@ -102,11 +102,11 @@ export function useAdsChart(globalChartData = []) {
       categories: chartState.labels,
       axisBorder: { show: false },
       axisTicks: { show: false },
-      labels: { style: { colors: '#64748b', fontWeight: 600, fontSize: '10px' } }
+      labels: { style: { colors: 'var(--bc-slate-500)', fontWeight: 600, fontSize: '10px' } }
     },
     yaxis: chartState.yaxis,
     grid: { 
-      borderColor: '#f1f5f9', 
+      borderColor: 'var(--bc-slate-100)', 
       strokeDashArray: 4, 
       padding: { top: 5, right: 15, bottom: 10, left: 15 } 
     },

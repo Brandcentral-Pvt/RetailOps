@@ -92,7 +92,7 @@ const TasksOverviewCard = ({ tasks = [], loading = false }) => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#ffffff',
+                                color: 'var(--bc-white)',
                                 boxShadow: '0 4px 12px -2px rgba(251, 79, 64, 0.4)',
                                 flexShrink: 0
                             }}>
@@ -173,7 +173,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 marginBottom: 8
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Award size={13} style={{ color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#ED6C02' : '#94a3b8' }} strokeWidth={2.5} />
+                                    <Award size={13} style={{ color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#ED6C02' : 'var(--bc-slate-400)' }} strokeWidth={2.5} />
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
@@ -188,7 +188,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 <span style={{
                                     fontSize: 18,
                                     fontWeight: 700,
-                                    color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#ED6C02' : '#64748b',
+                                    color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#ED6C02' : 'var(--bc-slate-500)',
                                     letterSpacing: '-0.3px'
                                 }}>
                                     {counts.completionRate.toFixed(0)}%
@@ -204,7 +204,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 { label: 'In Progress', value: counts.inProgress, color: 'var(--color-info-blue, #0288D1)' },
                                 { label: 'Pending', value: counts.pending, color: '#ED6C02' },
                                 { label: 'Overdue', value: counts.overdue, color: '#D32F2F' },
-                                { label: 'Todo', value: counts.todo, color: '#94a3b8' },
+                                { label: 'Todo', value: counts.todo, color: 'var(--bc-slate-400)' },
                             ].filter(s => s.value > 0)}
                             height={6}
                         />
@@ -256,7 +256,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 icon={ListTodo}
                                 value={counts.todo}
                                 label="Todo"
-                                color="#94a3b8"
+                                color="var(--bc-slate-400)"
                             />
                         )}
                         {counts.completed > 0 && (
@@ -374,7 +374,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                         gap: 4,
                         fontSize: 'var(--font-size-xs)',
                         fontWeight: 600,
-                        color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#E65100' : '#64748b',
+                        color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#E65100' : 'var(--bc-slate-500)',
                             background: counts.completionRate >= 70 ? 'var(--bg-success-subtle, #d1fae5)' : counts.completionRate >= 40 ? 'var(--bg-warning-subtle, #fef3c7)' : 'var(--border-light, #d9e6e9)',
                             padding: '3px 8px',
                             borderRadius: "var(--radius-lg)",

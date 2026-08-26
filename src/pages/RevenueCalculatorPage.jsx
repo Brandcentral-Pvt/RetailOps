@@ -104,7 +104,7 @@ const DashboardView = ({ asins, onNavigate }) => {
 
         {/* API Settings Panel */}
         {showSettings && (
-          <div className="card mb-4" style={{ backgroundColor: '#f8fafc' }}>
+          <div className="card mb-4" style={{ backgroundColor: 'var(--bc-slate-50)' }}>
             <div className="card-body">
               <div className="row">
                 <div className="col-md-6">

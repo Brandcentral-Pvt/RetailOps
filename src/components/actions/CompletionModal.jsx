@@ -77,7 +77,7 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
     >
       <div style={MODAL_STYLES.headerStyle}>
         <Space size={12} align="center">
-          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
+          <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
             Submit Work
           </span>
         </Space>
@@ -89,7 +89,7 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
           style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', marginBottom: 16, background: '#fafbfc' }}
         >
           <Space orientation="vertical" size={6} style={{ width: '100%' }}>
-            <Text strong style={{ fontSize: 'var(--font-size-base)', color: '#1e293b' }}>{action.title}</Text>
+            <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-800)' }}>{action.title}</Text>
             <Space size={8}>
               <Tag style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.border}`, margin: 0 }}>
                 {action.status}
@@ -97,8 +97,8 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
             </Space>
             {reviewerName ? (
               <Space size={6}>
-                <Avatar size={20} icon={<UserOutlined />} style={{ background: '#f5f3ff', color: '#9C27B0' }} />
-                <Text style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>Reviewer: {reviewerName}</Text>
+                <Avatar size={20} icon={<UserOutlined />} style={{ background: 'var(--bc-violet-50)', color: 'var(--bc-purple-500)' }} />
+                <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-500)' }}>Reviewer: {reviewerName}</Text>
               </Space>
             ) : (
               <Alert
@@ -166,18 +166,18 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
                   value="REVIEW"
                   style={{
                     display: 'flex', alignItems: 'center', padding: '12px 16px',
-                    border: `1px solid ${stage === 'REVIEW' ? '#9C27B0' : '#e2e8f0'}`,
-                    borderRadius: "var(--radius-md)", background: stage === 'REVIEW' ? '#f5f3ff' : 'white',
+                    border: `1px solid ${stage === 'REVIEW' ? 'var(--bc-purple-500)' : 'var(--bc-slate-200)'}`,
+                    borderRadius: "var(--radius-md)", background: stage === 'REVIEW' ? 'var(--bc-violet-50)' : 'white',
                     width: '100%', height: 'auto', margin: 0,
                   }}
                 >
                   <Space size={12}>
-                    <EyeOutlined style={{ fontSize: 18, color: stage === 'REVIEW' ? '#9C27B0' : '#94a3b8' }} />
+                    <EyeOutlined style={{ fontSize: 18, color: stage === 'REVIEW' ? 'var(--bc-purple-500)' : 'var(--bc-slate-400)' }} />
                     <Space orientation="vertical" size={2}>
-                      <Text strong style={{ fontSize: 'var(--font-size-sm)', color: stage === 'REVIEW' ? '#9C27B0' : '#374151' }}>
+                      <Text strong style={{ fontSize: 'var(--font-size-sm)', color: stage === 'REVIEW' ? 'var(--bc-purple-500)' : '#374151' }}>
                         Submit for Review
                       </Text>
-                      <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
+                      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
                         Send to {reviewerName || 'reviewer'} for approval
                       </Text>
                     </Space>
@@ -189,19 +189,19 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
                   disabled={!!hasReviewer}
                   style={{
                     display: 'flex', alignItems: 'center', padding: '12px 16px',
-                    border: `1px solid ${stage === 'COMPLETED' ? '#2E7D32' : '#e2e8f0'}`,
+                    border: `1px solid ${stage === 'COMPLETED' ? '#2E7D32' : 'var(--bc-slate-200)'}`,
                     borderRadius: "var(--radius-md)", background: stage === 'COMPLETED' ? '#ecfdf5' : 'white',
                     width: '100%', height: 'auto', margin: 0,
                     opacity: hasReviewer ? 0.5 : 1,
                   }}
                 >
                   <Space size={12}>
-                    <CheckCircleOutlined style={{ fontSize: 18, color: stage === 'COMPLETED' ? '#2E7D32' : '#94a3b8' }} />
+                    <CheckCircleOutlined style={{ fontSize: 18, color: stage === 'COMPLETED' ? '#2E7D32' : 'var(--bc-slate-400)' }} />
                     <Space orientation="vertical" size={2}>
                       <Text strong style={{ fontSize: 'var(--font-size-sm)', color: stage === 'COMPLETED' ? '#2E7D32' : '#374151' }}>
                         Mark as Complete
                       </Text>
-                      <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
+                      <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
                         {hasReviewer ? 'Disabled — reviewer assigned' : 'Mark done without review'}
                       </Text>
                     </Space>
@@ -221,7 +221,7 @@ const CompletionModal = ({ isOpen, action, onClose, onComplete }) => {
           loading={submitting}
           style={{
             ...MODAL_STYLES.primaryBtn,
-            background: stage === 'COMPLETED' ? '#2E7D32' : '#1976D2',
+            background: stage === 'COMPLETED' ? '#2E7D32' : 'var(--bc-ro-500)',
           }}
         >
           {stage === 'REVIEW' ? 'Submit for Review' : 'Mark Complete'}

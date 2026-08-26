@@ -81,7 +81,7 @@ const QuickTaskModal = ({ isOpen, onClose, onSave, currentUser, sellers, users }
       destroyOnHidden
     >
       <div style={MODAL_STYLES.headerStyle}>
-        <Text style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#1e293b' }}>
+        <Text style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>
           Quick Task
         </Text>
       </div>
@@ -131,7 +131,7 @@ const QuickTaskModal = ({ isOpen, onClose, onSave, currentUser, sellers, users }
           ) : (
             <div style={{ marginBottom: 16 }}>
               <span style={labelStyle}>Assign To</span>
-              <div style={{ marginTop: 6, padding: '6px 12px', background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)' }}>
+              <div style={{ marginTop: 6, padding: '6px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)' }}>
                 <Avatar size={18} icon={<UserOutlined />} style={{ marginRight: 8 }} />
                 {formatUserName(currentUser)}
               </div>
@@ -151,7 +151,7 @@ const QuickTaskModal = ({ isOpen, onClose, onSave, currentUser, sellers, users }
                   { value: 'CRITICAL', label: 'Critical' },
                 ]}
                 style={{
-                  background: '#f1f5f9', borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)',
+                  background: 'var(--bc-slate-100)', borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-sm)',
                   width: '100%',
                 }}
                 block
@@ -189,7 +189,7 @@ const QuickTaskModal = ({ isOpen, onClose, onSave, currentUser, sellers, users }
         <Button
           type="link"
           onClick={handleOpenFullForm}
-          style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', padding: 0 }}
+          style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-400)', padding: 0 }}
         >
           Need more options? Use the full form →
         </Button>

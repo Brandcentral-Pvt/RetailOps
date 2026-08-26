@@ -22,11 +22,11 @@ export const canTransition = (currentUser, task, targetStatus) => {
 };
 
 export const STATUS_META = {
-  PENDING: { label: 'Pending', color: '#94a3b8', bg: '#f1f5f9' },
-  IN_PROGRESS: { label: 'In Progress', color: '#1976D2', bg: '#eef2ff' },
-  REVIEW: { label: 'Awaiting Review', color: '#9C27B0', bg: '#f5f3ff' },
+  PENDING: { label: 'Pending', color: 'var(--bc-slate-400)', bg: 'var(--bc-slate-100)' },
+  IN_PROGRESS: { label: 'In Progress', color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-50)' },
+  REVIEW: { label: 'Awaiting Review', color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)' },
   COMPLETED: { label: 'Completed', color: '#2E7D32', bg: '#ecfdf5' },
-  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: '#fef2f2' },
+  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: 'var(--bc-red-50)' },
 };
 
 export const formatRelativeTime = (isoString) => {

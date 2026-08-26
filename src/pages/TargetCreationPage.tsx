@@ -18,12 +18,12 @@ const { Option } = Select;
 
 export const GOAL_TYPES = [
     { key: 'GMS', label: 'GMS', unit: '₹', color: '#2E7D32', bg: '#ecfdf5' },
-    { key: 'ADS', label: 'ADS Spend', unit: '₹', color: '#D32F2F', bg: '#fef2f2' },
-    { key: 'ACOS', label: 'ACOS', unit: '%', color: '#9C27B0', bg: '#f5f3ff' },
-    { key: 'NEW_RC', label: 'New RC', unit: '#', color: '#ED6C02', bg: '#fffbeb' },
-    { key: 'RNR', label: 'RNR', unit: '#', color: '#0288D1', bg: '#eff6ff' },
-    { key: 'PO_FULFILMENT', label: 'PO Fulfilment', unit: '%', color: '#0288D1', bg: '#ecfeff' },
-    { key: 'PO_DAYS', label: 'PO Days', unit: 'd', color: '#9C27B0', bg: '#fdf2f8' },
+    { key: 'ADS', label: 'ADS Spend', unit: '₹', color: '#D32F2F', bg: 'var(--bc-red-50)' },
+    { key: 'ACOS', label: 'ACOS', unit: '%', color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)' },
+    { key: 'NEW_RC', label: 'New RC', unit: '#', color: '#ED6C02', bg: 'var(--bc-amber-50)' },
+    { key: 'RNR', label: 'RNR', unit: '#', color: '#0288D1', bg: 'var(--bc-blue-50)' },
+    { key: 'PO_FULFILMENT', label: 'PO Fulfilment', unit: '%', color: '#0288D1', bg: 'var(--bc-cyan-50)' },
+    { key: 'PO_DAYS', label: 'PO Days', unit: 'd', color: 'var(--bc-purple-500)', bg: 'var(--bc-pink-50)' },
     { key: 'SELLER_CENTRAL_BUSINESS', label: 'SC Business', unit: '₹', color: '#14b8a6', bg: '#f0fdfa' },
 ];
 
@@ -230,7 +230,7 @@ const GoalRowComponent = memo(({
             }}>
                 <Tag style={{
                     margin: 0, fontSize: 11, fontWeight: 700,
-                    background: '#fff', borderColor: '#e2e8f0', color: '#475569'
+                    background: '#fff', borderColor: 'var(--bc-slate-200)', color: 'var(--bc-slate-600)'
                 }}>
                     {goal?.unit || '—'}
                 </Tag>
@@ -253,7 +253,7 @@ const GoalRowComponent = memo(({
                                 placeholder="Val"
                                 style={{
                                     width: '100%', fontSize: 12, fontWeight: 600,
-                                    color: '#0f172a', borderRadius: 4
+                                    color: 'var(--bc-slate-900)', borderRadius: 4
                                 }}
                             />
                             <InputNumber
@@ -265,8 +265,8 @@ const GoalRowComponent = memo(({
                                 placeholder="%"
                                 suffix="%"
                                 style={{
-                                    width: '100%', fontSize: 10, color: '#64748b',
-                                    background: '#f8fafc', borderRadius: 4
+                                    width: '100%', fontSize: 10, color: 'var(--bc-slate-500)',
+                                    background: 'var(--bc-slate-50)', borderRadius: 4
                                 }}
                             />
                         </div>
@@ -282,7 +282,7 @@ const GoalRowComponent = memo(({
                                         placeholder="Ach"
                                         style={{
                                             width: '100%', fontSize: 11, color: '#2E7D32',
-                                            borderColor: '#a7f3d0', background: '#f0fdf4', borderRadius: 4
+                                            borderColor: '#a7f3d0', background: 'var(--bc-green-50)', borderRadius: 4
                                         }}
                                     />
                                 </Tooltip>
@@ -307,7 +307,7 @@ const GoalRowComponent = memo(({
                         controls={false}
                         style={{
                             width: '100%', fontSize: 13, fontWeight: 700,
-                            color: '#1e293b', borderColor: '#cbd5e1'
+                            color: 'var(--bc-slate-800)', borderColor: 'var(--bc-slate-300)'
                         }}
                     />
                     {row.goalType !== 'ACOS' && (
@@ -317,7 +317,7 @@ const GoalRowComponent = memo(({
                                 icon={<Zap size={14} />}
                                 onClick={splitEvenly}
                                 disabled={isCellLocked}
-                                style={{ color: '#9C27B0', padding: '0 4px' }}
+                                style={{ color: 'var(--bc-purple-500)', padding: '0 4px' }}
                             />
                         </Tooltip>
                     )}
@@ -614,7 +614,7 @@ export default function TargetCreationPage() {
     const totalMetrics = sections.reduce((sum, s) => sum + s.rows.filter(r => r.goalType).length, 0);
 
     return (
-        <Layout style={{ minHeight: '100vh', background: '#f1f5f9' }}>
+        <Layout style={{ minHeight: '100vh', background: 'var(--bc-slate-100)' }}>
             {msgCtx}
 
             {/* Header */}
@@ -646,17 +646,17 @@ export default function TargetCreationPage() {
                                     style={{ fontSize: 12, marginBottom: 4 }}
                                 />
                                 <Space align="center" size={12}>
-                                    <Title level={4} style={{ margin: 0, color: '#0f172a' }}>
+                                    <Title level={4} style={{ margin: 0, color: 'var(--bc-slate-900)' }}>
                                         <Target size={20} style={{ display: 'inline', marginRight: 8, color: '#0288D1' }} />
                                         {isEditMode ? 'Edit Target Goals' : 'Create Target Goals'}
                                     </Title>
                                     <Badge
                                         count={`${sections.length} Brand${sections.length !== 1 ? 's' : ''}`}
-                                        style={{ background: '#eff6ff', color: '#0288D1', fontWeight: 600 }}
+                                        style={{ background: 'var(--bc-blue-50)', color: '#0288D1', fontWeight: 600 }}
                                     />
                                     <Badge
                                         count={`${totalMetrics} Metric${totalMetrics !== 1 ? 's' : ''}`}
-                                        style={{ background: '#f0fdf4', color: '#2E7D32', fontWeight: 600 }}
+                                        style={{ background: 'var(--bc-green-50)', color: '#2E7D32', fontWeight: 600 }}
                                     />
                                 </Space>
                             </div>
@@ -702,7 +702,7 @@ export default function TargetCreationPage() {
                             block
                             style={{
                                 height: 56, borderRadius: 12, borderWidth: 2,
-                                borderColor: '#cbd5e1', color: '#475569',
+                                borderColor: 'var(--bc-slate-300)', color: 'var(--bc-slate-600)',
                                 fontSize: 14, fontWeight: 600,
                                 background: '#fff'
                             }}
@@ -741,7 +741,7 @@ export default function TargetCreationPage() {
                                                 <Space size={16} align="center" wrap>
                                                     <div style={{
                                                         width: 40, height: 40, borderRadius: 10,
-                                                        background: '#eff6ff', display: 'flex',
+                                                        background: 'var(--bc-blue-50)', display: 'flex',
                                                         alignItems: 'center', justifyContent: 'center'
                                                     }}>
                                                         <Building2 size={20} color="#0288D1" />
@@ -750,7 +750,7 @@ export default function TargetCreationPage() {
                                                         <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                                                             Brand Section #{sIdx + 1}
                                                         </Text>
-                                                        <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+                                                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--bc-slate-900)' }}>
                                                             {selectedSeller?.name || 'Unnamed Brand'}
                                                         </div>
                                                     </div>
@@ -856,12 +856,12 @@ export default function TargetCreationPage() {
                                     <div style={{ overflowX: 'auto', background: '#fff' }}>
                                         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
                                             <thead>
-                                                <tr style={{ background: '#f8fafc' }}>
+                                                <tr style={{ background: 'var(--bc-slate-50)' }}>
                                                     <th style={{
                                                         padding: '14px 16px', borderBottom: '2px solid #e2e8f0',
                                                         textAlign: 'left', position: 'sticky', left: 0,
-                                                        background: '#f8fafc', zIndex: 5, fontSize: 11,
-                                                        fontWeight: 700, color: '#475569', letterSpacing: 0.5,
+                                                        background: 'var(--bc-slate-50)', zIndex: 5, fontSize: 11,
+                                                        fontWeight: 700, color: 'var(--bc-slate-600)', letterSpacing: 0.5,
                                                         boxShadow: '2px 0 4px -2px rgba(0,0,0,0.04)'
                                                     }}>
                                                         GOAL METRIC
@@ -869,7 +869,7 @@ export default function TargetCreationPage() {
                                                     <th style={{
                                                         padding: '14px 8px', borderBottom: '2px solid #e2e8f0',
                                                         textAlign: 'center', fontSize: 11, fontWeight: 700,
-                                                        color: '#475569', letterSpacing: 0.5
+                                                        color: 'var(--bc-slate-600)', letterSpacing: 0.5
                                                     }}>
                                                         UNIT
                                                     </th>
@@ -877,12 +877,12 @@ export default function TargetCreationPage() {
                                                         <th key={i} style={{
                                                             padding: '10px 6px', borderBottom: '2px solid #e2e8f0',
                                                             textAlign: 'center', fontSize: 11, fontWeight: 700,
-                                                            color: '#475569', letterSpacing: 0.5
+                                                            color: 'var(--bc-slate-600)', letterSpacing: 0.5
                                                         }}>
-                                                            <div style={{ fontWeight: 700, fontSize: 12, color: '#1e293b' }}>{p}</div>
+                                                            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--bc-slate-800)' }}>{p}</div>
                                                             <div style={{
                                                                 display: 'flex', justifyContent: 'space-around',
-                                                                fontSize: 9, color: '#94a3b8', marginTop: 4,
+                                                                fontSize: 9, color: 'var(--bc-slate-400)', marginTop: 4,
                                                                 fontWeight: 600
                                                             }}>
                                                                 <span>VAL</span><span>%</span>
@@ -892,15 +892,15 @@ export default function TargetCreationPage() {
                                                     <th style={{
                                                         padding: '14px 10px', borderBottom: '2px solid #e2e8f0',
                                                         textAlign: 'center', position: 'sticky', right: 50,
-                                                        background: '#f8fafc', zIndex: 5, fontSize: 11,
-                                                        fontWeight: 700, color: '#475569', letterSpacing: 0.5,
+                                                        background: 'var(--bc-slate-50)', zIndex: 5, fontSize: 11,
+                                                        fontWeight: 700, color: 'var(--bc-slate-600)', letterSpacing: 0.5,
                                                         boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.04)'
                                                     }}>
                                                         TOTAL GOAL
                                                     </th>
                                                     <th style={{
                                                         padding: '14px 8px', borderBottom: '2px solid #e2e8f0',
-                                                        position: 'sticky', right: 0, background: '#f8fafc',
+                                                        position: 'sticky', right: 0, background: 'var(--bc-slate-50)',
                                                         zIndex: 5, width: 50
                                                     }}></th>
                                                 </tr>
@@ -929,8 +929,8 @@ export default function TargetCreationPage() {
                                         borderTop: '1px solid #e2e8f0',
                                         display: 'flex', alignItems: 'center', gap: 12
                                     }}>
-                                        <TrendingUp size={16} color="#64748b" />
-                                        <Text strong style={{ fontSize: 13, color: '#475569' }}>
+                                        <TrendingUp size={16} color="var(--bc-slate-500)" />
+                                        <Text strong style={{ fontSize: 13, color: 'var(--bc-slate-600)' }}>
                                             Add Goal Metric:
                                         </Text>
                                         <Select

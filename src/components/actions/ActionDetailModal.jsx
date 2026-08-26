@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalBody, Badge, Tooltip } from 'reactstrap';
+import { Modal } from 'antd';
 import { 
     FileText, Target, TrendingUp, AlertTriangle, 
     Activity, ExternalLink, History, Sparkles, 
@@ -66,7 +66,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
             case 'REVIEW': return { bg: '#f0f4ff', text: '#5046e4', border: '0.5px solid #d1d9ff' };
             case 'COMPLETED': return { bg: '#e6f9f0', text: '#0f7a4a', border: '0.5px solid #b7ebcf' };
             case 'URGENT': return { bg: '#fdecea', text: '#a8230d', border: '0.5px solid #f5c0ba' };
-            default: return { bg: '#f8fafc', text: '#64748b', border: '0.5px solid #e2e8f0' };
+            default: return { bg: 'var(--bc-slate-50)', text: 'var(--bc-slate-500)', border: '0.5px solid #e2e8f0' };
         }
     };
 
@@ -88,12 +88,19 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
     const deadlinePast = item.timeTracking?.deadline && new Date(item.timeTracking.deadline) < new Date() && item.status !== 'COMPLETED';
 
     return (
-        <Modal 
-            isOpen={isOpen} 
-            toggle={onClose} 
-            centered 
-            modalClassName="custom-action-modal-overlay"
-            contentClassName="custom-action-modal-box"
+        <Modal
+            open={isOpen}
+            onCancel={onClose}
+            centered
+            width={560}
+            footer={null}
+            closable={false}
+            destroyOnHidden
+            classNames={{ mask: 'custom-action-modal-overlay', container: 'custom-action-modal-box' }}
+            styles={{
+                container: { padding: 0 },
+                body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 },
+            }}
         >
             {/* Modal Header */}
             <div className="modal-header-container sticky-top bg-white">
@@ -148,7 +155,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
                 </div>
             </div>
 
-            <ModalBody className="p-body scrollbar-hidden">
+            <div className="modal-body p-body scrollbar-hidden">
                 {/* Section 1: General Information */}
                 <div className="section-container mt-0">
                     <div className="section-label">General Information</div>
@@ -314,7 +321,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
                         </div>
                     </div>
                 )}
-            </ModalBody>
+            </div>
 
             {/* Modal Footer */}
             <div className="modal-footer-container sticky-bottom bg-white">

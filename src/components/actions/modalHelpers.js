@@ -28,19 +28,19 @@ export const ACTION_TYPES = [
 ];
 
 export const STATUS_OPTIONS = [
-  { value: 'TODO', label: 'To Do', color: '#64748b', bg: '#f1f5f9' },
-  { value: 'PENDING', label: 'Pending', color: '#E65100', bg: '#fef3c7' },
-  { value: 'IN_PROGRESS', label: 'In Progress', color: '#1976D2', bg: '#eef2ff' },
-  { value: 'REVIEW', label: 'Review', color: '#9C27B0', bg: '#f5f3ff' },
+  { value: 'TODO', label: 'To Do', color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)' },
+  { value: 'PENDING', label: 'Pending', color: '#E65100', bg: 'var(--bc-amber-100)' },
+  { value: 'IN_PROGRESS', label: 'In Progress', color: 'var(--bc-ro-500)', bg: 'var(--bc-indigo-50)' },
+  { value: 'REVIEW', label: 'Review', color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)' },
   { value: 'COMPLETED', label: 'Completed', color: '#2E7D32', bg: '#ecfdf5' },
   { value: 'REJECTED', label: 'Rejected', color: '#e11d48', bg: '#fff1f2' },
 ];
 
 export const PRIORITY_OPTIONS = [
-  { value: 'LOW', label: 'Low', color: '#64748b', bg: '#f1f5f9', icon: 'ArrowDownOutlined' },
-  { value: 'MEDIUM', label: 'Medium', color: '#E65100', bg: '#fef3c7', icon: 'MinusOutlined' },
+  { value: 'LOW', label: 'Low', color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', icon: 'ArrowDownOutlined' },
+  { value: 'MEDIUM', label: 'Medium', color: '#E65100', bg: 'var(--bc-amber-100)', icon: 'MinusOutlined' },
   { value: 'HIGH', label: 'High', color: '#ED6C02', bg: '#fff7ed', icon: 'ArrowUpOutlined' },
-  { value: 'CRITICAL', label: 'Critical', color: '#D32F2F', bg: '#fef2f2', icon: 'ExclamationCircleOutlined' },
+  { value: 'CRITICAL', label: 'Critical', color: '#D32F2F', bg: 'var(--bc-red-50)', icon: 'ExclamationCircleOutlined' },
 ];
 
 const ROLES = {
@@ -119,13 +119,13 @@ export const buildUserSelectOptions = (users, roleFilter = null) => {
 
 export const getStatusStyle = (status) => {
   const s = STATUS_OPTIONS.find(opt => opt.value === (status || '').toUpperCase());
-  if (!s) return { color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' };
+  if (!s) return { color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', border: 'var(--bc-slate-200)' };
   return { color: s.color, bg: s.bg, border: s.color + '30' };
 };
 
 export const getPriorityStyle = (priority) => {
   const p = PRIORITY_OPTIONS.find(opt => opt.value === (priority || '').toUpperCase());
-  if (!p) return { color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' };
+  if (!p) return { color: 'var(--bc-slate-500)', bg: 'var(--bc-slate-100)', border: 'var(--bc-slate-200)' };
   return { color: p.color, bg: p.bg, border: p.color + '30' };
 };
 
@@ -166,12 +166,12 @@ export const MODAL_STYLES = {
   headerStyle: { borderBottom: '1px solid #f1f5f9', padding: '16px 24px' },
   bodyStyle: { padding: '20px 24px' },
   footerStyle: { borderTop: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', justifyContent: 'flex-end', gap: 8 },
-  primaryBtn: { height: 36, borderRadius: 8, fontWeight: 600, background: '#1976D2', border: 'none', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' },
+  primaryBtn: { height: 36, borderRadius: 8, fontWeight: 600, background: 'var(--bc-ro-500)', border: 'none', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' },
   dangerBtn: { height: 36, borderRadius: 8, fontWeight: 600 },
   cancelBtn: { height: 36, borderRadius: 8 },
   labelStyle: { fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' },
   inputStyle: { height: 34, borderRadius: 8, fontSize: 13 },
-  sectionDivider: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 12 },
+  sectionDivider: { fontSize: 11, fontWeight: 700, color: 'var(--bc-slate-400)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 12 },
 };
 
 export const getReviewerCandidates = (users) => {

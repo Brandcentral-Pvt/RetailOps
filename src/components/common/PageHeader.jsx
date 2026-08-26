@@ -23,11 +23,11 @@ const PageHeader = ({
     subtitle,
     actions,
     icon: Icon,
-    iconColor = '#1976D2',
+    iconColor = 'var(--bc-ro-500)',
     iconGradient,
     breadcrumbs = [],
     badge,
-    badgeColor = '#1976D2',
+    badgeColor = 'var(--bc-ro-500)',
     divider = true,
     compact = false,
     stats,
@@ -68,7 +68,7 @@ const PageHeader = ({
                                             style={{
                                                 fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 600,
-                                                color: '#64748b',
+                                                color: 'var(--bc-slate-500)',
                                                 textDecoration: 'none',
                                                 transition: 'color 0.15s',
                                                 display: 'inline-flex',
@@ -83,7 +83,7 @@ const PageHeader = ({
                                         <span style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: isLast ? 700 : 600,
-                                            color: isLast ? '#0f172a' : '#64748b',
+                                            color: isLast ? 'var(--bc-slate-900)' : 'var(--bc-slate-500)',
                                             display: 'inline-flex',
                                             alignItems: 'center',
                                             gap: 4
@@ -95,7 +95,7 @@ const PageHeader = ({
                                     {!isLast && (
                                         <ChevronRight
                                             size={11}
-                                            style={{ color: '#cbd5e1' }}
+                                            style={{ color: 'var(--bc-slate-300)' }}
                                             strokeWidth={2.5}
                                         />
                                     )}
@@ -135,7 +135,7 @@ const PageHeader = ({
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#ffffff',
+                                    color: 'var(--bc-white)',
                                     boxShadow: `0 6px 16px -4px ${iconColor}50`,
                                     flexShrink: 0,
                                     position: 'relative'
@@ -172,7 +172,7 @@ const PageHeader = ({
                                 <h1 style={{
                                     fontSize: compact ? 18 : 22,
                                     fontWeight: 800,
-                                    color: '#0f172a',
+                                    color: 'var(--bc-slate-900)',
                                     margin: 0,
                                     letterSpacing: '-0.5px',
                                     lineHeight: 1.2
@@ -206,7 +206,7 @@ const PageHeader = ({
                             {subtitle && (
                                 <p style={{
                                     fontSize: compact ? 11 : 12,
-                                    color: '#64748b',
+                                    color: 'var(--bc-slate-500)',
                                     margin: 0,
                                     marginTop: 3,
                                     fontWeight: 500,

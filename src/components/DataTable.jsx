@@ -338,7 +338,7 @@ const DataTable = ({
                         key={col}
                         className="d-flex align-items-center gap-2 px-3 py-2 rounded-1 cursor-pointer transition-base"
                         style={{ fontSize: 'var(--font-size-sm)' }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bc-slate-50)'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         <input
@@ -493,7 +493,7 @@ const DataTable = ({
                       <td
                         key={colIdx}
                         className={`px-4 py-3 border-0 border-bottom border-light align-middle fw-600 ${isNumeric(item[col]) ? 'text-end tabular-nums' : 'text-start'}`}
-                        style={{ fontSize: 'var(--font-size-sm)', color: '#1e293b' }}
+                        style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)' }}
                       >
                         {customRenderers[col]
                           ? customRenderers[col](item)

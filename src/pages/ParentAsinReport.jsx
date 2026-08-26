@@ -181,13 +181,13 @@ const ParentAsinReport = () => {
   };
 
   const kpiConfig = [
-    { label: 'REVENUE', value: fmtCur(kpis.totalRevenue), trend: '+8.2%', color: '#1976D2', inv: false },
+    { label: 'REVENUE', value: fmtCur(kpis.totalRevenue), trend: '+8.2%', color: 'var(--bc-ro-500)', inv: false },
     { label: 'AD SPEND', value: fmtCur(kpis.totalAdSpend), trend: '+3.1%', color: '#f43f5e', inv: false },
     { label: 'AD SALES', value: fmtCur(kpis.totalAdSales), trend: '+12.4%', color: '#2E7D32', inv: false },
     { label: 'ACOS', value: `${kpis.avgAcos}%`, trend: '-1.2%', color: '#ED6C02', inv: true },
-    { label: 'ROAS', value: `${kpis.avgRoas}x`, trend: '+0.4x', color: '#9C27B0', inv: false },
-    { label: 'ORDERS', value: kpis.totalOrders.toLocaleString('en-IN'), trend: '+5.6%', color: '#0ea5e9', inv: false },
-    { label: 'COLLECTIONS', value: kpis.totalCollections.toLocaleString('en-IN'), trend: '+2.1%', color: '#64748b', inv: false },
+    { label: 'ROAS', value: `${kpis.avgRoas}x`, trend: '+0.4x', color: 'var(--bc-purple-500)', inv: false },
+    { label: 'ORDERS', value: kpis.totalOrders.toLocaleString('en-IN'), trend: '+5.6%', color: 'var(--bc-accent-content)', inv: false },
+    { label: 'COLLECTIONS', value: kpis.totalCollections.toLocaleString('en-IN'), trend: '+2.1%', color: 'var(--bc-slate-500)', inv: false },
     { label: 'CHILD ASINs', value: kpis.totalChildren.toLocaleString('en-IN'), trend: '+0.8%', color: '#14b8a6', inv: false },
   ];
 
@@ -209,7 +209,7 @@ const ParentAsinReport = () => {
       sorter: (a, b) => (a.brand || '').localeCompare(b.brand || ''),
       render: (b) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 20, height: 20, borderRadius: "var(--radius-sm)", background: '#e0e7ff', color: '#4338ca', fontSize: 9, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{(b || '?')[0]}</span>
+          <span style={{ width: 20, height: 20, borderRadius: "var(--radius-sm)", background: 'var(--bc-indigo-100)', color: 'var(--bc-indigo-700)', fontSize: 9, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{(b || '?')[0]}</span>
           <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b}</span>
         </div>
       )
@@ -266,7 +266,7 @@ const ParentAsinReport = () => {
         const full = Math.floor(v);
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-            {Array.from({ length: 5 }, (_, i) => <Star key={i} size={11} fill={i < full ? '#ED6C02' : '#e2e8f0'} stroke={i < full ? '#ED6C02' : '#e2e8f0'} />)}
+            {Array.from({ length: 5 }, (_, i) => <Star key={i} size={11} fill={i < full ? '#ED6C02' : 'var(--bc-slate-200)'} stroke={i < full ? '#ED6C02' : 'var(--bc-slate-200)'} />)}
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginLeft: 2 }}>{v.toFixed(1)}</span>
           </span>
         );
@@ -344,10 +344,10 @@ const ParentAsinReport = () => {
                 </div>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={charts.revenueBars} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                    <defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1976D2" /><stop offset="100%" stopColor="#a5b4fc" /></linearGradient></defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} angle={-35} textAnchor="end" height={60} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--bc-ro-500)" /><stop offset="100%" stopColor="#a5b4fc" /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bc-slate-100)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--bc-slate-500)', fontWeight: 600 }} angle={-35} textAnchor="end" height={60} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 10, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
                     <RTooltip content={<TooltipBox formatter={(v) => fmtCur(v)} />} />
                     <Bar dataKey="revenue" fill="url(#barGrad)" radius={[4, 4, 0, 0]} barSize={28} />
                   </BarChart>
@@ -365,9 +365,9 @@ const ParentAsinReport = () => {
                 </div>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={charts.adsCompare} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} angle={-35} textAnchor="end" height={60} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bc-slate-100)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--bc-slate-500)', fontWeight: 600 }} angle={-35} textAnchor="end" height={60} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 10, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
                     <RTooltip content={<TooltipBox formatter={(v) => fmtCur(v)} />} />
                     <Bar dataKey="adSpend" fill="#f43f5e" radius={[3, 3, 0, 0]} barSize={18} />
                     <Bar dataKey="adSales" fill="#2E7D32" radius={[3, 3, 0, 0]} barSize={18} />
@@ -388,9 +388,9 @@ const ParentAsinReport = () => {
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={charts.acosTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <defs><linearGradient id="acosG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ED6C02" stopOpacity={0.2} /><stop offset="100%" stopColor="#ED6C02" stopOpacity={0.02} /></linearGradient></defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 25]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bc-slate-100)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 25]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 9, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
                     <RTooltip content={<TooltipBox formatter={(v) => `${v}%`} />} />
                     <Area type="monotone" dataKey="value" stroke="#ED6C02" strokeWidth={2} fill="url(#acosG)" dot={false} name="ACOS" />
                   </AreaChart>
@@ -403,12 +403,12 @@ const ParentAsinReport = () => {
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2, marginBottom: 8 }}>14-day daily breakdown</div>
                 <ResponsiveContainer width="100%" height={180}>
                   <ComposedChart data={charts.ordersRevTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="l" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="r" orientation="right" tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bc-slate-100)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="l" tick={{ fontSize: 9, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="r" orientation="right" tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 9, fill: 'var(--bc-slate-400)' }} axisLine={false} tickLine={false} />
                     <RTooltip content={<TooltipBox />} />
-                    <Bar yAxisId="l" dataKey="orders" fill="#1976D2" opacity={0.7} radius={[3, 3, 0, 0]} barSize={20} />
+                    <Bar yAxisId="l" dataKey="orders" fill="var(--bc-ro-500)" opacity={0.7} radius={[3, 3, 0, 0]} barSize={20} />
                     <Line yAxisId="r" type="monotone" dataKey="revenue" stroke="#2E7D32" strokeWidth={2} dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>

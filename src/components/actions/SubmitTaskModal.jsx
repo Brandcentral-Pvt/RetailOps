@@ -22,7 +22,7 @@ const DIFFICULTY_TOOLTIPS = ['Very Easy', 'Easy', 'Moderate', 'Hard', 'Very Hard
 
 const SectionHeader = ({ title, icon }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, marginTop: 16 }}>
-    {icon && <div style={{ width: 20, height: 20, borderRadius: 5, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>}
+    {icon && <div style={{ width: 20, height: 20, borderRadius: 5, background: 'var(--bc-slate-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>}
     <span style={{ fontSize: 10, fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
   </div>
 );
@@ -151,8 +151,8 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
             {hasReviewer ? <SendOutlined style={{ fontSize: 'var(--font-size-base)', color: '#fff' }} /> : <CheckCircleOutlined style={{ fontSize: 'var(--font-size-base)', color: '#fff' }} />}
           </div>
           <div>
-            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#0f172a' }}>{hasReviewer ? 'Submit for Review' : 'Mark Complete'}</div>
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8', marginTop: 1, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>{hasReviewer ? 'Submit for Review' : 'Mark Complete'}</div>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)', marginTop: 1, maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {task.title || task.action || task.name}
             </div>
           </div>
@@ -221,7 +221,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
               <span style={{ fontSize: 10, fontWeight: 600, color: completedCount === totalCount ? '#2E7D32' : '#71717a' }}>{completedCount}/{totalCount}</span>
             </div>
             <Progress percent={Math.round((completedCount / totalCount) * 100)} size="small"
-              strokeColor={completedCount === totalCount ? '#2E7D32' : '#1976D2'} showInfo={false} />
+              strokeColor={completedCount === totalCount ? '#2E7D32' : 'var(--bc-ro-500)'} showInfo={false} />
           </div>
         )}
 
@@ -239,7 +239,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
         ))}
         {links.length < 5 && (
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleAddLink}
-            style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginBottom: 8, padding: 0 }}>Add link</Button>
+            style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', marginBottom: 8, padding: 0 }}>Add link</Button>
         )}
 
         {/* Audio Recording */}
@@ -247,12 +247,12 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input ref={fileInputRef} type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleAudioSelect} />
             <Button size="small" icon={<SoundOutlined />} onClick={() => fileInputRef.current?.click()}
-              style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)', border: '1px dashed #d4d4d8', color: '#64748b' }}>
+              style={{ borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)', border: '1px dashed #d4d4d8', color: 'var(--bc-slate-500)' }}>
               {audioFile ? 'Replace Audio' : 'Attach Audio'}
             </Button>
             {audioPreview && (
               <Tag closable onClose={() => { setAudioFile(null); setAudioPreview(null); setAudioTranscript(''); }}
-                style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)', background: '#f0fdf4', color: '#2E7D32', border: '1px solid #a7f3d0' }}>
+                style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)', background: 'var(--bc-green-50)', color: '#2E7D32', border: '1px solid #a7f3d0' }}>
                 {audioPreview.name} ({audioPreview.size})
               </Tag>
             )}
@@ -274,7 +274,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
 
       {/* Footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: 14, marginTop: 16 }}>
-        <Text style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>
           {hasReviewer ? 'Your submission will be sent to the reviewer for approval.' : 'Task will be marked as completed.'}
         </Text>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -283,7 +283,7 @@ const SubmitTaskModal = ({ isOpen, task, currentUser, onClose, onSubmit }) => {
             onClick={handleConfirmSubmit}
             icon={hasReviewer ? <SendOutlined /> : <CheckCircleOutlined />}
             style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32,
-              background: hasReviewer ? '#1976D2' : '#2E7D32', borderColor: hasReviewer ? '#1976D2' : '#2E7D32' }}>
+              background: hasReviewer ? 'var(--bc-ro-500)' : '#2E7D32', borderColor: hasReviewer ? 'var(--bc-ro-500)' : '#2E7D32' }}>
             {submitting ? 'Submitting...' : audioUploading ? 'Uploading audio...' : hasReviewer ? 'Submit for Review' : 'Mark Complete'}
         </Button>
         </div>

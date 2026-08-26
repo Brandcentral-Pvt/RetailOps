@@ -4,15 +4,15 @@ import { Crown, Medal, Award, TrendingUp, TrendingDown, Sparkles } from 'lucide-
 import { formatNumber, formatCurrency } from './utils';
 
 const getBrandColor = (brand) => {
-    if (!brand) return { bg: '#f1f5f9', text: '#64748b' };
+    if (!brand) return { bg: 'var(--bc-slate-100)', text: 'var(--bc-slate-500)' };
     const colors = [
-        { bg: '#dbeafe', text: 'var(--color-info-blue, #0288D1)' },
+        { bg: 'var(--bc-blue-100)', text: 'var(--color-info-blue, #0288D1)' },
         { bg: '#fce7f3', text: '#db2777' },
         { bg: '#d1fae5', text: '#2E7D32' },
-        { bg: '#fef3c7', text: '#E65100' },
-        { bg: '#e0e7ff', text: '#1976D2' },
-        { bg: '#fee2e2', text: '#D32F2F' },
-        { bg: '#cffafe', text: '#0891b2' },
+        { bg: 'var(--bc-amber-100)', text: '#E65100' },
+        { bg: 'var(--bc-indigo-100)', text: 'var(--bc-ro-500)' },
+        { bg: 'var(--bc-red-100)', text: '#D32F2F' },
+        { bg: 'var(--bc-cyan-100)', text: 'var(--bc-cyan-600)' },
         { bg: '#f3e8ff', text: '#9333ea' },
         { bg: '#fde2e8', text: '#e11d48' },
         { bg: '#ccfbf1', text: '#0d9488' }
@@ -40,7 +40,7 @@ const RankBadge = memo(({ rank }) => {
                 position: 'relative',
                 flexShrink: 0
             }}>
-                <Crown size={16} strokeWidth={2.5} fill="#ffffff" />
+                <Crown size={16} strokeWidth={2.5} fill="var(--bc-white)" />
             </div>
         );
     }

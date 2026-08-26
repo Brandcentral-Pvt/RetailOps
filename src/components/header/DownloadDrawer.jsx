@@ -77,7 +77,7 @@ const DownloadDrawer = () => {
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: '#1976D2',
+                background: 'var(--bc-ro-500)',
               }}
             />
           )}

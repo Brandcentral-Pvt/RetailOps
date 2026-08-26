@@ -46,7 +46,7 @@ const SellerPageHeader = ({
 
   return (
     <div style={{
-      padding: '14px 28px 10px', background: '#ffffff', borderBottom: '1px solid var(--border-light, #d9e6e9)',
+      padding: '14px 28px 10px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, #d9e6e9)',
     }}>
       <div style={{
         display: 'flex', justifyContent: 'flex-end', alignItems: 'center',

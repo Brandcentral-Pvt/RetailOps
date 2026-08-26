@@ -15,16 +15,16 @@ const OPT_TYPES = {
     shortLabel: 'Title',
     icon: Tag,
     color: '#0288D1',
-    bg: '#eff6ff',
-    border: '#bfdbfe',
+    bg: 'var(--bc-blue-50)',
+    border: 'var(--bc-blue-200)',
     emoji: '✏️'
   },
   A_PLUS_CONTENT: {
     label: 'A+ Content',
     shortLabel: 'A+',
     icon: Star,
-    color: '#9C27B0',
-    bg: '#f5f3ff',
+    color: 'var(--bc-purple-500)',
+    bg: 'var(--bc-violet-50)',
     border: '#ddd6fe',
     emoji: '⭐'
   },
@@ -42,8 +42,8 @@ const OPT_TYPES = {
     shortLabel: 'Bullets',
     icon: List,
     color: '#ED6C02',
-    bg: '#fffbeb',
-    border: '#fde68a',
+    bg: 'var(--bc-amber-50)',
+    border: 'var(--bc-amber-200)',
     emoji: '📋'
   },
   DESCRIPTION_OPTIMIZATION: {
@@ -51,7 +51,7 @@ const OPT_TYPES = {
     shortLabel: 'Desc',
     icon: FileText,
     color: '#0288D1',
-    bg: '#ecfeff',
+    bg: 'var(--bc-cyan-50)',
     border: '#a5f3fc',
     emoji: '📝'
   },
@@ -59,9 +59,9 @@ const OPT_TYPES = {
     label: 'General',
     shortLabel: 'General',
     icon: Zap,
-    color: '#64748b',
-    bg: '#f8fafc',
-    border: '#e2e8f0',
+    color: 'var(--bc-slate-500)',
+    bg: 'var(--bc-slate-50)',
+    border: 'var(--bc-slate-200)',
     emoji: '⚡'
   }
 };
@@ -72,11 +72,11 @@ const getOptConfig = (type) => OPT_TYPES[type] || OPT_TYPES.GENERAL_OPTIMIZATION
 // STATUS HELPERS
 // ═══════════════════════════════════════════════════════════════
 const STATUS_CONFIG = {
-  PENDING: { label: 'Pending', color: '#ED6C02', bg: '#fffbeb', border: '#fde68a' },
-  IN_PROGRESS: { label: 'In Progress', color: '#0288D1', bg: '#eff6ff', border: '#bfdbfe' },
-  REVIEW: { label: 'In Review', color: '#9C27B0', bg: '#f5f3ff', border: '#ddd6fe' },
+  PENDING: { label: 'Pending', color: '#ED6C02', bg: 'var(--bc-amber-50)', border: 'var(--bc-amber-200)' },
+  IN_PROGRESS: { label: 'In Progress', color: '#0288D1', bg: 'var(--bc-blue-50)', border: 'var(--bc-blue-200)' },
+  REVIEW: { label: 'In Review', color: 'var(--bc-purple-500)', bg: 'var(--bc-violet-50)', border: '#ddd6fe' },
   COMPLETED: { label: 'Completed', color: '#2E7D32', bg: '#ecfdf5', border: '#a7f3d0' },
-  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: '#fef2f2', border: '#fecaca' }
+  REJECTED: { label: 'Rejected', color: '#D32F2F', bg: 'var(--bc-red-50)', border: 'var(--bc-red-200)' }
 };
 
 const getStatusConfig = (status) =>
@@ -85,13 +85,13 @@ const getStatusConfig = (status) =>
 // ═══════════════════════════════════════════════════════════════
 // CIRCULAR PROGRESS RING
 // ═══════════════════════════════════════════════════════════════
-const ProgressRing = ({ pct = 0, size = 56, color = '#1976D2' }) => {
+const ProgressRing = ({ pct = 0, size = 56, color = 'var(--bc-ro-500)' }) => {
   const r = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
   return (
     <svg width={size} height={size} style={{ flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bc-slate-200)" strokeWidth={4} />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={4}
         strokeDasharray={circ} strokeDashoffset={offset}
@@ -112,7 +112,7 @@ const ProgressRing = ({ pct = 0, size = 56, color = '#1976D2' }) => {
 const AsinDetailTable = ({ action, config }) => {
   const asins = action.asins || [];
   if (asins.length === 0) return (
-    <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }}>
       No ASINs attached to this task
     </div>
   );
@@ -123,9 +123,9 @@ const AsinDetailTable = ({ action, config }) => {
         <thead>
           <tr style={{ background: config.bg, borderBottom: `1px solid ${config.border}` }}>
             <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: config.color, width: '15%' }}>ASIN</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569', width: '40%' }}>Product Title</th>
-            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>SKU</th>
-            <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#475569' }}>Issue</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bc-slate-600)', width: '40%' }}>Product Title</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bc-slate-600)' }}>SKU</th>
+            <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--bc-slate-600)' }}>Issue</th>
           </tr>
         </thead>
         <tbody>
@@ -136,11 +136,11 @@ const AsinDetailTable = ({ action, config }) => {
             return (
               <tr key={i} style={{
                 borderBottom: '1px solid #f1f5f9',
-                background: i % 2 === 0 ? '#ffffff' : '#fafbfc',
+                background: i % 2 === 0 ? 'var(--bc-white)' : '#fafbfc',
                 transition: 'background 0.15s'
               }}
                 onMouseEnter={e => e.currentTarget.style.background = config.bg}
-                onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#ffffff' : '#fafbfc'}
+                onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'var(--bc-white)' : '#fafbfc'}
               >
                 <td style={{ padding: '8px 12px' }}>
                   <code style={{
@@ -155,11 +155,11 @@ const AsinDetailTable = ({ action, config }) => {
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                   }} title={title}>{title}</span>
                 </td>
-                <td style={{ padding: '8px 12px', color: '#64748b', fontFamily: 'monospace' }}>{sku}</td>
+                <td style={{ padding: '8px 12px', color: 'var(--bc-slate-500)', fontFamily: 'monospace' }}>{sku}</td>
                 <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: '#fef2f2', border: '1px solid #fecaca',
+                    background: 'var(--bc-red-50)', border: '1px solid #fecaca',
                     color: '#D32F2F', fontSize: 10, fontWeight: 600,
                     padding: '2px 8px', borderRadius: 10
                   }}>
@@ -200,12 +200,12 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
           transition: 'background 0.15s',
           background: expanded ? config.bg : 'transparent'
         }}
-        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = '#f8fafc'; }}
+        onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = 'var(--bc-slate-50)'; }}
         onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent'; }}
         onClick={() => setExpanded(v => !v)}
       >
         {/* Expand chevron */}
-        <span style={{ color: '#94a3b8', flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(90deg)' : 'none' }}>
+        <span style={{ color: 'var(--bc-slate-400)', flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(90deg)' : 'none' }}>
           <ChevronRight size={14} />
         </span>
 
@@ -222,12 +222,12 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
           }}>
             <TypeIcon size={14} strokeWidth={2.5} />
           </div>
-          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#1e293b' }}>{config.label}</span>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--bc-slate-800)' }}>{config.label}</span>
         </div>
 
         {/* Progress bar */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, height: 6, background: '#f1f5f9', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ flex: 1, height: 6, background: 'var(--bc-slate-100)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
               width: isCompleted ? '100%' : status === 'IN_PROGRESS' ? '50%' : '0%',
@@ -235,7 +235,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
               borderRadius: 10, transition: 'width 0.6s ease'
             }} />
           </div>
-          <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-500)', whiteSpace: 'nowrap' }}>
             {isCompleted ? '100%' : status === 'IN_PROGRESS' ? '50%' : '0%'}
           </span>
         </div>
@@ -243,11 +243,11 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
         {/* ASIN count */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          background: '#f1f5f9', border: '1px solid #e2e8f0',
+          background: 'var(--bc-slate-100)', border: '1px solid #e2e8f0',
           borderRadius: 10, padding: '3px 10px', flexShrink: 0
         }}>
-          <Package size={11} color="#64748b" />
-          <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#475569' }}>
+          <Package size={11} color="var(--bc-slate-500)" />
+          <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-600)' }}>
             {asinCount} ASIN{asinCount !== 1 ? 's' : ''}
           </span>
         </div>
@@ -269,7 +269,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onStart && onStart(action)}
               title="Start Task"
-              style={{ padding: '4px 8px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#0288D1', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ padding: '4px 8px', background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe', color: '#0288D1', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <Play size={10} fill="currentColor" /> Start
             </button>
@@ -286,7 +286,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
           {status === 'REVIEW' && isAdmin && (
             <button
               onClick={() => onReview && onReview(action)}
-              style={{ padding: '4px 8px', background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#9C27B0', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
+              style={{ padding: '4px 8px', background: 'var(--bc-violet-50)', border: '1px solid #ddd6fe', color: 'var(--bc-purple-500)', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
             >
               Review
             </button>
@@ -295,7 +295,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onEdit && onEdit(action, 'ACTION')}
               title="Edit"
-              style={{ padding: '5px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '5px', background: 'var(--bc-slate-50)', border: '1px solid #e2e8f0', color: 'var(--bc-slate-500)', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
             >
               <Edit2 size={11} />
             </button>
@@ -304,7 +304,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onDelete && onDelete(action._id || action.id, 'ACTION')}
               title="Delete"
-              style={{ padding: '5px', background: '#fef2f2', border: '1px solid #fecaca', color: '#D32F2F', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '5px', background: 'var(--bc-red-50)', border: '1px solid #fecaca', color: '#D32F2F', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
             >
               <Trash2 size={11} />
             </button>
@@ -378,15 +378,15 @@ const BrandTaskCard = ({
     });
   }, [actions]);
 
-  const cardColor = stats.pct >= 100 ? '#2E7D32' : stats.hasOverdue ? '#D32F2F' : '#1976D2';
-  const gradientStart = stats.pct >= 100 ? '#ecfdf5' : stats.hasOverdue ? '#fef2f2' : '#f5f3ff';
-  const gradientEnd = stats.pct >= 100 ? '#d1fae5' : stats.hasOverdue ? '#fee2e2' : '#ede9fe';
+  const cardColor = stats.pct >= 100 ? '#2E7D32' : stats.hasOverdue ? '#D32F2F' : 'var(--bc-ro-500)';
+  const gradientStart = stats.pct >= 100 ? '#ecfdf5' : stats.hasOverdue ? 'var(--bc-red-50)' : 'var(--bc-violet-50)';
+  const gradientEnd = stats.pct >= 100 ? '#d1fae5' : stats.hasOverdue ? 'var(--bc-red-100)' : 'var(--bc-violet-100)';
 
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'var(--bc-white)',
       borderRadius: "var(--radius-xl)",
-      border: `1.5px solid ${stats.hasOverdue ? '#fecaca' : '#e2e8f0'}`,
+      border: `1.5px solid ${stats.hasOverdue ? 'var(--bc-red-200)' : 'var(--bc-slate-200)'}`,
       boxShadow: '0 2px 12px -4px rgba(0,0,0,0.08)',
       overflow: 'hidden',
       marginBottom: 16,
@@ -399,7 +399,7 @@ const BrandTaskCard = ({
         onClick={() => setExpanded(v => !v)}
         style={{
           background: `linear-gradient(135deg, ${gradientStart} 0%, ${gradientEnd} 100%)`,
-          borderBottom: expanded ? `1px solid ${stats.hasOverdue ? '#fecaca' : '#e8e4fd'}` : 'none',
+          borderBottom: expanded ? `1px solid ${stats.hasOverdue ? 'var(--bc-red-200)' : '#e8e4fd'}` : 'none',
           padding: '16px 20px',
           cursor: 'pointer',
           display: 'flex',
@@ -432,13 +432,13 @@ const BrandTaskCard = ({
             }}>
               <Building2 size={14} strokeWidth={2.5} />
             </div>
-            <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.3px' }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--bc-slate-900)', letterSpacing: '-0.3px' }}>
               {sellerName}
             </span>
             {stats.hasOverdue && (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: '#fef2f2', border: '1px solid #fecaca',
+                background: 'var(--bc-red-50)', border: '1px solid #fecaca',
                 color: '#D32F2F', fontSize: 9, fontWeight: 800,
                 padding: '2px 7px', borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.05em'
               }}>
@@ -449,12 +449,12 @@ const BrandTaskCard = ({
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             {marketplace && (
-              <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 600 }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>
                 {marketplace}
               </span>
             )}
             {seller?.managers?.length > 0 && (
-              <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Users size={11} />
                 {seller.managers.map(m => `${m.firstName || ''} ${m.lastName || ''}`.trim()).filter(Boolean).join(', ')}
               </span>
@@ -465,28 +465,28 @@ const BrandTaskCard = ({
         {/* Stats pills */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
           <div style={{
-            background: '#ffffff', border: '1.5px solid #e2e8f0',
+            background: 'var(--bc-white)', border: '1.5px solid #e2e8f0',
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
           }}>
-            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{stats.total}</div>
-            <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Tasks</div>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--bc-slate-900)', lineHeight: 1 }}>{stats.total}</div>
+            <div style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Tasks</div>
           </div>
 
           <div style={{
-            background: '#ffffff', border: '1.5px solid #e2e8f0',
+            background: 'var(--bc-white)', border: '1.5px solid #e2e8f0',
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
           }}>
-            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#1976D2', lineHeight: 1 }}>{stats.totalAsins}</div>
-            <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ASINs</div>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--bc-ro-500)', lineHeight: 1 }}>{stats.totalAsins}</div>
+            <div style={{ fontSize: 9, color: 'var(--bc-slate-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ASINs</div>
           </div>
 
           {stats.inProgress > 0 && (
             <div style={{
-              background: '#eff6ff', border: '1.5px solid #bfdbfe',
+              background: 'var(--bc-blue-50)', border: '1.5px solid #bfdbfe',
               borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
             }}>
               <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0288D1', lineHeight: 1 }}>{stats.inProgress}</div>
-              <div style={{ fontSize: 9, color: '#93c5fd', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Active</div>
+              <div style={{ fontSize: 9, color: 'var(--bc-blue-300)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Active</div>
             </div>
           )}
 
@@ -503,7 +503,7 @@ const BrandTaskCard = ({
 
         {/* Expand chevron */}
         <span style={{
-          color: '#94a3b8', transition: 'transform 0.25s', flexShrink: 0,
+          color: 'var(--bc-slate-400)', transition: 'transform 0.25s', flexShrink: 0,
           transform: expanded ? 'rotate(180deg)' : 'none'
         }}>
           <ChevronDown size={18} />
@@ -519,7 +519,7 @@ const BrandTaskCard = ({
             background: '#fafbfc', borderBottom: '1px solid #f1f5f9',
             flexWrap: 'wrap'
           }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', alignSelf: 'center', marginRight: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--bc-slate-400)', textTransform: 'uppercase', letterSpacing: '0.06em', alignSelf: 'center', marginRight: 4 }}>
               Categories:
             </span>
             {sortedActions.map(action => {
