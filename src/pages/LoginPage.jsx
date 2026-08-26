@@ -220,8 +220,8 @@ const LoginPage = () => {
       </Form>
 
       <div className={styles.mt20}>
-        <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-          Don't have an account? <Link to="/register" className={styles.authLinkPrimary}>Sign Up</Link>
+        <Text style={{ fontSize: 12, color: '#93A1B8' }}>
+          Access is provisioned by your organisation administrator.
         </Text>
       </div>
     </AuthLayout>

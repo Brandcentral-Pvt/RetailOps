@@ -442,8 +442,8 @@
   --font-size-base: var(--bc-text-base);
   --font-size-lg:   var(--bc-text-md);
   --font-size-xl:   var(--bc-text-lg);
-  --font-size-2xl:  var(--bc-text-xl);
-  --font-size-3xl:  var(--bc-text-2xl);
+  --font-size-2xl:  1.375rem; /* legacy live value (22px) - diverges from --bc-text-xl; reconcile in Phase 3 */
+  --font-size-3xl:  1.75rem; /* legacy live value (28px) - diverges from --bc-text-2xl; reconcile in Phase 3 */
 
   /* Spacing (index.css) */
   --spacing-xs:  var(--bc-space-1);
@@ -481,6 +481,15 @@
   --grad-surface: var(--bc-slate-100);
 
   /* Global overrides z-index (canonical source: global-overrides.css) */
+  
+  /* Low-level rungs migrated from global-overrides.css (values identical) */
+  --z-base:         1;
+  --z-content:      10;
+  --z-table-cell:   20;
+  --z-table-header: 30;
+  --z-sticky-bar:   100;
+  --z-page-header:  200;
+
   --z-sidebar:        500;
   --z-fixed-nav:      1000;
   --z-modal-mask:     1050;

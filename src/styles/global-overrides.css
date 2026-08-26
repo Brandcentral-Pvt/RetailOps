@@ -17,23 +17,7 @@
    └─────────────────────────────────────────────┘
    ═══════════════════════════════════════════════════════════════ */
 
-:root {
-  --z-base: 1;
-  --z-content: 10;
-  --z-table-cell: 20;
-  --z-table-header: 30;
-  --z-sticky-bar: 100;
-  --z-page-header: 200;
-  --z-sidebar: 500;
-  --z-fixed-nav: 1000;
-  --z-modal-mask: 1050;
-  --z-modal: 1060;
-  --z-tooltip: 1200;
-  --z-dropdown: 1300;
-  --z-picker: 1400;
-  --z-notification: 1500;
-  --z-critical: 9999;
-}
+/* z-scale moved to tokens.css (single source of truth) */
 
 /* ═══════════════════════════════════════════════════════════════
    ANT DESIGN Z-INDEX OVERRIDES → moved to antd-overrides.css
