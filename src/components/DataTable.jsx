@@ -15,6 +15,7 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { Button, Checkbox } from 'antd';
 import EmptyState from './common/EmptyState';
 
 /**
@@ -334,22 +335,21 @@ const DataTable = ({
                   </div>
                   <div className="p-1">
                     {headers.map((col) => (
-                      <label
+                      <div
                         key={col}
-                        className="d-flex align-items-center gap-2 px-3 py-2 rounded-1 cursor-pointer transition-base"
+                        className="px-3 py-2 rounded-1 cursor-pointer transition-base"
                         style={{ fontSize: 'var(--font-size-sm)' }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bc-slate-50)'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={columnVisibility?.[col] !== false}
                           onChange={() => toggleColumn(col)}
-                          className="form-check-input mt-0"
-                          style={{ width: '14px', height: '14px' }}
-                        />
-                        <span className="fw-500 text-dark">{formatHeader(col)}</span>
-                      </label>
+                          className="d-flex align-items-center gap-2"
+                        >
+                          <span className="fw-500 text-dark">{formatHeader(col)}</span>
+                        </Checkbox>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -401,42 +401,44 @@ const DataTable = ({
             {selectedRows.size} ITEMS SELECTED
           </span>
           <div className="d-flex gap-2">
-            <button
-              className="btn btn-sm btn-link text-white text-decoration-none p-0 smallest fw-600"
+            <Button
+              type="link"
+              size="small"
+              className="text-white text-decoration-none p-0 smallest fw-600"
               onClick={() => {
                 const selectedData = displayData.filter((_, idx) => selectedRows.has(idx));
                 exportToCsv(selectedData, title);
               }}
             >
               <Download size={14} className="me-1" /> EXPORT
-            </button>
+            </Button>
             <div className="bg-white opacity-20" style={{ width: '1px' }}></div>
-            <button
-              className="btn btn-sm btn-link text-white text-decoration-none p-0 smallest fw-600"
+            <Button
+              type="link"
+              size="small"
+              className="text-white text-decoration-none p-0 smallest fw-600"
               onClick={() => {
                 const selectedData = displayData.filter((_, idx) => selectedRows.has(idx));
                 actions?.find(a => a.label === 'Delete')?.onClick?.(selectedData);
               }}
             >
               <X size={14} className="me-1" /> DELETE
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      <div className="table-responsive">
-        <table className="table table-hover mb-0">
+      <div className="bc-table-responsive">
+        <table className="w-full bc-table bc-table-hover mb-0">
           <thead>
             <tr className="bg-gray-50 border-bottom border-gray-100">
               {/* Checkbox column for selection */}
               {onSelectionChange && (
                 <th className="px-4 py-2 border-bottom border-gray-100" style={{ width: '40px' }}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={isAllSelected}
                     onChange={handleSelectAll}
-                    className="form-check-input mt-0"
-                    style={{ width: '14px', height: '14px' }}
+                    aria-label="Select all rows"
                   />
                 </th>
               )}

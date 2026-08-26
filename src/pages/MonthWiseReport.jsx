@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button, Progress } from 'antd';
 import DateRangePicker from '../components/common/DateRangePicker';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import Chart from 'react-apexcharts';
@@ -190,10 +191,17 @@ const MonthWiseReport = () => {
           </div>
 
           <div className="d-flex align-items-center gap-2">
-            <button className="btn btn-dark btn-sm rounded-pill px-3 py-2 shadow-sm fw-700 d-flex align-items-center gap-2" onClick={loadMonthlyData}>
+            <Button
+              type="primary"
+              size="small"
+              shape="round"
+              className="px-3 py-2 shadow-sm fw-700 d-flex align-items-center gap-2"
+              style={{ background: 'var(--bc-slate-800)', borderColor: 'var(--bc-slate-800)' }}
+              onClick={loadMonthlyData}
+            >
               {loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
               REFRESH
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -205,9 +213,9 @@ const MonthWiseReport = () => {
         ))}
       </div>
 
-      <div className="row g-4 mb-4">
+      <div className="grid gap-6 mb-4 lg:grid-cols-12">
         {/* Trend Visualization */}
-        <div className="col-lg-8">
+        <div className="lg:col-span-8">
           <DashboardCard title="Revenue Growth Trend" icon={LineChart} extra={<span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-1 rounded-pill smallest">FISCAL YEAR</span>}>
             <div style={{ height: '300px' }}>
               <Chart
@@ -221,7 +229,7 @@ const MonthWiseReport = () => {
         </div>
 
         {/* Performance Breakdown */}
-        <div className="col-lg-4">
+        <div className="lg:col-span-4">
           <DashboardCard title="Conversion Efficiency" icon={Activity}>
             <div className="h-100 d-flex flex-column justify-content-center gap-4 py-2">
               {[
@@ -235,9 +243,16 @@ const MonthWiseReport = () => {
                     <span className="smallest fw-800 text-muted">{q.label}</span>
                     <span className="smallest fw-800" style={{ color: q.color }}>{q.value}% Target</span>
                   </div>
-                  <div className="progress" style={{ height: '6px', borderRadius: '10px' }}>
-                    <div className="progress-bar" style={{ width: `${q.value}%`, backgroundColor: q.color }}></div>
-                  </div>
+                  <Progress
+                    percent={q.value}
+                    showInfo={false}
+                    strokeColor={q.color}
+                    railColor="var(--bc-slate-100)"
+                    styles={{
+                      rail: { height: 6, borderRadius: '10px' },
+                      track: { height: 6, borderRadius: '10px' }
+                    }}
+                  />
                 </div>
               ))}
             </div>
@@ -245,9 +260,9 @@ const MonthWiseReport = () => {
         </div>
       </div>
 
-      <div className="row g-4">
+      <div className="grid gap-6 lg:grid-cols-12">
         {/* Sidebar */}
-        <div className="col-lg-3">
+        <div className="lg:col-span-3">
           <div className="glass-card p-4 h-100" style={{ borderRadius: '20px' }}>
             <h6 className="fw-bold mb-4 d-flex align-items-center gap-2">
               <Filter size={18} className="text-secondary" />
@@ -273,9 +288,16 @@ const MonthWiseReport = () => {
                 <Activity size={18} className="text-secondary" />
                 <span className="text-secondary smallest fw-bolder">Growth Target: +25%</span>
               </div>
-              <div className="progress" style={{ height: '6px', borderRadius: '10px' }}>
-                <div className="progress-bar bg-secondary" style={{ width: '65%' }}></div>
-              </div>
+              <Progress
+                percent={65}
+                showInfo={false}
+                strokeColor="var(--bc-slate-500)"
+                railColor="var(--bc-slate-100)"
+                styles={{
+                  rail: { height: 6, borderRadius: '10px' },
+                  track: { height: 6, borderRadius: '10px' }
+                }}
+              />
               <div className="text-muted smallest mt-2 text-center">Current Progress: 18.2%</div>
             </div>
 
@@ -286,14 +308,22 @@ const MonthWiseReport = () => {
         </div>
 
         {/* Ledger */}
-        <div className="col-lg-9">
+        <div className="lg:col-span-9">
           <div className="glass-card shadow-sm border-0 h-100 overflow-hidden" style={{ borderRadius: '20px' }}>
             <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
               <h6 className="fw-bold mb-0 d-flex align-items-center gap-2">
                 <BarChart3 size={18} className="text-secondary" />
                 Monthly Performance Ledger
               </h6>
-              <button className="btn btn-sm btn-dark rounded-pill px-3 shadow-sm smallest fw-700">EXPORT REPORT</button>
+              <Button
+                type="primary"
+                size="small"
+                shape="round"
+                className="px-3 shadow-sm smallest fw-700"
+                style={{ background: 'var(--bc-slate-800)', borderColor: 'var(--bc-slate-800)' }}
+              >
+                EXPORT REPORT
+              </Button>
             </div>
             <div className="p-0 text-nowrap">
               <DataTable

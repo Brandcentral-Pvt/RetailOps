@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Button } from 'antd';
 import { 
   X, Tag, Plus, Minus, Search, Check, RefreshCw, 
   Layers, AlertCircle, Save, ArrowRight, Package
@@ -279,10 +280,10 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
                   style={{ fontSize: 'var(--font-size-sm)', height: '40px', border: '1.5px solid #e5e7eb' }}
                 />
-                <button className="btn btn-dark d-flex align-items-center gap-1 rounded-3 px-4" onClick={addCustomTag}
-                  style={{ fontSize: 'var(--font-size-sm)', background: '#18181b', whiteSpace: 'nowrap' }}>
+                <Button type="primary" className="d-flex align-items-center gap-1 rounded-3 px-4" onClick={addCustomTag}
+                  style={{ fontSize: 'var(--font-size-sm)', background: '#18181b', borderColor: '#18181b', whiteSpace: 'nowrap' }}>
                   <Plus size={14} /> Add
-                </button>
+                </Button>
               </div>
 
               {/* Search */}
@@ -421,13 +422,14 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                 <button className="btn btn-outline-secondary fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: 'var(--font-size-sm)', height: '42px' }}>
                   Cancel
                 </button>
-                <button 
-                  className="btn btn-dark fw-bold rounded-3 px-5 d-flex align-items-center gap-2"
+                <Button 
+                  type="primary"
+                  className="fw-bold rounded-3 px-5 d-flex align-items-center gap-2"
                   onClick={() => setStep(2)}
                   disabled={selectedTags.length === 0}
-                  style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
+                  style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b', borderColor: '#18181b' }}>
                   Review <ArrowRight size={14} />
-                </button>
+                </Button>
               </>
             )}
             {step === 2 && (
@@ -435,20 +437,21 @@ const BulkTagsModal = ({ isOpen, onClose, selectedAsins = [], onComplete }) => {
                 <button className="btn btn-outline-secondary fw-bold rounded-3 px-4" onClick={() => setStep(1)} style={{ fontSize: 'var(--font-size-sm)', height: '42px' }}>
                   Back
                 </button>
-                <button 
-                  className="btn btn-dark fw-bold rounded-3 px-5 d-flex align-items-center gap-2"
+                <Button 
+                  type="primary"
+                  className="fw-bold rounded-3 px-5 d-flex align-items-center gap-2"
                   onClick={handleApply}
                   disabled={processing}
-                  style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
+                  style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b', borderColor: '#18181b' }}>
                   {processing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <Save size={14} />}
                   {processing ? 'Applying...' : 'Apply Tags'}
-                </button>
+                </Button>
               </>
             )}
             {step === 3 && (
-              <button className="btn btn-dark fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b' }}>
+              <Button type="primary" className="fw-bold rounded-3 px-4" onClick={onClose} style={{ fontSize: 'var(--font-size-sm)', height: '42px', background: '#18181b', borderColor: '#18181b' }}>
                 Done
-              </button>
+              </Button>
             )}
           </div>
         </div>

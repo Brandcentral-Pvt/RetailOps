@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Button, Switch } from 'antd';
 import { X, Upload, FileDown, FileUp, Store, Check, AlertCircle, RefreshCw, Globe, FileType } from 'lucide-react';
 import { sellerApi, bulkApi, asinApi } from '../../services/api';
 
@@ -279,13 +280,11 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                                 <div className="fw-bold text-zinc-900" style={{ fontSize: 'var(--font-size-sm)' }}>Auto-Discovery</div>
                                 <div className="text-zinc-500" style={{ fontSize: 'var(--font-size-xs)' }}>Create new ASINs if not found in database</div>
                             </div>
-                            <div className="form-check form-switch m-0">
-                                <input 
-                                    className="form-check-input cursor-pointer" 
-                                    type="checkbox" 
+                            <div className="m-0">
+                                <Switch
                                     checked={allowCreation}
-                                    onChange={(e) => setAllowCreation(e.target.checked)}
-                                    style={{ width: '36px', height: '18px' }}
+                                    onChange={(checked) => setAllowCreation(checked)}
+                                    aria-label="Auto-Discovery: create new ASINs if not found in database"
                                 />
                             </div>
                         </div>
@@ -380,28 +379,28 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
 
                     {/* Actions */}
                     <div className="d-flex gap-3">
-                        <button
-                            type="button"
-                            className="btn btn-light border flex-grow-1 d-flex align-items-center justify-content-center gap-2"
+                        <Button
+                            type="default"
+                            className="border flex-grow-1 d-flex align-items-center justify-content-center gap-2"
                             onClick={handleDownloadTemplate}
                             style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
                         >
                             <FileDown size={15} />
                             Download Template
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-dark flex-grow-1 d-flex align-items-center justify-content-center gap-2"
+                        </Button>
+                        <Button
+                            type="primary"
+                            className="flex-grow-1 d-flex align-items-center justify-content-center gap-2"
                             onClick={handleUpload}
                             disabled={!file || uploading}
-                            style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)', fontWeight: 600, background: '#18181b' }}
+                            style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)', fontWeight: 600, background: '#18181b', borderColor: '#18181b' }}
                         >
                             {uploading ? (
                                 <><span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 15 }} aria-hidden="true" /> Processing...</>
                             ) : (
                                 <><Upload size={15} /> Start Import</>
                             )}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>

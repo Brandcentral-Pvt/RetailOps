@@ -258,13 +258,16 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
 
                                         <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
                                             {fileStatus.status === 'pending' && (
-                                                <button
-                                                    className="btn btn-link p-1 text-zinc-400 hover-text-red-500 border-0 bg-transparent shadow-none"
+                                                <Button
+                                                    type="link"
+                                                    size="small"
+                                                    className="p-1 text-zinc-400 hover-text-red-500 border-0 bg-transparent shadow-none"
                                                     onClick={() => uploadProps.onRemove(file)}
                                                     disabled={uploading}
+                                                    aria-label={`Remove ${file.name}`}
                                                 >
                                                     <X size={14} />
-                                                </button>
+                                                </Button>
                                             )}
                                             {fileStatus.status === 'uploading' && (
                                                 <div className="d-flex align-items-center gap-2">

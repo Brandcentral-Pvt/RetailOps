@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { Progress } from 'antd';
 
 const ProgressBar = ({
     value = 0,
@@ -9,21 +9,21 @@ const ProgressBar = ({
     size = 'md',
     className = ''
 }) => {
-    // Map bootstrap-like colors to potential status/theme colors
-    const getColorClass = () => {
-        if (color === 'primary') return 'bg-primary';
-        if (color === 'success') return 'bg-success';
-        if (color === 'warning') return 'bg-warning';
-        if (color === 'danger') return 'bg-danger';
-        if (color === 'info') return 'bg-info';
-        return `bg-${color}`;
+    // Map semantic colors to bc tokens
+    const getColor = () => {
+        if (color === 'primary') return 'var(--bc-primary-600)';
+        if (color === 'success') return 'var(--bc-green-600)';
+        if (color === 'warning') return 'var(--bc-amber-600)';
+        if (color === 'danger') return 'var(--bc-red-600)';
+        if (color === 'info') return 'var(--bc-cyan-600)';
+        return `var(--bc-${color}-500, var(--bc-primary-600))`;
     };
 
-    const getHeight = () => {
-        if (size === 'xs') return '4px';
-        if (size === 'sm') return '6px';
-        if (size === 'lg') return '12px';
-        return '8px'; // md
+    const getTrackHeight = () => {
+        if (size === 'xs') return 4;
+        if (size === 'sm') return 6;
+        if (size === 'lg') return 12;
+        return 8; // md
     };
 
     const percentage = Math.min(Math.max(0, value), 100);
@@ -44,18 +44,17 @@ const ProgressBar = ({
                     )}
                 </div>
             )}
-            <div
-                className="progress shadow-none bg-transparent border-0 overflow-hidden"
-                style={{ height: getHeight(), borderRadius: '10px' }}
-            >
-                <motion.div
-                    className={`progress-bar rounded-pill ${getColorClass()}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${percentage}%` }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                    style={{ height: '100%' }}
-                />
-            </div>
+            <Progress
+                percent={percentage}
+                showInfo={false}
+                strokeColor={getColor()}
+                railColor="transparent"
+                aria-label={label || 'progress'}
+                styles={{
+                    rail: { height: getTrackHeight(), borderRadius: '10px', background: 'transparent' },
+                    track: { height: getTrackHeight(), borderRadius: '10px' }
+                }}
+            />
         </div>
     );
 };

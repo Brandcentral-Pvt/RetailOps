@@ -524,8 +524,8 @@ const OnboardingWizard = () => {
                                 && ` with ${asinText.split(/[\n,]/).filter(a => a.trim()).length} ASINs`}
                         </p>
 
-                        <div className="row g-3">
-                            <div className="col-4">
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
                                 <button
                                     onClick={handleGoToDashboard}
                                     style={{
@@ -556,7 +556,7 @@ const OnboardingWizard = () => {
                                     </span>
                                 </button>
                             </div>
-                            <div className="col-4">
+                            <div>
                                 <button
                                     onClick={handleGoToSettings}
                                     style={{
@@ -587,7 +587,7 @@ const OnboardingWizard = () => {
                                     </span>
                                 </button>
                             </div>
-                            <div className="col-4">
+                            <div>
                                 <button
                                     onClick={handleGoToAnalytics}
                                     style={{

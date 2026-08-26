@@ -175,9 +175,9 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
              <Skeleton width={40} height={30} />
           </div>
        </div>
-       <div className="row g-3 mb-4">
+       <div className="grid gap-4 mb-4 md:grid-cols-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="col-md-4">
+            <div key={i}>
                <Skeleton variant="rounded" height={100} className="w-100" />
             </div>
           ))}
@@ -243,8 +243,8 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
           {/* Flowable Content */}
           <div className="flex-grow-1 overflow-auto p-4 bg-slate-50/30">
              {/* Key Info Cards */}
-             <div className="row g-3 mb-4">
-                <div className="col-md-4">
+             <div className="grid gap-4 mb-4 md:grid-cols-3">
+                <div>
                    <div className="bg-white border rounded-3 p-3 shadow-sm chart-container transition-all">
                       <div className="d-flex justify-content-between align-items-start mb-2">
                          <div className="p-2 bg-blue-50 text-blue-600 rounded-2"><IndianRupee size={16} /></div>
@@ -259,7 +259,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
                       </div>
                    </div>
                 </div>
-                <div className="col-md-4">
+                <div>
                    <div className="bg-white border rounded-3 p-3 shadow-sm chart-container transition-all">
                       <div className="d-flex justify-content-between align-items-start mb-2">
                          <div className="p-2 bg-emerald-50 text-emerald-600 rounded-2"><Award size={16} /></div>
@@ -274,7 +274,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
                       </div>
                    </div>
                 </div>
-                <div className="col-md-4">
+                <div>
                    <div className="bg-white border rounded-3 p-3 shadow-sm chart-container transition-all">
                       <div className="d-flex justify-content-between align-items-start mb-2">
                          <div className="p-2 bg-amber-50 text-amber-600 rounded-2"><Star size={16} fill="currentColor" /></div>
@@ -340,8 +340,8 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
                    />
                 </div>
 
-                <div className="mt-5 row g-4">
-                   <div className="col-md-6">
+                <div className="mt-5 grid gap-6 md:grid-cols-2">
+                   <div>
                       <h6 className="mb-3 fw-bold text-slate-800 d-flex align-items-center gap-2">
                          <LayoutGrid size={16} className="text-violet-600" />
                          Image History
@@ -355,7 +355,7 @@ const AsinTrendsModal = ({ asin, isOpen, onClose }) => {
                          />
                       </div>
                    </div>
-                   <div className="col-md-6">
+                   <div>
                       <h6 className="mb-3 fw-bold text-slate-800 d-flex align-items-center gap-2">
                          <PlayCircle size={16} className="text-rose-600" />
                          Video History

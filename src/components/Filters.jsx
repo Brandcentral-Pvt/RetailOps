@@ -93,7 +93,7 @@ const Filters = ({
 
   return (
     <div className="bg-white border border-zinc-200 rounded-4 p-4 shadow-sm mb-4">
-      <div className="row g-3 align-items-end">
+      <div className="row align-items-end">
         {showSearch && (
           <div className="col-lg-4">
             <label className="smallest fw-bolder text-zinc-500 mb-2 d-flex align-items-center gap-1.5 text-uppercase letter-spacing-05">
@@ -168,7 +168,7 @@ const Filters = ({
           </div>
         )}
 
-        <div className="col-lg-auto ms-auto d-flex gap-2">
+        <div className="ms-auto d-flex gap-2 lg:w-auto lg:flex-none">
           <button
             className="btn btn-white btn-sm border border-zinc-200 rounded-3 px-3 py-2 d-flex align-items-center gap-2 fw-700 smallest text-zinc-600 transition-base"
             onClick={handleReset}

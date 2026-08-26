@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Select } from 'antd';
 import { ChevronDown, ChevronRight, ChevronLeft, LayoutGrid, CheckSquare, Square } from 'lucide-react';
 
 const ListView = ({
@@ -86,17 +87,16 @@ const ListView = ({
                 <div className="d-flex align-items-center gap-3">
                     <div className="d-flex align-items-center gap-2">
                         <span className="smallest text-zinc-500 fw-medium">Show</span>
-                        <select
-                            className="form-select form-select-sm smallest fw-bold border-zinc-200 rounded-pill bg-white py-0 h-auto"
-                            style={{ width: '65px', paddingLeft: '8px', cursor: 'pointer' }}
+                        <Select
+                            size="small"
+                            className="smallest fw-bold"
+                            style={{ width: '65px', fontSize: '11px', fontWeight: 700 }}
+                            popupMatchSelectWidth={false}
                             value={limit}
-                            onChange={(e) => onLimitChange(Number(e.target.value))}
-                        >
-                            <option value={10}>10</option>
-                            <option value={20}>20</option>
-                            <option value={50}>50</option>
-                            <option value={100}>100</option>
-                        </select>
+                            onChange={(value) => onLimitChange(Number(value))}
+                            options={[10, 20, 50, 100].map(n => ({ value: n, label: n }))}
+                            aria-label="Rows per page"
+                        />
                     </div>
                     <span className="smallest text-zinc-400">|</span>
                     <span className="smallest text-zinc-500">
@@ -304,11 +304,7 @@ const ListView = ({
                     cursor: not-allowed;
                     background: #f1f5f9;
                 }
-                
-                .form-select.smallest {
-                    font-size: 11px;
-                }
-                
+
                 @keyframes pulse {
                     0% { opacity: 1; }
                     50% { opacity: 0.5; }

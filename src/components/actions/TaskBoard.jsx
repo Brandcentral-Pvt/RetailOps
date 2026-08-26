@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from 'antd';
 import Card from '../common/Card';
 import { CheckCircle2, Clock, PlayCircle, MoreVertical, LayoutGrid } from 'lucide-react';
 
@@ -18,9 +19,9 @@ const TaskBoard = ({ tasks, loading }) => {
       icon={LayoutGrid}
       extra={<button className="btn btn-sm btn-zinc-900 border-0 shadow-sm smallest px-3" style={{ borderRadius: 'var(--radius-full)', backgroundColor: '#18181B', color: '#fff' }}>VIEW ALL</button>}
     >
-      <div className="table-responsive" style={{ minHeight: '400px' }}>
-        <table className="table table-hover align-middle mb-0" style={{ fontSize: 'var(--font-size-sm)' }}>
-          <thead className="table-light text-muted text-uppercase" style={{ fontSize: '10px', letterSpacing: '0.05em' }}>
+      <div className="bc-table-responsive" style={{ minHeight: '400px' }}>
+        <table className="w-full bc-table bc-table-hover align-middle mb-0" style={{ fontSize: 'var(--font-size-sm)' }}>
+          <thead className="bc-table-light text-muted text-uppercase" style={{ fontSize: '10px', letterSpacing: '0.05em' }}>
             <tr>
               <th className="ps-0 border-0">Action Item</th>
               <th className="border-0">Scope</th>
@@ -54,9 +55,14 @@ const TaskBoard = ({ tasks, loading }) => {
                   </td>
                   <td>{getStatusBadge(task.status)}</td>
                   <td className="text-end pe-0">
-                    <button className="btn btn-sm btn-icon btn-light rounded-circle">
-                      <MoreVertical size={14} />
-                    </button>
+                    <Button
+                      size="small"
+                      shape="circle"
+                      className="btn-icon"
+                      style={{ background: 'var(--bc-slate-100)' }}
+                      icon={<MoreVertical size={14} />}
+                      aria-label={`More actions for ${task.title}`}
+                    />
                   </td>
                 </tr>
               ))

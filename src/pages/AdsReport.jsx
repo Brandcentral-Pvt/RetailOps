@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Button } from 'antd';
 import NumberChart from '../components/common/NumberChart';
 import ProgressBar from '../components/common/ProgressBar';
 import Chart from 'react-apexcharts';
@@ -521,26 +522,32 @@ const efficiencyMetrics = useMemo(() => {
         return (
           <div className={`d-flex align-items-center gap-2 ${isChild ? 'ps-4' : ''} ${isDaily ? 'ps-5' : ''}`}>
             {!isChild && row.children?.length > 0 && (
-              <button 
-                className="btn btn-link p-0 text-zinc-400 hover-text-indigo-600"
+              <Button 
+                type="link"
+                size="small"
+                className="p-0 text-zinc-400 hover-text-indigo-600"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleParent(row.asin);
                 }}
+                aria-label={`${expandedParents.has(row.asin) ? 'Collapse' : 'Expand'} daily rows for ${row.asin}`}
               >
                 {expandedParents.has(row.asin) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </button>
+              </Button>
             )}
             {isChild && !isDaily && row.history?.length > 0 && (
-              <button 
-                className="btn btn-link p-0 text-zinc-400 hover-text-indigo-600"
+              <Button 
+                type="link"
+                size="small"
+                className="p-0 text-zinc-400 hover-text-indigo-600"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleChild(row.asin);
                 }}
+                aria-label={`${expandedChildren.has(row.asin) ? 'Collapse' : 'Expand'} history for ${row.asin}`}
               >
                 {expandedChildren.has(row.asin) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              </button>
+              </Button>
             )}
             <div className="d-flex flex-column">
               <div className="d-flex align-items-center gap-2">
@@ -658,17 +665,17 @@ const efficiencyMetrics = useMemo(() => {
       )}
 
       {/* Primary KPIs */}
-      <div className="row g-3 mb-4">
+      <div className="grid gap-4 mb-4 md:grid-cols-4">
         {kpis.map((k, i) => (
-          <div key={i} className={i < 4 ? "col-md-3" : "col-md-3 d-none d-lg-block"}>
+          <div key={i} className={i < 4 ? "" : "hidden lg:block"}>
             <KPICard {...k} />
           </div>
         ))}
       </div>
 
-      <div className="row g-4 mb-4">
+      <div className="grid gap-6 mb-4">
         {/* Secondary KPIs / Micro Stats for Mobile/Tablets */}
-        <div className="col-12 d-lg-none">
+        <div className="col-span-full d-lg-none">
           <div className="d-flex gap-2 overflow-auto pb-2 noscroll">
             {kpis.slice(4).map((k, i) => (
               <div key={i} style={{ minWidth: '180px' }}>
@@ -680,9 +687,9 @@ const efficiencyMetrics = useMemo(() => {
       </div>
 
       {/* ══ CHARTS ROW ═══════════════════════════════════════════ */}
-      <div className="row g-4 mb-4">
+      <div className="grid gap-6 mb-4 lg:grid-cols-12">
         {/* Main Chart */}
-        <div className="col-lg-8">
+        <div className="lg:col-span-8">
           <Card
             title={selectedAsin ? `Performance: ${selectedAsin}` : "Revenue & Efficiency Trend"}
             headerActions={
@@ -728,7 +735,7 @@ const efficiencyMetrics = useMemo(() => {
         </div>
 
         {/* Donut */}
-        <div className="col-lg-4">
+        <div className="lg:col-span-4">
           <Card title="Spend Allocation">
             <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: '320px' }}>
               <Chart
@@ -753,9 +760,9 @@ const efficiencyMetrics = useMemo(() => {
       </div>
 
       {/* ══ SCORECARD + TABLE ROW ════════════════════════════════ */}
-      <div className="row g-4 mb-4">
+      <div className="grid gap-6 mb-4 lg:grid-cols-12">
         {/* Efficiency Scorecard */}
-        <div className="col-lg-3">
+        <div className="lg:col-span-3">
           <Card title="Efficiency Scorecard">
             <div className="py-2">
               {efficiencyMetrics.map((m, i) => (
@@ -773,7 +780,7 @@ const efficiencyMetrics = useMemo(() => {
         </div>
 
         {/* Product Performance Ledger */}
-        <div className="col-lg-9">
+        <div className="lg:col-span-9">
           <Card
             title="Performance Ledger"
             icon={Layers}
@@ -822,8 +829,8 @@ const efficiencyMetrics = useMemo(() => {
             </div>
 
             <div className="p-3">
-              <div className="table-responsive">
-                <table className="table table-hover align-middle border-zinc-200">
+              <div className="bc-table-responsive">
+                <table className="w-full bc-table bc-table-hover align-middle border-zinc-200">
                   <thead className="bg-zinc-50 border-bottom border-zinc-200">
                     <tr>
                       {tableColumns.map(c => (
@@ -982,9 +989,15 @@ const efficiencyMetrics = useMemo(() => {
 
             {/* CTA */}
             <div className="p-4 mt-auto">
-              <button className="btn btn-dark w-100 py-2 rounded-2 fw-600 smallest" onClick={() => { setSelectedAsin(drawerAsin); setDrawerAsin(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+              <Button
+                type="primary"
+                block
+                className="py-2 rounded-2 fw-600 smallest"
+                style={{ background: 'var(--bc-slate-800)', borderColor: 'var(--bc-slate-800)' }}
+                onClick={() => { setSelectedAsin(drawerAsin); setDrawerAsin(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              >
                 GENERATE FULL ASIN ANALYSIS
-              </button>
+              </Button>
             </div>
           </>
         )}

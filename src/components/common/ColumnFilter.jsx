@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Input } from 'antd';
 import { Search, X, Filter } from 'lucide-react';
 
 const ColumnFilter = ({ column, options = [], value, onChange, type = 'select' }) => {
@@ -26,7 +27,7 @@ const ColumnFilter = ({ column, options = [], value, onChange, type = 'select' }
                     {options.length > 10 && (
                         <div className="position-relative mb-1">
                             <Search size={10} className="position-absolute top-50 start-0 translate-middle-y ms-1 text-zinc-300" />
-                            <input className="form-control form-control-xs ps-4" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: '9px', height: '20px' }} />
+                            <Input size="small" className="ps-4" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ fontSize: '9px', height: '20px', padding: '0.125rem 0.35rem' }} />
                         </div>
                     )}
                     <div style={{ maxHeight: '120px', overflow: 'auto' }}>

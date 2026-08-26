@@ -5,9 +5,9 @@ import { TrendingUp, Target, ShoppingBag, Zap } from 'lucide-react';
 const GoalControlCenter = ({ goalData, loading }) => {
   if (loading) {
     return (
-      <div className="row g-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="col-md-4">
+          <div key={i}>
             <div className="glass-card p-3 h-100 placeholder-glow" style={{ borderRadius: 'var(--radius-xl)', minHeight: '120px' }}>
               <div className="placeholder col-6 mb-2"></div>
               <div className="placeholder col-8"></div>
@@ -25,8 +25,8 @@ const GoalControlCenter = ({ goalData, loading }) => {
   const gmsProgress = target > 0 ? Math.round((actual / target) * 100) : 0;
 
   return (
-    <div className="row g-3 mb-4">
-      <div className="col-md-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div>
         <NumberChart
           label="GMS Achievement"
           value={gmsValue}
@@ -37,7 +37,7 @@ const GoalControlCenter = ({ goalData, loading }) => {
           color="var(--color-brand-600)"
         />
       </div>
-      <div className="col-md-4">
+      <div>
         <NumberChart
           label="Daily RR Required"
           value={`₹${Math.round(goalData?.dailyRequiredRevenue || 0).toLocaleString()}`}
@@ -46,7 +46,7 @@ const GoalControlCenter = ({ goalData, loading }) => {
           color="#ED6C02"
         />
       </div>
-      <div className="col-md-4">
+      <div>
         <NumberChart
           label="Gap to Target"
           value={`₹${(Math.max(0, target - actual) / 1000).toFixed(1)}K`}

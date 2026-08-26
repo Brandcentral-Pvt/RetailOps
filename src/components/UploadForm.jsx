@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Button, Space } from 'antd';
 import { sellerApi, marketSyncApi } from '../services/api';
 import '../App.css';
 
@@ -202,9 +204,9 @@ const UploadForm = () => {
           <i className="bi bi-cloud-upload me-2" style={{ color: 'var(--color-primary-600)' }}></i>
           Upload Data
         </h6>
-        <div className="btn-group btn-group-sm">
-          <button 
-            className={`btn ${uploadType === 'monthly' ? 'btn-primary' : 'btn-outline-primary'}`}
+        <Space.Compact size="small">
+          <Button
+            type={uploadType === 'monthly' ? 'primary' : 'default'}
             onClick={() => {
               setUploadType('monthly');
               setFile(null);
@@ -213,9 +215,9 @@ const UploadForm = () => {
             }}
           >
             Monthly Sales
-          </button>
-          <button 
-            className={`btn ${uploadType === 'octoparse' ? 'btn-primary' : 'btn-outline-primary'}`}
+          </Button>
+          <Button
+            type={uploadType === 'octoparse' ? 'primary' : 'default'}
             onClick={() => {
               setUploadType('octoparse');
               setFile(null);
@@ -224,9 +226,9 @@ const UploadForm = () => {
             }}
           >
             Octoparse Sync
-          </button>
-          <button 
-            className={`btn ${uploadType === 'ads' ? 'btn-primary' : 'btn-outline-primary'}`}
+          </Button>
+          <Button
+            type={uploadType === 'ads' ? 'primary' : 'default'}
             onClick={() => {
               setUploadType('ads');
               setFile(null);
@@ -235,8 +237,8 @@ const UploadForm = () => {
             }}
           >
             Ads Reports
-          </button>
-        </div>
+          </Button>
+        </Space.Compact>
       </div>
 
       {/* Month Selection (Monthly only) */}
@@ -259,8 +261,10 @@ const UploadForm = () => {
           <label className="form-label d-flex justify-content-between align-items-center">
             <span>🏪 Select Seller</span>
             {selectedSeller && (
-              <button 
-                className="btn btn-link p-0 text-primary smallest fw-bold border-0" 
+              <Button 
+                type="link"
+                size="small"
+                className="p-0 text-primary smallest fw-bold border-0" 
                 style={{ fontSize: '10px', textDecoration: 'none' }}
                 onClick={() => {
                    // This assumes we have a way to trigger the Global ASIN Add
@@ -269,7 +273,7 @@ const UploadForm = () => {
                 }}
               >
                 + ADD ASINS TO THIS SELLER
-              </button>
+              </Button>
             )}
           </label>
           <select 

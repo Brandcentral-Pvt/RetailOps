@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { Button } from 'antd';
 import {
     Play,
     Pause,
@@ -225,9 +226,9 @@ const TaskCard = ({
 
                 {/* Expand/Collapse button */}
                 {onToggleExpand && (
-                    <button className="btn btn-link btn-sm p-0 ms-2 text-muted">
+                    <Button type="link" size="small" className="p-0 ms-2 text-muted" aria-label={expanded ? 'Collapse task' : 'Expand task'}>
                         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -301,13 +302,16 @@ const TaskCard = ({
                                 </button>
                             )}
                             {onDelete && task.status !== 'COMPLETED' && (
-                                <button
-                                    className="btn btn-sm btn-outline-danger rounded-pill px-2"
+                                <Button
+                                    danger
+                                    size="small"
+                                    shape="round"
+                                    className="px-2"
                                     onClick={() => onDelete(task.id)}
                                     title="Delete"
                                 >
                                     <Trash2 size={14} />
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -368,19 +372,19 @@ export const TaskCardCompact = ({ task, onAction }: { task: Task; onAction?: (ac
                 {getStatusBadge(task.status)}
                 <div className="d-flex gap-1">
                     {task.status === 'TODO' && (
-                        <button className="btn btn-sm btn-link p-0" onClick={() => handleAction('START')}>
+                        <Button type="link" size="small" className="p-0" onClick={() => handleAction('START')} aria-label="Start task">
                             <Play size={14} />
-                        </button>
+                        </Button>
                     )}
                     {task.status === 'IN_PROGRESS' && (
-                        <button className="btn btn-sm btn-link p-0" onClick={() => handleAction('SUBMIT_REVIEW')}>
+                        <Button type="link" size="small" className="p-0" onClick={() => handleAction('SUBMIT_REVIEW')} aria-label="Submit for review">
                             <Clock size={14} />
-                        </button>
+                        </Button>
                     )}
                     {task.status === 'REVIEW' && (
-                        <button className="btn btn-sm btn-link p-0 text-success" onClick={() => handleAction('COMPLETE')}>
+                        <Button type="link" size="small" className="p-0 text-success" onClick={() => handleAction('COMPLETE')} aria-label="Complete task">
                             <CheckCircle size={14} />
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>
