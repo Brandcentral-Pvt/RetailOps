@@ -1,198 +1,366 @@
-/* ═══════════════════════════════════════════
-   Auth Pages — Shared Styles
-   ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   Auth Pages — Corporate Design System
+   Split-screen: brand panel (left) + form panel (right).
+   All legacy class names preserved for Forgot/Reset/OTP reuse.
+   ═══════════════════════════════════════════════════════════ */
 
-/* ── Layout ── */
+:root {
+  --auth-ink: #0B1526;
+  --auth-ink-2: #101E36;
+  --auth-accent: #1976D2;
+  --auth-accent-soft: rgba(25, 118, 210, 0.10);
+  --auth-line: #E5E9F0;
+}
+
+/* ── Shell ── */
 .wrapper {
   min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: var(--bg-secondary);
+  background: #FFFFFF;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.bgOrb1 {
+/* ── Brand panel ── */
+.brandPanel {
+  flex: 0 0 46%;
+  max-width: 46%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 56px;
+  background:
+    linear-gradient(160deg, var(--auth-ink) 0%, var(--auth-ink-2) 58%, #14294A 100%);
+  color: #FFFFFF;
+  overflow: hidden;
+}
+
+/* Fine engineering grid — quiet, corporate texture */
+.brandGrid {
   position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(25, 118, 210, 0.08) 0%, transparent 65%);
-  top: -200px;
-  left: -200px;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 30% 20%, black 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at 30% 20%, black 30%, transparent 78%);
   pointer-events: none;
 }
 
-.bgOrb2 {
+.brandAccentBar {
   position: absolute;
-  width: 400px;
-  height: 400px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(25, 118, 210, 0.06) 0%, transparent 65%);
-  bottom: -150px;
-  right: -100px;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--auth-accent), rgba(25, 118, 210, 0));
   pointer-events: none;
 }
 
-.container {
-  width: 100%;
-  max-width: 420px;
-  padding: 0 20px;
+.brandTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandLogo {
+  height: 34px;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+.brandLogoFallback {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+}
+
+.brandLogoFallbackDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--auth-accent);
+  align-self: center;
+}
+
+.brandMiddle {
+  position: relative;
   z-index: 1;
 }
 
-/* ── Logo ── */
-.logoWrap {
-  text-align: center;
-  margin-bottom: 24px;
+.brandEyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 18px;
 }
 
-.logo {
-  height: 36px;
-  width: auto;
+.brandHeadline {
+  margin: 0;
+  font-size: clamp(28px, 2.6vw, 38px);
+  line-height: 1.16;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  max-width: 15ch;
 }
 
-.logoFallback {
+.brandSubline {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.62);
+  max-width: 42ch;
+}
+
+.featureList {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.featureIcon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
+  justify-content: center;
+  background: rgba(25, 118, 210, 0.16);
+  border: 1px solid rgba(25, 118, 210, 0.35);
+  color: #7EB6F5;
 }
 
-.logoFallbackDot {
-  width: 8px;
-  height: 8px;
+.featureTitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: 0.01em;
+}
+
+.featureText {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.brandBottom {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.40);
+}
+
+.brandMetric {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.brandMetricDot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--bg-brand);
+  background: #34C77B;
+  box-shadow: 0 0 8px rgba(52, 199, 123, 0.7);
 }
 
-/* ── Card ── */
-.card {
-  background: var(--bg-primary);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
+/* ── Form panel ── */
+.formPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px 32px;
   position: relative;
 }
 
-.cardAccent {
-  height: 3px;
-  background: linear-gradient(90deg, var(--text-primary), var(--bg-brand), var(--text-primary));
+.mobileLogoWrap {
+  display: none;
+  text-align: center;
+  margin-bottom: 28px;
 }
 
-.cardBody {
-  padding: 32px 28px 24px;
+.formCard {
+  width: 100%;
+  max-width: 400px;
 }
 
-/* ── Footer ── */
-.footer {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-light);
+.formFooter {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
   text-align: center;
 }
 
 .securityBadge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-bottom: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--auth-line);
+  border-radius: 999px;
+  background: #FAFBFD;
 }
 
 .securityText {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
+  font-size: 11px;
+  color: #5A6B85;
   font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .copyright {
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
+  display: block;
+  margin-top: 10px;
+  font-size: 11px;
+  color: #93A1B8;
+}
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .brandPanel { display: none; }
+  .mobileLogoWrap { display: block; }
+  .formPanel { padding: 40px 24px 88px; }
 }
 
 /* ═══════════════════════════════════════════
-   Shared Form Elements
+   Legacy-compatible shared elements
+   (kept names — used by Login / Forgot / Reset / OTP)
    ═══════════════════════════════════════════ */
+
+/* Retired decorative orbs — kept as inert no-ops for old markup */
+.bgOrb1, .bgOrb2 { display: none; }
+.container { width: 100%; max-width: 400px; }
+.logoWrap { display: none; }
+.logo { height: 34px; width: auto; }
+
+.card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid var(--auth-line);
+  box-shadow: 0 1px 2px rgba(11, 21, 38, 0.04), 0 12px 32px -12px rgba(11, 21, 38, 0.10);
+  overflow: hidden;
+}
+
+.cardAccent {
+  height: 3px;
+  background: linear-gradient(90deg, var(--auth-accent), #63A4E8, var(--auth-accent));
+}
+
+.cardBody {
+  padding: 36px 36px 28px;
+}
+
+.footer {
+  display: contents;
+}
 
 /* ── Header ── */
 .header {
-  text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .headerTitle {
-  margin: 0;
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--text-primary);
+  margin: 0 !important;
+  font-size: 24px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.02em;
+  color: var(--auth-ink) !important;
 }
 
 .headerSubtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #5A6B85;
   display: block;
-  margin-top: 4px;
-  line-height: 1.5;
+  margin-top: 6px;
+  line-height: 1.55;
 }
 
-/* ── Primary Button ── */
+/* ── Primary button ── */
 .authBtn {
   height: 44px;
   font-weight: 600;
-  font-size: var(--font-size-base);
-  border-radius: var(--radius-md);
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(11, 21, 38, 0.12);
 }
 
-/* ── Error Banner ── */
+/* ── Error banner ── */
 .errorBanner {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 10px 14px;
-  background: var(--bg-danger-subtle);
-  border: 1px solid var(--error-border);
-  border-radius: var(--radius-md);
-  color: var(--text-danger);
-  font-size: var(--font-size-sm);
+  background: #FDF3F3;
+  border: 1px solid #F2D7D7;
+  border-left: 3px solid #D64545;
+  border-radius: 8px;
+  color: #A93232;
+  font-size: 13px;
   line-height: 1.5;
   margin-bottom: 16px;
 }
 
 /* ── Links ── */
 .authLink {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: #5A6B85;
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .authLink:hover {
-  color: var(--text-primary);
+  color: var(--auth-accent);
 }
 
 .authLinkPrimary {
-  font-size: var(--font-size-sm);
-  color: var(--text-primary);
+  font-size: 13px;
+  color: var(--auth-accent);
   font-weight: 600;
   text-decoration: none;
   transition: opacity 0.15s;
 }
 
 .authLinkPrimary:hover {
-  opacity: 0.8;
+  opacity: 0.82;
 }
 
-/* ── Status Icons ── */
+/* ── Status icons ── */
 .statusIcon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -201,12 +369,14 @@
 
 .statusIconSuccess {
   composes: statusIcon;
-  background: var(--bg-success-subtle);
+  background: #EDF9F1;
+  border: 1px solid #CFEDDA;
 }
 
 .statusIconError {
   composes: statusIcon;
-  background: var(--bg-danger-subtle);
+  background: #FDF3F3;
+  border: 1px solid #F2D7D7;
 }
 
 .statusIconInfo {
@@ -214,27 +384,29 @@
   width: 48px;
   height: 48px;
   margin-bottom: 12px;
-  background: var(--bg-info-subtle);
+  background: var(--auth-accent-soft);
+  border: 1px solid rgba(25, 118, 210, 0.25);
 }
 
 .statusTitle {
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--auth-ink);
 }
 
 .statusBody {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: #5A6B85;
   display: block;
   margin-top: 8px;
   line-height: 1.6;
 }
 
 .statusHint {
-  font-size: var(--font-size-sm);
-  color: var(--text-tertiary);
+  font-size: 13px;
+  color: #93A1B8;
   display: block;
   margin-top: 12px;
 }
@@ -243,8 +415,8 @@
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-light);
-  border-top-color: var(--text-primary);
+  border: 3px solid var(--auth-line);
+  border-top-color: var(--auth-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;
@@ -266,42 +438,43 @@
 }
 
 .otpInput {
-  width: 44px;
-  height: 52px;
+  width: 46px;
+  height: 54px;
   font-size: 22px;
   font-weight: 600;
   text-align: center;
-  border: 2px solid var(--border-light);
-  border-radius: var(--radius-md);
+  border: 1.5px solid var(--auth-line);
+  border-radius: 10px;
   outline: none;
-  font-family: monospace;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: 'Inter', monospace;
+  background: #FFFFFF;
+  color: var(--auth-ink);
   transition: all 0.15s;
 }
 
 .otpInput:focus {
-  border-color: var(--bg-brand);
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 3px var(--auth-accent-soft);
 }
 
 .otpInputFilled {
   composes: otpInput;
-  border-color: var(--text-primary);
-  background: var(--bg-tertiary);
+  border-color: var(--auth-accent);
+  background: #F7FAFF;
 }
 
 .otpTimer {
   display: block;
   text-align: center;
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: #5A6B85;
   margin-bottom: 16px;
 }
 
 .otpTimerUrgent {
   composes: otpTimer;
-  color: var(--text-danger);
+  color: #C0362C;
+  font-weight: 500;
 }
 
 .otpActions {
@@ -313,7 +486,7 @@
 }
 
 .otpActions button {
-  font-size: var(--font-size-sm);
+  font-size: 13px;
 }
 
 /* ═══════════════════════════════════════════
@@ -323,9 +496,10 @@
 .strengthBar {
   margin-top: -8px;
   margin-bottom: 16px;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: #F7F9FC;
+  border: 1px solid var(--auth-line);
+  border-radius: 8px;
 }
 
 .strengthHeader {
@@ -335,29 +509,32 @@
 }
 
 .strengthLabel {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
+  font-size: 11px;
+  color: #5A6B85;
 }
 
 .strengthValue {
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   font-weight: 600;
 }
 
-/* ── Requirements Grid ── */
+/* ── Requirements grid ── */
 .requirements {
   margin-bottom: 16px;
   padding: 10px 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  background: #F7F9FC;
+  border: 1px solid var(--auth-line);
+  border-radius: 8px;
 }
 
 .requirementsTitle {
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: #5A6B85;
   display: block;
   margin-bottom: 6px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .requirementsGrid {
@@ -370,17 +547,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--font-size-xs);
+  font-size: 12px;
 }
 
 .requirementMet {
   composes: requirement;
-  color: var(--text-success);
+  color: #1F8A4C;
 }
 
 .requirementUnmet {
   composes: requirement;
-  color: var(--text-secondary);
+  color: #7B8BA3;
 }
 
 .requirementDot {
@@ -392,12 +569,12 @@
 
 .requirementDotMet {
   composes: requirementDot;
-  background: var(--text-success);
+  background: #1F8A4C;
 }
 
 .requirementDotUnmet {
   composes: requirementDot;
-  background: var(--border-medium);
+  background: #C4CEDC;
 }
 
 /* ═══════════════════════════════════════════
