@@ -103,7 +103,7 @@ const PremiumDonutChart = memo(({ segments, total, overallRate, color }) => {
                 <div style={{
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 700,
-                    color: 'var(--text-secondary, #64748b)',
+                    color: 'var(--text-secondary, var(--bc-slate-500))',
                     textTransform: 'uppercase',
                     letterSpacing: '0.1em',
                     marginBottom: 2
@@ -126,7 +126,7 @@ const PremiumDonutChart = memo(({ segments, total, overallRate, color }) => {
                 <div style={{
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
-                    color: 'var(--text-secondary, #64748b)',
+                    color: 'var(--text-secondary, var(--bc-slate-500))',
                     marginTop: 6,
                     display: 'inline-flex',
                     alignItems: 'center',

@@ -7,7 +7,7 @@ const SegmentedProgress = memo(({ segments = [], height = 8 }) => {
         return (
             <div style={{
                 height,
-                background: 'var(--border-light, #d9e6e9)',
+                background: 'var(--border-light, var(--border-light))',
                 borderRadius: height / 2,
                 overflow: 'hidden'
             }} />
@@ -18,7 +18,7 @@ const SegmentedProgress = memo(({ segments = [], height = 8 }) => {
         <div style={{
             display: 'flex',
             height,
-            background: 'var(--border-light, #d9e6e9)',
+            background: 'var(--border-light, var(--border-light))',
             borderRadius: height / 2,
             overflow: 'hidden',
             gap: 1

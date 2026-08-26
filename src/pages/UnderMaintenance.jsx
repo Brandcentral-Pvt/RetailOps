@@ -58,8 +58,8 @@ function TrafficIcon() {
         width: 88,
         height: 88,
         borderRadius: 28,
-        background: 'linear-gradient(145deg, #fef2f2, #fee2e2)',
-        border: '1px solid #fecaca',
+        background: 'linear-gradient(145deg, var(--bc-red-50), var(--bc-red-100))',
+        border: '1px solid var(--bc-red-200)',
         margin: '0 auto',
         position: 'relative',
       }}
@@ -124,7 +124,7 @@ function ProgressBar() {
         style={{
           height: '100%',
           borderRadius: 2,
-          background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+          background: 'linear-gradient(90deg, var(--bc-blue-500), var(--bc-violet-500))',
           width: `${width}%`,
           transition: 'width 2.5s cubic-bezier(0.4, 0, 0.2, 1)',
           position: 'relative',
@@ -405,7 +405,7 @@ export default function UnderMaintenance() {
               height: 3,
               borderRadius: '0 0 4px 4px',
               background:
-                'linear-gradient(90deg, #ef4444, #f97316, #ef4444)',
+                'linear-gradient(90deg, var(--bc-red-500), var(--bc-accent-dispute), var(--bc-red-500))',
               backgroundSize: '200% 100%',
               animation: 'bc-gradient-shift 4s ease infinite',
               opacity: 0.8,
@@ -432,7 +432,7 @@ export default function UnderMaintenance() {
               textTransform: 'uppercase',
               color: 'var(--bc-red-600)',
               backgroundColor: 'var(--bc-red-50)',
-              border: '1px solid #fecaca',
+              border: '1px solid var(--bc-red-200)',
               marginBottom: 24,
             }}
           >
@@ -477,7 +477,7 @@ export default function UnderMaintenance() {
               padding: '20px 24px',
               borderRadius: 16,
               backgroundColor: 'var(--bc-slate-50)',
-              border: '1px solid #f1f5f9',
+              border: '1px solid var(--bc-slate-100)',
               marginBottom: 28,
             }}
           >
@@ -536,7 +536,7 @@ export default function UnderMaintenance() {
                 padding: '12px 20px',
                 borderRadius: 14,
                 backgroundColor: 'var(--bc-amber-50)',
-                border: '1px solid #fde68a',
+                border: '1px solid var(--bc-amber-200)',
                 marginBottom: 28,
               }}
             >
@@ -607,8 +607,8 @@ export default function UnderMaintenance() {
                 fontFamily: 'inherit',
                 color: '#fff',
                 background: isHoveringRefresh
-                  ? 'linear-gradient(135deg, #1d4ed8, #1e40af)'
-                  : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  ? 'linear-gradient(135deg, var(--bc-blue-700), var(--bc-blue-800))'
+                  : 'linear-gradient(135deg, var(--bc-blue-600), var(--bc-blue-700))',
                 boxShadow: isHoveringRefresh
                   ? '0 10px 28px rgba(37,99,235,0.35), 0 0 0 3px rgba(37,99,235,0.08)'
                   : '0 4px 14px rgba(37,99,235,0.2)',
@@ -657,7 +657,7 @@ export default function UnderMaintenance() {
                 backgroundColor: isHoveringStatus
                   ? 'var(--bc-slate-100)'
                   : 'var(--bc-white)',
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--bc-slate-200)',
                 boxShadow: isHoveringStatus
                   ? '0 6px 16px rgba(0,0,0,0.07), 0 0 0 3px rgba(59,130,246,0.06)'
                   : '0 1px 4px rgba(0,0,0,0.04)',

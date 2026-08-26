@@ -252,7 +252,7 @@ const SkuReport = () => {
         <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'auto' }}>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
-              <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
+              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div>
                     <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>Revenue vs Units</Text>
@@ -278,7 +278,7 @@ const SkuReport = () => {
               </Card>
             </Col>
             <Col xs={24} lg={8}>
-              <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: '14px 16px' } }}>
+              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
                 <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>Category Distribution</Text>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2, marginBottom: 8 }}>Revenue by category</div>
                 <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -308,8 +308,8 @@ const SkuReport = () => {
       {/* TABLE */}
       {view === 'table' && (
         <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
-          <Card style={{ borderRadius: 10, border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: 0 } }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--bc-slate-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>SKU Performance Ledger</Text>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: '#8c8e8f', marginTop: 2 }}>Showing {data.length} of {totalCount} SKUs</div>

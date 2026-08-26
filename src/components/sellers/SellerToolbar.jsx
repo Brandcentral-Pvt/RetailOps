@@ -42,7 +42,7 @@ const SellerToolbar = ({
   const moreFiltersContent = (
     <div style={{ width: 260, padding: 4 }}>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, #94a3b8)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Status</div>
+        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, var(--bc-slate-400))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Status</div>
         <Select
           value={statusFilter}
           onChange={onStatusChange}
@@ -59,7 +59,7 @@ const SellerToolbar = ({
       </div>
       {isGlobalUser && (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, #94a3b8)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Octoparse Pool</div>
+          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, var(--bc-slate-400))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Octoparse Pool</div>
           <Button size="small" icon={<FilterOutlined />} onClick={onOpenPool} block style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
             Pool ({poolStats.available})
           </Button>
@@ -67,7 +67,7 @@ const SellerToolbar = ({
       )}
       {isGlobalUser && (
         <div>
-          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, #94a3b8)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Batch Sync</div>
+          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted, var(--bc-slate-400))', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Batch Sync</div>
           <Button size="small" onClick={onIngestAll} block style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
             Fetch Latest from Octoparse
           </Button>
@@ -78,7 +78,7 @@ const SellerToolbar = ({
 
   return (
     <div style={{
-      padding: '8px 28px', background: '#fcfcfd', borderBottom: '1px solid var(--border-light, #d9e6e9)',
+      padding: '8px 28px', background: '#fcfcfd', borderBottom: '1px solid var(--border-light, var(--border-light))',
     }}>
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between'
@@ -88,7 +88,7 @@ const SellerToolbar = ({
             placeholder="Search storefronts..."
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
-            prefix={<SearchOutlined style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-sm)' }} />}
+            prefix={<SearchOutlined style={{ color: 'var(--text-muted, var(--bc-slate-400))', fontSize: 'var(--font-size-sm)' }} />}
             style={{ width: 220, borderRadius: 'var(--radius-md, 8px)' }}
             allowClear
             size="small"
@@ -131,7 +131,7 @@ const SellerToolbar = ({
 
           <Popover content={moreFiltersContent} title={null} trigger="click" placement="bottom">
             <Badge count={filterCount} size="small" offset={[-4, 4]} style={{ background: 'var(--text-danger, #D32F2F)' }}>
-              <Button icon={<FilterOutlined />} size="small" style={{ borderRadius: 'var(--radius-md, 8px)', color: 'var(--text-muted, #94a3b8)' }} />
+              <Button icon={<FilterOutlined />} size="small" style={{ borderRadius: 'var(--radius-md, 8px)', color: 'var(--text-muted, var(--bc-slate-400))' }} />
             </Badge>
           </Popover>
         </Space>
@@ -149,7 +149,7 @@ const SellerToolbar = ({
             <Tooltip title="Bulk Import">
               <Button icon={<UploadOutlined />} onClick={onOpenBulkImport}
                 size="small"
-                style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', borderColor: 'var(--border-light, #d9e6e9)', height: 28 }}>
+                style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', borderColor: 'var(--border-light, var(--border-light))', height: 28 }}>
                 Import
               </Button>
             </Tooltip>
@@ -160,7 +160,7 @@ const SellerToolbar = ({
               icon={<ReloadOutlined spin={loading} />}
               onClick={onRefresh}
               size="small"
-              style={{ borderRadius: 'var(--radius-md, 8px)', borderColor: 'var(--border-light, #d9e6e9)', height: 28 }}
+              style={{ borderRadius: 'var(--radius-md, 8px)', borderColor: 'var(--border-light, var(--border-light))', height: 28 }}
             />
           </Tooltip>
         </Space>
@@ -168,7 +168,7 @@ const SellerToolbar = ({
 
       <div style={{
         display: 'flex', justifyContent: 'flex-end', marginTop: 4,
-        fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', fontWeight: 500,
+        fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, var(--bc-slate-400))', fontWeight: 500,
       }}>
         Showing {sellersLength} of {totalItems} storefronts
       </div>

@@ -40,9 +40,9 @@ function ReviewInsights({ task, subTasks }) {
   const recommendation = score >= 3 ? 'APPROVE' : score >= 2 ? 'REVIEW CAREFULLY' : 'REJECT';
 
   return (
-    <Card size="small" title="Review Insights" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }} styles={{ body: { padding: '12px 14px' } }}>
+    <Card size="small" title="Review Insights" style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }} styles={{ body: { padding: '12px 14px' } }}>
       {checks.map(c => (
-        <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+        <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--bc-slate-100)' }}>
           <Space size={6}>
             {c.done ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-base)' }} /> : <CloseCircleOutlined style={{ color: '#D32F2F', fontSize: 'var(--font-size-base)' }} />}
             <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-700)' }}>{c.label}</Text>
@@ -64,7 +64,7 @@ function ReviewInsights({ task, subTasks }) {
 function ReviewerAnalytics({ task }) {
   // Placeholder for reviewer performance data
   return (
-    <Card size="small" title="Reviewer Performance" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }} styles={{ body: { padding: '12px 14px' } }}>
+    <Card size="small" title="Reviewer Performance" style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }} styles={{ body: { padding: '12px 14px' } }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {[
           { label: 'Reviews Today', value: '18', color: 'var(--bc-blue-600)' },
@@ -103,7 +103,7 @@ function EvidenceCard({ evidence }) {
           <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block' }}>Uploaded by {evidence.UploadedByName}</Text>
           <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)' }}>{dayjs(evidence.UploadedAt).format('DD MMM YYYY [at] h:mm A')}</Text>
           {evidence.Remarks && (
-            <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9' }}>
+            <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-sm)", border: '1px solid var(--bc-slate-100)' }}>
               <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-600)' }}>{evidence.Remarks}</Text>
             </div>
           )}
@@ -300,7 +300,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
                 const stTotal = st.activities?.length || 0;
                 const stPct = stTotal > 0 ? Math.round((stDone / stTotal) * 100) : 0;
                 return (
-                  <div key={st.Id} style={{ padding: '6px 8px', borderRadius: 6, background: st.IsCompleted ? 'var(--bc-green-50)' : '#fafbfc', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={st.Id} style={{ padding: '6px 8px', borderRadius: 6, background: st.IsCompleted ? 'var(--bc-green-50)' : '#fafbfc', border: '1px solid var(--bc-slate-100)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {st.IsCompleted ? <CheckCircleOutlined style={{ color: '#2E7D32', fontSize: 'var(--font-size-sm)' }} /> : <ClockCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }} />}
                     <Text style={{ fontSize: 'var(--font-size-xs)', flex: 1 }}>{st.Title}</Text>
                     <Progress percent={stPct} size="small" style={{ width: 50, margin: 0 }} />
@@ -340,7 +340,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
             {task.SubmissionRemarks && (
               <div style={{ marginBottom: 16 }}>
                 <Text style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-slate-400)', marginBottom: 6, display: 'block' }}>Submission Notes</Text>
-                <div style={{ padding: '10px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", borderLeft: '3px solid #2563eb' }}>
+                <div style={{ padding: '10px 12px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", borderLeft: '3px solid var(--bc-blue-600)' }}>
                   <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>{task.AssigneeName} · {task.SubmittedAt ? dayjs(task.SubmittedAt).format('DD MMM HH:mm') : ''}</Text>
                   <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-700)', display: 'block', marginTop: 4, whiteSpace: 'pre-wrap' }}>{task.SubmissionRemarks}</Text>
                 </div>
@@ -373,7 +373,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
                     <Rate value={scores[item.key]} onChange={v => setScores(s => ({ ...s, [item.key]: v }))} style={{ fontSize: 'var(--font-size-base)' }} />
                   </div>
                 ))}
-                <div style={{ padding: '8px 10px', background: 'var(--bc-green-50)', borderRadius: "var(--radius-md)", border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                <div style={{ padding: '8px 10px', background: 'var(--bc-green-50)', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-green-200)', textAlign: 'center' }}>
                   <Text style={{ fontSize: 9, color: '#2E7D32', fontWeight: 600, textTransform: 'uppercase' }}>Overall Score</Text>
                   <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#2E7D32' }}>{totalScore}/100</div>
                 </div>

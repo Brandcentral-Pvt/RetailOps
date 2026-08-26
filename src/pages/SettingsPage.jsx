@@ -37,7 +37,7 @@ const SectionCard = ({ icon: Icon, iconColor = 'var(--bc-slate-600)', title, chi
         styles={{
             header: {
                 padding: '14px 20px',
-                borderBottom: '1px solid #f1f5f9',
+                borderBottom: '1px solid var(--bc-slate-100)',
                 minHeight: 'auto',
                 background: '#fafbfc'
             },
@@ -737,7 +737,7 @@ const SettingsPage = () => {
                                     <span style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>Enterprise</span>
                                     <Tag style={{
                                         margin: 0, background: 'var(--bc-green-50)', color: '#2E7D32',
-                                        border: '1px solid #bbf7d0', fontWeight: 600, fontSize: 10,
+                                        border: '1px solid var(--bc-green-200)', fontWeight: 600, fontSize: 10,
                                         borderRadius: "var(--radius-sm)", padding: '1px 8px', textTransform: 'uppercase'
                                     }}>
                                         Active
@@ -771,7 +771,7 @@ const SettingsPage = () => {
                             dataSource={xpathsHelp}
                             split={false}
                             renderItem={item => (
-                                <div style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+                                <div style={{ padding: '10px 0', borderBottom: '1px solid var(--bc-slate-100)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                                         <span style={{ fontWeight: 600, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>{item.title}</span>
                                         <Tooltip title="Copy XPath">

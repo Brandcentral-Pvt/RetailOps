@@ -110,9 +110,9 @@ const getPipelineStatus = (status = '') => {
         };
     }
     return {
-        color: 'var(--text-secondary, #64748b)',
+        color: 'var(--text-secondary, var(--bc-slate-500))',
         bg: 'var(--bc-slate-50)',
-        border: 'var(--border-light, #d9e6e9)',
+        border: 'var(--border-light, var(--border-light))',
         icon: Clock,
         label: 'IDLE'
     };
@@ -200,7 +200,7 @@ const AlertItem = memo(({ alert }) => {
                     )}
                     <span style={{
                         fontSize: 'var(--font-size-xs)',
-                        color: 'var(--text-tertiary, #94a3b8)',
+                        color: 'var(--text-tertiary, var(--bc-slate-400))',
                         fontWeight: 600,
                         marginLeft: 'auto',
                         whiteSpace: 'nowrap'
@@ -211,7 +211,7 @@ const AlertItem = memo(({ alert }) => {
                 <div style={{
                     fontSize: 'var(--font-size-sm)',
                     fontWeight: 600,
-                    color: 'var(--text-primary, #0f172a)',
+                    color: 'var(--text-primary, var(--bc-slate-900))',
                     lineHeight: 1.3,
                     marginBottom: 2,
                     whiteSpace: 'nowrap',
@@ -222,7 +222,7 @@ const AlertItem = memo(({ alert }) => {
                 </div>
                 <div style={{
                     fontSize: 'var(--font-size-xs)',
-                    color: 'var(--text-secondary, #64748b)',
+                    color: 'var(--text-secondary, var(--bc-slate-500))',
                     fontWeight: 500,
                     lineHeight: 1.3,
                     whiteSpace: 'nowrap',
@@ -288,7 +288,7 @@ const PipelineTaskItem = memo(({ task }) => {
                         <div style={{
                             fontSize: 'var(--font-size-sm)',
                             fontWeight: 600,
-                            color: 'var(--text-primary, #0f172a)',
+                            color: 'var(--text-primary, var(--bc-slate-900))',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -299,7 +299,7 @@ const PipelineTaskItem = memo(({ task }) => {
                         {asinCount > 0 && (
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
-                                color: 'var(--text-secondary, #64748b)',
+                                color: 'var(--text-secondary, var(--bc-slate-500))',
                                 fontWeight: 500,
                                 marginTop: 1
                             }}>
@@ -346,7 +346,7 @@ const PipelineTaskItem = memo(({ task }) => {
                         justifyContent: 'space-between',
                         marginBottom: 3
                     }}>
-                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
                             Progress
                         </span>
                         <span style={{ fontSize: 'var(--font-size-xs)', color: status.color, fontWeight: 700 }}>
@@ -355,7 +355,7 @@ const PipelineTaskItem = memo(({ task }) => {
                     </div>
                     <div style={{
                         height: 4,
-                        background: 'var(--border-light, #d9e6e9)',
+                        background: 'var(--border-light, var(--border-light))',
                         borderRadius: 2,
                         overflow: 'hidden',
                         position: 'relative'
@@ -421,7 +421,7 @@ const AlertsPipelineCard = ({
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
+                    border: '1px solid var(--border-light, var(--border-light))',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
                     background: 'var(--bg-primary, #fff)',
                     minHeight: 850,
@@ -435,8 +435,8 @@ const AlertsPipelineCard = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--border-light, var(--border-light))',
+                    background: 'linear-gradient(135deg, var(--bc-red-50) 0%, var(--bc-white) 100%)'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -462,7 +462,7 @@ const AlertsPipelineCard = ({
                                 <div style={{
                                     fontSize: 'var(--font-size-base)',
                                     fontWeight: 700,
-                                    color: 'var(--text-primary, #0f172a)',
+                                    color: 'var(--text-primary, var(--bc-slate-900))',
                                     letterSpacing: '-0.01em',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -479,7 +479,7 @@ const AlertsPipelineCard = ({
                                 </div>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 1
                                 }}>
@@ -495,7 +495,7 @@ const AlertsPipelineCard = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '14px 20px 12px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)'
+                    borderBottom: '1px solid var(--border-light, var(--border-light))'
                 }}>
                     {/* Section header with stats */}
                     <div style={{
@@ -514,12 +514,12 @@ const AlertsPipelineCard = ({
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 700,
                                 color: 'var(--text-danger, #D32F2F)',
-                                background: 'var(--bg-danger-subtle, #fef2f2)',
+                                background: 'var(--bg-danger-subtle, var(--bc-red-50))',
                                 padding: '3px 9px',
                                 borderRadius: "var(--radius-lg)",
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.06em',
-                                border: '1px solid #fecaca'
+                                border: '1px solid var(--bc-red-200)'
                             }}>
                                 <Shield size={10} strokeWidth={2.5} />
                                 System Alerts
@@ -527,7 +527,7 @@ const AlertsPipelineCard = ({
                             {alertStats.total > 0 && (
                                 <span style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 600
                                 }}>
                                     {alertStats.total}
@@ -597,7 +597,7 @@ const AlertsPipelineCard = ({
                                 <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#2E7D32', marginBottom: 2 }}>
                                     All Clear
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>
                                     No active alerts at this time
                                 </div>
                             </div>
@@ -723,15 +723,15 @@ const AlertsPipelineCard = ({
                             <div style={{
                                 padding: '20px 12px',
                                 textAlign: 'center',
-                                background: 'var(--bg-secondary, #f8fafc)',
-                                border: '1px dashed var(--border-light, #d9e6e9)',
+                                background: 'var(--bg-secondary, var(--bc-slate-50))',
+                                border: '1px dashed var(--border-light, var(--border-light))',
                                 borderRadius: 10
                             }}>
-                                <Database size={24} style={{ color: 'var(--text-tertiary, #94a3b8)', margin: '0 auto 6px' }} />
-                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', marginBottom: 2 }}>
+                                <Database size={24} style={{ color: 'var(--text-tertiary, var(--bc-slate-400))', margin: '0 auto 6px' }} />
+                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', marginBottom: 2 }}>
                                     No Pipeline Activity
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary, #94a3b8)' }}>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary, var(--bc-slate-400))' }}>
                                     Click sync below to start extraction
                                 </div>
                             </div>
@@ -751,8 +751,8 @@ const AlertsPipelineCard = ({
                             width: '100%',
                             padding: '11px 18px',
                             background: syncLoading
-                                ? 'linear-gradient(135deg, var(--text-tertiary, #94a3b8) 0%, var(--text-secondary, #64748b) 100%)'
-                                : 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
+                                ? 'linear-gradient(135deg, var(--text-tertiary, var(--bc-slate-400)) 0%, var(--text-secondary, var(--bc-slate-500)) 100%)'
+                                : 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-600) 100%)',
                             color: 'var(--bc-white)',
                             border: 'none',
                             borderRadius: 'var(--radius-md, 8px)',

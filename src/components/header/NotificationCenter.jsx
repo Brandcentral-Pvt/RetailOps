@@ -253,7 +253,7 @@ const NotificationCenter = () => {
         }
         styles={{ body: { padding: 0 } }}
       >
-        <div style={{ borderBottom: '1px solid #F1F5F9', padding: '0 20px' }}>
+        <div style={{ borderBottom: '1px solid var(--bc-slate-100)', padding: '0 20px' }}>
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}

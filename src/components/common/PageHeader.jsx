@@ -42,7 +42,7 @@ const PageHeader = ({
                 style={{
                     marginBottom: compact ? 16 : 24,
                     paddingBottom: divider ? (compact ? 14 : 18) : 0,
-                    borderBottom: divider ? '1px solid #e2e8f0' : 'none',
+                    borderBottom: divider ? '1px solid var(--bc-slate-200)' : 'none',
                     position: 'relative'
                 }}
             >
@@ -153,7 +153,7 @@ const PageHeader = ({
                                     width: 10,
                                     height: 10,
                                     background: '#2E7D32',
-                                    border: '2px solid #ffffff',
+                                    border: '2px solid var(--bc-white)',
                                     borderRadius: '50%',
                                     boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.4)',
                                     animation: 'pulse-live-dot 2s ease-out infinite'

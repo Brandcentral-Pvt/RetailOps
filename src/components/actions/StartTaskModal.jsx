@@ -102,7 +102,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', borderTop: '1px solid #dbeafe', paddingTop: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', borderTop: '1px solid var(--bc-blue-100)', paddingTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ color: 'var(--bc-slate-500)', width: 80 }}>Assignee:</span>
               <Avatar size={18} icon={<UserOutlined />} style={{ background: '#0288D1' }} />
@@ -162,7 +162,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
         </Form>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f1f5f9', paddingTop: 16, marginTop: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--bc-slate-100)', paddingTop: 16, marginTop: 12 }}>
         <Button type="text" onClick={onClose} disabled={submitting}>
           Not Now
         </Button>
@@ -172,7 +172,7 @@ const StartTaskModal = ({ isOpen, task, currentUser, onClose, onConfirm }) => {
           disabled={!acknowledged}
           loading={submitting}
           style={{
-            background: acknowledged ? 'linear-gradient(135deg, #1976D2, #9C27B0)' : 'var(--bc-slate-300)',
+            background: acknowledged ? 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-purple-500))' : 'var(--bc-slate-300)',
             border: 'none',
             borderRadius: "var(--radius-md)",
             height: 36,

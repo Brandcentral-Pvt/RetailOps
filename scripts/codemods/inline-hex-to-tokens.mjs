@@ -11,7 +11,11 @@
  *  - Never touches files under src/CometChat (vendored) or src/styles.
  *
  * Usage:
- *   node scripts/codemods/inline-hex-to-tokens.mjs [--dry]
+ *   node scripts/codemods/inline-hex-to-tokens.mjs [--dry] [--embed]
+ *
+ * --embed: additionally replace mapped hexes INSIDE longer string literals
+ *          (gradients etc.). Skips url(...)/data: payloads. Only exact
+ *          token-mapped hexes are touched.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const DRY = process.argv.includes('--dry');
+const EMBED = process.argv.includes('--embed');
 
 // ── 1. Build hex -> token map from tokens.css ────────────────────────────────
 const tokensCss = fs.readFileSync(path.join(ROOT, 'src/styles/tokens.css'), 'utf8');
@@ -90,6 +95,22 @@ for (const f of files) {
     count++;
     return `${q}var(${tok})${q}`;
   });
+
+  // --embed: mapped hexes inside longer strings (gradients, shadows).
+  // Skips anything that looks like a url()/data: payload.
+  if (EMBED) {
+    src = src.replace(/(['"])((?:\\.|(?!\1)[^\\])*)\1/g, (full, q, body) => {
+      if (!/#[\da-fA-F]{3,6}\b/.test(body)) return full;
+      if (/url\s*\(|data:|src\s*=/i.test(body)) return full;
+      const next = body.replace(/#([\da-fA-F]{6})\b/g, (h, hex) => {
+        const tok = map.get('#' + hex.toLowerCase());
+        if (!tok) return h;
+        count++;
+        return `var(${tok})`;
+      });
+      return next === body ? full : `${q}${next}${q}`;
+    });
+  }
 
   if (count > 0 && !DRY) fs.writeFileSync(f, src);
   if (count > 0) {

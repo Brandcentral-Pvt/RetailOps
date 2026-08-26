@@ -76,7 +76,7 @@ const TaskDetailDrawer = ({
       closable
       title={null}
     >
-      <div style={{ borderLeft: '4px solid #1976D2', padding: '20px 24px 12px', borderBottom: '1px solid #f1f5f9' }}>
+      <div style={{ borderLeft: '4px solid var(--bc-ro-500)', padding: '20px 24px 12px', borderBottom: '1px solid var(--bc-slate-100)' }}>
         <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           <Text strong style={{ fontSize: 'var(--font-size-lg)', color: 'var(--bc-slate-800)', lineHeight: 1.3 }}>
             {action.title || action.action || 'Untitled Task'}
@@ -188,10 +188,10 @@ const TaskDetailDrawer = ({
 
         <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-800)', display: 'block', marginBottom: 8 }}>Linked ASINs</Text>
         {linkedAsins.length > 0 ? (
-          <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+          <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                   <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>ASIN</th>
                   <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>Title</th>
                   <th style={{ padding: '8px 12px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>Status</th>
@@ -199,7 +199,7 @@ const TaskDetailDrawer = ({
               </thead>
               <tbody>
                 {displayAsins.map((a, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--bc-slate-100)' }}>
                     <td style={{ padding: '8px 12px', fontSize: 'var(--font-size-sm)', fontFamily: 'monospace' }}>
                       {typeof a === 'string' ? a : a.asin || a.code || '—'}
                     </td>
@@ -240,10 +240,10 @@ const TaskDetailDrawer = ({
                 style={{ width: 100, margin: 0 }}
               />
             </div>
-            <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', marginBottom: 12 }}>
+            <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)', marginBottom: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                  <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                     <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'center', width: 36 }}></th>
                     <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 600, color: 'var(--bc-slate-400)', textAlign: 'left' }}>ASIN</th>
                     {subTasks[0]?.currentPrice !== undefined && (
@@ -268,7 +268,7 @@ const TaskDetailDrawer = ({
                   {subTasks.map((st, i) => {
                     const isCompleted = st.status === 'completed';
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', opacity: isCompleted ? 0.6 : 1 }}>
+                      <tr key={i} style={{ borderBottom: '1px solid var(--bc-slate-100)', opacity: isCompleted ? 0.6 : 1 }}>
                         <td style={{ padding: '8px 8px', textAlign: 'center' }}>
                           <Checkbox checked={isCompleted} onChange={() => handleToggleSubTask(i)} />
                         </td>
@@ -326,7 +326,7 @@ const TaskDetailDrawer = ({
               </div>
             )}
             {action.internalNotes && (
-              <div style={{ background: 'var(--bc-amber-50)', borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8, border: '1px solid #fde68a' }}>
+              <div style={{ background: 'var(--bc-amber-50)', borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8, border: '1px solid var(--bc-amber-200)' }}>
                 <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-amber-800)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Internal Notes</Text>
                 <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{action.internalNotes}</Text>
               </div>
@@ -342,7 +342,7 @@ const TaskDetailDrawer = ({
         )}
       </div>
 
-      <div style={{ borderTop: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ borderTop: '1px solid var(--bc-slate-100)', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button icon={<CloseOutlined />} onClick={onClose} style={{ height: 36, borderRadius: "var(--radius-md)" }}>
           Close
         </Button>
@@ -351,7 +351,7 @@ const TaskDetailDrawer = ({
             <Button
               icon={<EditOutlined />}
               onClick={() => { onClose(); onEdit?.(action); }}
-              style={{ height: 36, borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}
+              style={{ height: 36, borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }}
             >
               Edit
             </Button>

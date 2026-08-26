@@ -208,7 +208,7 @@ export const ConnectionBanner = memo(({ targets }) => {
     return (
         <div style={{
             padding: '10px 16px', background: 'var(--bc-amber-50)',
-            border: '1px solid #fde68a', borderRadius: "var(--radius-md)",
+            border: '1px solid var(--bc-amber-200)', borderRadius: "var(--radius-md)",
             marginBottom: 12, fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--bc-amber-800)'
         }}>
             ⚠ No target data loaded. Create targets or check your connection.
@@ -542,7 +542,7 @@ const TargetVsAchievementDashboard = () => {
                 const initial = displayName ? displayName.charAt(0).toUpperCase() : 'B';
                 return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Avatar style={{ background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)', fontWeight: 800 }}>
+                        <Avatar style={{ background: 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)', fontWeight: 800 }}>
                             {initial}
                         </Avatar>
                         <div>
@@ -621,7 +621,7 @@ const TargetVsAchievementDashboard = () => {
     const expandedRowRender = useCallback((record) => {
         if (!record.monthlyBreakdown || record.monthlyBreakdown.length === 0) {
             return (
-                <div style={{ padding: '12px 24px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+                <div style={{ padding: '12px 24px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }}>
                     <Text type="secondary">No monthly breakdown allocations set for this target plan.</Text>
                 </div>
             );
@@ -630,7 +630,7 @@ const TargetVsAchievementDashboard = () => {
         const meta = getGoalMeta(record.GoalType);
 
         return (
-            <div style={{ padding: '16px 24px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+            <div style={{ padding: '16px 24px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)' }}>
                 <Title level={5} style={{ margin: '0 0 12px 0', fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-600)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Layers size={15} style={{ color: 'var(--bc-ro-500)' }} />
                     Monthly Breakdown Allocation Plan ({record.Year})
@@ -645,7 +645,7 @@ const TargetVsAchievementDashboard = () => {
 
                         return (
                             <Col xs={12} sm={8} md={6} lg={4} key={monthName}>
-                                <Card size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #cbd5e1' }} styles={{ body: { padding: 10 } }}>
+                                <Card size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-300)' }} styles={{ body: { padding: 10 } }}>
                                     <div style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', textTransform: 'uppercase', marginBottom: 4 }}>
                                         {MONTH_SHORT[idx]}
                                     </div>
@@ -694,12 +694,12 @@ const TargetVsAchievementDashboard = () => {
                 {isViewer && <ReadOnlyBanner isBrandManager={isBrandManager} />}
 
                 {/* Page Header */}
-                <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '20px 28px 16px' }}>
+                <div style={{ background: '#fff', borderBottom: '1px solid var(--bc-slate-200)', padding: '20px 28px 16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: 'var(--bc-slate-900)', margin: 0 }}>Analytics Dashboard</h2>
-                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--bc-slate-200)' }}>
                                     {filteredTargets.length} targets
                                 </span>
                             </div>
@@ -733,7 +733,7 @@ const TargetVsAchievementDashboard = () => {
                                 {availableYears.map(year => <Option key={year} value={year}>{year}</Option>)}
                             </Select>
                             <Button icon={<RefreshCw size={13} />} onClick={refresh} loading={loading}
-                                style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, border: '1px solid #e2e8f0' }}>
+                                style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, border: '1px solid var(--bc-slate-200)' }}>
                                 Refresh
                             </Button>
                         </Space>
@@ -828,7 +828,7 @@ const TargetVsAchievementDashboard = () => {
                                         />
                                         <RechartsTooltip
                                             formatter={(val) => [formatValue(val, getGoalMeta(selectedGoalType).unit), '']}
-                                            contentStyle={{ borderRadius: "var(--radius-md)", boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}
+                                            contentStyle={{ borderRadius: "var(--radius-md)", boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--bc-slate-200)' }}
                                         />
                                         <Legend iconType="circle" wrapperStyle={{ fontSize: 'var(--font-size-sm)', paddingTop: 10 }} />
                                         <Bar dataKey="Target" fill="url(#colorTarget)" radius={[4, 4, 0, 0]} barSize={20} />
@@ -1024,7 +1024,7 @@ const TargetVsAchievementDashboard = () => {
                                         const progressColor = tier.color;
 
                                         return (
-                                            <List.Item style={{ borderBottom: '1px solid #f1f5f9', padding: '12px 0' }}>
+                                            <List.Item style={{ borderBottom: '1px solid var(--bc-slate-100)', padding: '12px 0' }}>
                                                 <div style={{ width: '100%' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                                                         <Space>
@@ -1050,7 +1050,7 @@ const TargetVsAchievementDashboard = () => {
                     <Col xs={24} md={12}>
                         <Card className="chart-container-card" title="Operational Targets Breakdown recap">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                                         <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-sm)' }}>
                                             {['ACOS', 'PO_FULFILMENT', 'PO_DAYS'].includes(selectedGoalType) ? "Average Target Goal" : "Cumulative Plans Target Pool"}
@@ -1066,7 +1066,7 @@ const TargetVsAchievementDashboard = () => {
                                     </Text>
                                 </div>
 
-                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                                         <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-sm)' }}>
                                             {['ACOS', 'PO_FULFILMENT', 'PO_DAYS'].includes(selectedGoalType) ? "Average Realized Achievement" : "Total Realized Achievement Value"}
@@ -1082,7 +1082,7 @@ const TargetVsAchievementDashboard = () => {
                                     </Text>
                                 </div>
 
-                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0' }}>
+                                <div style={{ background: 'var(--bc-slate-50)', padding: 14, borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                                         <span style={{ fontWeight: 600, color: 'var(--bc-slate-600)', fontSize: 'var(--font-size-sm)' }}>
                                             {getGoalMeta(selectedGoalType).unit === '₹' ? 'Unrealized Goal Target Gap' : 'Target vs Achievement Gap'}
@@ -1103,10 +1103,10 @@ const TargetVsAchievementDashboard = () => {
                 </Row>
 
                 {/* 4. Filter search bar & Interactive Table */}
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                <div style={{ background: '#fff', border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-lg)", overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                     <div style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        borderBottom: '1px solid #e2e8f0', padding: '14px 20px', gap: 16, flexWrap: 'wrap'
+                        borderBottom: '1px solid var(--bc-slate-200)', padding: '14px 20px', gap: 16, flexWrap: 'wrap'
                     }}>
                         <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--bc-slate-900)' }}>
                             Brand-wise Target Fulfillment Status

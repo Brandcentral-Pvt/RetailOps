@@ -135,7 +135,7 @@ const AsinDetailTable = ({ action, config }) => {
             const sku = asin.sku || asin.SKU || '—';
             return (
               <tr key={i} style={{
-                borderBottom: '1px solid #f1f5f9',
+                borderBottom: '1px solid var(--bc-slate-100)',
                 background: i % 2 === 0 ? 'var(--bc-white)' : '#fafbfc',
                 transition: 'background 0.15s'
               }}
@@ -159,7 +159,7 @@ const AsinDetailTable = ({ action, config }) => {
                 <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: 'var(--bc-red-50)', border: '1px solid #fecaca',
+                    background: 'var(--bc-red-50)', border: '1px solid var(--bc-red-200)',
                     color: '#D32F2F', fontSize: 10, fontWeight: 600,
                     padding: '2px 8px', borderRadius: 10
                   }}>
@@ -191,7 +191,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
   const isCompleted = action.timeTracking?.completedAt || status === 'COMPLETED';
 
   return (
-    <div style={{ borderBottom: '1px solid #f1f5f9' }}>
+    <div style={{ borderBottom: '1px solid var(--bc-slate-100)' }}>
       {/* Row header */}
       <div
         style={{
@@ -243,7 +243,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
         {/* ASIN count */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          background: 'var(--bc-slate-100)', border: '1px solid #e2e8f0',
+          background: 'var(--bc-slate-100)', border: '1px solid var(--bc-slate-200)',
           borderRadius: 10, padding: '3px 10px', flexShrink: 0
         }}>
           <Package size={11} color="var(--bc-slate-500)" />
@@ -269,7 +269,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onStart && onStart(action)}
               title="Start Task"
-              style={{ padding: '4px 8px', background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe', color: '#0288D1', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ padding: '4px 8px', background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-200)', color: '#0288D1', borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <Play size={10} fill="currentColor" /> Start
             </button>
@@ -295,7 +295,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onEdit && onEdit(action, 'ACTION')}
               title="Edit"
-              style={{ padding: '5px', background: 'var(--bc-slate-50)', border: '1px solid #e2e8f0', color: 'var(--bc-slate-500)', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '5px', background: 'var(--bc-slate-50)', border: '1px solid var(--bc-slate-200)', color: 'var(--bc-slate-500)', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
             >
               <Edit2 size={11} />
             </button>
@@ -304,7 +304,7 @@ const OptimizationRow = ({ action, config, onEdit, onDelete, onStart, onSubmitFo
             <button
               onClick={() => onDelete && onDelete(action._id || action.id, 'ACTION')}
               title="Delete"
-              style={{ padding: '5px', background: 'var(--bc-red-50)', border: '1px solid #fecaca', color: '#D32F2F', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '5px', background: 'var(--bc-red-50)', border: '1px solid var(--bc-red-200)', color: '#D32F2F', borderRadius: 7, cursor: 'pointer', display: 'flex' }}
             >
               <Trash2 size={11} />
             </button>
@@ -438,7 +438,7 @@ const BrandTaskCard = ({
             {stats.hasOverdue && (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: 'var(--bc-red-50)', border: '1px solid #fecaca',
+                background: 'var(--bc-red-50)', border: '1px solid var(--bc-red-200)',
                 color: '#D32F2F', fontSize: 9, fontWeight: 800,
                 padding: '2px 7px', borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.05em'
               }}>
@@ -465,7 +465,7 @@ const BrandTaskCard = ({
         {/* Stats pills */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
           <div style={{
-            background: 'var(--bc-white)', border: '1.5px solid #e2e8f0',
+            background: 'var(--bc-white)', border: '1.5px solid var(--bc-slate-200)',
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
           }}>
             <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--bc-slate-900)', lineHeight: 1 }}>{stats.total}</div>
@@ -473,7 +473,7 @@ const BrandTaskCard = ({
           </div>
 
           <div style={{
-            background: 'var(--bc-white)', border: '1.5px solid #e2e8f0',
+            background: 'var(--bc-white)', border: '1.5px solid var(--bc-slate-200)',
             borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
           }}>
             <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--bc-ro-500)', lineHeight: 1 }}>{stats.totalAsins}</div>
@@ -482,7 +482,7 @@ const BrandTaskCard = ({
 
           {stats.inProgress > 0 && (
             <div style={{
-              background: 'var(--bc-blue-50)', border: '1.5px solid #bfdbfe',
+              background: 'var(--bc-blue-50)', border: '1.5px solid var(--bc-blue-200)',
               borderRadius: 10, padding: '6px 12px', textAlign: 'center', minWidth: 60
             }}>
               <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#0288D1', lineHeight: 1 }}>{stats.inProgress}</div>
@@ -516,7 +516,7 @@ const BrandTaskCard = ({
           {/* Category summary bar */}
           <div style={{
             display: 'flex', gap: 6, padding: '10px 20px',
-            background: '#fafbfc', borderBottom: '1px solid #f1f5f9',
+            background: '#fafbfc', borderBottom: '1px solid var(--bc-slate-100)',
             flexWrap: 'wrap'
           }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--bc-slate-400)', textTransform: 'uppercase', letterSpacing: '0.06em', alignSelf: 'center', marginRight: 4 }}>

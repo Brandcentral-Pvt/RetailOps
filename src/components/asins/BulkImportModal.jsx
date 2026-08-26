@@ -131,7 +131,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                 </span>
                 <div className="d-flex flex-wrap gap-2">
                     {activeSchema.map(col => (
-                        <div key={col} style={{ background: '#fff', border: '1px solid #bfdbfe', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{col}</div>
+                        <div key={col} style={{ background: '#fff', border: '1px solid var(--bc-blue-200)', color: 'var(--bc-blue-700)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>{col}</div>
                     ))}
                 </div>
                 {activeTab === 'catalog' && marketplace === 'ajio' && (

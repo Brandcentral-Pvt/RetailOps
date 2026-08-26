@@ -46,7 +46,7 @@ const RejectedTaskBanner = ({ task }) => {
             {isMultiple && (
               <Tag style={{
                 background: 'var(--bc-red-100)', color: '#D32F2F',
-                border: '1px solid #fecaca', borderRadius: "var(--radius-lg)",
+                border: '1px solid var(--bc-red-200)', borderRadius: "var(--radius-lg)",
                 fontSize: 10, fontWeight: 600,
               }}>
                 {rejections.length} rejections
@@ -109,7 +109,7 @@ const RejectedTaskBanner = ({ task }) => {
                               background: 'var(--bc-slate-50)',
                               borderRadius: 6,
                               padding: '8px 12px',
-                              border: '1px solid #e2e8f0',
+                              border: '1px solid var(--bc-slate-200)',
                             }}
                           >
                             <Text style={{ fontSize: 10, color: 'var(--bc-slate-400)', display: 'block', marginBottom: 3 }}>

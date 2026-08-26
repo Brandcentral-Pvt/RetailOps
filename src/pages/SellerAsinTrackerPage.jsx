@@ -96,13 +96,13 @@ const formatFullDate = (date) => {
 };
 
 const getLqsBadge = (lqs) => {
-  if (lqs == null) return <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-xs)' }}>N/A</span>;
+  if (lqs == null) return <span style={{ color: 'var(--text-muted, var(--bc-slate-400))', fontSize: 'var(--font-size-xs)' }}>N/A</span>;
   const grade = lqs >= 80 ? 'A' : lqs >= 60 ? 'B' : lqs >= 40 ? 'C' : 'D';
   const colors = {
-    A: { bg: 'var(--bg-success-subtle, #f0fdf4)', text: 'var(--bc-green-700)', border: 'var(--color-success-border, #bbf7d0)' },
-    B: { bg: 'var(--bg-info-subtle, #eff6ff)', text: 'var(--bc-blue-700)', border: 'var(--color-info-border, #bfdbfe)' },
-    C: { bg: 'var(--bg-warning-subtle, #fffbeb)', text: '#a16207', border: 'var(--color-warning-border, #fde68a)' },
-    D: { bg: 'var(--bg-danger-subtle, #fef2f2)', text: 'var(--bc-red-700)', border: 'var(--color-danger-border, #fecaca)' }
+    A: { bg: 'var(--bg-success-subtle, var(--bc-green-50))', text: 'var(--bc-green-700)', border: 'var(--color-success-border, var(--bc-green-200))' },
+    B: { bg: 'var(--bg-info-subtle, var(--bc-blue-50))', text: 'var(--bc-blue-700)', border: 'var(--color-info-border, var(--bc-blue-200))' },
+    C: { bg: 'var(--bg-warning-subtle, var(--bc-amber-50))', text: '#a16207', border: 'var(--color-warning-border, var(--bc-amber-200))' },
+    D: { bg: 'var(--bg-danger-subtle, var(--bc-red-50))', text: 'var(--bc-red-700)', border: 'var(--color-danger-border, var(--bc-red-200))' }
   };
   const c = colors[grade];
   return (
@@ -127,22 +127,22 @@ const getLqsBadge = (lqs) => {
 // ACTIVITY TYPE CONFIG (No emojis, professional labels)
 // ═══════════════════════════════════════════════════════════════
 const ACTIVITY_TYPES = {
-  ASIN_ADDED: { icon: Plus, color: 'var(--text-success, #2E7D32)', label: 'ASIN Added', bg: 'var(--bg-success-subtle, #f0fdf4)' },
-  ASIN_REMOVED: { icon: XCircle, color: 'var(--text-danger, #D32F2F)', label: 'ASIN Removed', bg: 'var(--bg-danger-subtle, #fef2f2)' },
-  SYNC_COMPLETED: { icon: CheckCircle2, color: 'var(--text-success, #2E7D32)', label: 'Sync Completed', bg: 'var(--bg-success-subtle, #f0fdf4)' },
-  SYNC_FAILED: { icon: XCircle, color: 'var(--text-danger, #D32F2F)', label: 'Sync Failed', bg: 'var(--bg-danger-subtle, #fef2f2)' },
-  SYNC_STARTED: { icon: Loader2, color: 'var(--bc-blue-700)', label: 'Sync Initiated', bg: 'var(--bg-info-subtle, #eff6ff)' },
-  PRICE_CHANGE: { icon: DollarSign, color: '#a16207', label: 'Price Updated', bg: 'var(--bg-warning-subtle, #fffbeb)' },
-  LQS_UPDATED: { icon: TrendingUp, color: 'var(--bc-violet-700)', label: 'LQS Score Updated', bg: 'var(--bg-info-subtle, #f5f3ff)' },
-  NEW_ORDER: { icon: ShoppingBag, color: '#0e7490', label: 'Order Received', bg: 'var(--bg-info-subtle, #ecfeff)' },
-  STOCK_LOW: { icon: AlertTriangle, color: '#a16207', label: 'Low Stock Alert', bg: 'var(--bg-warning-subtle, #fffbeb)' },
-  STOCK_OUT: { icon: AlertCircle, color: 'var(--text-danger, #D32F2F)', label: 'Out of Stock', bg: 'var(--bg-danger-subtle, #fef2f2)' },
-  REVIEW_RECEIVED: { icon: Star, color: '#a16207', label: 'Review Received', bg: 'var(--bg-warning-subtle, #fffbeb)' },
-  TASK_CREATED: { icon: ClipboardList, color: 'var(--bc-blue-700)', label: 'Task Created', bg: 'var(--bg-info-subtle, #eff6ff)' },
-  TASK_COMPLETED: { icon: CheckCircle2, color: 'var(--text-success, #2E7D32)', label: 'Task Completed', bg: 'var(--bg-success-subtle, #f0fdf4)' },
-  MANAGER_ASSIGNED: { icon: Users, color: 'var(--bc-violet-700)', label: 'Manager Assigned', bg: 'var(--bg-info-subtle, #f5f3ff)' },
-  MANAGER_CHANGE:   { icon: Users, color: 'var(--bc-cyan-600)', label: 'Manager Changed', bg: 'var(--bg-info-subtle, #ecfeff)' },
-  SETTINGS_UPDATED: { icon: Edit3, color: 'var(--bc-slate-600)', label: 'Settings Updated', bg: 'var(--bg-secondary, #f8fafc)' }
+  ASIN_ADDED: { icon: Plus, color: 'var(--text-success, #2E7D32)', label: 'ASIN Added', bg: 'var(--bg-success-subtle, var(--bc-green-50))' },
+  ASIN_REMOVED: { icon: XCircle, color: 'var(--text-danger, #D32F2F)', label: 'ASIN Removed', bg: 'var(--bg-danger-subtle, var(--bc-red-50))' },
+  SYNC_COMPLETED: { icon: CheckCircle2, color: 'var(--text-success, #2E7D32)', label: 'Sync Completed', bg: 'var(--bg-success-subtle, var(--bc-green-50))' },
+  SYNC_FAILED: { icon: XCircle, color: 'var(--text-danger, #D32F2F)', label: 'Sync Failed', bg: 'var(--bg-danger-subtle, var(--bc-red-50))' },
+  SYNC_STARTED: { icon: Loader2, color: 'var(--bc-blue-700)', label: 'Sync Initiated', bg: 'var(--bg-info-subtle, var(--bc-blue-50))' },
+  PRICE_CHANGE: { icon: DollarSign, color: '#a16207', label: 'Price Updated', bg: 'var(--bg-warning-subtle, var(--bc-amber-50))' },
+  LQS_UPDATED: { icon: TrendingUp, color: 'var(--bc-violet-700)', label: 'LQS Score Updated', bg: 'var(--bg-info-subtle, var(--bc-violet-50))' },
+  NEW_ORDER: { icon: ShoppingBag, color: '#0e7490', label: 'Order Received', bg: 'var(--bg-info-subtle, var(--bc-cyan-50))' },
+  STOCK_LOW: { icon: AlertTriangle, color: '#a16207', label: 'Low Stock Alert', bg: 'var(--bg-warning-subtle, var(--bc-amber-50))' },
+  STOCK_OUT: { icon: AlertCircle, color: 'var(--text-danger, #D32F2F)', label: 'Out of Stock', bg: 'var(--bg-danger-subtle, var(--bc-red-50))' },
+  REVIEW_RECEIVED: { icon: Star, color: '#a16207', label: 'Review Received', bg: 'var(--bg-warning-subtle, var(--bc-amber-50))' },
+  TASK_CREATED: { icon: ClipboardList, color: 'var(--bc-blue-700)', label: 'Task Created', bg: 'var(--bg-info-subtle, var(--bc-blue-50))' },
+  TASK_COMPLETED: { icon: CheckCircle2, color: 'var(--text-success, #2E7D32)', label: 'Task Completed', bg: 'var(--bg-success-subtle, var(--bc-green-50))' },
+  MANAGER_ASSIGNED: { icon: Users, color: 'var(--bc-violet-700)', label: 'Manager Assigned', bg: 'var(--bg-info-subtle, var(--bc-violet-50))' },
+  MANAGER_CHANGE:   { icon: Users, color: 'var(--bc-cyan-600)', label: 'Manager Changed', bg: 'var(--bg-info-subtle, var(--bc-cyan-50))' },
+  SETTINGS_UPDATED: { icon: Edit3, color: 'var(--bc-slate-600)', label: 'Settings Updated', bg: 'var(--bg-secondary, var(--bc-slate-50))' }
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -173,8 +173,8 @@ const TimelineItem = memo(({ activity }) => {
       gap: 14,
       padding: '14px 16px',
       background: isManagerChange ? '#f0fdff' : 'var(--bc-white)',
-      border: `1px solid ${isManagerChange ? 'var(--color-info-border, #bae6fd)' : 'var(--border-light, #d9e6e9)'}`,
-      borderLeft: isManagerChange ? '3px solid var(--color-info)' : '1px solid var(--border-light, #d9e6e9)',
+      border: `1px solid ${isManagerChange ? 'var(--color-info-border, #bae6fd)' : 'var(--border-light, var(--border-light))'}`,
+      borderLeft: isManagerChange ? '3px solid var(--color-info)' : '1px solid var(--border-light, var(--border-light))',
       borderRadius: 'var(--radius-md, 8px)',
       marginBottom: 8,
       transition: 'border-color 0.15s, background 0.15s'
@@ -212,26 +212,26 @@ const TimelineItem = memo(({ activity }) => {
               {config.label}
             </span>
             {activity.priority === 'HIGH' && (
-              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-danger, #D32F2F)', background: 'var(--bg-danger-subtle, #fef2f2)', border: '1px solid var(--color-danger-border, #fecaca)', padding: '2px 8px', borderRadius: "var(--radius-sm)", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Urgent</span>
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-danger, #D32F2F)', background: 'var(--bg-danger-subtle, var(--bc-red-50))', border: '1px solid var(--color-danger-border, var(--bc-red-200))', padding: '2px 8px', borderRadius: "var(--radius-sm)", textTransform: 'uppercase', letterSpacing: '0.04em' }}>Urgent</span>
             )}
           </div>
           <Tooltip title={formatFullDate(activity.timestamp)}>
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 500, whiteSpace: 'nowrap', cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 500, whiteSpace: 'nowrap', cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Clock size={10} strokeWidth={2} />
               {formatRelativeTime(activity.timestamp)}
-              <span style={{ color: 'var(--text-muted, #94a3b8)', marginLeft: 2 }}>· {formatFullDate(activity.timestamp)}</span>
+              <span style={{ color: 'var(--text-muted, var(--bc-slate-400))', marginLeft: 2 }}>· {formatFullDate(activity.timestamp)}</span>
             </span>
           </Tooltip>
         </div>
 
         {/* Title */}
-        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', lineHeight: 1.4, marginBottom: 4 }}>
+        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', lineHeight: 1.4, marginBottom: 4 }}>
           {activity.title}
         </div>
 
         {/* Description */}
         {activity.description && !isManagerChange && (
-          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, #64748b)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, var(--bc-slate-500))', lineHeight: 1.5 }}>
             {activity.description}
           </div>
         )}
@@ -251,13 +251,13 @@ const TimelineItem = memo(({ activity }) => {
             }}>
               {/* Old BM */}
               <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Previous Manager</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Previous Manager</div>
                 <div style={{
                   fontSize: 'var(--font-size-sm)',
                   fontWeight: 600,
-                  color: prevBMName ? 'var(--text-danger, #D32F2F)' : 'var(--text-muted, #94a3b8)',
-                  background: prevBMName ? 'var(--bg-danger-subtle, #fef2f2)' : 'var(--bg-secondary, #f8fafc)',
-                  border: `1px solid ${prevBMName ? 'var(--color-danger-border, #fecaca)' : 'var(--border-light, #d9e6e9)'}`,
+                  color: prevBMName ? 'var(--text-danger, #D32F2F)' : 'var(--text-muted, var(--bc-slate-400))',
+                  background: prevBMName ? 'var(--bg-danger-subtle, var(--bc-red-50))' : 'var(--bg-secondary, var(--bc-slate-50))',
+                  border: `1px solid ${prevBMName ? 'var(--color-danger-border, var(--bc-red-200))' : 'var(--border-light, var(--border-light))'}`,
                   borderRadius: 'var(--radius-md, 8px)',
                   padding: '6px 10px',
                   textDecoration: 'line-through',
@@ -272,12 +272,12 @@ const TimelineItem = memo(({ activity }) => {
 
               {/* New BM */}
               <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>New Manager</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>New Manager</div>
                 <div style={{
                   fontSize: 'var(--font-size-sm)',
                   fontWeight: 600,
                   color: 'var(--color-info)',
-                  background: 'var(--bg-info-subtle, #ecfeff)',
+                  background: 'var(--bg-info-subtle, var(--bc-cyan-50))',
                   border: '1px solid #a5f3fc',
                   borderRadius: 'var(--radius-md, 8px)',
                   padding: '6px 10px'
@@ -292,10 +292,10 @@ const TimelineItem = memo(({ activity }) => {
               {actorName && (
                 <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Users size={10} strokeWidth={2} />
-                  Changed by <strong style={{ color: 'var(--text-primary, #0f172a)' }}>{actorName}</strong>
+                  Changed by <strong style={{ color: 'var(--text-primary, var(--bc-slate-900))' }}>{actorName}</strong>
                 </span>
               )}
-              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <Calendar size={10} strokeWidth={2} />
                 {formatFullDate(activity.timestamp)}
               </span>
@@ -307,7 +307,7 @@ const TimelineItem = memo(({ activity }) => {
         {activity.metadata && !isManagerChange && (
           <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
             {Object.entries(activity.metadata).map(([key, value], i) => (
-              <span key={i} style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-light, #d9e6e9)', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>
+              <span key={i} style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--bg-secondary, var(--bc-slate-50))', border: '1px solid var(--border-light, var(--border-light))', padding: '2px 8px', borderRadius: "var(--radius-sm)" }}>
                 <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{key}:</span> {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
               </span>
             ))}
@@ -330,31 +330,31 @@ const UpcomingTaskItem = memo(({ task }) => {
   const isTomorrow = diffDays === 1;
 
   let dueColor = 'var(--bc-slate-600)';
-  let dueBg = 'var(--bg-secondary, #f8fafc)';
-  let dueBorder = 'var(--border-light, #d9e6e9)';
+  let dueBg = 'var(--bg-secondary, var(--bc-slate-50))';
+  let dueBorder = 'var(--border-light, var(--border-light))';
   let dueLabel = `In ${diffDays} days`;
 
   if (isOverdue) {
     dueColor = 'var(--text-danger, #D32F2F)';
-    dueBg = 'var(--bg-danger-subtle, #fef2f2)';
-    dueBorder = 'var(--color-danger-border, #fecaca)';
+    dueBg = 'var(--bg-danger-subtle, var(--bc-red-50))';
+    dueBorder = 'var(--color-danger-border, var(--bc-red-200))';
     dueLabel = `${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''} overdue`;
   } else if (isToday) {
     dueColor = '#a16207';
-    dueBg = 'var(--bg-warning-subtle, #fffbeb)';
-    dueBorder = 'var(--color-warning-border, #fde68a)';
+    dueBg = 'var(--bg-warning-subtle, var(--bc-amber-50))';
+    dueBorder = 'var(--color-warning-border, var(--bc-amber-200))';
     dueLabel = 'Due today';
   } else if (isTomorrow) {
     dueColor = '#a16207';
-    dueBg = 'var(--bg-warning-subtle, #fffbeb)';
-    dueBorder = 'var(--color-warning-border, #fde68a)';
+    dueBg = 'var(--bg-warning-subtle, var(--bc-amber-50))';
+    dueBorder = 'var(--color-warning-border, var(--bc-amber-200))';
     dueLabel = 'Due tomorrow';
   }
 
   const priorityColors = {
-    HIGH: { bg: 'var(--bg-danger-subtle, #fef2f2)', text: 'var(--text-danger, #D32F2F)', border: 'var(--color-danger-border, #fecaca)' },
-    MEDIUM: { bg: 'var(--bg-warning-subtle, #fffbeb)', text: '#a16207', border: 'var(--color-warning-border, #fde68a)' },
-    LOW: { bg: 'var(--bg-success-subtle, #f0fdf4)', text: 'var(--text-success, #2E7D32)', border: 'var(--color-success-border, #bbf7d0)' }
+    HIGH: { bg: 'var(--bg-danger-subtle, var(--bc-red-50))', text: 'var(--text-danger, #D32F2F)', border: 'var(--color-danger-border, var(--bc-red-200))' },
+    MEDIUM: { bg: 'var(--bg-warning-subtle, var(--bc-amber-50))', text: '#a16207', border: 'var(--color-warning-border, var(--bc-amber-200))' },
+    LOW: { bg: 'var(--bg-success-subtle, var(--bc-green-50))', text: 'var(--text-success, #2E7D32)', border: 'var(--color-success-border, var(--bc-green-200))' }
   };
   const priority = priorityColors[task.priority] || priorityColors.MEDIUM;
 
@@ -362,7 +362,7 @@ const UpcomingTaskItem = memo(({ task }) => {
     <div className={styles.taskItemRow} style={{
       padding: '14px 16px',
       background: 'var(--bc-white)',
-      border: '1px solid var(--border-light, #d9e6e9)',
+      border: '1px solid var(--border-light, var(--border-light))',
       borderLeft: `3px solid ${dueColor}`,
       borderRadius: 'var(--radius-md, 8px)',
       marginBottom: 8,
@@ -395,8 +395,8 @@ const UpcomingTaskItem = memo(({ task }) => {
               fontSize: 'var(--font-size-xs)',
               fontWeight: 600,
                     color: 'var(--text-secondary)',
-              background: 'var(--bg-secondary, #f8fafc)',
-              border: '1px solid var(--border-light, #d9e6e9)',
+              background: 'var(--bg-secondary, var(--bc-slate-50))',
+              border: '1px solid var(--border-light, var(--border-light))',
               padding: '2px 8px',
               borderRadius: "var(--radius-sm)",
               textTransform: 'uppercase',
@@ -422,7 +422,7 @@ const UpcomingTaskItem = memo(({ task }) => {
       <div style={{
         fontSize: 'var(--font-size-sm)',
         fontWeight: 600,
-        color: 'var(--text-primary, #0f172a)',
+        color: 'var(--text-primary, var(--bc-slate-900))',
         lineHeight: 1.4,
         marginBottom: 4
       }}>
@@ -431,7 +431,7 @@ const UpcomingTaskItem = memo(({ task }) => {
       {task.description && (
         <div style={{
           fontSize: 'var(--font-size-sm)',
-          color: 'var(--text-secondary, #64748b)',
+          color: 'var(--text-secondary, var(--bc-slate-500))',
           lineHeight: 1.5,
           marginBottom: 8
         }}>
@@ -444,7 +444,7 @@ const UpcomingTaskItem = memo(({ task }) => {
           alignItems: 'center',
           gap: 6,
           fontSize: 'var(--font-size-xs)',
-          color: 'var(--text-secondary, #64748b)',
+          color: 'var(--text-secondary, var(--bc-slate-500))',
           fontWeight: 500
         }}>
           <Users size={11} strokeWidth={2} />
@@ -472,9 +472,9 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
       className={`${styles.sellerCard} ${isActive ? styles.active : ''}`}
       style={{
         padding: '12px 14px',
-        background: isActive ? 'var(--bg-secondary, #f8fafc)' : 'var(--bc-white)',
-        border: `1px solid ${isActive ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)'}`,
-        borderLeft: `3px solid ${isActive ? 'var(--text-primary, #0f172a)' : 'transparent'}`,
+        background: isActive ? 'var(--bg-secondary, var(--bc-slate-50))' : 'var(--bc-white)',
+        border: `1px solid ${isActive ? 'var(--text-primary, var(--bc-slate-900))' : 'var(--border-light, var(--border-light))'}`,
+        borderLeft: `3px solid ${isActive ? 'var(--text-primary, var(--bc-slate-900))' : 'transparent'}`,
         borderRadius: 'var(--radius-md, 8px)',
         marginBottom: 6,
         cursor: 'pointer',
@@ -487,8 +487,8 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
           width: 40,
           height: 40,
           borderRadius: 'var(--radius-md, 8px)',
-          background: isActive ? 'var(--text-primary, #0f172a)' : 'var(--bg-secondary, #f8fafc)',
-          border: `1px solid ${isActive ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)'}`,
+          background: isActive ? 'var(--text-primary, var(--bc-slate-900))' : 'var(--bg-secondary, var(--bc-slate-50))',
+          border: `1px solid ${isActive ? 'var(--text-primary, var(--bc-slate-900))' : 'var(--border-light, var(--border-light))'}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -512,7 +512,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
               width: 10,
               height: 10,
               background: 'var(--text-success, #2E7D32)',
-              border: '2px solid #ffffff',
+              border: '2px solid var(--bc-white)',
               borderRadius: '50%'
             }} />
           )}
@@ -522,7 +522,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
           <div style={{
             fontSize: 'var(--font-size-sm)',
             fontWeight: 600,
-            color: 'var(--text-primary, #0f172a)',
+            color: 'var(--text-primary, var(--bc-slate-900))',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -537,7 +537,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
             alignItems: 'center',
             gap: 8,
             fontSize: 'var(--font-size-xs)',
-            color: 'var(--text-secondary, #64748b)'
+            color: 'var(--text-secondary, var(--bc-slate-500))'
           }}>
             {parsed.hasNumber && (
               <span style={{
@@ -570,7 +570,7 @@ const SellerCard = memo(({ seller, isActive, onClick }) => {
         </div>
 
         {isActive && (
-          <ChevronRight size={14} style={{ color: 'var(--text-primary, #0f172a)', flexShrink: 0 }} strokeWidth={2.5} />
+          <ChevronRight size={14} style={{ color: 'var(--text-primary, var(--bc-slate-900))', flexShrink: 0 }} strokeWidth={2.5} />
         )}
       </div>
     </div>
@@ -698,7 +698,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
           background: 'var(--bc-white)',
           padding: 48,
           borderRadius: "var(--radius-md)",
-          border: '1px solid var(--border-light, #d9e6e9)',
+          border: '1px solid var(--border-light, var(--border-light))',
           textAlign: 'center',
           maxWidth: 420
         }}>
@@ -706,8 +706,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             width: 56,
             height: 56,
             borderRadius: "var(--radius-md)",
-            background: 'var(--bg-secondary, #f8fafc)',
-            border: '1px solid var(--border-light, #d9e6e9)',
+            background: 'var(--bg-secondary, var(--bc-slate-50))',
+            border: '1px solid var(--border-light, var(--border-light))',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -715,10 +715,10 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
           }}>
             <Store size={24} color="var(--bc-slate-600)" strokeWidth={2} />
           </div>
-          <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', marginBottom: 8 }}>
             No Seller Selected
           </div>
-          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, #64748b)', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, var(--bc-slate-500))', lineHeight: 1.6 }}>
             Select a seller from the sidebar to view activity timeline, scheduled tasks, and catalog details.
           </div>
         </div>
@@ -741,11 +741,11 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
       render: (code) => (
         <span style={{
           fontFamily: 'JetBrains Mono, monospace',
-          color: 'var(--text-primary, #0f172a)',
+          color: 'var(--text-primary, var(--bc-slate-900))',
           fontSize: 'var(--font-size-sm)',
           fontWeight: 600,
-          background: 'var(--bg-secondary, #f8fafc)',
-          border: '1px solid var(--border-light, #d9e6e9)',
+          background: 'var(--bg-secondary, var(--bc-slate-50))',
+          border: '1px solid var(--border-light, var(--border-light))',
           padding: '2px 8px',
           borderRadius: "var(--radius-sm)"
         }}>
@@ -760,10 +760,10 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
       render: (title, record) => (
         <Space size={10}>
           {record.imageUrl && (
-            <Avatar shape="square" size={32} src={record.imageUrl} style={{ borderRadius: "var(--radius-sm)", border: '1px solid var(--border-light, #d9e6e9)' }} />
+            <Avatar shape="square" size={32} src={record.imageUrl} style={{ borderRadius: "var(--radius-sm)", border: '1px solid var(--border-light, var(--border-light))' }} />
           )}
           <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--text-secondary)' }}>
-            {title || <span style={{ fontStyle: 'italic', color: 'var(--text-muted, #94a3b8)' }}>No title available</span>}
+            {title || <span style={{ fontStyle: 'italic', color: 'var(--text-muted, var(--bc-slate-400))' }}>No title available</span>}
           </span>
         </Space>
       )
@@ -780,7 +780,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
       dataIndex: 'createdAt',
       width: 130,
       render: (date) => (
-        <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, #64748b)', fontWeight: 500 }}>
+        <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 500 }}>
           {formatRelativeTime(date)}
         </span>
       )
@@ -829,8 +829,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               width: 52,
               height: 52,
               borderRadius: "var(--radius-md)",
-              background: 'var(--text-primary, #0f172a)',
-              border: '1px solid var(--text-primary, #0f172a)',
+              background: 'var(--text-primary, var(--bc-slate-900))',
+              border: '1px solid var(--text-primary, var(--bc-slate-900))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -859,8 +859,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 600,
               color: 'var(--text-secondary)',
-                    background: 'var(--bg-secondary, #f8fafc)',
-                    border: '1px solid var(--border-light, #d9e6e9)',
+                    background: 'var(--bg-secondary, var(--bc-slate-50))',
+                    border: '1px solid var(--border-light, var(--border-light))',
                     padding: '2px 8px',
                     borderRadius: "var(--radius-sm)",
                     fontFamily: '"JetBrains Mono", monospace',
@@ -874,8 +874,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   alignItems: 'center',
                   gap: 4,
                   padding: '2px 8px',
-                  background: 'var(--bg-success-subtle, #f0fdf4)',
-                  border: '1px solid var(--color-success-border, #bbf7d0)',
+                  background: 'var(--bg-success-subtle, var(--bc-green-50))',
+                  border: '1px solid var(--color-success-border, var(--bc-green-200))',
                   borderRadius: "var(--radius-sm)",
                   fontSize: 'var(--font-size-xs)',
                   fontWeight: 600,
@@ -900,12 +900,12 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 <span style={{
                   fontFamily: 'JetBrains Mono, monospace',
                   fontSize: 'var(--font-size-xs)',
-                  color: 'var(--text-secondary, #64748b)',
+                  color: 'var(--text-secondary, var(--bc-slate-500))',
                   fontWeight: 500
                 }}>
                   {seller.sellerId}
                 </span>
-                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, #64748b)' }}>
+                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>
                   Last sync: {formatRelativeTime(seller.lastKeepaSync)}
                 </span>
               </Space>
@@ -943,14 +943,14 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             icon={Package}
             label="Total ASINs"
             value={(seller.dbAsinCount || 0).toLocaleString('en-IN')}
-            color="var(--text-primary, #0f172a)"
+            color="var(--text-primary, var(--bc-slate-900))"
           />
           <StatCard
             variant="compact"
             icon={Database}
             label="Keepa Catalog"
             value={(seller.keepaAsinCount || 0).toLocaleString('en-IN')}
-            color="var(--text-primary, #0f172a)"
+            color="var(--text-primary, var(--bc-slate-900))"
           />
           <StatCard
             variant="compact"
@@ -964,7 +964,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             icon={Activity}
             label="Activities"
             value={activities.length}
-            color="var(--text-primary, #0f172a)"
+            color="var(--text-primary, var(--bc-slate-900))"
           />
           <StatCard
             variant="compact"
@@ -981,7 +981,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             ═══════════════════════════════════════════════════ */}
       <div style={{
         background: 'var(--bc-white)',
-        borderBottom: '1px solid var(--border-light, #d9e6e9)',
+        borderBottom: '1px solid var(--border-light, var(--border-light))',
         padding: '0 28px',
         flexShrink: 0
       }}>
@@ -998,7 +998,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   Activity Log
                   <span style={{
                     padding: '0 6px',
-                    background: activeTab === 'activity' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)',
+                    background: activeTab === 'activity' ? 'var(--text-primary, var(--bc-slate-900))' : 'var(--border-light, var(--border-light))',
                     color: activeTab === 'activity' ? 'var(--bc-white)' : 'var(--text-secondary)',
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
@@ -1018,7 +1018,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   Scheduled Tasks
                   <span style={{
                     padding: '0 6px',
-                    background: overdueTasks > 0 ? 'var(--text-danger, #D32F2F)' : (activeTab === 'tasks' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)'),
+                    background: overdueTasks > 0 ? 'var(--text-danger, #D32F2F)' : (activeTab === 'tasks' ? 'var(--text-primary, var(--bc-slate-900))' : 'var(--border-light, var(--border-light))'),
                     color: overdueTasks > 0 ? 'var(--bc-white)' : (activeTab === 'tasks' ? 'var(--bc-white)' : 'var(--text-secondary)'),
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
@@ -1038,7 +1038,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   ASIN Catalog
                   <span style={{
                     padding: '0 6px',
-                    background: activeTab === 'asins' ? 'var(--text-primary, #0f172a)' : 'var(--border-light, #d9e6e9)',
+                    background: activeTab === 'asins' ? 'var(--text-primary, var(--bc-slate-900))' : 'var(--border-light, var(--border-light))',
                     color: activeTab === 'asins' ? 'var(--bc-white)' : 'var(--text-secondary)',
                     borderRadius: "var(--radius-sm)",
                     fontSize: 'var(--font-size-xs)',
@@ -1096,8 +1096,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 fontSize: 'var(--font-size-xs)',
                 fontWeight: 600,
                 color: 'var(--text-success, #2E7D32)',
-                background: 'var(--bg-success-subtle, #f0fdf4)',
-                border: '1px solid var(--color-success-border, #bbf7d0)',
+                background: 'var(--bg-success-subtle, var(--bc-green-50))',
+                border: '1px solid var(--color-success-border, var(--bc-green-200))',
                 padding: '3px 10px',
                 borderRadius: "var(--radius-sm)"
               }}>
@@ -1124,7 +1124,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   No activity recorded
                 </div>
-                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, #94a3b8)' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, var(--bc-slate-400))' }}>
                   Activity will appear here as events occur
                 </div>
               </div>
@@ -1159,8 +1159,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                   fontSize: 'var(--font-size-xs)',
                   fontWeight: 600,
                   color: 'var(--text-danger, #D32F2F)',
-                  background: 'var(--bg-danger-subtle, #fef2f2)',
-                  border: '1px solid var(--color-danger-border, #fecaca)',
+                  background: 'var(--bg-danger-subtle, var(--bc-red-50))',
+                  border: '1px solid var(--color-danger-border, var(--bc-red-200))',
                   padding: '3px 10px',
                   borderRadius: "var(--radius-sm)",
                   textTransform: 'uppercase',
@@ -1183,7 +1183,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                 <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   No pending tasks
                 </div>
-                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, #94a3b8)' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted, var(--bc-slate-400))' }}>
                   All tasks completed for this seller
                 </div>
               </div>
@@ -1206,7 +1206,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
             }}>
               <Input
                 placeholder="Search by ASIN or product title"
-                prefix={<Search size={13} style={{ color: 'var(--text-muted, #94a3b8)' }} />}
+                prefix={<Search size={13} style={{ color: 'var(--text-muted, var(--bc-slate-400))' }} />}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{ width: 280, borderRadius: 'var(--radius-md, 8px)' }}
@@ -1226,7 +1226,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
               />
             </div>
 
-            <Card style={{ borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--border-light, #d9e6e9)' }} styles={{ body: { padding: 0 } }}>
+            <Card style={{ borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--border-light, var(--border-light))' }} styles={{ body: { padding: 0 } }}>
               <Table
                 columns={asinColumns}
                 dataSource={filtered}
@@ -1249,11 +1249,11 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
           }}>
             <Card
               title={
-                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>
                   Seller Information
                 </div>
               }
-              style={{ borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--border-light, #d9e6e9)' }}
+              style={{ borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--border-light, var(--border-light))' }}
               styles={{ header: { padding: '14px 18px', minHeight: 'auto' } }}
             >
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1270,11 +1270,11 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '12px 0',
-                    borderBottom: i < arr.length - 1 ? '1px solid var(--bg-secondary, #f8fafc)' : 'none'
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--bg-secondary, var(--bc-slate-50))' : 'none'
                   }}>
                     <span style={{
                       fontSize: 'var(--font-size-sm)',
-                      color: 'var(--text-secondary, #64748b)',
+                      color: 'var(--text-secondary, var(--bc-slate-500))',
                       fontWeight: 500
                     }}>
                       {item.label}
@@ -1282,7 +1282,7 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
                     <span style={{
                       fontSize: 'var(--font-size-sm)',
                       fontWeight: 600,
-                      color: item.color || 'var(--text-primary, #0f172a)',
+                      color: item.color || 'var(--text-primary, var(--bc-slate-900))',
                       textTransform: item.capitalize ? 'capitalize' : 'none',
                       fontFamily: item.mono ? 'JetBrains Mono, monospace' : 'inherit'
                     }}>
@@ -1295,11 +1295,11 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
 
             <Card
               title={
-                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>
                   Quick Actions
                 </div>
               }
-              style={{ borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--border-light, #d9e6e9)' }}
+              style={{ borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--border-light, var(--border-light))' }}
               styles={{ header: { padding: '14px 18px', minHeight: 'auto' } }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1331,8 +1331,8 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
 
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>
-            <ClipboardList size={18} style={{ color: 'var(--text-primary, #0f172a)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>
+            <ClipboardList size={18} style={{ color: 'var(--text-primary, var(--bc-slate-900))' }} />
             Create Manual Task
           </div>
         }
@@ -1546,14 +1546,14 @@ const SellerAsinTrackerPage = () => {
           }}>
             <div style={{
               padding: '14px 14px',
-              borderBottom: '1px solid var(--bg-secondary, #f8fafc)',
+              borderBottom: '1px solid var(--bg-secondary, var(--bc-slate-50))',
               display: 'flex',
               flexDirection: 'column',
               gap: 8
             }}>
               <Input
                 placeholder="Search sellers..."
-                prefix={<Search size={13} style={{ color: 'var(--text-muted, #94a3b8)' }} />}
+                prefix={<Search size={13} style={{ color: 'var(--text-muted, var(--bc-slate-400))' }} />}
                 value={sellerSearch}
                 onChange={e => setSellerSearch(e.target.value)}
                 size="small"
@@ -1580,7 +1580,7 @@ const SellerAsinTrackerPage = () => {
                 <div style={{
                   padding: 30,
                   textAlign: 'center',
-                  color: 'var(--text-muted, #94a3b8)',
+                  color: 'var(--text-muted, var(--bc-slate-400))',
                   fontSize: 'var(--font-size-sm)'
                 }}>
                   <Store size={28} style={{ opacity: 0.3, marginBottom: 8 }} />

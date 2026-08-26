@@ -319,7 +319,7 @@ const DataTable = ({
                 }}>
                   <div style={{
                     padding: '10px 14px',
-                    borderBottom: '1px solid #f1f5f9',
+                    borderBottom: '1px solid var(--bc-slate-100)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
@@ -475,7 +475,7 @@ const DataTable = ({
                     key={rowId}
                     className={`transition-base hover-table-row ${onRowClick ? 'cursor-pointer' : ''} ${isSelected ? 'bg-primary bg-opacity-10' : ''}`}
                     onClick={() => onRowClick && onRowClick(item)}
-                    style={isSelected ? { backgroundColor: 'var(--color-brand-50, #eff6ff)' } : {}}
+                    style={isSelected ? { backgroundColor: 'var(--color-brand-50, var(--bc-blue-50))' } : {}}
                   >
                     {/* Checkbox for row selection */}
                     {onSelectionChange && (

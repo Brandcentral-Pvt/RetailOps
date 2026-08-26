@@ -12,12 +12,12 @@ const getNotificationConfig = (type) => {
     return { icon: CheckCircle, color: 'var(--text-success, #2E7D32)', bg: 'var(--bg-success-subtle, #ecfdf5)' };
   }
   if (t.includes('warning') || t.includes('price') || t.includes('low')) {
-    return { icon: AlertTriangle, color: 'var(--text-warning, #ED6C02)', bg: 'var(--bg-warning-subtle, #fffbeb)' };
+    return { icon: AlertTriangle, color: 'var(--text-warning, #ED6C02)', bg: 'var(--bg-warning-subtle, var(--bc-amber-50))' };
   }
   if (t.includes('error') || t.includes('fail') || t.includes('alert')) {
-    return { icon: Bell, color: 'var(--text-danger, #D32F2F)', bg: 'var(--bg-danger-subtle, #fef2f2)' };
+    return { icon: Bell, color: 'var(--text-danger, #D32F2F)', bg: 'var(--bg-danger-subtle, var(--bc-red-50))' };
   }
-  return { icon: Info, color: 'var(--text-brand, #1976D2)', bg: 'var(--bg-info-subtle, #eff6ff)' };
+  return { icon: Info, color: 'var(--text-brand, var(--bc-ro-500))', bg: 'var(--bg-info-subtle, var(--bc-blue-50))' };
 };
 
 const formatTime = (dateStr) => {
@@ -58,12 +58,12 @@ const NotificationItem = ({ notification }) => {
         <Icon size={14} color={color} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', display: 'block', marginBottom: 1 }}>{title}</Text>
-        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'block' }}>{description}</Text>
+        <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', display: 'block', marginBottom: 1 }}>{title}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', display: 'block' }}>{description}</Text>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
         <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary, #a1a1aa)' }}>{formatTime(time)}</Text>
-        {!isRead && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--bg-brand, #1976D2)' }} />}
+        {!isRead && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--bg-brand, var(--bc-ro-500))' }} />}
       </div>
     </div>
   );
@@ -81,15 +81,15 @@ const NotificationsFeed = ({
       padding: '16px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: 'var(--radius-xl, 16px)',
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--border-light, var(--border-light))'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, #eff6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Bell size={14} color="var(--text-brand, #1976D2)" />
+          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, var(--bc-blue-50))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Bell size={14} color="var(--text-brand, var(--bc-ro-500))" />
           </div>
-          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Activity Feed</Text>
-          {unreadCount > 0 && <Badge count={unreadCount} style={{ backgroundColor: 'var(--bg-brand, #1976D2)' }} />}
+          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, var(--bc-slate-900))' }}>Activity Feed</Text>
+          {unreadCount > 0 && <Badge count={unreadCount} style={{ backgroundColor: 'var(--bg-brand, var(--bc-ro-500))' }} />}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {unreadCount > 0 && (

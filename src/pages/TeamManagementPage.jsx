@@ -379,7 +379,7 @@ const TeamManagementPage = () => {
           width={230}
           style={{
             background: 'var(--bc-white)',
-            borderRight: '1px solid #e2e8f0',
+            borderRight: '1px solid var(--bc-slate-200)',
             overflowY: 'auto',
             height: '100%'
           }}
@@ -476,7 +476,7 @@ const TeamManagementPage = () => {
               {/* ── Team Header ── */}
               <Card
                 bordered={false}
-                style={{ borderRadius: "var(--radius-lg)", marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}
+                style={{ borderRadius: "var(--radius-lg)", marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid var(--bc-slate-200)' }}
                 styles={{ body: { padding: '20px 24px' } }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
@@ -568,11 +568,11 @@ const TeamManagementPage = () => {
               {/* ── Members Table ── */}
               <Card
                 bordered={false}
-                style={{ borderRadius: "var(--radius-lg)", boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}
+                style={{ borderRadius: "var(--radius-lg)", boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid var(--bc-slate-200)' }}
                 styles={{ body: { padding: 0 } }}
               >
                 {/* Table Header */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--bc-slate-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--bc-slate-900)' }}>
                     <TeamOutlined style={{ marginRight: 8, color: 'var(--bc-ro-500)' }} />
                     Members ({members.length})
@@ -794,7 +794,7 @@ const TeamManagementPage = () => {
               }
             >
               <Checkbox.Group style={{ width: '100%' }}>
-                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: "var(--radius-md)", padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-md)", padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {sellers.map(s => (
                     <Checkbox key={s._id} value={s._id}>
                       <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{s.name}</span>
@@ -868,7 +868,7 @@ const TeamManagementPage = () => {
               }
             >
               <Checkbox.Group style={{ width: '100%' }}>
-                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: "var(--radius-md)", padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-md)", padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {sellers.map(s => (
                     <Checkbox key={s._id} value={s._id}>
                       <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{s.name}</span>

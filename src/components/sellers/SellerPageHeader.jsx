@@ -46,7 +46,7 @@ const SellerPageHeader = ({
 
   return (
     <div style={{
-      padding: '14px 28px 10px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, #d9e6e9)',
+      padding: '14px 28px 10px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, var(--border-light))',
     }}>
       <div style={{
         display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
@@ -56,7 +56,7 @@ const SellerPageHeader = ({
           {!isBrandManager && (
             <>
               <Button icon={<DownloadOutlined />} size="small"
-                style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', borderColor: 'var(--border-light, #d9e6e9)', height: 28 }}>
+                style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', borderColor: 'var(--border-light, var(--border-light))', height: 28 }}>
                 Export
               </Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAddStore}
@@ -72,7 +72,7 @@ const SellerPageHeader = ({
           )}
           <Dropdown menu={{ items: moreMenuItems }} trigger={['click']} placement="bottomRight">
             <Button icon={<EllipsisOutlined />} size="small"
-              style={{ borderRadius: 'var(--radius-md, 8px)', borderColor: 'var(--border-light, #d9e6e9)', height: 28 }} />
+              style={{ borderRadius: 'var(--radius-md, 8px)', borderColor: 'var(--border-light, var(--border-light))', height: 28 }} />
           </Dropdown>
         </Space>
       </div>

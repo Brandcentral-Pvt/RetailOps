@@ -148,7 +148,7 @@ const GoalDataRow = memo(({
     })();
 
     const cellBg = '#fff';
-    const rowBorder = '1px solid #e2e8f0';
+    const rowBorder = '1px solid var(--bc-slate-200)';
 
     return (
         <tr style={{ borderBottom: rowBorder }}>
@@ -156,8 +156,8 @@ const GoalDataRow = memo(({
             {/* Checkbox */}
             <td style={{
                 padding: '12px 12px', verticalAlign: 'middle', textAlign: 'center',
-                background: '#fff', borderRight: '1px solid #f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                background: '#fff', borderRight: '1px solid var(--bc-slate-100)',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 position: 'sticky', left: 0, zIndex: 2, width: 46, minWidth: 46
             }}>
                 <Checkbox
@@ -169,8 +169,8 @@ const GoalDataRow = memo(({
             {/* Brand Name */}
             <td style={{
                 padding: '12px 16px', verticalAlign: 'middle',
-                background: '#fff', borderRight: '1px solid #f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                background: '#fff', borderRight: '1px solid var(--bc-slate-100)',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 position: 'sticky', left: 46, zIndex: 2, minWidth: 180
             }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--bc-slate-800)' }}>
@@ -181,8 +181,8 @@ const GoalDataRow = memo(({
             {/* Brand Manager */}
             <td style={{
                 padding: '12px 16px', verticalAlign: 'middle',
-                background: '#fff', borderRight: '1px solid #f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                background: '#fff', borderRight: '1px solid var(--bc-slate-100)',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 minWidth: 150
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -216,8 +216,8 @@ const GoalDataRow = memo(({
             {/* Plan Type (Yearly/Monthly) */}
             <td style={{
                 padding: '12px 16px', verticalAlign: 'middle',
-                background: '#fff', borderRight: '1px solid #f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                background: '#fff', borderRight: '1px solid var(--bc-slate-100)',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 minWidth: 120
             }}>
                 <div style={{ fontSize: 12, color: 'var(--bc-slate-600)', fontWeight: 500 }}>
@@ -234,7 +234,7 @@ const GoalDataRow = memo(({
             {/* Goal Type */}
             <td style={{
                 padding: '10px 14px', verticalAlign: 'middle',
-                background: cellBg, borderRight: '1px solid #f1f5f9', width: 130
+                background: cellBg, borderRight: '1px solid var(--bc-slate-100)', width: 130
             }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>
                     {meta.label} ({meta.unit})
@@ -244,7 +244,7 @@ const GoalDataRow = memo(({
             {/* Target Goal */}
             <td style={{
                 padding: '10px 16px', verticalAlign: 'middle', textAlign: 'right',
-                background: cellBg, borderRight: '1px solid #f1f5f9', width: 130
+                background: cellBg, borderRight: '1px solid var(--bc-slate-100)', width: 130
             }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--bc-slate-800)' }}>
                     {fmtVal(total, meta.unit)}
@@ -254,7 +254,7 @@ const GoalDataRow = memo(({
             {/* Sales Achieved */}
             <td style={{
                 padding: '10px 16px', verticalAlign: 'middle', textAlign: 'right',
-                background: cellBg, borderRight: '1px solid #f1f5f9', width: 150
+                background: cellBg, borderRight: '1px solid var(--bc-slate-100)', width: 150
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: overallAch > 0 ? (goalType === 'ACOS' ? (overallAch <= total ? '#2E7D32' : '#D32F2F') : tier.color) : '#D32F2F' }}>
@@ -289,7 +289,7 @@ const GoalDataRow = memo(({
                 if (isCollapsed) {
                     return (
                         <td key={idx} style={{
-                            padding: '8px 4px', borderRight: '1px solid #f1f5f9',
+                            padding: '8px 4px', borderRight: '1px solid var(--bc-slate-100)',
                             verticalAlign: 'middle', background: cellBg, minWidth: 40, textAlign: 'center',
                             fontSize: 10, fontWeight: 700, color: hasData ? tier.color : 'var(--bc-slate-300)'
                         }}>
@@ -302,7 +302,7 @@ const GoalDataRow = memo(({
                     <React.Fragment key={idx}>
                         {/* TGT Cell */}
                         <td style={{
-                            padding: '8px 12px', borderRight: '1px solid #f1f5f9',
+                            padding: '8px 12px', borderRight: '1px solid var(--bc-slate-100)',
                             verticalAlign: 'middle', background: cellBg, minWidth: 60, textAlign: 'right',
                             fontWeight: 600, color: hasData ? 'var(--bc-slate-800)' : 'var(--bc-slate-300)', fontSize: 12
                         }}>
@@ -310,7 +310,7 @@ const GoalDataRow = memo(({
                         </td>
                         {/* ACH Cell */}
                         <td style={{
-                            padding: '8px 12px', borderRight: '1px solid #f1f5f9',
+                            padding: '8px 12px', borderRight: '1px solid var(--bc-slate-100)',
                             verticalAlign: 'middle', background: cellBg, minWidth: 60, textAlign: 'right',
                             fontWeight: 600, color: achColor, fontSize: 12
                         }}>
@@ -318,7 +318,7 @@ const GoalDataRow = memo(({
                         </td>
                         {/* % Cell */}
                         <td style={{
-                            padding: '8px 12px', borderRight: '1px solid #f1f5f9',
+                            padding: '8px 12px', borderRight: '1px solid var(--bc-slate-100)',
                             verticalAlign: 'middle', background: cellBg, minWidth: 60, textAlign: 'right',
                             fontSize: 10, fontWeight: 800, color: hasData ? tier.color : 'var(--bc-slate-300)'
                         }}>
@@ -341,8 +341,8 @@ const GoalDataRow = memo(({
             {/* Actions */}
             <td style={{
                 padding: '0 12px', verticalAlign: 'middle', textAlign: 'center',
-                background: '#fff', borderLeft: '1px solid #f1f5f9',
-                borderBottom: '1px solid #e2e8f0',
+                background: '#fff', borderLeft: '1px solid var(--bc-slate-100)',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 position: 'sticky', right: 0, zIndex: 2, width: 80
             }}>
                 <Space size={6} align="center">
@@ -783,12 +783,12 @@ const TargetVsAchievement = () => {
             {msgCtx}
 
             {/* ── Page Header ──────────────────────────────────────── */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '20px 28px 16px' }}>
+            <div style={{ background: '#fff', borderBottom: '1px solid var(--bc-slate-200)', padding: '20px 28px 16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--bc-slate-900)', margin: 0 }}>Target vs Achievements</h2>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--bc-slate-200)' }}>
                                 {totalGroups} brands · {totalGoalRows} goals
                             </span>
                         </div>
@@ -873,7 +873,7 @@ const TargetVsAchievement = () => {
             {/* ── Toolbar with search + filters ───────────────────── */}
             <div style={{
                 background: '#fff', padding: '12px 28px',
-                borderBottom: '1px solid #e2e8f0',
+                borderBottom: '1px solid var(--bc-slate-200)',
                 display: 'flex', flexDirection: 'column', gap: 10
             }}>
                 {/* Row 1: Search + stats + legend */}
@@ -1026,7 +1026,7 @@ const TargetVsAchievement = () => {
                                     onClose={() => setSearchText('')}
                                     style={{
                                         borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                        background: 'var(--bc-slate-100)', border: '1px solid #e2e8f0',
+                                        background: 'var(--bc-slate-100)', border: '1px solid var(--bc-slate-200)',
                                         color: 'var(--bc-slate-500)', margin: 0, padding: '1px 8px'
                                     }}
                                 >
@@ -1053,7 +1053,7 @@ const TargetVsAchievement = () => {
             {/* ── Table Content ─────────────────────────────────────── */}
             <div style={{ padding: '20px 28px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{
-                    background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0',
+                    background: '#fff', borderRadius: 12, border: '1px solid var(--bc-slate-200)',
                     boxShadow: '0 4px 18px -4px rgba(15,23,42,0.05), 0 1px 3px rgba(15,23,42,0.02)',
                     overflow: 'hidden', display: 'flex', flexDirection: 'column',
                     height: '100%', position: 'relative'
@@ -1065,7 +1065,7 @@ const TargetVsAchievement = () => {
                                 minWidth: (12 - collapsedMonths.length) * 180 + collapsedMonths.length * 40 + 560
                             }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                                         {headerCols.map((col, i) => (
                                             <th key={i} rowSpan={2} style={{
                                                 padding: col.isCheckbox ? '12px 12px' : '12px 16px',
@@ -1073,8 +1073,8 @@ const TargetVsAchievement = () => {
                                                 fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                                 letterSpacing: '0.06em', textTransform: 'uppercase',
                                                 background: 'var(--bc-slate-50)',
-                                                borderRight: '1px solid #f1f5f9',
-                                                borderBottom: '1px solid #e2e8f0',
+                                                borderRight: '1px solid var(--bc-slate-100)',
+                                                borderBottom: '1px solid var(--bc-slate-200)',
                                                 whiteSpace: 'nowrap',
                                                 ...(col.sticky ? { position: 'sticky', left: col.left, zIndex: 6 } : {}),
                                                 width: col.w, minWidth: col.w
@@ -1143,8 +1143,8 @@ const TargetVsAchievement = () => {
                                                     padding: '8px 12px', textAlign: 'center',
                                                     fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                                     background: 'var(--bc-slate-50)',
-                                                    borderRight: '1px solid #f1f5f9',
-                                                    borderBottom: '1px solid #e2e8f0',
+                                                    borderRight: '1px solid var(--bc-slate-100)',
+                                                    borderBottom: '1px solid var(--bc-slate-200)',
                                                     minWidth: isCollapsed ? 40 : 180, whiteSpace: 'nowrap'
                                                 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -1171,23 +1171,23 @@ const TargetVsAchievement = () => {
                                             fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                             letterSpacing: '0.06em', textTransform: 'uppercase',
                                             background: 'var(--bc-slate-50)',
-                                            borderLeft: '1px solid #f1f5f9',
-                                            borderBottom: '1px solid #e2e8f0',
+                                            borderLeft: '1px solid var(--bc-slate-100)',
+                                            borderBottom: '1px solid var(--bc-slate-200)',
                                             position: 'sticky', right: 0, zIndex: 6, width: 80
                                         }}>
                                             Actions
                                         </th>
                                     </tr>
-                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                                         {periods.map((p, i) => {
                                             const monthNum = i + 1;
                                             const isCollapsed = collapsedMonths.includes(monthNum);
                                             if (isCollapsed) return null;
                                             return (
                                                 <React.Fragment key={i}>
-                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>TGT</th>
-                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>ACH</th>
-                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>%</th>
+                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid var(--bc-slate-100)', padding: '4px 8px' }}>TGT</th>
+                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid var(--bc-slate-100)', padding: '4px 8px' }}>ACH</th>
+                                                    <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid var(--bc-slate-100)', padding: '4px 8px' }}>%</th>
                                                 </React.Fragment>
                                             );
                                         })}
@@ -1224,7 +1224,7 @@ const TargetVsAchievement = () => {
                                 minWidth: WEEKS_SHORT.length * 180 + 560
                             }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                                         {headerCols.map((col, i) => (
                                             <th key={i} rowSpan={2} style={{
                                                 padding: col.isCheckbox ? '12px 12px' : '12px 16px',
@@ -1232,8 +1232,8 @@ const TargetVsAchievement = () => {
                                                 fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                                 letterSpacing: '0.06em', textTransform: 'uppercase',
                                                 background: 'var(--bc-slate-50)',
-                                                borderRight: '1px solid #f1f5f9',
-                                                borderBottom: '1px solid #e2e8f0',
+                                                borderRight: '1px solid var(--bc-slate-100)',
+                                                borderBottom: '1px solid var(--bc-slate-200)',
                                                 whiteSpace: 'nowrap',
                                                 ...(col.sticky ? { position: 'sticky', left: col.left, zIndex: 6 } : {}),
                                                 width: col.w, minWidth: col.w
@@ -1299,8 +1299,8 @@ const TargetVsAchievement = () => {
                                                 padding: '8px 12px', textAlign: 'center',
                                                 fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                                 background: 'var(--bc-slate-50)',
-                                                borderRight: '1px solid #f1f5f9',
-                                                borderBottom: '1px solid #e2e8f0',
+                                                borderRight: '1px solid var(--bc-slate-100)',
+                                                borderBottom: '1px solid var(--bc-slate-200)',
                                                 minWidth: 180, whiteSpace: 'nowrap'
                                             }}>
                                                 <div style={{ fontWeight: 600, fontSize: 12 }}>{p}</div>
@@ -1311,19 +1311,19 @@ const TargetVsAchievement = () => {
                                             fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)',
                                             letterSpacing: '0.06em', textTransform: 'uppercase',
                                             background: 'var(--bc-slate-50)',
-                                            borderLeft: '1px solid #f1f5f9',
-                                            borderBottom: '1px solid #e2e8f0',
+                                            borderLeft: '1px solid var(--bc-slate-100)',
+                                            borderBottom: '1px solid var(--bc-slate-200)',
                                             position: 'sticky', right: 0, zIndex: 6, width: 80
                                         }}>
                                             Actions
                                         </th>
                                     </tr>
-                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid #e2e8f0' }}>
+                                    <tr style={{ background: 'var(--bc-slate-50)', borderBottom: '1px solid var(--bc-slate-200)' }}>
                                         {WEEKS_SHORT.map((p, i) => (
                                             <React.Fragment key={i}>
-                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>TGT</th>
-                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>ACH</th>
-                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid #f1f5f9', padding: '4px 8px' }}>%</th>
+                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid var(--bc-slate-100)', padding: '4px 8px' }}>TGT</th>
+                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid var(--bc-slate-100)', padding: '4px 8px' }}>ACH</th>
+                                                <th style={{ fontSize: 9, fontWeight: 700, color: 'var(--bc-slate-400)', textAlign: 'right', borderRight: '1px solid var(--bc-slate-100)', padding: '4px 8px' }}>%</th>
                                             </React.Fragment>
                                         ))}
                                     </tr>
@@ -1361,7 +1361,7 @@ const TargetVsAchievement = () => {
                             background: 'var(--bc-slate-900)', borderRadius: 12, padding: '10px 20px',
                             display: 'flex', alignItems: 'center', gap: 16,
                             boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
-                            border: '1px solid #1e293b',
+                            border: '1px solid var(--bc-slate-800)',
                             animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)'
                         }}>
                             <Text style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
@@ -1503,7 +1503,7 @@ export const ConnectionBanner = memo(({ targets }: { targets: any[] }) => {
     return (
         <div style={{
             padding: '10px 16px', background: 'var(--bc-amber-50)',
-            border: '1px solid #fde68a', borderRadius: 8,
+            border: '1px solid var(--bc-amber-200)', borderRadius: 8,
             marginBottom: 12, fontSize: 12, fontWeight: 500, color: 'var(--bc-amber-800)'
         }}>
             ⚠ No target data loaded. Create targets or check your connection.

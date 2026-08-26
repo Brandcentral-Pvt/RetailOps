@@ -22,7 +22,7 @@ const formatDueDate = (date) => {
     if (isToday(d)) return { label: 'Due today', color: '#ED6C02', urgent: true };
     if (isTomorrow(d)) return { label: 'Due tomorrow', color: '#ED6C02', urgent: false };
     if (days <= 3) return { label: `Due in ${days}d`, color: '#ED6C02', urgent: false };
-    if (days <= 7) return { label: format(d, 'EEE, MMM d'), color: 'var(--text-secondary, #64748b)', urgent: false };
+    if (days <= 7) return { label: format(d, 'EEE, MMM d'), color: 'var(--text-secondary, var(--bc-slate-500))', urgent: false };
     return { label: format(d, 'MMM d, yyyy'), color: 'var(--bc-slate-400)', urgent: false };
 };
 
@@ -70,9 +70,9 @@ const getStatusConfig = (task) => {
         default:
             return {
                 label: 'TODO',
-                color: 'var(--text-secondary, #64748b)',
+                color: 'var(--text-secondary, var(--bc-slate-500))',
                 bg: 'var(--bc-slate-50)',
-                border: 'var(--border-light, #d9e6e9)',
+                border: 'var(--border-light, var(--border-light))',
                 icon: ListTodo
             };
     }
@@ -89,7 +89,7 @@ const getPriorityConfig = (priority = 'NORMAL') => {
     if (p === 'LOW') {
         return { color: '#2E7D32', label: 'Low', icon: '🟢' };
     }
-    return { color: 'var(--text-secondary, #64748b)', label: 'Normal', icon: '⚪' };
+    return { color: 'var(--text-secondary, var(--bc-slate-500))', label: 'Normal', icon: '⚪' };
 };
 
 const getInitials = (name) => {
@@ -100,7 +100,7 @@ const getInitials = (name) => {
 const getAvatarColor = (name) => {
     if (!name) return { bg: 'var(--bc-slate-100)', text: 'var(--bc-slate-500)' };
     const colors = [
-        { bg: 'var(--color-data-blue-bg, #dbeafe)', text: 'var(--color-info-blue, #0288D1)' },
+        { bg: 'var(--color-data-blue-bg, var(--bc-blue-100))', text: 'var(--color-info-blue, #0288D1)' },
         { bg: '#fce7f3', text: '#db2777' },
         { bg: '#d1fae5', text: '#2E7D32' },
         { bg: 'var(--bc-amber-100)', text: '#E65100' },
@@ -129,7 +129,7 @@ const TaskItem = memo(({ task, isLast }) => {
             style={{
                 padding: '12px 14px',
                 background: 'var(--bg-primary, #fff)',
-                border: '1px solid var(--border-light, #d9e6e9)',
+                border: '1px solid var(--border-light, var(--border-light))',
                 borderLeft: `3px solid ${status.color}`,
                 borderRadius: 10,
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -247,7 +247,7 @@ const TaskItem = memo(({ task, isLast }) => {
                     </div>
                     <span style={{
                         fontSize: 'var(--font-size-xs)',
-                        color: 'var(--text-secondary, #64748b)',
+                        color: 'var(--text-secondary, var(--bc-slate-500))',
                         fontWeight: 600,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -262,8 +262,8 @@ const TaskItem = memo(({ task, isLast }) => {
                     <span style={{
                         fontSize: 'var(--font-size-xs)',
                         fontWeight: 600,
-                        color: 'var(--text-secondary, #64748b)',
-                        background: 'var(--border-light, #d9e6e9)',
+                        color: 'var(--text-secondary, var(--bc-slate-500))',
+                        background: 'var(--border-light, var(--border-light))',
                         padding: '2px 7px',
                         borderRadius: 6,
                         whiteSpace: 'nowrap',

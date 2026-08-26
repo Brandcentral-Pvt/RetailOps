@@ -245,7 +245,7 @@ const ActivityLog = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
                             width: 26, height: 26, borderRadius: "var(--radius-md)",
-                            background: isSystem ? 'linear-gradient(135deg, #1976D2, #1976D2)' : 'linear-gradient(135deg, #9C27B0, #d946ef)',
+                            background: isSystem ? 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))' : 'linear-gradient(135deg, var(--bc-purple-500), var(--bc-accent-image))',
                             color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
                             {name.charAt(0)}
@@ -329,7 +329,7 @@ const ActivityLog = () => {
     return (
         <div style={{ background: '#fafbfc', minHeight: 'calc(100vh - 60px)' }}>
             {/* Header */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '20px 28px 16px' }}>
+            <div style={{ background: '#fff', borderBottom: '1px solid var(--bc-slate-200)', padding: '20px 28px 16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -337,7 +337,7 @@ const ActivityLog = () => {
                                 {activeTab === 'activity' ? 'Activity Log' : 'OTP Audit'}
                             </h2>
                             {activeTab === 'activity' && total > 0 && (
-                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-slate-500)', background: 'var(--bc-slate-100)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--bc-slate-200)' }}>
                                     {total.toLocaleString()} events
                                 </span>
                             )}
@@ -356,7 +356,7 @@ const ActivityLog = () => {
                             ]}
                         />
                         <Button icon={<RefreshCw size={13} />} onClick={activeTab === 'activity' ? fetchLogs : () => fetchOtpLogs(1)} loading={loading || otpLoading}
-                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, border: '1px solid #e2e8f0' }}>
+                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, border: '1px solid var(--bc-slate-200)' }}>
                             Refresh
                         </Button>
                     </div>
@@ -392,7 +392,7 @@ const ActivityLog = () => {
                         </div>
 
                         {/* Table */}
-                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                        <div style={{ background: '#fff', border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-lg)", overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                             <Table className="activity-table" columns={columns} dataSource={logs} rowKey={r => r._id || Math.random().toString()}
                                 loading={loading} size="small" scroll={{ x: 'max-content' }}
                                 pagination={{
@@ -420,7 +420,7 @@ const ActivityLog = () => {
                             <Input prefix={<Search size={12} />} size="small" placeholder="Email..." allowClear value={otpEmailFilter}
                                 onChange={e => setOtpEmailFilter(e.target.value)} style={{ width: 200, borderRadius: "var(--radius-md)" }} />
                         </div>
-                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
+                        <div style={{ background: '#fff', border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
                             <Table className="activity-table" columns={otpColumns} dataSource={otpLogs} rowKey={r => r.Id || r.id}
                                 loading={otpLoading} size="small" scroll={{ x: 'max-content' }}
                                 pagination={{ current: otpPage, pageSize: 20, total: otpTotal, onChange: fetchOtpLogs,
@@ -434,7 +434,7 @@ const ActivityLog = () => {
             <Modal open={detailOpen} onCancel={() => setDetailOpen(false)} centered width={620} destroyOnHidden
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'linear-gradient(135deg, #1976D2, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Activity size={15} style={{ color: '#fff' }} />
                         </div>
                         <div>
@@ -460,13 +460,13 @@ const ActivityLog = () => {
                         </Descriptions>
                         <div>
                             <Text strong style={{ display: 'block', marginBottom: 6, color: 'var(--bc-slate-500)', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Description</Text>
-                            <div style={{ padding: 14, background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, color: 'var(--bc-slate-800)' }}>
+                            <div style={{ padding: 14, background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, color: 'var(--bc-slate-800)' }}>
                                 {selectedLog.description || 'No description available.'}
                             </div>
                         </div>
                         <div>
                             <Text strong style={{ display: 'block', marginBottom: 6, color: 'var(--bc-slate-500)', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Metadata</Text>
-                            <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: "var(--radius-md)", border: '1px solid #f1f5f9' }}>
+                            <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-100)' }}>
                                 {renderMetadata(selectedLog.metadata)}
                             </div>
                         </div>

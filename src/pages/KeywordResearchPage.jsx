@@ -666,7 +666,7 @@ export default function KeywordResearchPage() {
                                                 <Row gutter={[8, 8]}>
                                                     {anaRes.keywordGaps.map((gap, idx) => (
                                                         <Col xs={24} sm={12} key={idx}>
-                                                            <Alert type="error" style={{ borderRadius: 8, padding: '10px 14px', border: '1px solid #FECACA' }}
+                                                            <Alert type="error" style={{ borderRadius: 8, padding: '10px 14px', border: '1px solid var(--bc-red-200)' }}
                                                                 message={<Space><AlertOutlined style={{ color: 'var(--bc-red-600)' }} /><Text strong style={{ fontSize: 12, color: 'var(--bc-slate-900)' }}>{gap.category || 'General'}</Text></Space>}
                                                                 description={<Flex wrap gap={4} style={{ marginTop: 4 }}>{gap.missingKeywords.map((mk, mi) => <Tag key={mi} style={{ fontSize: 11, borderRadius: 4, cursor: 'pointer' }} onClick={() => setAnaKw(mk)}>{mk}</Tag>)}</Flex>} />
                                                         </Col>
@@ -716,7 +716,7 @@ export default function KeywordResearchPage() {
                                         title={<Space size={8}><ShoppingOutlined /><Text strong style={{ fontSize: 13, color: 'var(--bc-slate-900)' }}>Products Analyzed</Text><Tag style={{ borderRadius: 4, fontSize: 10 }}>{anaProds.length}</Tag></Space>}>
                                         <div style={{ maxHeight: 540, overflow: 'auto' }}>
                                             {anaProds.map((p, idx) => (
-                                                <Flex key={idx} gap={10} align="start" style={{ padding: '10px 16px', borderBottom: '1px solid #F1F5F9' }}>
+                                                <Flex key={idx} gap={10} align="start" style={{ padding: '10px 16px', borderBottom: '1px solid var(--bc-slate-100)' }}>
                                                     <Avatar size={22} style={{ background: 'var(--bc-ro-500)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</Avatar>
                                                     <div style={{ minWidth: 0, flex: 1 }}>
                                                         <Text style={{ fontSize: 12, lineHeight: '18px', color: 'var(--bc-slate-900)' }} ellipsis={{ tooltip: p.title }}>{p.title}</Text>

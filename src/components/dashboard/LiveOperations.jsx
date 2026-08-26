@@ -9,7 +9,7 @@ const { Text } = Typography;
 
 const OperationItem = ({ icon: Icon, title, progress, status, count, color, onClick }) => {
   const statusConfig = {
-    running: { color: 'var(--text-brand, #1976D2)', label: 'Running' },
+    running: { color: 'var(--text-brand, var(--bc-ro-500))', label: 'Running' },
     queued: { color: '#ED6C02', label: 'Queued' },
     completed: { color: '#2E7D32', label: 'Complete' },
     failed: { color: '#D32F2F', label: 'Failed' },
@@ -25,20 +25,20 @@ const OperationItem = ({ icon: Icon, title, progress, status, count, color, onCl
         alignItems: 'center', 
         gap: 12, 
         padding: '12px 14px',
-        background: 'var(--bg-secondary, #f8fafc)',
+        background: 'var(--bg-secondary, var(--bc-slate-50))',
         borderRadius: 10,
         cursor: 'pointer',
         transition: 'all 0.2s'
       }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary, #f4f4f5)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-secondary, #f8fafc)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-secondary, var(--bc-slate-50))'}
     >
       <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <Icon size={18} color={color} />
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{title}</Text>
+          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>{title}</Text>
           <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-sm)", margin: 0, color: config.color, borderColor: config.color + '40', background: config.color + '10' }}>
             {config.label}
           </Tag>
@@ -53,7 +53,7 @@ const OperationItem = ({ icon: Icon, title, progress, status, count, color, onCl
           />
         )}
         {count !== undefined && (
-          <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>{count} items in queue</Text>
+          <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>{count} items in queue</Text>
         )}
       </div>
     </div>
@@ -71,7 +71,7 @@ const LiveOperations = ({
   onNavigate
 }) => {
   const operations = [
-    { icon: RefreshCw, title: 'Marketplace Sync', count: marketplaceSync, status: marketplaceSync > 0 ? 'running' : 'completed', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/live-sync-tracker') },
+    { icon: RefreshCw, title: 'Marketplace Sync', count: marketplaceSync, status: marketplaceSync > 0 ? 'running' : 'completed', color: 'var(--text-brand, var(--bc-ro-500))', onClick: () => onNavigate('/live-sync-tracker') },
     { icon: FileText, title: 'Listing Pipeline', count: listingPipeline, status: listingPipeline > 0 ? 'running' : 'completed', color: 'var(--bc-ro-500)', onClick: () => onNavigate('/scrape-tasks') },
     { icon: CheckCircle, title: 'Publishing Queue', count: publishingQueue, status: publishingQueue > 0 ? 'queued' : 'completed', color: '#2E7D32', onClick: () => onNavigate('/scheduled-runs') },
     { icon: Sparkles, title: 'AI Image Generation', count: aiImageGen, status: aiImageGen > 0 ? 'running' : 'completed', color: 'var(--bc-purple-500)', onClick: () => onNavigate('/pems/tasks') },
@@ -84,16 +84,16 @@ const LiveOperations = ({
       padding: '16px 20px', 
       background: 'var(--bg-primary, #fff)', 
       borderRadius: "var(--radius-xl, 16px)", 
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--border-light, var(--border-light))'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: 'var(--bc-green-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={14} color="#2E7D32" />
           </div>
-          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Live Operations</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, var(--bc-slate-900))' }}>Live Operations</Text>
         </div>
-        <Badge count={operations.filter(o => o.status === 'running').length} style={{ backgroundColor: 'var(--text-brand, #4F46E5)' }} />
+        <Badge count={operations.filter(o => o.status === 'running').length} style={{ backgroundColor: 'var(--text-brand, var(--bc-indigo-600))' }} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {operations.map((op, i) => (

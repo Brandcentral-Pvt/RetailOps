@@ -190,7 +190,7 @@ const GoalAchievementReport = () => {
                     justifyContent: 'space-between', 
                     alignItems: 'center',
                     background: 'var(--bc-white)',
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--bc-slate-200)',
                     borderRadius: "var(--radius-lg)",
                     padding: '10px 16px',
                     boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
@@ -277,7 +277,7 @@ const GoalAchievementReport = () => {
                 <Row gutter={[16, 16]}>
                     <Col xs={24} sm={12} md={6}>
                         <Card 
-                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
+                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)', overflow: 'hidden', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                             styles={{ body: { padding: '16px 20px' } }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -299,7 +299,7 @@ const GoalAchievementReport = () => {
                     
                     <Col xs={24} sm={12} md={6}>
                         <Card 
-                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
+                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                             styles={{ body: { padding: '16px 20px' } }}
                         >
                             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -317,7 +317,7 @@ const GoalAchievementReport = () => {
                     
                     <Col xs={24} sm={12} md={6}>
                         <Card 
-                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
+                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                             styles={{ body: { padding: '16px 20px' } }}
                         >
                             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -335,7 +335,7 @@ const GoalAchievementReport = () => {
                     
                     <Col xs={24} sm={12} md={6}>
                         <Card 
-                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
+                            style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                             styles={{ body: { padding: '16px 20px' } }}
                         >
                             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -361,8 +361,8 @@ const GoalAchievementReport = () => {
                 {/* 3. PERFORMANCE RECORD MATRIX */}
                 <Card 
                     title={<span style={{ fontWeight: 800, color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-base)', letterSpacing: '-0.01em' }}>Fulfillment Task Performance</span>}
-                    styles={{ header: { borderBottom: '1px solid #f1f5f9', padding: '12px 20px' }, body: { padding: 0 } }}
-                    style={{ borderRadius: "var(--radius-lg)", border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
+                    styles={{ header: { borderBottom: '1px solid var(--bc-slate-100)', padding: '12px 20px' }, body: { padding: 0 } }}
+                    style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--bc-slate-200)', overflow: 'hidden', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                 >
                     <Table 
                         dataSource={metrics}

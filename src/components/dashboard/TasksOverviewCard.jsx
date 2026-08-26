@@ -59,7 +59,7 @@ const TasksOverviewCard = ({ tasks = [], loading = false }) => {
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
+                    border: '1px solid var(--border-light, var(--border-light))',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
                     background: 'var(--bg-primary, #fff)',
                     height: '100%',
@@ -73,8 +73,8 @@ const TasksOverviewCard = ({ tasks = [], loading = false }) => {
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--border-light, var(--border-light))',
+                    background: 'linear-gradient(135deg, var(--bc-red-50) 0%, var(--bc-white) 100%)'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -102,7 +102,7 @@ const TasksOverviewCard = ({ tasks = [], loading = false }) => {
                                 <div style={{
                                     fontSize: 'var(--font-size-base)',
                                     fontWeight: 700,
-                                    color: 'var(--text-primary, #0f172a)',
+                                    color: 'var(--text-primary, var(--bc-slate-900))',
                                     letterSpacing: '-0.01em',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -118,8 +118,8 @@ const TasksOverviewCard = ({ tasks = [], loading = false }) => {
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 700,
                                             color: 'var(--text-danger, #D32F2F)',
-background: 'var(--bg-danger-subtle, #fef2f2)',
-                                        border: '1px solid var(--bg-danger-subtle, #fecaca)',
+background: 'var(--bg-danger-subtle, var(--bc-red-50))',
+                                        border: '1px solid var(--bg-danger-subtle, var(--bc-red-200))',
                                             padding: '1px 6px',
                                             borderRadius: 10
                                         }}>
@@ -130,7 +130,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 </div>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 1
                                 }}>
@@ -163,7 +163,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                         <div style={{
                             padding: '10px 14px',
                             background: 'var(--bg-primary, #fff)',
-                            border: '1px solid var(--border-light, #d9e6e9)',
+                            border: '1px solid var(--border-light, var(--border-light))',
                             borderRadius: 10
                         }}>
                             <div style={{
@@ -177,7 +177,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: 'var(--text-secondary, #64748b)',
+                                        color: 'var(--text-secondary, var(--bc-slate-500))',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.04em'
                                 }}>
@@ -193,7 +193,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 }}>
                                     {counts.completionRate.toFixed(0)}%
                                 </span>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
                                     ({counts.completed}/{counts.total})
                                 </span>
                             </div>
@@ -217,8 +217,8 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                 {counts.total > 0 && (
                     <div style={{
                         padding: '12px 20px',
-                        background: 'var(--bg-secondary, #f8fafc)',
-                        borderBottom: '1px solid var(--border-light, #d9e6e9)',
+                        background: 'var(--bg-secondary, var(--bc-slate-50))',
+                        borderBottom: '1px solid var(--border-light, var(--border-light))',
                         display: 'flex',
                         gap: 6,
                         flexWrap: 'wrap'
@@ -291,13 +291,13 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                     display: 'inline-block',
                                     width: 32,
                                     height: 32,
-                                    border: '3px solid var(--border-light, #d9e6e9)',
-                                    borderTop: '3px solid var(--text-brand, #1976D2)',
+                                    border: '3px solid var(--border-light, var(--border-light))',
+                                    borderTop: '3px solid var(--text-brand, var(--bc-ro-500))',
                                     borderRadius: '50%',
                                     animation: 'spin 1s linear infinite',
                                     marginBottom: 12
                                 }} />
-                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
                                     Loading tasks...
                                 </div>
                             </div>
@@ -305,8 +305,8 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                             <div style={{
                                 padding: '32px 12px',
                                 textAlign: 'center',
-                                background: 'var(--bg-secondary, #f8fafc)',
-                                    border: '1px dashed var(--border-light, #d9e6e9)',
+                                background: 'var(--bg-secondary, var(--bc-slate-50))',
+                                    border: '1px dashed var(--border-light, var(--border-light))',
                                 borderRadius: 10,
                                 margin: 'auto'
                             }}>
@@ -323,10 +323,10 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                                 }}>
                                     <Sparkles size={20} style={{ color: '#2E7D32' }} strokeWidth={2.5} />
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', marginBottom: 4 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', marginBottom: 4 }}>
                                     All Caught Up! 🎉
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>
                                     No optimization tasks at this time
                                 </div>
                             </div>
@@ -348,8 +348,8 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                 {counts.total > 0 && (
                     <div style={{
                         padding: '10px 20px',
-                        background: 'var(--bg-secondary, #f8fafc)',
-                        borderTop: '1px solid var(--border-light, #d9e6e9)',
+                        background: 'var(--bg-secondary, var(--bc-slate-50))',
+                        borderTop: '1px solid var(--border-light, var(--border-light))',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -361,7 +361,7 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                             alignItems: 'center',
                             gap: 4,
                             fontSize: 'var(--font-size-xs)',
-                            color: 'var(--text-secondary, #64748b)',
+                            color: 'var(--text-secondary, var(--bc-slate-500))',
                             fontWeight: 600
                         }}>
                             <Activity size={10} strokeWidth={2.5} />
@@ -375,10 +375,10 @@ background: 'var(--bg-danger-subtle, #fef2f2)',
                         fontSize: 'var(--font-size-xs)',
                         fontWeight: 600,
                         color: counts.completionRate >= 70 ? '#2E7D32' : counts.completionRate >= 40 ? '#E65100' : 'var(--bc-slate-500)',
-                            background: counts.completionRate >= 70 ? 'var(--bg-success-subtle, #d1fae5)' : counts.completionRate >= 40 ? 'var(--bg-warning-subtle, #fef3c7)' : 'var(--border-light, #d9e6e9)',
+                            background: counts.completionRate >= 70 ? 'var(--bg-success-subtle, #d1fae5)' : counts.completionRate >= 40 ? 'var(--bg-warning-subtle, var(--bc-amber-100))' : 'var(--border-light, var(--border-light))',
                             padding: '3px 8px',
                             borderRadius: "var(--radius-lg)",
-                            border: `1px solid ${counts.completionRate >= 70 ? 'var(--bg-success-subtle, #a7f3d0)' : counts.completionRate >= 40 ? 'var(--bg-warning-subtle, #fde68a)' : 'var(--border-light, #d9e6e9)'}`
+                            border: `1px solid ${counts.completionRate >= 70 ? 'var(--bg-success-subtle, #a7f3d0)' : counts.completionRate >= 40 ? 'var(--bg-warning-subtle, var(--bc-amber-200))' : 'var(--border-light, var(--border-light))'}`
                         }}>
                             <TrendingUp size={10} strokeWidth={2.5} />
                             {counts.completionRate >= 70 ? 'Healthy' : counts.completionRate >= 40 ? 'Moderate' : 'Needs Focus'}

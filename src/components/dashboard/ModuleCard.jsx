@@ -19,7 +19,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                 position: 'relative',
                 background: 'var(--bg-primary, #fff)',
                 borderRadius: "var(--radius-xl)",
-                border: '1px solid var(--border-light, #d9e6e9)',
+                border: '1px solid var(--border-light, var(--border-light))',
                 overflow: 'hidden',
                 cursor: 'pointer',
                 height: '100%',
@@ -70,7 +70,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             <div style={{
                                 fontSize: 'var(--font-size-base)',
                                 fontWeight: 700,
-                                color: 'var(--text-primary, #0f172a)',
+                                color: 'var(--text-primary, var(--bc-slate-900))',
                                 letterSpacing: '-0.01em',
                                 lineHeight: 1.2,
                                 whiteSpace: 'nowrap',
@@ -82,7 +82,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             {subtitle && (
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 2,
                                     whiteSpace: 'nowrap',
@@ -119,11 +119,11 @@ const ModuleCard = memo(({ module, onClick }) => {
                             width: 28,
                             height: 28,
                             borderRadius: '50%',
-                            background: 'var(--bg-secondary, #f8fafc)',
+                            background: 'var(--bg-secondary, var(--bc-slate-50))',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'var(--text-tertiary, #94a3b8)',
+                            color: 'var(--text-tertiary, var(--bc-slate-400))',
                             transition: 'all 0.2s'
                         }}>
                             <ChevronRight size={14} strokeWidth={2.5} />
@@ -147,7 +147,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: 'var(--text-secondary, #64748b)',
+                                color: 'var(--text-secondary, var(--bc-slate-500))',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.06em',
                                 marginBottom: 2
@@ -157,7 +157,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             <div style={{
                                 fontSize: 22,
                                 fontWeight: 700,
-                                color: 'var(--text-primary, #0f172a)',
+                                color: 'var(--text-primary, var(--bc-slate-900))',
                                 letterSpacing: '-0.5px',
                                 lineHeight: 1,
                                 whiteSpace: 'nowrap',
@@ -169,7 +169,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             {primaryMetric.subValue && (
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 3
                                 }}>
@@ -215,8 +215,8 @@ const ModuleCard = memo(({ module, onClick }) => {
             {(segments || statusText) && (
                 <div style={{
                     padding: '12px 18px 14px',
-                    background: 'var(--bg-secondary, #f8fafc)',
-                    borderTop: '1px solid var(--border-light, #d9e6e9)',
+                    background: 'var(--bg-secondary, var(--bc-slate-50))',
+                    borderTop: '1px solid var(--border-light, var(--border-light))',
                     marginTop: 'auto'
                 }}>
                     {segments && segments.length > 0 && (
@@ -230,7 +230,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                                 <span style={{
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.05em'
                                 }}>
@@ -240,7 +240,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: statusColor || 'var(--text-secondary, #64748b)',
+                                        color: statusColor || 'var(--text-secondary, var(--bc-slate-500))',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         gap: 3
@@ -264,7 +264,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                                         gap: 4,
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: 'var(--text-secondary, #64748b)'
+                                        color: 'var(--text-secondary, var(--bc-slate-500))'
                                     }}>
                                         <div style={{
                                             width: 6,
@@ -289,7 +289,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: statusColor || 'var(--text-secondary, #64748b)',
+                                color: statusColor || 'var(--text-secondary, var(--bc-slate-500))',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4
@@ -300,7 +300,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                             <span style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: 'var(--text-tertiary, #94a3b8)',
+                                color: 'var(--text-tertiary, var(--bc-slate-400))',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 3

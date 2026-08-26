@@ -56,7 +56,7 @@ const SellerStatsStrip = ({ dbStats, statsLoading, onStatClick }) => {
   if (statsLoading && !dbStats) {
     return (
       <div style={{
-        padding: '12px 28px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, #d9e6e9)',
+        padding: '12px 28px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, var(--border-light))',
         display: 'flex', gap: 10,
       }}>
         {[1, 2, 3, 4, 5, 6].map(i => (
@@ -70,7 +70,7 @@ const SellerStatsStrip = ({ dbStats, statsLoading, onStatClick }) => {
 
   return (
     <div style={{
-      padding: '12px 28px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, #d9e6e9)',
+      padding: '12px 28px', background: 'var(--bc-white)', borderBottom: '1px solid var(--border-light, var(--border-light))',
       display: 'flex', gap: 10, flexWrap: 'wrap',
     }}>
       {stats.map(stat => (

@@ -34,15 +34,15 @@ const EditAsinModal = ({ asin, onClose, onSave }) => {
       <form onSubmit={handleSubmit}>
         <div style={{ padding: '0 24px 24px' }}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>ASIN Identifier</label>
+            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>ASIN Identifier</label>
             <Input
               value={formData.asinCode}
               disabled
-              style={{ fontWeight: 600, fontFamily: 'monospace', borderRadius: "var(--radius-lg)", background: 'var(--bg-secondary, #f8fafc)' }}
+              style={{ fontWeight: 600, fontFamily: 'monospace', borderRadius: "var(--radius-lg)", background: 'var(--bg-secondary, var(--bc-slate-50))' }}
             />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Internal SKU / Label</label>
+            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Internal SKU / Label</label>
             <Input
               value={formData.sku}
               onChange={e => setFormData({ ...formData, sku: e.target.value })}
@@ -51,7 +51,7 @@ const EditAsinModal = ({ asin, onClose, onSave }) => {
             />
           </div>
           <div style={{ marginBottom: 0 }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Catalog Status</label>
+            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Catalog Status</label>
             <Select
               value={formData.status}
               onChange={value => setFormData({ ...formData, status: value })}

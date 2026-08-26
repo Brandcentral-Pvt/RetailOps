@@ -294,7 +294,7 @@ export default function LiveSyncTrackerPage() {
                 {/* Summary Cards */}
                 <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
                   <Col xs={8}>
-                    <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #2563eb' }}>
+                    <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid var(--bc-blue-600)' }}>
                       <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: 'var(--bc-slate-900)' }}>{synced}/{total}</div>
                       <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>Brands Synced</div>
                       <Progress showInfo={false} percent={total > 0 ? Math.round((synced / total) * 100) : 0} size="small" strokeColor="#2E7D32" style={{ marginTop: 4 }} />
@@ -308,7 +308,7 @@ export default function LiveSyncTrackerPage() {
                     </Card>
                   </Col>
                   <Col xs={8}>
-                    <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid #94a3b8' }}>
+                    <Card size="small" style={{ borderRadius: 10, textAlign: 'center', borderLeft: '3px solid var(--bc-slate-400)' }}>
                       <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, color: 'var(--bc-slate-400)' }}>{total - synced}</div>
                       <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)', fontWeight: 600 }}>Pending Sync</div>
                     </Card>

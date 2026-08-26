@@ -7,8 +7,8 @@ const StatMini = memo(({ label, value, color, icon: Icon, pulse, animate }) => (
             flex: 1,
             minWidth: 0,
             padding: '8px 10px',
-            background: color ? `${color}08` : 'var(--bg-secondary, #f8fafc)',
-            border: `1px solid ${color ? `${color}20` : 'var(--border-light, #d9e6e9)'}`,
+            background: color ? `${color}08` : 'var(--bg-secondary, var(--bc-slate-50))',
+            border: `1px solid ${color ? `${color}20` : 'var(--border-light, var(--border-light))'}`,
             borderRadius: 'var(--radius-md)',
             transition: 'all 0.2s',
             cursor: 'default'

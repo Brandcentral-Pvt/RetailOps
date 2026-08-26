@@ -27,16 +27,16 @@ const { TextArea } = Input;
 const getAvatarGradient = (firstName = '', lastName = '') => {
     const initials = (firstName[0] || '') + (lastName[0] || '');
     const gradients = [
-        'linear-gradient(135deg, #1976D2, #9C27B0)',
-        'linear-gradient(135deg, #9C27B0, #db2777)',
+        'linear-gradient(135deg, var(--bc-ro-500), var(--bc-purple-500))',
+        'linear-gradient(135deg, var(--bc-purple-500), #db2777)',
         'linear-gradient(135deg, #2E7D32, #2E7D32)',
         'linear-gradient(135deg, #ED6C02, #E65100)',
-        'linear-gradient(135deg, #0288D1, #0891b2)',
-        'linear-gradient(135deg, #9C27B0, #6d28d9)',
+        'linear-gradient(135deg, #0288D1, var(--bc-cyan-600))',
+        'linear-gradient(135deg, var(--bc-purple-500), var(--bc-violet-700))',
         'linear-gradient(135deg, #D32F2F, #C62828)',
         'linear-gradient(135deg, #14b8a6, #0d9488)',
-        'linear-gradient(135deg, #ED6C02, #ea580c)',
-        'linear-gradient(135deg, #1976D2, #1976D2)',
+        'linear-gradient(135deg, #ED6C02, var(--bc-accent-inventory))',
+        'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))',
     ];
 
     const hash = initials.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -164,7 +164,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick
         style={{
             flex: 1,
             background: 'white',
-            border: '1px solid #f1f5f9',
+            border: '1px solid var(--bc-slate-100)',
             borderRadius: "var(--radius-lg)",
             padding: 20,
             cursor: 'pointer',
@@ -1120,7 +1120,7 @@ const UsersPage = () => {
                 {/* Page Header */}
                 <div style={{
                     padding: '20px 28px',
-                    borderBottom: '1px solid #f1f5f9',
+                    borderBottom: '1px solid var(--bc-slate-100)',
                     background: 'white'
                 }}>
                     <div style={{
@@ -1154,7 +1154,7 @@ const UsersPage = () => {
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
                                     letterSpacing: '0.02em',
-                                    border: '1px solid #e0e7ff'
+                                    border: '1px solid var(--bc-indigo-100)'
                                 }}>
                                     {totalRecordCount} {totalRecordCount === 1 ? 'Member' : 'Members'}
                                 </span>
@@ -1179,7 +1179,7 @@ const UsersPage = () => {
                                     fontSize: 'var(--font-size-sm)',
                                     height: 38,
                                     paddingInline: 16,
-                                    border: '1px solid #e2e8f0',
+                                    border: '1px solid var(--bc-slate-200)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 6
@@ -1198,7 +1198,7 @@ const UsersPage = () => {
                                         fontSize: 'var(--font-size-sm)',
                                         height: 38,
                                         paddingInline: 18,
-                                        background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                        background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))',
                                         border: 'none',
                                         boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)',
                                         display: 'flex',
@@ -1219,7 +1219,7 @@ const UsersPage = () => {
                                         fontSize: 'var(--font-size-sm)',
                                         height: 38,
                                         paddingInline: 18,
-                                        background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                        background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))',
                                         border: 'none',
                                         boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)',
                                         display: 'flex',
@@ -1240,7 +1240,7 @@ const UsersPage = () => {
                     <div style={{
                         background: 'white',
                         borderRadius: "var(--radius-lg)",
-                        border: '1px solid #e2e8f0',
+                        border: '1px solid var(--bc-slate-200)',
                         padding: '14px 18px',
                         marginBottom: 20,
                         boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
@@ -1404,7 +1404,7 @@ const UsersPage = () => {
                                 <div
                                     style={{
                                         background: 'white',
-                                        border: '1px solid #e2e8f0',
+                                        border: '1px solid var(--bc-slate-200)',
                                         borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
@@ -1429,7 +1429,7 @@ const UsersPage = () => {
                                         width: 48,
                                         height: 48,
                                         borderRadius: 10,
-                                        background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                                        background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-purple-500))',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -1484,7 +1484,7 @@ const UsersPage = () => {
                                 <div
                                     style={{
                                         background: 'white',
-                                        border: '1px solid #e2e8f0',
+                                        border: '1px solid var(--bc-slate-200)',
                                         borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
@@ -1574,7 +1574,7 @@ const UsersPage = () => {
                                 <div
                                     style={{
                                         background: 'white',
-                                        border: '1px solid #e2e8f0',
+                                        border: '1px solid var(--bc-slate-200)',
                                         borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
@@ -1656,7 +1656,7 @@ const UsersPage = () => {
                             {/* Enhanced Table */}
                             <div style={{
                                 background: 'white',
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid var(--bc-slate-200)',
                                 borderRadius: "var(--radius-lg)",
                                 overflow: 'hidden',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
@@ -1678,7 +1678,7 @@ const UsersPage = () => {
                                             </span>
                                         ),
                                         onChange: (page, size) => { setCurrentPage(page); if (size) setPageSize(size); },
-                                        style: { padding: '16px 20px', margin: 0, borderTop: '1px solid #f1f5f9' }
+                                        style: { padding: '16px 20px', margin: 0, borderTop: '1px solid var(--bc-slate-100)' }
                                     }}
                                     scroll={{ x: 1000 }}
                                     locale={{
@@ -1727,7 +1727,7 @@ const UsersPage = () => {
                     {activeTab === 'roles' && (
                         Object.entries(filteredGroupedPermissions).map(([category, perms]) => (
                             <div key={category} style={{
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid var(--bc-slate-200)',
                                 borderRadius: "var(--radius-lg)",
                                 overflow: 'hidden',
                                 marginBottom: 16,
@@ -1736,8 +1736,8 @@ const UsersPage = () => {
                             }}>
                                 <div style={{
                                     padding: '14px 20px',
-                                    borderBottom: '1px solid #f1f5f9',
-                                    background: 'linear-gradient(135deg, #fafbfc, #f1f5f9)',
+                                    borderBottom: '1px solid var(--bc-slate-100)',
+                                    background: 'linear-gradient(135deg, #fafbfc, var(--bc-slate-100))',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 10
@@ -1769,7 +1769,7 @@ const UsersPage = () => {
                                         background: 'white',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)",
-                                        border: '1px solid #e2e8f0'
+                                        border: '1px solid var(--bc-slate-200)'
                                     }}>
                                         {perms.length} {perms.length === 1 ? 'permission' : 'permissions'}
                                     </span>
@@ -1788,7 +1788,7 @@ const UsersPage = () => {
                                                     background: '#fafbfc',
                                                     textTransform: 'uppercase',
                                                     letterSpacing: '0.05em',
-                                                    borderBottom: '1px solid #e2e8f0'
+                                                    borderBottom: '1px solid var(--bc-slate-200)'
                                                 }}>
                                                     Role
                                                 </th>
@@ -1800,11 +1800,11 @@ const UsersPage = () => {
                                                         color: 'var(--bc-slate-600)',
                                                         textAlign: 'center',
                                                         minWidth: 130,
-                                                        borderLeft: '1px solid #f1f5f9',
+                                                        borderLeft: '1px solid var(--bc-slate-100)',
                                                         textTransform: 'uppercase',
                                                         letterSpacing: '0.04em',
                                                         background: '#fafbfc',
-                                                        borderBottom: '1px solid #e2e8f0'
+                                                        borderBottom: '1px solid var(--bc-slate-200)'
                                                     }}>
                                                         <Tooltip title={p.name}>{p.displayName}</Tooltip>
                                                     </th>
@@ -1819,7 +1819,7 @@ const UsersPage = () => {
                                                     <tr
                                                         key={role._id || role.id}
                                                         style={{
-                                                            borderBottom: '1px solid #f1f5f9',
+                                                            borderBottom: '1px solid var(--bc-slate-100)',
                                                             transition: 'background 0.15s'
                                                         }}
                                                         onMouseEnter={(e) => e.currentTarget.style.background = '#fafbfc'}
@@ -1831,7 +1831,7 @@ const UsersPage = () => {
                                                             fontWeight: 600,
                                                             color: 'var(--bc-slate-900)',
                                                             background: '#fafbfc',
-                                                            borderRight: '2px solid #f1f5f9'
+                                                            borderRight: '2px solid var(--bc-slate-100)'
                                                         }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1930,7 +1930,7 @@ const UsersPage = () => {
                                 width: 36,
                                 height: 36,
                                 borderRadius: "var(--radius-md)",
-                                background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
+                                background: 'linear-gradient(135deg, var(--bc-indigo-50), var(--bc-indigo-100))',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1955,7 +1955,7 @@ const UsersPage = () => {
                     width={720}
                     styles={{
                         body: { padding: '20px 24px' },
-                        header: { padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }
+                        header: { padding: '16px 24px', borderBottom: '1px solid var(--bc-slate-100)' }
                     }}
                     footer={[
                         <Button
@@ -1974,7 +1974,7 @@ const UsersPage = () => {
                                 fontWeight: 600,
                                 fontSize: 'var(--font-size-sm)',
                                 height: 36,
-                                background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))',
                                 border: 'none'
                             }}
                         >
@@ -1984,7 +1984,7 @@ const UsersPage = () => {
                 >
                     <div style={{ maxHeight: '65vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
                         {/* Basic Info */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid var(--bc-slate-100)' }}>
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
@@ -2056,7 +2056,7 @@ const UsersPage = () => {
                         </div>
 
                         {/* Role */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid var(--bc-slate-100)' }}>
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
@@ -2095,7 +2095,7 @@ const UsersPage = () => {
                         </div>
 
                         {/* Supervisors */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid var(--bc-slate-100)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
@@ -2157,7 +2157,7 @@ const UsersPage = () => {
 
                         {/* Brand Managers (for Listing Team) */}
                         {isListingTeam && (
-                            <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                            <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid var(--bc-slate-100)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
@@ -2219,7 +2219,7 @@ const UsersPage = () => {
                         )}
 
                         {/* Brands */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid var(--bc-slate-100)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
@@ -2249,7 +2249,7 @@ const UsersPage = () => {
                             {isListingTeam && (
                                 <div style={{
                                     background: 'var(--bc-blue-50)',
-                                    border: '1px solid #bfdbfe',
+                                    border: '1px solid var(--bc-blue-200)',
                                     borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
@@ -2266,7 +2266,7 @@ const UsersPage = () => {
                             {isCatalogManager && (
                                 <div style={{
                                     background: 'var(--bc-amber-50)',
-                                    border: '1px solid #fde68a',
+                                    border: '1px solid var(--bc-amber-200)',
                                     borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
@@ -2353,7 +2353,7 @@ const UsersPage = () => {
                                 width: 36,
                                 height: 36,
                                 borderRadius: "var(--radius-md)",
-                                background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
+                                background: 'linear-gradient(135deg, var(--bc-indigo-50), var(--bc-indigo-100))',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -2393,7 +2393,7 @@ const UsersPage = () => {
                                 fontWeight: 600,
                                 fontSize: 'var(--font-size-sm)',
                                 height: 36,
-                                background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))',
                                 border: 'none'
                             }}
                         >
@@ -2471,7 +2471,7 @@ const UsersPage = () => {
                 <Modal
                     title={
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0288D1, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0288D1, var(--bc-blue-700))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Mail size={16} color="#fff" />
                             </div>
                             <div>
@@ -2589,7 +2589,7 @@ const UsersPage = () => {
                         <div>
                             {/* Profile Header */}
                             <div style={{
-                                background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                                background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-purple-500))',
                                 padding: '32px 24px',
                                 color: 'white',
                                 position: 'relative'
@@ -2712,7 +2712,7 @@ const UsersPage = () => {
                                                     padding: 10,
                                                     background: '#fafbfc',
                                                     borderRadius: "var(--radius-md)",
-                                                    border: '1px solid #f1f5f9'
+                                                    border: '1px solid var(--bc-slate-100)'
                                                 }}>
                                                     <EnhancedAvatar firstName={s.firstName} lastName={s.lastName} size={32} />
                                                     <div>
@@ -2735,7 +2735,7 @@ const UsersPage = () => {
                                     gap: 8,
                                     marginTop: 24,
                                     paddingTop: 20,
-                                    borderTop: '1px solid #f1f5f9'
+                                    borderTop: '1px solid var(--bc-slate-100)'
                                 }}>
                                     <Button
                                         icon={<Send size={14} />}
@@ -2758,7 +2758,7 @@ const UsersPage = () => {
                                             flex: 1,
                                             borderRadius: "var(--radius-md)",
                                             fontWeight: 600,
-                                            background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                            background: 'linear-gradient(135deg, var(--bc-ro-500), var(--bc-ro-500))',
                                             border: 'none'
                                         }}
                                     >

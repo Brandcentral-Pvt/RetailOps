@@ -177,7 +177,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
         {taskCount > 0 && (
           <div style={{
             maxHeight: 200, overflowY: 'auto', marginBottom: 16,
-            border: '1px solid #e2e8f0', borderRadius: "var(--radius-md)", padding: '4px 0',
+            border: '1px solid var(--bc-slate-200)', borderRadius: "var(--radius-md)", padding: '4px 0',
           }}>
             {selectedTasks.map((task, i) => {
               const st = getStatusStyle(task.status);
@@ -185,7 +185,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
                 <div key={task._id || task.id || i} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '6px 12px',
-                  borderBottom: i < taskCount - 1 ? '1px solid #f1f5f9' : 'none',
+                  borderBottom: i < taskCount - 1 ? '1px solid var(--bc-slate-100)' : 'none',
                 }}>
                   <Tag style={{ borderRadius: "var(--radius-sm)", fontSize: 10, fontWeight: 600, color: st.color, background: st.bg, border: `1px solid ${st.border}`, margin: 0, flexShrink: 0 }}>
                     {task.status}
@@ -199,7 +199,7 @@ const BulkActionModal = ({ isOpen, onClose, selectedTasks, currentUser, onComple
                 </div>
               );
             })}
-            <div style={{ padding: '6px 12px', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ padding: '6px 12px', borderTop: '1px solid var(--bc-slate-100)' }}>
               <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-400)' }}>All {taskCount} task{taskCount > 1 ? 's' : ''} will be affected</Text>
             </div>
           </div>

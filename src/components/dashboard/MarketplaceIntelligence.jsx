@@ -26,7 +26,7 @@ const MarketplaceCard = ({ name, count, color }) => {
     <div style={{
       padding: '16px',
       background: 'var(--bg-primary, #fff)',
-      border: '1px solid var(--border-light, #d9e6e9)',
+      border: '1px solid var(--border-light, var(--border-light))',
       borderRadius: 'var(--radius-lg, 10px)',
       borderLeft: `4px solid ${mpColor}`
     }}>
@@ -35,14 +35,14 @@ const MarketplaceCard = ({ name, count, color }) => {
           <ShoppingCart size={20} color={mpColor} />
         </div>
         <div style={{ flex: 1 }}>
-          <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', display: 'block' }}>{name}</Text>
-          <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>Active listings</Text>
+          <Text style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', display: 'block' }}>{name}</Text>
+          <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>Active listings</Text>
         </div>
       </div>
 
       <div style={{ padding: '8px 10px', background: 'var(--bg-tertiary, #f4f4f5)', borderRadius: 'var(--radius-sm, 6px)' }}>
-        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'block' }}>Total ASINs</Text>
-        <Text style={{ fontSize: 'var(--font-size-xl, 18px)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{(count || 0).toLocaleString()}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', display: 'block' }}>Total ASINs</Text>
+        <Text style={{ fontSize: 'var(--font-size-xl, 18px)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))' }}>{(count || 0).toLocaleString()}</Text>
       </div>
     </div>
   );
@@ -63,13 +63,13 @@ const MarketplaceIntelligence = ({ marketplaces = [] }) => {
         padding: '16px 20px',
         background: 'var(--bg-primary, #fff)',
         borderRadius: 'var(--radius-xl, 16px)',
-        border: '1px solid var(--border-light, #d9e6e9)'
+        border: '1px solid var(--border-light, var(--border-light))'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, #eff6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BarChart3 size={14} color="var(--text-brand, #1976D2)" />
+          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, var(--bc-blue-50))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BarChart3 size={14} color="var(--text-brand, var(--bc-ro-500))" />
           </div>
-          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Marketplace Intelligence</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, var(--bc-slate-900))' }}>Marketplace Intelligence</Text>
         </div>
         <div style={{ textAlign: 'center', padding: '24px 16px', color: 'var(--text-tertiary, #9CA3AF)', fontSize: 'var(--font-size-sm)' }}>
           No marketplace data available
@@ -83,16 +83,16 @@ const MarketplaceIntelligence = ({ marketplaces = [] }) => {
       padding: '16px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: 'var(--radius-xl, 16px)',
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--border-light, var(--border-light))'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, #eff6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BarChart3 size={14} color="var(--text-brand, #1976D2)" />
+          <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, var(--bc-blue-50))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BarChart3 size={14} color="var(--text-brand, var(--bc-ro-500))" />
           </div>
-          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, #0f172a)' }}>Marketplace Intelligence</Text>
+          <Text strong style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary, var(--bc-slate-900))' }}>Marketplace Intelligence</Text>
         </div>
-        <Badge count={marketplaceData.length} style={{ backgroundColor: 'var(--bg-brand, #1976D2)' }} />
+        <Badge count={marketplaceData.length} style={{ backgroundColor: 'var(--bg-brand, var(--bc-ro-500))' }} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
         {marketplaceData.map((mp, i) => (

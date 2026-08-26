@@ -115,7 +115,7 @@ const Dashboard = () => {
         <>
             <CmdPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
             <motion.div variants={containerVariants} initial="hidden" animate="visible"
-                style={{ background: 'var(--bg-primary, #f8fafc)', minHeight: '100%', padding: '0 24px' }}
+                style={{ background: 'var(--bg-primary, var(--bc-slate-50))', minHeight: '100%', padding: '0 24px' }}
             >
                 {/* Layer 1: Header + Global Status Bar */}
                 <DashboardHeader filters={filters} setFilters={setFilters} userSellers={userSellers} managers={managers} onSync={refresh} loading={loading} />

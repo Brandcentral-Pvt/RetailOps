@@ -607,7 +607,7 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
                     {(() => {
                       const dealActive = asin.dealBadge && asin.dealBadge !== 'No deal found' && asin.dealBadge !== '' && asin.dealStartTime && asin.dealEndTime && new Date(asin.dealStartTime) <= new Date() && new Date() <= new Date(asin.dealEndTime);
                       return dealActive ? (
-                      <div style={{ padding: '8px 10px', background: 'var(--bc-amber-100)', border: '1px solid #fde68a', borderRadius: "var(--radius-md)" }}>
+                      <div style={{ padding: '8px 10px', background: 'var(--bc-amber-100)', border: '1px solid var(--bc-amber-200)', borderRadius: "var(--radius-md)" }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                           <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-amber-800)' }}>{asin.dealBadge}</span>
                           <Tag color="warning" style={{ border: 'none', fontSize: 9, padding: '0 4px', lineHeight: '16px', fontWeight: 600 }}>ACTIVE</Tag>
@@ -715,9 +715,9 @@ const AsinDetailModal = ({ asin, isOpen, onClose }) => {
               ? (asin.lqs > 10 ? asin.lqs / 10 : asin.lqs)
               : (parseFloat(asin.lqs || 0) > 10 ? parseFloat(asin.lqs || 0) / 10 : parseFloat(asin.lqs || 0));
             const accentColor = lqsScore >= 8.5 ? C.success : lqsScore >= 7.0 ? C.warning : C.danger;
-            const gradientBg = lqsScore >= 8.5 ? 'linear-gradient(90deg, #f0fdf4 0%, #ffffff 100%)'
-              : lqsScore >= 7.0 ? 'linear-gradient(90deg, #fffbeb 0%, #ffffff 100%)'
-                : 'linear-gradient(90deg, #fef2f2 0%, #ffffff 100%)';
+            const gradientBg = lqsScore >= 8.5 ? 'linear-gradient(90deg, var(--bc-green-50) 0%, var(--bc-white) 100%)'
+              : lqsScore >= 7.0 ? 'linear-gradient(90deg, var(--bc-amber-50) 0%, var(--bc-white) 100%)'
+                : 'linear-gradient(90deg, var(--bc-red-50) 0%, var(--bc-white) 100%)';
             return (
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',

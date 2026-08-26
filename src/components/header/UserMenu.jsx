@@ -43,7 +43,7 @@ const UserMenu = () => {
         <div
           style={{
             padding: '8px 4px 12px',
-            borderBottom: '1px solid #F1F5F9',
+            borderBottom: '1px solid var(--bc-slate-100)',
             marginBottom: '4px',
             minWidth: '240px',
           }}
@@ -52,7 +52,7 @@ const UserMenu = () => {
             <Avatar
               size={40}
               style={{
-                background: 'linear-gradient(135deg, #1565C0, #1976D2)',
+                background: 'linear-gradient(135deg, var(--bc-ro-600), var(--bc-ro-500))',
                 fontSize: 'var(--font-size-base)',
                 fontWeight: 600,
                 fontFamily: 'Inter, sans-serif',
@@ -93,7 +93,7 @@ const UserMenu = () => {
                   marginTop: '4px',
                   padding: '1px 6px',
                   background: 'var(--bc-ro-50)',
-                  border: '1px solid #90CAF9',
+                  border: '1px solid var(--bc-ro-200)',
                   borderRadius: '100px',
                   fontSize: '9.5px',
                   fontWeight: 600,
@@ -183,7 +183,7 @@ const UserMenu = () => {
         <Avatar
           size={28}
           style={{
-            background: 'linear-gradient(135deg, #1565C0, #1976D2)',
+            background: 'linear-gradient(135deg, var(--bc-ro-600), var(--bc-ro-500))',
             fontSize: 'var(--font-size-xs)',
             fontWeight: 600,
             fontFamily: 'Inter, sans-serif',

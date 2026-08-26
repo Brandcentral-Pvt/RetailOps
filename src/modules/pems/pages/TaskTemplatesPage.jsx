@@ -19,13 +19,13 @@ function SopPhaseBuilder({ phases, setPhases }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {phases.map((phase, pi) => (
-        <Card key={pi} size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}
+        <Card key={pi} size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }}
           title={<Space><Tag style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 10, borderRadius: "var(--radius-sm)", background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4' }}>Phase {pi + 1}</Tag>
             <Input size="small" value={phase.title} onChange={e => updatePhase(pi, 'title', e.target.value)} placeholder="Phase name (e.g. Campaign Analysis)" style={{ width: 300, fontWeight: 600 }} bordered={false} />
           </Space>}
           extra={phases.length > 1 && <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removePhase(pi)} />}>
           {(phase.activities || []).map((act, ai) => (
-            <div key={ai} style={{ padding: '10px 12px', background: '#fafbfc', borderRadius: 6, marginBottom: 6, border: '1px solid #f1f5f9' }}>
+            <div key={ai} style={{ padding: '10px 12px', background: '#fafbfc', borderRadius: 6, marginBottom: 6, border: '1px solid var(--bc-slate-100)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <Tag style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', background: 'var(--bc-indigo-50)', color: 'var(--bc-ro-500)', borderRadius: "var(--radius-sm)" }}>Activity {ai + 1}</Tag>
                 <Input size="small" value={act.title} onChange={e => updateActivity(pi, ai, 'title', e.target.value)} placeholder="Activity name..." style={{ flex: 1, fontWeight: 500 }} bordered={false} />
@@ -63,7 +63,7 @@ function SubTaskBuilder({ subTasks, setSubTasks }) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {subTasks.map((st, i) => (
-          <Card key={i} size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}
+          <Card key={i} size="small" style={{ borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }}
             title={<Space><Tag style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', background: '#f0fdfa', color: '#0d9488', borderRadius: "var(--radius-sm)" }}>ST-{i + 1}</Tag>
               <Input size="small" value={st.title} onChange={e => update(i, 'title', e.target.value)} placeholder="Sub Task name" style={{ width: 260, fontWeight: 600 }} bordered={false} />
             </Space>
@@ -369,7 +369,7 @@ export default function TaskTemplatesPage() {
           <Divider style={{ margin: '4px 0' }} />
           <Text strong style={{ fontSize: 'var(--font-size-sm)', display: 'block', marginBottom: 8 }}>Approval Level</Text>
           <Select value={approvalLevel} onChange={setApprovalLevel} style={{ width: 220 }} options={APPROVAL_LEVELS.map(a => ({ value: a.value, label: a.label }))} />
-          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bc-slate-50)', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-slate-200)' }}>
             <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-slate-500)' }}>
               {approvalLevel === 'single' && 'Single approval: One reviewer approves to complete the task.'}
               {approvalLevel === 'dual' && 'Dual approval: Two independent reviewers must approve.'}

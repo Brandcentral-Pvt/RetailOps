@@ -226,7 +226,7 @@ export function PageLoading({ message = 'Loading...' }) {
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      background: 'var(--bg-secondary, #f8fafc)' // Aligned layout background
+      background: 'var(--bg-secondary, var(--bc-slate-50))' // Aligned layout background
     }}>
       <Spin indicator={antIcon} size="large" />
       <div style={{

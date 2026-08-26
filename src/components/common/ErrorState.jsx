@@ -38,7 +38,7 @@ const ErrorState = ({
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
-                    backgroundColor: 'var(--color-danger-50, #FEF2F2)',
+                    backgroundColor: 'var(--color-danger-50, var(--bc-red-50))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

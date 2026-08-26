@@ -75,14 +75,14 @@ const CommandPalette = ({ open, onClose }) => {
       width={560}
       styles={{ body: { padding: 0, borderRadius: "var(--radius-lg)", overflow: 'hidden' } }}
     >
-      <div style={{ borderBottom: '1px solid var(--border-light, #d9e6e9)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <SearchOutlined style={{ fontSize: 18, color: 'var(--text-secondary, #64748b)' }} />
+      <div style={{ borderBottom: '1px solid var(--border-light, var(--border-light))', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <SearchOutlined style={{ fontSize: 18, color: 'var(--text-secondary, var(--bc-slate-500))' }} />
         <input
           ref={inputRef}
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search pages, commands..."
-          style={{ flex: 1, border: 'none', outline: 'none', fontSize: 15, fontWeight: 500, color: 'var(--text-primary, #0f172a)', background: 'transparent' }}
+          style={{ flex: 1, border: 'none', outline: 'none', fontSize: 15, fontWeight: 500, color: 'var(--text-primary, var(--bc-slate-900))', background: 'transparent' }}
         />
         <Tag style={{ fontSize: 10, margin: 0, borderRadius: "var(--radius-sm)" }}>ESC</Tag>
       </div>
@@ -92,7 +92,7 @@ const CommandPalette = ({ open, onClose }) => {
         ) : (
           Object.entries(grouped).map(([category, items]) => (
             <div key={category}>
-              <div style={{ padding: '8px 16px 4px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <div style={{ padding: '8px 16px 4px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 {category}
               </div>
               {items.map(item => (
@@ -104,7 +104,7 @@ const CommandPalette = ({ open, onClose }) => {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <span style={{ fontSize: 'var(--font-size-lg)' }}>{item.icon}</span>
-                  <span style={{ flex: 1, fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--text-primary, #0f172a)' }}>{item.label}</span>
+                  <span style={{ flex: 1, fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--text-primary, var(--bc-slate-900))' }}>{item.label}</span>
                   <ArrowRightOutlined style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-tertiary, #a1a1aa)' }} />
                 </div>
               ))}

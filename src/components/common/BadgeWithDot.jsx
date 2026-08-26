@@ -46,7 +46,7 @@ const BadgeWithDot = ({ type = 'pill-color', color = 'brand', size = 'md', child
     } : {
         backgroundColor: 'transparent',
         color: styles.text,
-        border: '1px solid #e2e8f0'
+        border: '1px solid var(--bc-slate-200)'
     };
 
     const dotStyle = {

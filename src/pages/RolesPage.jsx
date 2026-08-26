@@ -514,7 +514,7 @@ const RolesPage = () => {
                 </Row>
 
                 {/* Secondary Nav and Sync Strip */}
-                <Card variant="borderless" styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
+                <Card variant="borderless" styles={{ body: { padding: '12px 16px' } }} style={{ borderRadius: "var(--radius-xl)", border: '1px solid var(--bc-slate-200)', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                         <Segmented
                             className="segmented-roles"
@@ -557,7 +557,7 @@ const RolesPage = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                         
                         {/* Info Disclaimer */}
-                        <div style={{ display: 'flex', gap: 12, background: 'var(--bc-blue-50)', border: '1px solid #bfdbfe', padding: 16, borderRadius: "var(--radius-xl)" }}>
+                        <div style={{ display: 'flex', gap: 12, background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-200)', padding: 16, borderRadius: "var(--radius-xl)" }}>
                             <Info size={18} className="text-blue-600" style={{ marginTop: 2, flexShrink: 0 }} />
                             <div>
                                 <strong style={{ display: 'block', color: 'var(--bc-blue-800)', fontSize: 'var(--font-size-sm)', marginBottom: 2 }}>Hierarchical Priority Architecture</strong>
@@ -693,7 +693,7 @@ const RolesPage = () => {
                                         return (
                                             <React.Fragment key={category}>
                                                 <tr style={{ background: 'var(--bc-slate-50)' }}>
-                                                    <td colSpan={6} style={{ padding: '14px 16px', borderTop: '1px solid #e2e8f0' }}>
+                                                    <td colSpan={6} style={{ padding: '14px 16px', borderTop: '1px solid var(--bc-slate-200)' }}>
                                                         <Space size={8}>
                                                             <div style={{ display: 'flex', background: 'var(--bc-indigo-100)', padding: 5, borderRadius: 6, color: 'var(--bc-ro-500)' }}><Shield size={12} /></div>
                                                             <span style={{ fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--bc-slate-800)' }}>{category} Module Policies</span>
@@ -707,7 +707,7 @@ const RolesPage = () => {
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                                                     <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--bc-slate-700)' }}>{perm.displayName}</span>
                                                                     <span style={{ color: 'var(--bc-slate-500)', fontSize: 'var(--font-size-xs)' }}>{perm.description || `Grants capability to execute '${perm.displayName}' triggers.`}</span>
-                                                                    <code style={{ alignSelf: 'flex-start', fontSize: 9.5, color: 'var(--bc-slate-400)', background: 'var(--bc-slate-50)', padding: '1px 4px', borderRadius: "var(--radius-sm)", border: '1px solid #f1f5f9', marginTop: 2 }}>
+                                                                    <code style={{ alignSelf: 'flex-start', fontSize: 9.5, color: 'var(--bc-slate-400)', background: 'var(--bc-slate-50)', padding: '1px 4px', borderRadius: "var(--radius-sm)", border: '1px solid var(--bc-slate-100)', marginTop: 2 }}>
                                                                         {perm.name}
                                                                     </code>
                                                                 </div>
@@ -787,7 +787,7 @@ const RolesPage = () => {
                 <div style={{ padding: '8px 0', maxHeight: '68vh', overflowY: 'auto', overflowX: 'hidden' }}>
                     
                     {/* Row 1: Core Attributes */}
-                    <Card variant="borderless" style={{ background: 'var(--bc-slate-50)', borderRadius: "var(--radius-xl)", border: '1px solid #e2e8f0', marginBottom: 24 }} styles={{ body: { padding: 16 } }}>
+                    <Card variant="borderless" style={{ background: 'var(--bc-slate-50)', borderRadius: "var(--radius-xl)", border: '1px solid var(--bc-slate-200)', marginBottom: 24 }} styles={{ body: { padding: 16 } }}>
                         <Row gutter={[16, 16]}>
                             <Col span={8}>
                                 <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--bc-slate-600)', textTransform: 'uppercase', marginBottom: 6 }}>Technical Unique Key</label>

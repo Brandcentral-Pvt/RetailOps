@@ -257,7 +257,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                             width: 38,
                             height: 38,
                             borderRadius: "var(--radius-md)",
-                            background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
+                            background: 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -299,7 +299,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                 styles={{
                     wrapper: { width: 420 },
                     body: { padding: '16px', background: 'var(--bc-slate-50)' },
-                    header: { padding: '16px 20px', background: 'var(--bc-white)', borderBottom: '1px solid #e2e8f0' }
+                    header: { padding: '16px 20px', background: 'var(--bc-white)', borderBottom: '1px solid var(--bc-slate-200)' }
                 }}
             >
                 <Spin spinning={loading} size="large">
@@ -508,7 +508,7 @@ const DownloadsDrawer = ({ isOpen, onClose }) => {
                         {stats.total > 0 && (
                             <div style={{
                                 padding: '12px 4px 4px',
-                                borderTop: '1px solid #e2e8f0',
+                                borderTop: '1px solid var(--bc-slate-200)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',

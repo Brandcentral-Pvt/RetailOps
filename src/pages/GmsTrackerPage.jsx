@@ -1065,7 +1065,7 @@ export default function GmsTrackerPage() {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           {[1, 2, 3, 4, 5].map(i => (
             <Col key={i} xs={12} sm={6} md={4} style={{ flex: '1 1 160px' }}>
-              <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9', padding: 8 }}><Skeleton active paragraph={{ rows: 1 }} /></Card>
+              <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light)', padding: 8 }}><Skeleton active paragraph={{ rows: 1 }} /></Card>
             </Col>
           ))}
         </Row>
@@ -1100,7 +1100,7 @@ export default function GmsTrackerPage() {
 
       {/* REVENUE TREND CHART */}
       {filteredData.length > 0 && (
-        <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9', marginBottom: 16 }} styles={{ body: { padding: '10px 14px' } }}>
+        <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light)', marginBottom: 16 }} styles={{ body: { padding: '10px 14px' } }}>
           <div style={{ marginBottom: 8 }}>
             <Text strong style={{ color: 'var(--bc-slate-900)', fontSize: 'var(--font-size-sm)' }}>Revenue · Orders · Returns Trend</Text>
           </div>
@@ -1114,8 +1114,8 @@ export default function GmsTrackerPage() {
       )}
 
       {/* DATA MATRIX TABLE */}
-      <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid #d9e6e9' }} styles={{ body: { padding: 0 } }}>
-        <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Card style={{ borderRadius: "var(--radius-lg)", border: '1px solid var(--border-light)' }} styles={{ body: { padding: 0 } }}>
+        <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--bc-slate-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-slate-900)' }}>Spreadsheet Data Matrix</Text>
           <Tooltip title="Horizontal breakdown of Ordered Revenue by Month, Week, and Day.">
             <InfoCircleOutlined style={{ color: 'var(--bc-slate-400)', fontSize: 'var(--font-size-sm)' }} />
@@ -1226,12 +1226,12 @@ export default function GmsTrackerPage() {
       {/* EXPORT DATA CONFIGURATION MODAL */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid var(--bc-slate-100)' }}>
             <div style={{
               width: 30,
               height: 30,
               borderRadius: 6,
-              background: 'linear-gradient(135deg, #1976D2 0%, #1976D2 100%)',
+              background: 'linear-gradient(135deg, var(--bc-ro-500) 0%, var(--bc-ro-500) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

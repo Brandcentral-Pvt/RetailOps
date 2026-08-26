@@ -1,14 +1,14 @@
 import React from 'react';
 import { Tooltip } from 'antd';
 
-const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D2)', onClick, variant = 'default' }) => {
+const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, var(--bc-ro-500))', onClick, variant = 'default' }) => {
   if (variant === 'compact') {
     const Icon = icon;
     return (
       <div style={{
         padding: '14px 16px',
-        background: 'var(--bg-primary, #ffffff)',
-        border: '1px solid var(--border-light, #d9e6e9)',
+        background: 'var(--bg-primary, var(--bc-white))',
+        border: '1px solid var(--border-light, var(--border-light))',
         borderRadius: 'var(--radius-lg)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -29,7 +29,7 @@ const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D
             <div style={{
               fontSize: 'var(--font-size-xs)',
               fontWeight: 600,
-              color: 'var(--text-secondary, #64748b)',
+              color: 'var(--text-secondary, var(--bc-slate-500))',
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
               marginBottom: 3,
@@ -39,7 +39,7 @@ const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D
             <div style={{
               fontSize: 'var(--font-size-xl)',
               fontWeight: 600,
-              color: 'var(--text-primary, #0f172a)',
+              color: 'var(--text-primary, var(--bc-slate-900))',
               letterSpacing: '-0.3px',
               lineHeight: 1,
             }}>
@@ -59,15 +59,15 @@ const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D
       style={{
         flex: '1 1 0',
         minWidth: 140,
-        background: 'var(--bg-primary, #ffffff)',
-        border: '1px solid var(--border-light, #d9e6e9)',
+        background: 'var(--bg-primary, var(--bc-white))',
+        border: '1px solid var(--border-light, var(--border-light))',
         borderRadius: "var(--radius-lg)",
         padding: '14px 16px',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.18s ease',
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'var(--border-medium, #CBD5E1)';
+        e.currentTarget.style.borderColor = 'var(--border-medium, var(--bc-slate-300))';
         if (onClick) e.currentTarget.style.transform = 'translateY(-2px)';
         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
       }}
@@ -79,13 +79,13 @@ const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <span style={{
-          fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)',
+          fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, var(--bc-slate-500))',
           textTransform: 'uppercase', letterSpacing: '0.06em'
         }}>
           {label}
         </span>
         {icon && (
-          <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-lg)', lineHeight: 1 }}>{icon}</span>
+          <span style={{ color: 'var(--text-muted, var(--bc-slate-400))', fontSize: 'var(--font-size-lg)', lineHeight: 1 }}>{icon}</span>
         )}
       </div>
       <Tooltip title={formatted !== String(value) ? value.toLocaleString('en-IN') : undefined}>
@@ -114,15 +114,15 @@ const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D
             <span style={{
               fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '2px 7px', borderRadius: 100,
               border: '1px solid',
-              borderColor: trend.direction === 'up' ? '#A5D6A7' : trend.direction === 'down' ? '#EF9A9A' : 'var(--border-light, #d9e6e9)',
-              color: trend.direction === 'up' ? 'var(--text-success, #2E7D32)' : trend.direction === 'down' ? 'var(--text-danger, #D32F2F)' : 'var(--text-secondary, #64748b)',
-              background: trend.direction === 'up' ? '#E8F5E9' : trend.direction === 'down' ? '#FFEBEE' : 'var(--bg-secondary, #f8fafc)',
+              borderColor: trend.direction === 'up' ? '#A5D6A7' : trend.direction === 'down' ? '#EF9A9A' : 'var(--border-light, var(--border-light))',
+              color: trend.direction === 'up' ? 'var(--text-success, #2E7D32)' : trend.direction === 'down' ? 'var(--text-danger, #D32F2F)' : 'var(--text-secondary, var(--bc-slate-500))',
+              background: trend.direction === 'up' ? '#E8F5E9' : trend.direction === 'down' ? '#FFEBEE' : 'var(--bg-secondary, var(--bc-slate-50))',
             }}>
               {trend.value}
             </span>
           )}
           {trend.label && (
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 500 }}>{trend.label}</span>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 500 }}>{trend.label}</span>
           )}
         </div>
       )}

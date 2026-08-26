@@ -659,7 +659,7 @@ const AlertsPage = () => {
                                                                     icon={<Check size={15} style={{ color: '#2E7D32' }} />}
                                                                     style={{ 
                                                                         backgroundColor: 'var(--bc-green-50)', 
-                                                                        border: '1px solid #dcfce7',
+                                                                        border: '1px solid var(--bc-green-100)',
                                                                         borderRadius: "var(--radius-md)",
                                                                         width: 32,
                                                                         height: 32,
@@ -688,7 +688,7 @@ const AlertsPage = () => {
                                                                     icon={<Trash2 size={14} />}
                                                                     style={{ 
                                                                         backgroundColor: 'var(--bc-red-50)', 
-                                                                        border: '1px solid #fee2e2',
+                                                                        border: '1px solid var(--bc-red-100)',
                                                                         borderRadius: "var(--radius-md)",
                                                                         width: 32,
                                                                         height: 32,

@@ -40,7 +40,7 @@ const { Text } = Typography;
 
 // Marketplace-based avatar colors — all sellers of same marketplace get same color
 const MARKETPLACE_COLORS = {
-  'amazon.in': { gradient: 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))', color: 'var(--text-brand, #1976D2)', bg: 'var(--bc-ro-50)' },
+  'amazon.in': { gradient: 'linear-gradient(135deg, var(--text-brand-dark, var(--bc-ro-600)), var(--text-brand, var(--bc-ro-500)))', color: 'var(--text-brand, var(--bc-ro-500))', bg: 'var(--bc-ro-50)' },
   'ajio': { gradient: 'linear-gradient(135deg, #C2185B, #E91E63)', color: '#E91E63', bg: '#FCE4EC' },
   'myntra': { gradient: 'linear-gradient(135deg, #E65100, #FF5722)', color: '#FF5722', bg: '#FBE9E7' },
 };
@@ -849,7 +849,7 @@ const SellersPage = () => {
           <Tooltip title={seller.isPriority ? 'Remove High Priority' : 'Set as High Priority'}>
             <Button
               type="text" size="small"
-              icon={<Star size={14} fill={seller.isPriority ? "var(--text-warning, #ED6C02)" : "none"} stroke={seller.isPriority ? "var(--text-warning, #ED6C02)" : "var(--text-secondary, #64748b)"} />}
+              icon={<Star size={14} fill={seller.isPriority ? "var(--text-warning, #ED6C02)" : "none"} stroke={seller.isPriority ? "var(--text-warning, #ED6C02)" : "var(--text-secondary, var(--bc-slate-500))"} />}
               onClick={() => handleTogglePriority(seller._id)}
               loading={seller._savingPriority}
             />
@@ -955,7 +955,7 @@ const SellersPage = () => {
         <Button type="link" onClick={() => handleViewAsins(seller)}
           style={{ padding: 0, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-primary, #0f172a)', height: 'auto' }}>
           <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', backgroundColor: 'var(--bg-secondary, #f8fafc)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Package size={14} color="var(--text-muted, #94a3b8)" />
+            <Package size={14} color="var(--text-muted, var(--bc-slate-400))" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
             <Text strong style={{ fontSize: 'var(--font-size-xs)' }}>{total || 0} ASINs</Text>

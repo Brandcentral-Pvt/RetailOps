@@ -54,7 +54,7 @@ const ProductList = memo(({ products, maxValue, sortBy }) => {
                 <div style={{
                     textAlign: 'center',
                     padding: '16px 0',
-                    color: 'var(--text-secondary, #64748b)',
+                    color: 'var(--text-secondary, var(--bc-slate-500))',
                     fontSize: 'var(--font-size-xs)',
                     fontWeight: 500,
                     display: 'flex',
@@ -129,7 +129,7 @@ const TopAsinsCard = ({ products = [] }) => {
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
+                    border: '1px solid var(--border-light, var(--border-light, var(--border-light)))',
                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
                     background: 'var(--bg-primary, #fff)',
                     height: 820,
@@ -143,8 +143,8 @@ const TopAsinsCard = ({ products = [] }) => {
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--border-light, var(--border-light, var(--border-light)))',
+                    background: 'linear-gradient(135deg, var(--bc-red-50) 0%, var(--bc-white) 100%)'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -172,7 +172,7 @@ const TopAsinsCard = ({ products = [] }) => {
                                 <div style={{
                                     fontSize: 'var(--font-size-base)',
                                     fontWeight: 700,
-                                    color: 'var(--text-primary, #0f172a)',
+                                    color: 'var(--text-primary, var(--bc-slate-900))',
                                     letterSpacing: '-0.01em',
                                     lineHeight: 1.2,
                                     display: 'flex',
@@ -183,7 +183,7 @@ const TopAsinsCard = ({ products = [] }) => {
                                 </div>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     fontWeight: 500,
                                     marginTop: 1
                                 }}>
@@ -226,14 +226,14 @@ const TopAsinsCard = ({ products = [] }) => {
                                 gap: 5,
                                 padding: '4px 10px',
                                 background: 'var(--bg-primary, #fff)',
-                                border: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
+                                border: '1px solid var(--border-light, var(--border-light, var(--border-light)))',
                                 borderRadius: "var(--radius-lg)"
                             }}>
                                 <Package size={11} style={{ color: 'var(--color-info-blue, #0288D1)' }} strokeWidth={2.5} />
                                 <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-info-blue, #0288D1)' }}>
                                     {stats.total}
                                 </span>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
                                     Products
                                 </span>
                             </div>
@@ -243,14 +243,14 @@ const TopAsinsCard = ({ products = [] }) => {
                                 gap: 5,
                                 padding: '4px 10px',
                                 background: 'var(--bg-primary, #fff)',
-                                border: '1px solid var(--border-light, #d9e6e9)',
+                                border: '1px solid var(--border-light, var(--border-light))',
                                 borderRadius: "var(--radius-lg)"
                             }}>
                                 <ShoppingBag size={11} style={{ color: '#2E7D32' }} strokeWidth={2.5} />
                                 <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: '#2E7D32' }}>
                                     {formatNumber(stats.totalUnits)}
                                 </span>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
                                     Units
                                 </span>
                             </div>
@@ -261,14 +261,14 @@ const TopAsinsCard = ({ products = [] }) => {
                                     gap: 5,
                                     padding: '4px 10px',
                                     background: 'var(--bg-primary, #fff)',
-                                    border: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
+                                    border: '1px solid var(--border-light, var(--border-light, var(--border-light)))',
                                     borderRadius: "var(--radius-lg)"
                                 }}>
                                     <BarChart3 size={11} style={{ color: 'var(--bc-purple-500)' }} strokeWidth={2.5} />
                                     <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--bc-purple-500)' }}>
                                         {formatCurrency(stats.totalRevenue)}
                                     </span>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))', fontWeight: 600 }}>
                                         Revenue
                                     </span>
                                 </div>
@@ -283,8 +283,8 @@ const TopAsinsCard = ({ products = [] }) => {
                 {stats.total > 0 && (
                     <div style={{
                         padding: '10px 20px',
-                        background: 'var(--bg-secondary, #f8fafc)',
-                        borderBottom: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
+                        background: 'var(--bg-secondary, var(--bc-slate-50))',
+                        borderBottom: '1px solid var(--border-light, var(--border-light, var(--border-light)))',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
@@ -303,7 +303,7 @@ const TopAsinsCard = ({ products = [] }) => {
                                     left: 10,
                                     top: '50%',
                                     transform: 'translateY(-50%)',
-                                    color: 'var(--text-secondary, #64748b)',
+                                    color: 'var(--text-secondary, var(--bc-slate-500))',
                                     pointerEvents: 'none'
                                 }}
                             />
@@ -318,7 +318,7 @@ const TopAsinsCard = ({ products = [] }) => {
                                     padding: '6px 10px 6px 30px',
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 500,
-                                    color: 'var(--text-primary, #0f172a)',
+                                    color: 'var(--text-primary, var(--bc-slate-900))',
                                     background: 'var(--bg-primary, #fff)',
                                     outline: 'none'
                                 }}
@@ -341,7 +341,7 @@ const TopAsinsCard = ({ products = [] }) => {
                                 }
                             ]}
                             style={{
-                                background: 'var(--border-light, var(--border-light, #d9e6e9))'
+                                background: 'var(--border-light, var(--border-light, var(--border-light)))'
                             }}
                         />
                     </div>
@@ -363,8 +363,8 @@ const TopAsinsCard = ({ products = [] }) => {
                         <div style={{
                             padding: '40px 12px',
                             textAlign: 'center',
-                            background: 'var(--bg-secondary, #f8fafc)',
-                            border: '1px dashed var(--border-light, var(--border-light, #d9e6e9))',
+                            background: 'var(--bg-secondary, var(--bc-slate-50))',
+                            border: '1px dashed var(--border-light, var(--border-light, var(--border-light)))',
                             borderRadius: "var(--radius-lg)",
                             margin: 'auto'
                         }}>
@@ -372,7 +372,7 @@ const TopAsinsCard = ({ products = [] }) => {
                                 width: 56,
                                 height: 56,
                                 borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                background: 'linear-gradient(135deg, var(--bc-amber-100) 0%, var(--bc-amber-200) 100%)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -381,10 +381,10 @@ const TopAsinsCard = ({ products = [] }) => {
                             }}>
                                 <Trophy size={24} style={{ color: 'var(--text-warning, #E65100)' }} strokeWidth={2.5} />
                             </div>
-                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, #0f172a)', marginBottom: 4 }}>
+                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary, var(--bc-slate-900))', marginBottom: 4 }}>
                                 {searchText ? 'No Products Found' : 'No Performance Data'}
                             </div>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)' }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, var(--bc-slate-500))' }}>
                                 {searchText
                                     ? 'Try different search keywords'
                                     : 'Top selling ASINs will appear here'}
@@ -406,8 +406,8 @@ const TopAsinsCard = ({ products = [] }) => {
                 {stats.total > 0 && (
                     <div style={{
                         padding: '10px 20px',
-                        background: 'var(--bg-secondary, #f8fafc)',
-                        borderTop: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
+                        background: 'var(--bg-secondary, var(--bc-slate-50))',
+                        borderTop: '1px solid var(--border-light, var(--border-light, var(--border-light)))',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -419,7 +419,7 @@ const TopAsinsCard = ({ products = [] }) => {
                             alignItems: 'center',
                             gap: 4,
                             fontSize: 'var(--font-size-xs)',
-                            color: 'var(--text-secondary, #64748b)',
+                            color: 'var(--text-secondary, var(--bc-slate-500))',
                             fontWeight: 600
                         }}>
                             <Eye size={10} strokeWidth={2.5} />
@@ -434,10 +434,10 @@ const TopAsinsCard = ({ products = [] }) => {
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
                                 color: '#E65100',
-                                background: 'var(--bg-warning-subtle, #fffbeb)',
+                                background: 'var(--bg-warning-subtle, var(--bc-amber-50))',
                                 padding: '3px 9px',
                                 borderRadius: "var(--radius-lg)",
-                                border: '1px solid var(--bg-warning-subtle, #fde68a)',
+                                border: '1px solid var(--bg-warning-subtle, var(--bc-amber-200))',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
