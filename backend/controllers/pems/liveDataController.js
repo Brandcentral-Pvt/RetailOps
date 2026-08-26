@@ -44,24 +44,57 @@ const JOB_PREFIX = 'ldi:job:';
 const JOB_RESULTS_PREFIX = 'ldi:results:';
 const JOB_TTL = 7200; // 2 hours
 
-// jobId -> LiveSyncRunLogs.Id (used to complete inspector-upload runs)
-const JOB_RUN_MAP = new Map();
-function jobRunId(jobId) { return JOB_RUN_MAP.get(jobId) || null; }
+// SECURITY (F1): containment guard shared by all per-job file paths.
+function _safeJobBase(jobId) {
+    const meta = jobIdPath(jobId);
+    return meta ? meta.replace(/\.json$/, '') : null;
+}
 
+// Result rows live in append-only stores (Redis list / .jsonl file) and are
+// persisted INCREMENTALLY: each batch pushes only its new rows instead of
+// re-serializing the whole ever-growing array. A 50k-ASIN job previously did
+// O(n²) JSON serialization work (~5000 batches × multi-MB payloads); this is
+// O(n) total. `_pR`/`_pN` in the meta blob track how many rows were already
+// persisted, so a shrunk array (retry pass resets notFoundList) is detected
+// and the store is rebuilt.
 async function saveJob(job) {
     const r = await getRedis();
-    const { results, notFoundList, ...meta } = job;
+    const { results = [], notFoundList = [], ...meta } = job;
+    const pR = meta._pR || 0;
+    const pN = meta._pN || 0;
+
     if (r) {
+        if (results.length < pR) { await r.del(JOB_RESULTS_PREFIX + job.id + ':data'); meta._pR = pR = 0; }
+        if (notFoundList.length < pN) { await r.del(JOB_RESULTS_PREFIX + job.id + ':nf'); meta._pN = pN = 0; }
+        const newData = results.slice(pR);
+        const newNf = notFoundList.slice(pN);
+        if (newData.length > 0) {
+            await r.rpush(JOB_RESULTS_PREFIX + job.id + ':data', ...newData.map(x => JSON.stringify(x)));
+            await r.expire(JOB_RESULTS_PREFIX + job.id + ':data', JOB_TTL);
+            meta._pR = results.length;
+        }
+        if (newNf.length > 0) {
+            await r.rpush(JOB_RESULTS_PREFIX + job.id + ':nf', ...newNf.map(x => JSON.stringify(x)));
+            await r.expire(JOB_RESULTS_PREFIX + job.id + ':nf', JOB_TTL);
+            meta._pN = notFoundList.length;
+        }
         await r.setex(JOB_PREFIX + job.id, JOB_TTL, JSON.stringify(meta));
-        if (results && results.length > 0) {
-            await r.setex(JOB_RESULTS_PREFIX + job.id + ':data', JOB_TTL, JSON.stringify(results));
-        }
-        if (notFoundList && notFoundList.length > 0) {
-            await r.setex(JOB_RESULTS_PREFIX + job.id + ':nf', JOB_TTL, JSON.stringify(notFoundList));
-        }
     } else {
-        // Fallback to file-based storage
-        fs.writeFileSync(path.join(UPLOADS_DIR, job.id + '.json'), JSON.stringify({ meta, results, notFoundList }));
+        // Fallback to file-based storage (meta rewritten per batch — small;
+        // row data appended line-by-line — O(delta), never O(total)).
+        const base = _safeJobBase(job.id);
+        if (!base) throw new Error('Invalid jobId');
+        fs.writeFileSync(base + '.json', JSON.stringify(meta));
+        if (results.length < pR) { try { fs.writeFileSync(base + '.results.jsonl', ''); } catch { } meta._pR = pR = 0; }
+        if (notFoundList.length < pN) { try { fs.writeFileSync(base + '.nf.jsonl', ''); } catch { } meta._pN = pN = 0; }
+        if (results.length > pR) {
+            fs.appendFileSync(base + '.results.jsonl', results.slice(pR).map(x => JSON.stringify(x)).join('\n') + '\n');
+            meta._pR = results.length;
+        }
+        if (notFoundList.length > pN) {
+            fs.appendFileSync(base + '.nf.jsonl', notFoundList.slice(pN).map(x => JSON.stringify(x)).join('\n') + '\n');
+            meta._pN = notFoundList.length;
+        }
     }
 }
 
@@ -71,16 +104,43 @@ async function loadJob(jobId) {
         const metaStr = await r.get(JOB_PREFIX + jobId);
         if (!metaStr) return null;
         const meta = JSON.parse(metaStr);
-        const dataStr = await r.get(JOB_RESULTS_PREFIX + jobId + ':data');
-        const nfStr = await r.get(JOB_RESULTS_PREFIX + jobId + ':nf');
-        return { ...meta, results: dataStr ? JSON.parse(dataStr) : [], notFoundList: nfStr ? JSON.parse(nfStr) : [] };
+        const [dataLines, nfLines] = await Promise.all([
+            r.lrange(JOB_RESULTS_PREFIX + jobId + ':data', 0, -1),
+            r.lrange(JOB_RESULTS_PREFIX + jobId + ':nf', 0, -1),
+        ]);
+        return {
+            ...meta,
+            results: dataLines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean),
+            notFoundList: nfLines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean),
+        };
     } else {
         // SECURITY (F1): containment guard — jobId is request-controlled.
-        const filePath = jobIdPath(jobId);
-        if (!filePath || !fs.existsSync(filePath)) return null;
-        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        return { ...data.meta, results: data.results || [], notFoundList: data.notFoundList || [] };
+        const base = _safeJobBase(jobId);
+        if (!base || !fs.existsSync(base + '.json')) return null;
+        const meta = JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
+        const readLines = (p) => {
+            if (!fs.existsSync(p)) return [];
+            return fs.readFileSync(p, 'utf8').split('\n')
+                .filter(Boolean)
+                .map(l => { try { return JSON.parse(l); } catch { return null; } })
+                .filter(Boolean);
+        };
+        return { ...meta, results: readLines(base + '.results.jsonl'), notFoundList: readLines(base + '.nf.jsonl') };
     }
+}
+
+// Meta-only read for hot paths (progress polling ~every 3s per client, and
+// the per-batch cancel checks inside processJob). Previously these parsed
+// the full multi-MB results blob each time.
+async function loadJobMeta(jobId) {
+    const r = await getRedis();
+    if (r) {
+        const metaStr = await r.get(JOB_PREFIX + jobId);
+        return metaStr ? JSON.parse(metaStr) : null;
+    }
+    const base = _safeJobBase(jobId);
+    if (!base || !fs.existsSync(base + '.json')) return null;
+    return JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
 }
 
 async function deleteJob(jobId) {
@@ -89,11 +149,17 @@ async function deleteJob(jobId) {
         await r.del(JOB_PREFIX + jobId, JOB_RESULTS_PREFIX + jobId + ':data', JOB_RESULTS_PREFIX + jobId + ':nf');
     } else {
         // SECURITY (F1): containment guard — jobId is request-controlled.
-        const filePath = jobIdPath(jobId);
-        if (!filePath) return;
-        try { fs.unlinkSync(filePath); } catch { }
+        const base = _safeJobBase(jobId);
+        if (!base) return;
+        for (const suffix of ['.json', '.results.jsonl', '.nf.jsonl']) {
+            try { fs.unlinkSync(base + suffix); } catch { }
+        }
     }
 }
+
+// jobId -> LiveSyncRunLogs.Id (used to complete inspector-upload runs)
+const JOB_RUN_MAP = new Map();
+function jobRunId(jobId) { return JOB_RUN_MAP.get(jobId) || null; }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -793,16 +859,22 @@ exports.uploadAndProcess = async (req, res) => {
         const targetCredId = req.body._credId || req.body.credId || null;
         const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
         processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag, req.user).catch(async (err) => {
-            console.error(`Job ${jobId} failed:`, err.message);
-            const j = await loadJob(jobId);
-            if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
-            runLogService.completeRun(jobRunId(jobId), {
-                status: 'FAILED',
-                totalAsins: asinList.length,
-                successCount: 0,
-                failedCount: asinList.length,
-                errors: [{ fatal: err.message }],
-            });
+            try {
+                console.error(`Job ${jobId} failed:`, err.message);
+                const j = await loadJob(jobId);
+                if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
+                runLogService.completeRun(jobRunId(jobId), {
+                    status: 'FAILED',
+                    totalAsins: asinList.length,
+                    successCount: 0,
+                    failedCount: asinList.length,
+                    errors: [{ fatal: err.message }],
+                });
+            } finally {
+                // Failure path previously skipped this — leaked one entry
+                // (and its run-log reference) per failed job forever.
+                JOB_RUN_MAP.delete(jobId);
+            }
         });
 
         res.json({ success: true, jobId, totalAsins: asinList.length, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
@@ -818,7 +890,8 @@ exports.uploadAndProcess = async (req, res) => {
 };
 
 exports.getProgress = async (req, res) => {
-    const job = await loadJob(req.params.jobId);
+    // Meta only — polling used to parse the full multi-MB results blob every call.
+    const job = await loadJobMeta(req.params.jobId);
     if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
     res.json({
         success: true,
@@ -907,7 +980,7 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag, user
         };
 
         for (let i = 0; i < asinList.length; i += BATCH_SIZE) {
-            const job = await loadJob(jobId);
+            const job = await loadJobMeta(jobId);
             if (!job || job.status === 'cancelled') break;
 
             const batch = asinList.slice(i, i + BATCH_SIZE);
@@ -973,7 +1046,7 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag, user
             try { token = await refreshToken(); } catch { }
 
             for (let i = 0; i < failedAsins.length; i += BATCH_SIZE) {
-                const job = await loadJob(jobId);
+                const job = await loadJobMeta(jobId);
                 if (!job || job.status === 'cancelled') break;
 
                 const batch = failedAsins.slice(i, i + BATCH_SIZE);
@@ -1019,6 +1092,14 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag, user
 
         const finalJob = await loadJob(jobId);
         if (finalJob && finalJob.status !== 'cancelled') {
+            // Sync post-retry-pass state into the persisted job. The retry
+            // pass resets notFoundList in-place, which previously NEVER made
+            // it into storage (stale "API error" rows survived). The
+            // shrink-guard in saveJob rebuilds the row stores on shrink.
+            finalJob.results = results;
+            finalJob.notFoundList = notFoundList;
+            finalJob.found = found;
+            finalJob.notFound = notFound;
             finalJob.status = 'completed';
             finalJob.completedAt = new Date().toISOString();
             await saveJob(finalJob);

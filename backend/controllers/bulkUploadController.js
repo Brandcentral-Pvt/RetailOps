@@ -202,8 +202,16 @@ exports.catalogSync = async (req, res) => {
             }
         }
 
-        const transaction = new sql.Transaction(pool);
+        // Chunked transactions: one transaction previously spanned the ENTIRE
+        // file (2–5 queries × N rows), pinning a pool connection for the whole
+        // multi-minute import per concurrent upload. Commit every
+        // BULK_UPLOAD_CHUNK_SIZE rows so the connection rotates and one bad
+        // chunk cannot discard the entire import.
+        const CHUNK_ROWS = Math.max(1, parseInt(process.env.BULK_UPLOAD_CHUNK_SIZE || '200', 10));
+
+        let transaction = new sql.Transaction(pool);
         await transaction.begin();
+        let rowsInChunk = 0;
 
         try {
             for (const row of data) {
@@ -388,11 +396,19 @@ exports.catalogSync = async (req, res) => {
                     results.created++;
                 }
                 if (autoTags.length > 0) results.autoTagged++;
+
+                rowsInChunk++;
+                if (rowsInChunk >= CHUNK_ROWS) {
+                    await transaction.commit();
+                    transaction = new sql.Transaction(pool);
+                    await transaction.begin();
+                    rowsInChunk = 0;
+                }
             }
 
             await transaction.commit();
         } catch (err) {
-            await transaction.rollback();
+            try { await transaction.rollback(); } catch (e) { }
             try { fs.unlinkSync(filePath); } catch (e) { }
             throw err;
         }
@@ -500,8 +516,12 @@ exports.ajioBulkImport = async (req, res) => {
             errors: []
         };
 
-        const transaction = new sql.Transaction(pool);
+        // Chunked transactions — same rationale as the catalog-sync path above.
+        const CHUNK_ROWS = Math.max(1, parseInt(process.env.BULK_UPLOAD_CHUNK_SIZE || '200', 10));
+
+        let transaction = new sql.Transaction(pool);
         await transaction.begin();
+        let rowsInChunk = 0;
 
         try {
             for (const row of data) {
@@ -596,11 +616,19 @@ exports.ajioBulkImport = async (req, res) => {
                         
                     results.created++;
                 }
+
+                rowsInChunk++;
+                if (rowsInChunk >= CHUNK_ROWS) {
+                    await transaction.commit();
+                    transaction = new sql.Transaction(pool);
+                    await transaction.begin();
+                    rowsInChunk = 0;
+                }
             }
 
             await transaction.commit();
         } catch (err) {
-            await transaction.rollback();
+            try { await transaction.rollback(); } catch (e) { }
             throw err;
         } finally {
             if (fs.existsSync(filePath)) {

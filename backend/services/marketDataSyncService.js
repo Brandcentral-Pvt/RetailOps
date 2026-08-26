@@ -4,6 +4,19 @@ const rateLimitQueue = [];
 let rateLimitRunning = false;
 const rateLimitDelay = 250; // max 4 req/sec to stay strictly below 5 req/sec
 
+// Default timeout for every outbound Octoparse call. Only the data-fetch
+// paths used to set one — a hung socket on authenticate/getStatuses/stopSync
+// occupied the shared rate-limit queue slot indefinitely. Per-call config
+// still overrides this default.
+const OCTOPARSE_TIMEOUT_MS = parseInt(process.env.OCTOPARSE_TIMEOUT_MS || '30000', 10);
+
+function withDefaultTimeout(configOrUrl, config) {
+    if (typeof configOrUrl === 'string') {
+        return [{ timeout: OCTOPARSE_TIMEOUT_MS, ...(config || {}) }, null];
+    }
+    return [null, { timeout: OCTOPARSE_TIMEOUT_MS, ...(configOrUrl || {}) }];
+}
+
 async function axiosRateLimited(configOrUrl, config) {
     return new Promise((resolve, reject) => {
         rateLimitQueue.push({ configOrUrl, config, resolve, reject });
@@ -15,17 +28,18 @@ async function processRateLimitQueue() {
     if (rateLimitRunning || rateLimitQueue.length === 0) return;
     rateLimitRunning = true;
     while (rateLimitQueue.length > 0) {
-        const { configOrUrl, config, resolve, reject } = rateLimitQueue.shift();
+        const entry = rateLimitQueue.shift();
+        const [cfg, fullCfg] = withDefaultTimeout(entry.configOrUrl, entry.config);
         try {
             let res;
-            if (typeof configOrUrl === 'string') {
-                res = await originalAxios(configOrUrl, config);
+            if (cfg !== null) {
+                res = await originalAxios(entry.configOrUrl, cfg);
             } else {
-                res = await originalAxios(configOrUrl);
+                res = await originalAxios(fullCfg);
             }
-            resolve(res);
+            entry.resolve(res);
         } catch (err) {
-            reject(err);
+            entry.reject(err);
         }
         await new Promise(r => setTimeout(r, rateLimitDelay));
     }
@@ -119,10 +133,40 @@ class MarketDataSyncService {
         this.statusCache = new Map(); // Simple status cache to prevent 429s (TTL: 10s)
         this.taskIdCache = new Map(); // UUID to Integer ID mapping cache
 
+        // Eviction: the 10s statusCache TTL was enforced only on read, and
+        // taskIdCache (incl. permanent 'NOT_FOUND' sentinels) grew for the
+        // process lifetime. Sweep both on a timer.
+        this._cacheSweepTimer = setInterval(() => this._sweepCaches(), 60 * 1000);
+        if (this._cacheSweepTimer.unref) this._cacheSweepTimer.unref();
+
         // Throttling for setup operations
         this._executingSetups = 0;
         this._maxConcurrentSetups = 3;
         this._setupQueue = [];
+    }
+
+    /**
+     * Evict expired statusCache entries and cap taskIdCache size.
+     * Runs every 60s via _cacheSweepTimer.
+     */
+    _sweepCaches() {
+        try {
+            const now = Date.now();
+            const STATUS_TTL_MS = 10 * 1000;
+            for (const [k, v] of this.statusCache) {
+                if (!v || (now - (v.timestamp || 0)) >= STATUS_TTL_MS) this.statusCache.delete(k);
+            }
+            const TASK_ID_CACHE_MAX = 5000;
+            if (this.taskIdCache.size > TASK_ID_CACHE_MAX) {
+                // Map iterates in insertion order — evict oldest first.
+                let excess = this.taskIdCache.size - TASK_ID_CACHE_MAX;
+                for (const k of this.taskIdCache.keys()) {
+                    if (excess <= 0) break;
+                    this.taskIdCache.delete(k);
+                    excess--;
+                }
+            }
+        } catch (_) { /* sweeper must never throw into the timer */ }
     }
 
     /**
