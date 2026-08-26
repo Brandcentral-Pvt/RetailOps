@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom';
 import { Copy, Check, ChevronRight, Eye, EyeOff, RefreshCw, Plus, Trash2, Edit, AlertCircle, X } from 'lucide-react';
 import api from '../services/api';
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, Alert } from 'reactstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { Button as AntdButton } from 'antd';
+import styles from './ApiKeysPage.module.css';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 
@@ -173,7 +174,7 @@ useEffect(() => { fetchKeys(); }, []);
     };
 
 return (
-    <div className="container-fluid py-4">
+    <div style={{ padding: '24px 12px' }}>
         {loading && (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
                 <LoadingIndicator type="line-simple" size="md" />
@@ -185,13 +186,15 @@ return (
                     <p className="text-muted small mb-0">Manage all your secure API integrations from one place</p>
                 </div>
                 <div className="d-flex align-items-center gap-3">
-                    <button
+                    <AntdButton
+                        type="primary"
                         onClick={openAddModal}
-                        className="btn btn-primary d-flex align-items-center gap-2 px-3 fw-semibold shadow-sm"
-                        style={{ borderRadius: '10px' }}
+                        icon={<Plus size={18} />}
+                        className="shadow-sm"
+                        style={{ borderRadius: '10px', fontWeight: 600, height: 38, paddingInline: 16 }}
                     >
-                        <Plus size={18} /> Add New Key
-                    </button>
+                        Add New Key
+                    </AntdButton>
                     <div className="d-flex align-items-center gap-2 fs-13 text-muted">
                         <Link to="/settings" className="text-decoration-none text-muted">Settings</Link>
                         <ChevronRight size={14} />
@@ -217,24 +220,27 @@ return (
                         <h5 className="mb-1 fw-bold text-dark">Configured Integrations</h5>
                         <p className="mb-0 text-muted smallest">{apiKeys.length} active configurations</p>
                     </div>
-                    <button
+                    <AntdButton
+                        type="link"
                         onClick={fetchKeys}
-                        className="btn btn-link text-decoration-none text-muted p-0 d-flex align-items-center gap-1 smallest fw-semibold"
                         disabled={loading}
+                        icon={loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
+                        className="text-decoration-none text-muted smallest fw-semibold"
+                        style={{ padding: 0, height: 'auto' }}
                     >
-                        {loading ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />} Refresh List
-                    </button>
+                        Refresh List
+                    </AntdButton>
                 </div>
 
-                <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
+                <div className={styles.tableWrap}>
+                    <table className={styles.table}>
                         <thead className="bg-light">
                             <tr>
-                                <th className="ps-4 py-3 text-uppercase text-muted smallest fw-bold tracking-wider">Service Provider</th>
-                                <th className="py-3 text-uppercase text-muted smallest fw-bold tracking-wider">Category</th>
-                                <th className="py-3 text-uppercase text-muted smallest fw-bold tracking-wider">API Key (Masked)</th>
-                                <th className="py-3 text-uppercase text-muted smallest fw-bold tracking-wider text-center">Status</th>
-                                <th className="pe-4 py-3 text-uppercase text-muted smallest fw-bold tracking-wider text-end">Actions</th>
+                                <th className="text-uppercase text-muted smallest fw-bold tracking-wider">Service Provider</th>
+                                <th className="text-uppercase text-muted smallest fw-bold tracking-wider">Category</th>
+                                <th className="text-uppercase text-muted smallest fw-bold tracking-wider">API Key (Masked)</th>
+                                <th className="text-uppercase text-muted smallest fw-bold tracking-wider text-center">Status</th>
+                                <th className="text-uppercase text-muted smallest fw-bold tracking-wider text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -250,38 +256,44 @@ return (
 
                                 return (
                                     <tr key={key._id}>
-                                        <td className="ps-4 py-3">
+                                        <td>
                                             <div className="fw-bold text-dark">{key.name}</div>
                                             <div className="smallest text-muted">{key.description || 'No description provided'}</div>
                                             <div className="smallest text-muted-opacity fw-mono mt-1" style={{ fontSize: '10px' }}>ID: {key.serviceId}</div>
                                         </td>
-                                        <td className="py-3">
+                                        <td>
                                             <CategoryPill label={key.category} color={CATEGORY_COLORS[key.category] || CATEGORY_COLORS['Other']} />
                                         </td>
-                                        <td className="py-3">
+                                        <td>
                                             <div className="d-inline-flex align-items-center bg-light border px-2 py-1 rounded" style={{ minWidth: '180px' }}>
                                                 <code className="smallest fw-mono text-secondary me-2">
                                                     {displayValue}
                                                 </code>
                                                 <div className="ms-auto d-flex gap-1">
-                                                    <button
+                                                    <AntdButton
+                                                        type="link"
                                                         onClick={() => handleReveal(key._id)}
-                                                        className="btn btn-link p-0 text-muted hover-primary transition-all"
+                                                        className="text-muted hover-primary transition-all"
+                                                        style={{ padding: 0, height: 'auto' }}
                                                         title={isRevealed ? "Mask" : "Reveal"}
+                                                        aria-label={isRevealed ? "Mask key value" : "Reveal key value"}
                                                     >
                                                         {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
-                                                    </button>
-                                                    <button
+                                                    </AntdButton>
+                                                    <AntdButton
+                                                        type="link"
                                                         onClick={() => handleCopy(key._id, displayValue)}
-                                                        className="btn btn-link p-0 text-muted hover-success transition-all"
+                                                        className="text-muted hover-success transition-all"
+                                                        style={{ padding: 0, height: 'auto' }}
                                                         title="Copy"
+                                                        aria-label="Copy key value"
                                                     >
                                                         {copiedId === key._id ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-                                                    </button>
+                                                    </AntdButton>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-3 text-center">
+                                        <td className="text-center">
                                             <div
                                                 className="d-inline-block cursor-pointer transition-all"
                                                 onClick={() => toggleActive(key)}
@@ -293,22 +305,31 @@ return (
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="pe-4 py-3 text-end">
+                                        <td className="text-end">
                                             <div className="d-flex justify-content-end gap-2">
-                                                <button
+                                                <AntdButton
+                                                    type="text"
+                                                    size="small"
                                                     onClick={() => openEditModal(key)}
-                                                    className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 border-0 hover-bg-light"
+                                                    icon={<Edit size={14} />}
+                                                    className="text-secondary hover-bg-light"
                                                     title="Edit Configuration"
+                                                    aria-label="Edit Configuration"
                                                 >
-                                                    <Edit size={14} /> Edit
-                                                </button>
-                                                <button
+                                                    Edit
+                                                </AntdButton>
+                                                <AntdButton
+                                                    type="text"
+                                                    size="small"
+                                                    danger
                                                     onClick={() => handleDelete(key._id)}
-                                                    className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1 border-0 hover-bg-danger-light"
+                                                    icon={<Trash2 size={14} />}
+                                                    className="hover-bg-danger-light"
                                                     title="Delete Configuration"
+                                                    aria-label="Delete Configuration"
                                                 >
-                                                    <Trash2 size={14} /> Delete
-                                                </button>
+                                                    Delete
+                                                </AntdButton>
                                             </div>
                                         </td>
                                     </tr>

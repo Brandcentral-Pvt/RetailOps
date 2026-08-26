@@ -1,0 +1,42 @@
+/* ApiKeysPage local table styles.
+   Replaces the previous bootstrap utilities (.table-responsive / .table
+   .table-hover .align-middle .mb-0 / ps-4 / py-3 / pe-4) with equivalent
+   metrics so the rendered layout is unchanged:
+   - 16px block padding (was py-3), 8px inline gutters (bootstrap default)
+   - 24px edge padding on first/last column (was ps-4 / pe-4)
+   - middle vertical alignment (was align-middle), no bottom margin (mb-0)
+   - row separators use the --border token (theme-aware) instead of
+     bootstrap's static --bs-border-color
+   - hover tint uses --bc-slate-50 (nearest token to the prescribed #F7F9FC)
+*/
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  margin-bottom: 0;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 16px 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 24px;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: 24px;
+}
+
+.table tbody tr:hover {
+  background-color: var(--bc-slate-50);
+}

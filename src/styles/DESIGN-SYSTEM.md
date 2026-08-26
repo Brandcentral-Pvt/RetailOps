@@ -16,7 +16,7 @@
 | `src/App.css` | 689 | Duplicate base: forms, buttons, tables, pagination, alerts, upload, responsive |
 | `src/styles/tokens.css` | 196 | Token foundation: colors, typography, spacing, radius, shadows, transitions, z-index |
 | `src/styles/global-overrides.css` | 288 | Z-index hierarchy, Ant Design popup overrides, scroll styling |
-| `src/styles/rsuite-overrides.css` | 109 | RSuite date picker + button overrides |
+| ~~src/styles/rsuite-overrides.css~~ | — | REMOVED Aug 2026 (rsuite de-vendored) |
 | `src/styles/header.css` | 562 | Global header, search, command palette, notifications |
 | `src/components/Header.css` | 221 | Alternate topbar redesign (different from styles/header.css) |
 | `src/components/Sidebar.css` | 331 | Legacy sidebar (Bootstrap-based, uses tokens.css vars) |

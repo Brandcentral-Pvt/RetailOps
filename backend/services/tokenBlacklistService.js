@@ -38,9 +38,14 @@ class TokenBlacklistService {
       this.useMemory = true;
     }
 
-    if (this.useMemory) {
-      setInterval(() => this._cleanupMemory(), 5 * 60 * 1000);
-    }
+    // Always register the sweeper. useMemory can flip to true at ANY time
+    // (async Redis connect() rejection or later 'error' event), so a
+    // constructor-time check would permanently skip eviction and let
+    // memoryBlacklist grow without bound.
+    this._cleanupTimer = setInterval(() => {
+      if (this.useMemory) this._cleanupMemory();
+    }, 5 * 60 * 1000);
+    if (this._cleanupTimer.unref) this._cleanupTimer.unref();
   }
 
   async blacklist(token) {

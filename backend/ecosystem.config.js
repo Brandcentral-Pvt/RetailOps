@@ -24,9 +24,14 @@ module.exports = {
       instances: 'max',
       exec_mode: 'cluster',
 
-      // Memory guardrails
-      max_memory_restart: '2G',           // Restart any worker crossing 2GB RSS
-      node_args: '--max-old-space-size=4096',
+      // Memory guardrails.
+      // Heap cap MUST stay well below max_memory_restart: RSS ≈ JS heap +
+      // native overhead (Buffers, JSDOM, XLSX buffers ≈ 1.3–1.5× heap).
+      // The previous 4096MB heap vs 2G restart guaranteed PM2 hard-killed
+      // workers mid-request (exports/imports aborted) instead of letting
+      // GC relieve pressure first. 1536MB heap × ~1.35 ≈ 2.0GB RSS.
+      max_memory_restart: '2G',
+      node_args: '--max-old-space-size=1536',
 
       env: {
         NODE_ENV: isProduction ? 'production' : 'development',

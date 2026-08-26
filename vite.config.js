@@ -62,10 +62,7 @@ export default defineConfig(({ mode }) => {
                 return 'vendor_query';
               }
               // ── Chart libraries ──────────────────────────────────────────────
-              if (
-                id.includes('apexcharts') || id.includes('chart.js') ||
-                id.includes('recharts')   || id.includes('@mui/x-charts')
-              ) {
+              if (id.includes('apexcharts') || id.includes('recharts')) {
                 return 'vendor_charts';
               }
               // ── CometChat (very large, keep isolated) ────────────────────────
@@ -74,8 +71,8 @@ export default defineConfig(({ mode }) => {
               }
               // ── Real-time + date + icons + HTTP ─────────────────────────────
               if (
-                id.includes('lucide-react')   || id.includes('tabler-icons') ||
-                id.includes('react-icons')    || id.includes('date-fns')     ||
+                id.includes('lucide-react') ||
+                id.includes('date-fns')       ||
                 id.includes('axios')          || id.includes('socket.io-client')
               ) {
                 return 'vendor_common';
@@ -84,8 +81,8 @@ export default defineConfig(({ mode }) => {
               if (id.includes('xlsx')) {
                 return 'vendor_xlsx';
               }
-              // ── rsuite + date pickers ────────────────────────────────────────
-              if (id.includes('rsuite') || id.includes('react-datepicker') || id.includes('react-day-picker')) {
+              // ── date pickers ─────────────────────────────────────────────────
+              if (id.includes('react-datepicker') || id.includes('react-day-picker')) {
                 return 'vendor_forms';
               }
               return 'vendor_misc';

@@ -27,6 +27,11 @@ const POOL_MIN = parseInt(process.env.DB_POOL_MIN || '1');
 const READER_POOL_MAX = parseInt(process.env.DB_READER_POOL_MAX || String(POOL_MAX));
 const READER_POOL_MIN = parseInt(process.env.DB_READER_POOL_MIN || String(POOL_MIN));
 
+// A stuck query used to pin a pool connection for 10 minutes; with
+// DB_POOL_MAX=40 per worker that exhausts the pool under load.
+// Override per-deployment for known-long reports via DB_REQUEST_TIMEOUT_MS.
+const REQUEST_TIMEOUT_MS = parseInt(process.env.DB_REQUEST_TIMEOUT_MS || '60000');
+
 const config = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -36,7 +41,7 @@ const config = {
     options: resolveSqlOptions(process.env.DB_SERVER, {
       trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
     }),
-    requestTimeout: 600000,
+    requestTimeout: REQUEST_TIMEOUT_MS,
     connectionTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT_MS || '30000'),
     cancelTimeout: 10000,
     pool: {
@@ -56,7 +61,7 @@ const readerConfig = process.env.DB_READER_SERVER ? {
     options: resolveSqlOptions(process.env.DB_READER_SERVER, {
       trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
     }),
-    requestTimeout: 300000,
+    requestTimeout: REQUEST_TIMEOUT_MS,
     connectionTimeout: 30000,
     cancelTimeout: 10000,
     pool: {

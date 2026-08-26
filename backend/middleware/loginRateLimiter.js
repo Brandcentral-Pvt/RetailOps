@@ -19,7 +19,18 @@ const GENERIC_BLOCK = 'Unable to sign in. Please try again later.';
 // ─── Redis / in-memory fallback ───────────────────────────────────────────────
 
 let redis = null;
-const memStore = new Map(); // fallback: { key: { count, lockUntil, nextAllowed } }
+const memStore = new Map(); // fallback: { key: { value, expiresAt } }
+
+// Periodic sweep: eviction used to happen only on read of the SAME key, so
+// one-off IPs / typosquatted emails persisted for the process lifetime.
+// Entries are tiny but unbounded without this.
+const memSweepTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [k, e] of memStore) {
+        if (e?.expiresAt && now > e.expiresAt) memStore.delete(k);
+    }
+}, 10 * 60 * 1000);
+if (memSweepTimer.unref) memSweepTimer.unref();
 
 async function getRedis() {
     if (redis !== null) return redis;

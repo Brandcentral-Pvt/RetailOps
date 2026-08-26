@@ -1,13 +1,6 @@
 /* ==========================================================================
    App Layout Styles
    ========================================================================== */
-.app-layout {
-  display: flex;
-  flex-direction: row;
-  /* sidebar left + content right */
-  min-height: 100vh;
-  background-color: var(--color-surface);
-}
 
 .main-content {
   flex: 1;
@@ -304,11 +297,6 @@ body.chat-page-active .routes-container {
   font-size: 0.75rem;
 }
 
-.btn-lg {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-}
-
 /* Input Group */
 .input-group {
   display: flex;
@@ -332,14 +320,6 @@ body.chat-page-active .routes-container {
 }
 
 /* Table Styles */
-.table-container {
-  background-color: var(--color-surface-0);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
-
 .table {
   width: 100%;
   margin-bottom: 1rem;
@@ -447,11 +427,6 @@ body.chat-page-active .routes-container {
   border-color: var(--bc-blue-200);
 }
 
-.alert-dismissible {
-  padding-right: 3rem;
-  position: relative;
-}
-
 .alert .btn-close {
   position: absolute;
   top: 50%;
@@ -469,18 +444,6 @@ body.chat-page-active .routes-container {
 
 .alert .btn-close:hover {
   opacity: 0.75;
-}
-
-.alert.fade {
-  transition: opacity 0.15s linear;
-}
-
-.alert.fade:not(.show) {
-  opacity: 0;
-}
-
-.alert.show {
-  opacity: 1;
 }
 
 /* ==========================================================================
@@ -608,10 +571,6 @@ body.chat-page-active .routes-container {
   font-size: 2rem !important;
 }
 
-.fs-sm {
-  font-size: 0.875rem !important;
-}
-
 /* Responsive: mobile */
 @media (max-width: 992px) {
   .main-content {
@@ -651,14 +610,6 @@ body.chat-page-active .routes-container {
   .kpi-card {
     padding: 0.5rem;
     min-width: unset;
-  }
-
-  .kpi-value {
-    font-size: 1rem !important;
-  }
-
-  .kpi-label {
-    font-size: 0.6rem !important;
   }
 }
 /* Fix for DatePicker z-index overlapping with page content/headers */
