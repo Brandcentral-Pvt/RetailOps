@@ -61,3 +61,6 @@ backend/.env
 backend/test_*.js
 check_columns.js
 seed_api_keys.js
+
+# graphify skill cache artifacts
+backend/graphify-out/
