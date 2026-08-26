@@ -3,7 +3,6 @@ import { Edit2, Trash2, CheckCircle, Clock, AlertTriangle, Filter, Search, Play,
 import CompletionModal from './CompletionModal';
 import ActionDetailModal from './ActionDetailModal';
 import Popover from '../common/Popover';
-import { Badge } from 'reactstrap';
 
 
 

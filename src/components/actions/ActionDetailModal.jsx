@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalBody, Badge, Tooltip } from 'reactstrap';
+import { Modal } from 'antd';
 import { 
     FileText, Target, TrendingUp, AlertTriangle, 
     Activity, ExternalLink, History, Sparkles, 
@@ -88,12 +88,19 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
     const deadlinePast = item.timeTracking?.deadline && new Date(item.timeTracking.deadline) < new Date() && item.status !== 'COMPLETED';
 
     return (
-        <Modal 
-            isOpen={isOpen} 
-            toggle={onClose} 
-            centered 
-            modalClassName="custom-action-modal-overlay"
-            contentClassName="custom-action-modal-box"
+        <Modal
+            open={isOpen}
+            onCancel={onClose}
+            centered
+            width={560}
+            footer={null}
+            closable={false}
+            destroyOnHidden
+            classNames={{ mask: 'custom-action-modal-overlay', container: 'custom-action-modal-box' }}
+            styles={{
+                container: { padding: 0 },
+                body: { padding: 0, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 },
+            }}
         >
             {/* Modal Header */}
             <div className="modal-header-container sticky-top bg-white">
@@ -148,7 +155,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
                 </div>
             </div>
 
-            <ModalBody className="p-body scrollbar-hidden">
+            <div className="modal-body p-body scrollbar-hidden">
                 {/* Section 1: General Information */}
                 <div className="section-container mt-0">
                     <div className="section-label">General Information</div>
@@ -314,7 +321,7 @@ const ActionDetailModal = ({ isOpen, onClose, action: item }) => {
                         </div>
                     </div>
                 )}
-            </ModalBody>
+            </div>
 
             {/* Modal Footer */}
             <div className="modal-footer-container sticky-bottom bg-white">
