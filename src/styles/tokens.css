@@ -87,8 +87,18 @@
 
   /* Cyan (Info) */
   --bc-cyan-50:    #ecfeff;
+
+/* -- Purple primitives (added Aug 2026 for legacy --color-secondary bridge) -- */
+  --bc-purple-300: #BA68C8;
+  --bc-purple-500: #9C27B0;
+  --bc-purple-700: #7B1FA2;
   --bc-cyan-100:   #cffafe;
   --bc-cyan-500:   #06b6d4;
+
+/* -- Purple primitives (added Aug 2026 for legacy --color-secondary bridge) -- */
+  --bc-purple-300: #BA68C8;
+  --bc-purple-500: #9C27B0;
+  --bc-purple-700: #7B1FA2;
   --bc-cyan-600:   #0891b2;
 
   /* Pink */
@@ -145,7 +155,17 @@
   --bc-status-warning-bg:   var(--bc-amber-50);
   --bc-status-warning-text: var(--bc-amber-700);
   --bc-status-info:         var(--bc-cyan-500);
+
+/* -- Purple primitives (added Aug 2026 for legacy --color-secondary bridge) -- */
+  --bc-purple-300: #BA68C8;
+  --bc-purple-500: #9C27B0;
+  --bc-purple-700: #7B1FA2;
   --bc-status-info-bg:      var(--bc-cyan-50);
+
+/* -- Purple primitives (added Aug 2026 for legacy --color-secondary bridge) -- */
+  --bc-purple-300: #BA68C8;
+  --bc-purple-500: #9C27B0;
+  --bc-purple-700: #7B1FA2;
   --bc-status-info-text:    var(--bc-cyan-600);
 }
 
@@ -376,9 +396,9 @@
   --color-primary:      var(--bc-ro-500);
   --color-primary-light: var(--bc-ro-300);
   --color-primary-dark:  var(--bc-ro-700);
-  --color-secondary:     #9C27B0;
-  --color-secondary-light: #BA68C8;
-  --color-secondary-dark: #7B1FA2;
+  --color-secondary: var(--bc-purple-500);
+  --color-secondary-light: var(--bc-purple-300);
+  --color-secondary-dark: var(--bc-purple-700);
 
   --color-success: var(--bc-green-600);
   --color-success-bg: rgba(46, 125, 50, 0.1);
@@ -387,6 +407,11 @@
   --color-error:   var(--bc-red-600);
   --color-error-bg: rgba(211, 47, 47, 0.1);
   --color-info:    var(--bc-cyan-500);
+
+/* -- Purple primitives (added Aug 2026 for legacy --color-secondary bridge) -- */
+  --bc-purple-300: #BA68C8;
+  --bc-purple-500: #9C27B0;
+  --bc-purple-700: #7B1FA2;
   --color-info-bg: rgba(6, 182, 212, 0.1);
 
   --color-white: var(--bc-white);
@@ -522,7 +547,7 @@
 
   /* Auth & Status Semantic Aliases */
   --text-brand:      var(--bc-ro-500);
-  --text-danger:     #D32F2F;
+  --text-danger: #D32F2F; /* EXCEPTION: legacy Material red-700 (290 usages); bc-red-600 differs - reconcile w/ visual QA */
   --text-success:    var(--bc-green-600);
   --text-warning:    var(--bc-amber-600);
   --text-tertiary:   var(--bc-slate-400);
@@ -531,14 +556,19 @@
   --bg-success-subtle: var(--bc-green-50);
   --bg-warning-subtle: var(--bc-amber-50);
   --bg-info-subtle:    var(--bc-cyan-50);
+
+/* -- Purple primitives (added Aug 2026 for legacy --color-secondary bridge) -- */
+  --bc-purple-300: #BA68C8;
+  --bc-purple-500: #9C27B0;
+  --bc-purple-700: #7B1FA2;
   --bg-active:       var(--bc-slate-200);
-  --text-brand-dark: #1565C0;
-  --color-info-blue: #0288D1;
-  --color-data-blue-bg: #dbeafe;
-  --color-success-border: #bbf7d0;
-  --color-danger-border: #fecaca;
-  --color-warning-border: #fde68a;
-  --color-info-border: #bfdbfe;
+  --text-brand-dark: #1565C0; /* EXCEPTION: legacy Material blue-800; differs from bc-blue-800 - reconcile w/ visual QA */
+  --color-info-blue: #0288D1; /* EXCEPTION: legacy Material light-blue; differs from bc-blue scale - reconcile w/ visual QA */
+  --color-data-blue-bg: var(--bc-blue-100);
+  --color-success-border: var(--bc-green-200);
+  --color-danger-border: var(--bc-red-200);
+  --color-warning-border: var(--bc-amber-200);
+  --color-info-border: var(--bc-blue-200);
   --border-light:    #d9e6e9;
   --border-medium:   var(--bc-slate-300);
   --error-border:    var(--bc-red-200);
