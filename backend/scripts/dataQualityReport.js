@@ -88,18 +88,47 @@ async function main() {
     if (sellerFilter) asinWhere += ' AND s.Name = @seller';
     const asinReq = pool.request();
     if (sellerFilter) asinReq.input('seller', sql.NVarChar, sellerFilter);
-    const topSql = limit > 0 ? `SELECT TOP ${limit}` : 'SELECT';
-    const orderSql = limit > 0 ? '' : 'ORDER BY BrandName, a.AsinCode';
-    const asins = (await asinReq.query(`
-        ${topSql}
-            a.Id, a.AsinCode, a.Title,
-            COALESCE(NULLIF(a.Brand, ''), s.Name) AS BrandName,
-            a.BulletPoints, a.BulletPointsText, a.ImagesCount, a.Images, a.ImageUrl
-        FROM Asins a WITH (NOLOCK)
-        LEFT JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
-        ${asinWhere}
-        ${orderSql}
-    `)).recordset;
+    // Narrow ordering pass first (sorting wide rows incl. NVARCHAR(MAX) Title
+    // server-side spills and stalls); details are then fetched per id-chunk.
+    let asins;
+    if (limit > 0) {
+        asins = (await asinReq.query(`
+            SELECT TOP ${limit}
+                a.Id, a.AsinCode, a.Title,
+                COALESCE(NULLIF(a.Brand, ''), s.Name) AS BrandName,
+                a.BulletPoints, a.BulletPointsText, a.ImagesCount, a.Images, a.ImageUrl
+            FROM Asins a WITH (NOLOCK)
+            LEFT JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+            ${asinWhere}
+        `)).recordset;
+    } else {
+        const ids = (await asinReq.query(`
+            SELECT a.Id
+            FROM Asins a WITH (NOLOCK)
+            LEFT JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+            ${asinWhere}
+            ORDER BY COALESCE(NULLIF(a.Brand, ''), s.Name), a.AsinCode
+        `)).recordset.map(r => r.Id);
+        console.log(`IDs: ${ids.length}; fetching details in chunks...`);
+        asins = [];
+        {
+            const DETAIL_CHUNK = 1000;
+            for (let i = 0; i < ids.length; i += DETAIL_CHUNK) {
+                const dq = pool.request();
+                const ph = ids.slice(i, i + DETAIL_CHUNK).map((id, j) => { dq.input(`d${j}`, sql.VarChar, id); return `@d${j}`; }).join(',');
+                const res = await dq.query(`
+                    SELECT a.Id, a.AsinCode, a.Title,
+                           COALESCE(NULLIF(a.Brand, ''), s.Name) AS BrandName,
+                           a.BulletPoints, a.BulletPointsText, a.ImagesCount, a.Images, a.ImageUrl
+                    FROM Asins a WITH (NOLOCK)
+                    LEFT JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+                    WHERE a.Id IN (${ph})
+                `);
+                asins.push(...res.recordset);
+                if ((i / DETAIL_CHUNK) % 20 === 0) console.log(`  details ${Math.min(i + DETAIL_CHUNK, ids.length)}/${ids.length}`);
+            }
+        }
+    }
     console.log(`ASINs: ${asins.length}`);
 
     // ── 2. Brand-level assigned users (UserSellers is the source of truth)

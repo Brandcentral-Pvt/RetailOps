@@ -143,8 +143,8 @@ const DashboardView = ({ asins, onNavigate }) => {
         </div>
 
         {/* Quick Actions */}
-        <div className="row g-3 mb-4">
-          <div className="col-md-3">
+        <div className="grid gap-4 mb-4 md:grid-cols-4">
+          <div>
             <div className="card h-100">
               <div className="card-body text-center">
                 <i className="bi bi-upload fs-1 text-primary"></i>
@@ -156,7 +156,7 @@ const DashboardView = ({ asins, onNavigate }) => {
               </div>
             </div>
           </div>
-          <div className="col-md-3">
+          <div>
             <div className="card h-100">
               <div className="card-body text-center">
                 <i className="bi bi-table fs-1 text-success"></i>
@@ -168,7 +168,7 @@ const DashboardView = ({ asins, onNavigate }) => {
               </div>
             </div>
           </div>
-          <div className="col-md-3">
+          <div>
             <div className="card h-100">
               <div className="card-body text-center">
                 <i className="bi bi-currency-rupee fs-1 text-warning"></i>
@@ -180,7 +180,7 @@ const DashboardView = ({ asins, onNavigate }) => {
               </div>
             </div>
           </div>
-          <div className="col-md-3">
+          <div>
             <div className="card h-100">
               <div className="card-body text-center">
                 <i className="bi bi-arrow-repeat fs-1 text-info"></i>
@@ -280,9 +280,9 @@ const UploadPage = ({ onUploadComplete, onNavigate }) => {
         <h1 className="page-title"><i className="bi bi-upload"></i>Bulk Import ASINs</h1>
       </div>
       <div className="page-content">
-        <div className="row g-4">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Manual Entry */}
-          <div className="col-lg-6">
+          <div>
             <div className="card h-100">
               <div className="card-body">
                 <h5 className="card-title"><i className="bi bi-pencil me-2"></i>Manual ASIN Entry</h5>
@@ -324,7 +324,7 @@ const UploadPage = ({ onUploadComplete, onNavigate }) => {
           </div>
 
           {/* File Upload */}
-          <div className="col-lg-6">
+          <div>
             <div className="card h-100">
               <div className="card-body d-flex flex-column justify-content-center align-items-center text-center">
                 <i className="bi bi-file-earmark-spreadsheet fs-1 text-success"></i>

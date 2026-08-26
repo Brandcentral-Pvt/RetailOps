@@ -3,7 +3,6 @@
 @import "tailwindcss";
 @plugin "@iconify/tailwind4";
 @import './styles/tokens.css';
-@import './styles/bootstrap-compat.css';
 @import './styles/antd-overrides.css';
 
 /* ==========================================================================
@@ -2408,21 +2407,6 @@ a:hover {
   border: 1px solid var(--border-color);
 }
 
-.day-selector .form-check {
-  margin-bottom: 0;
-}
-
-.day-selector .form-check-label {
-  font-size: 0.875rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.day-selector .form-check-input:checked+.form-check-label {
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
 /* Timer Display */
 .timer-display {
   display: inline-flex;
@@ -2851,3 +2835,53 @@ a:hover {
 }
 
 /* Ant Design Input Alignment Fixes → moved to styles/antd-overrides.css */
+
+/* ═══════════════════════════════════════════════════════════
+   legacy table utilities (bootstrap-compat replacement)
+   Self-contained table skin + modifiers for the remaining
+   native <table> views (FeesPage, ResultsPage, DataTable,
+   AdsReport, ActionListEnhanced, TaskBoard, ScrapeTasksPage).
+   Metrics mirror the previous .table / .table-* classes so
+   renaming class usages is visually neutral.
+   ═══════════════════════════════════════════════════════════ */
+.bc-table {
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--bc-text-body);
+  vertical-align: top;
+  border-collapse: collapse;
+}
+.bc-table th {
+  font-weight: 600;
+  color: var(--bc-text-heading);
+  background-color: var(--bc-surface-subtle);
+  border-bottom: 2px solid var(--bc-border-default);
+  padding: 0.875rem 1rem;
+  white-space: nowrap;
+}
+.bc-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--bc-border-default);
+  color: var(--bc-text-body);
+  vertical-align: middle;
+  font-size: var(--font-size-sm);
+}
+.bc-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+.bc-table-hover > tbody > tr:hover > * {
+  background-color: var(--bc-slate-50);
+}
+.bc-table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: var(--bc-slate-50);
+}
+.bc-table-light {
+  background: var(--bc-slate-50);
+}
+.bc-table-sm > :not(caption) > * > * {
+  padding: 0.25rem 0.5rem;
+}
+.bc-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

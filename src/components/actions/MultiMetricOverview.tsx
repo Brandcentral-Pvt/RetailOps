@@ -240,9 +240,9 @@ const MultiMetricOverview = ({
     // Render loading state
     if (loading) {
         return (
-            <div className="row g-3 mb-4">
+            <div className="grid grid-cols-2 gap-4 mb-4 md:grid-cols-3 lg:flex">
                 {metricTypes.map((type) => (
-                    <div key={type} className="col-6 col-md-4 col-lg">
+                    <div key={type} className="min-w-0 lg:flex-1">
                         <MetricCardSkeleton />
                     </div>
                 ))}
@@ -273,9 +273,9 @@ const MultiMetricOverview = ({
     }
 
     return (
-        <div className="row g-3 mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-4 md:grid-cols-3 lg:flex">
             {metricTypes.map((type) => (
-                <div key={type} className="col-6 col-md-4 col-lg">
+                <div key={type} className="min-w-0 lg:flex-1">
                     <MetricCard
                         metricType={type}
                         overview={getMetricOverview(type)}

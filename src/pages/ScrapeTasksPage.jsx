@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useRef } from 'react';
+import { Button } from 'antd';
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
 import { marketSyncApi } from '../services/api';
@@ -152,7 +153,7 @@ const ScrapeTasksPage = () => {
   if (loading) return <Spinner />;
 
   return (
-    <div className="scrape-tasks-container container-fluid p-4">
+    <div className="scrape-tasks-container page-content p-4">
       <style>{`
         .scrape-tasks-container {
           background: #f9fafb;
@@ -261,14 +262,15 @@ const ScrapeTasksPage = () => {
               {refreshing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <RefreshCcw size={16} />}
               Refresh Status
             </button>
-            <button 
-                className="btn btn-outline-info shadow-sm px-3 d-flex align-items-center gap-2" 
+            <Button 
+                className="shadow-sm px-3 d-flex align-items-center gap-2"
+                style={{ color: 'var(--bc-cyan-600)', borderColor: 'var(--bc-cyan-600)', background: 'transparent' }}
                 onClick={handleBulkDuplicate} 
                 disabled={bulkSyncing || loading}
             >
                 {bulkSyncing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <Plus size={16} />}
                 {bulkSyncing ? 'Creating Tasks...' : 'Assign & Duplicate Tasks'}
-            </button>
+            </Button>
             <button 
                 className="btn btn-outline-primary shadow-sm px-3 d-flex align-items-center gap-2" 
                 onClick={handleBulkInject} 
@@ -285,9 +287,9 @@ const ScrapeTasksPage = () => {
         </div>
       </div>
 
-      <div className="row g-4 mb-5">
+      <div className="grid gap-6 mb-5 md:grid-cols-4">
         {kpis.map((kpi, idx) => (
-          <div key={idx} className="col-md-3">
+          <div key={idx}>
             <KPICard 
               title={kpi.title} 
               value={kpi.value} 
@@ -304,7 +306,7 @@ const ScrapeTasksPage = () => {
           <h6 className="mb-0 text-dark fw-bold">Active Seller Tasks</h6>
           <div className="small text-muted">{tasks.length} Configured Tasks</div>
         </div>
-        <div className="table-responsive">
+        <div className="bc-table-responsive">
           <table className="table data-table mb-0">
             <thead>
               <tr>
@@ -365,22 +367,23 @@ const ScrapeTasksPage = () => {
                     </td>
                     <td className="text-end">
                       <div className="btn-action-group d-flex gap-2 justify-content-end">
-                        <button 
-                          className="btn btn-outline-primary" 
+                        <Button 
+                          color="primary"
+                          variant="outlined"
                           onClick={() => handleStartSync(task.sellerId)}
                           disabled={task.status === 'RUNNING' || syncing[task.sellerId]}
                           title="Trigger extraction"
                         >
                           {syncing[task.sellerId] ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <Play size={18} />}
-                        </button>
-                        <button 
-                          className="btn btn-outline-success" 
+                        </Button>
+                        <Button 
+                          style={{ color: 'var(--bc-green-600)', borderColor: 'var(--bc-green-600)', background: 'transparent' }} 
                           onClick={() => handleFetchResults(task.sellerId)}
                           disabled={syncing[task.sellerId]}
                           title="Import data"
                         >
                           <CloudDownload size={18} />
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

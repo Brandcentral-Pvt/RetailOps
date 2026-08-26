@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button } from 'antd';
 import { Edit2, Trash2, CheckCircle, Clock, AlertTriangle, Filter, Search } from 'lucide-react';
 
 const ActionList = ({ actions, onDelete, onEdit, onStatusChange }) => {
@@ -50,8 +51,8 @@ const ActionList = ({ actions, onDelete, onEdit, onStatusChange }) => {
             {/* Filters */}
             <div className="card mb-4">
                 <div className="card-body">
-                    <div className="row g-3">
-                        <div className="col-12 col-md-6">
+                    <div className="grid grid-cols-2 md:grid-cols-12 gap-4">
+                        <div className="col-span-2 md:col-span-6">
                             <div className="input-group">
                                 <span className="input-group-text">
                                     <Search className="w-4 h-4" style={{ width: '16px', height: '16px' }} />
@@ -65,7 +66,7 @@ const ActionList = ({ actions, onDelete, onEdit, onStatusChange }) => {
                                 />
                             </div>
                         </div>
-                        <div className="col-6 col-md-3">
+                        <div className="md:col-span-3">
                             <select
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -77,7 +78,7 @@ const ActionList = ({ actions, onDelete, onEdit, onStatusChange }) => {
                                 <option value="COMPLETED">Completed</option>
                             </select>
                         </div>
-                        <div className="col-6 col-md-3">
+                        <div className="md:col-span-3">
                             <select
                                 value={filterPriority}
                                 onChange={(e) => setFilterPriority(e.target.value)}
@@ -148,14 +149,14 @@ const ActionList = ({ actions, onDelete, onEdit, onStatusChange }) => {
                                         >
                                             <Edit2 style={{ width: '16px', height: '16px' }} />
                                         </button>
-                                        <button
+                                        <Button
+                                            danger
+                                            size="small"
                                             onClick={() => onDelete(action._id || action.id)}
-                                            className="btn btn-sm btn-outline-danger"
                                             title="Delete"
                                         >
                                             <Trash2 style={{ width: '16px', height: '16px' }} />
-                                        </button>
-                                    </div>
+                                        </Button>                                    </div>
                                 </div>
                             ))}
                         </div>

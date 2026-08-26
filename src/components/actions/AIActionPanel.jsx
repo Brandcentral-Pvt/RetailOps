@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from 'antd';
 import Card from '../common/Card';
 import { Sparkles, ArrowRight, TrendingUp, AlertTriangle, Zap } from 'lucide-react';
 
@@ -46,9 +47,9 @@ const AIActionPanel = ({ suggestions, loading }) => {
               <p className="text-muted smallest mb-2">{suggestion.reasoning}</p>
               <div className="d-flex justify-content-between align-items-center">
                 <span className="smallest text-uppercase fw-bold tracking-wider" style={{ color: 'var(--color-brand-600)' }}>{suggestion.actionType}</span>
-                <button className="btn btn-link p-0 smallest text-decoration-none d-flex align-items-center gap-1 fw-semibold">
+                <Button type="link" size="small" className="p-0 smallest text-decoration-none d-flex align-items-center gap-1 fw-semibold">
                   Execute Action <ArrowRight size={12} />
-                </button>
+                </Button>
               </div>
             </div>
           ))

@@ -2527,13 +2527,14 @@ const AsinManagerPage = (props) => {
                   <Sparkles size={12} /> {aiAnalysisLoading ? 'Analyzing...' : 'AI Analyze'}
                 </button>
               </div>
-              <button
-                className="btn btn-link text-indigo-600 fw-bold text-decoration-none ms-auto p-0"
+              <Button
+                type="link"
+                className="text-indigo-600 fw-bold text-decoration-none ms-auto p-0"
                 style={{ fontSize: 'var(--font-size-xs)' }}
                 onClick={clearSelection}
               >
                 Deselect All
-              </button>
+              </Button>
             </div>
           )}
 
@@ -2546,13 +2547,14 @@ const AsinManagerPage = (props) => {
               <div className="d-flex flex-wrap gap-2">
                 {getAppliedFiltersBadges()}
               </div>
-              <button
-                className="btn btn-link text-danger text-decoration-none ms-auto fw-bold p-0"
+              <Button
+                type="link"
+                className="text-danger text-decoration-none ms-auto fw-bold p-0"
                 style={{ fontSize: 'var(--font-size-xs)' }}
                 onClick={resetAllFilters}
               >
                 Clear All
-              </button>
+              </Button>
             </div>
           )}
 

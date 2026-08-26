@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from 'antd';
 import { db } from '../services/db';
 import { calculateProfits, fetchKeepaData } from '../services/engine';
 import {
@@ -134,7 +135,7 @@ const ResultsPage = ({ asins, onNavigate }) => {
       {/* Filters */}
       <div className="card mb-4">
         <div className="card-body">
-          <div className="row g-3 align-items-end">
+          <div className="row align-items-end">
             <div className="col-lg-4">
               <label className="form-label">Search</label>
               <div className="input-group">
@@ -182,13 +183,13 @@ const ResultsPage = ({ asins, onNavigate }) => {
                 <i className="bi bi-arrow-counterclockwise"></i>
               </button>
 
-              <button
-                className="btn btn-outline-success"
+              <Button
+                style={{ color: 'var(--bc-green-600)', borderColor: 'var(--bc-green-600)', background: 'transparent' }}
                 onClick={handleExport}
               >
                 <i className="bi bi-download me-1"></i>
                 Export
-              </button>
+              </Button>
 
               <button
                 className="btn btn-primary"
@@ -223,9 +224,9 @@ const ResultsPage = ({ asins, onNavigate }) => {
       {/* Results Table */}
       <div className="card">
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table table-hover table-striped mb-0">
-              <thead className="table-light">
+          <div className="bc-table-responsive">
+            <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+              <thead className="bc-table-light">
                 <tr>
                   <th className="px-3 py-2">Product</th>
                   <th className="px-3 py-2">Category</th>
@@ -313,13 +314,14 @@ const ResultsPage = ({ asins, onNavigate }) => {
                         >
                           <i className="bi bi-pencil"></i>
                         </button>
-                        <button
-                          className="btn btn-outline-danger btn-sm"
+                        <Button
+                          danger
+                          size="small"
                           onClick={() => handleDeleteItem(item)}
                           title="Delete Product"
                         >
                           <i className="bi bi-trash"></i>
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { asinApi, sellerApi } from '../services/api';
 import InfiniteScrollSelect from './common/InfiniteScrollSelect';
-import { Modal, Tag, Typography, Space, Badge } from 'antd';
+import { Modal, Tag, Typography, Space, Badge, Button, Input } from 'antd';
 
 const { Text } = Typography;
 
@@ -345,7 +345,7 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
       <div className="px-3 py-2 border-bottom d-flex align-items-center gap-2 flex-shrink-0 flex-wrap" style={{ background: C.bg }}>
         <div className="position-relative" style={{ width: 200 }}>
           <Search size={13} className="position-absolute top-50 start-0 translate-middle-y ms-2.5 text-zinc-400" style={{ marginLeft: 10 }} />
-          <input className="form-control form-control-sm ps-5 rounded-3" placeholder="Filter ASIN, SKU..." value={localSearch}
+          <Input size="small" className="ps-5 rounded-3" placeholder="Filter ASIN, SKU..." value={localSearch}
             onChange={e => setLocalSearch(e.target.value)}
             style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, borderRadius: 6, paddingLeft: 28 }} />
         </div>
@@ -356,11 +356,11 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
         </div>
         <div className="d-flex align-items-center gap-1">
           <Calendar size={12} style={{ color: C.textSecondary }} />
-          <input type="date" className="form-control form-control-sm rounded-3"
+          <Input size="small" type="date" className="rounded-3"
             style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
             value={dateRange.startDate} onChange={e => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
           <span style={{ color: C.border }}>–</span>
-          <input type="date" className="form-control form-control-sm rounded-3"
+          <Input size="small" type="date" className="rounded-3"
             style={{ fontSize: 'var(--font-size-xs)', height: 30, border: `1.5px solid ${C.border}`, width: 120, borderRadius: 6 }}
             value={dateRange.endDate} onChange={e => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
         </div>
@@ -397,14 +397,14 @@ const RatingViewModal = ({ isOpen, onClose, filters = {}, searchQuery = '', sell
           {filterBadges.map(b => (
             <div key={b.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: "var(--radius-sm)", fontSize: 10, fontWeight: 600, background: C.white, border: `1px solid ${C.border}`, color: C.text }}>
               {b.icon}{b.label}
-              <button className="btn btn-link p-0" onClick={b.onRemove} style={{ color: C.textSecondary, lineHeight: 1, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <Button type="link" size="small" className="p-0" onClick={b.onRemove} aria-label={`Remove filter ${b.label}`} style={{ color: C.textSecondary, lineHeight: 1, border: 'none', background: 'transparent', cursor: 'pointer' }}>
                 <X size={10} />
-              </button>
+              </Button>
             </div>
           ))}
-          <button className="btn btn-link p-0 ms-auto" onClick={resetAllFilters} style={{ fontSize: 9, fontWeight: 600, color: C.danger, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+          <Button type="link" size="small" className="p-0 ms-auto" onClick={resetAllFilters} style={{ fontSize: 9, fontWeight: 600, color: C.danger, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer' }}>
             CLEAR ALL
-          </button>
+          </Button>
         </div>
       )}
 

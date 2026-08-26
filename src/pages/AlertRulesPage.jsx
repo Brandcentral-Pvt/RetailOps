@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Switch } from 'antd';
 
 const demoRules = [
   { id: 1, name: 'Revenue Drop Alert', metric: 'revenue', operator: 'decreased by', value: 20, period: '7 days', severity: 'warning', status: true, type: 'Revenue' },
@@ -218,15 +219,12 @@ const AlertRulesPage = () => {
                     <td>{rule.metric} {rule.operator} {rule.value}% ({rule.period})</td>
                     <td><span className={`badge ${getSeverityClass(rule.severity)}`}>{rule.severity}</span></td>
                     <td>
-                      <div className="form-check form-switch">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          checked={rule.status}
-                          onChange={() => toggleRule(rule.id)}
-                          style={{ cursor: 'pointer' }}
-                        />
-                      </div>
+                      <Switch
+                        checked={rule.status}
+                        onChange={() => toggleRule(rule.id)}
+                        style={{ cursor: 'pointer' }}
+                        aria-label={`Toggle rule ${rule.name}`}
+                      />
                     </td>
                     <td>
                       <button className="btn btn-sm btn-secondary me-2" onClick={() => deleteRule(rule.id)}>

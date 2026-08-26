@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button, Tabs, Modal, Input, Checkbox } from 'antd';
 import { db } from '../services/db';
 
 const FeesPage = () => {
@@ -126,9 +127,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Category</th>
                 <th className="px-3 py-2">Node ID</th>
@@ -153,9 +154,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('referral', fee)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('referral', fee.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('referral', fee.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -184,9 +185,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Category</th>
                 <th className="px-3 py-2">Node ID</th>
@@ -211,9 +212,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('closing', fee)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('closing', fee.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('closing', fee.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -242,9 +243,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Size Type</th>
                 <th className="px-3 py-2">Weight Range (g)</th>
@@ -277,9 +278,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('shipping', fee)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('shipping', fee.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('shipping', fee.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -308,9 +309,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Duration</th>
                 <th className="px-3 py-2">Rate (₹/cft INR)</th>
@@ -329,9 +330,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('storage', fee)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('storage', fee.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('storage', fee.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -360,9 +361,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Category</th>
                 <th className="px-3 py-2">Price Range</th>
@@ -391,9 +392,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('refund', fee)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('refund', fee.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('refund', fee.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -422,9 +423,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Keepa Category</th>
                 <th className="px-3 py-2">Fee Category</th>
@@ -443,9 +444,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('mapping', map)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('mapping', map.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('mapping', map.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -474,9 +475,9 @@ const FeesPage = () => {
         </button>
       </div>
       <div className="card-body p-0">
-        <div className="table-responsive">
-          <table className="table table-hover table-striped mb-0">
-            <thead className="table-light">
+        <div className="bc-table-responsive">
+          <table className="w-full bc-table bc-table-hover bc-table-striped mb-0">
+            <thead className="bc-table-light">
               <tr>
                 <th className="px-3 py-2">Node ID</th>
                 <th className="px-3 py-2">Fee Category Name</th>
@@ -495,9 +496,9 @@ const FeesPage = () => {
                       <button className="btn btn-outline-secondary btn-sm" onClick={() => openEditModal('nodemap', map)}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete('nodemap', map.id)}>
+                      <Button danger size="small" onClick={() => handleDelete('nodemap', map.id)}>
                         <i className="bi bi-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -521,8 +522,10 @@ const FeesPage = () => {
     <div>
       {/* Tab Navigation */}
       <div className="mb-4">
-        <ul className="nav nav-tabs">
-          {[
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
             { id: 'referral', label: 'Referral', icon: 'bi-currency-dollar' },
             { id: 'closing', label: 'Closing', icon: 'bi-tag' },
             { id: 'shipping', label: 'Shipping', icon: 'bi-truck' },
@@ -530,18 +533,16 @@ const FeesPage = () => {
             { id: 'refund', label: 'Refund (STEP)', icon: 'bi-arrow-counterclockwise' },
             { id: 'mappings', label: 'Categories', icon: 'bi-link' },
             { id: 'nodemaps', label: 'Node Maps', icon: 'bi-diagram-3' }
-          ].map((tabItem) => (
-            <li className="nav-item" key={tabItem.id}>
-              <button
-                className={`nav-link ${activeTab === tabItem.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tabItem.id)}
-              >
+          ].map((tabItem) => ({
+            key: tabItem.id,
+            label: (
+              <>
                 <i className={`${tabItem.icon} me-1`}></i>
                 {tabItem.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+              </>
+            )
+          }))}
+        />
       </div>
 
       {/* Tab Content */}
@@ -711,21 +712,21 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
   };
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">
-              {item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)} Fee
-            </h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          <form onSubmit={handleSubmit}>
+    <Modal
+      open
+      onCancel={onClose}
+      centered
+      width={720}
+      footer={null}
+      destroyOnHidden
+      title={`${item ? 'Edit' : 'Add'} ${type.charAt(0).toUpperCase() + type.slice(1)} Fee`}
+    >
+      <form onSubmit={handleSubmit}>
             <div className="modal-body">
               {type === 'referral' && (
                 <>
-                  <div className="row g-3">
-                    <div className="col-md-6">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-6">
                       <label className="form-label">Category Name</label>
                       <input
                         type="text"
@@ -736,7 +737,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="md:col-span-6">
                       <label className="form-label">Node ID (Optional)</label>
                       <input
                         type="text"
@@ -750,50 +751,50 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                   <hr />
                   <h6>Price Tiers</h6>
                   {formData.tiers.map((tier, index) => (
-                    <div key={index} className="row g-2 mb-2 align-items-center">
-                      <div className="col-auto">
+                    <div key={index} className="flex flex-wrap items-center gap-2 mb-2">
+                      <div>
                         <span className="badge bg-secondary">₹{tier.minPrice} - ₹{tier.maxPrice === Infinity ? '∞' : tier.maxPrice}</span>
                       </div>
-                      <div className="col-auto">
+                      <div>
                         <span className="badge bg-primary">{tier.percentage}%</span>
                       </div>
-                      <div className="col-auto">
-                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeTier(index)}>
+                      <div>
+                        <Button danger size="small" onClick={() => removeTier(index)} aria-label={`Remove tier ${index + 1}`}>
                           <i className="bi bi-x"></i>
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
-                  <div className="row g-2">
-                    <div className="col-md-3">
-                      <input
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <div className="md:col-span-1">
+                      <Input
+                        size="small"
                         type="number"
-                        className="form-control form-control-sm"
                         placeholder="Min Price"
                         value={formData.tierMinPrice}
                         onChange={(e) => handleChange('tierMinPrice', Number(e.target.value))}
                       />
                     </div>
-                    <div className="col-md-3">
-                      <input
+                    <div className="md:col-span-1">
+                      <Input
+                        size="small"
                         type="number"
-                        className="form-control form-control-sm"
                         placeholder="Max Price"
                         value={formData.tierMaxPrice}
                         onChange={(e) => handleChange('tierMaxPrice', e.target.value === '' ? Infinity : Number(e.target.value))}
                       />
                     </div>
-                    <div className="col-md-3">
-                      <input
+                    <div className="md:col-span-1">
+                      <Input
+                        size="small"
                         type="number"
-                        className="form-control form-control-sm"
                         placeholder="Percentage"
                         step="0.1"
                         value={formData.tierPercentage}
                         onChange={(e) => handleChange('tierPercentage', Number(e.target.value))}
                       />
                     </div>
-                    <div className="col-md-3">
+                    <div className="md:col-span-1">
                       <button type="button" className="btn btn-sm btn-primary w-100" onClick={addTier}>
                         <i className="bi bi-plus me-1"></i>Add Tier
                       </button>
@@ -803,8 +804,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
               )}
 
               {type === 'closing' && (
-                <div className="row g-3">
-                  <div className="col-md-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-6">
                     <label className="form-label">Category (Optional)</label>
                     <input
                       type="text"
@@ -814,7 +815,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       placeholder="e.g., Books"
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="md:col-span-6">
                     <label className="form-label">Node ID (Optional)</label>
                     <input
                       type="text"
@@ -824,7 +825,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       placeholder="Amazon Node ID"
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Min Price (₹)</label>
                     <input
                       type="number"
@@ -833,7 +834,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('minPrice', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Max Price (₹)</label>
                     <input
                       type="number"
@@ -843,7 +844,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       placeholder="Leave empty for ∞"
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Fee (₹ INR)</label>
                     <input
                       type="number"
@@ -853,7 +854,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       required
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Seller Type</label>
                     <select
                       className="form-select"
@@ -870,8 +871,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
               )}
 
               {type === 'shipping' && (
-                <div className="row g-3">
-                  <div className="col-md-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-4">
                     <label className="form-label">Size Type</label>
                     <select
                       className="form-select"
@@ -883,7 +884,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       <option value="Oversize">Oversize</option>
                     </select>
                   </div>
-                  <div className="col-md-2">
+                  <div className="md:col-span-2">
                     <label className="form-label">Min Weight (g)</label>
                     <input
                       type="number"
@@ -892,7 +893,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('weightMin', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="md:col-span-2">
                     <label className="form-label">Max Weight (g)</label>
                     <input
                       type="number"
@@ -901,7 +902,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('weightMax', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="md:col-span-2">
                     <label className="form-label">Fee (₹ INR)</label>
                     <input
                       type="number"
@@ -910,7 +911,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('fee', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-2">
+                  <div className="md:col-span-2">
                     <label className="form-label">Pick & Pack (₹ INR)</label>
                     <input
                       type="number"
@@ -919,22 +920,17 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('pickAndPackFee', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-12">
-                    <div className="form-check">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="useIncremental"
-                        checked={formData.useIncremental}
-                        onChange={(e) => handleChange('useIncremental', e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="useIncremental">
-                        Use Incremental Weight Pricing
-                      </label>
-                    </div>
+                  <div className="col-span-full">
+                    <Checkbox
+                      id="useIncremental"
+                      checked={formData.useIncremental}
+                      onChange={(e) => handleChange('useIncremental', e.target.checked)}
+                    >
+                      Use Incremental Weight Pricing
+                    </Checkbox>
                   </div>
                   {formData.useIncremental && (
-                    <div className="col-md-6">
+                    <div className="md:col-span-6">
                       <label className="form-label">Incremental Fee (₹)</label>
                       <input
                         type="number"
@@ -945,7 +941,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                     </div>
                   )}
                   {formData.useIncremental && (
-                    <div className="col-md-6">
+                    <div className="md:col-span-6">
                       <label className="form-label">Incremental Step (g)</label>
                       <input
                         type="number"
@@ -959,8 +955,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
               )}
 
               {type === 'storage' && (
-                <div className="row g-3">
-                  <div className="col-md-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-4">
                     <label className="form-label">Duration</label>
                     <select
                       className="form-select"
@@ -972,7 +968,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       <option value="Monthly">Monthly</option>
                     </select>
                   </div>
-                  <div className="col-md-4">
+                  <div className="md:col-span-4">
                     <label className="form-label">Rate (₹ per cft)</label>
                     <input
                       type="number"
@@ -981,7 +977,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('rate', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-4">
+                  <div className="md:col-span-4">
                     <label className="form-label">Description</label>
                     <input
                       type="text"
@@ -994,8 +990,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
               )}
 
               {type === 'refund' && (
-                <div className="row g-3">
-                  <div className="col-md-3">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-3">
                     <label className="form-label">Category</label>
                     <select
                       className="form-select"
@@ -1007,7 +1003,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       <option value="Shoes">Shoes</option>
                     </select>
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Min Price (₹)</label>
                     <input
                       type="number"
@@ -1016,7 +1012,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('minPrice', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Max Price (₹)</label>
                     <input
                       type="number"
@@ -1026,7 +1022,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       placeholder="Leave empty for ∞"
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Basic (₹ INR)</label>
                     <input
                       type="number"
@@ -1035,7 +1031,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('basic', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Standard (₹ INR)</label>
                     <input
                       type="number"
@@ -1044,7 +1040,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('standard', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Advanced (₹ INR)</label>
                     <input
                       type="number"
@@ -1053,7 +1049,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       onChange={(e) => handleChange('advanced', Number(e.target.value))}
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="md:col-span-3">
                     <label className="form-label">Premium (₹ INR)</label>
                     <input
                       type="number"
@@ -1066,8 +1062,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
               )}
 
               {type === 'mapping' && (
-                <div className="row g-3">
-                  <div className="col-md-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-6">
                     <label className="form-label">Keepa Category Name</label>
                     <input
                       type="text"
@@ -1078,7 +1074,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       required
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="md:col-span-6">
                     <label className="form-label">Fee Category Name</label>
                     <input
                       type="text"
@@ -1093,8 +1089,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
               )}
 
               {type === 'nodemap' && (
-                <div className="row g-3">
-                  <div className="col-md-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-6">
                     <label className="form-label">Amazon Node ID</label>
                     <input
                       type="text"
@@ -1105,7 +1101,7 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                       required
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="md:col-span-6">
                     <label className="form-label">Fee Category Name</label>
                     <input
                       type="text"
@@ -1126,10 +1122,8 @@ const FeeModal = ({ type, item, onClose, onSave }) => {
                 {item ? 'Update' : 'Add'} {type} Fee
               </button>
             </div>
-          </form>
-        </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 
