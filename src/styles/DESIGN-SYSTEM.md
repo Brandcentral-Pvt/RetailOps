@@ -337,3 +337,31 @@ Component-level CSS files (scoped) are acceptable for:
 - Focus rings visible on all interactive elements via `--bc-shadow-focus`
 - `prefers-reduced-motion` disables animations
 - High-contrast mode fallbacks via `forced-colors` media query
+
+---
+
+## Status Update — August 2026 (Remediation In Progress)
+
+### Measured Baseline (Aug 26 audit)
+| Metric | Value |
+|---|---|
+| Hardcoded hex literals | 7,015 total ? CSS 462 · JSX/TSX 4,623 · JS 260 |
+| Components polluted | 177 / 241 (73%) |
+| `!important` uses | 585 CSS + 157 JSX |
+| Shipped CSS payload | ~2.2 MB (vendor_core 818K · vendor_forms 872K · vendor_ui 226K) |
+
+### Completed
+- **Phase 0 (PR #29):** z-index & font-size scales single-sourced in tokens.css; duplicate imports removed; orphan stylesheets deleted (build 41s ? 16s).
+- **Token bridge verified:** every legacy `--color-*`/`--bg-*`/`--text-*` name resolves inside tokens.css to a `--bc-*` primitive. Zero token names defined outside tokens.css. New primitives: purple-300/500/700.
+- **Documented exceptions (do not change without visual QA):** `--text-danger` #D32F2F, `--text-brand-dark` #1565C0, `--color-info-blue` #0288D1, and the four rgba `--color-*-bg` status washes — legacy Material values that differ from the bc scale.
+- **Phase 1 lint guard:** custom rule `bc-tokens/no-raw-hex` active as WARNING on all js/jsx/ts/tsx (TypeScript island linted solely by this rule via typescript-eslint parser; vendored src/CometChat excluded).
+
+### Enforcement Rules (binding from Aug 26)
+1. No new raw hex in any `.js/.jsx/.ts/.tsx` file — CI treats warnings as review blockers at PR discretion until Phase 3 flips them to errors per-directory.
+2. All colors come from `var(--bc-*)` semantic tokens or shared constants; primitives (`--bc-blue-500`) are never referenced directly by components.
+3. Ant Design overrides only in `styles/antd-overrides.css`; component files never use `!important`.
+4. New CSS must be CSS Modules or use the `bc-` prefixed global namespace.
+
+### Remaining Phases
+- **Phase 2 — de-vendor:** drop rsuite (antd DatePicker swap), remove ApiKeysPage bootstrap re-import + page conversions, evaluate Bootstrap grid removal (37 files), App.css class-usage map.
+- **Phase 3 — inline-style conversion campaign:** worst-first (UsersPage ×212, SellerAsinTrackerPage ×142, SetupWizardPage ×135), flip lint rule to error per completed directory; reconcile documented exceptions; WCAG AA pass on muted grays.
