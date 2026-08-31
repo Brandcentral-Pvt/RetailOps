@@ -1,6 +1,19 @@
 import { cachedFetch, invalidateCachePattern } from './apiCache';
 import { toApiError } from '../lib/apiError';
 import { setRefreshToken, clearRefreshToken, getRefreshToken } from '../lib/authMemory';
+// ─── MIGRATED TO src/api (HTTP-stack unification, Increment 1) ────────────────
+// The namespaces below are re-implemented over src/lib/api-client.ts (axios,
+// Bearer auto-inject, single-flight silent refresh on 401) with IDENTICAL
+// exported signatures/return shapes (full `{ success, data, ... }` envelope)
+// and legacy-compatible plain-Error rejections. Remaining namespaces still use
+// raw fetch below and will move over in later increments.
+//   ✅ notificationApi  → src/api/notification.api.ts
+//   ✅ securityApi      → src/api/security.api.ts
+//   ✅ sellerTrackerApi → src/api/sellerTracker.api.ts
+//   ✅ scheduledRunsApi → src/api/scheduledRuns.api.ts (re-exported below)
+import { notificationApi } from '../api/notification.api';
+import { securityApi } from '../api/security.api';
+import { sellerTrackerApi } from '../api/sellerTracker.api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -460,12 +473,13 @@ export const marketSyncApi = {
     return res.json();
   },
   
-  uploadOctoparseJson: async (file, sellerId) => {
+  uploadOctoparseJson: async (file, sellerId, allowCreation = false) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('sellerId', sellerId);
+    formData.append('allowCreation', allowCreation);
     
-    const res = await fetch(`${API_BASE}/upload/octoparse`, {
+    const res = await fetch(`${API_BASE}/bulk/octoparse-json`, {
       method: 'POST',
       headers: { ...getAuthHeader() },
       body: formData,
@@ -517,52 +531,10 @@ export const marketSyncApi = {
   },
 };
 
-// Scheduled Runs API
-export const scheduledRunsApi = {
-  getAll: async () => {
-    const res = await fetch(`${API_BASE}/scheduled-runs`, {
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Failed to fetch scheduled runs');
-    return res.json();
-  },
-
-  getSellerMetrics: async () => {
-    const res = await fetch(`${API_BASE}/scheduled-runs/seller-metrics`, {
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Failed to fetch scheduled run seller metrics');
-    return res.json();
-  },
-
-  getSellerLogs: async (sellerId) => {
-    const res = await fetch(`${API_BASE}/scheduled-runs/seller-logs/${sellerId}`, {
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Failed to fetch seller logs');
-    return res.json();
-  },
-
-  getDetails: async (id) => {
-    const res = await fetch(`${API_BASE}/scheduled-runs/${id}`, {
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Failed to fetch scheduled run details');
-    return res.json();
-  },
-
-  trigger: async (marketplace) => {
-    const url = marketplace 
-      ? `${API_BASE}/scheduled-runs/trigger?marketplace=${encodeURIComponent(marketplace)}`
-      : `${API_BASE}/scheduled-runs/trigger`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Failed to trigger scheduled run');
-    return res.json();
-  },
-};
+// Scheduled Runs API — MIGRATED (Increment 1) to src/api/scheduledRuns.api.ts.
+// Re-exported under the same name so `import { scheduledRunsApi } from
+// '../services/api'` call sites are unchanged.
+export { scheduledRunsApi } from '../api/scheduledRuns.api';
 
 // User API
 export const userApi = {
@@ -1611,28 +1583,9 @@ const api = {
   asinApi,
   revenueApi,
   settingsApi,
-  securityApi: {
-    getOtpLogs: async (params = {}) => {
-      return api.get('/security/otp-logs', params);
-    },
-  },
-  notificationApi: {
-    getNotifications: async (params = {}) => {
-      return api.get('/notifications', params);
-    },
-    markAsRead: async (notificationId) => {
-      return api.put('/notifications/read', { notificationId });
-    },
-    markAllAsRead: async () => {
-      return api.put('/notifications/read', { notificationId: 'all' });
-    },
-    deleteNotification: async (id) => {
-      return api.delete(`/notifications/${id}`);
-    },
-    deleteAllRead: async () => {
-      return api.delete('/notifications/all-read');
-    }
-  },
+  // MIGRATED (Increment 1): implemented in src/api/*.api.ts over apiClient.
+  securityApi,
+  notificationApi,
   chatApi: {
     getConversations: async () => {
       return api.get('/chat/conversations');
@@ -1743,29 +1696,8 @@ const api = {
       return api.post('/execute-all-rules');
     }
   },
-  sellerTrackerApi: {
-    getTrackers: async () => {
-      return api.get('/seller-tracker');
-    },
-    getSellerAsins: async (sellerId) => {
-      return api.get(`/seller-tracker/${sellerId}/asins`);
-    },
-    syncSeller: async (sellerId) => {
-      return api.post(`/seller-tracker/sync/${sellerId}`);
-    },
-    syncAll: async () => {
-      return api.post('/seller-tracker/sync-all');
-    },
-    getSellerActivities: async (sellerId) => {
-      return api.get(`/seller-tracker/${sellerId}/activities`);
-    },
-    getSellerTasks: async (sellerId) => {
-      return api.get(`/seller-tracker/${sellerId}/tasks`);
-    },
-    createSellerTask: async (sellerId, taskData) => {
-      return api.post(`/seller-tracker/${sellerId}/tasks`, taskData);
-    }
-  }
+  // MIGRATED (Increment 1): implemented in src/api/sellerTracker.api.ts over apiClient.
+  sellerTrackerApi
 };
 
 export default api;
