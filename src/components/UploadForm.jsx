@@ -14,10 +14,13 @@ const UploadForm = () => {
   const [sellers, setSellers] = useState([]);
   const [selectedSeller, setSelectedSeller] = useState('');
   const [isFetchingSellers, setIsFetchingSellers] = useState(false);
+  const [allowCreation, setAllowCreation] = useState(false);
 
   useEffect(() => {
     if (uploadType === 'octoparse') {
       fetchSellers();
+    } else {
+      setAllowCreation(false);
     }
   }, [uploadType]);
 
@@ -149,7 +152,7 @@ const UploadForm = () => {
         });
       } else {
         // Octoparse manual sync
-        const response = await marketSyncApi.uploadOctoparseJson(file, selectedSeller);
+        const response = await marketSyncApi.uploadOctoparseJson(file, selectedSeller, allowCreation);
         setUploadStatus({
           type: 'success',
           message: `✅ Sync Completed: ${response.message}`,
@@ -288,6 +291,25 @@ const UploadForm = () => {
             ))}
           </select>
           {isFetchingSellers && <small className="text-muted">Loading sellers...</small>}
+        </div>
+      )}
+
+      {/* Allow Creation (Octoparse only) */}
+      {uploadType === 'octoparse' && (
+        <div className="form-group pb-3">
+          <div className="form-check">
+            <input 
+              className="form-check-input" 
+              type="checkbox" 
+              id="allowCreation"
+              checked={allowCreation}
+              onChange={(e) => setAllowCreation(e.target.checked)}
+            />
+            <label className="form-check-label small" htmlFor="allowCreation">
+              <i className="bi bi-info-circle me-1"></i>
+              <strong>Allow creation of new ASINs</strong> - If enabled, products not found in your catalog will be created as new ASINs. If disabled, only existing ASINs will be updated.
+            </label>
+          </div>
         </div>
       )}
 
