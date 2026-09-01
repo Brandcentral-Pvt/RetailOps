@@ -10,8 +10,11 @@ const isProduction = process.platform === 'linux';
 
 const PROD_ROOT = '/var/www/retail-ops';
 const DEV_BACKEND = 'G:\\Brandcentral Development\\RetailOps_V2.1\\RetailOps_V2.1\\retail-ops\\backend';
+const PROD_FRONTEND = '/var/www/retail-ops/frontend';
+const DEV_FRONTEND = 'G:\\Brandcentral Development\\RetailOps_V2.1\\RetailOps_V2.1\\retail-ops\\frontend';
 
 const cwd = isProduction ? `${PROD_ROOT}/backend` : DEV_BACKEND;
+const frontendCwd = isProduction ? PROD_FRONTEND : DEV_FRONTEND;
 const logDir = isProduction ? `${PROD_ROOT}/logs` : path.join(__dirname, 'logs');
 
 // Calculate optimal worker count
@@ -97,6 +100,40 @@ module.exports = {
       autorestart: true,
       
       // Health check
+      health_check: {
+        enabled: true,
+        interval: 30000,
+        timeout: 5000,
+      },
+    },
+  },
+    {
+      name: 'retailops-frontend',
+      script: 'vite',
+      args: 'preview --port 5173 --host 0.0.0.0',
+      cwd: frontendCwd,
+      instances: 1,
+      exec_mode: 'fork',
+      max_memory_restart: '800M',
+      node_args: '--max-old-space-size=800',
+      env: {
+        NODE_ENV: isProduction ? 'production' : 'development',
+        PORT: 5173,
+      },
+      min_uptime: '30s',
+      max_restarts: 10,
+      restart_delay: 3000,
+      exp_backoff_restart_delay: 100,
+      error_file: `${logDir}/frontend-error.log`,
+      out_file: `${logDir}/frontend-out.log`,
+      merge_logs: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+      watch: false,
+      time: true,
+      kill_timeout: 10000,
+      listen_timeout: 15000,
+      wait_ready: false,
+      autorestart: true,
       health_check: {
         enabled: true,
         interval: 30000,
