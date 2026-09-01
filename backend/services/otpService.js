@@ -60,22 +60,50 @@ class OtpService {
       throw new Error('OTP expired or invalid. Please request a new one.');
     }
 
-    if (otpRecord.Attempts >= otpRecord.MaxAttempts) {
-      await pool.request().input('id', sql.Int, otpRecord.Id).query(`UPDATE OtpVerifications SET IsUsed = 1 WHERE Id = @id`);
+    // SECURITY (Bug 6 fix): Atomic check-and-increment to prevent race condition.
+    // Use a single UPDATE with WHERE clause to atomically check max attempts and increment.
+    const updateResult = await pool.request()
+      .input('id', sql.Int, otpRecord.Id)
+      .input('maxAttempts', sql.Int, otpRecord.MaxAttempts)
+      .query(`
+        UPDATE OtpVerifications
+        SET Attempts = Attempts + 1
+        WHERE Id = @id AND IsUsed = 0 AND Attempts < @maxAttempts;
+        SELECT @@ROWCOUNT as rowsAffected;
+      `);
+
+    const rowsAffected = updateResult.recordset[0]?.rowsAffected || 0;
+    if (rowsAffected === 0) {
+      // Either max attempts reached or already used - check which
+      const checkResult = await pool.request()
+        .input('id', sql.Int, otpRecord.Id)
+        .query(`SELECT Attempts, MaxAttempts, IsUsed FROM OtpVerifications WHERE Id = @id`);
+      const current = checkResult.recordset[0];
+      if (current && (current.IsUsed || current.Attempts >= current.MaxAttempts)) {
+        await pool.request().input('id', sql.Int, otpRecord.Id).query(`UPDATE OtpVerifications SET IsUsed = 1 WHERE Id = @id`);
+        await this._auditLog(userId, otpRecord.Email, 'OTP_VERIFY', 'FAILED', 'Max attempts reached', metadata);
+        throw new Error('Too many incorrect attempts. Please request a new OTP.');
+      }
+      // If we get here, something else happened - treat as max attempts
       await this._auditLog(userId, otpRecord.Email, 'OTP_VERIFY', 'FAILED', 'Max attempts reached', metadata);
       throw new Error('Too many incorrect attempts. Please request a new OTP.');
     }
 
-    const isValid = await bcrypt.compare(otp, otpRecord.OtpHash);
+    // Fetch the updated record to get current attempt count
+    const updatedResult = await pool.request()
+      .input('id', sql.Int, otpRecord.Id)
+      .query(`SELECT Attempts, MaxAttempts, OtpHash FROM OtpVerifications WHERE Id = @id`);
+    const updatedRecord = updatedResult.recordset[0];
 
-    await pool.request().input('id', sql.Int, otpRecord.Id).query(`UPDATE OtpVerifications SET Attempts = Attempts + 1 WHERE Id = @id`);
+    const isValid = await bcrypt.compare(otp, updatedRecord.OtpHash);
 
     if (!isValid) {
-      const remaining = otpRecord.MaxAttempts - otpRecord.Attempts - 1;
+      const remaining = updatedRecord.MaxAttempts - updatedRecord.Attempts;
       await this._auditLog(userId, otpRecord.Email, 'OTP_VERIFY', 'FAILED', `Invalid OTP, ${remaining} attempts left`, metadata);
       throw new Error(remaining > 0 ? `Invalid OTP. ${remaining} attempt(s) remaining.` : 'Invalid OTP. No more attempts. Please request a new OTP.');
     }
 
+    // Valid OTP - mark as used
     await pool.request().input('id', sql.Int, otpRecord.Id).query(`UPDATE OtpVerifications SET IsUsed = 1, UsedAt = GETDATE() WHERE Id = @id`);
     await this._auditLog(userId, otpRecord.Email, 'OTP_VERIFY', 'SUCCESS', null, metadata);
     return { success: true, verifiedAt: new Date() };

@@ -33,19 +33,32 @@ function getQueue(name, options = {}) {
   const fullName = `${QUEUE_PREFIX}${name}`;
   if (queues.has(fullName)) return queues.get(fullName);
 
+  // Handle options passed from queueDefinitions.js
+  const {
+    attempts = 3,
+    backoffDelay = 2000,
+    timeout = 300000,
+    limiter,
+    backoff,
+    defaultJobOptions = {},
+    ...queueOptions
+  } = options;
+
   const queue = new Queue(fullName, {
     redis: REDIS_URL,
     defaultJobOptions: {
       removeOnComplete: 100,
       removeOnFail: 50,
-      attempts: 3,
-      backoff: {
+      attempts,
+      backoff: backoff || {
         type: 'exponential',
-        delay: 2000,
+        delay: backoffDelay,
       },
-      ...options.defaultJobOptions,
+      timeout,
+      ...defaultJobOptions,
     },
-    ...options,
+    limiter,
+    ...queueOptions,
   });
 
   queue.on('error', (err) => {
@@ -243,6 +256,8 @@ async function shutdown() {
 
 module.exports = {
   getQueue,
+  get: getQueue,
+  create: getQueue,
   addJob,
   processQueue,
   QUEUES,

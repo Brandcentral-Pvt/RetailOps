@@ -1,17 +1,23 @@
 const crypto = require('crypto');
 const { getPool, sql } = require('../database/db');
+const { getClientIp } = require('../utils/clientIp');
 
 class TrustedDeviceService {
   constructor() {
     this.TRUST_DURATION_DAYS = 0.5; // 12 hours
   }
 
-  generateFingerprint(req) {
+  /**
+   * Generate a consistent device fingerprint from request headers and client IP.
+   * Used by both auth controller and trusted device service for consistency (Bug 9 fix).
+   */
+  generateFingerprint(req, clientIp) {
     const components = [
       req.headers['user-agent'] || '',
       req.headers['accept-language'] || '',
       req.headers['sec-ch-ua'] || '',
-      req.headers['sec-ch-ua-platform'] || ''
+      req.headers['sec-ch-ua-platform'] || '',
+      clientIp || ''
     ].filter(Boolean).join('|');
     return crypto.createHash('sha256').update(components).digest('hex').slice(0, 64);
   }

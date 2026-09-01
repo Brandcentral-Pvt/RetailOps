@@ -19,8 +19,8 @@ const {
 
 const { circuitBreakerMiddleware, CIRCUIT_BREAKERS } = require('./circuitBreaker');
 
-const cacheService = require('./cacheService');
-const queueService = require('./queueService');
+const cacheService = require('../services/cacheService');
+const queueService = require('../services/queueService');
 
 /**
  * Initialize all load balancing services

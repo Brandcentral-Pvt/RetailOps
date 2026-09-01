@@ -67,7 +67,10 @@ exports.authenticate = async (req, res, next) => {
       const currentFp = Buffer.from(`${req.headers['user-agent'] || ''}|${getClientIp(req)}`).toString('base64').slice(0, 32);
       if (decoded.fp !== currentFp) {
         console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId} from ${getClientIp(req)}`);
-        if (process.env.NODE_ENV === 'production') {
+        // SECURITY (Bug 4 fix): Enforce fingerprint validation in all environments.
+        // Can be disabled via ENFORCE_FINGERPRINT_VALIDATION=false for debugging.
+        const enforceFingerprint = process.env.ENFORCE_FINGERPRINT_VALIDATION !== 'false';
+        if (enforceFingerprint) {
           return res.status(401).json({ success: false, message: 'Session invalid: device mismatch' });
         }
       }
@@ -98,17 +101,31 @@ exports.authenticate = async (req, res, next) => {
     let exclPerms = [];
     try {
       if (userData.ExtraPermissions) {
-        extraPerms = JSON.parse(userData.ExtraPermissions).map(idOrName => permMap[idOrName] || idOrName);
+        const parsed = JSON.parse(userData.ExtraPermissions);
+        if (Array.isArray(parsed)) {
+          extraPerms = parsed.map(idOrName => permMap[idOrName] || idOrName);
+        } else {
+          console.warn('[AUTH] ExtraPermissions is not an array, ignoring:', userData.ExtraPermissions);
+        }
       }
     } catch (e) {
-      console.error('Failed to parse ExtraPermissions:', e);
+      // SECURITY (Bug 19 fix): Malformed JSON in DB — treat as empty to avoid auth crash
+      console.warn('[AUTH] Failed to parse ExtraPermissions, treating as empty:', e.message);
+      extraPerms = [];
     }
     try {
       if (userData.ExcludedPermissions) {
-        exclPerms = JSON.parse(userData.ExcludedPermissions).map(idOrName => permMap[idOrName] || idOrName);
+        const parsed = JSON.parse(userData.ExcludedPermissions);
+        if (Array.isArray(parsed)) {
+          exclPerms = parsed.map(idOrName => permMap[idOrName] || idOrName);
+        } else {
+          console.warn('[AUTH] ExcludedPermissions is not an array, ignoring:', userData.ExcludedPermissions);
+        }
       }
     } catch (e) {
-      console.error('Failed to parse ExcludedPermissions:', e);
+      // SECURITY (Bug 19 fix): Malformed JSON in DB — treat as empty to avoid auth crash
+      console.warn('[AUTH] Failed to parse ExcludedPermissions, treating as empty:', e.message);
+      exclPerms = [];
     }
 
     extraPerms.forEach(p => {

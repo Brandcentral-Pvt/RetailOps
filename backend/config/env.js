@@ -4,7 +4,8 @@ const requiredEnvVars = [
   'DB_USER',
   'DB_PASSWORD',
   'DB_SERVER',
-  'JWT_SECRET'
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET'
 ];
 
 const missing = requiredEnvVars.filter(key => !process.env[key]);
@@ -14,9 +15,13 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-if (!process.env.JWT_REFRESH_SECRET) {
-  console.warn('⚠️ JWT_REFRESH_SECRET not set — falling back to JWT_SECRET. Add JWT_REFRESH_SECRET to backend/.env for a dedicated refresh-token signing key.');
-  process.env.JWT_REFRESH_SECRET = process.env.JWT_SECRET;
+// SECURITY: JWT_REFRESH_SECRET must be distinct from JWT_SECRET.
+// The fallback has been removed to prevent secret reuse (Bug 1 fix).
+// If you see this error, add JWT_REFRESH_SECRET to your .env file.
+if (process.env.JWT_REFRESH_SECRET === process.env.JWT_SECRET) {
+  console.error('❌ SECURITY ERROR: JWT_REFRESH_SECRET must be different from JWT_SECRET');
+  console.error('Generate a separate secret for refresh tokens (e.g., `openssl rand -hex 32`)');
+  process.exit(1);
 }
 
 // Node 24+/26 refuses TLS `servername` set to an IP literal. For IP hosts,

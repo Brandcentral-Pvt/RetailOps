@@ -124,6 +124,14 @@ class TokenBlacklistService {
     for (const [token, expiry] of this.memoryBlacklist.entries()) {
       if (now > expiry) { this.memoryBlacklist.delete(token); cleaned++; }
     }
+    // SECURITY (Bug 10 fix): Also clean userBlacklist to prevent memory leak
+    for (const [userId, blacklistedAt] of this.userBlacklist.entries()) {
+      // userBlacklist entries expire after 24 hours (set in blacklistUser)
+      if (now > parseInt(blacklistedAt) + 24 * 60 * 60 * 1000) {
+        this.userBlacklist.delete(userId);
+        cleaned++;
+      }
+    }
     if (cleaned > 0) console.log(`🧹 Cleaned ${cleaned} expired blacklist entries`);
   }
 }

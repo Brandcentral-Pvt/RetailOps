@@ -1,5 +1,6 @@
 const emailService = require('../services/emailService');
 const { getClientIp } = require('../utils/clientIp');
+const { getPool, sql } = require('../database/db');
 
 /**
  * Login Rate Limiter with progressive delay, account lockout, and email notification.
@@ -12,6 +13,7 @@ const { getClientIp } = require('../utils/clientIp');
  *
  * All counts stored in Redis (falls back to in-memory if Redis unavailable).
  * Generic errors — never reveals which layer triggered the block.
+ * SECURITY (Bug 12/18 fix): Also syncs lockout state to DB for refreshToken checks.
  */
 
 const GENERIC_BLOCK = 'Unable to sign in. Please try again later.';
@@ -265,6 +267,18 @@ async function recordFailedAttempt(email, clientIp) {
         await cacheSetEx(lockKey, String(lockUntil), lockSeconds + 60);
         console.warn(`[LOCKOUT] ${normalizedEmail} locked for ${lockSeconds / 60} minutes (lock cycle ${priorCycles + 1} today). IP: ${clientIp}`);
 
+        // SECURITY (Bug 12/18 fix): Sync lockout to DB so refreshToken can check it
+        try {
+            const pool = await getPool();
+            const lockUntilDate = new Date(lockUntil);
+            await pool.request()
+                .input('email', sql.NVarChar, normalizedEmail)
+                .input('lockUntil', sql.DateTime, lockUntilDate)
+                .query('UPDATE Users SET LockUntil = @lockUntil WHERE Email = @email');
+        } catch (dbError) {
+            console.error('[LOCKOUT] Failed to sync lock to DB:', dbError.message);
+        }
+
         // RB5: bookkeeping for the daily cumulative cap. The counter is keyed
         // per local day and expires at local midnight.
         const cycles = await cacheIncr(cyclesKey, dayTtl);
@@ -301,6 +315,16 @@ async function recordSuccessfulLogin(email) {
     const lockKey = `rl:lock:${normalizedEmail}`;
     await cacheSet(failKey, '0', 1);
     await cacheSet(lockKey, '0', 1);
+
+    // SECURITY (Bug 12/18 fix): Clear DB lockout on successful login
+    try {
+        const pool = await getPool();
+        await pool.request()
+            .input('email', sql.NVarChar, normalizedEmail)
+            .query('UPDATE Users SET LockUntil = NULL WHERE Email = @email');
+    } catch (dbError) {
+        console.error('[LOCKOUT] Failed to clear DB lock:', dbError.message);
+    }
 }
 
 module.exports = {

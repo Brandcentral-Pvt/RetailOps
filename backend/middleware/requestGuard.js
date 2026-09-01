@@ -21,7 +21,7 @@
  */
 
 const PAYLOAD_LIMIT_BYTES = 10 * 1024 * 1024; // 10 MB
-const REQUEST_TIMEOUT_MS = 75_000;            // 60 seconds (increased from 30)
+const REQUEST_TIMEOUT_MS = 120_000;           // 120 seconds for auth routes (bcrypt + DB + OTP)
 // RB6: how long the 408 response gets to flush before the socket is force-
 // destroyed anyway (covers handlers that never finish after the timeout).
 const SOCKET_DESTROY_GRACE_MS = 5_000;
@@ -35,6 +35,7 @@ const UPLOAD_PATH_PREFIXES = [
   '/api/export',
   '/api/asins',
   '/api/pems',
+  '/api/auth',    // Auth routes have multiple DB/Redis calls (bcrypt, OTP, etc.)
 ];
 
 function isUploadRoute(path) {

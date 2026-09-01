@@ -1,164 +1,93 @@
 /**
  * Rate Limiting Configuration
- * Provides per-user, per-endpoint, and global rate limits
+ * Fixed for express-rate-limit v7/v8 compatibility
+ * Uses memory store by default to prevent Redis constructor errors
+ * Uses ipKeyGenerator helper for IPv6 support
  */
 
-const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
-const Redis = require('ioredis');
-const { key: cacheKey } = require('./cacheService');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const DEFAULT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
-const DEFAULT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
-
-let redisClient = null;
-
-function getRedisClient() {
-  if (!redisClient) {
-    redisClient = new Redis(REDIS_URL, {
-      maxRetriesPerRequest: 3,
-      enableOfflineQueue: false,
-      lazyConnect: true,
-      family: 4,
-    });
-    redisClient.connect().catch(() => {});
-  }
-  return redisClient;
-}
+// Define rate limit tiers
+const TIERS = {
+  PUBLIC: { windowMs: 60 * 1000, max: 100 },    // 100 req/min
+  AUTH:   { windowMs: 15 * 60 * 1000, max: 20 }, // 20 req/15min (login)
+  READ:   { windowMs: 60 * 1000, max: 300 },    // 300 req/min
+  WRITE:  { windowMs: 60 * 1000, max: 50 },     // 50 req/min
+  BULK:   { windowMs: 60 * 1000, max: 10 },     // 10 req/min
+  IMPORT: { windowMs: 60 * 1000, max: 5 },      // 5 req/min
+  STRICT: { windowMs: 60 * 1000, max: 30 }      // 30 req/min
+};
 
 /**
- * Create a rate limiter with Redis store
+ * Creates a rate limiter instance
+ * @param {string} tierName - Key from TIERS object
+ * @param {function} keyGenerator - Optional custom key generator
  */
-function createRateLimiter(options = {}) {
-  const {
-    windowMs = DEFAULT_WINDOW_MS,
-    max = DEFAULT_MAX,
-    keyGenerator = (req) => req.user?.Id || req.user?._id?.toString() || req.ip,
-    message = { error: 'Too many requests, please try again later' },
-    statusCode = 429,
-    skip = () => false,
-    standardHeaders = true,
-    legacyHeaders = false,
-    handler = null,
-  } = options;
+function createLimiter(tierName, keyGenerator) {
+  const tier = TIERS[tierName];
 
-  const redis = getRedisClient();
+  if (!tier) {
+    console.error(`[RateLimiter] Unknown tier: ${tierName}. Defaulting to PUBLIC.`);
+    return createLimiter('PUBLIC');
+  }
 
   return rateLimit({
-    windowMs,
-    max,
-    message,
-    statusCode,
-    standardHeaders,
-    legacyHeaders,
-    keyGenerator,
-    skip,
-    store: new RedisStore({
-      sendCommand: (...args) => redis.call(...args),
-      prefix: 'ratelimit:',
-    }),
-    handler: handler || ((req, res) => {
-      res.status(statusCode).json(message);
-    }),
-  });
-}
-
-/**
- * Global rate limiter - applies to all requests
- */
-const globalLimiter = createRateLimiter({
-  windowMs: parseInt(process.env.GLOBAL_RATE_LIMIT_WINDOW_MS || '60000', 10),
-  max: parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || '1000', 10),
-  keyGenerator: (req) => req.ip,
-  message: { error: 'Global rate limit exceeded' },
-});
-
-/**
- * Auth rate limiter - stricter limits for login/register
- */
-const authLimiter = createRateLimiter({
-  windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 min
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '5', 10),
-  keyGenerator: (req) => req.ip,
-  message: { error: 'Too many authentication attempts, please try again later' },
-  skip: (req) => req.method !== 'POST',
-});
-
-/**
- * API rate limiter - per authenticated user
- */
-const apiLimiter = createRateLimiter({
-  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW_MS || '60000', 10),
-  max: parseInt(process.env.API_RATE_LIMIT_MAX || '100', 10),
-  keyGenerator: (req) => req.user?.Id || req.user?._id?.toString() || req.ip,
-  message: { error: 'API rate limit exceeded, please slow down' },
-});
-
-/**
- * Dashboard rate limiter - higher limits for dashboard endpoints
- */
-const dashboardLimiter = createRateLimiter({
-  windowMs: parseInt(process.env.DASHBOARD_RATE_LIMIT_WINDOW_MS || '60000', 10),
-  max: parseInt(process.env.DASHBOARD_RATE_LIMIT_MAX || '60', 10),
-  keyGenerator: (req) => req.user?.Id || req.user?._id?.toString() || req.ip,
-  message: { error: 'Dashboard rate limit exceeded' },
-});
-
-/**
- * Sync/Heavy operation rate limiter - very strict
- */
-const heavyOpLimiter = createRateLimiter({
-  windowMs: parseInt(process.env.HEAVY_OP_RATE_LIMIT_WINDOW_MS || '3600000', 10), // 1 hour
-  max: parseInt(process.env.HEAVY_OP_RATE_LIMIT_MAX || '10', 10),
-  keyGenerator: (req) => req.user?.Id || req.user?._id?.toString() || req.ip,
-  message: { error: 'Heavy operation rate limit exceeded' },
-});
-
-/**
- * Dynamic rate limiter based on user role
- */
-function createRoleBasedLimiter(roleLimits = {}) {
-  return createRateLimiter({
-    windowMs: DEFAULT_WINDOW_MS,
-    max: (req) => {
-      const role = req.user?.role?.name || 'default';
-      return roleLimits[role] || roleLimits.default || DEFAULT_MAX;
+    windowMs: tier.windowMs,
+    max: tier.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: keyGenerator || ipKeyGenerator,
+    handler: (req, res) => {
+      res.status(429).json({
+        error: 'Too many requests',
+        message: `Rate limit exceeded for ${tierName}. Please try again later.`,
+        retryAfter: Math.ceil(tier.windowMs / 1000)
+      });
     },
-    keyGenerator: (req) => req.user?.Id || req.user?._id?.toString() || req.ip,
+    skip: (req) => req.path === '/api/health' || req.path === '/health' || req.path === '/ready'
   });
 }
 
-/**
- * Endpoint-specific rate limiter
- */
-function createEndpointLimiter(endpoint, max, windowMs = DEFAULT_WINDOW_MS) {
-  return createRateLimiter({
-    windowMs,
-    max,
-    keyGenerator: (req) => `${req.user?.Id || req.ip}:${endpoint}`,
-    message: { error: `Rate limit exceeded for ${endpoint}` },
-  });
-}
+// Pre-created limiters for common use cases
+const publicLimiter = createLimiter('PUBLIC');
+const authLimiter = createLimiter('AUTH');
+const readLimiter = createLimiter('READ');
+const writeLimiter = createLimiter('WRITE');
+const bulkLimiter = createLimiter('BULK');
+const importLimiter = createLimiter('IMPORT');
+const strictLimiter = createLimiter('STRICT');
+
+// Load balancing specific limiters
+const globalLimiter = createLimiter('PUBLIC');
+const apiLimiter = createLimiter('READ');
+const dashboardLimiter = createLimiter('READ');
+const heavyOpLimiter = createLimiter('BULK');
 
 /**
- * Skip rate limiting for health checks and internal requests
+ * Skip rate limiting for health checks
  */
 const skipHealthChecks = (req) => {
-  return req.path === '/health' || 
-         req.path === '/ready' || 
+  return req.path === '/api/health' || 
+         req.path === '/health' || 
+         req.path === '/ready' ||
          req.path === '/metrics' ||
          req.headers['x-internal-request'] === 'true';
 };
 
 module.exports = {
-  createRateLimiter,
-  globalLimiter,
+  createLimiter,
+  TIERS,
+  publicLimiter,
   authLimiter,
+  readLimiter,
+  writeLimiter,
+  bulkLimiter,
+  importLimiter,
+  strictLimiter,
+  // Load balancing specific
+  globalLimiter,
   apiLimiter,
   dashboardLimiter,
   heavyOpLimiter,
-  createRoleBasedLimiter,
-  createEndpointLimiter,
   skipHealthChecks,
 };

@@ -105,47 +105,31 @@ exports.requestOtp = async (req, res) => {
     // attempt so lockout applies.
     if (!user) {
       console.warn(`[REQUEST_OTP] Account not found. Email: ${email} | IP: ${clientIp}`);
-      await recordFailedAttempt(email, clientIp);
+      // SECURITY (Bug 11 fix): Prevent rate limit counter leakage for non-existent emails.
+      await bcrypt.compare(password, '$2a$12$dummyhashdummyhashdummyhashdummyhashdummy');
       await SystemLogService.log({
         type: 'AUTH_FAILURE', entityType: 'USER', entityTitle: email,
-        description: `Failed OTP request: User not found (${email})`,
-        metadata: { ip: clientIp, email }
+        description: 'Failed OTP request: User not found',
+        metadata: { ip: clientIp, email, reason: 'user_not_found' }
       });
       return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
 
-    if (user.LockUntil && new Date(user.LockUntil) > new Date()) {
-      await SystemLogService.log({
-        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
-        entityTitle: email, user: user.Id,
-        description: `Locked account OTP request: ${email}`,
-        metadata: { ip: clientIp }
-      });
-      return res.status(423).json({ success: false, message: GENERIC_BLOCK });
-    }
+    // SECURITY (Bug 12 fix): Rely on Redis-based lockout (accountLockoutCheck middleware)
+    // instead of DB LockUntil/LoginAttempts to avoid desync between the two systems.
 
     // SECURITY: verify the password EXACTLY as login does before minting any
     // session token. Previously this endpoint only checked email existence,
     // allowing full 2FA bypass.
     const isMatch = await bcrypt.compare(password, user.Password);
     if (!isMatch) {
-      const attempts = (user.LoginAttempts || 0) + 1;
-      let lockUntil = null;
-      if (attempts >= 5) lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-
-      await pool.request()
-        .input('id', sql.VarChar, user.Id)
-        .input('attempts', sql.Int, attempts)
-        .input('lockUntil', sql.DateTime, lockUntil)
-        .query('UPDATE Users SET LoginAttempts = @attempts, LockUntil = @lockUntil WHERE Id = @id');
-
-      console.warn(`[REQUEST_OTP] Password mismatch. Email: ${email} | IP: ${clientIp} | Attempt: ${attempts}`);
+      console.warn(`[REQUEST_OTP] Password mismatch. Email: ${email} | IP: ${clientIp}`);
 
       await SystemLogService.log({
         type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
         entityTitle: email, user: user.Id,
-        description: `OTP request password mismatch. Attempt: ${attempts}`,
-        metadata: { ip: clientIp, attempts }
+        description: 'Password mismatch',
+        metadata: { ip: clientIp, reason: 'password_mismatch', endpoint: 'request_otp' }
       });
 
       await recordFailedAttempt(email, clientIp);
@@ -153,11 +137,8 @@ exports.requestOtp = async (req, res) => {
       return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
 
-    // Password verified — clear failure counters (same as login).
+    // Password verified — clear failure counters in Redis (same as login).
     await recordSuccessfulLogin(email);
-    await pool.request()
-      .input('id', sql.VarChar, user.Id)
-      .query('UPDATE Users SET LoginAttempts = 0, LockUntil = NULL WHERE Id = @id');
 
     // From here on, every rejection uses the uniform success response so no
     // account state can be probed with valid credentials.
@@ -195,7 +176,7 @@ exports.requestOtp = async (req, res) => {
 
     // Generate temp token for OTP verification (must match verifyOtp's expected step)
     const tempToken = jwt.sign(
-      { userId: user.Id, email: user.Email, step: 'PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' },
+      { userId: user.Id, email: user.Email, step: 'LOGIN_PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' },
       config.jwt.secret,
       { expiresIn: '10m' }
     );
@@ -296,51 +277,38 @@ exports.login = async (req, res) => {
         description: `Failed login attempt: User not found (${email})`,
         metadata: { ip: clientIp, email }
       });
-      // Record failed attempt even for non-existent emails (prevents user enumeration timing attacks)
-      await recordFailedAttempt(email, clientIp);
+      // SECURITY (Bug 11 fix): Prevent rate limit counter leakage for non-existent emails.
+      // Do NOT call recordFailedAttempt with the real email — that would allow
+      // enumeration via progressive delay/lockout side channels. Instead, perform
+      // a dummy bcrypt comparison to maintain constant-time response characteristics.
+      await bcrypt.compare(password, '$2a$12$dummyhashdummyhashdummyhashdummyhashdummy');
       return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
     const user = result.recordset[0];
 
-    if (user.LockUntil && new Date(user.LockUntil) > new Date()) {
-      await SystemLogService.log({
-        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
-        entityTitle: email, user: user.Id,
-        description: `Locked login attempt: ${email}`,
-        metadata: { ip: clientIp }
-      });
-      return res.status(423).json({ success: false, message: GENERIC_BLOCK });
-    }
+    // SECURITY (Bug 12 fix): Rely on Redis-based lockout (accountLockoutCheck middleware)
+    // instead of DB LockUntil/LoginAttempts to avoid desync between the two systems.
+    // The middleware runs before this controller and returns 423 if locked.
 
     if (!user.IsActive) {
       await SystemLogService.log({
         type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
         entityTitle: email, user: user.Id,
-        description: `Deactivated account login attempt: ${email}`,
-        metadata: { ip: clientIp }
+        description: 'Deactivated account login attempt',
+        metadata: { ip: clientIp, reason: 'account_deactivated' }
       });
       return res.status(403).json({ success: false, message: GENERIC_BLOCK });
     }
 
     const isMatch = await bcrypt.compare(password, user.Password);
     if (!isMatch) {
-      const attempts = (user.LoginAttempts || 0) + 1;
-      let lockUntil = null;
-      if (attempts >= 5) lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-
-      await pool.request()
-        .input('id', sql.VarChar, user.Id)
-        .input('attempts', sql.Int, attempts)
-        .input('lockUntil', sql.DateTime, lockUntil)
-        .query('UPDATE Users SET LoginAttempts = @attempts, LockUntil = @lockUntil WHERE Id = @id');
-
-      console.warn(`[AUTH_FAILURE] Password mismatch. Email: ${email} | IP: ${clientIp} | Attempt: ${attempts}`);
+      console.warn(`[AUTH_FAILURE] Password mismatch. Email: ${email} | IP: ${clientIp}`);
 
       await SystemLogService.log({
         type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
         entityTitle: email, user: user.Id,
-        description: `Password mismatch. Attempt: ${attempts}`,
-        metadata: { ip: clientIp, attempts }
+        description: 'Password mismatch',
+        metadata: { ip: clientIp, reason: 'password_mismatch', endpoint: 'login' }
       });
 
       // Track failure in Redis for progressive delay and lockout
@@ -350,25 +318,41 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
 
-    // Success — clear all failure counters
+    // Success — clear all failure counters in Redis
     await recordSuccessfulLogin(email);
 
-    // Reset login attempts in DB
-    if (user.LoginAttempts > 0 || user.LockUntil) {
-      await pool.request()
-        .input('id', sql.VarChar, user.Id)
-        .query('UPDATE Users SET LoginAttempts = 0, LockUntil = NULL WHERE Id = @id');
-    }
-
+    // Update last seen
     await pool.request()
       .input('id', sql.VarChar, user.Id)
-      .query('UPDATE Users SET LoginAttempts = 0, LockUntil = NULL, LastSeen = dbo.GetEnvDate() WHERE Id = @id');
+      .query('UPDATE Users SET LastSeen = dbo.GetEnvDate() WHERE Id = @id');
+
+    // SECURITY (Bug 8 fix): Check seller association — consistent with requestOtp
+    const sellerCheck = await pool.request()
+      .input('userId', sql.VarChar, user.Id)
+      .query(`
+        SELECT COUNT(*) as sellerCount
+        FROM UserSellers US
+        JOIN Sellers S ON US.SellerId = S.Id
+        WHERE US.UserId = @userId AND S.IsActive = 1
+      `);
+
+    const sellerCount = sellerCheck.recordset[0]?.sellerCount || 0;
+
+    if (sellerCount === 0) {
+      await SystemLogService.log({
+        type: 'AUTH_FAILURE', entityType: 'USER', entityId: user.Id,
+        entityTitle: email, user: user.Id,
+        description: `Login blocked: no active seller associated (${email})`,
+        metadata: { ip: clientIp }
+      });
+      return res.status(403).json({ success: false, message: GENERIC_BLOCK });
+    }
 
     // Track force password reset (don't block login — wizard handles it)
     const needsPasswordReset = !!(user.ForcePasswordReset) || (user.PasswordExpiresAt && new Date(user.PasswordExpiresAt) < new Date());
 
     // Check trusted device — skip OTP if trusted
-    const fingerprint = Buffer.from(`${req.headers['user-agent'] || ''}|${clientIp}`).toString('base64').slice(0, 32);
+    const fingerprint = trustedDeviceService.generateFingerprint(req, clientIp);
     const isTrustedDevice = await trustedDeviceService.isTrusted(user.Id, fingerprint);
 
     if (isTrustedDevice) {
@@ -377,13 +361,18 @@ exports.login = async (req, res) => {
       await pool.request().input('id', sql.VarChar, user.Id).input('token', sql.NVarChar, refreshToken)
         .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
       const resolvedUser = await getResolvedUserResponse(user, pool);
-      await SystemLogService.log({ type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id, entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id, description: `${resolvedUser.FirstName} logged in (trusted device)`, metadata: { ip: clientIp } });
+      await SystemLogService.log({
+        type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id,
+        entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id,
+        description: 'User logged in (trusted device)',
+        metadata: { ip: clientIp, method: 'trusted_device' }
+      });
       setRefreshCookie(res, refreshToken); // F2: additive cookie for browser sessions
       return res.json({ success: true, data: { user: resolvedUser, accessToken, refreshToken }, trustedDevice: true, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
     }
 
     // OTP REQUIRED — Generate temp token and send OTP
-    const tempToken = jwt.sign({ userId: user.Id, email: user.Email, step: 'PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' }, config.jwt.secret, { expiresIn: '10m' });
+    const tempToken = jwt.sign({ userId: user.Id, email: user.Email, step: 'LOGIN_PASSWORD_VERIFIED', purpose: 'OTP_VERIFICATION' }, config.jwt.secret, { expiresIn: '10m' });
 
     try {
       const otpResult = await otpService.sendOtp(user.Id, user.Email, 'LOGIN', { ipAddress: clientIp, userAgent: req.headers['user-agent'] });
@@ -392,7 +381,9 @@ exports.login = async (req, res) => {
       return res.status(429).json({ success: false, message: otpError.message || 'Failed to send verification code' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    // SECURITY (Bug 17 fix): Don't leak internal error details to client
+    console.error('[AUTH] Login error:', error.message, error.stack);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
@@ -434,7 +425,14 @@ exports.refreshToken = async (req, res) => {
     if (!user || user.RefreshToken !== refreshToken) return res.status(401).json({ success: false, message: 'Invalid token' });
     if (!user.IsActive) return res.status(403).json({ success: false, message: 'Deactivated' });
 
-    const tokens = generateTokens(user.Id);
+    // SECURITY (Bug 18 fix): Check if account is locked
+    if (user.LockUntil && new Date(user.LockUntil) > new Date()) {
+      return res.status(423).json({ success: false, message: 'Account locked' });
+    }
+
+    // SECURITY (Bug 5 fix): Preserve device fingerprint binding during token rotation
+    const fingerprint = decoded.fp || null;
+    const tokens = generateTokens(user.Id, fingerprint);
     await pool.request()
       .input('id', sql.VarChar, user.Id)
       .input('token', sql.NVarChar, tokens.refreshToken)
@@ -471,7 +469,8 @@ exports.logout = async (req, res) => {
         entityId: req.userId,
         entityTitle: 'User Session',
         user: req.userId,
-        description: 'User logged out'
+        description: 'User logged out',
+        metadata: { ip: getClientIp(req) }
       });
     }
 
@@ -626,31 +625,49 @@ exports.changePasswordWithOtp = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const historyResult = await pool.request()
-      .input('id', sql.VarChar, decoded.userId)
-      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
-    for (const row of historyResult.recordset) {
-      if (await bcrypt.compare(newPassword, row.PasswordHash)) {
-        return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
+    // SECURITY (Bug 7 fix): Use transaction to prevent password history race condition
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      // Check password history within transaction
+      const historyResult = await transaction.request()
+        .input('id', sql.VarChar, decoded.userId)
+        .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
+      for (const row of historyResult.recordset) {
+        if (await bcrypt.compare(newPassword, row.PasswordHash)) {
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
+        }
       }
+
+      const hashed = await bcrypt.hash(newPassword, 12);
+
+      const histId = require('crypto').randomBytes(12).toString('hex');
+      await transaction.request()
+        .input('id', sql.VarChar, decoded.userId)
+        .input('hash', sql.NVarChar, user.Password)
+        .input('hid', sql.VarChar, histId)
+        .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
+
+      await transaction.request()
+        .input('id', sql.VarChar, decoded.userId)
+        .input('pw', sql.NVarChar, hashed)
+        .query(`UPDATE Users SET Password = @pw, ForcePasswordReset = 0, 
+                PasswordChangedAt = dbo.GetEnvDate(), 
+                PasswordExpiresAt = DATEADD(day, 90, dbo.GetEnvDate()),
+                RefreshToken = NULL, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
+
+      // SECURITY (Bug 14 fix): Invalidate any existing password reset tokens for this user
+      await transaction.request()
+        .input('userId', sql.VarChar, decoded.userId)
+        .query(`UPDATE PasswordResets SET UsedAt = dbo.GetEnvDate() WHERE UserId = @userId AND UsedAt IS NULL`);
+
+      await transaction.commit();
+    } catch (txError) {
+      try { await transaction.rollback(); } catch (_) {}
+      throw txError;
     }
-
-    const hashed = await bcrypt.hash(newPassword, 12);
-
-    const histId = require('crypto').randomBytes(12).toString('hex');
-    await pool.request()
-      .input('id', sql.VarChar, decoded.userId)
-      .input('hash', sql.NVarChar, user.Password)
-      .input('hid', sql.VarChar, histId)
-      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
-
-    await pool.request()
-      .input('id', sql.VarChar, decoded.userId)
-      .input('pw', sql.NVarChar, hashed)
-      .query(`UPDATE Users SET Password = @pw, ForcePasswordReset = 0, 
-              PasswordChangedAt = dbo.GetEnvDate(), 
-              PasswordExpiresAt = DATEADD(day, 90, dbo.GetEnvDate()),
-              RefreshToken = NULL, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
 
     await tokenBlacklist.blacklistUser(decoded.userId);
 
@@ -681,31 +698,49 @@ exports.changePassword = async (req, res) => {
     // SECURITY: enforce documented password policy on the new password.
     if (!assertPasswordPolicy(res, newPassword)) return;
 
-    const historyResult = await pool.request()
-      .input('id', sql.VarChar, req.userId)
-      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
-    for (const row of historyResult.recordset) {
-      if (await bcrypt.compare(newPassword, row.PasswordHash)) {
-        return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
+    // SECURITY (Bug 7 fix): Use transaction to prevent password history race condition
+    const transaction = new sql.Transaction(pool);
+    try {
+      await transaction.begin();
+
+      // Check password history within transaction
+      const historyResult = await transaction.request()
+        .input('id', sql.VarChar, req.userId)
+        .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
+      for (const row of historyResult.recordset) {
+        if (await bcrypt.compare(newPassword, row.PasswordHash)) {
+          await transaction.rollback();
+          return res.status(400).json({ success: false, message: 'Cannot reuse last 5 passwords' });
+        }
       }
+
+      const hashed = await bcrypt.hash(newPassword, 12);
+      
+      const histId = require('crypto').randomBytes(12).toString('hex');
+      await transaction.request()
+        .input('id', sql.VarChar, req.userId)
+        .input('hash', sql.NVarChar, user.Password)
+        .input('hid', sql.VarChar, histId)
+        .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
+
+      await transaction.request()
+        .input('id', sql.VarChar, req.userId)
+        .input('pw', sql.NVarChar, hashed)
+        .query(`UPDATE Users SET Password = @pw, ForcePasswordReset = 0, 
+                PasswordChangedAt = dbo.GetEnvDate(), 
+                PasswordExpiresAt = DATEADD(day, 90, dbo.GetEnvDate()),
+                RefreshToken = NULL, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
+
+      // SECURITY (Bug 14 fix): Invalidate any existing password reset tokens for this user
+      await transaction.request()
+        .input('userId', sql.VarChar, req.userId)
+        .query(`UPDATE PasswordResets SET UsedAt = dbo.GetEnvDate() WHERE UserId = @userId AND UsedAt IS NULL`);
+
+      await transaction.commit();
+    } catch (txError) {
+      try { await transaction.rollback(); } catch (_) {}
+      throw txError;
     }
-
-    const hashed = await bcrypt.hash(newPassword, 12);
-    
-    const histId = require('crypto').randomBytes(12).toString('hex');
-    await pool.request()
-      .input('id', sql.VarChar, req.userId)
-      .input('hash', sql.NVarChar, user.Password)
-      .input('hid', sql.VarChar, histId)
-      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@hid, @id, @hash, dbo.GetEnvDate())');
-
-    await pool.request()
-      .input('id', sql.VarChar, req.userId)
-      .input('pw', sql.NVarChar, hashed)
-      .query(`UPDATE Users SET Password = @pw, ForcePasswordReset = 0, 
-              PasswordChangedAt = dbo.GetEnvDate(), 
-              PasswordExpiresAt = DATEADD(day, 90, dbo.GetEnvDate()),
-              RefreshToken = NULL, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
 
     await tokenBlacklist.blacklistUser(req.userId);
 
@@ -735,7 +770,7 @@ exports.verifyOtp = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Session expired. Please login again.', code: 'SESSION_EXPIRED' });
     }
 
-    if (decoded.purpose !== 'OTP_VERIFICATION' || decoded.step !== 'PASSWORD_VERIFIED') {
+    if (decoded.purpose !== 'OTP_VERIFICATION' || decoded.step !== 'LOGIN_PASSWORD_VERIFIED') {
       return res.status(401).json({ success: false, message: 'Invalid session token' });
     }
 
@@ -748,7 +783,7 @@ exports.verifyOtp = async (req, res) => {
     await otpService.verifyOtp(user.Id, otp, 'LOGIN', { ipAddress: clientIp, userAgent });
 
     // Trust device if requested
-    const fingerprint = Buffer.from(`${userAgent || ''}|${clientIp}`).toString('base64').slice(0, 32);
+    const fingerprint = trustedDeviceService.generateFingerprint(req, clientIp);
     if (trustDevice) {
       await trustedDeviceService.trust(user.Id, fingerprint, { ipAddress: clientIp, userAgent });
     }
@@ -759,7 +794,12 @@ exports.verifyOtp = async (req, res) => {
       .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
 
     const resolvedUser = await getResolvedUserResponse(user, pool);
-    await SystemLogService.log({ type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id, entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id, description: `${resolvedUser.FirstName} logged in (OTP verified)`, metadata: { ip: clientIp } });
+    await SystemLogService.log({
+      type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id,
+      entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id,
+      description: 'User logged in (OTP verified)',
+      metadata: { ip: clientIp, method: 'otp', trustDevice: !!trustDevice }
+    });
 
     const needsPasswordReset = !!(user.ForcePasswordReset) || (user.PasswordExpiresAt && new Date(user.PasswordExpiresAt) < new Date());
     setRefreshCookie(res, refreshToken); // F2: additive cookie for browser sessions
@@ -781,6 +821,11 @@ exports.resendOtp = async (req, res) => {
     // SECURITY (RB1): algorithm pinning.
     try { decoded = jwt.verify(tempToken, config.jwt.secret, { algorithms: ['HS256'] }); } catch (e) { return res.status(401).json({ success: false, message: 'Session expired' }); }
 
+    // SECURITY: validate token purpose (Bug 2 fix - differentiate login vs password change)
+    if (decoded.purpose !== 'OTP_VERIFICATION' || decoded.step !== 'LOGIN_PASSWORD_VERIFIED') {
+      return res.status(401).json({ success: false, message: 'Invalid session token' });
+    }
+
     const pool = await getPool();
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT Email FROM Users WHERE Id = @id AND IsActive = 1');
     const user = result.recordset[0];
@@ -790,7 +835,9 @@ exports.resendOtp = async (req, res) => {
 
     res.json({ success: true, destination: otpResult.destination, expiresIn: otpResult.expiresIn, message: `New code sent to ${otpResult.destination}` });
   } catch (error) {
-    res.status(429).json({ success: false, message: error.message || 'Failed to resend code' });
+    // SECURITY (Bug 17 fix): Don't leak internal error details to client
+    console.error('[AUTH] Resend OTP error:', error.message, error.stack);
+    res.status(429).json({ success: false, message: 'Failed to resend code' });
   }
 };
 

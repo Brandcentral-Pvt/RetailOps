@@ -39,6 +39,7 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^8.0.11",
     "openai": "^6.38.0",
+    "opossum": "^10.0.0",
     "p-limit": "^7.3.0",
     "pm2": "^7.0.3",
     "puppeteer": "^25.0.4",
