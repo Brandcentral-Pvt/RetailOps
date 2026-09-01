@@ -589,7 +589,7 @@ const SellersPage = () => {
          </div>
           <div style={{ lineHeight: 1.2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{seller.name</Text>
+              <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary, #0f172a)' }}>{seller.name}</Text>
               {seller.isPriority && <Star size={12} fill="var(--text-warning, #ED6C02)" stroke="var(--text-warning, #ED6C02)" style={{ marginTop: '-2px' }} />}
            </div>
             {seller.email && canViewEmail && (
