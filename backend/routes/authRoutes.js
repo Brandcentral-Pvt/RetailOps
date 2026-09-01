@@ -37,10 +37,10 @@ router.post('/login',
     authController.login
 );
 router.post('/request-otp',
+    validate('requestOtp'),  // SECURITY: require email + password (2FA bypass fix)
+    accountLockoutCheck,     // Layer 2+3: Check lockout + progressive delay (runs first so locked accounts don't consume rate limit slots)
     requestOtpLimiter,       // Endpoint-specific: 3 req / 5 min
     ipRateLimiter,           // Layer 1: IP rate limit — shared with /login
-    validate('requestOtp'),  // SECURITY: require email + password (2FA bypass fix)
-    accountLockoutCheck,     // Layer 2+3: Check lockout + progressive delay
     authController.requestOtp
 );
 router.post('/verify-otp', otpLimiter, validate('verifyOtp'), authController.verifyOtp);

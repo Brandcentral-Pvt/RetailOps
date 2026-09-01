@@ -4,7 +4,7 @@
  * Uses in-memory + Redis for distributed deduplication
  */
 
-const { dedup, key: cacheKey } = require('./cacheService');
+const { dedup, key: cacheKey, acquireLock, get, set } = require('../services/cacheService');
 
 const inflight = new Map();
 const DEDUP_TTL_MS = parseInt(process.env.DEDUP_TTL_MS || '5000', 10);
@@ -122,18 +122,17 @@ function distributedDeduplication(options = {}) {
     
     try {
       // Try to set a lock for this request
-      const { acquireLock } = require('./cacheService');
       const { acquired, release } = await acquireLock(dedupKeyStr, ttlMs);
       
       if (!acquired) {
         // Another request is processing, wait for result
-        const cached = await require('./cacheService').get(redisKey);
+        const cached = await get(redisKey);
         if (cached !== null) {
           return res.json(cached);
         }
         // Wait briefly and try again
         await new Promise(r => setTimeout(r, 50));
-        const retry = await require('./cacheService').get(redisKey);
+        const retry = await get(redisKey);
         if (retry !== null) return res.json(retry);
       }
 
@@ -141,7 +140,7 @@ function distributedDeduplication(options = {}) {
       const originalJson = res.json.bind(res);
       res.json = (data) => {
         if (data && !res.headersSent) {
-          require('./cacheService').set(redisKey, data, Math.ceil(ttlMs / 1000));
+          set(redisKey, data, Math.ceil(ttlMs / 1000));
         }
         return originalJson(data);
       };
