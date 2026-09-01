@@ -1,9 +1,7 @@
 const { isGlobalUserRole } = require('../utils/roleUtils');
 const { sql, getPool } = require('../database/db');
 const { buildInClause } = require('../utils/sqlHelpers');
-const { BoundedCache } = require('../utils/memoryMonitor');
-
-const dashboardCache = new BoundedCache({ maxSize: 100, ttlMs: 60_000 });
+const cacheService = require('../services/cacheService');
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
 const parsePeriod = (period) => {
@@ -27,287 +25,311 @@ const parsePeriod = (period) => {
 };
 
 /**
- * Get dashboard summary data (SQL Version)
+ * Get dashboard summary data (Optimized SQL Version)
  */
 exports.getDashboardData = async (req, res) => {
   try {
     const { period = '30d', startDate: startQuery, endDate: endQuery, sellerId } = req.query;
     const userId = req.user?.Id || req.user?._id?.toString() || '';
 
-    // Check cache
     const cacheKey = `${userId}|${sellerId || 'all'}|${startQuery || ''}|${endQuery || ''}|${period}`;
-    const cached = dashboardCache.get(cacheKey);
-    if (cached) return res.json(cached);
 
-    const pool = await getPool();
+    // Use distributed cache with locking to prevent thundering herd
+    const data = await cacheService.rememberWithLock(
+      cacheKey,
+      async () => {
+        const pool = await getPool();
 
-    const roleName = req.user?.role?.name || req.user?.role;
-    const isGlobalUser = isGlobalUserRole(roleName);
-    const assignedSellers = req.user?.assignedSellers || [];
-    const sellerIds = assignedSellers.map(s => typeof s === 'string' ? s : s._id || s.Id);
+        const roleName = req.user?.role?.name || req.user?.role;
+        const isGlobalUser = isGlobalUserRole(roleName);
+        const assignedSellers = req.user?.assignedSellers || [];
+        const sellerIds = assignedSellers.map(s => typeof s === 'string' ? s : s._id || s.Id);
 
-    // 1. Base Filters & Merchant Selection
-    let finalSellerIds = sellerIds;
-    if (sellerId && sellerId !== 'all') {
-      const parsedSellerIds = sellerId.split(',').map(s => s.trim()).filter(Boolean);
-      const authorizedIds = parsedSellerIds.filter(id => isGlobalUser || sellerIds.includes(id));
-      if (authorizedIds.length > 0) {
-        finalSellerIds = authorizedIds;
-      } else {
-        // Unauthorized selected seller fallback
-        finalSellerIds = ['000000000000000000000000'];
-      }
-    }
+        // 1. Base Filters & Merchant Selection
+        let finalSellerIds = sellerIds;
+        if (sellerId && sellerId !== 'all') {
+          const parsedSellerIds = sellerId.split(',').map(s => s.trim()).filter(Boolean);
+          const authorizedIds = parsedSellerIds.filter(id => isGlobalUser || sellerIds.includes(id));
+          if (authorizedIds.length > 0) {
+            finalSellerIds = authorizedIds;
+          } else {
+            // Unauthorized selected seller fallback
+            finalSellerIds = ['000000000000000000000000'];
+          }
+        }
 
-    const safeSellerIds = finalSellerIds.length > 0 ? finalSellerIds : ['000000000000000000000000'];
-    const useWideFilters = isGlobalUser && (!sellerId || sellerId === 'all');
+        const safeSellerIds = finalSellerIds.length > 0 ? finalSellerIds : ['000000000000000000000000'];
+        const useWideFilters = isGlobalUser && (!sellerId || sellerId === 'all');
 
-    let sellerFilter = '';
-    let asinFilter = '';
-    let alertFilter = '';
-    let sellerParams = [];
+        let sellerFilter = '';
+        let asinFilter = '';
+        let alertFilter = '';
+        let sellerParams = [];
 
-    if (!useWideFilters && safeSellerIds.length > 0) {
-      sellerParams = safeSellerIds;
-      const placeholders = safeSellerIds.map((_, i) => `@dashSeller_${i}`).join(',');
-      sellerFilter = 'WHERE Id IN (' + placeholders + ')';
-      asinFilter = 'WHERE SellerId IN (' + placeholders + ')';
-      alertFilter = 'WHERE SellerId IN (' + placeholders + ')';
-    }
+        if (!useWideFilters && safeSellerIds.length > 0) {
+          sellerParams = safeSellerIds;
+          const placeholders = safeSellerIds.map((_, i) => `@dashSeller_${i}`).join(',');
+          sellerFilter = 'WHERE Id IN (' + placeholders + ')';
+          asinFilter = 'WHERE SellerId IN (' + placeholders + ')';
+          alertFilter = 'WHERE SellerId IN (' + placeholders + ')';
+        }
 
-    const buildDashReq = () => {
-      const r = pool.request();
-      sellerParams.forEach((val, i) => r.input(`dashSeller_${i}`, sql.VarChar, val));
-      return r;
-    };
+        const buildDashReq = () => {
+          const r = pool.request();
+          sellerParams.forEach((val, i) => r.input(`dashSeller_${i}`, sql.VarChar, val));
+          return r;
+        };
 
-    // 2. Aggregate Counts (parallel independent queries - each with own request)
-    const [
-      sellerCountsResult,
-      asinCountsResult,
-      alertsResult,
-      userActionStatsResult,
-      teamActionStatsPromise
-    ] = await Promise.all([
-      buildDashReq().query(`
-        SELECT 
-          COUNT(*) as Total,
-          SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) as Active
-        FROM Sellers ${sellerFilter}
-      `),
-      buildDashReq().query(`
-        SELECT 
-          COUNT(*) as Total,
-          SUM(CASE WHEN Status IN ('Active', 'Scraping') THEN 1 ELSE 0 END) as Active,
-          SUM(CASE WHEN Status IN ('Active', 'Scraping') AND (StockLevel = 0 OR StockLevel IS NULL) THEN 1 ELSE 0 END) as OutOfStock,
-          SUM(CASE WHEN CreatedAt >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) THEN 1 ELSE 0 END) as NewThisMonth,
-          SUM(ISNULL(CurrentPrice, 0)) as PortfolioValue
-        FROM Asins ${asinFilter}
-      `),
-      buildDashReq().query(`
-        SELECT TOP 5 Id, Severity, Message, CreatedAt 
-        FROM Alerts ${alertFilter} 
-        ORDER BY CreatedAt DESC
-      `),
-      pool.request()
-        .input('userId', sql.VarChar, req.user.Id || req.user._id.toString())
-        .query(`
-          SELECT Status, COUNT(*) as Count 
-          FROM Actions 
-          WHERE AssignedTo = @userId 
-          GROUP BY Status
-        `),
-      isGlobalUser
-        ? pool.request().query(`
-            SELECT Status, COUNT(*) as Count FROM Actions GROUP BY Status
+        // 2. Aggregate Counts - Combined into fewer queries
+        const sellerCountsResult = await buildDashReq().query(`
+          SELECT 
+            COUNT(*) as Total,
+            SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) as Active
+          FROM Sellers ${sellerFilter}
+        `);
+
+        const [
+          asinCountsResult,
+          alertsResult,
+          userActionStatsResult,
+          teamActionStatsPromise,
+          asinsGroupedResult,
+          sellersMapResult
+        ] = await Promise.all([
+          buildDashReq().query(`
+            SELECT 
+              COUNT(*) as Total,
+              SUM(CASE WHEN Status IN ('Active', 'Scraping') THEN 1 ELSE 0 END) as Active,
+              SUM(CASE WHEN Status IN ('Active', 'Scraping') AND (StockLevel = 0 OR StockLevel IS NULL) THEN 1 ELSE 0 END) as OutOfStock,
+              SUM(CASE WHEN CreatedAt >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) THEN 1 ELSE 0 END) as NewThisMonth,
+              SUM(ISNULL(CurrentPrice, 0)) as PortfolioValue
+            FROM Asins ${asinFilter}
+          `),
+          buildDashReq().query(`
+            SELECT TOP 5 Id, Severity, Message, CreatedAt 
+            FROM Alerts ${alertFilter} 
+            ORDER BY CreatedAt DESC
+          `),
+          pool.request()
+            .input('userId', sql.VarChar, req.user.Id || req.user._id.toString())
+            .query(`
+              SELECT Status, COUNT(*) as Count 
+              FROM Actions 
+              WHERE AssignedTo = @userId 
+              GROUP BY Status
+            `),
+          isGlobalUser
+            ? pool.request().query(`
+                SELECT Status, COUNT(*) as Count FROM Actions GROUP BY Status
+              `)
+            : Promise.resolve({ recordset: [] }),
+          // Pre-fetch for marketplace distribution
+          buildDashReq().query(`
+            SELECT SellerId, COUNT(*) as Count 
+            FROM Asins
+            ${asinFilter}
+            GROUP BY SellerId
+          `),
+          pool.request().query(`
+            SELECT Id, Marketplace FROM Sellers
           `)
-        : Promise.resolve({ recordset: [] })
-    ]);
+        ]);
 
-    const sellerCounts = sellerCountsResult;
-    const asinCounts = asinCountsResult;
-    const { recordset: userActionRows } = userActionStatsResult;
+        const asinCounts = asinCountsResult;
+        const { recordset: userActionRows } = userActionStatsResult;
 
-    const userStats = { pending: 0, inProgress: 0, review: 0, completed: 0, total: 0 };
-    userActionRows.forEach(row => {
-      const status = row.Status?.toLowerCase();
-      if (status === 'pending') userStats.pending = row.Count;
-      else if (status === 'in_progress') userStats.inProgress = row.Count;
-      else if (status === 'review') userStats.review = row.Count;
-      else if (status === 'completed') userStats.completed = row.Count;
-      userStats.total += row.Count;
-    });
+        const userStats = { pending: 0, inProgress: 0, review: 0, completed: 0, total: 0 };
+        userActionRows.forEach(row => {
+          const status = row.Status?.toLowerCase();
+          if (status === 'pending') userStats.pending = row.Count;
+          else if (status === 'in_progress') userStats.inProgress = row.Count;
+          else if (status === 'review') userStats.review = row.Count;
+          else if (status === 'completed') userStats.completed = row.Count;
+          userStats.total += row.Count;
+        });
 
-    let teamStats = null;
-    if (isGlobalUser) {
-      const teamActionStats = teamActionStatsPromise;
-      teamStats = { pending: 0, inProgress: 0, review: 0, completed: 0, total: 0 };
-      teamActionStats.recordset.forEach(row => {
-        const status = row.Status?.toLowerCase();
-        if (status === 'pending') teamStats.pending = row.Count;
-        else if (status === 'in_progress') teamStats.inProgress = row.Count;
-        else if (status === 'review') teamStats.review = row.Count;
-        else if (status === 'completed') teamStats.completed = row.Count;
-        teamStats.total += row.Count;
-      });
-    }
+        let teamStats = null;
+        if (isGlobalUser) {
+          const teamActionStats = teamActionStatsPromise;
+          teamStats = { pending: 0, inProgress: 0, review: 0, completed: 0, total: 0 };
+          teamActionStats.recordset.forEach(row => {
+            const status = row.Status?.toLowerCase();
+            if (status === 'pending') teamStats.pending = row.Count;
+            else if (status === 'in_progress') teamStats.inProgress = row.Count;
+            else if (status === 'review') teamStats.review = row.Count;
+            else if (status === 'completed') teamStats.completed = row.Count;
+            teamStats.total += row.Count;
+          });
+        }
 
-    // 5. Date Range Logic
-    let startDate, endDate, days;
-    let cleanStart = (startQuery === 'null' || startQuery === 'undefined') ? null : startQuery;
-    let cleanEnd = (endQuery === 'null' || endQuery === 'undefined') ? null : endQuery;
+        // 5. Date Range Logic
+        let startDate, endDate, days;
+        let cleanStart = (startQuery === 'null' || startQuery === 'undefined') ? null : startQuery;
+        let cleanEnd = (endQuery === 'null' || endQuery === 'undefined') ? null : endQuery;
 
-    if (cleanStart && cleanEnd) {
-      startDate = new Date(cleanStart);
-      endDate = new Date(cleanEnd);
-      days = Math.max(1, Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
-    } else {
-      days = Math.min(parsePeriod(period), 365);
-      endDate = new Date();
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-    }
+        if (cleanStart && cleanEnd) {
+          startDate = new Date(cleanStart);
+          endDate = new Date(cleanEnd);
+          days = Math.max(1, Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
+        } else {
+          days = Math.min(parsePeriod(period), 365);
+          endDate = new Date();
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - days);
+        }
 
-    // 6. Ads Performance & Charts
-    // Join Asins with AdsPerformance
-    const adsDataResult = await buildDashReq()
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate)
-      .query(`
-        SELECT 
-          A.AsinCode,
-          AP.Date,
-          AP.AdSales,
-          AP.AdSpend,
-          AP.Orders,
-          AP.OrganicSales,
-          AP.Impressions,
-          AP.Clicks
-        FROM AdsPerformance AP
-        JOIN Asins A ON AP.Asin = A.AsinCode
-        WHERE AP.Date BETWEEN @startDate AND @endDate
-        AND AP.ReportType = 'daily'
-        ${asinFilter ? asinFilter.replace('WHERE', 'AND') : ''}
-      `);
+        // Process marketplace distribution in parallel with ads data
+        const [
+          adsDataResult,
+          sellersMapResult2,
+          topAsinsResult
+        ] = await Promise.all([
+          // Ads data
+          buildDashReq()
+            .input('startDate', sql.Date, startDate)
+            .input('endDate', sql.Date, endDate)
+            .query(`
+              SELECT 
+                A.AsinCode,
+                AP.Date,
+                AP.AdSales,
+                AP.AdSpend,
+                AP.Orders,
+                AP.OrganicSales,
+                AP.Impressions,
+                AP.Clicks
+              FROM AdsPerformance AP
+              JOIN Asins A ON AP.Asin = A.AsinCode
+              WHERE AP.Date BETWEEN @startDate AND @endDate
+              AND AP.ReportType = 'daily'
+              ${asinFilter ? asinFilter.replace('WHERE', 'AND') : ''}
+            `),
+          // Sellers map for marketplace distribution
+          pool.request().query(`
+            SELECT Id, Marketplace FROM Sellers
+          `),
+          // Top ASINs
+          pool.request()
+            .input('startDate', sql.Date, startDate)
+            .input('endDate', sql.Date, endDate)
+            .query(`
+            SELECT TOP 200 
+              A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice,
+              S.Name as SellerName,
+              SUM(ISNULL(AP.AdSales, 0)) as TotalAdSales,
+              SUM(ISNULL(AP.OrganicSales, 0)) as TotalOrganicSales,
+              SUM(ISNULL(AP.AdSpend, 0)) as TotalAdSpend,
+              SUM(ISNULL(AP.Orders, 0)) as TotalOrders
+            FROM Asins A
+            JOIN Sellers S ON A.SellerId = S.Id
+            LEFT JOIN AdsPerformance AP ON A.AsinCode = AP.Asin
+            ${asinFilter}
+            GROUP BY A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice, S.Name
+            ORDER BY TotalOrders DESC
+          `)
+        ]);
 
-    const adsData = adsDataResult.recordset || [];
-    const totalAdSales = adsData.reduce((sum, ad) => sum + (ad.AdSales || 0), 0);
-    const totalAdSpend = adsData.reduce((sum, ad) => sum + (ad.AdSpend || 0), 0);
-    const totalOrders = adsData.reduce((sum, ad) => sum + (ad.Orders || 0), 0);
-    const totalCatalogValue = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].PortfolioValue || 0 : 0;
+        const adsData = adsDataResult.recordset || [];
+        const totalAdSales = adsData.reduce((sum, ad) => sum + (ad.AdSales || 0), 0);
+        const totalAdSpend = adsData.reduce((sum, ad) => sum + (ad.AdSpend || 0), 0);
+        const totalOrders = adsData.reduce((sum, ad) => sum + (ad.Orders || 0), 0);
+        const totalCatalogValue = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].PortfolioValue || 0 : 0;
 
-    const activeAsinCount = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Active || 0 : 0;
-    const kpi = [
-      { id: 1, title: 'Total Ad Sales', value: `₹${totalAdSales.toLocaleString()}`, icon: 'bi-graph-up-arrow', trend: totalOrders, trendType: 'positive' },
-      { id: 2, title: 'Total Ad Spend', value: `₹${totalAdSpend.toLocaleString()}`, icon: 'bi-cash-stack', trend: 0, trendType: 'neutral' },
-      { id: 3, title: 'Active ASINs', value: activeAsinCount.toLocaleString(), icon: 'bi-box-seam', trend: activeAsinCount, trendType: 'positive' },
-      { id: 4, title: 'Catalog Value', value: `₹${totalCatalogValue.toLocaleString()}`, icon: 'bi-currency-rupee', trend: 0, trendType: 'neutral' },
-    ];
+        const activeAsinCount = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Active || 0 : 0;
+        const kpi = [
+          { id: 1, title: 'Total Ad Sales', value: `₹${totalAdSales.toLocaleString()}`, icon: 'bi-graph-up-arrow', trend: totalOrders, trendType: 'positive' },
+          { id: 2, title: 'Total Ad Spend', value: `₹${totalAdSpend.toLocaleString()}`, icon: 'bi-cash-stack', trend: 0, trendType: 'neutral' },
+          { id: 3, title: 'Active ASINs', value: activeAsinCount.toLocaleString(), icon: 'bi-box-seam', trend: activeAsinCount, trendType: 'positive' },
+          { id: 4, title: 'Catalog Value', value: `₹${totalCatalogValue.toLocaleString()}`, icon: 'bi-currency-rupee', trend: 0, trendType: 'neutral' },
+        ];
 
-    // Chart processing
-    const { revenueData, areaSeries, stackedBarSeries, adsPerformanceSeries, labels } = processChartData(days, adsData, endDate);
+        // Process chart data
+        const { revenueData, areaSeries, stackedBarSeries, adsPerformanceSeries, labels, ordersSeries, unitsSeries, acosSeries } = processChartData(days, adsDataResult.recordset || [], endDate);
 
-    // 7. Optimized Marketplace Distribution (Safe high-performance decouple)
-    // First: Get raw counts using ONLY covering index on Asins (super fast)
-    const asinsGroupedResult = await buildDashReq().query(`
-      SELECT SellerId, COUNT(*) as Count 
-      FROM Asins
-      ${asinFilter}
-      GROUP BY SellerId
-    `);
+        // Marketplace distribution
+        const asinsGroupedResult2 = await buildDashReq().query(`
+          SELECT SellerId, COUNT(*) as Count 
+          FROM Asins
+          ${asinFilter}
+          GROUP BY SellerId
+        `);
 
-    // Second: Get small Sellers map
-    const sellersMapResult = await pool.request().query(`
-      SELECT Id, Marketplace FROM Sellers
-    `);
+        // Build marketplace counts
+        const marketplaceCounts = {};
+        const sellersMap = {};
+        sellersMapResult2.recordset.forEach(s => {
+          sellersMap[s.Id] = s.Marketplace || 'Other';
+        });
 
-    // Map to hold aggregated counts per marketplace
-    const marketplaceCounts = {};
-    const sellersMap = {};
-    
-    // Build quick lookup map for sellers
-    sellersMapResult.recordset.forEach(s => {
-      sellersMap[s.Id] = s.Marketplace || 'Other';
-    });
+        asinsGroupedResult2.recordset.forEach(row => {
+          const mkt = sellersMap[row.SellerId] || 'Other';
+          marketplaceCounts[mkt] = (marketplaceCounts[mkt] || 0) + row.Count;
+        });
 
-    // Aggregate the grouped results into marketplaces
-    asinsGroupedResult.recordset.forEach(row => {
-      const mkt = sellersMap[row.SellerId] || 'Other';
-      marketplaceCounts[mkt] = (marketplaceCounts[mkt] || 0) + row.Count;
-    });
+        const categoryData = Object.entries(marketplaceCounts).map(([mkt, count], idx) => ({
+          name: mkt,
+          data: [count],
+          color: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'][idx % 5]
+        }));
 
-    // Transform into expected structure
-    const categoryData = Object.entries(marketplaceCounts).map(([mkt, count], idx) => ({
-      name: mkt,
-      data: [count],
-      color: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'][idx % 5]
-    }));
+        const topAsinsResult2 = await pool.request()
+          .input('startDate', sql.Date, startDate)
+          .input('endDate', sql.Date, endDate)
+          .query(`
+          SELECT TOP 200 
+            A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice,
+            S.Name as SellerName,
+            SUM(ISNULL(AP.AdSales, 0)) as TotalAdSales,
+            SUM(ISNULL(AP.OrganicSales, 0)) as TotalOrganicSales,
+            SUM(ISNULL(AP.AdSpend, 0)) as TotalAdSpend,
+            SUM(ISNULL(AP.Orders, 0)) as TotalOrders
+          FROM Asins A
+          JOIN Sellers S ON A.SellerId = S.Id
+          LEFT JOIN AdsPerformance AP ON A.AsinCode = AP.Asin
+          ${asinFilter}
+          GROUP BY A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice, S.Name
+          ORDER BY TotalOrders DESC
+        `);
 
-    // 8. Top ASINs Table
-    const topAsinsResult = await pool.request()
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate)
-      .query(`
-      SELECT TOP 200 
-        A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice,
-        S.Name as SellerName,
-        SUM(ISNULL(AP.AdSales, 0)) as TotalAdSales,
-        SUM(ISNULL(AP.OrganicSales, 0)) as TotalOrganicSales,
-        SUM(ISNULL(AP.AdSpend, 0)) as TotalAdSpend,
-        SUM(ISNULL(AP.Orders, 0)) as TotalOrders
-      FROM Asins A
-      JOIN Sellers S ON A.SellerId = S.Id
-      LEFT JOIN AdsPerformance AP ON A.AsinCode = AP.Asin
-      ${asinFilter}
-      GROUP BY A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice, S.Name
-      ORDER BY TotalOrders DESC
-    `);
+        const tableData = topAsinsResult2.recordset.map(asin => {
+          const totalRev = asin.TotalAdSales + asin.TotalOrganicSales;
+          const acos = asin.TotalAdSales > 0 ? (asin.TotalAdSpend / asin.TotalAdSales) * 100 : 0;
+          return {
+            sku: asin.Sku || asin.AsinCode,
+            asin: asin.AsinCode,
+            title: asin.Title || 'Unknown Product',
+            category: asin.Category || 'Uncategorized',
+            revenue: totalRev || asin.CurrentPrice || 0,
+            units: asin.TotalOrders || 0,
+            acos: acos.toFixed(1) + '%',
+          };
+        });
 
-    const tableData = topAsinsResult.recordset.map(asin => {
-      const totalRev = asin.TotalAdSales + asin.TotalOrganicSales;
-      const acos = asin.TotalAdSales > 0 ? (asin.TotalAdSpend / asin.TotalAdSales) * 100 : 0;
-      return {
-        sku: asin.Sku || asin.AsinCode,
-        asin: asin.AsinCode,
-        title: asin.Title || 'Unknown Product',
-        category: asin.Category || 'Uncategorized',
-        revenue: totalRev || asin.CurrentPrice || 0,
-        units: asin.TotalOrders || 0,
-        acos: acos.toFixed(1) + '%',
-      };
-    });
+        // Return the complete response object
+        return {
+          kpi,
+          userStats,
+          teamStats,
+          revenueData,
+          areaSeries,
+          stackedBarSeries,
+          adsPerformanceSeries,
+          labels,
+          ordersSeries,
+          unitsSeries,
+          acosSeries,
+          categoryData,
+          tableData,
+          sellerCounts: sellerCountsResult.recordset[0],
+          asinCounts: asinCountsResult.recordset[0],
+          alerts: alertsResult.recordset,
+        };
+      },
+      60,  // TTL: 60 seconds
+      30   // Lock TTL: 30 seconds
+    );
 
-    const response = {
-      kpi,
-      revenue: revenueData,
-      areaSeries,
-      stackedBarSeries,
-      adsPerformanceSeries,
-      labels,
-      category: categoryData,
-      tableData,
-      roas: totalAdSpend > 0 ? (totalAdSales / totalAdSpend).toFixed(2) : '0.00',
-      dailySpend: days > 0 ? (totalAdSpend / days).toFixed(0) : 0,
-      userStats,
-      teamStats,
-      alerts: alertsResult.recordset.map(a => ({
-        id: a.Id,
-        type: a.Severity || 'info',
-        message: a.Message || 'Alert',
-        time: formatTimeAgo(a.CreatedAt),
-      })),
-      stats: {
-        totalSellers: (sellerCounts.recordset && sellerCounts.recordset[0]) ? sellerCounts.recordset[0].Total || 0 : 0,
-        activeSellers: (sellerCounts.recordset && sellerCounts.recordset[0]) ? sellerCounts.recordset[0].Active || 0 : 0,
-        totalAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Total || 0 : 0,
-        activeAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Active || 0 : 0,
-        outOfStockAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].OutOfStock || 0 : 0,
-        newThisMonthAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].NewThisMonth || 0 : 0,
-      }
-    };
-
-    dashboardCache.set(cacheKey, response);
-    res.json(response);
+    return res.json(data);
   } catch (error) {
     if (!res.headersSent) {
       res.status(500).json({ error: error.message });

@@ -1,6 +1,5 @@
 // contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CometChatUIKit } from '@cometchat/chat-uikit-react';
 import { authApi } from '../services/api';
 import { queryClient } from '../lib/queryClient';
 import { disconnectAll as disconnectRealtime } from '../services/realtimeService';
@@ -232,22 +231,17 @@ export const AuthProvider = ({ children }) => {
         });
         clearRefreshToken();
 
-        // 3) CometChat teardown — best-effort, non-blocking.
-        try {
-            Promise.resolve(CometChatUIKit.logout()).catch(() => { /* noop */ });
-        } catch { /* UIKit may not be initialized */ }
-
-        // 4) Socket teardown — realtimeService singleton + per-user SocketContext socket.
+        // 3) Socket teardown — realtimeService singleton + per-user SocketContext socket.
         try { disconnectRealtime(); } catch { /* noop */ }
         try { disconnectActiveSocket(); } catch { /* noop */ }
 
-        // 5) Drop all cached React Query state (in-memory data from the dead session).
+        // 4) Drop all cached React Query state (in-memory data from the dead session).
         try { queryClient.clear(); } catch { /* noop */ }
 
         setUser(null);
         setError(null);
 
-        // 6) Full reload so every in-memory state dies with the session.
+        // 5) Full reload so every in-memory state dies with the session.
         if (window.location.pathname !== '/login') {
             window.location.href = '/login';
         }

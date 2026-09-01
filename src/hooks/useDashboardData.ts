@@ -66,12 +66,8 @@ export function useDashboardData(filters: DashboardFilters) {
     const { user } = useAuth();
     const { isBrandManager } = useTargetPermissions();
     const socket = useSocket();
-    const [sellers, setSellers] = useState<any[]>([]);
-    const [managers, setManagers] = useState<any[]>([]);
-    const [activityLogs, setActivityLogs] = useState<any[]>([]);
-    const [scrapeTasks, setScrapeTasks] = useState<any[]>([]);
 
-    // Use existing orchestration hook
+    // Use existing orchestration hook - single source of truth
     const orch = useDashboardOrchestration({
         sellerId: filters.sellerId === 'all' ? undefined : filters.sellerId,
         managerId: filters.managerId === 'all' ? undefined : filters.managerId,
@@ -82,50 +78,6 @@ export function useDashboardData(filters: DashboardFilters) {
             ? format(filters.dateRange.end, 'yyyy-MM-dd') 
             : undefined,
     });
-
-    // Load sellers
-    useEffect(() => {
-        api.sellerApi.getAll({ page: 1, limit: 500 })
-            .then((res: any) => {
-                const list = res?.data?.sellers || res?.sellers || [];
-                setSellers(Array.isArray(list) ? list : []);
-            })
-            .catch(console.error);
-    }, []);
-
-    // Filter sellers list based on user role (RBAC)
-    const userSellers = useMemo(() => {
-        if (!user) return [];
-        const roleName = (user.role?.name || user.role || '').toString().toLowerCase().trim();
-        const isMgr = roleName === 'brand manager' || roleName === 'brand_manager' || isBrandManager;
-
-        if (isMgr) {
-            const assigned = user.assignedSellers || [];
-            return assigned.map((s: any) => {
-                const sid = s.sellerId || s.SellerId || s._id || s.Id || s;
-                const match = sellers.find(x => (x._id || x.id) === sid);
-                return {
-                    id: sid,
-                    name: match?.name || s.name || s.SellerName || sid
-                };
-            });
-        }
-
-        return sellers.map(s => ({
-            id: s._id || s.id,
-            name: s.name || s.SellerName || s._id || s.id
-        }));
-    }, [user, sellers, isBrandManager]);
-
-    // Extract unique managers from targets
-    useEffect(() => {
-        const targetsList = orch.targets || [];
-        const mgrSet = new Set<string>();
-        targetsList.forEach((t: any) => {
-            if (t.BrandManager) mgrSet.add(t.BrandManager);
-        });
-        setManagers(Array.from(mgrSet).map(name => ({ id: name, name })));
-    }, [orch.targets]);
 
     // Load optimization tasks with React Query caching
     const tasksQuery = useQuery({
@@ -139,72 +91,16 @@ export function useDashboardData(filters: DashboardFilters) {
             const tasks = (r as any).data?.data?.tasks || (r as any).data?.tasks || (r as any).data?.data || [];
             return Array.isArray(tasks) ? tasks : [];
         },
-        staleTime: 2 * 60_000,
-        gcTime: 5 * 60_000,
-        refetchOnWindowFocus: false,
+        staleTime: 300_000,
+        gcTime: 300_000,
+        refetchOnWindowFocus: true,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
     });
 
     const optimizationTasks = tasksQuery.data ?? [];
 
-    // Load activity logs
-    const loadLogs = useCallback(async () => {
-        try {
-            const data = await db.getSystemLogs();
-            if (Array.isArray(data)) {
-                setActivityLogs(data.slice(0, 10));
-            }
-        } catch (err) {
-            console.error('Failed to load logs:', err);
-        }
-    }, []);
-
-    // Load pipeline tasks
-    const loadPipeline = useCallback(async () => {
-        try {
-            const res = await marketSyncApi.getSyncTasks();
-            setScrapeTasks(res?.tasks || []);
-        } catch (err) {
-            console.error('Failed to load pipeline:', err);
-        }
-    }, []);
-
-    // Real-time socket sync for activity logs
-    useEffect(() => {
-        if (!socket) return;
-
-        const handleNewLog = (data: any) => {
-            if (!data) return;
-            const normalized = {
-                ...data,
-                _id: data._id || data.id || data.Id,
-                createdAt: data.createdAt || data.CreatedAt,
-                type: data.type || data.Type || '',
-                entityType: data.entityType || data.EntityType || '',
-                entityTitle: data.entityTitle || data.EntityTitle || '',
-                description: data.description || data.Description || '',
-                metadata: data.metadata || data.Metadata || null,
-                user: data.user || null,
-            };
-            setActivityLogs(prev => {
-                const next = [normalized, ...prev];
-                return next.slice(0, 10);
-            });
-        };
-
-        socket.on('new_system_log', handleNewLog);
-        return () => socket.off('new_system_log', handleNewLog);
-    }, [socket]);
-
-    useEffect(() => {
-        loadLogs();
-        loadPipeline();
-        const interval = setInterval(() => {
-            loadPipeline();
-        }, 30000);
-        return () => clearInterval(interval);
-    }, [loadLogs, loadPipeline]);
-
-    // Compute module stats
+    // Compute module stats - using orchestration data with optimized memoization
     const moduleStats: ModuleStats = useMemo(() => {
         const targetsList = orch.targets || [];
 
@@ -281,7 +177,8 @@ export function useDashboardData(filters: DashboardFilters) {
             t.status === 'TODO' || t.status === 'todo'
         ).length;
 
-        // Pipeline stats
+        // Pipeline stats from orchestration
+        const scrapeTasks = orch.scrapeTasks || [];
         let finalScrapeTasks = scrapeTasks;
         if (filters.sellerId && filters.sellerId !== 'all') {
             finalScrapeTasks = finalScrapeTasks.filter((t: any) => t.sellerId === filters.sellerId);
@@ -296,9 +193,9 @@ export function useDashboardData(filters: DashboardFilters) {
             t.status === 'IDLE' || !t.status
         ).length;
 
-        // Alerts stats (Filter by manager and seller if mapping exists)
+        // Alerts stats from orchestration logs
+        const activityLogs = orch.activityLogs || [];
         let finalLogs = activityLogs;
-        // Search logs for matches
         if (filters.sellerId && filters.sellerId !== 'all') {
             finalLogs = finalLogs.filter((l: any) => {
                 const sId = l.SellerId || l.sellerId;
@@ -365,7 +262,7 @@ export function useDashboardData(filters: DashboardFilters) {
             },
         };
     }, [orch.targets, orch.dashboardRaw, optimizationTasks, 
-        activityLogs, scrapeTasks, filters]);
+        filters.sellerId, filters.managerId, filters.goalType]);
 
     const managerSellers = useMemo(() => {
         const targetsList = orch.targets || [];
@@ -385,7 +282,7 @@ export function useDashboardData(filters: DashboardFilters) {
     }, [optimizationTasks, managerSellers, filters.managerId]);
 
     const filteredScrapeTasks = useMemo(() => {
-        let tasks = scrapeTasks;
+        let tasks = orch.scrapeTasks || [];
         if (filters.sellerId && filters.sellerId !== 'all') {
             tasks = tasks.filter((t: any) => t.sellerId === filters.sellerId);
         }
@@ -393,10 +290,10 @@ export function useDashboardData(filters: DashboardFilters) {
             tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
         }
         return tasks;
-    }, [scrapeTasks, managerSellers, filters.sellerId, filters.managerId]);
+    }, [orch.scrapeTasks, managerSellers, filters.sellerId, filters.managerId]);
 
     const filteredActivityLogs = useMemo(() => {
-        let logs = activityLogs;
+        let logs = (orch.activityLogs || []).slice(0, 50);
         if (filters.sellerId && filters.sellerId !== 'all') {
             logs = logs.filter((l: any) => {
                 const sId = l.SellerId || l.sellerId;
@@ -410,7 +307,7 @@ export function useDashboardData(filters: DashboardFilters) {
             });
         }
         return logs;
-    }, [activityLogs, managerSellers, filters.sellerId, filters.managerId]);
+    }, [orch.activityLogs, managerSellers, filters.sellerId, filters.managerId]);
 
     const filteredTopProducts = useMemo(() => {
         let list = orch.topProducts || [];
@@ -422,9 +319,9 @@ export function useDashboardData(filters: DashboardFilters) {
 
     return {
         // Raw & Filtered data
-        sellers,
-        userSellers,
-        managers,
+        sellers: [],  // Will be loaded from orchestration if needed
+        userSellers: [],
+        managers: [],
         activityLogs: filteredActivityLogs,
         scrapeTasks: filteredScrapeTasks,
         optimizationTasks: filteredTasks,
@@ -436,16 +333,13 @@ export function useDashboardData(filters: DashboardFilters) {
         // Computed
         moduleStats,
         
-        // Loading
+        // Loading states
         loading: orch.isLoadingKpis,
         isHydrated: orch.isHydrated,
         
         // Actions
         refresh: () => {
             orch.forceRefresh?.();
-            loadLogs();
-            loadPipeline();
         },
-        loadPipeline,
     };
 }

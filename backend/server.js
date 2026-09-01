@@ -56,6 +56,15 @@ process.on('uncaughtException', (err) => {
 
 const asyncLocalStorage = require('./utils/asyncStorage');
 const apiCallLogger = require('./middleware/apiCallLogger');
+const {
+  initLoadBalancing,
+  applyGlobalMiddleware,
+  applyApiMiddleware,
+  applyCircuitBreakers,
+  createHealthCheck,
+  createReadyCheck,
+  loadShedding,
+} = require('./middleware/loadBalancing');
 
 const app = express();
 app.use((req, res, next) => {
@@ -82,7 +91,7 @@ app.use(cors({
   ].filter(Boolean),
   credentials: true
 }));
-// ── F-21 / RB8 / F4: Content-Security-Policy rollout ladder ────────────────
+// F-21 / RB8 / F4: Content-Security-Policy rollout ladder ────────────────
 //   1. NOW        — production ALWAYS receives the policy as
 //                   Content-Security-Policy-Report-Only (zero breakage; every
 //                   violation is surfaced in browser devtools/console for
@@ -92,10 +101,8 @@ app.use(cors({
 //                   Content-Security-Policy header instead of report-only.
 // Origins below were derived from the frontend bundle:
 //   - fonts.googleapis.com / fonts.gstatic.com  → Google Fonts (index.html, index.css)
-//   - cdn.jsdelivr.net                          → bootstrap-icons CSS+font, CometChat embed icons
+//   - cdn.jsdelivr.net                          → bootstrap-icons CSS+font
 //   - api.keepa.com                             → Keepa is called browser-direct today
-//   - *.cometchat.io (+wss)                     → CometChat REST/websocket endpoints
-//   - 'unsafe-inline' style-src                 → antd/cssinjs injects inline styles
 const ENABLE_STRICT_CSP = process.env.ENABLE_STRICT_CSP === 'true';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 app.use(helmet({
@@ -110,9 +117,8 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
       fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'], // ui-avatars, brandfetch, wikimedia, amazon images
-      // Chat media (voice notes/call recordings) are served from region-dependent CDNs.
       mediaSrc: ["'self'", 'blob:', 'https:'],
-      connectSrc: ["'self'", 'https://api.keepa.com', 'https://*.cometchat.io', 'wss://*.cometchat.io', 'https://*.cometchat.com', 'wss://*.cometchat.com'],
+      connectSrc: ["'self'", 'https://api.keepa.com'],
       frameAncestors: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -165,6 +171,11 @@ async function verifySqlConnection() {
 }
 
 verifySqlConnection();
+
+// Initialize load balancing services
+initLoadBalancing().catch(err => {
+  logger.error('Failed to initialize load balancing services', { error: err.message });
+});
 
 async function loadAutomationSetting() {
   const isEnabled = process.env.AUTOMATION_ENABLED !== 'false';
@@ -309,7 +320,6 @@ const teamRoutes = require('./routes/teamRoutes');
 const rulesetRoutes = require('./routes/rulesetRoutes');
 const objectiveRoutes = require('./routes/objectiveRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const chatRoutes = require('./routes/chatRoutes');
 const marketSyncRoutes = require('./routes/marketDataSyncRoutes');
 const growthExecutionRoutes = require('./routes/growthExecutionRoutes');
 const systemLogRoutes = require('./routes/systemLogRoutes');
@@ -334,6 +344,22 @@ const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
 
+// Apply load balancing middleware
+applyGlobalMiddleware(app);
+applyApiMiddleware(app);
+applyCircuitBreakers(app);
+
+// Load shedding middleware for high load protection
+app.use(loadShedding({
+  maxConcurrent: 200,
+  queueLimit: 100,
+  retryAfter: 10,
+}));
+
+// Health check endpoints (load balancing)
+app.get('/health', createHealthCheck());
+app.get('/ready', createReadyCheck());
+
 // Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
 app.use(require('./middleware/maintenanceMode'));
 
@@ -355,7 +381,6 @@ app.use('/api/keys', apiKeyRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/objectives', objectiveRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/chat', chatRoutes);
 app.use('/api/market-sync', marketSyncRoutes);
 app.use('/api/live-data', liveDataRoutes);
 app.use('/api', growthExecutionRoutes);

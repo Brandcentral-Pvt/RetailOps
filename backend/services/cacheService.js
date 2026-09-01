@@ -4,23 +4,21 @@ const logger = require('../utils/logger');
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const DEFAULT_TTL = parseInt(process.env.CACHE_DEFAULT_TTL || '300', 10);
 const PREFIX = process.env.CACHE_PREFIX || 'retailops:';
+const DEDUP_PREFIX = 'dedup:';
+const LOCK_PREFIX = 'lock:';
 
 let client = null;
 let enabled = true;
+const pendingRequests = new Map();
 
 function createClient() {
   const c = new Redis(REDIS_URL, {
-    retryStrategy: (times) => {
-      if (times > 5) {
-        logger.warn('Redis cache retry limit reached — disabling cache');
-        enabled = false;
-        return null;
-      }
-      return Math.min(times * 200, 3000);
-    },
     maxRetriesPerRequest: 3,
     enableOfflineQueue: false,
     lazyConnect: true,
+    family: 4,
+    connectTimeout: 10000,
+    commandTimeout: 5000,
   });
 
   c.on('error', (err) => {
@@ -42,6 +40,14 @@ function createClient() {
 
 function key(...parts) {
   return `${PREFIX}${parts.join(':')}`;
+}
+
+function dedupKey(...parts) {
+  return `${PREFIX}${DEDUP_PREFIX}${parts.join(':')}`;
+}
+
+function lockKey(...parts) {
+  return `${PREFIX}${LOCK_PREFIX}${parts.join(':')}`;
 }
 
 async function connect() {
@@ -111,13 +117,109 @@ async function delPattern(pattern) {
   }
 }
 
+/**
+ * Request Deduplication - prevents duplicate concurrent requests for the same key
+ * Returns cached result if available, otherwise executes fetchFn once and caches
+ */
+async function dedup(cacheKey, fetchFn, ttl = DEFAULT_TTL) {
+  const fullKey = dedupKey(cacheKey);
+  
+  // Check local pending requests first (in-memory for same process)
+  if (pendingRequests.has(fullKey)) {
+    return pendingRequests.get(fullKey);
+  }
+  
+  // Check Redis cache
+  const cached = await get(fullKey);
+  if (cached !== null) return cached;
+
+  // Create promise for this request
+  const promise = (async () => {
+    try {
+      const fresh = await fetchFn();
+      if (fresh !== null && fresh !== undefined) {
+        await set(fullKey, fresh, ttl);
+      }
+      return fresh;
+    } finally {
+      pendingRequests.delete(fullKey);
+    }
+  })();
+
+  pendingRequests.set(fullKey, promise);
+  return promise;
+}
+
+/**
+ * Distributed Lock - for preventing thundering herd on cache misses
+ * Uses Redis SETNX with TTL for automatic expiration
+ */
+async function acquireLock(lockName, ttlMs = 30000) {
+  if (!enabled || !client) return { acquired: false, release: () => {} };
+  
+  const fullKey = lockKey(lockName);
+  const lockValue = `${process.pid}:${Date.now()}:${Math.random()}`;
+  
+  try {
+    // SET with NX (only if not exists) and PX (millisecond TTL)
+    const result = await client.set(fullKey, lockValue, 'PX', ttlMs, 'NX');
+    if (result === 'OK') {
+      return {
+        acquired: true,
+        release: async () => {
+          // Only release if we still own the lock (Lua script for atomicity)
+          const script = `
+            if redis.call("GET", KEYS[1]) == ARGV[1] then
+              return redis.call("DEL", KEYS[1])
+            else
+              return 0
+            end
+          `;
+          await client.eval(script, 1, fullKey, lockValue);
+        }
+      };
+    }
+  } catch (err) {
+    logger.warn('Lock acquire error', { lockName, error: err.message });
+  }
+  return { acquired: false, release: () => {} };
+}
+
+/**
+ * Remember with distributed lock to prevent thundering herd
+ */
+async function rememberWithLock(cacheKey, fetchFn, ttl = DEFAULT_TTL, lockTtlMs = 30000) {
+  const cached = await get(key(cacheKey));
+  if (cached !== null) return cached;
+
+  const { acquired, release } = await acquireLock(cacheKey, lockTtlMs);
+  if (!acquired) {
+    // Another process is fetching, wait and retry from cache
+    await new Promise(r => setTimeout(r, 100));
+    const waiting = await get(key(cacheKey));
+    if (waiting !== null) return waiting;
+    // Fallback: execute anyway (last resort)
+    return fetchFn();
+  }
+
+  try {
+    const fresh = await fetchFn();
+    if (fresh !== null && fresh !== undefined) {
+      await set(key(cacheKey), fresh, ttl);
+    }
+    return fresh;
+  } finally {
+    await release();
+  }
+}
+
 async function remember(cacheKey, fetchFn, ttl = DEFAULT_TTL) {
-  const cached = await get(cacheKey);
+  const cached = await get(key(cacheKey));
   if (cached !== null) return cached;
 
   const fresh = await fetchFn();
   if (fresh !== null && fresh !== undefined) {
-    await set(cacheKey, fresh, ttl);
+    await set(key(cacheKey), fresh, ttl);
   }
   return fresh;
 }
@@ -128,11 +230,6 @@ async function invalidate(...patterns) {
   }
 }
 
-/**
- * Namespace-based invalidation (PEMS uses this).
- * Keys built via cacheRoute(namespace, ttl) are `route:{namespace}:{path}`,
- * so deleting `route:{namespace}:*` clears exactly that namespace.
- */
 async function invalidateNamespace(namespace) {
   await delPattern(`route:${namespace}:*`);
 }
@@ -156,6 +253,9 @@ module.exports = {
   del,
   delPattern,
   remember,
+  rememberWithLock,
+  dedup,
+  acquireLock,
   invalidate,
   invalidateNamespace,
   key,

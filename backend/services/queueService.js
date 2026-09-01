@@ -1,150 +1,261 @@
-const Bull = require('bull');
+/**
+ * Bull Queue Service for Heavy Operations
+ * Offloads long-running tasks to background workers
+ */
+
+const Queue = require('bull');
+const Redis = require('ioredis');
 const logger = require('../utils/logger');
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const prefix = process.env.QUEUE_PREFIX || 'retailops:queue';
+const QUEUE_PREFIX = process.env.QUEUE_PREFIX || 'retailops:queue:';
 
-const queues = {};
+let redisClient = null;
+const queues = new Map();
 
-function create(name, opts = {}) {
-  if (queues[name]) return queues[name];
+function getRedisClient() {
+  if (!redisClient) {
+    redisClient = new Redis(REDIS_URL, {
+      maxRetriesPerRequest: 3,
+      enableOfflineQueue: false,
+      lazyConnect: true,
+      family: 4,
+    });
+    redisClient.connect().catch(() => {});
+  }
+  return redisClient;
+}
 
-  const queue = new Bull(name, REDIS_URL, {
-    prefix,
+/**
+ * Get or create a named queue
+ */
+function getQueue(name, options = {}) {
+  const fullName = `${QUEUE_PREFIX}${name}`;
+  if (queues.has(fullName)) return queues.get(fullName);
+
+  const queue = new Queue(fullName, {
+    redis: REDIS_URL,
     defaultJobOptions: {
-      attempts: opts.attempts || 3,
+      removeOnComplete: 100,
+      removeOnFail: 50,
+      attempts: 3,
       backoff: {
-        type: opts.backoffType || 'exponential',
-        delay: opts.backoffDelay || 2000,
+        type: 'exponential',
+        delay: 2000,
       },
-      removeOnComplete: opts.removeOnComplete !== undefined ? opts.removeOnComplete : 100,
-      removeOnFail: opts.removeOnFail !== undefined ? opts.removeOnFail : 50,
-      timeout: opts.timeout || 600000,
+      ...options.defaultJobOptions,
     },
-    settings: {
-      stalledInterval: opts.stalledInterval || 30000,
-      maxStalledCount: opts.maxStalledCount || 3,
-      lockDuration: opts.lockDuration || 60000,
-    },
-    limiter: opts.limiter ? {
-      max: opts.limiter.max || 10,
-      duration: opts.limiter.duration || 1000,
-    } : undefined,
+    ...options,
   });
 
-  queue.on('completed', (job) => {
-    logger.info(`Queue [${name}] job ${job.id} completed`, {
-      queue: name,
-      jobId: job.id,
-      duration: Math.round((Date.now() - job.timestamp) / 1000) + 's',
-    });
+  queue.on('error', (err) => {
+    logger.error(`Queue ${name} error`, { error: err.message });
   });
 
   queue.on('failed', (job, err) => {
-    logger.error(`Queue [${name}] job ${job.id} failed`, {
-      queue: name,
-      jobId: job.id,
-      attempts: job.attemptsMade,
+    logger.error(`Queue ${name} job failed`, { 
+      jobId: job.id, 
       error: err.message,
+      attemptsMade: job.attemptsMade,
     });
   });
 
-  queue.on('stalled', (job) => {
-    logger.warn(`Queue [${name}] job ${job.id} stalled`, { queue: name, jobId: job.id });
-  });
-
-  queues[name] = queue;
-  logger.info(`Queue [${name}] initialized`, {
-    attempts: opts.attempts || 3,
-    limiter: opts.limiter || 'none',
-  });
+  queues.set(fullName, queue);
   return queue;
 }
 
-function get(name) {
-  return queues[name] || null;
-}
-
-async function add(name, data, opts = {}) {
-  const queue = get(name);
-  if (!queue) throw new Error(`Queue "${name}" not found`);
-  return queue.add(data, {
-    priority: opts.priority,
-    delay: opts.delay,
-    jobId: opts.jobId,
-    attempts: opts.attempts,
+/**
+ * Add a job to the queue
+ */
+async function addJob(queueName, jobName, data, options = {}) {
+  const queue = getQueue(queueName);
+  return queue.add(jobName, data, {
+    priority: options.priority || 0,
+    delay: options.delay || 0,
+    attempts: options.attempts || 3,
+    backoff: options.backoff || { type: 'exponential', delay: 2000 },
+    timeout: options.timeout || 300000, // 5 min default
+    ...options,
   });
 }
 
-async function addBulk(name, jobs) {
-  const queue = get(name);
-  if (!queue) throw new Error(`Queue "${name}" not found`);
-  return queue.addBulk(jobs.map(j => ({
-    data: j.data,
-    opts: {
-      priority: j.priority,
-      delay: j.delay,
-      jobId: j.jobId,
-      attempts: j.attempts,
-    },
-  })));
+/**
+ * Process jobs with a handler function
+ */
+function processQueue(queueName, jobName, concurrency, handler) {
+  const queue = getQueue(queueName);
+  queue.process(jobName, concurrency, async (job) => {
+    const startTime = Date.now();
+    logger.info(`Processing job ${jobName}`, { jobId: job.id, queue: queueName });
+    try {
+      const result = await handler(job.data, job);
+      logger.info(`Job ${jobName} completed`, { 
+        jobId: job.id, 
+        duration: Date.now() - startTime 
+      });
+      return result;
+    } catch (err) {
+      logger.error(`Job ${jobName} failed`, { 
+        jobId: job.id, 
+        error: err.message,
+        duration: Date.now() - startTime 
+      });
+      throw err;
+    }
+  });
 }
 
-async function getJobCounts(name) {
-  const queue = get(name);
-  if (!queue) return {};
-  return queue.getJobCounts();
+/**
+ * Predefined queues for common operations
+ */
+const QUEUES = {
+  // Dashboard data refresh
+  DASHBOARD: 'dashboard',
+  // Data sync operations
+  SYNC: 'sync',
+  // Report generation
+  REPORTS: 'reports',
+  // Export operations
+  EXPORT: 'export',
+  // AI/ML operations
+  AI: 'ai',
+  // Webhook processing
+  WEBHOOK: 'webhook',
+  // Notification sending
+  NOTIFICATIONS: 'notifications',
+  // Scraping tasks
+  SCRAPING: 'scraping',
+};
+
+/**
+ * Add dashboard refresh job
+ */
+async function queueDashboardRefresh(userId, filters, priority = 0) {
+  return addJob(QUEUES.DASHBOARD, 'refresh', { userId, filters }, { priority });
 }
 
-async function getActiveJobs(name) {
-  const queue = get(name);
-  if (!queue) return [];
-  return queue.getActive();
+/**
+ * Add sync job
+ */
+async function queueSync(sellerId, type, priority = 0) {
+  return addJob(QUEUES.SYNC, 'sync', { sellerId, type }, { priority });
 }
 
-async function pause(name) {
-  const queue = get(name);
-  if (queue) await queue.pause();
+/**
+ * Add report generation job
+ */
+async function queueReport(userId, reportType, params, priority = 0) {
+  return addJob(QUEUES.REPORTS, 'generate', { userId, reportType, params }, { 
+    priority,
+    timeout: 600000, // 10 min for reports
+  });
 }
 
-async function resume(name) {
-  const queue = get(name);
-  if (queue) await queue.resume();
+/**
+ * Add export job
+ */
+async function queueExport(userId, exportType, params, priority = 0) {
+  return addJob(QUEUES.EXPORT, 'export', { userId, exportType, params }, { 
+    priority,
+    timeout: 600000,
+  });
 }
 
-async function empty(name) {
-  const queue = get(name);
-  if (queue) await queue.empty();
+/**
+ * Add AI job
+ */
+async function queueAI(taskType, data, priority = 0) {
+  return addJob(QUEUES.AI, taskType, data, { 
+    priority,
+    timeout: 300000,
+  });
 }
 
-async function close(name) {
-  const queue = queues[name];
-  if (queue) {
-    await queue.close();
-    delete queues[name];
+/**
+ * Add notification job
+ */
+async function queueNotification(type, recipients, payload, priority = 0) {
+  return addJob(QUEUES.NOTIFICATIONS, type, { recipients, payload }, { priority });
+}
+
+/**
+ * Get queue statistics
+ */
+async function getQueueStats(queueName) {
+  const queue = getQueue(queueName);
+  const [waiting, active, completed, failed, delayed] = await Promise.all([
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getCompletedCount(),
+    queue.getFailedCount(),
+    queue.getDelayedCount(),
+  ]);
+  return { waiting, active, completed, failed, delayed };
+}
+
+/**
+ * Get all queue statistics
+ */
+async function getAllQueueStats() {
+  const stats = {};
+  for (const [name, queueName] of Object.entries(QUEUES)) {
+    stats[name] = await getQueueStats(queueName);
+  }
+  return stats;
+}
+
+/**
+ * Pause a queue
+ */
+async function pauseQueue(queueName) {
+  const queue = getQueue(queueName);
+  return queue.pause();
+}
+
+/**
+ * Resume a queue
+ */
+async function resumeQueue(queueName) {
+  const queue = getQueue(queueName);
+  return queue.resume();
+}
+
+/**
+ * Clean completed/failed jobs
+ */
+async function cleanQueue(queueName, grace = 5000) {
+  const queue = getQueue(queueName);
+  await queue.clean(grace, 'completed');
+  await queue.clean(grace, 'failed');
+}
+
+/**
+ * Graceful shutdown
+ */
+async function shutdown() {
+  await Promise.all(
+    Array.from(queues.values()).map(q => q.close())
+  );
+  if (redisClient) {
+    await redisClient.quit();
   }
 }
 
-async function closeAll() {
-  const names = Object.keys(queues);
-  await Promise.all(names.map(n => close(n)));
-}
-
-function getQueues() {
-  return Object.keys(queues);
-}
-
 module.exports = {
-  create,
-  get,
-  add,
-  addBulk,
-  getJobCounts,
-  getActiveJobs,
-  pause,
-  resume,
-  empty,
-  close,
-  closeAll,
-  getQueues,
+  getQueue,
+  addJob,
+  processQueue,
+  QUEUES,
+  queueDashboardRefresh,
+  queueSync,
+  queueReport,
+  queueExport,
+  queueAI,
+  queueNotification,
+  getQueueStats,
+  getAllQueueStats,
+  pauseQueue,
+  resumeQueue,
+  cleanQueue,
+  shutdown,
 };

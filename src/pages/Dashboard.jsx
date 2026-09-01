@@ -1,43 +1,13 @@
-import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useMemo } from 'react';
+import { Row, Col, Card, Space } from 'antd';
 import { motion } from 'framer-motion';
-import { Row, Col } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
-import api from '../services/api';
+import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
 import DashboardErrorBoundary from '../components/dashboard/DashboardErrorBoundary';
-import '../components/dashboard/dashboard-animations.css';
-
-// Layer Components
-import GlobalStatusBar from '../components/dashboard/GlobalStatusBar';
-import CriticalActionCenter from '../components/dashboard/CriticalActionCenter';
-import LiveOperations from '../components/dashboard/LiveOperations';
-import NotificationsFeed from '../components/dashboard/NotificationsFeed';
-import CommandPalette from '../components/dashboard/CommandPalette';
-import MarketplaceIntelligence from '../components/dashboard/MarketplaceIntelligence';
-import ActivityTimeline from '../components/dashboard/ActivityTimeline';
-
-// Existing Components
-import DashboardHeader from '../components/dashboard/DashboardHeader';
-import KpiStrip from '../components/dashboard/KpiStrip';
-import ModuleStatusGrid from '../components/dashboard/ModuleStatusGrid';
-import SalesTrendChart from '../components/dashboard/SalesTrendChart';
-import AchievementDonut from '../components/dashboard/AchievementDonut';
-import TopAsinsCard from '../components/dashboard/TopAsinsCard';
-import TasksOverviewCard from '../components/dashboard/TasksOverviewCard';
-import AlertsPipelineCard from '../components/dashboard/AlertsPipelineCard';
-
-const containerVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { 
-        opacity: 1, 
-        y: 0,
-        transition: { duration: 0.4, ease: 'easeOut', staggerChildren: 0.05 } 
-    }
-};
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -66,16 +36,35 @@ const Dashboard = () => {
         loading, isHydrated, refresh
     } = useDashboardData(filters);
 
-    const [notifications, setNotifications] = useState([]);
-
     useEffect(() => {
         api.notificationApi.getNotifications({ page: 1, limit: 20 })
             .then(res => {
                 const data = res?.data?.data?.notifications || res?.data?.data || [];
-                setNotifications(Array.isArray(data) ? data : []);
+                notifications.set(Array.isArray(data) ? data : []);
             })
             .catch(() => {});
     }, []);
+
+    // State to control skeleton vs. UI display
+    const [hasShownUI, setHasShownUI] = useState(false);
+
+    // Show UI after data is hydrated or after 3 seconds, whichever comes first
+    useEffect(() => {
+        if (isHydrated) {
+            setHasShownUI(true);
+        }
+    }, [isHydrated]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setHasShownUI(true), 3000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    if (!hasShownUI) {
+        return <DashboardSkeleton />;
+    }
+
+    if (loading && !isHydrated) return null;
 
     const kpiValues = useMemo(() => {
         const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
@@ -88,7 +77,7 @@ const Dashboard = () => {
 
         const targetsList = orch.targets || [];
         let totalTarget = 0, totalAchieved = 0;
-        let filteredTargets = targetsList;
+        let filteredTargets = orch.targets || [];
         if (filters.sellerId !== 'all') filteredTargets = filteredTargets.filter(t => t.SellerId === filters.sellerId);
         if (filters.managerId !== 'all') filteredTargets = filteredTargets.filter(t => t.BrandManager === filters.managerId);
         if (filters.goalType !== 'all') filteredTargets = filteredTargets.filter(t => (t.GoalType || 'GMS').toUpperCase() === filters.goalType);
@@ -96,7 +85,7 @@ const Dashboard = () => {
         const achievementRate = totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
 
         return { adSales, adSpend, orders, acos, units, targetTotal: totalTarget, targetAchieved: totalAchieved, achievementRate };
-    }, [orch.dashboardRaw, orch.targets, filters]);
+    }, [orch.dashboardRaw, orch.targets, filters.sellerId, filters.managerId, filters.goalType]);
 
     const sparklineData = useMemo(() => {
         const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
@@ -109,115 +98,108 @@ const Dashboard = () => {
 
     const marketplaceCategory = useMemo(() => orch.dashboardRaw?.category || [], [orch.dashboardRaw]);
 
-    if (loading && !isHydrated) return <Spinner tip="Loading your dashboard data..." minHeight={400} />;
-
     return (
         <>
             <CmdPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-            <motion.div variants={containerVariants} initial="hidden" animate="visible"
-                style={{ background: 'var(--bg-primary, var(--bc-slate-50))', minHeight: '100%', padding: '0 24px' }}
-            >
-                {/* Layer 1: Header + Global Status Bar */}
-                <DashboardHeader filters={filters} setFilters={setFilters} userSellers={userSellers} managers={managers} onSync={refresh} loading={loading} />
-                <DashboardErrorBoundary fallbackText="Status bar failed to load">
-                    <GlobalStatusBar 
-                        healthScore={Math.round(kpiValues.achievementRate)}
-                        activeAlerts={activityLogs?.filter(a => !a.AcknowledgedAt)?.length || 0}
-                        runningAutomations={scrapeTasks?.filter(t => t.status === 'RUNNING')?.length || 0}
-                        pendingTasks={optimizationTasks?.filter(t => t.status === 'pending')?.length || 0}
-                        marketplaceStatus={scrapeTasks?.length > 0 ? 'operational' : 'idle'}
-                    />
-                </DashboardErrorBoundary>
+            <Row className="dashboard-layout" style={{ background: 'var(--bg-primary, var(--bc-slate-50))', minHeight: '100vh' }}>
+                {/* Sidebar: Status & Controls */}
+                <Col span={24} md={2} className="dashboard-sidebar">
+                    <DashboardErrorBoundary fallbackText="Status bar failed to load">
+                        <globalStatusBar 
+                            healthScore={Math.round(kpiValues.achievementRate)}
+                            activeAlerts={activityLogs?.filter(a => !a.AcknowledgedAt)?.length || 0}
+                            runningAutomations={scrapeTasks?.filter(t => t.status === 'RUNNING')?.length || 0}
+                            pendingTasks={optimizationTasks?.filter(t => t.status === 'pending')?.length || 0}
+                            marketplaceStatus={scrapeTasks?.length > 0 ? 'operational' : 'idle'}
+                        />
+                    </DashboardErrorBoundary>
+                    
+                    <Card title="Filters" style={{ marginBottom: 20, border: '1px solid var(--border-color)' }}>
+                        {/* Filter controls would go here */}
+                    </Card>
+                </Col>
 
-                {/* Layer 2: Critical Action Center */}
-                <DashboardErrorBoundary fallbackText="Action center failed to load">
-                    <CriticalActionCenter
-                        priceDisputes={moduleStats.alerts?.critical || 0}
-                        outOfStock={moduleStats.asins?.outOfStock || 0}
-                        failedListings={moduleStats.pipeline?.failed || 0}
-                        pendingApprovals={moduleStats.tasks?.pending || 0}
-                        syncFailures={moduleStats.pipeline?.failed || 0}
-                        onNavigate={navigate}
-                    />
-                </DashboardErrorBoundary>
+                {/* Main Content Area */}
+                <Col span={24} md={20} className="dashboard-content">
+                    <DashboardHeader filters={filters} setFilters={setFilters} userSellers={userSellers} managers={managers} onSync={refresh} loading={loading} />
 
-                {/* Layer 3: Operations Control Center */}
-                <DashboardErrorBoundary fallbackText="KPI strip failed to load">
-                    <KpiStrip
-                        adSales={kpiValues.adSales}
-                        adSpend={kpiValues.adSpend}
-                        orders={kpiValues.orders}
-                        acos={kpiValues.acos}
-                        units={kpiValues.units}
-                        targetTotal={kpiValues.targetTotal}
-                        targetAchieved={kpiValues.targetAchieved}
-                        achievementRate={kpiValues.achievementRate}
-                        brandCount={userSellers?.length || 0}
-                        sparklineData={sparklineData}
-                    />
-                </DashboardErrorBoundary>
-                <DashboardErrorBoundary fallbackText="Module status failed to load">
-                    <ModuleStatusGrid moduleStats={moduleStats} />
-                </DashboardErrorBoundary>
+                    {/* KPI Strip - Top Priority */}
+                    <Row gutter={16} style={{ marginBottom: 24, alignItems: 'center' }}>
+                        <KpiStrip
+                            adSales={kpiValues.adSales}
+                            adSpend={kpiValues.adSpend}
+                            orders={kpiValues.orders}
+                            acos={kpiValues.acos}
+                            units={kpiValues.units}
+                            targetTotal={kpiValues.targetTotal}
+                            targetAchieved={kpiValues.targetAchieved}
+                            achievementRate={kpiValues.achievementRate}
+                            brandCount={userSellers?.length || 0}
+                            sparklineData={sparklineData}
+                        />
+                    </Row>
 
-                {/* Layer 4: Marketplace Intelligence */}
-                <DashboardErrorBoundary fallbackText="Marketplace intelligence failed to load">
-                    <MarketplaceIntelligence marketplaces={marketplaceCategory} />
-                </DashboardErrorBoundary>
+                    {/* Primary Metrics Grid */}
+                    <Row gutter={24} style={{ marginBottom: 24 }}>
+                        <Col span={24}>
+                            <Card title="Module Status" style={{ border: '1px solid var(--border-color)' }}>
+                                <ModuleStatusGrid moduleStats={moduleStats} />
+                            </Card>
+                        </Col>
+                    </Row>
 
-                {/* Layer 6: Live Operations + Notifications */}
-                <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
-                    <Col xs={24} lg={14}>
-                        <DashboardErrorBoundary fallbackText="Live operations failed to load">
-                            <LiveOperations
-                                listingPipeline={scrapeTasks?.length || 0}
-                                publishingQueue={scrapeTasks?.filter(t => t.status === 'RUNNING')?.length || 0}
-                                aiImageGen={moduleStats.pipeline?.running || 0}
-                                contentGen={moduleStats.tasks?.inProgress || 0}
-                                validationQueue={moduleStats.tasks?.pending || 0}
-                                exports={moduleStats.pipeline?.completed || 0}
-                                marketplaceSync={scrapeTasks?.filter(t => t.type === 'sync')?.length || 0}
-                                onNavigate={navigate}
-                            />
-                        </DashboardErrorBoundary>
-                    </Col>
-                    <Col xs={24} lg={10}>
-                        <DashboardErrorBoundary fallbackText="Notifications failed to load">
-                            <NotificationsFeed
-                                notifications={notifications}
-                                onMarkAllRead={() => api.notificationApi.markAllAsRead().then(() => setNotifications(prev => prev.map(n => ({ ...n, IsRead: true }))))}
-                                onViewAll={() => navigate('/alerts')}
-                            />
-                        </DashboardErrorBoundary>
-                    </Col>
-                </Row>
+                    {/* Marketplace Intelligence */}
+                    <Row gutter={24} style={{ marginBottom: 24 }}>
+                        <Col span={24}>
+                            <Card title="Marketplace Distribution" style={{ border: '1px solid var(--border-color)' }}>
+                                <MarketplaceIntelligence marketplaces={marketplaceCategory} />
+                            </Card>
+                        </Col>
+                    </Row>
 
-                {/* Layer 7: Analytics */}
-                <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
-                    <Col xs={24} lg={14}>
-                        <DashboardErrorBoundary fallbackText="Sales chart failed to load">
-                            <SalesTrendChart labels={salesTrendLabels} revenueData={salesTrendRevenue} spendData={salesTrendSpend} />
-                        </DashboardErrorBoundary>
-                    </Col>
-                    <Col xs={24} lg={10}>
-                        <DashboardErrorBoundary fallbackText="Achievement chart failed to load">
-                            <AchievementDonut targets={orch.targets || []} overallRate={kpiValues.achievementRate} />
-                        </DashboardErrorBoundary>
-                    </Col>
-                </Row>
+                    {/* Analytics Section */}
+                    <Row gutter={24} style={{ marginBottom: 24 }}>
+                        <Col span={24} lg={14}>
+                            <Card title="Sales Trend" style={{ border: '1px solid var(--border-color)' }}>
+                                <SalesTrendChart labels={salesTrendLabels} revenueData={salesTrendRevenue} spendData={salesTrendSpend} />
+                            </Card>
+                        </Col>
+                        <Col span={24} lg={10}>
+                            <Card title="Achievement Overview" style={{ border: '1px solid var(--border-color)' }}>
+                                <AchievementDonut targets={orch.targets || []} overallRate={kpiValues.achievementRate} />
+                            </Card>
+                        </Col>
+                    </Row>
 
-                {/* Layer 9: Data Cards */}
-                <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Top ASINs failed to load"><TopAsinsCard products={topProducts || []} /></DashboardErrorBoundary></Col>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Tasks failed to load"><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></DashboardErrorBoundary></Col>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Alerts failed to load"><AlertsPipelineCard alerts={activityLogs} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></DashboardErrorBoundary></Col>
-                </Row>
+                    {/* Data Cards Section */}
+                    <Row gutter={24} style={{ marginBottom: 24 }}>
+                        <Col xs={24} md={8}>
+                            <Card title="Top ASINs" style={{ border: '1px solid var(--border-color)' }}>
+                                <TopAsinsCard products={topProducts || []} />
+                            </Card>
+                        </Col>
+                        <Col xs={24} md={8}>
+                            <Card title="Tasks Overview" style={{ border: '1px solid var(--border-color)' }}>
+                                <TasksOverviewCard tasks={optimizationTasks} loading={loading} />
+                            </Card>
+                        </Col>
+                        <Col xs={24} md={8}>
+                            <Card title="Alerts Pipeline" style={{ border: '1px solid var(--border-color)' }}>
+                                <AlertsPipelineCard alerts={activityLogs} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} />
+                            </Card>
+                        </Col>
+                    </Row>
 
-                {/* Layer 8: Activity Timeline */}
-                <DashboardErrorBoundary fallbackText="Activity timeline failed to load">
-                    <ActivityTimeline events={activityLogs} />
-                </DashboardErrorBoundary>
-            </motion.div>
+                    {/* Activity Timeline */}
+                    <Row gutter={24} style={{ marginBottom: 24 }}>
+                        <Col xs={24}>
+                            <Card title="Recent Activity" style={{ border: '1px solid var(--border-color)' }}>
+                                <ActivityTimeline events={activityLogs} />
+                            </Card>
+                        </Col>
+                    </Row>
+                </Col>
+            </Row>
         </>
     );
 };

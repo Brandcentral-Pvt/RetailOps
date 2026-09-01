@@ -23,7 +23,6 @@ import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext'
 import { RefreshProvider } from './contexts/RefreshContext';
 const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard'));
 const GlobalNotificationListener = lazy(() => import('./components/GlobalNotificationListener'));
-import CometChatInitializer from './components/chat/CometChatInitializer';
 import './App.css';
 
 // Lazy load pages for better performance
@@ -63,7 +62,6 @@ const PemsAnalyticsPage = lazy(() => import('./modules/pems/pages/PemsAnalyticsP
 const TemplateDetailPage = lazy(() => import('./modules/pems/pages/TemplateDetailPage'));
 const LiveSyncPage = lazy(() => import('./pages/LiveSyncPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const ChatContainer = lazy(() => import('./components/chat/ChatContainer'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 const RolesPage = lazy(() => import('./pages/RolesPage'));
 const ApiKeysPage = lazy(() => import('./pages/ApiKeysPage'));
@@ -150,30 +148,29 @@ function AppRoutes() {
                    <Route path="/live-sync-tracker" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-data-inspector" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-sync" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
-                  <Route path="/scheduled-runs" element={<ProtectedRoute permission="scraping_view"><ScheduledRunsPage /></ProtectedRoute>} />
-                  <Route path="/sellers" element={<ProtectedRoute permission="seller_view"><ErrorBoundary><SellersPage /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/activity-log" element={<ProtectedRoute permission="activitylogs_view"><ActivityLog /></ProtectedRoute>} />
-                  <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
-                  <Route path="/actions/achievement-report" element={<ProtectedRoute permission="monthlyreport_view"><GoalAchievementReport /></ProtectedRoute>} />
-                  <Route path="/target-achievement" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievement /></ProtectedRoute>} />
-                  <Route path="/target-achievement/dashboard" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievementDashboard /></ProtectedRoute>} />
-                  <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />
-                  <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
-                  <Route path="/tasks" element={<Navigate to="/pems/tasks" replace />} />
-                  <Route path="/pems/dashboard" element={<ProtectedRoute permission="tasks_view"><PemsDashboard /></ProtectedRoute>} />
-                  <Route path="/pems/templates" element={<ProtectedRoute permission="tasks_manage"><TaskTemplatesPage /></ProtectedRoute>} />
-                  <Route path="/pems/templates/:id" element={<ProtectedRoute permission="tasks_manage"><TemplateDetailPage /></ProtectedRoute>} />
-                  <Route path="/pems/tasks" element={<ProtectedRoute permission="tasks_view"><TaskInstancesPage /></ProtectedRoute>} />
-                  <Route path="/pems/reviews" element={<ProtectedRoute permission="tasks_view"><ReviewQueuePage /></ProtectedRoute>} />
-                  <Route path="/pems/analytics" element={<ProtectedRoute permission="tasks_view"><PemsAnalyticsPage /></ProtectedRoute>} />
-                  <Route path="/webhooks" element={<ProtectedRoute permission="rules_manage"><WebhookSettingsPage /></ProtectedRoute>} />
+                   <Route path="/scheduled-runs" element={<ProtectedRoute permission="scraping_view"><ScheduledRunsPage /></ProtectedRoute>} />
+                   <Route path="/sellers" element={<ProtectedRoute permission="seller_view"><ErrorBoundary><SellersPage /></ErrorBoundary></ProtectedRoute>} />
+                   <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
+                   <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
+                   <Route path="/activity-log" element={<ProtectedRoute permission="activitylogs_view"><ActivityLog /></ProtectedRoute>} />
+                   <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
+                   <Route path="/actions/achievement-report" element={<ProtectedRoute permission="monthlyreport_view"><GoalAchievementReport /></ProtectedRoute>} />
+                   <Route path="/target-achievement" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievement /></ProtectedRoute>} />
+                   <Route path="/target-achievement/dashboard" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievementDashboard /></ProtectedRoute>} />
+                   <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />
+                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
+                   <Route path="/tasks" element={<Navigate to="/pems/tasks" replace />} />
+                   <Route path="/pems/dashboard" element={<ProtectedRoute permission="tasks_view"><PemsDashboard /></ProtectedRoute>} />
+                   <Route path="/pems/templates" element={<ProtectedRoute permission="tasks_manage"><TaskTemplatesPage /></ProtectedRoute>} />
+                   <Route path="/pems/templates/:id" element={<ProtectedRoute permission="tasks_manage"><TemplateDetailPage /></ProtectedRoute>} />
+                   <Route path="/pems/tasks" element={<ProtectedRoute permission="tasks_view"><TaskInstancesPage /></ProtectedRoute>} />
+                   <Route path="/pems/reviews" element={<ProtectedRoute permission="tasks_view"><ReviewQueuePage /></ProtectedRoute>} />
+                   <Route path="/pems/analytics" element={<ProtectedRoute permission="tasks_view"><PemsAnalyticsPage /></ProtectedRoute>} />
+                   <Route path="/webhooks" element={<ProtectedRoute permission="rules_manage"><WebhookSettingsPage /></ProtectedRoute>} />
 
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/profile/:id" element={<ProfilePage />} />
-                  <Route path="/chat" element={<ProtectedRoute permission="chat_view"><ChatContainer /></ProtectedRoute>} />
-                  <Route path="/unauthorized" element={<Unauthorized />} />
+                   <Route path="/profile" element={<ProfilePage />} />
+                   <Route path="/profile/:id" element={<ProfilePage />} />
+                   <Route path="/unauthorized" element={<Unauthorized />} />
                 </Routes>
                 </ModuleFallback>
               </AppLayout>
@@ -186,36 +183,33 @@ function AppRoutes() {
 }
 
 
-
 function App() {
   return (
     <ErrorBoundary>
-      <CometChatInitializer>
-        <RefreshProvider>
-          <AuthProvider>
-            <OnboardingProvider>
-              <SocketProvider>
-                <SidebarProvider>
-                  <DateRangeProvider>
-                    <PageTitleProvider>
-                      <ToastProvider>
-                        <ConfigProvider
-                          theme={retailOpsTheme}
-                          spin={{ indicator: <span className="icon-[svg-spinners--eclipse]" aria-hidden="true" /> }}
-                        >
-                        <AntdApp>
-                          <AppRoutes />
-                        </AntdApp>
-                        </ConfigProvider>
-                      </ToastProvider>
-                    </PageTitleProvider>
-                  </DateRangeProvider>
-                </SidebarProvider>
-              </SocketProvider>
-            </OnboardingProvider>
-          </AuthProvider>
-        </RefreshProvider>
-      </CometChatInitializer>
+      <RefreshProvider>
+        <AuthProvider>
+          <OnboardingProvider>
+            <SocketProvider>
+              <SidebarProvider>
+                <DateRangeProvider>
+                  <PageTitleProvider>
+                    <ToastProvider>
+                      <ConfigProvider
+                        theme={retailOpsTheme}
+                        spin={{ indicator: <span className="icon-[svg-spinners--eclipse]" aria-hidden="true" /> }}
+                      >
+                      <AntdApp>
+                        <AppRoutes />
+                      </AntdApp>
+                      </ConfigProvider>
+                    </ToastProvider>
+                  </PageTitleProvider>
+                </DateRangeProvider>
+              </SidebarProvider>
+            </SocketProvider>
+          </OnboardingProvider>
+        </AuthProvider>
+      </RefreshProvider>
     </ErrorBoundary>
   );
 }

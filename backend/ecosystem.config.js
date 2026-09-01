@@ -3,6 +3,7 @@
 // Usage (local dev):  pm2 start ecosystem.config.js
 
 const path = require('path');
+const os = require('os');
 
 // Auto-detect: Linux = production VPS, Windows = local dev machine
 const isProduction = process.platform === 'linux';
@@ -13,6 +14,11 @@ const DEV_BACKEND = 'G:\\Brandcentral Development\\RetailOps_V2.1\\RetailOps_V2.
 const cwd = isProduction ? `${PROD_ROOT}/backend` : DEV_BACKEND;
 const logDir = isProduction ? `${PROD_ROOT}/logs` : path.join(__dirname, 'logs');
 
+// Calculate optimal worker count
+// Use CPU cores but cap at 8 for SQL connection pool limits
+const cpuCount = os.cpus().length;
+const maxWorkers = Math.min(cpuCount, isProduction ? 8 : 2);
+
 module.exports = {
   apps: [
     {
@@ -21,15 +27,13 @@ module.exports = {
       cwd,
       // Cluster mode: one worker per CPU core — spreads load & prevents single-process heap blowups.
       // Instance 0 runs schedulers/background jobs; all others serve API only (see server.js).
-      instances: 'max',
+      instances: maxWorkers,
       exec_mode: 'cluster',
 
       // Memory guardrails.
       // Heap cap MUST stay well below max_memory_restart: RSS ≈ JS heap +
       // native overhead (Buffers, JSDOM, XLSX buffers ≈ 1.3–1.5× heap).
-      // The previous 4096MB heap vs 2G restart guaranteed PM2 hard-killed
-      // workers mid-request (exports/imports aborted) instead of letting
-      // GC relieve pressure first. 1536MB heap × ~1.35 ≈ 2.0GB RSS.
+      // 1536MB heap × ~1.35 ≈ 2.0GB RSS per worker.
       max_memory_restart: '2G',
       node_args: '--max-old-space-size=1536',
 
@@ -39,8 +43,34 @@ module.exports = {
         // Cap SQL pool per worker — with N cluster workers the previous
         // default (200/worker) could reach N×200 connections to the remote
         // SQL Server, causing connection saturation + worker memory spikes.
+        // With 8 workers × 40 = 320 max connections (safe for most SQL Server configs)
         DB_POOL_MAX: 40,
-        DB_POOL_MIN: 5,
+        DB_POOL_MIN: 10,
+        DB_ACQUIRE_TIMEOUT_MS: 10000,
+        DB_CONNECT_TIMEOUT_MS: 15000,
+        DB_REQUEST_TIMEOUT_MS: 60000,
+        
+        // Redis cache settings
+        CACHE_DEFAULT_TTL: 300,
+        CACHE_PREFIX: 'retailops:',
+        
+        // Rate limiting
+        GLOBAL_RATE_LIMIT_WINDOW_MS: 60000,
+        GLOBAL_RATE_LIMIT_MAX: 1000,
+        API_RATE_LIMIT_WINDOW_MS: 60000,
+        API_RATE_LIMIT_MAX: 100,
+        DASHBOARD_RATE_LIMIT_WINDOW_MS: 60000,
+        DASHBOARD_RATE_LIMIT_MAX: 60,
+        AUTH_RATE_LIMIT_WINDOW_MS: 900000,
+        AUTH_RATE_LIMIT_MAX: 5,
+        HEAVY_OP_RATE_LIMIT_WINDOW_MS: 3600000,
+        HEAVY_OP_RATE_LIMIT_MAX: 10,
+        
+        // Request deduplication
+        DEDUP_TTL_MS: 5000,
+        
+        // Queue settings
+        QUEUE_PREFIX: 'retailops:queue:',
       },
 
       // Restart policies
@@ -59,12 +89,19 @@ module.exports = {
       time: true,
 
       // Graceful shutdown
-      kill_timeout: 5000,
-      listen_timeout: 10000,
+      kill_timeout: 10000,
+      listen_timeout: 15000,
       wait_ready: false,
 
       // Auto-restart on crash
       autorestart: true,
+      
+      // Health check
+      health_check: {
+        enabled: true,
+        interval: 30000,
+        timeout: 5000,
+      },
     },
   ],
 };

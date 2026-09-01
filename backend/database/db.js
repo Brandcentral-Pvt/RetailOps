@@ -22,15 +22,20 @@ function resolveSqlOptions(host, { trustServerCertificate = false } = {}) {
 
 // Pool sizing is PER WORKER. With N PM2 cluster instances the total
 // connections to SQL Server ≈ N × max. Defaults keep 20 workers ≈ ≤160 total.
-const POOL_MAX = parseInt(process.env.DB_POOL_MAX || '8');
-const POOL_MIN = parseInt(process.env.DB_POOL_MIN || '1');
+// For high concurrency: POOL_MAX=50, POOL_MIN=10 with proper queue handling
+const POOL_MAX = parseInt(process.env.DB_POOL_MAX || '50');
+const POOL_MIN = parseInt(process.env.DB_POOL_MIN || '10');
 const READER_POOL_MAX = parseInt(process.env.DB_READER_POOL_MAX || String(POOL_MAX));
 const READER_POOL_MIN = parseInt(process.env.DB_READER_POOL_MIN || String(POOL_MIN));
+
+// Connection acquisition timeout - fail fast if pool exhausted
+const ACQUIRE_TIMEOUT_MS = parseInt(process.env.DB_ACQUIRE_TIMEOUT_MS || '10000');
 
 // A stuck query used to pin a pool connection for 10 minutes; with
 // DB_POOL_MAX=40 per worker that exhausts the pool under load.
 // Override per-deployment for known-long reports via DB_REQUEST_TIMEOUT_MS.
 const REQUEST_TIMEOUT_MS = parseInt(process.env.DB_REQUEST_TIMEOUT_MS || '60000');
+const CONNECT_TIMEOUT_MS = parseInt(process.env.DB_CONNECT_TIMEOUT_MS || '15000');
 
 const config = {
     user: process.env.DB_USER,
@@ -48,7 +53,12 @@ const config = {
         max: POOL_MAX,
         min: POOL_MIN,
         idleTimeoutMillis: 60000,
-        reapIntervalMillis: 60000
+        reapIntervalMillis: 30000,
+        acquireTimeoutMillis: ACQUIRE_TIMEOUT_MS,
+        createTimeoutMillis: CONNECT_TIMEOUT_MS,
+        destroyTimeoutMillis: 5000,
+        createRetryIntervalMillis: 200,
+        propagateCreateError: false
     }
 };
 
@@ -68,7 +78,12 @@ const readerConfig = process.env.DB_READER_SERVER ? {
         max: READER_POOL_MAX,
         min: READER_POOL_MIN,
         idleTimeoutMillis: 60000,
-        reapIntervalMillis: 60000
+        reapIntervalMillis: 30000,
+        acquireTimeoutMillis: ACQUIRE_TIMEOUT_MS,
+        createTimeoutMillis: CONNECT_TIMEOUT_MS,
+        destroyTimeoutMillis: 5000,
+        createRetryIntervalMillis: 200,
+        propagateCreateError: false
     }
 } : null;
 

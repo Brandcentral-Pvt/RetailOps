@@ -333,3 +333,162 @@
 .status-glow {
   animation: glow-pulse 2.5s ease-in-out infinite;
 }
+
+/* ==========================================
+   Dashboard Layout
+   ========================================== */
+
+.dashboard-layout {
+  background: var(--bg-primary, var(--bc-slate-50));
+  min-height: 100vh;
+}
+
+.dashboard-sidebar {
+  background: var(--bg-secondary, var(--bc-slate-100));
+  border-right: 1px solid var(--border-color, var(--bc-slate-200));
+  padding: 20px;
+  height: 100vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+}
+
+.dashboard-content {
+  padding: 20px;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.dashboard-layout .ant-card {
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-color, var(--bc-slate-200));
+  border-radius: 12px;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-layout .ant-card:hover {
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.dashboard-layout .ant-card-head {
+  border-bottom: 1px solid var(--border-color, var(--bc-slate-200));
+  padding: 16px 20px;
+}
+
+.dashboard-layout .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, var(--bc-slate-900));
+}
+
+.dashboard-layout .ant-card-body {
+  padding: 20px;
+}
+
+/* Skeleton customization */
+.dashboard-layout .ant-skeleton {
+  background: var(--bg-secondary, var(--bc-slate-100));
+}
+
+.dashboard-layout .ant-skeleton-content .ant-skeleton-title {
+  height: 28px;
+  background: linear-gradient(90deg, 
+    var(--bg-tertiary, var(--bc-slate-200)) 25%, 
+    var(--bg-secondary, var(--bc-slate-100)) 50%, 
+    var(--bg-tertiary, var(--bc-slate-200)) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+.dashboard-layout .ant-skeleton-content .ant-skeleton-paragraph > li {
+  height: 16px;
+  background: linear-gradient(90deg, 
+    var(--bg-tertiary, var(--bc-slate-200)) 25%, 
+    var(--bg-secondary, var(--bc-slate-100)) 50%, 
+    var(--bg-tertiary, var(--bc-slate-200)) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .dashboard-sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color, var(--bc-slate-200));
+    padding: 16px;
+  }
+  
+  .dashboard-content {
+    padding: 16px;
+  }
+  
+  .dashboard-layout .ant-card {
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-layout {
+    padding: 0;
+  }
+  
+  .dashboard-sidebar,
+  .dashboard-content {
+    padding: 12px;
+  }
+  
+  .dashboard-layout .ant-card-head {
+    padding: 12px 16px;
+  }
+  
+  .dashboard-layout .ant-card-body {
+    padding: 16px;
+  }
+}
+
+/* Animation for content reveal */
+.dashboard-content > * {
+  animation: fade-in-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.dashboard-content > *:nth-child(1) { animation-delay: 0.05s; }
+.dashboard-content > *:nth-child(2) { animation-delay: 0.1s; }
+.dashboard-content > *:nth-child(3) { animation-delay: 0.15s; }
+.dashboard-content > *:nth-child(4) { animation-delay: 0.2s; }
+.dashboard-content > *:nth-child(5) { animation-delay: 0.25s; }
+.dashboard-content > *:nth-child(6) { animation-delay: 0.3s; }
+.dashboard-content > *:nth-child(7) { animation-delay: 0.35s; }
+.dashboard-content > *:nth-child(8) { animation-delay: 0.4s; }
+.dashboard-content > *:nth-child(9) { animation-delay: 0.45s; }
+.dashboard-content > *:nth-child(10) { animation-delay: 0.5s; }
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Global status bar specific */
+.global-status-bar {
+  margin-bottom: 20px;
+}
+
+/* Filter card in sidebar */
+.dashboard-sidebar .ant-card {
+  margin-bottom: 16px;
+}

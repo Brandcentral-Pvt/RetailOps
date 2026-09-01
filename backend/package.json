@@ -12,7 +12,6 @@
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^5.1.6",
     "@socket.io/pm2": "^6.0.14",
     "@socket.io/redis-adapter": "^8.3.0",
     "@socket.io/sticky": "^1.0.4",
