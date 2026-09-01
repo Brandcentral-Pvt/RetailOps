@@ -39,6 +39,9 @@ module.exports = {
         NODE_ENV: isProduction ? 'production' : 'development',
         PORT: 3001,
 
+        // Disable automation pipelines (Octoparse API has PermissionDenied)
+        DISABLE_AUTOMATION_PIPELINES: 'true',
+
         // SQL Connection Pool (per worker)
         // 8 workers × 40 = 320 max connections
         DB_POOL_MAX: 40,

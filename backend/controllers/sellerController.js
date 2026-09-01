@@ -4,28 +4,10 @@ const marketDataSyncService = require('../services/marketDataSyncService');
 const SystemLogService = require('../services/SystemLogService');
 const emailService = require('../services/emailService');
 const { brandAssigned, brandRemoved } = require('../emails');
+const cacheService = require('../services/cacheService');
 
-// Lightweight in-memory cache registry for sellers to prevent duplicate queries
-const sellerCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache TTL
-
-const getCachedSellers = (key) => {
-  const entry = sellerCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-    sellerCache.delete(key);
-    return null;
-  }
-  return entry.data;
-};
-
-const setCachedSellers = (key, data) => {
-  sellerCache.set(key, { data, timestamp: Date.now() });
-};
-
-const clearSellerCache = () => {
-  console.log('[SELLER CACHE] Invalidation triggered - clearing cached sellers.');
-  sellerCache.clear();
+const clearSellerCache = async () => {
+  await cacheService.delPattern('sellers:*');
 };
 
 exports.clearSellerCache = clearSellerCache;
@@ -130,54 +112,69 @@ exports.getSellerStats = async (req, res) => {
       reqObj.input('gssSearch', sql.NVarChar, `%${search}%`);
     }
 
-    // Step 1: Get seller-level stats
-    const sellerResult = await reqObj.query(`
-      SELECT
-        COUNT(DISTINCT S.Id) as totalStores,
-        SUM(CASE WHEN S.IsActive = 1 THEN 1 ELSE 0 END) as activeStores,
-        SUM(CASE WHEN S.IsActive = 0 OR S.IsActive IS NULL THEN 1 ELSE 0 END) as pausedStores,
-        COUNT(DISTINCT S.Marketplace) as marketplaces,
-        SUM(CASE WHEN S.LastScrapedAt >= DATEADD(HOUR, -24, GETDATE()) THEN 1 ELSE 0 END) as activeToday
-      FROM Sellers S
-      ${whereClause}
-    `);
+    // Prepare all three queries and run them in parallel.
+    // Note: status filter is deliberately NOT applied to ASIN counts —
+    // ASINs belong to sellers, pausing a seller doesn't remove its ASINs.
+
+    // Helper: build ASIN where-clause parts for a given request object + param prefix.
+    // buildInClause adds inputs to the request as a side effect, so each request
+    // needs its own call.
+    const buildAsinWhereParts = (reqObj, prefix) => {
+      const parts = ['1=1'];
+      if (!isGlobalUser) {
+        const sellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
+        const inClause = buildInClause(reqObj, `${prefix}Sid`, sellerIds);
+        parts.push(`A.SellerId IN (${inClause})`);
+      }
+      if (manager) {
+        parts.push(`A.SellerId IN (SELECT SellerId FROM UserSellers WHERE UserId = @${prefix}Mgr)`);
+        reqObj.input(`${prefix}Mgr`, sql.VarChar, manager);
+      }
+      if (marketplace) {
+        parts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @${prefix}Mp)`);
+        reqObj.input(`${prefix}Mp`, sql.NVarChar, marketplace);
+      }
+      if (search) {
+        parts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Name LIKE @${prefix}Search OR SellerId LIKE @${prefix}Search)`);
+        reqObj.input(`${prefix}Search`, sql.NVarChar, `%${search}%`);
+      }
+      return parts;
+    };
+
+    const asinReq = pool.request();
+    const asinWhereParts = buildAsinWhereParts(asinReq, 'asin');
+
+    const activeAsinsReq = pool.request();
+    const activeAsinsWhereParts = buildAsinWhereParts(activeAsinsReq, 'actAsin');
+
+    // Run all three queries in parallel
+    const [sellerResult, asinResult, activeAsinsResult] = await Promise.all([
+      reqObj.query(`
+        SELECT
+          COUNT(DISTINCT S.Id) as totalStores,
+          SUM(CASE WHEN S.IsActive = 1 THEN 1 ELSE 0 END) as activeStores,
+          SUM(CASE WHEN S.IsActive = 0 OR S.IsActive IS NULL THEN 1 ELSE 0 END) as pausedStores,
+          COUNT(DISTINCT S.Marketplace) as marketplaces,
+          SUM(CASE WHEN S.LastScrapedAt >= DATEADD(HOUR, -24, GETDATE()) THEN 1 ELSE 0 END) as activeToday
+        FROM Sellers S
+        ${whereClause}
+      `),
+      asinReq.query(`
+        SELECT COUNT(*) as totalAsins
+        FROM Asins A
+        WHERE ${asinWhereParts.join(' AND ')}
+      `),
+      activeAsinsReq.query(`
+        SELECT COUNT(*) as activeAsins
+        FROM Asins A
+        WHERE ${activeAsinsWhereParts.join(' AND ')}
+          AND (A.Status IS NULL OR A.Status != 'Inactive')
+      `)
+    ]);
 
     const sellerStats = sellerResult.recordset[0];
-
-    // Step 2: Count ALL ASINs — use unfiltered seller set (status filter should NOT reduce ASIN count)
-    const asinReq = pool.request();
-    const asinWhereParts = ['1=1'];
-
-    if (!isGlobalUser) {
-      const sellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
-      if (sellerIds.length === 0) {
-        return res.json({ success: true, data: { totalStores: 0, activeStores: 0, pausedStores: 0, totalAsins: 0, marketplaces: 0, activeToday: 0 } });
-      }
-      const inClause = buildInClause(asinReq, 'asinSid', sellerIds);
-      asinWhereParts.push(`A.SellerId IN (${inClause})`);
-    }
-    // Note: status filter is deliberately NOT applied to ASIN count
-    // ASINs belong to sellers — pausing a seller doesn't remove its ASINs
-    if (manager) {
-      asinWhereParts.push(`A.SellerId IN (SELECT SellerId FROM UserSellers WHERE UserId = @asinMgr)`);
-      asinReq.input('asinMgr', sql.VarChar, manager);
-    }
-    if (marketplace) {
-      asinWhereParts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @asinMp)`);
-      asinReq.input('asinMp', sql.NVarChar, marketplace);
-    }
-    if (search) {
-      asinWhereParts.push(`A.SellerId IN (SELECT Id FROM Sellers WHERE Name LIKE @asinSearch OR SellerId LIKE @asinSearch)`);
-      asinReq.input('asinSearch', sql.NVarChar, `%${search}%`);
-    }
-
-    const asinResult = await asinReq.query(`
-      SELECT COUNT(*) as totalAsins
-      FROM Asins A
-      WHERE ${asinWhereParts.join(' AND ')}
-    `);
-
     const totalAsins = Number(asinResult.recordset[0]?.totalAsins) || 0;
+    const activeAsins = Number(activeAsinsResult.recordset[0]?.activeAsins) || 0;
 
     res.json({
       success: true,
@@ -186,6 +183,7 @@ exports.getSellerStats = async (req, res) => {
         activeStores: Number(sellerStats.activeStores) || 0,
         pausedStores: Number(sellerStats.pausedStores) || 0,
         totalAsins,
+        activeAsins,
         marketplaces: Number(sellerStats.marketplaces) || 0,
         activeToday: Number(sellerStats.activeToday) || 0,
       }
@@ -208,7 +206,7 @@ exports.getSellers = async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     // Generate a secure cache key based on query parameters and user's specific access scope
-    const cacheKey = JSON.stringify({
+    const cacheKey = cacheService.key('sellers', JSON.stringify({
       status,
       marketplace,
       manager,
@@ -217,119 +215,124 @@ exports.getSellers = async (req, res) => {
       limit: limitNum,
       roleName,
       userId: req.user?._id || req.userId,
-      assignedSellers: (req.user?.assignedSellers || []).map(s => (s._id || s).toString())
-    });
+      assignedSellers: (req.user?.assignedSellers || []).map(s => (s._id || s).toString()),
+      isGlobalUser
+    }));
 
-    const cachedData = getCachedSellers(cacheKey);
-    if (cachedData) {
-      console.log('[SELLER CACHE] Cache HIT for sellers key:', cacheKey);
-      return res.json({
-        success: true,
-        data: cachedData
-      });
-    }
+    const payload = await cacheService.rememberWithLock(
+      cacheKey,
+      async () => {
+        const pool = await getPool();
+        let whereClause = 'WHERE 1=1';
 
-    const pool = await getPool();
-    let whereClause = 'WHERE 1=1';
-
-    // Helper to apply inputs
-    const applyInputs = (reqObj) => {
-      if (status) reqObj.input('status', sql.Bit, status === 'Active' ? 1 : 0);
-      if (marketplace) reqObj.input('marketplace', sql.NVarChar, marketplace);
-      if (manager) reqObj.input('manager', sql.VarChar, manager);
-      if (search) reqObj.input('search', sql.NVarChar, `%${search}%`);
-      return reqObj;
-    };
-
-    const sellerReq = pool.request();
-    if (!isGlobalUser) {
-      const sellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
-      if (sellerIds.length === 0) {
-        const emptyResponse = { sellers: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 } };
-        setCachedSellers(cacheKey, emptyResponse);
-        return res.json({ success: true, data: emptyResponse });
-      }
-      const sellerInClause = buildInClause(sellerReq, 'gsSellerId', sellerIds);
-      whereClause += ` AND Id IN (${sellerInClause})`;
-    }
-
-    if (status) whereClause += ' AND IsActive = @status';
-    if (marketplace) whereClause += ' AND Marketplace = @marketplace';
-    if (manager) whereClause += ' AND Id IN (SELECT SellerId FROM UserSellers WHERE UserId = @manager)';
-    if (search) whereClause += ' AND (Name LIKE @search OR SellerId LIKE @search)';
-
-    applyInputs(sellerReq);
-    const countResult = await sellerReq.query(`SELECT COUNT(*) as total FROM Sellers ${whereClause}`);
-    const total = countResult.recordset[0].total;
-
-    // Prepare paginated query with parameters
-    const sqlQuery = `
-      SELECT Id as _id, Name as name, Email as email, Marketplace as marketplace, SellerId as sellerId, 
-             OctoparseId as octoparseId, IsActive as status, IsPriority as isPriority, [Plan] as sellerPlan,
-             ScrapeLimit as scrapeLimit, CreatedAt as createdAt, UpdatedAt as updatedAt,
-             LastScrapedAt as lastScraped, LiveSyncClientId as liveSyncClientId,
-             LiveSyncClientSecret as liveSyncClientSecret, PartnerTag as partnerTag,
-             LiveSyncEnabled as liveSyncEnabled
-       FROM Sellers
-       ${whereClause}
-       ORDER BY Name ASC
-       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-    `;
-    let sellers;
-    try {
-      const sellersResult = await sellerReq
-        .input('offset', sql.Int, offset)
-        .input('limit', sql.Int, limitNum)
-        .query(sqlQuery);
-      sellers = sellersResult.recordset.map(s => ({
-        ...s,
-        status: s.status ? 'Active' : 'Inactive',
-        isPriority: !!s.isPriority,
-        plan: s.sellerPlan,
-        liveSyncEnabled: !!s.liveSyncEnabled
-      }));
-      console.log('Fetched sellers count:', sellers.length);
-    } catch (e) {
-      console.error('Error in sellers main query:', e.message);
-      throw e;
-    }
-
-    try {
-      // Run both enrichments in parallel instead of sequential
-      const [enrichedWithManagers, enrichedWithAsins] = await Promise.all([
-        enrichSellersWithManagers(sellers),
-        enrichSellersWithAsinCounts(sellers)
-      ]);
-
-      // Merge results - managers first, then asin counts
-      sellers = sellers.map(seller => {
-        const sId = seller._id || seller.Id;
-        const managersData = enrichedWithManagers.find(m => (m._id || m.Id) === sId);
-        const asinsData = enrichedWithAsins.find(a => (a._id || a.Id) === sId);
-        return {
-          ...seller,
-          managers: managersData?.managers || [],
-          totalAsins: asinsData?.totalAsins || 0,
-          activeAsins: asinsData?.activeAsins || 0
+        // Helper to apply inputs
+        const applyInputs = (reqObj) => {
+          if (status) reqObj.input('status', sql.Bit, status === 'Active' ? 1 : 0);
+          if (marketplace) reqObj.input('marketplace', sql.NVarChar, marketplace);
+          if (manager) reqObj.input('manager', sql.VarChar, manager);
+          if (search) reqObj.input('search', sql.NVarChar, `%${search}%`);
+          return reqObj;
         };
-      });
-      console.log('Enriched managers and asinCounts in parallel');
-    } catch (e) {
-      console.error('Error in enrichment:', e.message);
-      throw e;
-    }
 
-    const payload = {
-      sellers,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages: Math.ceil(total / limitNum),
+        const sellerReq = pool.request();
+        if (!isGlobalUser) {
+          const sellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
+          if (sellerIds.length === 0) {
+            return { sellers: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 } };
+          }
+          const sellerInClause = buildInClause(sellerReq, 'gsSellerId', sellerIds);
+          whereClause += ` AND Id IN (${sellerInClause})`;
+        }
+
+        if (status) whereClause += ' AND IsActive = @status';
+        if (marketplace) whereClause += ' AND Marketplace = @marketplace';
+        if (manager) whereClause += ' AND Id IN (SELECT SellerId FROM UserSellers WHERE UserId = @manager)';
+        if (search) whereClause += ' AND (Name LIKE @search OR SellerId LIKE @search)';
+
+        applyInputs(sellerReq);
+        const countResult = await sellerReq.query(`SELECT COUNT(*) as total FROM Sellers ${whereClause}`);
+        const total = countResult.recordset[0].total;
+
+        // Prepare paginated query with parameters
+        const sqlQuery = `
+          SELECT Id as _id, Name as name, Email as email, Marketplace as marketplace, SellerId as sellerId,
+                 OctoparseId as octoparseId, IsActive as status, IsPriority as isPriority, [Plan] as sellerPlan,
+                 ScrapeLimit as scrapeLimit, CreatedAt as createdAt, UpdatedAt as updatedAt,
+                 LastScrapedAt as lastScraped, LiveSyncClientId as liveSyncClientId,
+                 LiveSyncClientSecret as liveSyncClientSecret, PartnerTag as partnerTag,
+                 LiveSyncEnabled as liveSyncEnabled
+           FROM Sellers
+           ${whereClause}
+           ORDER BY Name ASC
+           OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+        `;
+        let sellers;
+        try {
+          const sellersResult = await sellerReq
+            .input('offset', sql.Int, offset)
+            .input('limit', sql.Int, limitNum)
+            .query(sqlQuery);
+          sellers = sellersResult.recordset.map(s => ({
+            ...s,
+            status: s.status ? 'Active' : 'Inactive',
+            isPriority: !!s.isPriority,
+            plan: s.sellerPlan,
+            liveSyncEnabled: !!s.liveSyncEnabled
+          }));
+          console.log('Fetched sellers count:', sellers.length);
+        } catch (e) {
+          console.error('Error in sellers main query:', e.message);
+          throw e;
+        }
+
+        try {
+          // Run both enrichments in parallel (each is already a single batched query)
+          const [enrichedWithManagers, enrichedWithAsins] = await Promise.all([
+            enrichSellersWithManagers(sellers),
+            enrichSellersWithAsinCounts(sellers)
+          ]);
+
+          // Build O(1) lookup maps from enriched results — avoids O(n²) .find() per seller
+          const managerMap = new Map(
+            enrichedWithManagers.map(s => [s._id || s.Id, s.managers || []])
+          );
+          const asinMap = new Map(
+            enrichedWithAsins.map(s => [s._id || s.Id, {
+              totalAsins: s.totalAsins || 0,
+              activeAsins: s.activeAsins || 0
+            }])
+          );
+
+          // Merge results using Map lookups
+          sellers = sellers.map(seller => {
+            const sId = seller._id || seller.Id;
+            const asinStats = asinMap.get(sId) || { totalAsins: 0, activeAsins: 0 };
+            return {
+              ...seller,
+              managers: managerMap.get(sId) || [],
+              totalAsins: asinStats.totalAsins,
+              activeAsins: asinStats.activeAsins
+            };
+          });
+          console.log('Enriched managers and asinCounts in parallel');
+        } catch (e) {
+          console.error('Error in enrichment:', e.message);
+          throw e;
+        }
+
+        return {
+          sellers,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum),
+          },
+        };
       },
-    };
-
-    setCachedSellers(cacheKey, payload);
+      300,
+      30000
+    );
 
     res.json({
       success: true,
@@ -458,7 +461,7 @@ exports.createSeller = async (req, res) => {
       }).catch(err => console.error('[SellerCreate] Email notification failed:', err.message));
     }
 
-    clearSellerCache();
+    await cacheService.delPattern('sellers:*');
 
     // Fetch back the full seller with managers for complete response
     const createdResult = await pool.request()
@@ -665,7 +668,7 @@ exports.updateSeller = async (req, res) => {
       // Non-global users cannot reassign managers — skip manager update block
     }
 
-    clearSellerCache();
+    await cacheService.delPattern('sellers:*');
     res.json({ success: true });
 
     // Log Update
@@ -735,7 +738,7 @@ exports.deleteSeller = async (req, res) => {
       .input('id', sql.VarChar, id)
       .query('DELETE FROM Sellers WHERE Id = @id');
 
-    clearSellerCache();
+    await cacheService.delPattern('sellers:*');
     res.json({ message: 'Seller deleted successfully' });
 
     // Log Delete
@@ -753,8 +756,57 @@ exports.deleteSeller = async (req, res) => {
 
 // Bulk import
 exports.importSellers = async (req, res) => {
-  // Similar to create, but in a loop. Skipping full implementation for brevity unless requested.
-  res.status(501).json({ error: 'Not implemented for SQL yet' });
+  try {
+    const sellers = Array.isArray(req.body?.sellers) ? req.body.sellers : [];
+    if (sellers.length === 0) {
+      return res.status(400).json({ success: false, error: 'No sellers provided' });
+    }
+
+    const pool = await getPool();
+    const errors = [];
+    let imported = 0;
+    let skipped = 0;
+
+    for (const seller of sellers) {
+      const id = generateId();
+      const status = seller.status || 'Active';
+      const isActive = status === 'Active' ? 1 : 0;
+
+      try {
+        const request = pool.request();
+        request
+          .input('id', sql.VarChar, id)
+          .input('name', sql.NVarChar, seller.name)
+          .input('email', sql.NVarChar, seller.email || '')
+          .input('marketplace', sql.NVarChar, seller.marketplace || 'amazon.in')
+          .input('sellerId', sql.NVarChar, seller.sellerId || null)
+          .input('isActive', sql.Bit, isActive)
+          .input('isPriority', sql.Bit, seller.isPriority === true ? 1 : 0)
+          .input('plan', sql.NVarChar, 'Starter')
+          .input('scrapeLimit', sql.Int, 100);
+
+        await request.query(`
+          INSERT INTO Sellers (Id, Name, Email, Marketplace, SellerId, IsActive, IsPriority, [Plan], ScrapeLimit, CreatedAt, UpdatedAt)
+          VALUES (@id, @name, @email, @marketplace, @sellerId, @isActive, @isPriority, @plan, @scrapeLimit, dbo.GetEnvDate(), dbo.GetEnvDate())
+        `);
+        imported++;
+      } catch (rowError) {
+        skipped++;
+        if (rowError.message && rowError.message.includes('UNIQUE KEY')) {
+          errors.push({ id: null, error: 'Duplicate sellerId', sellerId: seller.sellerId });
+        } else {
+          errors.push({ id: null, error: rowError.message, sellerId: seller.sellerId });
+        }
+      }
+    }
+
+    clearSellerCache();
+
+    res.json({ success: true, imported, skipped, errors });
+  } catch (error) {
+    console.error('importSellers error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // ─── Email Notification for Manager Assignment Changes ────────────────────────

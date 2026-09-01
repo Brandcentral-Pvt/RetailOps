@@ -57,6 +57,12 @@ const bulkLimiter = createLimiter('BULK');
 const importLimiter = createLimiter('IMPORT');
 const strictLimiter = createLimiter('STRICT');
 
+// Load balancing specific limiters
+const globalLimiter = createLimiter('PUBLIC');
+const apiLimiter = createLimiter('READ');
+const dashboardLimiter = createLimiter('READ');
+const heavyOpLimiter = createLimiter('BULK');
+
 /**
  * Skip rate limiting for health checks
  */
@@ -78,5 +84,10 @@ module.exports = {
   bulkLimiter,
   importLimiter,
   strictLimiter,
+  // Load balancing specific
+  globalLimiter,
+  apiLimiter,
+  dashboardLimiter,
+  heavyOpLimiter,
   skipHealthChecks,
 };

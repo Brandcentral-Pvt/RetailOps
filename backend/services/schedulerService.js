@@ -30,10 +30,12 @@ class SchedulerService {
             logger.info('✅ Background tasks successfully initialized.');
             
             // Check completed tasks and recover status on startup
-            await this.runOctoparseTaskRecovery().catch(err => logger.error('Recovery failed:', err.message));
+            // DISABLED: Octoparse API returns PermissionDenied, blocks resources
+            // await this.runOctoparseTaskRecovery().catch(err => logger.error('Recovery failed:', err.message));
             
             // Resume any interrupted active scheduled runs
-            await this.resumeInterruptedRuns().catch(err => logger.error('Resume failed:', err.message));
+            // DISABLED: causes old pipeline runs to resume and block resources
+            // await this.resumeInterruptedRuns().catch(err => logger.error('Resume failed:', err.message));
         } catch (error) {
             logger.error('❌ Scheduler initialization error:', error.message);
         }
@@ -99,6 +101,12 @@ class SchedulerService {
             }
             if (settingsMap['AUTOMATION_AJIO_ENABLED'] !== undefined) {
                 ajioEnabled = settingsMap['AUTOMATION_AJIO_ENABLED'] === 'true';
+            }
+            // ENV override to disable automation pipelines (Octoparse API has PermissionDenied)
+            if (process.env.DISABLE_AUTOMATION_PIPELINES === 'true') {
+                amazonEnabled = false;
+                ajioEnabled = false;
+                logger.info('Automation pipelines DISABLED via DISABLE_AUTOMATION_PIPELINES env var');
             }
             
             // Live Data Sync settings
