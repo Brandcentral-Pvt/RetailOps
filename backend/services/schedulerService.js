@@ -5,8 +5,7 @@ const { syncSellerFromKeepaInternal } = require('../controllers/sellerAsinTracke
 const AutoTagService = require('./autoTagService');
 const SystemLogService = require('./SystemLogService');
 const WebhookService = require('./WebhookService');
-const queueService = require('./queueService');
-const { QUEUES } = require('../jobs/queueDefinitions');
+const pemsService = require('./pems/pemsService');
 const logger = require('../utils/logger');
 
 /**
@@ -134,7 +133,7 @@ class SchedulerService {
 
             this.jobs.enterprisePipeline = cron.schedule(amazonCronExpr, async () => {
                 logger.info(`Cron triggering Amazon pipeline`);
-                await queueService.add(QUEUES.PIPELINE_RUN, { marketplace: 'amazon', options: {} });
+                await this.runEnterprisePipeline('amazon', {});
             }, cronOptions);
             logger.info(`Amazon Enterprise Pipeline scheduled at ${scheduleTime} in ${automationTimezone}`);
         } else {
@@ -150,7 +149,7 @@ class SchedulerService {
 
             this.jobs.enterpriseAjioPipeline = cron.schedule(ajioCronExpr, async () => {
                 logger.info(`Cron triggering Ajio pipeline`);
-                await queueService.add(QUEUES.PIPELINE_RUN, { marketplace: 'ajio', options: {} });
+                await this.runEnterprisePipeline('ajio', {});
             }, cronOptions);
             logger.info(`Ajio Enterprise Pipeline scheduled at ${ajioScheduleTime} in ${automationTimezone}`);
         } else {

@@ -217,34 +217,6 @@ async function runHealthChecks() {
     checks.database = { status: 'disconnected', error: err.message };
   }
 
-  // Redis check — raw TCP PING so it also works with older Redis 3.x
-  // (the `redis` client's HELLO command is unsupported below Redis 6).
-  try {
-    const net = require('net');
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    const parsed = new URL(redisUrl);
-    const port = Number(parsed.port) || 6379;
-    const host = parsed.hostname || 'localhost';
-    await new Promise((resolve, reject) => {
-      const socket = net.createConnection(port, host);
-      socket.setTimeout(3000);
-      socket.once('connect', () => socket.write('PING\r\n'));
-      socket.once('data', (data) => {
-        socket.destroy();
-        if (data.toString().includes('+PONG')) resolve();
-        else reject(new Error('Unexpected PING reply: ' + data.toString()));
-      });
-      socket.once('timeout', () => {
-        socket.destroy();
-        reject(new Error('PING timeout'));
-      });
-      socket.once('error', reject);
-    });
-    checks.redis = { status: 'connected' };
-  } catch (err) {
-    checks.redis = { status: 'disconnected', error: err.message };
-  }
-
   return { mem, checks };
 }
 
@@ -435,23 +407,6 @@ const io = new Server(server, {
 // Initialize global SocketService
 const SocketService = require('./services/socketService');
 SocketService.init(io);
-
-// Redis adapter for Socket.IO cluster mode (PM2 multi-instance)
-try {
-  const { createAdapter } = require('@socket.io/redis-adapter');
-  const { createClient } = require('redis');
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  const pubClient = createClient({ url: redisUrl });
-  const subClient = pubClient.duplicate();
-  Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-    io.adapter(createAdapter(pubClient, subClient));
-    logger.info('Socket.IO Redis adapter connected');
-  }).catch(err => {
-    logger.warn('Socket.IO Redis adapter failed (falling back to in-memory)', { error: err.message });
-  });
-} catch (err) {
-  logger.warn('Socket.IO Redis adapter not available (falling back to in-memory)', { error: err.message });
-}
 
 if (!io) logger.fatal('Socket.io failed to initialize');
 
@@ -1086,36 +1041,15 @@ server.listen(PORT, '0.0.0.0', () => {
   }
 
   logger.info(`Automation: ${process.env.AUTOMATION_ENABLED === 'true' ? 'ENABLED' : 'DISABLED'}`);
-
-  // Initialize Redis cache
-  const cacheService = require('./services/cacheService');
-  cacheService.connect();
-
-  // Initialize job queues
-  const { initializeQueues } = require('./jobs/queueDefinitions');
-  initializeQueues();
-  const { registerProcessors } = require('./jobs/processors');
-  registerProcessors();
-
-  // Register event handlers
-  const { registerEventHandlers } = require('./jobs/eventHandlers');
-  registerEventHandlers();
 });
 
-// Graceful shutdown — close the Redis cache connection before the process exits.
+// Graceful shutdown
 let shuttingDown = false;
 async function gracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info(`Received ${signal} — shutting down gracefully`);
-  try {
-    const cacheService = require('./services/cacheService');
-    await cacheService.disconnect();
-  } catch (err) {
-    logger.error('Graceful shutdown error', { error: err.message });
-  } finally {
-    process.exit(0);
-  }
+  process.exit(0);
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

@@ -75,9 +75,6 @@ module.exports = {
     expiresIn: '2h',
     refreshExpiresIn: '7d'
   },
-  redis: {
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
-  },
   smtp: {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '587', 10),
