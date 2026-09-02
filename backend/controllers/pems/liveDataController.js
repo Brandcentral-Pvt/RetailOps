@@ -24,33 +24,13 @@ function jobIdPath(jobId) {
     return resolveIfInside(UPLOADS_DIR, path.join(UPLOADS_DIR, `${jobId}.json`));
 }
 
-// Redis-backed job store (works across PM2 cluster workers)
-let redis = null;
-async function getRedis() {
-    if (redis && redis.status === 'ready') return redis;
-    try {
-        const Redis = require('ioredis');
-        redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-            maxRetriesPerRequest: 3, retryStrategy: (times) => Math.min(times * 100, 3000),
-            lazyConnect: true, connectTimeout: 3000,
-        });
-        redis.on('error', () => { redis = null; });
-        await redis.connect();
-        return redis;
-    } catch { redis = null; return null; }
-}
-
-const JOB_PREFIX = 'ldi:job:';
-const JOB_RESULTS_PREFIX = 'ldi:results:';
-const JOB_TTL = 7200; // 2 hours
-
 // SECURITY (F1): containment guard shared by all per-job file paths.
 function _safeJobBase(jobId) {
     const meta = jobIdPath(jobId);
     return meta ? meta.replace(/\.json$/, '') : null;
 }
 
-// Result rows live in append-only stores (Redis list / .jsonl file) and are
+// Result rows live in append-only stores (.jsonl file) and are
 // persisted INCREMENTALLY: each batch pushes only its new rows instead of
 // re-serializing the whole ever-growing array. A 50k-ASIN job previously did
 // O(n²) JSON serialization work (~5000 batches × multi-MB payloads); this is
@@ -58,102 +38,57 @@ function _safeJobBase(jobId) {
 // persisted, so a shrunk array (retry pass resets notFoundList) is detected
 // and the store is rebuilt.
 async function saveJob(job) {
-    const r = await getRedis();
     const { results = [], notFoundList = [], ...meta } = job;
     const pR = meta._pR || 0;
     const pN = meta._pN || 0;
 
-    if (r) {
-        if (results.length < pR) { await r.del(JOB_RESULTS_PREFIX + job.id + ':data'); meta._pR = pR = 0; }
-        if (notFoundList.length < pN) { await r.del(JOB_RESULTS_PREFIX + job.id + ':nf'); meta._pN = pN = 0; }
-        const newData = results.slice(pR);
-        const newNf = notFoundList.slice(pN);
-        if (newData.length > 0) {
-            await r.rpush(JOB_RESULTS_PREFIX + job.id + ':data', ...newData.map(x => JSON.stringify(x)));
-            await r.expire(JOB_RESULTS_PREFIX + job.id + ':data', JOB_TTL);
-            meta._pR = results.length;
-        }
-        if (newNf.length > 0) {
-            await r.rpush(JOB_RESULTS_PREFIX + job.id + ':nf', ...newNf.map(x => JSON.stringify(x)));
-            await r.expire(JOB_RESULTS_PREFIX + job.id + ':nf', JOB_TTL);
-            meta._pN = notFoundList.length;
-        }
-        await r.setex(JOB_PREFIX + job.id, JOB_TTL, JSON.stringify(meta));
-    } else {
-        // Fallback to file-based storage (meta rewritten per batch — small;
-        // row data appended line-by-line — O(delta), never O(total)).
-        const base = _safeJobBase(job.id);
-        if (!base) throw new Error('Invalid jobId');
-        fs.writeFileSync(base + '.json', JSON.stringify(meta));
-        if (results.length < pR) { try { fs.writeFileSync(base + '.results.jsonl', ''); } catch { } meta._pR = pR = 0; }
-        if (notFoundList.length < pN) { try { fs.writeFileSync(base + '.nf.jsonl', ''); } catch { } meta._pN = pN = 0; }
-        if (results.length > pR) {
-            fs.appendFileSync(base + '.results.jsonl', results.slice(pR).map(x => JSON.stringify(x)).join('\n') + '\n');
-            meta._pR = results.length;
-        }
-        if (notFoundList.length > pN) {
-            fs.appendFileSync(base + '.nf.jsonl', notFoundList.slice(pN).map(x => JSON.stringify(x)).join('\n') + '\n');
-            meta._pN = notFoundList.length;
-        }
+    // File-based storage (meta rewritten per batch — small;
+    // row data appended line-by-line — O(delta), never O(total)).
+    const base = _safeJobBase(job.id);
+    if (!base) throw new Error('Invalid jobId');
+    fs.writeFileSync(base + '.json', JSON.stringify(meta));
+    if (results.length < pR) { try { fs.writeFileSync(base + '.results.jsonl', ''); } catch { } meta._pR = pR = 0; }
+    if (notFoundList.length < pN) { try { fs.writeFileSync(base + '.nf.jsonl', ''); } catch { } meta._pN = pN = 0; }
+    if (results.length > pR) {
+        fs.appendFileSync(base + '.results.jsonl', results.slice(pR).map(x => JSON.stringify(x)).join('\n') + '\n');
+        meta._pR = results.length;
+    }
+    if (notFoundList.length > pN) {
+        fs.appendFileSync(base + '.nf.jsonl', notFoundList.slice(pN).map(x => JSON.stringify(x)).join('\n') + '\n');
+        meta._pN = notFoundList.length;
     }
 }
 
 async function loadJob(jobId) {
-    const r = await getRedis();
-    if (r) {
-        const metaStr = await r.get(JOB_PREFIX + jobId);
-        if (!metaStr) return null;
-        const meta = JSON.parse(metaStr);
-        const [dataLines, nfLines] = await Promise.all([
-            r.lrange(JOB_RESULTS_PREFIX + jobId + ':data', 0, -1),
-            r.lrange(JOB_RESULTS_PREFIX + jobId + ':nf', 0, -1),
-        ]);
-        return {
-            ...meta,
-            results: dataLines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean),
-            notFoundList: nfLines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean),
-        };
-    } else {
-        // SECURITY (F1): containment guard — jobId is request-controlled.
-        const base = _safeJobBase(jobId);
-        if (!base || !fs.existsSync(base + '.json')) return null;
-        const meta = JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
-        const readLines = (p) => {
-            if (!fs.existsSync(p)) return [];
-            return fs.readFileSync(p, 'utf8').split('\n')
-                .filter(Boolean)
-                .map(l => { try { return JSON.parse(l); } catch { return null; } })
-                .filter(Boolean);
-        };
-        return { ...meta, results: readLines(base + '.results.jsonl'), notFoundList: readLines(base + '.nf.jsonl') };
-    }
+    // SECURITY (F1): containment guard — jobId is request-controlled.
+    const base = _safeJobBase(jobId);
+    if (!base || !fs.existsSync(base + '.json')) return null;
+    const meta = JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
+    const readLines = (p) => {
+        if (!fs.existsSync(p)) return [];
+        return fs.readFileSync(p, 'utf8').split('\n')
+            .filter(Boolean)
+            .map(l => { try { return JSON.parse(l); } catch { return null; } })
+            .filter(Boolean);
+    };
+    return { ...meta, results: readLines(base + '.results.jsonl'), notFoundList: readLines(base + '.nf.jsonl') };
 }
 
 // Meta-only read for hot paths (progress polling ~every 3s per client, and
 // the per-batch cancel checks inside processJob). Previously these parsed
 // the full multi-MB results blob each time.
 async function loadJobMeta(jobId) {
-    const r = await getRedis();
-    if (r) {
-        const metaStr = await r.get(JOB_PREFIX + jobId);
-        return metaStr ? JSON.parse(metaStr) : null;
-    }
     const base = _safeJobBase(jobId);
     if (!base || !fs.existsSync(base + '.json')) return null;
     return JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
 }
 
 async function deleteJob(jobId) {
-    const r = await getRedis();
-    if (r) {
-        await r.del(JOB_PREFIX + jobId, JOB_RESULTS_PREFIX + jobId + ':data', JOB_RESULTS_PREFIX + jobId + ':nf');
-    } else {
-        // SECURITY (F1): containment guard — jobId is request-controlled.
-        const base = _safeJobBase(jobId);
-        if (!base) return;
-        for (const suffix of ['.json', '.results.jsonl', '.nf.jsonl']) {
-            try { fs.unlinkSync(base + suffix); } catch { }
-        }
+    // SECURITY (F1): containment guard — jobId is request-controlled.
+    const base = _safeJobBase(jobId);
+    if (!base) return;
+    for (const suffix of ['.json', '.results.jsonl', '.nf.jsonl']) {
+        try { fs.unlinkSync(base + suffix); } catch { }
     }
 }
 

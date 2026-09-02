@@ -167,7 +167,9 @@ class SchedulerService {
             
             this.jobs.liveDataSync = cron.schedule(liveSyncCronExpr, async () => {
                 logger.info('Cron triggering Live Data Sync');
-                await queueService.add(QUEUES.MARKET_SYNC, { type: 'live', sellerId: '*', options: { concurrency: 1, maxRetries: 2 } });
+                // Direct call instead of queue
+                const LiveSyncService = require('./liveDataSyncService');
+                await LiveSyncService.syncAllSellers({ triggerType: 'AUTO', concurrency: 1, maxRetries: 2 });
             }, cronOptions);
             logger.info(`Live Data Sync scheduled at ${liveSyncTime} in ${automationTimezone}`);
         } else {
@@ -205,12 +207,14 @@ class SchedulerService {
 
         this.jobs.ageTagRefresh = cron.schedule('0 2 * * *', async () => {
             logger.info('Cron triggering age tag refresh');
-            await queueService.add(QUEUES.AUTO_TAG, { type: 'age' });
+            const pool = await getPool();
+            await AutoTagService.batchUpdateAgeTags(pool);
         }, cronOptions);
 
         this.jobs.autoTags = cron.schedule('0 3 * * *', async () => {
             logger.info('Cron triggering full auto-tag run');
-            await queueService.add(QUEUES.AUTO_TAG, { type: 'full' });
+            const pool = await getPool();
+            await AutoTagService.runAllAutoTags(pool);
         }, cronOptions);
         logger.info('Auto-Tags scheduled daily at 3:00 AM');
 
@@ -233,9 +237,9 @@ class SchedulerService {
             if (process.env.PEMS_SLA_ESCALATION_ENABLED === 'false') return;
             logger.info('Cron triggering PEMS SLA escalation check');
             try {
-                await queueService.add(QUEUES.SLA_ESCALATION, {});
+                await pemsService.checkEscalations();
             } catch (err) {
-                logger.error('PEMS SLA escalation enqueue failed', { error: err.message });
+                logger.error('PEMS SLA escalation check failed', { error: err.message });
             }
         }, cronOptions);
         logger.info(`PEMS SLA escalation scheduled every 30 min (${process.env.PEMS_SLA_ESCALATION_ENABLED === 'false' ? 'DISABLED' : 'ENABLED'})`);
