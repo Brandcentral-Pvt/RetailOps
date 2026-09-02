@@ -19,9 +19,9 @@ module.exports = {
       name: 'brand-central-api',
       script: './server.js',
       cwd,
-      // Cluster mode: one worker per CPU core — spreads load & prevents single-process heap blowups.
+// Cluster mode: one worker per CPU core — spreads load & prevents single-process heap blowups.
       // Instance 0 runs schedulers/background jobs; all others serve API only (see server.js).
-      instances: 'max',
+      instances: 2,
       exec_mode: 'cluster',
 
       // Memory guardrails.
