@@ -4,28 +4,23 @@ const marketDataSyncService = require('../services/marketDataSyncService');
 const SystemLogService = require('../services/SystemLogService');
 const emailService = require('../services/emailService');
 const { brandAssigned, brandRemoved } = require('../emails');
+const redisCache = require('../services/redisCacheService');
 
-// Lightweight in-memory cache registry for sellers to prevent duplicate queries
-const sellerCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache TTL
+// Redis-backed cache for sellers (distributed across workers)
+const SELLER_CACHE_PREFIX = 'sellers:';
+const SELLER_CACHE_TTL = 5 * 60; // 5 minutes
 
-const getCachedSellers = (key) => {
-  const entry = sellerCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-    sellerCache.delete(key);
-    return null;
-  }
-  return entry.data;
+const getCachedSellers = async (key) => {
+  return await redisCache.get(`${SELLER_CACHE_PREFIX}${key}`);
 };
 
-const setCachedSellers = (key, data) => {
-  sellerCache.set(key, { data, timestamp: Date.now() });
+const setCachedSellers = async (key, data) => {
+  await redisCache.set(`${SELLER_CACHE_PREFIX}${key}`, data, SELLER_CACHE_TTL);
 };
 
-const clearSellerCache = () => {
+const clearSellerCache = async () => {
   console.log('[SELLER CACHE] Invalidation triggered - clearing cached sellers.');
-  sellerCache.clear();
+  await redisCache.invalidate('sellers:*');
 };
 
 exports.clearSellerCache = clearSellerCache;
@@ -220,7 +215,7 @@ exports.getSellers = async (req, res) => {
       assignedSellers: (req.user?.assignedSellers || []).map(s => (s._id || s).toString())
     });
 
-    const cachedData = getCachedSellers(cacheKey);
+    const cachedData = await getCachedSellers(cacheKey);
     if (cachedData) {
       console.log('[SELLER CACHE] Cache HIT for sellers key:', cacheKey);
       return res.json({
@@ -246,7 +241,7 @@ exports.getSellers = async (req, res) => {
       const sellerIds = (req.user.assignedSellers || []).map(s => (s._id || s).toString());
       if (sellerIds.length === 0) {
         const emptyResponse = { sellers: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 } };
-        setCachedSellers(cacheKey, emptyResponse);
+        await setCachedSellers(cacheKey, emptyResponse);
         return res.json({ success: true, data: emptyResponse });
       }
       const sellerInClause = buildInClause(sellerReq, 'gsSellerId', sellerIds);
@@ -329,7 +324,7 @@ exports.getSellers = async (req, res) => {
       },
     };
 
-    setCachedSellers(cacheKey, payload);
+    await setCachedSellers(cacheKey, payload);
 
     res.json({
       success: true,
@@ -665,7 +660,7 @@ exports.updateSeller = async (req, res) => {
       // Non-global users cannot reassign managers — skip manager update block
     }
 
-    clearSellerCache();
+    await clearSellerCache();
     res.json({ success: true });
 
     // Log Update
@@ -735,7 +730,7 @@ exports.deleteSeller = async (req, res) => {
       .input('id', sql.VarChar, id)
       .query('DELETE FROM Sellers WHERE Id = @id');
 
-    clearSellerCache();
+    await clearSellerCache();
     res.json({ message: 'Seller deleted successfully' });
 
     // Log Delete

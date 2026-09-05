@@ -28,13 +28,13 @@ const setCachedAsinStats = (key, data) => {
   asinStatsCache.set(key, { data, timestamp: Date.now() });
 };
 
-const clearAsinStatsCache = () => {
+const clearAsinStatsCache = async () => {
   console.log('[STATS CACHE] Invalidation triggered - clearing cached ASIN stats.');
   asinStatsCache.clear();
   try {
     const sellerController = require('./sellerController');
     if (sellerController && typeof sellerController.clearSellerCache === 'function') {
-      sellerController.clearSellerCache();
+      await sellerController.clearSellerCache();
     }
   } catch (err) {
     console.warn('[STATS CACHE] Warning invalidating seller cache from ASIN controller:', err.message);
@@ -425,35 +425,42 @@ exports.getAsins = async (req, res) => {
     // [6] Fetch ASINs
     // Map sortBy from frontend names to SQL ORDER BY clause
     const getOrderBy = () => {
-        const col = sortBy === 'asinCode' ? 'a.AsinCode' : 
-                    sortBy === 'currentPrice' ? 'a.CurrentPrice' : 
-                    sortBy === 'uploadedPrice' ? 'a.UploadedPrice' : 
-                    sortBy === 'bsr' ? 'a.BSR' : 
-                    sortBy === 'lqs' ? 'a.LQS' : 
-                    sortBy === 'status' ? 'a.Status' : 
-                    sortBy === 'scrapeStatus' ? 'a.ScrapeStatus' :
-                    sortBy === 'priceDispute' ? 'a.PriceDispute' :
-                    sortBy === 'releaseDate' ? 'a.ReleaseDate' :
-                    sortBy === 'parentAsin' ? 'a.ParentAsin' :
-                    sortBy === 'sku' ? 'a.Sku' :
-                    sortBy === 'title' ? 'a.Title' :
-                    sortBy === 'category' ? 'a.Category' :
-                    sortBy === 'mrp' ? 'a.Mrp' :
-                    sortBy === 'discountPercentage' ? 'a.DiscountPercentage' :
-                    sortBy === 'rating' ? 'a.Rating' :
-                    sortBy === 'reviewCount' ? 'a.ReviewCount' :
-                    sortBy === 'sellerBrand' ? 's.Name' :
-                    sortBy === 'videoCount' ? 'a.VideoCount' :
-                    sortBy === 'imagesCount' ? 'a.ImagesCount' :
-                    sortBy === 'hasAplus' ? 'a.HasAplus' :
-                    sortBy === 'orders' || sortBy === 'totalOrders' ? '(SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WHERE Asin = a.AsinCode)' :
-                    sortBy === 'lastLiveSyncAt' ? 'a.LastLiveSyncAt' :
-                    sortBy === 'lastScraped' ? 'a.LastScrapedAt' :
-                    sortBy === 'manufacturer' ? 'a.Manufacturer' :
-                    sortBy === 'availabilityStatus' ? 'a.AvailabilityStatus' :
-                    sortBy === 'dealStartTime' ? 'a.DealStartTime' :
-                    sortBy === 'dealEndTime' ? 'a.DealEndTime' :
-                    sortBy === 'dealAccessType' ? 'a.DealAccessType' : 'a.CreatedAt';
+        let col = 'a.CreatedAt'; // default
+        switch (sortBy) {
+            case 'asinCode': col = 'a.AsinCode'; break;
+            case 'currentPrice': col = 'a.CurrentPrice'; break;
+            case 'uploadedPrice': col = 'a.UploadedPrice'; break;
+            case 'bsr': col = 'a.BSR'; break;
+            case 'lqs': col = 'a.LQS'; break;
+            case 'status': col = 'a.Status'; break;
+            case 'scrapeStatus': col = 'a.ScrapeStatus'; break;
+            case 'priceDispute': col = 'a.PriceDispute'; break;
+            case 'releaseDate': col = 'a.ReleaseDate'; break;
+            case 'parentAsin': col = 'a.ParentAsin'; break;
+            case 'sku': col = 'a.Sku'; break;
+            case 'title': col = 'a.Title'; break;
+            case 'category': col = 'a.Category'; break;
+            case 'mrp': col = 'a.Mrp'; break;
+            case 'discountPercentage': col = 'a.DiscountPercentage'; break;
+            case 'rating': col = 'a.Rating'; break;
+            case 'reviewCount': col = 'a.ReviewCount'; break;
+            case 'sellerBrand': col = 's.Name'; break;
+            case 'videoCount': col = 'a.VideoCount'; break;
+            case 'imagesCount': col = 'a.ImagesCount'; break;
+            case 'hasAplus': col = 'a.HasAplus'; break;
+            case 'orders': 
+            case 'totalOrders': 
+                col = '(SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WHERE Asin = a.AsinCode)';
+                break;
+            case 'lastLiveSyncAt': col = 'a.LastLiveSyncAt'; break;
+            case 'lastScraped': col = 'a.LastScrapedAt'; break;
+            case 'manufacturer': col = 'a.Manufacturer'; break;
+            case 'availabilityStatus': col = 'a.AvailabilityStatus'; break;
+            case 'dealStartTime': col = 'a.DealStartTime'; break;
+            case 'dealEndTime': col = 'a.DealEndTime'; break;
+            case 'dealAccessType': col = 'a.DealAccessType'; break;
+            default: col = 'a.CreatedAt';
+        }
         return `${col} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
     };
     
@@ -1338,7 +1345,7 @@ exports.getAsinStats = async (req, res) => {
 async function updateSellerAsinCount(sellerId, io) {
   if (!sellerId) return;
   try {
-    clearAsinStatsCache();
+    await clearAsinStatsCache();
     const pool = await getPool();
     const statsResult = await pool.request()
       .input('sellerId', sql.VarChar, sellerId)
@@ -1498,7 +1505,7 @@ exports.updateAsin = async (req, res) => {
       }
     }
 
-    clearAsinStatsCache();
+    await clearAsinStatsCache();
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

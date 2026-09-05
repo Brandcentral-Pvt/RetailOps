@@ -1,9 +1,10 @@
 const { isGlobalUserRole } = require('../utils/roleUtils');
 const { sql, getPool } = require('../database/db');
 const { buildInClause } = require('../utils/sqlHelpers');
-const { BoundedCache } = require('../utils/memoryMonitor');
+const redisCache = require('../services/redisCacheService');
 
-const dashboardCache = new BoundedCache({ maxSize: 100, ttlMs: 60_000 });
+const DASHBOARD_CACHE_PREFIX = 'dashboard:';
+const DASHBOARD_CACHE_TTL = 60; // 60 seconds
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
 const parsePeriod = (period) => {
@@ -36,7 +37,7 @@ exports.getDashboardData = async (req, res) => {
 
     // Check cache
     const cacheKey = `${userId}|${sellerId || 'all'}|${startQuery || ''}|${endQuery || ''}|${period}`;
-    const cached = dashboardCache.get(cacheKey);
+    const cached = await redisCache.get(`${DASHBOARD_CACHE_PREFIX}${cacheKey}`);
     if (cached) return res.json(cached);
 
     const pool = await getPool();
@@ -306,7 +307,7 @@ exports.getDashboardData = async (req, res) => {
       }
     };
 
-    dashboardCache.set(cacheKey, response);
+    await redisCache.set(`${DASHBOARD_CACHE_PREFIX}${cacheKey}`, response, DASHBOARD_CACHE_TTL);
     res.json(response);
   } catch (error) {
     if (!res.headersSent) {

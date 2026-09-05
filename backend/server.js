@@ -11,6 +11,10 @@ const logger = require('./utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { errorHandler } = require('./utils/errors');
 
+// Initialize Redis cache
+const redisCache = require('./services/redisCacheService');
+redisCache.connect().catch(err => logger.warn('Redis cache init failed', { error: err.message }));
+
 // ── Resilience: never let a transient infra failure (DB / Redis / network)
 //    take the whole process down. Log loudly and keep serving. ──
 process.on('unhandledRejection', (reason) => {
@@ -124,6 +128,8 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: 'same-origin' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
+const compression = require('compression');
+app.use(compression());
 const { createLimiter, TIERS } = require('./middleware/rateLimiter');
 const globalLimiter = createLimiter('READ');
 app.use(globalLimiter);
@@ -1049,6 +1055,9 @@ async function gracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info(`Received ${signal} — shutting down gracefully`);
+  try {
+    await redisCache.disconnect();
+  } catch (_) {}
   process.exit(0);
 }
 

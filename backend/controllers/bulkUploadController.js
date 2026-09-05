@@ -5,14 +5,14 @@ const path = require('path');
 const AutoTagService = require('../services/autoTagService');
 const SystemLogService = require('../services/SystemLogService');
 
-const clearCaches = () => {
+const clearCaches = async () => {
     try {
         const sellerController = require('./sellerController');
-        sellerController.clearSellerCache();
+        await sellerController.clearSellerCache();
     } catch (e) {}
     try {
         const asinController = require('./asinController');
-        asinController.clearAsinStatsCache();
+        await asinController.clearAsinStatsCache();
     } catch (e) {}
 };
 
