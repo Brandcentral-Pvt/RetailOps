@@ -311,6 +311,7 @@ const pemsLiveSyncRoutes = require('./routes/pems/liveSyncTrackerRoutes');
 const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
+const taskflowRoutes = require('./routes/taskflowRoutes');
 
 // Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
 app.use(require('./middleware/maintenanceMode'));
@@ -356,6 +357,7 @@ app.use('/api/pems', pemsRoutes);
 app.use('/api/live-sync-tracker', pemsLiveSyncRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/keyword-analysis', keywordAnalysisRoutes);
+app.use('/api/tasks', taskflowRoutes);
 
 // Error handling
 app.use(async (err, req, res, next) => {
@@ -408,7 +410,22 @@ const io = new Server(server, {
   },
   pingTimeout: 60000,
   pingInterval: 25000
-});
+  }
+);
+// Redis adapter for Socket.IO (for clustering)
+try {
+  const { createAdapter } = require('@socket.io/redis-adapter');
+  const { createClient } = require('ioredis');
+  const redisURL = process.env.REDIS_URL || 'redis://localhost:6379';
+  const pubClient = createClient(redisURL);
+  const subClient = pubClient.duplicate();
+  pubClient.on('error', (err) => logger.error('Redis PubClient error', err));
+  subClient.on('error', (err) => logger.error('Redis SubClient error', err));
+  io.adapter(createAdapter(pubClient, subClient));
+  logger.info('Socket.IO Redis adapter initialized');
+} catch (err) {
+  logger.error('Failed to initialize Socket.IO Redis adapter', err);
+}
 
 // Initialize global SocketService
 const SocketService = require('./services/socketService');

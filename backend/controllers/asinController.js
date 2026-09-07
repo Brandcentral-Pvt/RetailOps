@@ -134,790 +134,853 @@ const parseFlexibleDate = (val) => {
 exports.getAsins = async (req, res) => {
   try {
     await executeWithRetry(async () => {
-    const {
-      status, category, brand, search,
-      minPrice, maxPrice, minBSR, maxBSR, minLQS, maxLQS,
-      scrapeStatus, buyBoxWin, hasAplus, priceDispute,
-      page = 1, limit = 50, sortBy = 'CreatedAt', sortOrder = 'DESC'
-    } = req.query;
+      // Extract all parameters for the cache key and user context
+      const {
+        page = 1, limit = 50, sortBy = 'CreatedAt', sortOrder = 'DESC',
+        status, category, brand, scrapeStatus, minPrice, maxPrice, minBSR, maxBSR, minLQS, maxLQS,
+        buyBoxWin, hasAplus, priceDispute, search, selectedTags, sku, parentAsin, subBsrCategory,
+        minRating, maxRating, minReviewCount, maxReviewCount, minImagesCount, maxImagesCount,
+        minBulletPoints, maxBulletPoints, minReleaseDate, maxReleaseDate, bsrTrend, ratingTrend,
+        historyDays, ads, availabilityStatus, manufacturer, dealAccessType,
+        marketplace
+      } = req.query;
 
-    // Support fallback to params in case Express query object is immutable
-    const seller = req.query.seller || req.query.sellerId || req.params.sellerId;
+      const roleName = req.user?.role?.name || req.user?.role;
+      const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(roleName);
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const offset = (pageNum - 1) * limitNum;
+      const pool = await getPool();
+      
+      // Build cache key for ASIN list
+      const cacheKeyData = {
+        // Pagination
+        page: parseInt(page),
+        limit: parseInt(limit),
+        // Sorting
+        sortBy,
+        sortOrder,
+        // Filters
+        status,
+        category,
+        brand,
+        scrapeStatus,
+        minPrice: parseFloat(minPrice),
+        maxPrice: parseFloat(maxPrice),
+        minBSR: parseInt(minBSR),
+        maxBSR: parseInt(maxBSR),
+        minLQS: parseFloat(minLQS),
+        maxLQS: parseFloat(maxLQS),
+        buyBoxWin,
+        hasAplus,
+        priceDispute,
+        search,
+        selectedTags: Array.isArray(selectedTags) ? selectedTags.sort() : (selectedTags ? [selectedTags] : []),
+        sku,
+        parentAsin,
+        subBsrCategory,
+        minRating: parseFloat(minRating),
+        maxRating: parseFloat(maxRating),
+        minReviewCount: parseInt(minReviewCount),
+        maxReviewCount: parseInt(maxReviewCount),
+        minImagesCount: parseInt(minImagesCount),
+        maxImagesCount: parseInt(maxImagesCount),
+        minBulletPoints: parseInt(minBulletPoints),
+        maxBulletPoints: parseInt(maxBulletPoints),
+        minReleaseDate,
+        maxReleaseDate,
+        bsrTrend,
+        ratingTrend,
+        historyDays: parseInt(historyDays),
+        ads,
+        availabilityStatus,
+        manufacturer,
+        dealAccessType,
+        marketplace,
+        // User context
+        userIsGlobal: isGlobalUser,
+        assignedSellers: !isGlobalUser 
+          ? (req.user?.assignedSellers || []).map(s => (s._id || s).toString()).sort()
+          : [],
+      };
 
-    const roleName = req.user?.role?.name || req.user?.role;
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(roleName);
+      // Create a string key
+      const cacheKey = `asin:list:${JSON.stringify(cacheKeyData)}`;
 
-    const pool = await getPool();
-    
-    // Helper to apply inputs to a request
-    const applyInputs = (reqObj) => {
-        if (seller) reqObj.input('seller', sql.VarChar, seller);
-        if (req.query.marketplace) reqObj.input('marketplace', sql.VarChar, req.query.marketplace);
-        if (status) reqObj.input('status', sql.NVarChar, status);
-        if (category) reqObj.input('category', sql.NVarChar, category);
-        if (brand) reqObj.input('brand', sql.NVarChar, brand);
-        if (scrapeStatus) reqObj.input('scrapeStatus', sql.NVarChar, scrapeStatus);
-        if (hasAplus !== undefined && hasAplus !== '') reqObj.input('hasAplus', sql.Bit, hasAplus === 'true' ? 1 : 0);
-        if (buyBoxWin !== undefined && buyBoxWin !== '') {
-          const ownSellers = ['ETrade Online', 'Cocoblu Retail', 'Clicktech Retail Private Ltd', 'RetailEz'];
-          ownSellers.forEach((s, i) => reqObj.input(`ownSeller${i}`, sql.NVarChar, s));
-        }
-        if (minPrice) reqObj.input('minPrice', sql.Decimal(18, 2), parseFloat(minPrice));
-        if (maxPrice) reqObj.input('maxPrice', sql.Decimal(18, 2), parseFloat(maxPrice));
-        if (minBSR) reqObj.input('minBSR', sql.Int, parseInt(minBSR));
-        if (maxBSR) reqObj.input('maxBSR', sql.Int, parseInt(maxBSR));
-        if (minLQS) reqObj.input('minLQS', sql.Decimal(5, 2), parseFloat(minLQS));
-        if (maxLQS) reqObj.input('maxLQS', sql.Decimal(5, 2), parseFloat(maxLQS));
-        if (req.query.parentAsin) reqObj.input('parentAsin', sql.NVarChar, req.query.parentAsin);
-        if (req.query.tag) reqObj.input('tag', sql.NVarChar, `%${req.query.tag}%`);
-        if (req.query.sku) reqObj.input('sku', sql.NVarChar, `%${req.query.sku}%`);
-        if (req.query.subBsrCategory) reqObj.input('subBsrCategory', sql.NVarChar, `%"${req.query.subBsrCategory}"%`);
-        if (req.query.minRating) reqObj.input('minRating', sql.Decimal(3, 2), parseFloat(req.query.minRating));
-        if (req.query.maxRating) reqObj.input('maxRating', sql.Decimal(3, 2), parseFloat(req.query.maxRating));
-        if (req.query.minReviewCount) reqObj.input('minReviewCount', sql.Int, parseInt(req.query.minReviewCount));
-        if (req.query.maxReviewCount) reqObj.input('maxReviewCount', sql.Int, parseInt(req.query.maxReviewCount));
-        if (req.query.minImagesCount) reqObj.input('minImagesCount', sql.Int, parseInt(req.query.minImagesCount));
-        if (req.query.maxImagesCount) reqObj.input('maxImagesCount', sql.Int, parseInt(req.query.maxImagesCount));
-        if (req.query.minBulletPoints) reqObj.input('minBulletPoints', sql.Int, parseInt(req.query.minBulletPoints));
-        if (req.query.maxBulletPoints) reqObj.input('maxBulletPoints', sql.Int, parseInt(req.query.maxBulletPoints));
-        if (req.query.minReleaseDate) reqObj.input('minReleaseDate', sql.DateTime2, new Date(req.query.minReleaseDate));
-        if (req.query.maxReleaseDate) {
-            const maxD = new Date(req.query.maxReleaseDate);
-            maxD.setHours(23, 59, 59, 999);
-            reqObj.input('maxReleaseDate', sql.DateTime2, maxD);
-        }
-        if (search) reqObj.input('search', sql.NVarChar, `%${search}%`);
-        
-        if (req.query.selectedTags) {
-            const tags = Array.isArray(req.query.selectedTags) ? req.query.selectedTags : req.query.selectedTags.split(',');
-            tags.forEach((tag, i) => {
-                reqObj.input(`selectedTag${i}`, sql.NVarChar, `%${tag.trim()}%`);
-            });
-        }
-        if (priceDispute !== undefined && priceDispute !== '') reqObj.input('priceDispute', sql.Bit, priceDispute === 'true' ? 1 : 0);
-        if (req.query.bsrTrend) reqObj.input('bsrTrend', sql.NVarChar, req.query.bsrTrend);
-        if (req.query.ratingTrend) reqObj.input('ratingTrend', sql.NVarChar, req.query.ratingTrend);
-        if (req.query.ads !== undefined && req.query.ads !== '') reqObj.input('ads', sql.Bit, req.query.ads === 'true' ? 1 : 0);
-        if (req.query.availabilityStatus) reqObj.input('availabilityStatus', sql.NVarChar, req.query.availabilityStatus);
-        if (req.query.manufacturer) reqObj.input('manufacturer', sql.NVarChar, `%${req.query.manufacturer}%`);
-        if (req.query.dealAccessType) reqObj.input('dealAccessType', sql.NVarChar, req.query.dealAccessType);
-        if (req.query.hasDeal !== undefined && req.query.hasDeal !== '') reqObj.input('hasDeal', sql.Bit, req.query.hasDeal === 'true' ? 1 : 0);
-        return reqObj;
-    };
-
-    let whereClause = 'WHERE 1=1';
-    let allowedSellerIds = [];
-
-    // [1] User Scope / Seller Filtering
-    if (!isGlobalUser) {
-      allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
-      if (allowedSellerIds.length === 0) {
+      // Try to get from cache
+      const cachedResult = await redisCache.get(cacheKey);
+      if (cachedResult) {
         if (res.headersSent) return;
-        return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total: 0 } });
+        return res.json(cachedResult);
+      }
+
+      // Helper to apply inputs to a request
+      const applyInputs = (reqObj) => {
+          if (req.query.seller) reqObj.input('seller', sql.VarChar, req.query.seller);
+          if (req.query.marketplace) reqObj.input('marketplace', sql.VarChar, req.query.marketplace);
+          if (status) reqObj.input('status', sql.NVarChar, status);
+          if (category) reqObj.input('category', sql.NVarChar, category);
+          if (brand) reqObj.input('brand', sql.NVarChar, brand);
+          if (scrapeStatus) reqObj.input('scrapeStatus', sql.NVarChar, scrapeStatus);
+          if (hasAplus !== undefined && hasAplus !== '') reqObj.input('hasAplus', sql.Bit, hasAplus === 'true' ? 1 : 0);
+          if (buyBoxWin !== undefined && buyBoxWin !== '') {
+            const ownSellers = ['ETrade Online', 'Cocoblu Retail', 'Clicktech Retail Private Ltd', 'RetailEz'];
+            ownSellers.forEach((s, i) => reqObj.input(`ownSeller${i}`, sql.NVarChar, s));
+          }
+          if (minPrice) reqObj.input('minPrice', sql.Decimal(18, 2), parseFloat(minPrice));
+          if (maxPrice) reqObj.input('maxPrice', sql.Decimal(18, 2), parseFloat(maxPrice));
+          if (minBSR) reqObj.input('minBSR', sql.Int, parseInt(minBSR));
+          if (maxBSR) reqObj.input('maxBSR', sql.Int, parseInt(maxBSR));
+          if (minLQS) reqObj.input('minLQS', sql.Decimal(5, 2), parseFloat(minLQS));
+          if (maxLQS) reqObj.input('maxLQS', sql.Decimal(5, 2), parseFloat(maxLQS));
+          if (req.query.parentAsin) reqObj.input('parentAsin', sql.NVarChar, req.query.parentAsin);
+          if (req.query.tag) reqObj.input('tag', sql.NVarChar, `%${req.query.tag}%`);
+          if (req.query.sku) reqObj.input('sku', sql.NVarChar, `%${req.query.sku}%`);
+          if (req.query.subBsrCategory) reqObj.input('subBsrCategory', sql.NVarChar, `%"${req.query.subBsrCategory}"%`);
+          if (req.query.minRating) reqObj.input('minRating', sql.Decimal(3, 2), parseFloat(req.query.minRating));
+          if (req.query.maxRating) reqObj.input('maxRating', sql.Decimal(3, 2), parseFloat(req.query.maxRating));
+
+          if (req.query.maxRating) reqObj.input('maxRating', sql.Decimal(3, 2), parseFloat(req.query.maxRating));
+          if (req.query.minReviewCount) reqObj.input('minReviewCount', sql.Int, parseInt(req.query.minReviewCount));
+          if (req.query.maxReviewCount) reqObj.input('maxReviewCount', sql.Int, parseInt(req.query.maxReviewCount));
+          if (req.query.minImagesCount) reqObj.input('minImagesCount', sql.Int, parseInt(req.query.minImagesCount));
+          if (req.query.maxImagesCount) reqObj.input('maxImagesCount', sql.Int, parseInt(req.query.maxImagesCount));
+          if (req.query.minBulletPoints) reqObj.input('minBulletPoints', sql.Int, parseInt(req.query.minBulletPoints));
+          if (req.query.maxBulletPoints) reqObj.input('maxBulletPoints', sql.Int, parseInt(req.query.maxBulletPoints));
+          if (req.query.minReleaseDate) reqObj.input('minReleaseDate', sql.DateTime2, new Date(req.query.minReleaseDate));
+          if (req.query.maxReleaseDate) {
+              const maxD = new Date(req.query.maxReleaseDate);
+              maxD.setHours(23, 59, 59, 999);
+              reqObj.input('maxReleaseDate', sql.DateTime2, maxD);
+          }
+          if (search) reqObj.input('search', sql.NVarChar, `%${search}%`);
+          
+          if (req.query.selectedTags) {
+              const tags = Array.isArray(req.query.selectedTags) ? req.query.selectedTags : req.query.selectedTags.split(',');
+              tags.forEach((tag, i) => {
+                  reqObj.input(`selectedTag${i}`, sql.NVarChar, `%${tag.trim()}%`);
+              });
+          }
+          if (priceDispute !== undefined && priceDispute !== '') reqObj.input('priceDispute', sql.Bit, priceDispute === 'true' ? 1 : 0);
+          if (req.query.bsrTrend) reqObj.input('bsrTrend', sql.NVarChar, req.query.bsrTrend);
+          if (req.query.ratingTrend) reqObj.input('ratingTrend', sql.NVarChar, req.query.ratingTrend);
+          if (req.query.ads !== undefined && req.query.ads !== '') reqObj.input('ads', sql.Bit, req.query.ads === 'true' ? 1 : 0);
+          if (req.query.availabilityStatus) reqObj.input('availabilityStatus', sql.NVarChar, req.query.availabilityStatus);
+          if (req.query.manufacturer) reqObj.input('manufacturer', sql.NVarChar, `%${req.query.manufacturer}%`);
+          if (req.query.dealAccessType) reqObj.input('dealAccessType', sql.NVarChar, req.query.dealAccessType);
+          if (req.query.hasDeal !== undefined && req.query.hasDeal !== '') reqObj.input('hasDeal', sql.Bit, req.query.hasDeal === 'true' ? 1 : 0);
+          return reqObj;
+      };
+
+      let whereClause = 'WHERE 1=1';
+      let allowedSellerIds = [];
+
+      // [1] User Scope / Seller Filtering
+      if (!isGlobalUser) {
+        allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
+        if (allowedSellerIds.length === 0) {
+          if (res.headersSent) return;
+          return res.json({ asins: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0 } });
+        }
+        
+        if (req.query.seller) {
+          const matchedSellerId = allowedSellerIds.find(id => id.toLowerCase() === req.query.seller.toLowerCase());
+          if (matchedSellerId) {
+            whereClause += ' AND a.SellerId = @seller';
+          } else {
+            if (res.headersSent) return;
+            return res.json({ asins: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, totalPages: 0 } });
+          }
+        } else {
+          const sellerPlaceholders = allowedSellerIds.map((_, i) => `@allowedSeller_${i}`).join(',');
+          whereClause += ` AND a.SellerId IN (${sellerPlaceholders})`;
+        }
+      } else if (req.query.seller) {
+        whereClause += ' AND a.SellerId = @seller';
+      }
+
+      if (req.query.marketplace) {
+        whereClause += ' AND s.Marketplace = @marketplace';
+      }
+
+      // [1.5] Trend Filters
+      if (req.query.bsrTrend) whereClause += ' AND BsrTrend = @bsrTrend';
+      if (req.query.ratingTrend) whereClause += ' AND RatingTrend = @ratingTrend';
+
+      // [2] Filters
+      if (status) {
+        whereClause += ' AND a.Status = @status';
+      } else {
+        whereClause += " AND (a.Status IS NULL OR a.Status != 'Archived')";
+      }
+      if (category) whereClause += ' AND Category = @category';
+      if (brand) whereClause += ' AND s.Name = @brand';
+      if (scrapeStatus) whereClause += ' AND ScrapeStatus = @scrapeStatus';
+      if (hasAplus !== undefined && hasAplus !== '') whereClause += ' AND HasAplus = @hasAplus';
+      if (buyBoxWin !== undefined && buyBoxWin !== '') {
+        const ownSellers = ['ETrade Online', 'Cocoblu Retail', 'Clicktech Retail Private Ltd', 'RetailEz'];
+        const sellerChecks = ownSellers.map((s, i) => `a.SoldBy = @ownSeller${i}`).join(' OR ');
+        const jsonSellerChecks = ownSellers.map((s, i) => `JSON_VALUE(a.BuyBoxes, '$[0].seller') = @ownSeller${i}`).join(' OR ');
+        if (buyBoxWin === 'true') {
+          whereClause += ` AND (${sellerChecks} OR (a.SoldBy IS NULL AND (${jsonSellerChecks})))`;
+        } else {
+          whereClause += ` AND NOT (${sellerChecks} OR (a.SoldBy IS NULL AND (${jsonSellerChecks})))`;
+        }
+      }
+      if (priceDispute !== undefined && priceDispute !== '') {
+        if (priceDispute === 'true') {
+          whereClause += ' AND a.PriceDispute = 1';
+        } else {
+          whereClause += ' AND (a.PriceDispute = 0 OR a.PriceDispute IS NULL)';
+        }
+      }
+
+      // [3] Numeric Ranges
+      if (minPrice) whereClause += ' AND CurrentPrice >= @minPrice';
+      if (maxPrice) whereClause += ' AND CurrentPrice <= @maxPrice';
+      if (minBSR) whereClause += ' AND BSR >= @minBSR';
+      if (maxBSR) whereClause += ' AND BSR <= @maxBSR';
+      if (minLQS) whereClause += ' AND LQS >= @minLQS';
+      if (maxLQS) whereClause += ' AND LQS <= @maxLQS';
+
+      if (req.query.parentAsin) whereClause += ' AND ParentAsin = @parentAsin';
+      if (req.query.tag) whereClause += ' AND Tags LIKE @tag';
+      if (req.query.selectedTags) {
+          const tags = Array.isArray(req.query.selectedTags) ? req.query.selectedTags : req.query.selectedTags.split(',');
+          tags.forEach((tag, i) => {
+              whereClause += ` AND Tags LIKE @selectedTag${i}`;
+          });
+      }
+      if (req.query.sku) whereClause += ' AND Sku LIKE @sku';
+      if (req.query.minRating) whereClause += ' AND Rating >= @minRating';
+      if (req.query.maxRating) whereClause += ' AND Rating <= @maxRating';
+      if (req.query.minReviewCount) whereClause += ' AND ReviewCount >= @minReviewCount';
+      if (req.query.maxReviewCount) whereClause += ' AND ReviewCount <= @maxReviewCount';
+      if (req.query.minImagesCount) {
+        whereClause += ' AND ImagesCount >= @minImagesCount';
+      }
+      if (req.query.maxImagesCount) {
+        whereClause += ' AND ImagesCount <= @maxImagesCount';
+      }
+
+      if (req.query.minBulletPoints) {
+        whereClause += ' AND BulletPoints >= @minBulletPoints';
+      }
+      if (req.query.maxBulletPoints) {
+        whereClause += ' AND BulletPoints <= @maxBulletPoints';
+      }
+
+      if (req.query.hasVideo !== undefined && req.query.hasVideo !== '') {
+        whereClause += req.query.hasVideo === 'true'
+          ? ' AND VideoCount > 0'
+          : ' AND (VideoCount = 0 OR VideoCount IS NULL)';
+      }
+      if (req.query.ads !== undefined && req.query.ads !== '') {
+        whereClause += req.query.ads === 'true'
+          ? ' AND a.Ads = 1'
+          : ' AND (a.Ads = 0 OR a.Ads IS NULL)';
+      }
+      if (req.query.availabilityStatus) {
+        const status = req.query.availabilityStatus;
+        if (status === 'In Stock') {
+          whereClause += " AND LOWER(a.AvailabilityStatus) LIKE '%in stock%'";
+        } else if (status === 'Out of Stock') {
+          whereClause += " AND (LOWER(a.AvailabilityStatus) LIKE '%out of stock%' OR LOWER(a.AvailabilityStatus) LIKE '%unavailable%' OR LOWER(a.AvailabilityStatus) LIKE '%temporarily%')";
+        } else {
+          whereClause += ' AND LOWER(a.AvailabilityStatus) = LOWER(@availabilityStatus)';
+        }
+      }
+      if (req.query.manufacturer) {
+        whereClause += ' AND a.Manufacturer LIKE @manufacturer';
+      }
+      if (req.query.dealAccessType) {
+        if (req.query.dealAccessType === 'ALL') {
+          whereClause += " AND a.DealAccessType IS NOT NULL AND a.DealAccessType != ''";
+        } else {
+          whereClause += ' AND LOWER(a.DealAccessType) = LOWER(@dealAccessType)';
+        }
+      }
+
+      if (req.query.minTitleScore) {
+        whereClause += ' AND TitleScore >= @minTitleScore';
+      }
+      if (req.query.maxTitleScore) {
+        whereClause += ' AND TitleScore <= @maxTitleScore';
+      }
+      if (req.query.minBulletScore) {
+        whereClause += ' AND BulletScore >= @minBulletScore';
+      }
+      if (req.query.maxBulletScore) {
+        whereClause += ' AND BulletScore <= @maxBulletScore';
+      }
+      if (req.query.minImageScore) {
+        whereClause += ' AND ImageScore >= @minImageScore';
+      }
+      if (req.query.maxImageScore) {
+        whereClause += ' AND ImageScore <= @maxImageScore';
+      }
+      if (req.query.minDescriptionScore) {
+        whereClause += ' AND DescriptionScore >= @minDescriptionScore';
+      }
+      if (req.query.maxDescriptionScore) {
+        whereClause += ' AND DescriptionScore <= @maxDescriptionScore';
+      }
+
+      if (req.query.hasDeal !== undefined && req.query.hasDeal !== '') {
+        if (req.query.hasDeal === 'true') {
+          whereClause += " AND DealBadge IS NOT NULL AND DealBadge != '' AND DealBadge != 'No deal found'";
+        } else {
+          whereClause += " AND (DealBadge IS NULL OR DealBadge = '' OR DealBadge = 'No deal found')";
+        }
       }
       
-      if (seller) {
-        const matchedSellerId = allowedSellerIds.find(id => id.toLowerCase() === seller.toLowerCase());
-        if (matchedSellerId) {
-          whereClause += ' AND a.SellerId = @seller';
-        } else {
-          if (res.headersSent) return;
-          return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 } });
-        }
-      } else {
-        const sellerPlaceholders = allowedSellerIds.map((_, i) => `@allowedSeller_${i}`).join(',');
-        whereClause += ` AND a.SellerId IN (${sellerPlaceholders})`;
+      if (req.query.subBsrCategory) {
+        whereClause += ' AND a.SubBsrCategories LIKE @subBsrCategory';
       }
-    } else if (seller) {
-      whereClause += ' AND a.SellerId = @seller';
-    }
 
-    if (req.query.marketplace) {
-      whereClause += ' AND s.Marketplace = @marketplace';
-    }
+      if (req.query.minReleaseDate) whereClause += ' AND ReleaseDate >= @minReleaseDate';
+      if (req.query.maxReleaseDate) whereClause += ' AND ReleaseDate <= @maxReleaseDate';
 
-    // [1.5] Trend Filters
-    if (req.query.bsrTrend) whereClause += ' AND BsrTrend = @bsrTrend';
-    if (req.query.ratingTrend) whereClause += ' AND RatingTrend = @ratingTrend';
-
-    // [2] Filters
-    if (status) {
-      whereClause += ' AND a.Status = @status';
-    } else {
-      whereClause += " AND (a.Status IS NULL OR a.Status != 'Archived')";
-    }
-    if (category) whereClause += ' AND Category = @category';
-    if (brand) whereClause += ' AND s.Name = @brand';
-    if (scrapeStatus) whereClause += ' AND ScrapeStatus = @scrapeStatus';
-    if (hasAplus !== undefined && hasAplus !== '') whereClause += ' AND HasAplus = @hasAplus';
-    if (buyBoxWin !== undefined && buyBoxWin !== '') {
-      const ownSellers = ['ETrade Online', 'Cocoblu Retail', 'Clicktech Retail Private Ltd', 'RetailEz'];
-      const sellerChecks = ownSellers.map((s, i) => `a.SoldBy = @ownSeller${i}`).join(' OR ');
-      const jsonSellerChecks = ownSellers.map((s, i) => `JSON_VALUE(a.BuyBoxes, '$[0].seller') = @ownSeller${i}`).join(' OR ');
-      if (buyBoxWin === 'true') {
-        whereClause += ` AND (${sellerChecks} OR (a.SoldBy IS NULL AND (${jsonSellerChecks})))`;
-      } else {
-        whereClause += ` AND NOT (${sellerChecks} OR (a.SoldBy IS NULL AND (${jsonSellerChecks})))`;
+      if (req.query.ageFilter) {
+        if (req.query.ageFilter === '30') whereClause += ' AND ReleaseDate >= DATEADD(day, -30, dbo.GetEnvDate())';
+        else if (req.query.ageFilter === '60') whereClause += ' AND ReleaseDate < DATEADD(day, -30, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -60, dbo.GetEnvDate())';
+        else if (req.query.ageFilter === '90') whereClause += ' AND ReleaseDate < DATEADD(day, -60, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -90, dbo.GetEnvDate())';
+        else if (req.query.ageFilter === '180') whereClause += ' AND ReleaseDate < DATEADD(day, -180, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -180, dbo.GetEnvDate())';
+        else if (req.query.ageFilter === '365') whereClause += ' AND ReleaseDate < DATEADD(day, -180, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -365, dbo.GetEnvDate())';
+        else if (req.query.ageFilter === '365+') whereClause += ' AND ReleaseDate < DATEADD(day, -365, dbo.GetEnvDate())';
       }
-    }
-    if (priceDispute !== undefined && priceDispute !== '') {
-      if (priceDispute === 'true') {
-        whereClause += ' AND a.PriceDispute = 1';
-      } else {
-        whereClause += ' AND (a.PriceDispute = 0 OR a.PriceDispute IS NULL)';
+
+      // [4] Search
+      if (search) {
+        whereClause += ' AND (AsinCode LIKE @search OR Title LIKE @search OR Sku LIKE @search)';
       }
-    }
 
-    // [3] Numeric Ranges
-    if (minPrice) whereClause += ' AND CurrentPrice >= @minPrice';
-    if (maxPrice) whereClause += ' AND CurrentPrice <= @maxPrice';
-    if (minBSR) whereClause += ' AND BSR >= @minBSR';
-    if (maxBSR) whereClause += ' AND BSR <= @maxBSR';
-    if (minLQS) whereClause += ' AND LQS >= @minLQS';
-    if (maxLQS) whereClause += ' AND LQS <= @maxLQS';
+      // [5] Count Total - Combined query to get both filtered and raw totals
+      const countRequest = applyInputs(pool.request());
+      if (!isGlobalUser && allowedSellerIds.length > 0) {
+        buildInClause(countRequest, 'allowedSeller', allowedSellerIds);
+      }
+      if (req.query.minTitleScore) countRequest.input('minTitleScore', sql.Float, parseFloat(req.query.minTitleScore));
+      if (req.query.maxTitleScore) countRequest.input('maxTitleScore', sql.Float, parseFloat(req.query.maxTitleScore));
+      if (req.query.minBulletScore) countRequest.input('minBulletScore', sql.Float, parseFloat(req.query.minBulletScore));
+      if (req.query.maxBulletScore) countRequest.input('maxBulletScore', sql.Float, parseFloat(req.query.maxBulletScore));
+      if (req.query.minImageScore) countRequest.input('minImageScore', sql.Float, parseFloat(req.query.minImageScore));
+      if (req.query.maxImageScore) countRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
+      if (req.query.minDescriptionScore) countRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
+      if (req.query.maxDescriptionScore) countRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
+      const countResult = await countRequest.query(`
+        SELECT 
+          COUNT(*) as totalFiltered,
+          SUM(CASE WHEN a.Status != 'Archived' THEN 1 ELSE 0 END) as rawTotal
+        FROM Asins a 
+        JOIN Sellers s ON a.SellerId = s.Id 
+        ${whereClause}
+      `);
+      const totalFiltered = countResult.recordset[0].totalFiltered;
+      const rawTotal = countResult.recordset[0].rawTotal;
 
-    if (req.query.parentAsin) whereClause += ' AND ParentAsin = @parentAsin';
-    if (req.query.tag) whereClause += ' AND Tags LIKE @tag';
-    if (req.query.selectedTags) {
-        const tags = Array.isArray(req.query.selectedTags) ? req.query.selectedTags : req.query.selectedTags.split(',');
-        tags.forEach((tag, i) => {
-            whereClause += ` AND Tags LIKE @selectedTag${i}`;
+      // [6] Fetch ASINs
+      // Map sortBy from frontend names to SQL ORDER BY clause
+      const getOrderBy = () => {
+          let col = 'a.CreatedAt'; // default
+          switch (sortBy) {
+              case 'asinCode': col = 'a.AsinCode'; break;
+              case 'currentPrice': col = 'a.CurrentPrice'; break;
+              case 'uploadedPrice': col = 'a.UploadedPrice'; break;
+              case 'bsr': col = 'a.BSR'; break;
+              case 'lqs': col = 'a.LQS'; break;
+              case 'status': col = 'a.Status'; break;
+              case 'scrapeStatus': col = 'a.ScrapeStatus'; break;
+              case 'priceDispute': col = 'a.PriceDispute'; break;
+              case 'releaseDate': col = 'a.ReleaseDate'; break;
+              case 'parentAsin': col = 'a.ParentAsin'; break;
+              case 'sku': col = 'a.Sku'; break;
+              case 'title': col = 'a.Title'; break;
+              case 'category': col = 'a.Category'; break;
+              case 'mrp': col = 'a.Mrp'; break;
+              case 'discountPercentage': col = 'a.DiscountPercentage'; break;
+              case 'rating': col = 'a.Rating'; break;
+              case 'reviewCount': col = 'a.ReviewCount'; break;
+              case 'sellerBrand': col = 's.Name'; break;
+              case 'videoCount': col = 'a.VideoCount'; break;
+              case 'imagesCount': col = 'a.ImagesCount'; break;
+              case 'hasAplus': col = 'a.HasAplus'; break;
+              case 'orders': 
+              case 'totalOrders': 
+                  col = '(SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode)';
+                  break;
+              case 'lastLiveSyncAt': col = 'a.LastLiveSyncAt'; break;
+              case 'lastScraped': col = 'a.LastScrapedAt'; break;
+              case 'manufacturer': col = 'a.Manufacturer'; break;
+              case 'availabilityStatus': col = 'a.AvailabilityStatus'; break;
+              case 'dealStartTime': col = 'a.DealStartTime'; break;
+              case 'dealEndTime': col = 'a.DealEndTime'; break;
+              case 'dealAccessType': col = 'a.DealAccessType'; break;
+              default: col = 'a.CreatedAt';
+          }
+          return `${col} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
+      };
+      
+      const dataRequest = applyInputs(pool.request());
+      if (!isGlobalUser && allowedSellerIds.length > 0) {
+        buildInClause(dataRequest, 'allowedSeller', allowedSellerIds);
+      }
+      if (req.query.minTitleScore) dataRequest.input('minTitleScore', sql.Float, parseFloat(req.query.minTitleScore));
+      if (req.query.maxTitleScore) dataRequest.input('maxTitleScore', sql.Float, parseFloat(req.query.maxTitleScore));
+      if (req.query.minBulletScore) dataRequest.input('minBulletScore', sql.Float, parseFloat(req.query.minBulletScore));
+      if (req.query.maxBulletScore) dataRequest.input('maxBulletScore', sql.Float, parseFloat(req.query.maxBulletScore));
+      if (req.query.minImageScore) dataRequest.input('minImageScore', sql.Float, parseFloat(req.query.minImageScore));
+      if (req.query.maxImageScore) dataRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
+      if (req.query.minDescriptionScore) dataRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
+      if (req.query.maxDescriptionScore) dataRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
+      const asinsResult = await dataRequest
+          .input('offset', sql.Int, (parseInt(page) - 1) * parseInt(limit))
+          .input('limit', sql.Int, parseInt(limit))
+          .query(
+              `SELECT a.*, s.Name as sellerName, s.Marketplace as sellerMarketplace,
+                     (SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode) as TotalOrders
+              FROM Asins a WITH (NOLOCK)
+              JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+              ${whereClause}
+              ORDER BY ${getOrderBy()}
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`
+          );
+
+      const asins = asinsResult.recordset;
+
+      if (asins.length === 0) {
+        if (res.headersSent) return;
+        return res.json({ asins: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: rawTotal, totalPages: Math.ceil(rawTotal / parseInt(limit)) } });
+      }
+
+      // [7] Fetch all history data IN PARALLEL to avoid sequential timeouts
+      const historyDays = parseInt(req.query.historyDays) || 14;
+      const asinIdValues = asins.map(a => a.Id);
+      const asinCodeValues = asins.map(a => a.AsinCode);
+
+      const histDailyReq = pool.request();
+      const histWeekReq = pool.request();
+      const histSubBsrReq = pool.request();
+      const histOrdersReq = pool.request();
+      const histAsinIds = buildInClause(histDailyReq, 'histAsin', asinIdValues);
+      const histAsinIds2 = buildInClause(histWeekReq, 'histAsin', asinIdValues);
+      const histAsinIds3 = buildInClause(histSubBsrReq, 'histAsin', asinIdValues);
+      const histAsinCodes = buildInClause(histOrdersReq, 'histCode', asinCodeValues);
+
+      const [dailyHistoryResult, weekHistoryResult, subBsrHistoryResult, monthsResult, monthlyOrdersResult, monthlyGmsRevenueResult] = await Promise.all([
+        // [7.1] Daily History
+        histDailyReq.query(
+          `SELECT AsinId, FORMAT(Date, 'yyyy-MM-dd') as dateStr, Price as price, BSR as bsr, 
+                 Rating as rating, ReviewCount as reviews, 
+                 StockLevel as stockLevel, LQS as lqs
+          FROM AsinHistory WITH (NOLOCK)
+          WHERE AsinId IN (${histAsinIds}) 
+          AND Date >= DATEADD(day, -${historyDays}, dbo.GetEnvDate())
+          ORDER BY Date ASC`
+        ),
+        // [7.2] Week History
+        histWeekReq.query(
+          `SELECT AsinId, FORMAT(WeekStartDate, 'yyyy-MM-dd') as dateStr, WeekStartDate, AvgPrice as price, AvgBSR as bsr, AvgRating as rating, TotalReviews as reviews
+          FROM AsinWeekHistory WITH (NOLOCK)
+          WHERE AsinId IN (${histAsinIds2}) 
+          AND WeekStartDate >= DATEADD(year, -1, dbo.GetEnvDate()) -- Limit to 1 year
+          ORDER BY WeekStartDate ASC`
+        ),
+
+        // [7.3] Sub BSR History
+        histSubBsrReq.query(
+          `SELECT AsinId, Date, SubBsrRank as rank, SubBsrCategory as category
+          FROM SubBsrHistory WITH (NOLOCK)
+          WHERE AsinId IN (${histAsinIds3})
+          AND Date >= DATEADD(day, -14, dbo.GetEnvDate())
+          ORDER BY Date ASC, CreatedAt DESC`
+        ),
+        // [7.4] Available months (from GMS for orders)
+        pool.request().query(
+          `SELECT DISTINCT FORMAT(Date, 'yyyy-MM') as Month 
+          FROM GmsDailyPerformance WITH (NOLOCK)
+          WHERE Date IS NOT NULL
+          ORDER BY Month ASC`
+        ),
+        // [7.5] Monthly orders (from GMS OrderedUnits)
+        histOrdersReq.query(
+          `SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedUnits, 0)) as Orders
+          FROM GmsDailyPerformance WITH (NOLOCK)
+          WHERE Asin IN (${histAsinCodes})
+          AND Date IS NOT NULL
+          AND Date >= DATEADD(month, -24, dbo.GetEnvDate()) -- Limit to 24 months
+          GROUP BY Asin, FORMAT(Date, 'yyyy-MM')`
+        ),
+        // [7.6] Monthly GMS revenue (from GmsDailyPerformance)
+        (() => {
+          const req = pool.request();
+          if (asinCodeValues.length > 0) {
+            const inClause = buildInClause(req, 'gmsRevAsin', asinCodeValues);
+            return req.query(
+              `SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedRevenue, 0)) as Revenue
+              FROM GmsDailyPerformance WITH (NOLOCK)
+              WHERE Asin IN (${inClause})
+              AND Date IS NOT NULL
+              AND Date >= DATEADD(month, -24, dbo.GetEnvDate()) -- Limit to 24 months
+              GROUP BY Asin, FORMAT(Date, 'yyyy-MM')`
+            );
+          }
+          return { recordset: [] };
+        })()
+      ]);
+
+      // Process daily history
+      const historyMap = {};
+      dailyHistoryResult.recordset.forEach(h => {
+        if (!historyMap[h.AsinId]) historyMap[h.AsinId] = [];
+        historyMap[h.AsinId].push({
+          date: h.dateStr || '',
+          price: h.price || 0,
+          bsr: h.bsr || 0,
+          rating: h.rating || 0,
+          reviews: h.reviews || 0,
+          stockLevel: h.stockLevel || 0,
+          lqs: h.lqs || 0
         });
-    }
-    if (req.query.sku) whereClause += ' AND Sku LIKE @sku';
-    if (req.query.minRating) whereClause += ' AND Rating >= @minRating';
-    if (req.query.maxRating) whereClause += ' AND Rating <= @maxRating';
-    if (req.query.minReviewCount) whereClause += ' AND ReviewCount >= @minReviewCount';
-    if (req.query.maxReviewCount) whereClause += ' AND ReviewCount <= @maxReviewCount';
-    if (req.query.minImagesCount) {
-      whereClause += ' AND ImagesCount >= @minImagesCount';
-    }
-    if (req.query.maxImagesCount) {
-      whereClause += ' AND ImagesCount <= @maxImagesCount';
-    }
+      });
 
-    if (req.query.minBulletPoints) {
-      whereClause += ' AND BulletPoints >= @minBulletPoints';
-    }
-    if (req.query.maxBulletPoints) {
-      whereClause += ' AND BulletPoints <= @maxBulletPoints';
-    }
+      // Process week history
+      const weekHistoryMap = {};
+      weekHistoryResult.recordset.forEach(h => {
+        if (!weekHistoryMap[h.AsinId]) weekHistoryMap[h.AsinId] = [];
+        weekHistoryMap[h.AsinId].push({
+          week: h.WeekStartDate ? `W${Math.ceil(new Date(h.WeekStartDate).getDate() / 7)}` : '',
+          date: h.dateStr || '',
+          price: h.price || 0,
+          bsr: h.bsr || 0,
+          rating: h.rating || 0,
+          reviews: h.reviews || 0
+        });
+      });
 
-    if (req.query.hasVideo !== undefined && req.query.hasVideo !== '') {
-      whereClause += req.query.hasVideo === 'true'
-        ? ' AND VideoCount > 0'
-        : ' AND (VideoCount = 0 OR VideoCount IS NULL)';
-    }
-    if (req.query.ads !== undefined && req.query.ads !== '') {
-      whereClause += req.query.ads === 'true'
-        ? ' AND a.Ads = 1'
-        : ' AND (a.Ads = 0 OR a.Ads IS NULL)';
-    }
-    if (req.query.availabilityStatus) {
-      const status = req.query.availabilityStatus;
-      if (status === 'In Stock') {
-        whereClause += " AND LOWER(a.AvailabilityStatus) LIKE '%in stock%'";
-      } else if (status === 'Out of Stock') {
-        whereClause += " AND (LOWER(a.AvailabilityStatus) LIKE '%out of stock%' OR LOWER(a.AvailabilityStatus) LIKE '%unavailable%' OR LOWER(a.AvailabilityStatus) LIKE '%temporarily%')";
-      } else {
-        whereClause += ' AND LOWER(a.AvailabilityStatus) = LOWER(@availabilityStatus)';
+      // Process sub BSR history
+      const subBsrHistoryMap = {};
+      subBsrHistoryResult.recordset.forEach(h => {
+        if (!subBsrHistoryMap[h.AsinId]) subBsrHistoryMap[h.AsinId] = [];
+        const dateStr = h.Date ? new Date(h.Date).toISOString().split('T')[0] : '';
+        subBsrHistoryMap[h.AsinId].push({
+          date: dateStr,
+          rank: h.rank || 0,
+          category: h.category || ''
+        });
+      });
+
+      // Process months and monthly orders
+      const availableMonths = monthsResult.recordset.map(r => {
+        return r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
+      });
+
+      const monthlyOrdersMap = {};
+      monthlyOrdersResult.recordset.forEach(r => {
+        if (!monthlyOrdersMap[r.Asin]) monthlyOrdersMap[r.Asin] = {};
+        const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
+        monthlyOrdersMap[r.Asin][monthStr] = r.Orders;
+      });
+
+      // Process monthly GMS revenue
+      const monthlyGmsRevenueMap = {};
+      monthlyGmsRevenueResult.recordset.forEach(r => {
+        if (!monthlyGmsRevenueMap[r.Asin]) monthlyGmsRevenueMap[r.Asin] = {};
+        const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
+        monthlyGmsRevenueMap[r.Asin][monthStr] = r.Revenue;
+      });
+
+      // [8] Process for frontend
+      const processedAsins = asins.map(a => {
+          // Build history and weekHistory
+          const dailyHistory = (historyMap[a.Id] || []);
+          const weekHistory = (weekHistoryMap[a.Id] || []);
+          const subBsrHistory = (subBsrHistoryMap[a.Id] || []);
+
+          // ---- PARSE ALL JSON FIELDS ----
+          let allOffers = [];
+          try { 
+              if (a.AllOffers) {
+                  if (typeof a.AllOffers === 'string') {
+                      const parsed = JSON.parse(a.AllOffers);
+                      allOffers = Array.isArray(parsed) ? parsed : [];
+                  } else if (Array.isArray(a.AllOffers)) {
+                      allOffers = a.AllOffers;
+                  }
+              }
+          } catch (e) { 
+              console.warn(`Failed to parse AllOffers for ${a.AsinCode}:`, e.message);
+              allOffers = []; 
+          }
+
+          let subBSRs = [];
+          try { subBSRs = a.SubBSRs ? (typeof a.SubBSRs === 'string' ? JSON.parse(a.SubBSRs) : a.SubBSRs) : []; } catch (e) { subBSRs = []; }
+
+          let subBsrCategories = [];
+          try { subBsrCategories = a.SubBsrCategories ? (typeof a.SubBsrCategories === 'string' ? JSON.parse(a.SubBsrCategories) : a.SubBsrCategories) : []; } catch (e) { subBsrCategories = []; }
+
+          // Use SubBsr (int) and SubBSRCategory columns from live sync
+          let currentSubBsr = '';
+          let currentSubBSRCategory = a.SubBSRCategory || '';
+          
+          if (a.SubBsr && a.SubBsr > 0) {
+              currentSubBsr = `#${a.SubBsr.toLocaleString()}`;
+              if (currentSubBSRCategory) {
+                  currentSubBsr += ` in ${currentSubBSRCategory}`;
+              }
+              // Also populate subBSRs array for frontend compatibility
+              if (subBSRs.length === 0) {
+                  subBSRs = [currentSubBsr];
+              }
+          } else {
+              // Fallback to old text format
+              if (subBSRs.length > 0) {
+                  currentSubBsr = subBSRs[0];
+              }
+          }
+
+          let images = [];
+          try { images = a.Images ? (typeof a.Images === 'string' ? JSON.parse(a.Images) : a.Images) : []; } catch (e) { images = []; }
+
+          let bulletPointsText = [];
+          try { bulletPointsText = a.BulletPointsText ? (typeof a.BulletPointsText === 'string' ? JSON.parse(a.BulletPointsText) : a.BulletPointsText) : []; } catch (e) { bulletPointsText = []; }
+          const bulletPointsCount = parseInt(a.BulletPoints) || bulletPointsText.length || 0;
+
+          let ratingBreakdown = {};
+          try { ratingBreakdown = a.RatingBreakdown ? (typeof a.RatingBreakdown === 'string' ? JSON.parse(a.RatingBreakdown) : a.RatingBreakdown) : {}; } catch (e) { ratingBreakdown = {}; }
+
+          let lqsDetails = [];
+          try { lqsDetails = a.LqsDetails ? (typeof a.LqsDetails === 'string' ? JSON.parse(a.LqsDetails) : a.LqsDetails) : []; } catch (e) { lqsDetails = []; }
+
+          let buyBoxes = [];
+          try { buyBoxes = a.BuyBoxes ? (typeof a.BuyBoxes = 'string' ? JSON.parse(a.BuyBoxes) : a.BuyBoxes) : []; } catch (e) { buyBoxes = []; }
+
+          let cdqComponents = {};
+          try { cdqComponents = a.CdqComponents = 'string' ? JSON.parse(a.CdqComponents) : a.CdqComponents; } catch (e) { cdqComponents = {}; }
+
+          let feePreview = null;
+          try { feePreview = a.FeePreview = 'string' ? JSON.parse(a.FeePreview) = 'string' ? JSON.parse(a.FeePreview) : a.FeePreview) : null; } catch (e) { feePreview = null; }
+
+          let historyParsed = [];
+          try { historyParsed = a.History ? (typeof a.History = 'string' ? JSON.parse(a.History) = 'string' ? JSON.parse(a.History) = 'string' ? JSON.parse(a.History) : a.History) : []; } catch (e) { historyParsed = []; }
+
+          // ✅ FIX: If allOffers is empty, build it from legacy fields
+          if (allOffers.length === 0) {
+              // Primary offer (BuyBox winner)
+              if (a.SoldBy || a.CurrentPrice > 0) {
+                  allOffers.push({
+                      seller: a.SoldBy || 'Amazon',
+                      price: parseFloat(a.CurrentPrice) || 0,
+                      isBuyBoxWinner: true
+                  });
+              }
+              
+              // Secondary offer (Other seller)
+              if (a.SoldBySec && a.SoldBySec.trim() !== '') {
+                  const secPrice = parseFloat(a.SecondAsp) || 0;
+                  // Only add if different from primary seller
+                  const isSameAsPrimary = a.SoldBy && a.SoldBySec.toLowerCase().trim() === a.SoldBy.toLowerCase().trim();
+                  if (!isSameAsPrimary) {
+                      allOffers.push({
+                          seller: a.SoldBySec.trim(),
+                          price: secPrice > 0 ? secPrice : 0,
+                          isBuyBoxWinner: false
+                      });
+                  }
+              }
+          }
+
+          const hasDeal = a.DealBadge && a.DealBadge !== '' && a.DealBadge !== 'No deal found';
+          // Only PROPER Amazon deal types suppress dispute
+          const PROPER_DEAL_PATTERN = /^(lightning|limited time deal|best deal|prime exclusive|subscribe.?and.?save|deal of the day|coupon)$/i;
+          const hasProperDeal = hasDeal && PROPER_DEAL_PATTERN.test((a.DealBadge || '').trim());
+          
+          // Price dispute: only if > ₹5 difference and no proper deal badge
+          let priceDisputeValue = false;
+          if (a.UploadedPrice > 0 && (a.CurrentPrice || 0) > 0) {
+              const priceDiff = Math.abs(a.UploadedPrice - (a.CurrentPrice || 0));
+              if (!hasProperDeal && priceDiff > 5) {
+                  priceDisputeValue = true;
+              }
+          }
+
+          // ---- BUILD FINAL RESPONSE OBJECT ----
+          return {
+              _id: a.Id,
+              asinCode: a.AsinCode,
+              sku: a.Sku || '',
+              status: a.Status || 'Active',
+              scrapeStatus: a.ScrapeStatus || 'PENDING',
+              category: a.Category || '',
+              brand: a.Brand || '',
+              title: a.Title || '',
+              imageUrl: a.ImageUrl || '',
+              tags: a.Tags || '[]',
+              parentAsin: a.ParentAsin || '',
+              releaseDate: a.ReleaseDate || null,
+              marketplace: a.sellerMarketplace || '',
+              Ads: a.Ads ? 1 : 0,
+              hasGms: (a.TotalOrders || 0) > 0,
+              
+              // Pricing
+              currentPrice: parseFloat(a.CurrentPrice) || 0,
+              mrp: parseFloat(a.Mrp) || 0,
+              uploadedPrice: parseFloat(a.UploadedPrice) || 0,
+              secondAsp: parseFloat(a.SecondAsp) || 0,
+              aspDifference: parseFloat(a.AspDifference) || 0,
+              dealBadge: a.DealBadge || 'No deal found',
+              priceType: a.PriceType || 'Standard Price',
+              discountPercentage: parseInt(a.DiscountPercentage) || 0,
+              priceDispute: priceDisputeValue,
+              hasDeal: hasDeal,
+              manufacturer: a.Manufacturer || null,
+              dealStartTime: a.DealStartTime || null,
+              dealEndTime: a.DealEndTime || null,
+              dealAccessType: a.DealAccessType || null,
+              dealPercentClaimed: a.DealPercentClaimed || null,
+              
+              // BSR & Ratings
+              bsr: parseInt(a.BSR) || 0,
+              bsrTrend: a.BsrTrend || 'Stable',
+              rating: a.Rating !== null && a.Rating !== undefined ? parseFloat(a.Rating) : null,
+              ratingTrend: a.RatingTrend || 'Stable',
+              reviewCount: a.ReviewCount !== null && a.ReviewCount !== undefined ? parseInt(a.ReviewCount) : null,
+              ratingBreakdown: ratingBreakdown,
+              
+              // LQS & CDQ
+              lqs: parseFloat(a.LQS) || 0,
+              lqsGrade: a.LQSGrade || 'N/A',
+              lqsDetails: lqsDetails,
+              cdq: parseInt(a.Cdq) || 0,
+              cdqGrade: a.CdqGrade || 'N/A',
+              cdqComponents: cdqComponents,
+              
+              // Quality Component Scores
+              titleScore: parseFloat(a.TitleScore) || 0,
+              titleGrade: a.TitleGrade || 'N/A',
+              bulletScore: parseFloat(a.BulletScore) || 0,
+              bulletGrade: a.BulletGrade || 'N/A',
+              imageScore: parseFloat(a.ImageScore) || 0,
+              imageGrade: a.ImageGrade || 'N/A',
+              descriptionScore: parseFloat(a.DescriptionScore) || 0,
+              descriptionGrade: a.DescriptionGrade || 'N/A',
+              
+              // Quality Component Issues/Recs (Parsed if needed by UI)
+              titleIssues: this.tryParse(a.titleIssues, []),
+              titleRecommendations: this.tryParse(a.titleRecommendations, []),
+              bulletIssues: this.tryParse(a.bulletIssues, []),
+              bulletRecommendations: this.tryParse(a.bulletRecommendations, []),
+              imageIssues: this.tryParse(a.imageIssues, []),
+              imageRecommendations: this.tryParse(a.imageRecommendations, []),
+              descriptionIssues: this.tryParse(a.descriptionIssues, []),
+              descriptionRecommendations: this.tryParse(a.descriptionRecommendations, []),
+              
+              productDescription: a.productDescription || '',
+              
+              // Fee Preview
+              feePreview: feePreview,
+              
+              // BuyBox (computed dynamically from SoldBy)
+              buyBoxWin: this.isBuyBoxWinner(a.soldBy),
+              buyBoxStatus: this.isBuyBoxWinner(a.soldBy),
+              buyBoxSellerId: a.buyBoxSellerId || a.soldBy || '',
+              
+              // Seller Info
+              soldBy: a.soldBy || '',
+              soldBySec: a.soldBySec || '',
+              
+              // A+ Content (BOOLEAN CONVERSION)
+              hasAplus: a.HasAplus === 1 || a.HasAplus === true || a.HasAplus === 'true',
+              aplusAbsentSince: a.plusAbsentSince || null,
+              aplusPresentSince: a.plusPresentSince || null,
+              
+              // Availability & Stock
+              availabilityStatus: a.AvailabilityStatus || 'Available',
+              stockLevel: parseInt(a.StockLevel) || 0,
+              
+              // Media
+              imagesCount: parseInt(a.ImagesCount) || 0,
+              videoCount: parseInt(a.VideoCount) || 0,
+              bulletPoints: bulletPointsCount,
+              descLength: parseInt(a.DescLength) || 0,
+              
+              // Sub BSR
+              subBsr: currentSubBsr,
+              subBSR: a.SubBsr || null,
+              subBSRCategory: currentSubBSRCategory,
+              subBsrCategories: subBsrCategories,
+              
+              // Parsed JSON arrays/objects
+              allOffers: allOffers,
+              buyBoxes: buyBoxes,
+              subBSRs: subBSRs,
+              images: images,
+              bulletPointsText: bulletPointsText,
+              
+              // History
+              history: dailyHistory.length > 0 ? dailyHistory : historyParsed,
+              weekHistory: weekHistory,
+              subBsrHistory: subBsrHistory,
+              
+              // Weight / Staple
+              weight: parseFloat(a.Weight) || 0,
+              stapleLevel: a.StapleLevel || 'Standard',
+              lossPerReturn: parseFloat(a.LossPerReturn) || 0,
+              
+              // Seller object for display
+              seller: {
+                  _id: a.SellerId,
+                  name: a.sellerName || '',
+                  marketplace: a.sellerMarketplace || ''
+              },
+              
+              // Timestamps
+              lastScraped: a.LastScrapedAt || null,
+              lastScrapedAt: a.LastScrapedAt || null,
+              createdAt: a.CreatedAt,
+              updatedAt: a.UpdatedAt,
+              
+              // Advertising orders
+              totalOrders: parseInt(a.TotalOrders) || 0,
+              monthlyOrders: monthlyOrdersMap[a.AsinCode] || {},
+              monthlyGmsRevenue: monthlyGmsRevenueMap[a.AsinCode] || {},
+              
+              // Preserve original ID
+              _id: a.Id,
+              Id: a.Id,
+              SellerId: a.SellerId
+          };
+      });
+
+      // Cache global reference data (available months and global history dates) with 1 hour TTL
+      const ASSET_CACHE_TTL = 3600;
+      const monthsCacheKey = `asin:assets:months`;
+      let cachedMonths = await redisCache.get(monthsCacheKey);
+      if (!cachedMonths) {
+          await redisCache.set(monthsCacheKey, availableMonths, ASSET_CACHE_TTL);
       }
-    }
-    if (req.query.manufacturer) {
-      whereClause += ' AND a.Manufacturer LIKE @manufacturer';
-    }
-    if (req.query.dealAccessType) {
-      if (req.query.dealAccessType === 'ALL') {
-        whereClause += " AND a.DealAccessType IS NOT NULL AND a.DealAccessType != ''";
-      } else {
-        whereClause += ' AND LOWER(a.DealAccessType) = LOWER(@dealAccessType)';
+      const historyDatesCacheKey = `asin:assets:historyDates:${historyDays}`;
+      let cachedHistoryDates = await redisCache.get(historyDatesCacheKey);
+      if (!cachedHistoryDates) {
+          await redisCache.set(historyDatesCacheKey, globalHistoryDates, ASSET_CACHE_TTL);
       }
-    }
 
-    if (req.query.minTitleScore) {
-      whereClause += ' AND TitleScore >= @minTitleScore';
-    }
-    if (req.query.maxTitleScore) {
-      whereClause += ' AND TitleScore <= @maxTitleScore';
-    }
-    if (req.query.minBulletScore) {
-      whereClause += ' AND BulletScore >= @minBulletScore';
-    }
-    if (req.query.maxBulletScore) {
-      whereClause += ' AND BulletScore <= @maxBulletScore';
-    }
-    if (req.query.minImageScore) {
-      whereClause += ' AND ImageScore >= @minImageScore';
-    }
-    if (req.query.maxImageScore) {
-      whereClause += ' AND ImageScore <= @maxImageScore';
-    }
-    if (req.query.minDescriptionScore) {
-      whereClause += ' AND DescriptionScore >= @minDescriptionScore';
-    }
-    if (req.query.maxDescriptionScore) {
-      whereClause += ' AND DescriptionScore <= @maxDescriptionScore';
-    }
+      // Prepare response
+      const response = {
+          asins: processedAsins,
+          months: availableMonths,
+          globalHistoryDates,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: rawTotal,
+            totalPages: Math.ceil(rawTotal / parseInt(limit)),
+          },
+      };
 
-    if (req.query.hasDeal !== undefined && req.query.hasDeal !== '') {
-      if (req.query.hasDeal === 'true') {
-        whereClause += " AND DealBadge IS NOT NULL AND DealBadge != '' AND DealBadge != 'No deal found'";
-      } else {
-        whereClause += " AND (DealBadge IS NULL OR DealBadge = '' OR DealBadge = 'No deal found')";
-      }
-    }
-    
-    if (req.query.subBsrCategory) {
-      whereClause += ' AND a.SubBsrCategories LIKE @subBsrCategory';
-    }
+      // Cache the ASIN list result for 30 seconds
+      await redisCache.set(cacheKey, response, 30);
 
-    if (req.query.minReleaseDate) whereClause += ' AND ReleaseDate >= @minReleaseDate';
-    if (req.query.maxReleaseDate) whereClause += ' AND ReleaseDate <= @maxReleaseDate';
-
-    if (req.query.ageFilter) {
-      if (req.query.ageFilter === '30') whereClause += ' AND ReleaseDate >= DATEADD(day, -30, dbo.GetEnvDate())';
-      else if (req.query.ageFilter === '60') whereClause += ' AND ReleaseDate < DATEADD(day, -30, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -60, dbo.GetEnvDate())';
-      else if (req.query.ageFilter === '90') whereClause += ' AND ReleaseDate < DATEADD(day, -60, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -90, dbo.GetEnvDate())';
-      else if (req.query.ageFilter === '180') whereClause += ' AND ReleaseDate < DATEADD(day, -90, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -180, dbo.GetEnvDate())';
-      else if (req.query.ageFilter === '365') whereClause += ' AND ReleaseDate < DATEADD(day, -180, dbo.GetEnvDate()) AND ReleaseDate >= DATEADD(day, -365, dbo.GetEnvDate())';
-      else if (req.query.ageFilter === '365+') whereClause += ' AND ReleaseDate < DATEADD(day, -365, dbo.GetEnvDate())';
-    }
-
-    // [4] Search
-    if (search) {
-      whereClause += ' AND (AsinCode LIKE @search OR Title LIKE @search OR Sku LIKE @search)';
-    }
-
-    // [5] Count Total
-    const countRequest = applyInputs(pool.request());
-    if (!isGlobalUser && allowedSellerIds.length > 0) {
-      buildInClause(countRequest, 'allowedSeller', allowedSellerIds);
-    }
-    if (req.query.minTitleScore) countRequest.input('minTitleScore', sql.Float, parseFloat(req.query.minTitleScore));
-    if (req.query.maxTitleScore) countRequest.input('maxTitleScore', sql.Float, parseFloat(req.query.maxTitleScore));
-    if (req.query.minBulletScore) countRequest.input('minBulletScore', sql.Float, parseFloat(req.query.minBulletScore));
-    if (req.query.maxBulletScore) countRequest.input('maxBulletScore', sql.Float, parseFloat(req.query.maxBulletScore));
-    if (req.query.minImageScore) countRequest.input('minImageScore', sql.Float, parseFloat(req.query.minImageScore));
-    if (req.query.maxImageScore) countRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
-    if (req.query.minDescriptionScore) countRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
-    if (req.query.maxDescriptionScore) countRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
-    const countResult = await countRequest.query(`SELECT COUNT(*) as total FROM Asins a JOIN Sellers s ON a.SellerId = s.Id ${whereClause}`);
-    const total = countResult.recordset[0].total;
-
-    // [5b] Raw total count (no status filter) — accurate ASIN count matching seller stats
-    const rawCountRequest = pool.request();
-    let rawWhere = 'WHERE 1=1';
-    if (!isGlobalUser && allowedSellerIds.length > 0) {
-      const rawSellerClause = buildInClause(rawCountRequest, 'rawSeller', allowedSellerIds);
-      rawWhere += ` AND a.SellerId IN (${rawSellerClause})`;
-    }
-    if (seller) rawWhere += ' AND a.SellerId = @rawSeller';
-    if (req.query.marketplace) rawWhere += ' AND a.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @rawMp)';
-    if (seller) rawCountRequest.input('rawSeller', sql.VarChar, seller);
-    if (req.query.marketplace) rawCountRequest.input('rawMp', sql.VarChar, req.query.marketplace);
-    const rawCountResult = await rawCountRequest.query(`SELECT COUNT(*) as total FROM Asins a ${rawWhere}`);
-    const rawTotal = rawCountResult.recordset[0].total;
-
-    // [6] Fetch ASINs
-    // Map sortBy from frontend names to SQL ORDER BY clause
-    const getOrderBy = () => {
-        let col = 'a.CreatedAt'; // default
-        switch (sortBy) {
-            case 'asinCode': col = 'a.AsinCode'; break;
-            case 'currentPrice': col = 'a.CurrentPrice'; break;
-            case 'uploadedPrice': col = 'a.UploadedPrice'; break;
-            case 'bsr': col = 'a.BSR'; break;
-            case 'lqs': col = 'a.LQS'; break;
-            case 'status': col = 'a.Status'; break;
-            case 'scrapeStatus': col = 'a.ScrapeStatus'; break;
-            case 'priceDispute': col = 'a.PriceDispute'; break;
-            case 'releaseDate': col = 'a.ReleaseDate'; break;
-            case 'parentAsin': col = 'a.ParentAsin'; break;
-            case 'sku': col = 'a.Sku'; break;
-            case 'title': col = 'a.Title'; break;
-            case 'category': col = 'a.Category'; break;
-            case 'mrp': col = 'a.Mrp'; break;
-            case 'discountPercentage': col = 'a.DiscountPercentage'; break;
-            case 'rating': col = 'a.Rating'; break;
-            case 'reviewCount': col = 'a.ReviewCount'; break;
-            case 'sellerBrand': col = 's.Name'; break;
-            case 'videoCount': col = 'a.VideoCount'; break;
-            case 'imagesCount': col = 'a.ImagesCount'; break;
-            case 'hasAplus': col = 'a.HasAplus'; break;
-            case 'orders': 
-            case 'totalOrders': 
-                col = '(SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WHERE Asin = a.AsinCode)';
-                break;
-            case 'lastLiveSyncAt': col = 'a.LastLiveSyncAt'; break;
-            case 'lastScraped': col = 'a.LastScrapedAt'; break;
-            case 'manufacturer': col = 'a.Manufacturer'; break;
-            case 'availabilityStatus': col = 'a.AvailabilityStatus'; break;
-            case 'dealStartTime': col = 'a.DealStartTime'; break;
-            case 'dealEndTime': col = 'a.DealEndTime'; break;
-            case 'dealAccessType': col = 'a.DealAccessType'; break;
-            default: col = 'a.CreatedAt';
-        }
-        return `${col} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
-    };
-    
-    const dataRequest = applyInputs(pool.request());
-    if (!isGlobalUser && allowedSellerIds.length > 0) {
-      buildInClause(dataRequest, 'allowedSeller', allowedSellerIds);
-    }
-    if (req.query.minTitleScore) dataRequest.input('minTitleScore', sql.Float, parseFloat(req.query.minTitleScore));
-    if (req.query.maxTitleScore) dataRequest.input('maxTitleScore', sql.Float, parseFloat(req.query.maxTitleScore));
-    if (req.query.minBulletScore) dataRequest.input('minBulletScore', sql.Float, parseFloat(req.query.minBulletScore));
-    if (req.query.maxBulletScore) dataRequest.input('maxBulletScore', sql.Float, parseFloat(req.query.maxBulletScore));
-    if (req.query.minImageScore) dataRequest.input('minImageScore', sql.Float, parseFloat(req.query.minImageScore));
-    if (req.query.maxImageScore) dataRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
-    if (req.query.minDescriptionScore) dataRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
-    if (req.query.maxDescriptionScore) dataRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
-    const asinsResult = await dataRequest
-        .input('offset', sql.Int, offset)
-        .input('limit', sql.Int, limitNum)
-        .query(`
-            SELECT a.*, s.Name as sellerName, s.Marketplace as sellerMarketplace,
-                   (SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode) as TotalOrders
-            FROM Asins a WITH (NOLOCK)
-            JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
-            ${whereClause}
-            ORDER BY ${getOrderBy()}
-            OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-        `);
-
-    const asins = asinsResult.recordset;
-
-    if (asins.length === 0) {
       if (res.headersSent) return;
-      return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total: rawTotal, totalPages: Math.ceil(rawTotal / limitNum) } });
-    }
-
-    // [7] Fetch all history data IN PARALLEL to avoid sequential timeouts
-    const historyDays = parseInt(req.query.historyDays) || 14;
-    const asinIdValues = asins.map(a => a.Id);
-    const asinCodeValues = asins.map(a => a.AsinCode);
-
-    const histDailyReq = pool.request();
-    const histWeekReq = pool.request();
-    const histSubBsrReq = pool.request();
-    const histOrdersReq = pool.request();
-    const histAsinIds = buildInClause(histDailyReq, 'histAsin', asinIdValues);
-    const histAsinIds2 = buildInClause(histWeekReq, 'histAsin', asinIdValues);
-    const histAsinIds3 = buildInClause(histSubBsrReq, 'histAsin', asinIdValues);
-    const histAsinCodes = buildInClause(histOrdersReq, 'histCode', asinCodeValues);
-
-    const [dailyHistoryResult, weekHistoryResult, subBsrHistoryResult, monthsResult, monthlyOrdersResult, monthlyGmsRevenueResult] = await Promise.all([
-      // [7.1] Daily History
-      histDailyReq.query(`
-        SELECT AsinId, FORMAT(Date, 'yyyy-MM-dd') as dateStr, Price as price, BSR as bsr, 
-               Rating as rating, ReviewCount as reviews, 
-               StockLevel as stockLevel, LQS as lqs
-        FROM AsinHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds}) 
-        AND Date >= DATEADD(day, -${historyDays}, dbo.GetEnvDate())
-        ORDER BY Date ASC
-      `),
-      // [7.2] Week History
-      histWeekReq.query(`
-        SELECT AsinId, FORMAT(WeekStartDate, 'yyyy-MM-dd') as dateStr, WeekStartDate, AvgPrice as price, AvgBSR as bsr, AvgRating as rating, TotalReviews as reviews
-        FROM AsinWeekHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds2}) 
-        ORDER BY WeekStartDate ASC
-      `),
-      // [7.3] Sub BSR History
-      histSubBsrReq.query(`
-        SELECT AsinId, Date, SubBsrRank as rank, SubBsrCategory as category
-        FROM SubBsrHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds3})
-        AND Date >= DATEADD(day, -14, dbo.GetEnvDate())
-        ORDER BY Date ASC, CreatedAt DESC
-      `),
-      // [7.4] Available months (from GMS for orders)
-      pool.request().query(`
-        SELECT DISTINCT FORMAT(Date, 'yyyy-MM') as Month 
-        FROM GmsDailyPerformance WITH (NOLOCK)
-        WHERE Date IS NOT NULL
-        ORDER BY Month ASC
-      `),
-      // [7.5] Monthly orders (from GMS OrderedUnits)
-      histOrdersReq.query(`
-        SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedUnits, 0)) as Orders
-        FROM GmsDailyPerformance WITH (NOLOCK)
-        WHERE Asin IN (${histAsinCodes})
-        AND Date IS NOT NULL
-        GROUP BY Asin, FORMAT(Date, 'yyyy-MM')
-      `),
-      // [7.6] Monthly GMS revenue (from GmsDailyPerformance)
-      (() => {
-        const req = pool.request();
-        if (asinCodeValues.length > 0) {
-          const inClause = buildInClause(req, 'gmsRevAsin', asinCodeValues);
-          return req.query(`
-            SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedRevenue, 0)) as Revenue
-            FROM GmsDailyPerformance WITH (NOLOCK)
-            WHERE Asin IN (${inClause})
-            AND Date IS NOT NULL
-            GROUP BY Asin, FORMAT(Date, 'yyyy-MM')
-          `);
-        }
-        return { recordset: [] };
-      })()
-    ]);
-
-    // Process daily history
-    const historyMap = {};
-    dailyHistoryResult.recordset.forEach(h => {
-      if (!historyMap[h.AsinId]) historyMap[h.AsinId] = [];
-      historyMap[h.AsinId].push({
-        date: h.dateStr || '',
-        price: h.price || 0,
-        bsr: h.bsr || 0,
-        rating: h.rating || 0,
-        reviews: h.reviews || 0,
-        stockLevel: h.stockLevel || 0,
-        lqs: h.lqs || 0
-      });
-    });
-
-    // Process week history
-    const weekHistoryMap = {};
-    weekHistoryResult.recordset.forEach(h => {
-      if (!weekHistoryMap[h.AsinId]) weekHistoryMap[h.AsinId] = [];
-      weekHistoryMap[h.AsinId].push({
-        week: h.WeekStartDate ? `W${Math.ceil(new Date(h.WeekStartDate).getDate() / 7)}` : '',
-        date: h.dateStr || '',
-        price: h.price || 0,
-        bsr: h.bsr || 0,
-        rating: h.rating || 0,
-        reviews: h.reviews || 0
-      });
-    });
-
-    // Process sub BSR history
-    const subBsrHistoryMap = {};
-    subBsrHistoryResult.recordset.forEach(h => {
-      if (!subBsrHistoryMap[h.AsinId]) subBsrHistoryMap[h.AsinId] = [];
-      const dateStr = h.Date ? new Date(h.Date).toISOString().split('T')[0] : '';
-      subBsrHistoryMap[h.AsinId].push({
-        date: dateStr,
-        rank: h.rank || 0,
-        category: h.category || ''
-      });
-    });
-
-    // Process months and monthly orders
-    const availableMonths = monthsResult.recordset.map(r => {
-      return r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-    });
-
-    const monthlyOrdersMap = {};
-    monthlyOrdersResult.recordset.forEach(r => {
-      if (!monthlyOrdersMap[r.Asin]) monthlyOrdersMap[r.Asin] = {};
-      const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-      monthlyOrdersMap[r.Asin][monthStr] = r.Orders;
-    });
-
-    // Process monthly GMS revenue
-    const monthlyGmsRevenueMap = {};
-    monthlyGmsRevenueResult.recordset.forEach(r => {
-      if (!monthlyGmsRevenueMap[r.Asin]) monthlyGmsRevenueMap[r.Asin] = {};
-      const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-      monthlyGmsRevenueMap[r.Asin][monthStr] = r.Revenue;
-    });
-
-    // [8] Process for frontend
-    const processedAsins = asins.map(a => {
-        // Build history and weekHistory
-        const dailyHistory = (historyMap[a.Id] || []);
-        const weekHistory = (weekHistoryMap[a.Id] || []);
-        const subBsrHistory = (subBsrHistoryMap[a.Id] || []);
-
-        // ---- PARSE ALL JSON FIELDS ----
-        let allOffers = [];
-        try { 
-            if (a.AllOffers) {
-                if (typeof a.AllOffers === 'string') {
-                    const parsed = JSON.parse(a.AllOffers);
-                    allOffers = Array.isArray(parsed) ? parsed : [];
-                } else if (Array.isArray(a.AllOffers)) {
-                    allOffers = a.AllOffers;
-                }
-            }
-        } catch (e) { 
-            console.warn(`Failed to parse AllOffers for ${a.AsinCode}:`, e.message);
-            allOffers = []; 
-        }
-
-        let subBSRs = [];
-        try { subBSRs = a.SubBSRs ? (typeof a.SubBSRs === 'string' ? JSON.parse(a.SubBSRs) : a.SubBSRs) : []; } catch (e) { subBSRs = []; }
-
-        let subBsrCategories = [];
-        try { subBsrCategories = a.SubBsrCategories ? (typeof a.SubBsrCategories === 'string' ? JSON.parse(a.SubBsrCategories) : a.SubBsrCategories) : []; } catch (e) { subBsrCategories = []; }
-
-        // Use SubBsr (int) and SubBSRCategory columns from live sync
-        let currentSubBsr = '';
-        let currentSubBSRCategory = a.SubBSRCategory || '';
-        
-        if (a.SubBsr && a.SubBsr > 0) {
-            currentSubBsr = `#${a.SubBsr.toLocaleString()}`;
-            if (currentSubBSRCategory) {
-                currentSubBsr += ` in ${currentSubBSRCategory}`;
-            }
-            // Also populate subBSRs array for frontend compatibility
-            if (subBSRs.length === 0) {
-                subBSRs = [currentSubBsr];
-            }
-        } else {
-            // Fallback to old text format
-            if (subBSRs.length > 0) {
-                currentSubBsr = subBSRs[0];
-            }
-        }
-
-        let images = [];
-        try { images = a.Images ? (typeof a.Images === 'string' ? JSON.parse(a.Images) : a.Images) : []; } catch (e) { images = []; }
-
-        let bulletPointsText = [];
-        try { bulletPointsText = a.BulletPointsText ? (typeof a.BulletPointsText === 'string' ? JSON.parse(a.BulletPointsText) : a.BulletPointsText) : []; } catch (e) { bulletPointsText = []; }
-        const bulletPointsCount = parseInt(a.BulletPoints) || bulletPointsText.length || 0;
-
-        let ratingBreakdown = {};
-        try { ratingBreakdown = a.RatingBreakdown ? (typeof a.RatingBreakdown === 'string' ? JSON.parse(a.RatingBreakdown) : a.RatingBreakdown) : {}; } catch (e) { ratingBreakdown = {}; }
-
-        let lqsDetails = [];
-        try { lqsDetails = a.LqsDetails ? (typeof a.LqsDetails === 'string' ? JSON.parse(a.LqsDetails) : a.LqsDetails) : []; } catch (e) { lqsDetails = []; }
-
-        let buyBoxes = [];
-        try { buyBoxes = a.BuyBoxes ? (typeof a.BuyBoxes === 'string' ? JSON.parse(a.BuyBoxes) : a.BuyBoxes) : []; } catch (e) { buyBoxes = []; }
-
-        let cdqComponents = {};
-        try { cdqComponents = a.CdqComponents ? (typeof a.CdqComponents === 'string' ? JSON.parse(a.CdqComponents) : a.CdqComponents) : {}; } catch (e) { cdqComponents = {}; }
-
-        let feePreview = null;
-        try { feePreview = a.FeePreview ? (typeof a.FeePreview === 'string' ? JSON.parse(a.FeePreview) : a.FeePreview) : null; } catch (e) { feePreview = null; }
-
-        let historyParsed = [];
-        try { historyParsed = a.History ? (typeof a.History === 'string' ? JSON.parse(a.History) : a.History) : []; } catch (e) { historyParsed = []; }
-
-        // ✅ FIX: If allOffers is empty, build it from legacy fields
-        if (allOffers.length === 0) {
-            // Primary offer (BuyBox winner)
-            if (a.SoldBy || a.CurrentPrice > 0) {
-                allOffers.push({
-                    seller: a.SoldBy || 'Amazon',
-                    price: parseFloat(a.CurrentPrice) || 0,
-                    isBuyBoxWinner: true
-                });
-            }
-            
-            // Secondary offer (Other seller)
-            if (a.SoldBySec && a.SoldBySec.trim() !== '') {
-                const secPrice = parseFloat(a.SecondAsp) || 0;
-                // Only add if different from primary seller
-                const isSameAsPrimary = a.SoldBy && a.SoldBySec.toLowerCase().trim() === a.SoldBy.toLowerCase().trim();
-                if (!isSameAsPrimary) {
-                    allOffers.push({
-                        seller: a.SoldBySec.trim(),
-                        price: secPrice > 0 ? secPrice : 0,
-                        isBuyBoxWinner: false
-                    });
-                }
-            }
-        }
-
-        const hasDeal = a.DealBadge && a.DealBadge !== '' && a.DealBadge !== 'No deal found';
-        // Only PROPER Amazon deal types suppress dispute
-        const PROPER_DEAL_PATTERN = /^(lightning|limited time deal|best deal|prime exclusive|subscribe.?and.?save|deal of the day|coupon)$/i;
-        const hasProperDeal = hasDeal && PROPER_DEAL_PATTERN.test((a.DealBadge || '').trim());
-        
-        // Price dispute: only if > ₹5 difference and no proper deal badge
-        let priceDisputeValue = false;
-        if (a.UploadedPrice > 0 && (a.CurrentPrice || 0) > 0) {
-            const priceDiff = Math.abs(a.UploadedPrice - (a.CurrentPrice || 0));
-            if (!hasProperDeal && priceDiff > 5) {
-                priceDisputeValue = true;
-            }
-        }
-
-        // ---- BUILD FINAL RESPONSE OBJECT ----
-        return {
-            _id: a.Id,
-            asinCode: a.AsinCode,
-            sku: a.Sku || '',
-            status: a.Status || 'Active',
-            scrapeStatus: a.ScrapeStatus || 'PENDING',
-            category: a.Category || '',
-            brand: a.Brand || '',
-            title: a.Title || '',
-            imageUrl: a.ImageUrl || '',
-            tags: a.Tags || '[]',
-            parentAsin: a.ParentAsin || '',
-            releaseDate: a.ReleaseDate || null,
-            marketplace: a.sellerMarketplace || '',
-            Ads: a.Ads ? 1 : 0,
-            hasGms: (a.TotalOrders || 0) > 0,
-            
-            // Pricing
-            currentPrice: parseFloat(a.CurrentPrice) || 0,
-            mrp: parseFloat(a.Mrp) || 0,
-            uploadedPrice: parseFloat(a.UploadedPrice) || 0,
-            secondAsp: parseFloat(a.SecondAsp) || 0,
-            aspDifference: parseFloat(a.AspDifference) || 0,
-            dealBadge: a.DealBadge || 'No deal found',
-            priceType: a.PriceType || 'Standard Price',
-            discountPercentage: parseInt(a.DiscountPercentage) || 0,
-            priceDispute: priceDisputeValue,
-            hasDeal: hasDeal,
-            manufacturer: a.Manufacturer || null,
-            dealStartTime: a.DealStartTime || null,
-            dealEndTime: a.DealEndTime || null,
-            dealAccessType: a.DealAccessType || null,
-            dealPercentClaimed: a.DealPercentClaimed || null,
-            
-            // BSR & Ratings
-            bsr: parseInt(a.BSR) || 0,
-            bsrTrend: a.BsrTrend || 'Stable',
-            rating: a.Rating !== null && a.Rating !== undefined ? parseFloat(a.Rating) : null,
-            ratingTrend: a.RatingTrend || 'Stable',
-            reviewCount: a.ReviewCount !== null && a.ReviewCount !== undefined ? parseInt(a.ReviewCount) : null,
-            ratingBreakdown: ratingBreakdown,
-            
-            // LQS & CDQ
-            lqs: parseFloat(a.LQS) || 0,
-            lqsGrade: a.LQSGrade || 'N/A',
-            lqsDetails: lqsDetails,
-            cdq: parseInt(a.Cdq) || 0,
-            cdqGrade: a.CdqGrade || 'N/A',
-            cdqComponents: cdqComponents,
-            
-            // Quality Component Scores
-            titleScore: parseFloat(a.TitleScore) || 0,
-            titleGrade: a.TitleGrade || 'N/A',
-            bulletScore: parseFloat(a.BulletScore) || 0,
-            bulletGrade: a.BulletGrade || 'N/A',
-            imageScore: parseFloat(a.ImageScore) || 0,
-            imageGrade: a.ImageGrade || 'N/A',
-            descriptionScore: parseFloat(a.DescriptionScore) || 0,
-            descriptionGrade: a.DescriptionGrade || 'N/A',
-            
-            // Quality Component Issues/Recs (Parsed if needed by UI)
-            titleIssues: tryParse(a.TitleIssues, []),
-            titleRecommendations: tryParse(a.TitleRecommendations, []),
-            bulletIssues: tryParse(a.BulletIssues, []),
-            bulletRecommendations: tryParse(a.BulletRecommendations, []),
-            imageIssues: tryParse(a.ImageIssues, []),
-            imageRecommendations: tryParse(a.ImageRecommendations, []),
-            descriptionIssues: tryParse(a.DescriptionIssues, []),
-            descriptionRecommendations: tryParse(a.DescriptionRecommendations, []),
-            
-            productDescription: a.ProductDescription || '',
-            
-            // Fee Preview
-            feePreview: feePreview,
-            
-            // BuyBox (computed dynamically from SoldBy)
-            buyBoxWin: isBuyBoxWinner(a.SoldBy),
-            buyBoxStatus: isBuyBoxWinner(a.SoldBy),
-            buyBoxSellerId: a.BuyBoxSellerId || a.SoldBy || '',
-            
-            // Seller Info
-            soldBy: a.SoldBy || '',
-            soldBySec: a.SoldBySec || '',
-            
-            // A+ Content (BOOLEAN CONVERSION)
-            hasAplus: a.HasAplus === 1 || a.HasAplus === true || a.HasAplus === 'true',
-            aplusAbsentSince: a.AplusAbsentSince || null,
-            aplusPresentSince: a.AplusPresentSince || null,
-            
-            // Availability & Stock
-            availabilityStatus: a.AvailabilityStatus || 'Available',
-            stockLevel: parseInt(a.StockLevel) || 0,
-            
-            // Media
-            imagesCount: parseInt(a.ImagesCount) || 0,
-            videoCount: parseInt(a.VideoCount) || 0,
-            bulletPoints: bulletPointsCount,
-            descLength: parseInt(a.DescLength) || 0,
-            
-            // Sub BSR
-            subBsr: currentSubBsr,
-            subBSR: a.SubBsr || null,
-            subBSRCategory: currentSubBSRCategory,
-            subBsrCategories: subBsrCategories,
-            
-            // Parsed JSON arrays/objects
-            allOffers: allOffers,
-            buyBoxes: buyBoxes,
-            subBSRs: subBSRs,
-            images: images,
-            bulletPointsText: bulletPointsText,
-            
-            // History
-            history: dailyHistory.length > 0 ? dailyHistory : historyParsed,
-            weekHistory: weekHistory,
-            subBsrHistory: subBsrHistory,
-            
-            // Weight / Staple
-            weight: parseFloat(a.Weight) || 0,
-            stapleLevel: a.StapleLevel || 'Standard',
-            lossPerReturn: parseFloat(a.LossPerReturn) || 0,
-            
-            // Seller object for display
-            seller: {
-                _id: a.SellerId,
-                name: a.sellerName || '',
-                marketplace: a.sellerMarketplace || ''
-            },
-            
-            // Timestamps
-            lastScraped: a.LastScrapedAt || null,
-            lastScrapedAt: a.LastScrapedAt || null,
-            createdAt: a.CreatedAt,
-            updatedAt: a.UpdatedAt,
-            
-            // Advertising orders
-            totalOrders: parseInt(a.TotalOrders) || 0,
-            monthlyOrders: monthlyOrdersMap[a.AsinCode] || {},
-            monthlyGmsRevenue: monthlyGmsRevenueMap[a.AsinCode] || {},
-            
-            // Preserve original ID
-            _id: a.Id,
-            Id: a.Id,
-            SellerId: a.SellerId
-        };
-    });
-
-    const datesResult = await pool.request().query(`
-      SELECT DISTINCT TOP 7 Date 
-      FROM AsinHistory 
-      ORDER BY Date DESC
-    `);
-    const globalHistoryDates = datesResult.recordset.map(r => {
-      const d = r.Date;
-      if (!d) return null;
-      const yr = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, '0');
-      const da = String(d.getDate()).padStart(2, '0');
-      return `${yr}-${mo}-${da}`;
-    }).filter(Boolean).sort();
-
-    if (res.headersSent) return;
-    res.json({
-      asins: processedAsins,
-      months: availableMonths,
-      globalHistoryDates,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total: rawTotal,
-        totalPages: Math.ceil(rawTotal / limitNum),
-      },
-    });
-
+      res.json(response);
     });
   } catch (error) {
     console.error('getAsins Error:', error);
@@ -926,7 +989,6 @@ exports.getAsins = async (req, res) => {
     }
   }
 };
-
 /**
  * Get single ASIN (SQL Version)
  */

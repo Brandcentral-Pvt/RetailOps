@@ -4,7 +4,7 @@ const { buildInClause } = require('../utils/sqlHelpers');
 const redisCache = require('../services/redisCacheService');
 
 const DASHBOARD_CACHE_PREFIX = 'dashboard:';
-const DASHBOARD_CACHE_TTL = 60; // 60 seconds
+const DASHBOARD_CACHE_TTL = 300; // 300 seconds (5 minutes)
 
 // Helper to parse period strings (e.g., '30d', '3M', '1y')
 const parsePeriod = (period) => {

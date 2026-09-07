@@ -63,7 +63,7 @@ async function initRedis() {
 }
 
 function key(...parts) {
-  return `retailops:${parts.join(':')}`;
+  return `${PREFIX}${parts.join(':')}`;
 }
 
 async function get(cacheKey) {
