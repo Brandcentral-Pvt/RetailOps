@@ -19,6 +19,13 @@ module.exports = {
         }
         return false;
     },
+    emitToRoom: (room, event, data) => {
+        if (io) {
+            io.to(room.toString()).emit(event, data);
+            return true;
+        }
+        return false;
+    },
     emitExportUpdate: (downloadId, data) => {
         if (io) {
             if (data.userId) {

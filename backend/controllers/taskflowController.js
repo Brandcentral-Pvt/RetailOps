@@ -500,6 +500,112 @@ exports.getDashboardKPIs = async (req, res) => {
 };
 
 // ============================================================
+// REVIEW WORKFLOW
+// ============================================================
+
+exports.submitForReview = async (req, res) => {
+  try {
+    const { details } = req.body;
+    const result = await taskflowService.submitForReview(req.params.id, req.user?.Id || req.user?._id, `${req.user?.FirstName || ''} ${req.user?.LastName || ''}`.trim(), details);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('submitForReview error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.approveTask = async (req, res) => {
+  try {
+    const { qualityScore, feedback, checklist } = req.body;
+    const result = await taskflowService.approveTask(req.params.id, req.user?.Id || req.user?._id, `${req.user?.FirstName || ''} ${req.user?.LastName || ''}`.trim(), req.body.qualityScore, req.body.feedback, req.body.checklist);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('approveTask error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.rejectTask = async (req, res) => {
+  try {
+    const { feedback, checklist } = req.body;
+    if (!feedback || feedback.trim() === '') {
+      return res.status(400).json({ success: false, error: 'Feedback is required when rejecting a task' });
+    }
+    const result = await taskflowService.rejectTask(req.params.id, req.user?.Id || req.user?._id, `${req.user?.FirstName || ''} ${req.user?.LastName || ''}`.trim(), req.body.feedback, req.body.checklist);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('rejectTask error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.requestRework = async (req, res) => {
+  try {
+    const { feedback, checklist } = req.body;
+    if (!feedback || feedback.trim() === '') {
+      return res.status(400).json({ success: false, error: 'Feedback is required when requesting rework' });
+    }
+    const result = await taskflowService.requestRework(req.params.id, req.user?.Id || req.user?._id, `${req.user?.FirstName || ''} ${req.user?.LastName || ''}`.trim(), req.body.feedback, req.body.checklist);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('requestRework error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.getQualityMetrics = async (req, res) => {
+  try {
+    const metrics = await taskflowService.getQualityMetrics(req.params.id);
+    res.json({ success: true, data: metrics });
+  } catch (error) {
+    logger.error('getQualityMetrics error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ============================================================
+// EXPORT / REPORTING
+// ============================================================
+
+exports.exportTasks = async (req, res) => {
+  try {
+    const { format = 'json', ...filters } = req.query;
+    const result = await taskflowService.exportTasks(filters, format);
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="tasks.csv"');
+      return res.send(result.data);
+    }
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    logger.error('exportTasks error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.generateTaskReport = async (req, res) => {
+  try {
+    const report = await taskflowService.generateTaskReport(req.query);
+    res.json({ success: true, data: report });
+  } catch (error) {
+    logger.error('generateTaskReport error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.exportTasksToCsv = async (req, res) => {
+  try {
+    const csv = await taskflowService.exportTasksToCsv(req.query);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="tasks.csv"');
+    res.send(csv);
+  } catch (error) {
+    logger.error('exportTasksToCsv error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ============================================================
 // RECURRENCE
 // ============================================================
 

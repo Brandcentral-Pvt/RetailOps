@@ -696,8 +696,322 @@ async function bulkTransition(taskIds, toStatus, actorId, actorName, details) {
 }
 
 // ============================================================
-// SUBTASKS
+// REVIEW WORKFLOW
 // ============================================================
+
+/**
+ * Submit task for review
+ * Validates all mandatory subtasks/activities are complete
+ */
+async function submitForReview(taskId, actorId, actorName, details, tx) {
+  const pool = tx || (await getPool());
+  
+  // Check if all mandatory subtasks are completed
+  const subTaskCheck = await pool.request()
+    .input('taskId', sql.VarChar, taskId)
+    .query(`
+      SELECT COUNT(*) as total, SUM(CASE WHEN Status = 'COMPLETED' THEN 1 ELSE 0 END) as completed
+      FROM TaskSubTasks WHERE TaskId = @taskId AND IsMandatory = 1
+    `);
+  
+  const mandatoryTotal = subTaskCheck.recordset[0]?.total || 0;
+  const mandatoryCompleted = subTaskCheck.recordset[0]?.completed || 0;
+  
+  if (mandatoryTotal > 0 && mandatoryCompleted < mandatoryTotal) {
+    throw new Error(`Cannot submit: ${mandatoryTotal - mandatoryCompleted} mandatory subtask(s) incomplete`);
+  }
+  
+  // Check if all mandatory activities are completed
+  const activityCheck = await pool.request()
+    .input('taskId', sql.VarChar, taskId)
+    .query(`
+      SELECT COUNT(*) as total, SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END) as completed
+      FROM TaskActivities WHERE TaskId = @taskId AND IsMandatory = 1
+    `);
+  
+  const activityTotal = activityCheck.recordset[0]?.total || 0;
+  const activityCompleted = activityCheck.recordset[0]?.completed || 0;
+  
+  if (activityTotal > 0 && activityCompleted < activityTotal) {
+    throw new Error(`Cannot submit: ${activityTotal - activityCompleted} mandatory activity(ies) incomplete`);
+  }
+  
+  // Transition to SUBMITTED
+  return await transitionStatus(taskId, 'SUBMITTED', actorId, actorName, details, tx);
+}
+
+/**
+ * Approve a task (reviewer action)
+ * Validates quality checklist if provided
+ */
+async function approveTask(taskId, actorId, actorName, qualityScore, feedback, checklist, tx) {
+  const pool = tx || (await getPool());
+  
+  const instanceResult = await pool.request()
+    .input('id', sql.VarChar, taskId)
+    .query('SELECT Status, ReviewerId FROM TaskInstances WHERE Id = @id');
+  
+  const instance = instanceResult.recordset[0];
+  if (!instance) throw new Error('Task not found');
+  
+  // Verify reviewer authorization
+  if (instance.ReviewerId && instance.ReviewerId !== actorId) {
+    throw new Error('Only assigned reviewer can approve this task');
+  }
+  
+  // Validate quality score if provided (0-100)
+  if (qualityScore !== undefined) {
+    if (qualityScore < 0 || qualityScore > 100) {
+      throw new Error('Quality score must be between 0 and 100');
+    }
+  }
+  
+  // Transition to APPROVED
+  const result = await transitionStatus(taskId, 'APPROVED', actorId, actorName, details || `Approved with quality score: ${qualityScore || 'N/A'}`, tx);
+  
+  // Record review
+  if (qualityScore !== undefined || feedback || checklist) {
+    await pool.request()
+      .input('id', sql.VarChar, generateId())
+      .input('taskInstanceId', sql.VarChar, taskId)
+      .input('reviewerId', sql.VarChar, actorId)
+      .input('reviewerName', sql.NVarChar, actorName)
+      .input('decision', sql.VarChar, 'APPROVE')
+      .input('qualityScore', sql.Int, qualityScore || null)
+      .input('feedback', sql.NVarChar, feedback || '')
+      .input('reviewChecklist', sql.NVarChar(sql.MAX), JSON.stringify(checklist || []))
+      .query(`
+        INSERT INTO TaskReviews (Id, TaskInstanceId, ReviewerId, ReviewerName, Decision, QualityScore, Feedback, ReviewChecklist, ReviewDurationMinutes)
+        VALUES (@id, @taskInstanceId, @reviewerId, @reviewerName, @decision, @qualityScore, @feedback, @reviewChecklist, 0)
+      `);
+  }
+  
+  return { success: true, message: 'Task approved' };
+}
+
+/**
+ * Reject a task (reviewer action)
+ * Requires feedback
+ */
+async function rejectTask(taskId, actorId, actorName, feedback, checklist, tx) {
+  const pool = tx || (await getPool());
+  
+  const instanceResult = await pool.request()
+    .input('id', sql.VarChar, taskId)
+    .query('SELECT Status, ReviewerId FROM TaskInstances WHERE Id = @id');
+  
+  const instance = instanceResult.recordset[0];
+  if (!instance) throw new Error('Task not found');
+  
+  // Verify reviewer authorization
+  if (instance.ReviewerId && instance.ReviewerId !== actorId) {
+    throw new Error('Only assigned reviewer can reject this task');
+  }
+  
+  // Feedback is required for rejection
+  if (!feedback || feedback.trim() === '') {
+    throw new Error('Feedback is required when rejecting a task');
+  }
+  
+  // Transition to REJECTED
+  const result = await transitionStatus(taskId, 'REJECTED', actorId, actorName, feedback, tx);
+  
+  // Record review
+  await pool.request()
+    .input('id', sql.VarChar, generateId())
+    .input('taskInstanceId', sql.VarChar, taskId)
+    .input('reviewerId', sql.VarChar, actorId)
+    .input('reviewerName', sql.NVarChar, actorName)
+    .input('decision', sql.VarChar, 'REJECT')
+    .input('qualityScore', sql.Int, null)
+    .input('feedback', sql.NVarChar, feedback)
+    .input('reviewChecklist', sql.NVarChar(sql.MAX), JSON.stringify(checklist || []))
+    .query(`
+      INSERT INTO TaskReviews (Id, TaskInstanceId, ReviewerId, ReviewerName, Decision, QualityScore, Feedback, ReviewChecklist, ReviewDurationMinutes)
+      VALUES (@id, @taskInstanceId, @reviewerId, @reviewerName, @decision, @qualityScore, @feedback, @reviewChecklist, 0)
+    `);
+  
+  return { success: true, message: 'Task rejected' };
+}
+
+/**
+ * Request rework (reviewer action)
+ * Sends back to assignee with feedback
+ */
+async function requestRework(taskId, actorId, actorName, feedback, checklist, tx) {
+  const pool = tx || (await getPool());
+  
+  const instanceResult = await pool.request()
+    .input('id', sql.VarChar, taskId)
+    .query('SELECT Status, ReviewerId FROM TaskInstances WHERE Id = @id');
+  
+  const instance = instanceResult.recordset[0];
+  if (!instance) throw new Error('Task not found');
+  
+  // Verify reviewer authorization
+  if (instance.ReviewerId && instance.ReviewerId !== actorId) {
+    throw new Error('Only assigned reviewer can request rework');
+  }
+  
+  // Feedback is required for rework
+  if (!feedback || feedback.trim() === '') {
+    throw new Error('Feedback is required when requesting rework');
+  }
+  
+  // Transition to REWORK (which will go back to IN_PROGRESS)
+  const result = await transitionStatus(taskId, 'REWORK', actorId, actorName, feedback, tx);
+  
+  // Record review
+  await pool.request()
+    .input('id', sql.VarChar, generateId())
+    .input('taskInstanceId', sql.VarChar, taskId)
+    .input('reviewerId', sql.VarChar, actorId)
+    .input('reviewerName', sql.NVarChar, actorName)
+    .input('decision', sql.VarChar, 'REWORK')
+    .input('qualityScore', sql.Int, null)
+    .input('feedback', sql.NVarChar, feedback)
+    .input('reviewChecklist', sql.NVarChar(sql.MAX), JSON.stringify(checklist || []))
+    .query(`
+      INSERT INTO TaskReviews (Id, TaskInstanceId, ReviewerId, ReviewerName, Decision, QualityScore, Feedback, ReviewChecklist, ReviewDurationMinutes)
+      VALUES (@id, @taskInstanceId, @reviewerId, @reviewerName, @decision, @qualityScore, @feedback, @reviewChecklist, 0)
+    `);
+  
+  return { success: true, message: 'Rework requested' };
+}
+
+/**
+ * Get quality metrics for a task
+ */
+async function getQualityMetrics(taskId) {
+  const pool = await getPool();
+  
+  // Get review history
+  const reviews = await pool.request()
+    .input('taskId', sql.VarChar, taskId)
+    .query('SELECT * FROM TaskReviews WHERE TaskInstanceId = @taskId ORDER BY CreatedAt DESC');
+  
+  // Get activity completion
+  const activities = await pool.request()
+    .input('taskId', sql.VarChar, taskId)
+    .query('SELECT * FROM TaskActivities WHERE TaskId = @taskId ORDER BY StepNo');
+  
+  // Get subtask completion
+  const subtasks = await pool.request()
+    .input('taskId', sql.VarChar, taskId)
+    .query('SELECT * FROM TaskSubTasks WHERE TaskId = @taskId ORDER BY SortOrder');
+  
+  return {
+    reviews: reviews.recordset,
+    activities: activities.recordset,
+    subtasks: subtasks.recordset,
+    mandatoryActivitiesComplete: activities.recordset.filter(a => a.IsMandatory && a.IsCompleted).length,
+    totalMandatoryActivities: activities.recordset.filter(a => a.IsMandatory).length,
+    completedSubtasks: subtasks.recordset.filter(s => s.Status === 'COMPLETED').length,
+    totalSubtasks: subtasks.recordset.length
+  };
+}
+
+// ============================================================
+// EXPORT / REPORTING
+// ============================================================
+
+/**
+ * Export tasks to CSV/JSON
+ */
+async function exportTasks(filters = {}, format = 'json') {
+  const { tasks } = await getTasks(filters);
+  
+  if (format === 'csv') {
+    // Convert to CSV
+    const fields = ['Id', 'Code', 'Title', 'Status', 'Priority', 'AssigneeId', 'ReviewerId', 'SellerId', 'Department', 'DueDate', 'Status', 'SlaStatus', 'ProgressPct', 'CreatedAt', 'CompletedAt'];
+    const headers = fields.join(',');
+    const rows = tasks.map(t => fields.map(f => `"${(t[f] || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+    return { format: 'csv', data: headers + '\n' + rows };
+  }
+  
+  return { format: 'json', data: tasks };
+}
+
+/**
+ * Generate task report for a date range
+ */
+async function generateTaskReport(filters = {}) {
+  const { sql, getPool } = require('../../database/db');
+  const pool = await getPool();
+  
+  let where = 'WHERE 1=1';
+  const req = pool.request();
+  
+  if (filters.startDate) { where += ' AND CreatedAt >= @startDate'; req.input('startDate', sql.DateTime2, filters.startDate); }
+  if (filters.endDate) { where += ' AND CreatedAt <= @endDate'; req.input('endDate', sql.DateTime2, filters.endDate); }
+  if (filters.sellerId) { where += ' AND SellerId = @sellerId'; req.input('sellerId', sql.VarChar, filters.sellerId); }
+  if (filters.assigneeId) { where += ' AND AssigneeId = @assigneeId'; req.input('assigneeId', sql.VarChar, filters.assigneeId); }
+  
+  const [summary, byStatus, byPriority, byDepartment, byAssignee, slaMetrics] = await Promise.all([
+    pool.request().query(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN Status = 'REJECTED' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN Status = 'REWORK' THEN 1 ELSE 0 END) as rework,
+        AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END) as avgQualityScore
+      FROM TaskInstances ${where}
+    `),
+    pool.request().query(`SELECT Status, COUNT(*) as count FROM TaskInstances ${where} GROUP BY Status`),
+    pool.request().query(`SELECT Priority, COUNT(*) as count FROM TaskInstances ${where} GROUP BY Priority`),
+    pool.request().query(`SELECT Department, COUNT(*) as count FROM TaskInstances ${where} GROUP BY Department`),
+    pool.request().query(`
+      SELECT AssignedTo, u.FirstName + ' ' + u.LastName as Name,
+        COUNT(*) as total,
+        SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN SlaStatus = 'BREACHED' THEN 1 ELSE 0 END) as breached
+      FROM TaskInstances ${where}
+      LEFT JOIN Users u ON AssignedTo = u.Id
+      GROUP BY AssignedTo, u.FirstName, u.LastName
+    `),
+    pool.request().query(`
+      SELECT SlaStatus, COUNT(*) as count FROM TaskInstances ${where} GROUP BY SlaStatus
+    `)
+  ]);
+  
+  return {
+    summary: summary.recordset[0],
+    byStatus: byStatus.recordset,
+    byPriority: byPriority.recordset,
+    byDepartment: byDepartment.recordset,
+    byAssignee: byAssignee.recordset,
+    slaMetrics: slaMetrics.recordset
+  };
+}
+
+/**
+ * Export tasks to CSV
+ */
+async function exportTasksToCsv(filters = {}) {
+  const { tasks } = await getTasks(filters);
+  
+  const fields = ['Id', 'Code', 'Title', 'Status', 'Priority', 'AssigneeId', 'ReviewerId', 'SellerId', 'Department', 'DueDate', 'Status', 'SlaStatus', 'ProgressPct', 'CreatedAt', 'CompletedAt'];
+  const headers = fields.join(',');
+  const rows = tasks.map(t => fields.map(f => `"${(t[f] || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+  
+  return headers + '\n' + rows;
+}
+
+module.exports = {
+  // ... existing exports
+  
+  // Review Workflow
+  submitForReview,
+  approveTask,
+  rejectTask,
+  requestRework,
+  getQualityMetrics,
+  
+  // Export/Reporting
+  exportTasks,
+  generateTaskReport,
+  exportTasksToCsv
+};
 
 async function getSubTasks(taskId) {
   const cacheKey = `${CACHE_KEYS.SUBTASKS}${taskId}`;

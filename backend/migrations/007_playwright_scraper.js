@@ -1,5 +1,6 @@
 module.exports = {
   async up(pool, sql) {
+    const logger = require('../utils/logger');
     // AsinScrapeData table - stores scraped data for ASINs
     await pool.request().query(`
       IF OBJECT_ID(N'dbo.AsinScrapeData', N'U') IS NULL

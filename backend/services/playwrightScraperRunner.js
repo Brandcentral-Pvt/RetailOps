@@ -1,4 +1,4 @@
-const { sql, getPool, executeWithRetry } = require('../database/db');
+const { sql, getPool, executeWithRetry, generateId } = require('../database/db');
 const playwrightScraperService = require('./playwrightScraperService');
 const socketService = require('./socketService');
 const logger = require('../utils/logger');
@@ -279,6 +279,9 @@ class PlaywrightScraperRunner {
                 request.input('scrapedAt', sql.DateTime2, new Date(result.scrapedAt));
                 request.input('duration', sql.Int, result.duration || 0);
 
+                const recordId = generateId();
+                request.input('id', sql.VarChar, recordId);
+
                 await request.query(`
                     MERGE INTO AsinScrapeData AS target
                     USING (SELECT @asin AS Asin, @sellerId AS SellerId) AS source
@@ -298,8 +301,28 @@ class PlaywrightScraperRunner {
                             ScrapeDurationMs = @duration,
                             UpdatedAt = dbo.GetEnvDate()
                     WHEN NOT MATCHED THEN
-                        INSERT (Asin, SellerId, Rating, ReviewCount, HasAplus, AplusDetails, VerifiedAsin, Title, Price, BSR, RatingBreakdown, LastScrapedAt, ScrapeDurationMs, CreatedAt, UpdatedAt)
-                        VALUES (@asin, @sellerId, @rating, @reviewCount, @hasAplus, @aplusDetails, @verifiedAsin, @title, @price, @bsr, @ratingBreakdown, @scrapedAt, @duration, dbo.GetEnvDate(), dbo.GetEnvDate());
+                        INSERT (Id, Asin, SellerId, Rating, ReviewCount, HasAplus, AplusDetails, VerifiedAsin, Title, Price, BSR, RatingBreakdown, LastScrapedAt, ScrapeDurationMs, CreatedAt, UpdatedAt)
+                        VALUES (@id, @asin, @sellerId, @rating, @reviewCount, @hasAplus, @aplusDetails, @verifiedAsin, @title, @price, @bsr, @ratingBreakdown, @scrapedAt, @duration, dbo.GetEnvDate(), dbo.GetEnvDate());
+                `);
+
+                // Insert into ScrapeJobDetails for per-job tracking
+                const detailId = generateId();
+                const detailRequest = transaction.request();
+                detailRequest.input('id', sql.VarChar, detailId);
+                detailRequest.input('jobId', sql.VarChar, job.jobId);
+                detailRequest.input('asin', sql.VarChar, result.asin);
+                detailRequest.input('success', sql.Bit, result.success ? 1 : 0);
+                detailRequest.input('rating', sql.Decimal(3, 2), result.rating || 0);
+                detailRequest.input('reviewCount', sql.Int, result.reviewCount || 0);
+                detailRequest.input('hasAplus', sql.Bit, result.hasAplus ? 1 : 0);
+                detailRequest.input('verifiedAsin', sql.VarChar, result.verifiedAsin || result.asin);
+                detailRequest.input('errorMessage', sql.NVarChar(sql.MAX), result.error || null);
+                detailRequest.input('durationMs', sql.Int, result.duration || 0);
+                detailRequest.input('scrapedAt', sql.DateTime2, new Date(result.scrapedAt));
+
+                await detailRequest.query(`
+                    INSERT INTO ScrapeJobDetails (Id, JobId, Asin, Success, Rating, ReviewCount, HasAplus, VerifiedAsin, ErrorMessage, DurationMs, ScrapedAt)
+                    VALUES (@id, @jobId, @asin, @success, @rating, @reviewCount, @hasAplus, @verifiedAsin, @errorMessage, @durationMs, @scrapedAt)
                 `);
             }
 
@@ -315,7 +338,9 @@ class PlaywrightScraperRunner {
     async finalizeJob(job) {
         try {
             const pool = await getPool();
+            const historyId = generateId();
             await pool.request()
+                .input('id', sql.VarChar, historyId)
                 .input('jobId', sql.VarChar, job.jobId)
                 .input('sellerId', sql.VarChar, job.sellerId)
                 .input('userId', sql.VarChar, job.userId)
@@ -328,8 +353,8 @@ class PlaywrightScraperRunner {
                 .input('endTime', sql.DateTime2, job.endTime)
                 .input('error', sql.NVarChar(sql.MAX), job.error || null)
                 .query(`
-                    INSERT INTO ScrapeJobHistory (JobId, SellerId, UserId, Status, TotalAsins, Processed, Successful, Failed, StartTime, EndTime, ErrorMessage, CreatedAt)
-                    VALUES (@jobId, @sellerId, @userId, @status, @total, @processed, @successful, @failed, @startTime, @endTime, @error, dbo.GetEnvDate())
+                    INSERT INTO ScrapeJobHistory (Id, JobId, SellerId, UserId, Status, TotalAsins, Processed, Successful, Failed, StartTime, EndTime, ErrorMessage, CreatedAt)
+                    VALUES (@id, @jobId, @sellerId, @userId, @status, @total, @processed, @successful, @failed, @startTime, @endTime, @error, dbo.GetEnvDate())
                 `);
 
             if (job.userId) {

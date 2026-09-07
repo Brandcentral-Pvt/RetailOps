@@ -308,14 +308,23 @@ class PlaywrightScraperService {
             }
 
             const blockedSelectors = [
-                'text=/robot|automat|blocked|unusual traffic/i',
+                'text=/robot|blocked|unusual traffic/i',
                 'div[id*="captcha"]',
+                '#captchacharacters',
             ];
 
             for (const selector of blockedSelectors) {
                 const element = await page.$(selector).catch(() => null);
-                if (element) return true;
+                if (element) {
+                    const text = await element.textContent().catch(() => '');
+                    // Skip false positives from scripts
+                    if (text && text.length < 200) return true;
+                }
             }
+
+            // Check if we actually got product content
+            const hasProductTitle = await page.$('#productTitle, #title, h1').catch(() => null);
+            if (!hasProductTitle) return true;
 
             return false;
         } catch (_) {
@@ -458,11 +467,17 @@ class PlaywrightScraperService {
 
     async extractRating(page) {
         const selectors = [
+            '#averageCustomerReviews #acrPopover .a-size-small.a-color-base',
             '#averageCustomerReviews .a-icon-alt',
             '#acrPopover .a-icon-alt',
             '.cr-widget-TitleRatingsHistogram .a-icon-alt',
             '[data-hook="rating-out-of-text"]',
             '#averageCustomerReviews span.a-icon-alt',
+            '.a-star-mini-4 .a-icon-alt',
+            '.a-star-mini-5 .a-icon-alt',
+            '.a-star-mini-3 .a-icon-alt',
+            '.a-star-mini-2 .a-icon-alt',
+            '.a-star-mini-1 .a-icon-alt',
         ];
 
         for (const selector of selectors) {
@@ -474,6 +489,10 @@ class PlaywrightScraperService {
                         const match = text.match(/([0-5](?:[.,]\d+)?)\s*out\s*of\s*5/i);
                         if (match) {
                             return parseFloat(match[1].replace(',', '.'));
+                        }
+                        const directMatch = text.match(/^([0-5](?:[.,]\d+)?)$/);
+                        if (directMatch) {
+                            return parseFloat(directMatch[1].replace(',', '.'));
                         }
                     }
                 }
@@ -488,6 +507,7 @@ class PlaywrightScraperService {
             '#averageCustomerReviews #reviewCount',
             '[data-hook="total-review-count"]',
             '.cr-widget-TitleRatingsHistogram:has-text("global ratings")',
+            '#averageCustomerReviews #acrCustomerReviewLink',
         ];
 
         for (const selector of selectors) {
@@ -499,6 +519,13 @@ class PlaywrightScraperService {
                         const match = text.match(/([\d,]+)\s*(?:global\s*)?ratings?/i);
                         if (match) {
                             return parseInt(match[1].replace(/,/g, ''));
+                        }
+                        const ariaLabel = await element.getAttribute('aria-label');
+                        if (ariaLabel) {
+                            const ariaMatch = ariaLabel.match(/([\d,]+)\s*reviews?/i);
+                            if (ariaMatch) {
+                                return parseInt(ariaMatch[1].replace(/,/g, ''));
+                            }
                         }
                     }
                 }
