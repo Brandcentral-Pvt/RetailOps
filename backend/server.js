@@ -312,6 +312,7 @@ const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
 const taskflowRoutes = require('./routes/taskflowRoutes');
+const scraperRoutes = require('./routes/scraperRoutes');
 
 // Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
 app.use(require('./middleware/maintenanceMode'));
@@ -358,6 +359,7 @@ app.use('/api/live-sync-tracker', pemsLiveSyncRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/keyword-analysis', keywordAnalysisRoutes);
 app.use('/api/tasks', taskflowRoutes);
+app.use('/api/scraper', scraperRoutes);
 
 // Error handling
 app.use(async (err, req, res, next) => {

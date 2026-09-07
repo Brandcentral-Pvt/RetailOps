@@ -4,10 +4,10 @@
  */
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../../middleware/auth');
-const { requirePermission } = require('../../middleware/auth');
-const ctrl = require('./taskflowController');
-const { cacheRoute } = require('../../middleware/cache');
+const { auth } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
+const ctrl = require('../controllers/taskflowController');
+const { cacheRoute } = require('../middleware/cache');
 
 // ============================================================
 // SLA POLICIES

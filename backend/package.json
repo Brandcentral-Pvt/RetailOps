@@ -9,7 +9,8 @@
     "force-sync": "node scripts/force_sync_all.js",
     "test": "node --experimental-vm-modules node_modules/.bin/jest --forceExit --detectOpenHandles",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "scraper:test": "node scripts/testScraper.js"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
@@ -24,6 +25,7 @@
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
+    "express-validator": "^7.3.2",
     "helmet": "^8.2.0",
     "https-proxy-agent": "^9.0.0",
     "ioredis": "^6.0.0",
@@ -39,6 +41,7 @@
     "openai": "^6.38.0",
     "p-limit": "^7.3.0",
     "pm2": "^7.0.3",
+    "playwright": "^1.48.0",
     "puppeteer": "^25.0.4",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",

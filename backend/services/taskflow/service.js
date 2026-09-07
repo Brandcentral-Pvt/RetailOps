@@ -3,10 +3,13 @@
  * Core business logic for the new TaskFlow system
  */
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
-const { buildInClause } = require('../utils/sqlHelpers');
+const { buildInClause } = require('../../utils/sqlHelpers');
 const logger = require('../../utils/logger');
 const cacheService = require('../cacheService');
 const eventBus = require('../eventBus');
+const slaEngine = require('./slaEngine');
+const escalationEngine = require('./escalationEngine');
+const notificationService = require('./notificationService');
 const {
   TASK_STATUS,
   SUBTASK_STATUS,
@@ -65,6 +68,38 @@ async function invalidateTemplateCache(templateId) {
     cacheKey('templatelist', '*')
   );
 }
+
+function cacheKey(...parts) {
+  return `${TASK_CACHE_PREFIX}${parts.join(':')}`;
+}
+
+async function invalidateTaskCache(taskId) {
+  await cacheService.invalidate(
+    cacheKey('task', taskId),
+    cacheKey('tasklist', '*'),
+    cacheKey('dashboard', '*')
+  );
+}
+
+async function invalidateTemplateCache(templateId) {
+  await cacheService.invalidate(
+    cacheKey('template', templateId),
+    cacheKey('templatelist', '*')
+  );
+}
+
+// ============================================================
+// PHASE 2: SLA ENGINE, ESCALATION ENGINE, NOTIFICATION SERVICE
+// ============================================================
+
+// Initialize SLA Engine
+slaEngine.startMonitoring(30); // Check every 30 minutes
+
+// Initialize Escalation Engine
+escalationEngine.loadEscalationRules().catch(err => logger.error('Failed to load escalation rules', err));
+escalationEngine.startMonitoring(15); // Check every 15 minutes
+
+// Notification service is ready to use
 
 // ============================================================
 // SLA POLICIES
@@ -1244,7 +1279,7 @@ module.exports = {
   completeActivity,
   
   // Attachments
-  uploadAttachment: uploadEvidence,
+  uploadAttachment,
   getAttachments,
   deleteAttachment,
   
@@ -1328,5 +1363,10 @@ module.exports = {
   
   // Helpers
   safeParse,
-  generateId
+  generateId,
+  
+  // Phase 2: SLA Engine, Escalation Engine, Notification Service
+  slaEngine,
+  escalationEngine,
+  notificationService
 };

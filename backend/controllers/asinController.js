@@ -552,7 +552,8 @@ exports.getAsins = async (req, res) => {
       }
 
       // [7] Fetch all history data IN PARALLEL to avoid sequential timeouts
-      const historyDays = parseInt(req.query.historyDays) || 14;
+      // historyDays already destructured from req.query at line 144; provide default 14 if undefined
+      historyDays = parseInt(historyDays) || 14;
       const asinIdValues = asins.map(a => a.Id);
       const asinCodeValues = asins.map(a => a.AsinCode);
 
@@ -751,16 +752,16 @@ exports.getAsins = async (req, res) => {
           try { lqsDetails = a.LqsDetails ? (typeof a.LqsDetails === 'string' ? JSON.parse(a.LqsDetails) : a.LqsDetails) : []; } catch (e) { lqsDetails = []; }
 
           let buyBoxes = [];
-          try { buyBoxes = a.BuyBoxes ? (typeof a.BuyBoxes = 'string' ? JSON.parse(a.BuyBoxes) : a.BuyBoxes) : []; } catch (e) { buyBoxes = []; }
+          try { buyBoxes = a.BuyBoxes && typeof a.BuyBoxes === 'string' ? JSON.parse(a.BuyBoxes) : a.BuyBoxes; } catch (e) { buyBoxes = []; }
 
           let cdqComponents = {};
-          try { cdqComponents = a.CdqComponents = 'string' ? JSON.parse(a.CdqComponents) : a.CdqComponents; } catch (e) { cdqComponents = {}; }
+          try { cdqComponents = a.CdqComponents && typeof a.CdqComponents === 'string' ? JSON.parse(a.CdqComponents) : a.CdqComponents; } catch (e) { cdqComponents = {}; }
 
           let feePreview = null;
-          try { feePreview = a.FeePreview = 'string' ? JSON.parse(a.FeePreview) = 'string' ? JSON.parse(a.FeePreview) : a.FeePreview) : null; } catch (e) { feePreview = null; }
+          try { feePreview = a.FeePreview && typeof a.FeePreview === 'string' ? JSON.parse(a.FeePreview) : a.FeePreview; } catch (e) { feePreview = null; }
 
           let historyParsed = [];
-          try { historyParsed = a.History ? (typeof a.History = 'string' ? JSON.parse(a.History) = 'string' ? JSON.parse(a.History) = 'string' ? JSON.parse(a.History) : a.History) : []; } catch (e) { historyParsed = []; }
+          try { historyParsed = a.History && typeof a.History === 'string' ? JSON.parse(a.History) : a.History; } catch (e) { historyParsed = []; }
 
           // ✅ FIX: If allOffers is empty, build it from legacy fields
           if (allOffers.length === 0) {
