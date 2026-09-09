@@ -1,10 +1,13 @@
 'use client';
 
+import * as React from 'react';
+
 interface DropdownMenuProps {
   trigger?: 'click' | 'hover' | 'contextMenu';
-  overlay: React.ReactElement;
+  overlay?: React.ReactElement;
   children: React.ReactNode;
   placement?: 'bottomLeft' | 'bottomRight' | 'topLeft' | 'topRight';
+  align?: 'start' | 'end';
   getPopupContainer?: () => HTMLElement;
 }
 
@@ -13,14 +16,17 @@ export const DropdownMenu = ({
   overlay,
   trigger = 'click',
   placement = 'bottomRight',
+  align = 'end',
   ...props
 }: DropdownMenuProps) => {
   return (
-    <div className="ant-dropdown-trigger">
+    <div className="ant-dropdown-trigger" {...props}>
       {children}
-      <div className="ant-dropdown-menu-hidden">
-        {overlay}
-      </div>
+      {overlay && (
+        <div className={`ant-dropdown-menu-hidden ant-dropdown-placement-${placement} ${align === 'start' ? 'ant-dropdown-align-start' : 'ant-dropdown-align-end'}`}>
+          {overlay}
+        </div>
+      )}
     </div>
   );
 };
@@ -29,8 +35,8 @@ export const DropdownMenuTrigger = ({ children, ...props }: React.HTMLAttributes
   return <div {...props}>{children}</div>;
 };
 
-export const DropdownMenuContent = ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
-  return <div className="ant-dropdown-menu" {...props}>{children}</div>;
+export const DropdownMenuContent = ({ children, className, align = 'end', ...props }: React.HTMLAttributes<HTMLDivElement> & { align?: 'start' | 'end' }) => {
+  return <div className={`ant-dropdown-menu ${align === 'start' ? 'ant-dropdown-align-start' : 'ant-dropdown-align-end'}`} {...props}>{children}</div>;
 };
 
 export const DropdownMenuItem = ({ 

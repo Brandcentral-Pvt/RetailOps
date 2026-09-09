@@ -4,7 +4,7 @@ import { Tag } from 'antd';
 import { cn } from '@/lib/utils';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'processing';
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'processing' | 'secondary';
   children: React.ReactNode;
 }
 
@@ -15,6 +15,7 @@ const variantColors: Record<string, string> = {
   error: 'red',
   processing: 'blue',
   info: 'cyan',
+  secondary: 'gray',
 };
 
 const Badge = ({ 
