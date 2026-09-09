@@ -384,4 +384,145 @@ router.post('/scrape/export/:jobId', protect, requirePermission('asinmanager_exp
   }
 });
 
+// ============ NEW: Sync seller ASINs (replaces Octoparse sync button) ============
+router.post('/scrape/sync-seller/:sellerId', protect, requirePermission('asinmanager_manage'), checkSellerAccess, async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const userId = req.user.Id;
+    const { fullSync = false, forceReRun = false, onlyMissing = false } = req.body;
+
+    const pool = await getPool();
+
+    // Fetch seller to verify
+    const sellerResult = await pool.request()
+      .input('id', sql.VarChar, sellerId)
+      .query("SELECT * FROM Sellers WHERE Id = @id");
+
+    const seller = sellerResult.recordset[0];
+    if (!seller) {
+      return res.status(404).json({ success: false, message: 'Seller not found' });
+    }
+
+    // Build query to get ASINs to scrape
+    let whereClause = "WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Archived')";
+    
+    if (onlyMissing) {
+      // Only scrape ASINs that don't have scrape data or have missing critical fields
+      whereClause += ` AND (
+        AsinCode NOT IN (SELECT Asin FROM AsinScrapeData WHERE SellerId = @sellerId)
+        OR Rating IS NULL OR Rating = 0
+        OR ReviewCount IS NULL OR ReviewCount = 0
+        OR HasAplus IS NULL OR HasAplus = 0
+      )`;
+    }
+
+    if (forceReRun) {
+      // Force re-scrape all ASINs
+      whereClause = "WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Archived')";
+    }
+
+    const asinsResult = await pool.request()
+      .input('sellerId', sql.VarChar, sellerId)
+      .query(`SELECT AsinCode FROM Asins ${whereClause} ORDER BY CreatedAt`);
+
+    const asins = asinsResult.recordset.map(r => r.AsinCode);
+
+    if (asins.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: onlyMissing ? 'All ASINs already have complete data' : 'No active ASINs found for this seller',
+        totalAsins: 0,
+        jobId: null
+      });
+    }
+
+    // Update status to scraping
+    await pool.request()
+      .input('sellerId', sql.VarChar, sellerId)
+      .query("UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Archived')");
+
+    // Start scrape job
+    const jobConfig = {
+      sellerId,
+      asins,
+      userId,
+      priority: 'high',
+      options: {
+        proxies: process.env.SCRAPER_PROXY_LIST ? process.env.SCRAPER_PROXY_LIST.split(',') : [],
+        fullSync,
+        forceReRun,
+        onlyMissing,
+      },
+    };
+
+    const result = await playwrightScraperRunner.startJob(jobConfig);
+    
+    res.json({ 
+      success: true, 
+      message: `Playwright scrape initiated for ${seller.Name} (${asins.length} ASINs)`,
+      jobId: result.jobId,
+      totalAsins: asins.length,
+      seller: seller.Name
+    });
+  } catch (error) {
+    logger.error('Sync seller ASINs error', { error: error.message });
+    
+    // Reset status on error
+    const pool = await getPool();
+    await pool.request()
+      .input('sellerId', sql.VarChar, req.params.sellerId)
+      .query("UPDATE Asins SET ScrapeStatus = 'FAILED', Status = 'Error', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND ScrapeStatus = 'SCRAPING'");
+    
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get sync status for seller
+router.get('/scrape/sync-status/:sellerId', protect, requirePermission('asinmanager_view'), checkSellerAccess, async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+
+    const pool = await getPool();
+    
+    // Get active job if any
+    const activeJob = playwrightScraperRunner.getAllJobs().find(j => j.sellerId === sellerId && (j.status === 'running' || j.status === 'processing' || j.status === 'queued'));
+    
+    // Get scrape stats
+    const stats = await pool.request()
+      .input('sellerId', sql.VarChar, sellerId)
+      .query(`
+        SELECT 
+          COUNT(*) as totalAsins,
+          COUNT(CASE WHEN a.S scrapeStatus = 'COMPLETED' OR a.LastScrapedAt IS NOT NULL THEN 1 END) as scrapedAsins,
+          COUNT(CASE WHEN a.ScrapeStatus = 'SCRAPING' THEN 1 END) as scrapingAsins,
+          COUNT(CASE WHEN a.ScrapeStatus = 'FAILED' THEN 1 END) as failedAsins,
+          COUNT(CASE WHEN a.ScrapeStatus = 'PENDING' OR a.ScrapeStatus IS NULL THEN 1 END) as pendingAsins,
+          MAX(a.LastScrapedAt) as lastScrapedAt
+        FROM Asins a
+        WHERE a.SellerId = @sellerId AND (a.Status IS NULL OR a.Status != 'Archived')
+      `);
+
+    // Get recent scrape job
+    const recentJob = await pool.request()
+      .input('sellerId', sql.VarChar, sellerId)
+      .query(`
+        SELECT TOP 1 JobId, Status, TotalAsins, Successful, Failed, StartTime, EndTime
+        FROM ScrapeJobHistory
+        WHERE SellerId = @sellerId
+        ORDER BY CreatedAt DESC
+      `);
+
+    res.json({
+      success: true,
+      sellerId,
+      activeJob: activeJob || null,
+      stats: stats.recordset[0],
+      recentJob: recentJob.recordset[0] || null,
+    });
+  } catch (error) {
+    logger.error('Get sync status error', { error: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

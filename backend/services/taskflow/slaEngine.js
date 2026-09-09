@@ -3,7 +3,7 @@
  * Handles SLA calculations, breach detection, and monitoring
  */
 const { sql, getPool, generateId } = require('../../database/db');
-const { buildInClause } = require('../utils/sqlHelpers');
+const { buildInClause } = require('../../utils/sqlHelpers');
 const logger = require('../../utils/logger');
 const eventBus = require('../eventBus');
 const workflowEngine = require('./workflowEngine');

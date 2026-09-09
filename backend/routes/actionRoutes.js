@@ -6,7 +6,7 @@ const fs = require('fs').promises;
 const actionController = require('../controllers/actionController');
 const { authenticate: protect, requireAnyPermission, requireRole } = require('../middleware/auth');
 const { createNotification } = require('../controllers/notificationController');
-const SystemLogService = require('../services/SystemLogService');
+// const SystemLogService = require('../services/SystemLogService');
 const validate = require('../middleware/validate');
 const listingAnalysisService = require('../services/listingAnalysisService');
 
@@ -151,14 +151,14 @@ router.post('/:id/start', protect, requireAnyPermission(['actions_edit', 'action
             .input('TimeTracking', sql.NVarChar, JSON.stringify({ ...timeTracking, startedAt: new Date() }))
             .query(`UPDATE Actions SET Stage = @Stage, TimeTracking = @TimeTracking, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
 
-        await SystemLogService.log({
-            type: 'STATUS_CHANGE',
-            entityType: 'ACTION',
-            entityId: req.params.id,
-            entityTitle: action.Title,
-            user: userId,
-            description: `Started action: ${action.Title}`
-        });
+        // await SystemLogService.log({
+        //     type: 'STATUS_CHANGE',
+        //     entityType: 'ACTION',
+        //     entityId: req.params.id,
+        //     entityTitle: action.Title,
+        //     user: userId,
+        //     description: `Started action: ${action.Title}`
+        // });
 
         const updated = await pool.request()
             .input('id', sql.VarChar, req.params.id)
@@ -232,14 +232,14 @@ router.post('/:id/submit-review', protect, requireAnyPermission(['actions_edit',
             }
         }
 
-        await SystemLogService.log({
-            type: 'STATUS_CHANGE',
-            entityType: 'ACTION',
-            entityId: action.Id,
-            entityTitle: action.Title,
-            user: userId,
-            description: `Submitted action for review: ${action.Title}`
-        });
+        // await SystemLogService.log({
+        //     type: 'STATUS_CHANGE',
+        //     entityType: 'ACTION',
+        //     entityId: action.Id,
+        //     entityTitle: action.Title,
+        //     user: userId,
+        //     description: `Submitted action for review: ${action.Title}`
+        // });
 
         // Notify creator
         if (action.CreatedBy) {
@@ -329,14 +329,14 @@ router.post('/:id/review-action', protect, requireRole('admin', 'super_admin', '
                 .query(`UPDATE Actions SET Stage = @Stage, Status = 'PENDING', UpdatedAt = dbo.GetEnvDate() WHERE Id = @id`);
         }
 
-        await SystemLogService.log({
-            type: 'STATUS_CHANGE',
-            entityType: 'ACTION',
-            entityId: action.Id,
-            entityTitle: action.Title,
-            user: userId,
-            description: `${decision === 'APPROVE' ? 'Approved' : 'Rejected'} action: ${action.Title}`
-        });
+        // await SystemLogService.log({
+        //     type: 'STATUS_CHANGE',
+        //     entityType: 'ACTION',
+        //     entityId: action.Id,
+        //     entityTitle: action.Title,
+        //     user: userId,
+        //     description: `${decision === 'APPROVE' ? 'Approved' : 'Rejected'} action: ${action.Title}`
+        // });
 
         if (action.AssignedTo) {
             await createNotification(
@@ -377,14 +377,14 @@ router.delete('/:id', protect, requireRole('admin'), async (req, res) => {
             .input('id', sql.VarChar, req.params.id)
             .query("DELETE FROM Actions WHERE Id = @id");
 
-        await SystemLogService.log({
-            type: 'DELETE',
-            entityType: 'ACTION',
-            entityId: action.Id,
-            entityTitle: action.Title,
-            user: req.user._id,
-            description: `Deleted action: ${action.Title}`
-        });
+        // await SystemLogService.log({
+        //     type: 'DELETE',
+        //     entityType: 'ACTION',
+        //     entityId: action.Id,
+        //     entityTitle: action.Title,
+        //     user: req.user._id,
+        //     description: `Deleted action: ${action.Title}`
+        // });
 
         try { sendSseEvent('deleted', { id: req.params.id }); } catch (e) { }
         res.json({ success: true, message: 'Action deleted' });

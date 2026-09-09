@@ -343,14 +343,46 @@ class PlaywrightScraperService {
             verifiedAsin: null,
             title: null,
             price: 0,
+            mrp: 0,
             bsr: null,
+            subBsr: null,
+            discountPercentage: 0,
+            imagesCount: 0,
+            mainImage: null,
+            images: [],
+            bulletPoints: [],
+            bulletPointsText: '',
+            description: '',
+            category: '',
+            brand: '',
+            availability: '',
+            soldBy: '',
+            dealBadge: '',
+            dealPrice: 0,
+            savingsAmount: 0,
         };
 
         try {
             data.verifiedAsin = await this.extractAsin(page, asin);
             data.title = await this.extractTitle(page);
             data.price = await this.extractPrice(page);
+            data.mrp = await this.extractMrp(page);
             data.bsr = await this.extractBSR(page);
+            data.subBsr = await this.extractSubBSR(page);
+            data.discountPercentage = await this.extractDiscount(page);
+            data.imagesCount = await this.extractImagesCount(page);
+            data.mainImage = await this.extractMainImage(page);
+            data.images = await this.extractImages(page);
+            data.bulletPoints = await this.extractBulletPoints(page);
+            data.bulletPointsText = data.bulletPoints.join('\n• ');
+            data.description = await this.extractDescription(page);
+            data.category = await this.extractCategory(page);
+            data.brand = await this.extractBrand(page);
+            data.availability = await this.extractAvailability(page);
+            data.soldBy = await this.extractSoldBy(page);
+            data.dealBadge = await this.extractDealBadge(page);
+            data.dealPrice = await this.extractDealPrice(page);
+            data.savingsAmount = await this.extractSavings(page);
             data.rating = await this.extractRating(page);
             data.reviewCount = await this.extractReviewCount(page);
             data.ratingBreakdown = await this.extractRatingBreakdown(page);
@@ -639,6 +671,368 @@ class PlaywrightScraperService {
         } catch (_) {
             return null;
         }
+    }
+
+    // ============ NEW EXTRACTION METHODS ============
+
+    async extractMrp(page) {
+        const selectors = [
+            '.a-text-price .a-offscreen',
+            '#priceblock_ourprice + .a-text-price .a-offscreen',
+            '.a-text-price:has-text("M.R.P") .a-offscreen',
+            '.basisPrice .a-offscreen',
+            '#corePrice_feature_div .a-text-price .a-offscreen',
+            '.a-size-small.a-color-secondary .a-offscreen',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text) {
+                        const price = parseFloat(text.replace(/[^\d.]/g, ''));
+                        if (!isNaN(price) && price > 0) return price;
+                    }
+                }
+            } catch (_) {}
+        }
+        return 0;
+    }
+
+    async extractSubBSR(page) {
+        const selectors = [
+            '#productDetails_detailBullets_sections1 th:has-text("Best Sellers Rank") + td',
+            '#detailBullets_feature_div li:has-text("Best Sellers Rank")',
+            '.zg_hrsr_ladder li span',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const elements = await page.$$(selector);
+                for (const element of elements) {
+                    const text = await element.textContent();
+                    if (text) {
+                        const matches = text.match(/#([\d,]+)/g);
+                        if (matches && matches.length > 1) {
+                            return parseInt(matches[1].replace(/,/g, ''));
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+        return null;
+    }
+
+    async extractDiscount(page) {
+        const selectors = [
+            '.savingsPercentage',
+            '.reinventPriceSavingsPercentageMargin .apex-savings-percentage',
+            '#dealBadgeSupportingText .a-size-base',
+            '.a-size-large.a-color-price.savingPriceOverride',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text) {
+                        const match = text.match(/(\d+)%/);
+                        if (match) return parseInt(match[1]);
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // Calculate from price/mrp if both available
+        return 0;
+    }
+
+    async extractImagesCount(page) {
+        const selectors = [
+            '#altImages li',
+            '#imgTagWrapperId img',
+            '.a-dynamic-image',
+            '[data-a-dynamic-image]',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const count = await page.$$eval(selector, els => els.length).catch(() => 0);
+                if (count > 0) return count;
+            } catch (_) {}
+        }
+        return 0;
+    }
+
+    async extractMainImage(page) {
+        const selectors = [
+            '#landingImage',
+            '#imgTagWrapperId img',
+            '#main-image',
+            '.a-dynamic-image',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const src = await element.getAttribute('src') || await element.getAttribute('data-old-hires') || await element.getAttribute('data-a-dynamic-image');
+                    if (src) {
+                        // Parse data-a-dynamic-image JSON if needed
+                        if (src.startsWith('{')) {
+                            try {
+                                const parsed = JSON.parse(src);
+                                return Object.keys(parsed)[0];
+                            } catch (_) {}
+                        }
+                        return src;
+                    }
+                }
+            } catch (_) {}
+        }
+        return null;
+    }
+
+    async extractImages(page) {
+        const images = [];
+        try {
+            const elements = await page.$$('#altImages li img, #imgTagWrapperId img');
+            for (const element of elements) {
+                const src = await element.getAttribute('src') || await element.getAttribute('data-old-hires');
+                if (src && !images.includes(src)) {
+                    images.push(src);
+                }
+            }
+        } catch (_) {}
+        return images;
+    }
+
+    async extractBulletPoints(page) {
+        const selectors = [
+            '#productFactsDesktopExpander ul li',
+            '#feature-bullets li',
+            '#detailBullets_feature_div li',
+            '.a-unordered-list.a-vertical li',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const elements = await page.$$(selector);
+                const bullets = [];
+                for (const element of elements) {
+                    const text = await element.textContent();
+                    if (text && text.trim().length > 10) {
+                        bullets.push(text.trim());
+                    }
+                }
+                if (bullets.length > 0) return bullets;
+            } catch (_) {}
+        }
+        return [];
+    }
+
+    async extractDescription(page) {
+        const selectors = [
+            '#productDescription',
+            '#productDescription_feature_div',
+            '[data-feature-name="productDescription"]',
+            '#dpx-product-description_feature_div',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text && text.trim().length > 50) {
+                        return text.trim().substring(0, 5000);
+                    }
+                }
+            } catch (_) {}
+        }
+        return '';
+    }
+
+    async extractCategory(page) {
+        const selectors = [
+            '#wayfinding-breadcrumbs_container ul li',
+            '#breadcrumb li',
+            '.a-breadcrumb li',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const elements = await page.$$(selector);
+                const categories = [];
+                for (const element of elements) {
+                    const text = await element.textContent();
+                    if (text && text.trim()) {
+                        categories.push(text.trim());
+                    }
+                }
+                if (categories.length > 0) {
+                    return categories.join(' > ');
+                }
+            } catch (_) {}
+        }
+        return '';
+    }
+
+    async extractBrand(page) {
+        const selectors = [
+            '#brand',
+            '.brand-name',
+            '#bylineInfoFeature_feature_div a',
+            '#brandBylineFeature_feature_div a',
+            '#detailBullets_feature_div li:has-text("Brand") span',
+            // New voyager layout selectors
+            '#productDetails_detailBullets_sections1 th:has-text("Brand") + td',
+            '#prodDetails th:has-text("Brand") + td',
+            '.prodDetSectionEntry:has-text("Brand") + .prodDetAttrValue',
+            '#brandSnapshot_feature_div a',
+            '[data-feature-name="brand"] a',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text && text.trim()) {
+                        return text.trim().replace(/^Brand:\s*/i, '').replace(/^Visit the\s*/i, '').replace(/Store$/i, '').trim();
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // Fallback: try to extract from product details table
+        try {
+            const brandFromTable = await page.evaluate(() => {
+                const rows = document.querySelectorAll('#productDetails_detailBullets_sections1 tr, #prodDetails tr, .prodDetTable tr');
+                for (const row of rows) {
+                    const th = row.querySelector('th');
+                    const td = row.querySelector('td');
+                    if (th && th.textContent.toLowerCase().includes('brand') && td) {
+                        return td.textContent.trim();
+                    }
+                }
+                return null;
+            });
+            if (brandFromTable) return brandFromTable;
+        } catch (_) {}
+
+        return '';
+    }
+
+    async extractAvailability(page) {
+        const selectors = [
+            '#availability .a-color-success',
+            '#availability .a-color-state',
+            '#availability span',
+            '.a-declarative #availability',
+            '[data-feature-name="availability"]',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text && text.trim()) {
+                        return text.trim().substring(0, 500);
+                    }
+                }
+            } catch (_) {}
+        }
+        return '';
+    }
+
+    async extractSoldBy(page) {
+        const selectors = [
+            '#merchantInfoFeature_feature_div a',
+            '#sellerProfileTriggerId',
+            '#mbc-sold-by a',
+            '[data-feature-name="merchantInfo"] a',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text && text.trim()) {
+                        return text.trim();
+                    }
+                }
+            } catch (_) {}
+        }
+        return '';
+    }
+
+    async extractDealBadge(page) {
+        const selectors = [
+            '#dealBadgeSupportingText span',
+            '.deal-badge',
+            '#dealBadge_feature_div',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text && text.trim()) {
+                        return text.trim();
+                    }
+                }
+            } catch (_) {}
+        }
+        return '';
+    }
+
+    async extractDealPrice(page) {
+        const selectors = [
+            '#priceblock_dealprice',
+            '.a-price .a-offscreen:has-text("Deal")',
+            '.dealPrice',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text) {
+                        const price = parseFloat(text.replace(/[^\d.]/g, ''));
+                        if (!isNaN(price) && price > 0) return price;
+                    }
+                }
+            } catch (_) {}
+        }
+        return 0;
+    }
+
+    async extractSavings(page) {
+        const selectors = [
+            '.reinventPriceSavingsPercentageMargin .a-size-large',
+            '#priceBlock .a-size-large.a-color-price',
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const element = await page.$(selector);
+                if (element) {
+                    const text = await element.textContent();
+                    if (text) {
+                        const match = text.match(/₹?([\d,]+)/);
+                        if (match) return parseFloat(match[1].replace(/,/g, ''));
+                    }
+                }
+            } catch (_) {}
+        }
+        return 0;
     }
 
     async scrapeBatch(asins, options = {}) {

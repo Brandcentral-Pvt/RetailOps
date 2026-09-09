@@ -274,7 +274,23 @@ class PlaywrightScraperRunner {
                 request.input('verifiedAsin', sql.VarChar, result.verifiedAsin || result.asin);
                 request.input('title', sql.NVarChar(sql.MAX), result.title);
                 request.input('price', sql.Decimal(18, 2), result.price || 0);
+                request.input('mrp', sql.Decimal(18, 2), result.mrp || 0);
                 request.input('bsr', sql.Int, result.bsr);
+                request.input('subBsr', sql.Int, result.subBsr);
+                request.input('discountPercentage', sql.Int, result.discountPercentage || 0);
+                request.input('imagesCount', sql.Int, result.imagesCount || 0);
+                request.input('mainImage', sql.NVarChar(sql.MAX), result.mainImage);
+                request.input('images', sql.NVarChar(sql.MAX), JSON.stringify(result.images || []));
+                request.input('bulletPoints', sql.NVarChar(sql.MAX), JSON.stringify(result.bulletPoints || []));
+                request.input('bulletPointsText', sql.NVarChar(sql.MAX), result.bulletPointsText);
+                request.input('description', sql.NVarChar(sql.MAX), result.description);
+                request.input('category', sql.NVarChar(sql.MAX), result.category);
+                request.input('brand', sql.NVarChar(255), result.brand);
+                request.input('availability', sql.NVarChar(500), result.availability);
+                request.input('soldBy', sql.NVarChar(500), result.soldBy);
+                request.input('dealBadge', sql.NVarChar(500), result.dealBadge);
+                request.input('dealPrice', sql.Decimal(18, 2), result.dealPrice || 0);
+                request.input('savingsAmount', sql.Decimal(18, 2), result.savingsAmount || 0);
                 request.input('ratingBreakdown', sql.NVarChar(sql.MAX), JSON.stringify(result.ratingBreakdown || {}));
                 request.input('scrapedAt', sql.DateTime2, new Date(result.scrapedAt));
                 request.input('duration', sql.Int, result.duration || 0);
@@ -295,14 +311,30 @@ class PlaywrightScraperRunner {
                             VerifiedAsin = @verifiedAsin,
                             Title = @title,
                             Price = @price,
+                            Mrp = @mrp,
                             BSR = @bsr,
+                            SubBsr = @subBsr,
+                            DiscountPercentage = @discountPercentage,
+                            ImagesCount = @imagesCount,
+                            MainImage = @mainImage,
+                            Images = @images,
+                            BulletPoints = @bulletPoints,
+                            BulletPointsText = @bulletPointsText,
+                            Description = @description,
+                            Category = @category,
+                            Brand = @brand,
+                            Availability = @availability,
+                            SoldBy = @soldBy,
+                            DealBadge = @dealBadge,
+                            DealPrice = @dealPrice,
+                            SavingsAmount = @savingsAmount,
                             RatingBreakdown = @ratingBreakdown,
                             LastScrapedAt = @scrapedAt,
                             ScrapeDurationMs = @duration,
                             UpdatedAt = dbo.GetEnvDate()
                     WHEN NOT MATCHED THEN
-                        INSERT (Id, Asin, SellerId, Rating, ReviewCount, HasAplus, AplusDetails, VerifiedAsin, Title, Price, BSR, RatingBreakdown, LastScrapedAt, ScrapeDurationMs, CreatedAt, UpdatedAt)
-                        VALUES (@id, @asin, @sellerId, @rating, @reviewCount, @hasAplus, @aplusDetails, @verifiedAsin, @title, @price, @bsr, @ratingBreakdown, @scrapedAt, @duration, dbo.GetEnvDate(), dbo.GetEnvDate());
+                        INSERT (Id, Asin, SellerId, Rating, ReviewCount, HasAplus, AplusDetails, VerifiedAsin, Title, Price, Mrp, BSR, SubBsr, DiscountPercentage, ImagesCount, MainImage, Images, BulletPoints, BulletPointsText, Description, Category, Brand, Availability, SoldBy, DealBadge, DealPrice, SavingsAmount, RatingBreakdown, LastScrapedAt, ScrapeDurationMs, CreatedAt, UpdatedAt)
+                        VALUES (@id, @asin, @sellerId, @rating, @reviewCount, @hasAplus, @aplusDetails, @verifiedAsin, @title, @price, @mrp, @bsr, @subBsr, @discountPercentage, @imagesCount, @mainImage, @images, @bulletPoints, @bulletPointsText, @description, @category, @brand, @availability, @soldBy, @dealBadge, @dealPrice, @savingsAmount, @ratingBreakdown, @scrapedAt, @duration, dbo.GetEnvDate(), dbo.GetEnvDate());
                 `);
 
                 // Insert into ScrapeJobDetails for per-job tracking
@@ -323,6 +355,68 @@ class PlaywrightScraperRunner {
                 await detailRequest.query(`
                     INSERT INTO ScrapeJobDetails (Id, JobId, Asin, Success, Rating, ReviewCount, HasAplus, VerifiedAsin, ErrorMessage, DurationMs, ScrapedAt)
                     VALUES (@id, @jobId, @asin, @success, @rating, @reviewCount, @hasAplus, @verifiedAsin, @errorMessage, @durationMs, @scrapedAt)
+                `);
+
+                // Also update the Asins table with the scraped data
+                const asinUpdateRequest = transaction.request();
+                asinUpdateRequest.input('asinCode', sql.VarChar, result.asin);
+                asinUpdateRequest.input('sellerId', sql.VarChar, job.sellerId);
+                asinUpdateRequest.input('rating', sql.Decimal(3, 2), result.rating || 0);
+                asinUpdateRequest.input('reviewCount', sql.Int, result.reviewCount || 0);
+                asinUpdateRequest.input('hasAplus', sql.Bit, result.hasAplus ? 1 : 0);
+                asinUpdateRequest.input('verifiedAsin', sql.VarChar, result.verifiedAsin || result.asin);
+                asinUpdateRequest.input('title', sql.NVarChar(sql.MAX), result.title);
+                asinUpdateRequest.input('price', sql.Decimal(18, 2), result.price || 0);
+                asinUpdateRequest.input('mrp', sql.Decimal(18, 2), result.mrp || 0);
+                asinUpdateRequest.input('discountPercentage', sql.Int, result.discountPercentage || 0);
+                asinUpdateRequest.input('imagesCount', sql.Int, result.imagesCount || 0);
+                asinUpdateRequest.input('mainImage', sql.NVarChar(sql.MAX), result.mainImage);
+                asinUpdateRequest.input('images', sql.NVarChar(sql.MAX), JSON.stringify(result.images || []));
+                asinUpdateRequest.input('bulletPoints', sql.NVarChar(sql.MAX), JSON.stringify(result.bulletPoints || []));
+                asinUpdateRequest.input('bulletPointsText', sql.NVarChar(sql.MAX), result.bulletPointsText);
+                asinUpdateRequest.input('description', sql.NVarChar(sql.MAX), result.description);
+                asinUpdateRequest.input('category', sql.NVarChar(sql.MAX), result.category);
+                asinUpdateRequest.input('brand', sql.NVarChar(255), result.brand);
+                asinUpdateRequest.input('availability', sql.NVarChar(500), result.availability);
+                asinUpdateRequest.input('soldBy', sql.NVarChar(500), result.soldBy);
+                asinUpdateRequest.input('dealBadge', sql.NVarChar(500), result.dealBadge);
+                asinUpdateRequest.input('dealPrice', sql.Decimal(18, 2), result.dealPrice || 0);
+                asinUpdateRequest.input('savingsAmount', sql.Decimal(18, 2), result.savingsAmount || 0);
+                asinUpdateRequest.input('bsr', sql.Int, result.bsr);
+                asinUpdateRequest.input('subBsr', sql.Int, result.subBsr);
+                asinUpdateRequest.input('ratingBreakdown', sql.NVarChar(sql.MAX), JSON.stringify(result.ratingBreakdown || {}));
+                asinUpdateRequest.input('lastScrapedAt', sql.DateTime2, new Date(result.scrapedAt));
+
+                await asinUpdateRequest.query(`
+                    UPDATE Asins SET
+                        Rating = @rating,
+                        ReviewCount = @reviewCount,
+                        HasAplus = @hasAplus,
+                        VerifiedAsin = @verifiedAsin,
+                        Title = @title,
+                        CurrentPrice = @price,
+                        Mrp = @mrp,
+                        DiscountPercentage = @discountPercentage,
+                        ImagesCount = @imagesCount,
+                        ImageUrl = @mainImage,
+                        Images = @images,
+                        BulletPoints = @bulletPoints,
+                        BulletPointsText = @bulletPointsText,
+                        Description = @description,
+                        Category = @category,
+                        Brand = @brand,
+                        Availability = @availability,
+                        SoldBy = @soldBy,
+                        DealBadge = @dealBadge,
+                        DealPrice = @dealPrice,
+                        SavingsAmount = @savingsAmount,
+                        BSR = @bsr,
+                        SubBsr = @subBsr,
+                        RatingBreakdown = @ratingBreakdown,
+                        LastScrapedAt = @lastScrapedAt,
+                        ScrapeStatus = 'COMPLETED',
+                        UpdatedAt = dbo.GetEnvDate()
+                    WHERE AsinCode = @asinCode AND SellerId = @sellerId
                 `);
             }
 

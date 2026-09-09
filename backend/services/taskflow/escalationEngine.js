@@ -3,7 +3,7 @@
  * Handles automatic escalation based on SLA breaches and configurable rules
  */
 const { sql, getPool, generateId } = require('../../database/db');
-const { buildInClause } = require('../utils/sqlHelpers');
+const { buildInClause } = require('../../utils/sqlHelpers');
 const logger = require('../../utils/logger');
 const eventBus = require('../eventBus');
 const workflowEngine = require('./workflowEngine');

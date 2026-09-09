@@ -4,7 +4,7 @@
  */
 const { validationResult } = require('express-validator');
 const taskflowService = require('../services/taskflow/service');
-const logger = require('../../utils/logger');
+const logger = require('../utils/logger');
 
 function handleValidationErrors(req, res) {
   const errors = validationResult(req);

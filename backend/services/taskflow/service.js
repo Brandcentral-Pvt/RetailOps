@@ -8,7 +8,7 @@ const logger = require('../../utils/logger');
 const cacheService = require('../cacheService');
 const eventBus = require('../eventBus');
 const slaEngine = require('./slaEngine');
-const escalationEngine = require('./escalationEngine');
+const escalationEngine = new (require('./escalationEngine').EscalationEngine)();
 const notificationService = require('./notificationService');
 const {
   TASK_STATUS,

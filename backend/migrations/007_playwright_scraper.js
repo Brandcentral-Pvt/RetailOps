@@ -16,7 +16,23 @@ module.exports = {
           VerifiedAsin VARCHAR(20) NULL,
           Title NVARCHAR(MAX) NULL,
           Price DECIMAL(18, 2) DEFAULT 0,
+          Mrp DECIMAL(18, 2) DEFAULT 0,
           BSR INT NULL,
+          SubBsr INT NULL,
+          DiscountPercentage INT DEFAULT 0,
+          ImagesCount INT DEFAULT 0,
+          MainImage NVARCHAR(MAX) NULL,
+          Images NVARCHAR(MAX) NULL,
+          BulletPoints NVARCHAR(MAX) NULL,
+          BulletPointsText NVARCHAR(MAX) NULL,
+          Description NVARCHAR(MAX) NULL,
+          Category NVARCHAR(MAX) NULL,
+          Brand NVARCHAR(255) NULL,
+          Availability NVARCHAR(500) NULL,
+          SoldBy NVARCHAR(500) NULL,
+          DealBadge NVARCHAR(500) NULL,
+          DealPrice DECIMAL(18, 2) DEFAULT 0,
+          SavingsAmount DECIMAL(18, 2) DEFAULT 0,
           RatingBreakdown NVARCHAR(MAX) NULL,
           LastScrapedAt DATETIME2 NULL,
           ScrapeDurationMs INT DEFAULT 0,
@@ -106,6 +122,33 @@ module.exports = {
       IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = 'LastScrapedAt' AND Object_ID = OBJECT_ID('Asins'))
         ALTER TABLE Asins ADD LastScrapedAt DATETIME2 NULL;
     `);
+
+    // Add new columns to Asins for full data
+    const newColumns = [
+        { name: 'Mrp', type: 'DECIMAL(18, 2) DEFAULT 0' },
+        { name: 'DiscountPercentage', type: 'INT DEFAULT 0' },
+        { name: 'ImagesCount', type: 'INT DEFAULT 0' },
+        { name: 'MainImage', type: 'NVARCHAR(MAX) NULL' },
+        { name: 'Images', type: 'NVARCHAR(MAX) NULL' },
+        { name: 'BulletPoints', type: 'NVARCHAR(MAX) NULL' },
+        { name: 'BulletPointsText', type: 'NVARCHAR(MAX) NULL' },
+        { name: 'Description', type: 'NVARCHAR(MAX) NULL' },
+        { name: 'Category', type: 'NVARCHAR(MAX) NULL' },
+        { name: 'Brand', type: 'NVARCHAR(255) NULL' },
+        { name: 'Availability', type: 'NVARCHAR(500) NULL' },
+        { name: 'SoldBy', type: 'NVARCHAR(500) NULL' },
+        { name: 'DealBadge', type: 'NVARCHAR(500) NULL' },
+        { name: 'DealPrice', type: 'DECIMAL(18, 2) DEFAULT 0' },
+        { name: 'SavingsAmount', type: 'DECIMAL(18, 2) DEFAULT 0' },
+        { name: 'SubBsr', type: 'INT NULL' },
+    ];
+
+    for (const col of newColumns) {
+        await pool.request().query(`
+          IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = '${col.name}' AND Object_ID = OBJECT_ID('Asins'))
+            ALTER TABLE Asins ADD ${col.name} ${col.type};
+        `);
+    }
 
     // Create updated_at trigger for AsinScrapeData
     await pool.request().query(`
