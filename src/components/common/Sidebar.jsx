@@ -166,10 +166,10 @@ const Sidebar = () => {
                 theme={{
                     components: {
                         Menu: {
-                            itemSelectedColor: 'var(--bc-ro-600)',
-                            itemSelectedBg: 'var(--bc-ro-50)',
-                            itemHoverBg: 'var(--bc-slate-100)',
-                            itemHoverColor: 'var(--bc-slate-900)',
+                            itemSelectedColor: 'var(--text-primary)',
+                            itemSelectedBg: 'var(--bg-hover)',
+                            itemHoverBg: 'var(--bg-hover)',
+                            itemHoverColor: 'var(--text-primary)',
                             groupTitleColor: 'var(--bc-slate-400)',
                             groupTitleFontSize: 9.5,
                             itemHeight: 34,
@@ -181,7 +181,7 @@ const Sidebar = () => {
             >
                 <Sider
                 width={240}
-                collapsedWidth={70}
+                collapsedWidth={60}
                 collapsed={visuallyCollapsed}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
@@ -194,16 +194,36 @@ const Sidebar = () => {
                     borderRight: '1px solid var(--border)',
                 }}
             >
-                {/* Logo Area */}
+                {/* macOS-style header and sidebar toggle */}
                 <div className="logo-area">
-                    {visuallyCollapsed ? (
-                        <RetailOpsMark size={28} />
-                    ) : (
-                        <RetailOpsWordmark size={28} />
+                    <div className="logo-content">
+                        {visuallyCollapsed ? (
+                            <RetailOpsMark size={28} />
+                        ) : (
+                            <RetailOpsWordmark size={28} />
+                        )}
+                    </div>
+                    {!visuallyCollapsed && (
+                        <div className="logo-actions">
+                            <button
+                                className="sidebar-add"
+                                type="button"
+                                aria-label="Add item"
+                                title="Add item"
+                            >
+                                <span aria-hidden="true">+</span>
+                            </button>
+                            <button
+                                className="sidebar-toggle"
+                                type="button"
+                                onClick={toggle}
+                                title={collapsed ? "Unlock Sidebar" : "Collapse Sidebar"}
+                                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            >
+                                <ChevronLeft size={15} style={{ transform: collapsed ? 'rotate(180deg)' : 'none' }} />
+                            </button>
+                        </div>
                     )}
-                    <button className="sidebar-toggle" onClick={toggle} title={collapsed ? "Unlock Sidebar" : "Collapse Sidebar"}>
-                        <ChevronLeft size={12} style={{ transform: collapsed ? 'rotate(180deg)' : 'none' }} />
-                    </button>
                 </div>
 
                 {/* Nav Body - Scrollable Menu Container */}

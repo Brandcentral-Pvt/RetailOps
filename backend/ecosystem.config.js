@@ -78,8 +78,8 @@ module.exports = {
     },
     {
       name: 'retailops-frontend',
-      script: 'npx',
-      args: 'next start',
+      script: 'npm',
+      args: 'npm run dev',
       cwd: frontendCwd,
       // Next.js handles clustering internally; use 1 instance to avoid port conflicts.
       // For horizontal scaling, run multiple PM2 instances behind nginx/load balancer.

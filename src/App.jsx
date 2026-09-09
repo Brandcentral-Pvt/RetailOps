@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
+import { Toaster } from 'sonner';
 import retailOpsTheme from './theme/antdTheme';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
@@ -10,7 +11,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GlobalHeader from './components/header/GlobalHeader';
 import { HeaderProvider } from './contexts/HeaderContext';
 import RoutePageMeta from './components/layout/RoutePageMeta';
-import RouteProgress from './components/ui/RouteProgress';
 import ModuleFallback from './components/ui/ModuleFallback';
 import Sidebar from './components/common/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -102,7 +102,6 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<PageLoading message="Loading..." />}>
-      <RouteProgress />
       {showWizard && <OnboardingWizard />}
       <GlobalNotificationListener />
       <Routes>
@@ -206,6 +205,20 @@ function App() {
                         <AntdApp>
                           <AppRoutes />
                         </AntdApp>
+                        <Toaster
+                          position="top-right"
+                          closeButton
+                          richColors
+                          duration={3500}
+                          toastOptions={{
+                            style: {
+                              borderRadius: '14px',
+                              border: '1px solid #dbe5f2',
+                              boxShadow: '0 10px 30px rgba(30, 64, 175, 0.12)',
+                              fontFamily: 'var(--font-family)',
+                            },
+                          }}
+                        />
                         </ConfigProvider>
                       </ToastProvider>
                     </PageTitleProvider>

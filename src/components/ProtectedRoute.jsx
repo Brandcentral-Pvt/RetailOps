@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Spinner from './Spinner';
+import { PageLoading } from './Spinner';
 
 const ProtectedRoute = ({ children, permission, requiredRole }) => {
     const {
@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children, permission, requiredRole }) => {
 
     // Still verifying the user’s session OR loading permissions
     if (loading || loadingPermissions) {
-        return <Spinner fullPage tip="Verifying access..." />;
+        return <PageLoading message="Loading page..." />;
     }
 
     if (!isAuthenticated) {

@@ -226,19 +226,17 @@ const NotificationCenter = () => {
         size={420}
         className="notif-drawer"
         title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Notifications</span>
+          <div className="notif-drawer-titlebar">
+            <div className="notif-drawer-title">
+              <span className="notif-drawer-eyebrow">Workspace activity</span>
+              <strong>Notifications</strong>
               {unreadCount > 0 && (
-                <span style={{
-                  background: 'var(--bc-ro-500)', color: '#fff', fontSize: '10px', fontWeight: 600,
-                  padding: '2px 7px', borderRadius: '100px', fontFamily: 'Inter, sans-serif',
-                }}>
+                <span className="notif-count-badge">
                   {unreadCount} new
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="notif-drawer-actions">
               <Tooltip title="Mark all as read">
                 <Button type="text" size="small" icon={<CheckOutlined />}
                   onClick={markAllRead} disabled={unreadCount === 0} style={{ color: 'var(--bc-slate-400)' }} />
@@ -253,7 +251,7 @@ const NotificationCenter = () => {
         }
         styles={{ body: { padding: 0 } }}
       >
-        <div style={{ borderBottom: '1px solid var(--bc-slate-100)', padding: '0 20px' }}>
+        <div className="notif-tabs-wrap">
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -267,7 +265,7 @@ const NotificationCenter = () => {
           />
         </div>
 
-        <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+        <div className="notif-list">
           {loading && notifications.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center' }}>
               <Spin size="small" />
@@ -348,7 +346,7 @@ const NotificationCenter = () => {
         </div>
 
         {hasMore && !loading && notifications.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', background: 'var(--bc-slate-100)', textAlign: 'center' }}>
+          <div className="notif-drawer-footer">
             <Button type="link" size="small" onClick={loadMore}
               style={{ color: 'var(--bc-ro-500)', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
               Load more
@@ -356,7 +354,7 @@ const NotificationCenter = () => {
           </div>
         )}
         {loading && notifications.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
+          <div className="notif-drawer-footer is-loading">
             <Spin size="small" />
           </div>
         )}

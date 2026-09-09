@@ -1,11 +1,7 @@
 const { chromium } = require('playwright');
 
 async function testAjioPage() {
-    // Ajio product URLs use numeric codes
-    const testCodes = [
-        '703016831006', // From database
-        '701983589003',
-    ];
+    const testCodes = ['703016831006'];
 
     const browser = await chromium.launch({
         headless: true,
@@ -16,61 +12,80 @@ async function testAjioPage() {
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         viewport: { width: 1366, height: 768 },
         locale: 'en-IN',
+        extraHTTPHeaders: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-IN,en;q=0.9,hi;q=0.8',
+            'Referer': 'https://www.google.com/',
+        },
     });
 
     await context.addInitScript(() => {
         Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        window.chrome = { runtime: {} };
     });
 
     for (const code of testCodes) {
         const page = await context.newPage();
+        page.setDefaultTimeout(30000);
+        page.setDefaultNavigationTimeout(45000);
+        
         const url = `https://www.ajio.com/p/${code}`;
-        console.log(`\nTesting: ${url}`);
+        console.log(`Testing: ${url}`);
         
         try {
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-            await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+            const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+            console.log(`Response: ${response?.status()}`);
             
-            const title = await page.title();
-            console.log(`Title: ${title}`);
-            console.log(`URL: ${page.url()}`);
+            await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(3000); // Wait for dynamic content
             
-            // Check for blocked
-            const blocked = await page.$('text=/block|robot|captcha/i').catch(() => null);
-            if (blocked) console.log('BLOCKED DETECTED');
-            
-            // Save HTML for analysis
+            // Search for rating/review in entire HTML
             const html = await page.content();
             const fs = require('fs');
-            fs.writeFileSync(`debug-ajio-${code}.html`, html);
-            console.log(`Saved HTML (${html.length} chars)`);
+            fs.writeFileSync(`debug-ajio-${code}-full.html`, html);
             
-            // Look for key elements
-            const selectors = {
-                title: ['h1.prod-name', '.prod-name', 'h1[data-testid]', '.product-title'],
-                price: ['.prod-sp', '.price-original', '.price-current', '[data-testid="price"]'],
-                mrp: ['.prod-sp-mrp', '.price-mrp', '.was-price'],
-                rating: ['.rating-stars', '.ratings', '[data-testid="rating"]', '.average-rating'],
-                reviewCount: ['.rating-count', '.review-count', '[data-testid="review-count"]'],
-                images: ['.image-grid img', '.product-image img', '[data-testid="image"]'],
-                description: ['.prod-desc', '.description', '[data-testid="description"]'],
-                category: ['.breadcrumb', '.breadcrumbs', '.category-path'],
-                brand: ['.brand-name', '.prod-brand'],
-                availability: ['.stock-availability', '.availability', '[data-testid="availability"]'],
-            };
+            // Search for rating patterns
+            const ratingPatterns = [
+                /rating/i,
+                /review/i,
+                /star/i,
+                /"aggregateRating"/i,
+                /ratingValue/i,
+                /reviewCount/i,
+            ];
             
-            for (const [name, selList] of Object.entries(selectors)) {
-                for (const sel of selList) {
-                    const el = await page.$(sel).catch(() => null);
-                    if (el) {
-                        const text = await el.textContent().catch(() => '');
-                        const href = await el.getAttribute('href').catch(() => '');
-                        const src = await el.getAttribute('src').catch(() => '');
-                        console.log(`  ${name}: ${sel} => ${text.substring(0, 100) || src.substring(0, 100) || href.substring(0, 100)}`);
-                        break;
-                    }
+            for (const pattern of ratingPatterns) {
+                const matches = [...html.matchAll(new RegExp(pattern, 'gi'))];
+                if (matches.length > 0) {
+                    console.log(`Found "${pattern.source}": ${matches.length} matches`);
+                    // Show context around first few matches
+                    matches.slice(0, 3).forEach(m => {
+                        const start = Math.max(0, m.index - 100);
+                        const end = Math.min(html.length, m.index + 200);
+                        console.log(`  ...${html.substring(start, end)}...`);
+                    });
                 }
             }
+            
+            // Also check for API calls
+            const networkCalls = [];
+            page.on('response', resp => {
+                if (resp.url().includes('rating') || resp.url().includes('review') || 
+                    resp.url().includes('product') || resp.url().includes('api')) {
+                    networkCalls.push({
+                        url: resp.url(),
+                        status: resp.status(),
+                        type: resp.request().resourceType()
+                    });
+                }
+            });
+            
+            // Reload to capture network
+            await page.reload({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+            await page.waitForTimeout(3000);
+            
+            console.log('\n=== Network Calls ===');
+            networkCalls.slice(0, 20).forEach(c => console.log(`  ${c.status} ${c.type} ${c.url}`));
             
         } catch (error) {
             console.error(`Error: ${error.message}`);

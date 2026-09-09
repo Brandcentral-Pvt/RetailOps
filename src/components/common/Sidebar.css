@@ -1,60 +1,94 @@
 /* ─── Sidebar Shell ─────────────────────────────────────────────────── */
 .sidebar-sider {
-  transition: all 220ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-  overflow: visible !important;
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1), background-color 200ms ease !important;
+  overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
+  margin: 8px 0 8px 8px;
+  height: calc(100vh - 16px) !important;
+  border: 0 !important;
+  border-radius: 20px;
+  padding: 6px;
+  box-sizing: border-box;
+  background: var(--bc-white, #fff) !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
 }
 
 .sidebar-sider .ant-layout-sider-children {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: visible;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--bg-sidebar, #fff);
 }
 
 /* ─── Logo Area ─────────────────────────────────────────────────────── */
 .logo-area {
-  height: 60px;
-  padding: 0 14px;
+  height: 54px;
+  padding: 0 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   overflow: visible;
-  background-color: var(--bg-sidebar);
+  background: transparent;
 }
 
 .sidebar-sider.ant-layout-sider-collapsed .logo-area {
   justify-content: center;
-  padding: 0 8px;
+  padding: 0;
+}
+
+.logo-content,
+.logo-actions {
+  display: flex;
+  align-items: center;
+}
+
+.logo-actions {
+  gap: 6px;
 }
 
 /* ─── Lock / Toggle Button ──────────────────────────────────────────── */
 .sidebar-toggle {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: white;
-  color: var(--text-tertiary);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary, #525252);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 180ms ease;
   padding: 0;
 }
 
 .sidebar-toggle:hover {
-  color: var(--bc-ro-500);
-  border-color: var(--bc-ro-500);
-  background-color: var(--bc-ro-50);
-  box-shadow: 0 2px 12px rgba(25, 118, 210, 0.2);
-  transform: scale(1.1);
+  color: var(--text-primary, #171717);
+  background: var(--bc-slate-200, #e5e5e5);
+}
+
+.sidebar-add {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, #525252);
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+  transition: all 180ms ease;
+}
+
+.sidebar-add:hover {
+  color: var(--text-primary, #171717);
+  background: var(--bc-slate-200, #e5e5e5);
 }
 
 .ant-layout-sider-collapsed .sidebar-toggle {
@@ -66,24 +100,13 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 6px 0;
+  padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .nav-body::-webkit-scrollbar {
-  width: 4px;
-}
-
-.nav-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.nav-body::-webkit-scrollbar-thumb {
-  background: var(--bc-slate-200);
-  border-radius: 10px;
-}
-
-.nav-body:hover::-webkit-scrollbar-thumb {
-  background: var(--bc-slate-300);
+  display: none;
 }
 
 /* ─── Ant Menu Overrides ────────────────────────────────────────────── */
@@ -101,59 +124,52 @@
   font-size: 9.5px !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-  padding: 10px 18px 4px !important;
+  padding: 10px 12px 4px !important;
   color: var(--text-tertiary) !important;
   opacity: 1;
 }
 
 .sidebar-sider .ant-menu-item-group-title::before {
   content: '';
-  width: 10px;
-  height: 2px;
-  background: var(--bc-ro-500);
-  border-radius: 2px;
+  width: 6px;
+  height: 6px;
+  background: var(--text-tertiary);
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
 /* Nav Items */
 .sidebar-sider .ant-menu-item {
-  margin: 1px 10px !important;
-  width: calc(100% - 20px) !important;
+  margin: 1px 2px !important;
+  width: calc(100% - 4px) !important;
   border-radius: 8px !important;
   font-weight: 450;
   font-size: 13px !important;
   display: flex !important;
   align-items: center !important;
-  padding-inline: 10px !important;
-  transition: all 150ms ease;
+  padding-inline: 8px !important;
+  transition: all 180ms ease;
 }
 
 .sidebar-sider .ant-menu-item:hover {
-  background-color: var(--bc-ro-50) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--bc-slate-200, #e5e5e5) !important;
+  color: var(--text-primary, #171717) !important;
 }
 
 /* Selected Item */
 .sidebar-sider .ant-menu-item-selected {
   font-weight: 600 !important;
-  background-color: var(--bc-ro-50) !important;
-  color: var(--bc-ro-600) !important;
+  background-color: var(--bc-slate-200, #e5e5e5) !important;
+  color: var(--text-primary, #171717) !important;
   position: relative;
 }
 
 .sidebar-sider .ant-menu-item-selected::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 3px;
-  background: var(--bc-ro-500);
-  border-radius: 0 3px 3px 0;
+  display: none;
 }
 
 .sidebar-sider .ant-menu-item-selected:hover {
-  color: var(--bc-ro-600) !important;
+  color: var(--text-primary, #171717) !important;
 }
 
 /* Menu Item Icon */
@@ -162,16 +178,16 @@
   align-items: center;
   justify-content: center;
   min-width: 18px !important;
-  margin-right: 10px !important;
-  font-size: 16px !important;
+  margin-right: 8px !important;
+  font-size: 15px !important;
 }
 
 /* ─── Bottom Area ───────────────────────────────────────────────────── */
 .bottom-area {
   flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  background-color: var(--bg-sidebar);
-  padding: 8px 0 10px;
+  border-top: 0;
+  background-color: transparent;
+  padding: 6px 0 2px;
 }
 
 /* Pipeline Status */
@@ -217,18 +233,18 @@
 
 /* User Row */
 .user-row {
-  padding: 8px 14px;
+  padding: 7px 8px;
   display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
   transition: background 120ms;
-  margin: 2px 10px;
+  margin: 2px 4px;
   border-radius: 8px;
 }
 
 .user-row:hover {
-  background-color: var(--bc-slate-100);
+  background-color: var(--bc-slate-200, #e5e5e5);
 }
 
 .user-avatar {
@@ -305,9 +321,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  width: calc(100% - 20px);
-  margin: 6px 10px 0;
-  padding: 8px 12px;
+  width: calc(100% - 8px);
+  margin: 5px 4px 0;
+  padding: 7px 8px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -320,9 +336,9 @@
 }
 
 .logout-btn:hover {
-  background: var(--bc-ro-50);
-  border-color: var(--bc-ro-200);
-  color: var(--bc-ro-500);
+  background: var(--bc-slate-200, #e5e5e5);
+  border-color: transparent;
+  color: var(--text-primary, #171717);
 }
 
 .sidebar-sider.ant-layout-sider-collapsed .logout-btn {
@@ -354,6 +370,10 @@
 /* ─── Mobile Responsive ─────────────────────────────────────────────── */
 @media (max-width: 992px) {
   .sidebar-sider {
+    margin: 0 !important;
+    padding: 6px !important;
+    height: 100vh !important;
+    border-radius: 0 24px 24px 0;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;

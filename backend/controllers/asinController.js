@@ -129,6 +129,32 @@ const parseFlexibleDate = (val) => {
 };
 
 /**
+ * Parse a parameter that could be a JSON array or a single value
+ * Returns an array of values
+ */
+function parseArrayParam(param) {
+  if (!param) return null;
+  try {
+    const parsed = JSON.parse(param);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [param];
+  }
+}
+
+/**
+ * Build WHERE clause for array parameters
+ * Returns { whereClause: string, params: object }
+ */
+function buildArrayFilter(paramName, values, paramPrefix = 'param') {
+  if (!values || !values.length) return { whereClause: '', params: {} };
+  const placeholders = values.map((_, i) => `@${paramPrefix}${i}`).join(',');
+  const params = {};
+  values.forEach((v, i) => { params[`${paramPrefix}${i}`] = v; });
+  return { whereClause: ` AND ${paramName} IN (${placeholders})`, params };
+}
+
+/**
  * Get all ASINs (SQL Version)
  */
 exports.getAsins = async (req, res) => {
@@ -217,7 +243,19 @@ exports.getAsins = async (req, res) => {
           if (req.query.seller) reqObj.input('seller', sql.VarChar, req.query.seller);
           if (req.query.marketplace) reqObj.input('marketplace', sql.VarChar, req.query.marketplace);
           if (status) reqObj.input('status', sql.NVarChar, status);
-          if (category) reqObj.input('category', sql.NVarChar, category);
+          
+          // Handle category parameter - support both single value and JSON array
+          const categoryValues = parseArrayParam(category);
+          if (categoryValues && categoryValues.length > 0) {
+            if (categoryValues.length === 1) {
+              reqObj.input('category', sql.NVarChar, categoryValues[0]);
+            } else {
+              categoryValues.forEach((v, i) => {
+                reqObj.input(`category${i}`, sql.NVarChar, v);
+              });
+            }
+          }
+          
           if (brand) reqObj.input('brand', sql.NVarChar, brand);
           if (scrapeStatus) reqObj.input('scrapeStatus', sql.NVarChar, scrapeStatus);
           if (hasAplus !== undefined && hasAplus !== '') reqObj.input('hasAplus', sql.Bit, hasAplus === 'true' ? 1 : 0);
@@ -311,7 +349,18 @@ exports.getAsins = async (req, res) => {
       } else {
         whereClause += " AND (a.Status IS NULL OR a.Status != 'Archived')";
       }
-      if (category) whereClause += ' AND Category = @category';
+      
+      // Handle category filter - support both single value and JSON array
+      const categoryValues = parseArrayParam(category);
+      if (categoryValues && categoryValues.length > 0) {
+        if (categoryValues.length === 1) {
+          whereClause += ' AND a.Category = @category';
+        } else {
+          const placeholders = categoryValues.map((_, i) => `@category${i}`).join(',');
+          whereClause += ` AND a.Category IN (${placeholders})`;
+        }
+      }
+      
       if (brand) whereClause += ' AND s.Name = @brand';
       if (scrapeStatus) whereClause += ' AND ScrapeStatus = @scrapeStatus';
       if (hasAplus !== undefined && hasAplus !== '') whereClause += ' AND HasAplus = @hasAplus';

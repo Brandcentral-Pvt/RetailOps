@@ -30,13 +30,13 @@ export enum DashboardSegment {
 
 /** Minimum skeleton delay per segment (ms). */
 const SEGMENT_DELAYS: Record<DashboardSegment, number> = {
-    [DashboardSegment.KPIS]: 350,
-    [DashboardSegment.REVENUE_SERIES]: 400,
-    [DashboardSegment.ADS_PERFORMANCE]: 400,
-    [DashboardSegment.CATEGORIES]: 500,
-    [DashboardSegment.TOP_PRODUCTS]: 450,
-    [DashboardSegment.ALERTS]: 200,
-    [DashboardSegment.TARGETS]: 350,
+    [DashboardSegment.KPIS]: 120,
+    [DashboardSegment.REVENUE_SERIES]: 140,
+    [DashboardSegment.ADS_PERFORMANCE]: 140,
+    [DashboardSegment.CATEGORIES]: 160,
+    [DashboardSegment.TOP_PRODUCTS]: 140,
+    [DashboardSegment.ALERTS]: 100,
+    [DashboardSegment.TARGETS]: 120,
 };
 
 // ─── Config ───────────────────────────────────────────────────────────────────

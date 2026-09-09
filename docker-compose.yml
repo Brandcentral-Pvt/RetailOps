@@ -5,6 +5,37 @@
 version: '3.8'
 
 services:
+  # ── SQL Server Database ────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: brand-central-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
+      - MSSQL_PID=Developer
+      - MSSQL_TCP_PORT=1433
+    ports:
+      - '1433:1433'
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - sqlserver_log:/var/opt/mssql/log
+      - sqlserver_secrets:/var/opt/mssql/secrets
+    networks:
+      - brand-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P '${DB_PASSWORD:-YourStrong@Passw0rd}' -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
   # ── Backend API ───────────────────────────────────────────────────────
   backend:
     build:
@@ -16,11 +47,11 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - DB_HOST=host.docker.internal
+      - DB_HOST=sqlserver
       - DB_PORT=1433
       - DB_NAME=RetailOps
       - DB_USER=${DB_USER:-sa}
-      - DB_PASSWORD=${DB_PASSWORD:-your_password}
+      - DB_PASSWORD=${DB_PASSWORD:-YourStrong@Passw0rd}
       - DB_ENCRYPT=false
       - LIVE_SYNC_CLIENT_ID=${LIVE_SYNC_CLIENT_ID}
       - LIVE_SYNC_CLIENT_SECRET=${LIVE_SYNC_CLIENT_SECRET}
@@ -35,6 +66,9 @@ services:
       - ./backend/logs:/app/backend/logs
     networks:
       - brand-network
+    depends_on:
+      sqlserver:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
@@ -63,3 +97,11 @@ services:
 networks:
   brand-network:
     driver: bridge
+
+volumes:
+  sqlserver_data:
+    driver: local
+  sqlserver_log:
+    driver: local
+  sqlserver_secrets:
+    driver: local

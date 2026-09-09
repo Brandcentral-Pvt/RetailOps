@@ -83,15 +83,20 @@ export function useDashboardData(filters: DashboardFilters) {
             : undefined,
     });
 
+    // Core dashboard data renders first; secondary controls and activity data
+    // are deferred until the first dashboard payload is hydrated.
+    const dashboardReady = !orch.isLoadingKpis && orch.dashboardRaw != null;
+
     // Load sellers
     useEffect(() => {
+        if (!dashboardReady) return;
         api.sellerApi.getAll({ page: 1, limit: 500 })
             .then((res: any) => {
                 const list = res?.data?.sellers || res?.sellers || [];
                 setSellers(Array.isArray(list) ? list : []);
             })
             .catch(console.error);
-    }, []);
+    }, [dashboardReady]);
 
     // Filter sellers list based on user role (RBAC)
     const userSellers = useMemo(() => {
@@ -142,6 +147,7 @@ export function useDashboardData(filters: DashboardFilters) {
         staleTime: 2 * 60_000,
         gcTime: 5 * 60_000,
         refetchOnWindowFocus: false,
+        enabled: dashboardReady,
     });
 
     const optimizationTasks = tasksQuery.data ?? [];
@@ -196,13 +202,14 @@ export function useDashboardData(filters: DashboardFilters) {
     }, [socket]);
 
     useEffect(() => {
+        if (!dashboardReady) return;
         loadLogs();
         loadPipeline();
         const interval = setInterval(() => {
             loadPipeline();
         }, 30000);
         return () => clearInterval(interval);
-    }, [loadLogs, loadPipeline]);
+    }, [dashboardReady, loadLogs, loadPipeline]);
 
     // Compute module stats
     const moduleStats: ModuleStats = useMemo(() => {

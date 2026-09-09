@@ -364,20 +364,20 @@ app.use('/api/scraper', scraperRoutes);
 // Error handling
 app.use(async (err, req, res, next) => {
   try {
-    const SystemLogService = require('./services/SystemLogService');
-    await SystemLogService.log({
-      type: 'SYSTEM_ERROR',
-      entityType: 'SERVER',
-      user: req.userId || null,
-      description: err.isOperational ? err.message : 'Unhandled server error',
-      metadata: {
-        code: err.code || 'INTERNAL_ERROR',
-        url: req.originalUrl,
-        method: req.method,
-        ip: req.ip || req.headers?.['x-forwarded-for'],
-        userId: req.userId || req.user?.Id || null,
-      },
-    });
+// const SystemLogService = require('./services/SystemLogService');
+// await SystemLogService.log({
+//     type: 'SYSTEM_ERROR',
+//     entityType: 'SERVER',
+//     user: req.userId || null,
+//     description: err.isOperational ? err.message : 'Unhandled server error',
+//     metadata: {
+//         code: err.code || 'INTERNAL_ERROR',
+//         url: req.originalUrl,
+//         method: req.method,
+//         ip: req.ip || req.headers?.['x-forwarded-for'],
+//         userId: req.userId || req.user?.Id || null,
+//     },
+// });
   } catch (_) {}
 
   errorHandler(err, req, res, next);

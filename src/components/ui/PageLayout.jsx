@@ -1,6 +1,7 @@
 import React from 'react';
 import { Spin, Empty, Result, Skeleton, Button } from 'antd';
 import { ReloadOutlined, InboxOutlined } from '@ant-design/icons';
+import { PageLoading as UnifiedPageLoading } from '../Spinner';
 
 const antIcon = (
   <span
@@ -39,20 +40,7 @@ export function PageHeader({ title, subtitle, icon, actions, breadcrumbs }) {
 }
 
 export function PageLoading({ message = 'Loading...' }) {
-  return (
-    <div style={{ 
-      minHeight: '60vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      justifyContent: 'center', 
-      alignItems: 'center',
-      background: '#fff',
-      borderRadius: "var(--radius-lg)"
-    }}>
-      <Spin indicator={antIcon} size="large" />
-      <div style={{ marginTop: 16, fontSize: 'var(--font-size-sm)', color: '#71717a', fontWeight: 500 }}>{message}</div>
-    </div>
-  );
+  return <UnifiedPageLoading message={message} />;
 }
 
 export function PageError({ message = 'Failed to load', onRetry }) {

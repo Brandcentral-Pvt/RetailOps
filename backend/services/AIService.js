@@ -3,20 +3,22 @@ const OpenAI = require('openai');
 class AIService {
     constructor() {
         // DEBUG: Log API key presence
-        const apiKey = process.env.PERPLEXITY_API_KEY;
+        const perplexityKey = process.env.PERPLEXITY_API_KEY;
+        const nvidiaKey = process.env.NVIDIA_NIM_API_KEY;
         console.log('[DEBUG] AIService initializing...', {
-            hasApiKey: !!apiKey,
-            keyLength: apiKey?.length || 0,
-            keyPrefix: apiKey?.substring(0, 10) || 'undefined'
+            hasPerplexityApiKey: !!perplexityKey,
+            hasNvidiaApiKey: !!nvidiaKey,
+            perplexityKeyLength: perplexityKey?.length || 0,
+            nvidiaKeyLength: nvidiaKey?.length || 0
         });
 
         this.openai = new OpenAI({
-            apiKey: process.env.PERPLEXITY_API_KEY,
+            apiKey: perplexityKey,
             baseURL: 'https://api.perplexity.ai'
         });
 
         this.nvidiaOpenAI = new OpenAI({
-            apiKey: process.env.NVIDIA_NIM_API_KEY,
+            apiKey: nvidiaKey,
             baseURL: 'https://integrate.api.nvidia.com/v1'
         });
     }
@@ -203,12 +205,17 @@ class AIService {
     }
 
     /**
-     * Generic Chat Completion via Perplexity Sonar
+     * Generic Chat Completion - dynamically routes to Perplexity or NVIDIA based on model
      */
     async chat(messages, options = {}) {
+        const model = options.model || "sonar";
+        const useNvidia = model && (model.startsWith('meta/') || model.startsWith('nvidia/') || model.includes('llama') || model.includes('NVIDIA'));
+
+        const client = useNvidia ? this.nvidiaOpenAI : this.openai;
+
         try {
-            const completion = await this.openai.chat.completions.create({
-                model: options.model || "sonar",
+            const completion = await client.chat.completions.create({
+                model: useNvidia ? model : ("sonar"),
                 messages,
                 temperature: options.temperature || 0.6,
                 max_tokens: options.max_tokens || 2048,
@@ -217,8 +224,21 @@ class AIService {
 
             return completion.choices[0].message.content;
         } catch (error) {
-            console.error('[AI Service] Chat Inference Error:', error);
+            console.error(`[AI Service] Chat Inference Error (model: ${model}):`, error);
             throw new Error(`AI Inference Failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * List available NVIDIA NIM models
+     */
+    async listNVIDIAModels() {
+        try {
+            const completion = await this.nvidiaOpenAI.models.list();
+            return completion.data || [];
+        } catch (error) {
+            console.error('[AI Service] Failed to list NVIDIA models:', error);
+            throw new Error('Failed to fetch NVIDIA models');
         }
     }
 }

@@ -69,13 +69,27 @@ const Dashboard = () => {
     const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
-        api.notificationApi.getNotifications({ page: 1, limit: 20 })
-            .then(res => {
-                const data = res?.data?.data?.notifications || res?.data?.data || [];
-                setNotifications(Array.isArray(data) ? data : []);
-            })
-            .catch(() => {});
-    }, []);
+        if (!isHydrated) return undefined;
+        const loadNotifications = () => {
+            api.notificationApi.getNotifications({ page: 1, limit: 20 })
+                .then(res => {
+                    const data = res?.data?.data?.notifications || res?.data?.data || [];
+                    setNotifications(Array.isArray(data) ? data : []);
+                })
+                .catch(() => {});
+        };
+        const idleId = window.requestIdleCallback
+            ? window.requestIdleCallback(loadNotifications, { timeout: 1200 })
+            : window.setTimeout(loadNotifications, 250);
+
+        return () => {
+            if (window.cancelIdleCallback && typeof idleId === 'number') {
+                window.cancelIdleCallback(idleId);
+            } else {
+                window.clearTimeout(idleId);
+            }
+        };
+    }, [isHydrated]);
 
     const kpiValues = useMemo(() => {
         const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
@@ -114,8 +128,11 @@ const Dashboard = () => {
     return (
         <>
             <CmdPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-            <motion.div variants={containerVariants} initial="hidden" animate="visible"
-                style={{ background: 'var(--bg-primary, var(--bc-slate-50))', minHeight: '100%', padding: '0 24px' }}
+            <motion.div
+                className="dashboard-canvas"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
             >
                 {/* Layer 1: Header + Global Status Bar */}
                 <DashboardHeader filters={filters} setFilters={setFilters} userSellers={userSellers} managers={managers} onSync={refresh} loading={loading} />

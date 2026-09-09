@@ -26,7 +26,7 @@ const DashboardHeader = ({
 
   return (
     <>
-      <div style={{
+      <div className="dashboard-toolbar" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -34,16 +34,19 @@ const DashboardHeader = ({
         padding: '12px 0px',
         flexWrap: 'wrap',
       }}>
-        <h1 style={{
+        <div className="dashboard-heading">
+          <span className="dashboard-eyebrow">Operations workspace</span>
+          <h1 style={{
           margin: 0,
           fontSize: 'var(--font-size-xl)',
           fontWeight: 600,
           color: 'var(--text-primary, var(--bc-slate-900))',
           letterSpacing: '-0.3px',
           whiteSpace: 'nowrap',
-        }}>
-          Dashboard
-        </h1>
+          }}>
+            Dashboard
+          </h1>
+        </div>
 
         <div className="dash-header-filter" style={{
           display: 'flex',

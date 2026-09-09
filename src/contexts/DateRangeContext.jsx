@@ -301,6 +301,17 @@ const AdvancedDateRangePicker = ({
     return (
         <div className="picker-backdrop" onClick={handleCancel}>
             <div className="advanced-picker-popover" ref={pickerRef} onClick={e => e.stopPropagation()}>
+                <div className="picker-titlebar">
+                    <div>
+                        <span className="picker-eyebrow">Workspace schedule</span>
+                        <h2>Select date range</h2>
+                        <p>Choose a preset or set a custom reporting window.</p>
+                    </div>
+                    <div className="picker-summary">
+                        <span>Selected range</span>
+                        <strong>{startDate && endDate ? `${format(startDate, 'dd MMM yyyy')} - ${format(endDate, 'dd MMM yyyy')}` : 'Choose dates'}</strong>
+                    </div>
+                </div>
                 <div className="advanced-picker-container">
                     <div className="picker-sidebar">
                         <div className="sidebar-preset-header" style={{ 
@@ -312,7 +323,7 @@ const AdvancedDateRangePicker = ({
                             letterSpacing: '0.05em',
                             borderBottom: '1px solid #f9fafb'
                         }}>
-                            Previous Period
+                            Quick ranges
                         </div>
                         {presets.map((preset) => (
                             <div
