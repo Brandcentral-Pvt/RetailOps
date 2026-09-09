@@ -76,8 +76,8 @@ class ApiClient {
     return this.client.get<T>(url, { params });
   }
 
-  post<T>(url: string, data?: object) {
-    return this.client.post<T>(url, data);
+  post<T>(url: string, data?: object, config?: object) {
+    return this.client.post<T>(url, data, config);
   }
 
   put<T>(url: string, data?: object) {
@@ -277,6 +277,33 @@ export const marketSyncApi = {
   
   getHistory: (params?: { sellerId?: string; limit?: number }) =>
     api.get<SyncHistory[]>('/market-sync/history', { params }),
+  
+  getPoolStatus: () => api.get('/market-sync/pool-status'),
+  
+  syncAllLive: () => api.post('/market-sync/sync-all-live'),
+  
+  getGlobalLiveSyncStatus: () => api.get('/market-sync/sync-all-live/status'),
+}
+
+// Live Sync Tracker API
+export const liveSyncTrackerApi = {
+  getOverview: () => api.get<LiveSyncOverview>('/live-sync-tracker/overview'),
+  
+  getSellers: () => api.get<LiveSyncSeller[]>('/live-sync-tracker/sellers'),
+  
+  getSellerDetail: (sellerId: string) => api.get<LiveSyncSeller>(`/live-sync-tracker/seller/${sellerId}`),
+  
+  getActivity: (params?: { limit?: number }) => api.get<LiveSyncActivity[]>('/live-sync-tracker/activity', { params }),
+  
+  triggerSync: (sellerIds: string[]) => api.post<{ success: boolean; data: any }>('/live-sync-tracker/trigger', { sellerIds }),
+  
+  getRuns: (params?: { page?: number; limit?: number; sellerId?: string; status?: string }) =>
+    api.get<LiveSyncRun[]>('/live-sync-tracker/runs', { params }),
+  
+  getRunDetail: (runId: string) => api.get<LiveSyncRun>(`/live-sync-tracker/runs/${runId}`),
+  
+  getBrandRuns: (params?: { page?: number; limit?: number }) =>
+    api.get<any[]>('/live-sync-tracker/brands', { params }),
 }
 
 export interface SyncHistory {
@@ -290,4 +317,203 @@ export interface SyncHistory {
   recordsProcessed: number;
   recordsFailed: number;
   error?: string;
+}
+
+export interface LiveSyncOverview {
+  totalSellers: number;
+  liveSyncEnabled: number;
+  syncedSellers: number;
+  notEnabledSellers: number;
+  totalAsins: number;
+  hasLiveSyncDate: number;
+  latestLiveSync: string;
+  sellers: {
+    byMarketplace: Record<string, {
+      total: number;
+      enabled: number;
+      synced: number;
+      totalAsins: number;
+      hasLiveSyncDate: number;
+    }>;
+  };
+}
+
+export interface LiveSyncSeller {
+  id: string;
+  name: string;
+  marketplace: string;
+  liveSyncEnabled: boolean;
+  lastLiveSyncAt: string | null;
+  totalAsins: number;
+  syncedAsins: number;
+  syncStatus: 'synced' | 'enabled' | 'not_enabled';
+  lastAsinSync: string | null;
+  hoursSinceSync: number | null;
+}
+
+export interface LiveSyncActivity {
+  asinCode: string;
+  sellerName: string;
+  lastSyncSource: string;
+  currentPrice: number | null;
+  bsr: number | null;
+  rating: number | null;
+  lastLiveSyncAt: string;
+}
+
+export interface LiveSyncRun {
+  id: string;
+  sellerId: string;
+  sellerName: string;
+  triggerType: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  processedCount: number;
+  failedCount: number;
+  fatalError: string | null;
+}
+
+// ============================================
+// Scraper API (Playwright Scraper)
+// ============================================
+
+export const scraperApi = {
+  // Job management
+  startJob: (data: { sellerId: string; asins: string[]; priority?: string; options?: any }) =>
+    api.post('/scraper/scrape/start', data),
+
+  startBulkJob: (data: { sellerId: string; asinFile: string | string[]; priority?: string; options?: any }) =>
+    api.post('/scraper/scrape/start-bulk', data),
+
+  getJobs: (params?: { sellerId?: string; status?: string; limit?: number; offset?: number }) =>
+    api.get('/scraper/scrape/jobs', { params }),
+
+  getJobStatus: (jobId: string) =>
+    api.get(`/scraper/scrape/status/${jobId}`),
+
+  getJobDetails: (params: { jobId: string; limit?: number; offset?: number; success?: boolean }) =>
+    api.get(`/scraper/scrape/job-details/${params.jobId}`, { params }),
+
+  getHistory: (params?: { sellerId?: string; status?: string; limit?: number; offset?: number }) =>
+    api.get('/scraper/scrape/jobs', { params }),
+
+  cancelJob: (jobId: string) =>
+    api.post(`/scraper/scrape/cancel/${jobId}`),
+
+  retryJob: (jobId: string) =>
+    api.post(`/scraper/scrape/retry/${jobId}`),
+
+  exportJob: (jobId: string, format: 'csv' | 'json' = 'csv') =>
+    api.post(`/scraper/scrape/export/${jobId}`, { format }, { responseType: 'blob' }),
+
+  // Stats & monitoring
+  getStats: () => api.get('/scraper/scrape/stats'),
+
+  getSellerSummary: (sellerId: string) =>
+    api.get(`/scraper/scrape/seller-summary/${sellerId}`),
+
+  getHealth: () => api.get('/scraper/scrape/health'),
+
+  // Test
+  testScrape: (asin: string) =>
+    api.post('/scraper/scrape/test', { asin }),
+};
+
+export interface ScrapeJob {
+  jobId: string;
+  sellerId: string;
+  userId?: string;
+  status: 'queued' | 'running' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  total: number;
+  processed: number;
+  successful: number;
+  failed: number;
+  progress: number;
+  currentBatch: number;
+  totalBatches: number;
+  startTime: string;
+  endTime?: string;
+  error?: string;
+}
+
+export interface ScrapeJobDetail {
+  id: string;
+  jobId: string;
+  asin: string;
+  success: boolean;
+  rating: number;
+  reviewCount: number;
+  hasAplus: boolean;
+  verifiedAsin?: string;
+  errorMessage?: string;
+  durationMs: number;
+  scrapedAt: string;
+}
+
+export interface ScraperStats {
+  runner: {
+    totalProcessed: number;
+    totalSuccessful: number;
+    totalFailed: number;
+    startTime: string | null;
+    lastProcessedAt: string | null;
+    activeJobs: number;
+    queuedJobs: number;
+    uptime: number;
+  };
+  scraper: {
+    status: string;
+    browser: string;
+    error?: string;
+  };
+  database: {
+    totalScraped: number;
+    withAplus: number;
+    withoutAplus: number;
+    avgRating: number;
+    avgReviewCount: number;
+    lastScrapedAt: string;
+  };
+  recentJobs: Array<{
+    jobId: string;
+    sellerId: string;
+    status: string;
+    totalAsins: number;
+    successful: number;
+    failed: number;
+    createdAt: string;
+  }>;
+}
+
+export interface SellerScrapeSummary {
+  summary: {
+    totalAsins: number;
+    withAplus: number;
+    withoutAplus: number;
+    avgRating: number;
+    totalReviews: number;
+    minRating: number;
+    maxRating: number;
+    highRated: number;
+    lowRated: number;
+    lastScrapedAt: string;
+  };
+  ratingDistribution: Array<{ ratingRange: string; count: number }>;
+}
+
+export interface ScrapeJobHistory {
+  id: string;
+  jobId: string;
+  sellerId: string;
+  userId?: string;
+  status: string;
+  totalAsins: number;
+  processed: number;
+  successful: number;
+  failed: number;
+  startTime: string;
+  endTime?: string;
+  errorMessage?: string;
+  createdAt: string;
 }

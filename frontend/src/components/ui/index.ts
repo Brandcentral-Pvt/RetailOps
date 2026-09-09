@@ -7,3 +7,5 @@ export { Separator } from './Separator';
 export { Avatar, AvatarImage, AvatarFallback } from './Avatar';
 export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './DropdownMenu';
 export { Skeleton } from './Skeleton';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
+export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './Select';
