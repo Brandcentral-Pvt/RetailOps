@@ -85,6 +85,10 @@ export default function LiveDataInspectorPage() {
           const color = String(v).startsWith('Pass') ? 'green' : 'orange';
           return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
         }
+        if (key === 'hasAplus') {
+          const color = v === 'Yes' ? 'green' : v === 'No' ? 'orange' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
         return <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text>;
       };
       return {

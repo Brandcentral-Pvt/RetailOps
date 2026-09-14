@@ -533,6 +533,9 @@ const METRIC_META = {
   lqsSource: { desc: 'Where the score came from: AI, AI + Rules, or Rules only' },
   titleCriteriaStatus: { desc: 'Title length vs Amazon criteria (below / within / above)' },
   imageCompliance: { desc: 'AI vision compliance check on the main image' },
+  hasAplus: { desc: 'A+ Content presence (live scraped from product page)' },
+  scrapedRating: { desc: 'Customer star rating (live scraped from product page)' },
+  scrapedReviewCount: { desc: 'Number of customer reviews (live scraped from product page)' },
 };
 
 async function init() {
@@ -708,7 +711,7 @@ function renderResults() {
   badges.innerHTML = `<span class="result-chip success">${results.length} found</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} not found</span>` : ''}`;
   bar.style.display = results.length ? '' : 'none';
   bar.innerHTML = `<span class="result-chip info">${selectedKeys.length} metrics</span><span class="result-chip info">${results.length} ASINs</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} unavailable</span>` : ''}`;
-  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount','imagesCount','bulletPointCount','titleLength','lqsScore','lqsTitle','lqsBullets','lqsImages']);
+  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount','scrapedRating','scrapedReviewCount','imagesCount','bulletPointCount','titleLength','lqsScore','lqsTitle','lqsBullets','lqsImages']);
   const ths = ['ASIN', 'Seller', ...selectedKeys.map(k => allMetrics.find(m => m.key === k)?.label || k)];
   const rows = results.map(row => {
     const tds = [`<td><span class="cell-asin">${esc(row.asin)}</span></td>`, `<td class="cell-seller">${esc(row.seller || '-')}</td>`,
@@ -719,6 +722,7 @@ function renderResults() {
         if (k === 'mainImageBackground') { const s = String(v); const cls = s === 'White' ? 'green' : s === 'Possibly non-white' ? 'amber' : s === 'Non-white' ? 'red' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
         if (k === 'lqsSource') { const cls = String(v) === 'AI' ? 'green' : String(v) === 'AI + Rules' ? 'blue' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(String(v))}</span></td>`; }
         if (k === 'imageCompliance') { const s = String(v); const cls = s && s.startsWith('Pass') ? 'green' : s ? 'amber' : 'gray'; return `<td class="cell-str" title="${esc(s)}"><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
+        if (k === 'hasAplus') { const s = String(v); const cls = s === 'Yes' ? 'green' : s === 'No' ? 'amber' : 'gray'; return `<td><span class="cell-badge ${cls}">${esc(s)}</span></td>`; }
         if (numKeys.has(k)) return `<td class="cell-num">${typeof v === 'number' ? v.toLocaleString('en-IN') : esc(String(v))}</td>`;
         return `<td class="cell-str" title="${esc(String(v))}">${esc(String(v))}</td>`;
       })];
