@@ -45,6 +45,7 @@ const SellerAsinTrackerPage = lazy(() => import('./pages/SellerAsinTrackerPage')
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const ScrapeTasksPage = lazy(() => import('./pages/ScrapeTasksPage'));
+const ScraperDashboardPage = lazy(() => import('./pages/ScraperDashboardPage'));
 const SellersPage = lazy(() => import('./pages/SellersPage'));
 const ScheduledRunsPage = lazy(() => import('./pages/ScheduledRunsPage'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
@@ -149,6 +150,7 @@ function AppRoutes() {
                   <Route path="/rule-sets/new" element={<ProtectedRoute permission="rules_manage"><RulesetBuilderPage /></ProtectedRoute>} />
                   <Route path="/rule-sets/:id" element={<ProtectedRoute permission="rules_manage"><RulesetBuilderPage /></ProtectedRoute>} />
                    <Route path="/scrape-tasks" element={<ProtectedRoute permission="scraping_view"><ScrapeTasksPage /></ProtectedRoute>} />
+                   <Route path="/scraper" element={<ProtectedRoute permission="scraping_view"><ScraperDashboardPage /></ProtectedRoute>} />
                    <Route path="/live-sync-tracker" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-data-inspector" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-sync" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
