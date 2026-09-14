@@ -236,6 +236,16 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('scraping_view'),
                 {
+                    key: 'scraper',
+                    label: 'Scraper',
+                    path: '/scraper',
+                    icon: ScanSearch,
+                    section: 'automation',
+                }
+            ),
+            guard(
+                isAdmin || isGlobalUser || hasPermission('scraping_view'),
+                {
                     key: 'live-sync-tracker',
                     label: 'Live Sync Tracker',
                     path: '/live-sync-tracker',
