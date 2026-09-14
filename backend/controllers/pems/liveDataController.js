@@ -462,12 +462,21 @@ function extractMetricValue(key, item) {
         case 'mrp': return listing?.price?.savingBasis?.money?.amount || listing?.mrpAmount || null;
         case 'bsr': return item.browseNodeInfo?.websiteSalesRank?.salesRank || item.browseNodeInfo?.browseNodes?.[0]?.salesRank || null;
         case 'subBsr': {
+            // Legacy/scraper-derived "rankings" array (["#main in X", "#sub in Y"])
             const rankings = item.rankings || [];
-            if (rankings.length >= 2) {
-                const match = rankings[1]?.match(/#([\d,]+)/);
-                return match ? parseInt(match[1].replace(/,/g, '')) : null;
+            if (rankings.length >= 2 && typeof rankings[1] === 'string') {
+                const match = rankings[1].match(/#([\d,]+)/);
+                if (match) return parseInt(match[1].replace(/,/g, ''), 10);
             }
-            return item.browseNodeInfo?.browseNodes?.[1]?.salesRank || null;
+            // Creators API: main BSR = websiteSalesRank.salesRank. Sub BSR is a
+            // browseNode salesRank that differs from it (e.g. browseNodes[0]).
+            let mainBSR = item.browseNodeInfo?.websiteSalesRank?.salesRank
+                || item.browseNodeInfo?.browseNodes?.[0]?.salesRank;
+            const nodes = item.browseNodeInfo?.browseNodes || [];
+            for (const node of nodes) {
+                if (node.salesRank && node.salesRank !== mainBSR) return node.salesRank;
+            }
+            return nodes[0]?.salesRank || null;
         }
         case 'rating': return item.customerReviews?.starRating || null;
         case 'reviewCount': return item.customerReviews?.count || null;
