@@ -96,9 +96,12 @@ const BATCH_SIZE = CONFIG.batchSize;
 const BATCH_DELAY_MS = CONFIG.batchDelayMs;
 
 // ── Scraper-backed metrics (live-scraped, not available from Creators API) ──
-const SCRAPE_METRICS = ['hasAplus', 'scrapedRating', 'scrapedReviewCount'];
+// rating / reviewCount are unified: creators-API value is used first, then
+// the live-scrape overrides it when a fresh scrape is available.
+const SCRAPE_METRICS = ['hasAplus', 'rating', 'reviewCount'];
 const SCRAPE_MAX = Math.max(1, parseInt(process.env.LIVE_SYNC_SCRAPE_MAX_ASINS || '20', 10));
 const SCRAPE_TIMEOUT = Math.max(10000, parseInt(process.env.LIVE_SYNC_SCRAPE_TIMEOUT_MS || '45000', 10));
+const SCRAPE_FRESH_HOURS = Math.max(1, parseInt(process.env.LIVE_SYNC_SCRAPE_FRESH_HOURS || '24', 10));
 
 const API_RESOURCES = [
     'itemInfo.title', 'itemInfo.byLineInfo', 'itemInfo.features',
@@ -330,9 +333,9 @@ const AVAILABLE_METRICS = [
     { key: 'titleCriteriaStatus', label: 'Title vs Criteria' },
     { key: 'imageCompliance', label: 'Main Image Compliance' },
     // ── Scraper-backed (live-scraped from Amazon product page) ─────────
+    // rating/reviewCount are shared with the Creators API above — the
+    // live-scrape overrides those values when it succeeds.
     { key: 'hasAplus', label: 'A+ Content' },
-    { key: 'scrapedRating', label: 'Rating (Live Scrape)' },
-    { key: 'scrapedReviewCount', label: 'Reviews (Live Scrape)' },
 ];
 
 // Metrics that trigger AI-assisted LQS analysis (text + vision).
@@ -469,7 +472,38 @@ async function enrichWithAi(items, selectedMetrics, totalRequested, aiFlag) {
 // Scrapes the actual Amazon product page via Playwright to get data the
 // Creators API cannot provide: A+ content flag, and optionally more accurate
 // rating/reviewCount. Results are persisted to AsinScrapeData + Asins table.
-async function scrapeAsinsForInspector(asins) {
+// Runs at most SCRAPE_CONCURRENT_PAGES pages in parallel; results are cached
+// in AsinScrapeData for SCRAPE_FRESH_HOURS so repeat inspections stay fast.
+
+// Read previously-persisted scrapes that are still fresh (cache fast path).
+async function loadCachedScrapes(asins) {
+    const cache = new Map();
+    if (!asins || asins.length === 0) return cache;
+    const pool = await getPool();
+    const chunks = [];
+    for (let i = 0; i < asins.length; i += 500) chunks.push(asins.slice(i, i + 500));
+    for (const chunk of chunks) {
+        const placeholders = chunk.map((_, i) => `@a${i}`).join(',');
+        const request = pool.request();
+        chunk.forEach((a, i) => request.input(`a${i}`, sql.VarChar, a));
+        try {
+            const r = await request.query(`
+                SELECT Asin, Rating, ReviewCount, HasAplus, AplusDetails, LastScrapedAt
+                FROM AsinScrapeData
+                WHERE Asin IN (${placeholders})
+                  AND LastScrapedAt >= DATEADD(HOUR, -${SCRAPE_FRESH_HOURS}, dbo.GetEnvDate())
+            `);
+            for (const row of r.recordset) cache.set(row.Asin.toUpperCase(), row);
+        } catch (err) {
+            console.warn(`[Inspector] Cache read failed: ${err.message}`);
+        }
+    }
+    return cache;
+}
+
+// Live-scrape the given ASINs (raw, no cache) — the worker pool bounds the
+// parallel Playwright pages; the service itself caps at concurrentPages.
+async function scrapeAsinsRaw(asins) {
     const scraped = new Map();
     const targets = asins.slice(0, SCRAPE_MAX);
     let index = 0;
@@ -495,6 +529,44 @@ async function scrapeAsinsForInspector(asins) {
     return scraped;
 }
 
+// Combined path: serve fresh ASINs from cache, live-scrape only what's missing,
+// persist the new scrapes (fire-and-forget), return merged {rating,reviewCount,hasAplus}.
+async function getInspectScrapeData(asins) {
+    const scraped = new Map();
+    const targets = asins.slice(0, SCRAPE_MAX);
+
+    const cached = await loadCachedScrapes(targets);
+    for (const [asin, row] of cached) {
+        scraped.set(asin, {
+            rating: row.Rating || null,
+            reviewCount: row.ReviewCount || null,
+            hasAplus: row.HasAplus === true || row.HasAplus === 1 ? true : false,
+        });
+    }
+    const cachedCount = cached.size;
+
+    const missing = targets.filter(a => !cached.has(a.toUpperCase()));
+    if (missing.length > 0) {
+        const fresh = await scrapeAsinsRaw(missing);
+        for (const [asin, data] of fresh) scraped.set(asin, data);
+
+        // Persist newly scraped to DB (fire-and-forget, don't block response)
+        Promise.allSettled(
+            missing.map(asin => {
+                const data = fresh.get(asin.toUpperCase());
+                return data ? persistInspectorScrape(asin, data) : null;
+            })
+        ).catch(() => {});
+    }
+
+    if (cachedCount > 0) {
+        console.log(`[Inspector] Scraper enrichment: ${cachedCount} served from cache + ${scraped.size - cachedCount} freshly scraped (of ${targets.length})`);
+    } else {
+        console.log(`[Inspector] Scraper enrichment: ${scraped.size}/${targets.length} ASINs scraped`);
+    }
+    return scraped;
+}
+
 async function persistInspectorScrape(asinCode, data) {
     try {
         const pool = await getPool();
@@ -509,9 +581,7 @@ async function persistInspectorScrape(asinCode, data) {
         const asinId = asinRow.Id;
         const sellerId = asinRow.SellerId || '';
 
-        const id = `insp_${Date.now()}_${asinCode}_${Math.random().toString(36).slice(2, 6)}`;
-        await pool.request()
-            .input('id', sql.NVarChar(50), id)
+        const req = pool.request()
             .input('asinCode', sql.NVarChar(20), asinCode)
             .input('sellerId', sql.NVarChar(50), sellerId)
             .input('title', sql.NVarChar(sql.MAX), data.title || null)
@@ -533,8 +603,30 @@ async function persistInspectorScrape(asinCode, data) {
             .input('dealPrice', sql.Decimal(18, 2), data.dealPrice || null)
             .input('savingsAmount', sql.Decimal(18, 2), data.savingsAmount || null)
             .input('bsr', sql.Int, data.bsr || null)
-            .input('subBsr', sql.Int, data.subBsr || null)
-            .query(`
+            .input('subBsr', sql.Int, data.subBsr || null);
+
+        // Upsert: refresh the existing row for this ASIN (dedupe + keep cache TTL)
+        const exists = await pool.request()
+            .input('asinCode', sql.VarChar(20), asinCode)
+            .input('sellerId', sql.NVarChar(50), sellerId)
+            .query(`SELECT TOP 1 Id FROM AsinScrapeData WHERE Asin = @asinCode AND SellerId = @sellerId`);
+        const existingRow = exists.recordset[0];
+
+        if (existingRow) {
+            await req.input('id', sql.NVarChar(50), existingRow.Id).query(`
+                UPDATE AsinScrapeData
+                SET Rating = @rating, ReviewCount = @reviewCount, HasAplus = @hasAplus,
+                    AplusDetails = @aplusDetails, Title = @title, Price = @price,
+                    Mrp = @mrp, DiscountPercentage = @discountPercentage, ImagesCount = @imagesCount,
+                    MainImage = @mainImage, Brand = @brand, Category = @category,
+                    Availability = @availability, SoldBy = @soldBy, DealBadge = @dealBadge,
+                    DealPrice = @dealPrice, SavingsAmount = @savingsAmount, BSR = @bsr,
+                    SubBsr = @subBsr, LastScrapedAt = dbo.GetEnvDate(), UpdatedAt = dbo.GetEnvDate()
+                WHERE Id = @id
+            `);
+        } else {
+            const id = `insp_${Date.now()}_${asinCode}_${Math.random().toString(36).slice(2, 6)}`;
+            await req.input('id', sql.NVarChar(50), id).query(`
                 INSERT INTO AsinScrapeData
                     (Id, Asin, SellerId, Rating, ReviewCount, HasAplus, AplusDetails,
                      VerifiedAsin, Title, Price, Mrp, DiscountPercentage, ImagesCount,
@@ -546,6 +638,7 @@ async function persistInspectorScrape(asinCode, data) {
                      @mainImage, @brand, @category, @availability, @soldBy, @dealBadge,
                      @dealPrice, @savingsAmount, @bsr, @subBsr, dbo.GetEnvDate(), dbo.GetEnvDate(), dbo.GetEnvDate())
             `);
+        }
 
         // Also update the Asins row if it exists
         if (asinId) {
@@ -649,14 +742,12 @@ function extractMetricValue(key, item) {
             const preview = violations.slice(0, 2).join('; ');
             return `${violations.length} issue(s): ${preview}${violations.length > 2 ? '...' : ''}`;
         }
-        // ── Scraper-backed metrics (from __scraped object) ───────────
+        // ── Scraper-backed metrics (from scrape/cache merge) ─────────
         case 'hasAplus': {
-            const s = item.__scraped;
-            if (!s) return null;
-            return s.hasAplus ? 'Yes' : 'No';
+            // hasAplus is filled post-fetch from the live scrape; extractMetricValue
+            // only has API items at this point, so return null (merge handles it).
+            return null;
         }
-        case 'scrapedRating': return item.__scraped?.rating || null;
-        case 'scrapedReviewCount': return item.__scraped?.reviewCount || null;
         default: return null;
     }
 }
@@ -781,32 +872,25 @@ exports.fetchLiveData = async (req, res) => {
         }
 
         // ── Scraper-backed metrics: live-scrape if requested ────────────
+        // rating/reviewCount are now unified — the scrape overrides the API
+        // values, and repeats are served fast from the AsinScrapeData cache.
         const needsScrape = selectedMetrics.some(k => SCRAPE_METRICS.includes(k));
         if (needsScrape && apiResult.results.length > 0) {
             const scrapeTargets = apiResult.results.map(r => r.asin);
             if (scrapeTargets.length > SCRAPE_MAX) {
                 console.log(`[Inspector] Scraping capped at ${SCRAPE_MAX} of ${scrapeTargets.length} ASINs`);
             }
-            const scraped = await scrapeAsinsForInspector(scrapeTargets);
+            const scraped = await getInspectScrapeData(scrapeTargets);
 
             for (const row of apiResult.results) {
                 const data = scraped.get(row.asin.toUpperCase());
                 if (data) {
                     if (selectedMetrics.includes('hasAplus')) row.hasAplus = data.hasAplus ? 'Yes' : 'No';
-                    if (selectedMetrics.includes('scrapedRating')) row.scrapedRating = data.rating || null;
-                    if (selectedMetrics.includes('scrapedReviewCount')) row.scrapedReviewCount = data.reviewCount || null;
+                    if (selectedMetrics.includes('rating') && data.rating > 0) row.rating = data.rating;
+                    if (selectedMetrics.includes('reviewCount') && data.reviewCount > 0) row.reviewCount = data.reviewCount;
                 }
             }
-
-            // Persist scraped data to DB (fire-and-forget, don't block response)
-            Promise.allSettled(
-                apiResult.results.map(row => {
-                    const data = scraped.get(row.asin.toUpperCase());
-                    return data ? persistInspectorScrape(row.asin, data) : null;
-                })
-            ).catch(() => {});
-
-            console.log(`[Inspector] Scraper enrichment: ${scraped.size}/${scrapeTargets.length} ASINs scraped`);
+            // Persistence of freshly-scraped ASINs is handled inside getInspectScrapeData.
         }
 
         res.json({
@@ -1078,23 +1162,16 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
         if (needsScrape && results.length > 0) {
             const scrapeTargets = results.slice(0, SCRAPE_MAX).map(r => r.asin);
             console.log(`[Inspector] Upload job: scraping ${scrapeTargets.length} of ${results.length} ASINs for scraper metrics`);
-            const scraped = await scrapeAsinsForInspector(scrapeTargets);
-            for (const row of results) {
+            const scraped = await getInspectScrapeData(scrapeTargets);
+            for (const row of results.slice(0, SCRAPE_MAX)) {
                 const data = scraped.get(row.asin.toUpperCase());
                 if (data) {
                     if (selectedMetrics.includes('hasAplus')) row.hasAplus = data.hasAplus ? 'Yes' : 'No';
-                    if (selectedMetrics.includes('scrapedRating')) row.scrapedRating = data.rating || null;
-                    if (selectedMetrics.includes('scrapedReviewCount')) row.scrapedReviewCount = data.reviewCount || null;
+                    if (selectedMetrics.includes('rating') && data.rating > 0) row.rating = data.rating;
+                    if (selectedMetrics.includes('reviewCount') && data.reviewCount > 0) row.reviewCount = data.reviewCount;
                 }
             }
-            // Persist in background
-            Promise.allSettled(
-                results.slice(0, SCRAPE_MAX).map(row => {
-                    const data = scraped.get(row.asin.toUpperCase());
-                    return data ? persistInspectorScrape(row.asin, data) : null;
-                })
-            ).catch(() => {});
-            console.log(`[Inspector] Upload scraper enrichment: ${scraped.size}/${scrapeTargets.length} ASINs scraped`);
+            // Persistence of freshly-scraped ASINs is handled inside getInspectScrapeData.
         }
 
         const finalJob = await loadJob(jobId);

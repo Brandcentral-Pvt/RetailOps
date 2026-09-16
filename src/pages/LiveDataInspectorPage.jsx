@@ -109,7 +109,7 @@ export default function LiveDataInspectorPage() {
           <ThunderboltOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#2563eb' }} />
           <div>
             <Text strong style={{ fontSize: 18 }}>Live Data Inspector</Text>
-            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block' }}>Fetch real-time data from Amazon Creators API</Text>
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block' }}>Real-time data from Amazon Creators API, enriched with live Playwright scrapes (A+ content, rating, reviews)</Text>
           </div>
         </Space>
         <Space>
