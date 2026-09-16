@@ -515,7 +515,7 @@ async function loadSavedResult(id) {
 const METRIC_META = {
   price: { desc: 'Current selling price', icon: '\u20B9' }, mrp: { desc: 'Maximum retail price', icon: '\u20B9' },
   bsr: { desc: 'Best Seller Rank', icon: '#' }, subBsr: { desc: 'Sub-category BSR', icon: '#' },
-  rating: { desc: 'Customer rating', icon: '/5' }, reviewCount: { desc: 'Total reviews' },
+  rating: { desc: 'Customer rating (live scrape overrides API when fresh)', icon: '/5' }, reviewCount: { desc: 'Total reviews (live scrape overrides API when fresh)' },
   buyBoxWinner: { desc: 'BuyBox status' }, seller: { desc: 'BuyBox seller' },
   availability: { desc: 'Stock status' }, title: { desc: 'Product title' },
   brand: { desc: 'Brand name' }, category: { desc: 'Product category' }, dealBadge: { desc: 'Active deal type' },
@@ -534,8 +534,6 @@ const METRIC_META = {
   titleCriteriaStatus: { desc: 'Title length vs Amazon criteria (below / within / above)' },
   imageCompliance: { desc: 'AI vision compliance check on the main image' },
   hasAplus: { desc: 'A+ Content presence (live scraped from product page)' },
-  scrapedRating: { desc: 'Customer star rating (live scraped from product page)' },
-  scrapedReviewCount: { desc: 'Number of customer reviews (live scraped from product page)' },
 };
 
 async function init() {
@@ -711,7 +709,7 @@ function renderResults() {
   badges.innerHTML = `<span class="result-chip success">${results.length} found</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} not found</span>` : ''}`;
   bar.style.display = results.length ? '' : 'none';
   bar.innerHTML = `<span class="result-chip info">${selectedKeys.length} metrics</span><span class="result-chip info">${results.length} ASINs</span>${notFound.length ? `<span class="result-chip warning">${notFound.length} unavailable</span>` : ''}`;
-  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount','scrapedRating','scrapedReviewCount','imagesCount','bulletPointCount','titleLength','lqsScore','lqsTitle','lqsBullets','lqsImages']);
+  const numKeys = new Set(['price','mrp','bsr','subBsr','rating','reviewCount','imagesCount','bulletPointCount','titleLength','lqsScore','lqsTitle','lqsBullets','lqsImages']);
   const ths = ['ASIN', 'Seller', ...selectedKeys.map(k => allMetrics.find(m => m.key === k)?.label || k)];
   const rows = results.map(row => {
     const tds = [`<td><span class="cell-asin">${esc(row.asin)}</span></td>`, `<td class="cell-seller">${esc(row.seller || '-')}</td>`,
