@@ -7,6 +7,11 @@ import * as XLSX from 'xlsx';
 const { Text } = Typography;
 const API_BASE = import.meta.env?.VITE_API_URL || '/api';
 
+const authHeaders = (extra) => {
+  const token = localStorage.getItem('authToken');
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
+};
+
 export default function LiveDataInspectorPage() {
   const [metrics, setMetrics] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
@@ -14,9 +19,10 @@ export default function LiveDataInspectorPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastFetch, setLastFetch] = useState(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/live-data/metrics`).then(r => r.json()).then(r => {
+    fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json()).then(r => {
       if (r.success) { setMetrics(r.data); setSelectedMetrics(r.data.map(m => m.key)); }
     }).catch(() => {});
   }, []);
@@ -28,10 +34,10 @@ export default function LiveDataInspectorPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/live-data/fetch`, {
+      const res = await fetch(`${API_BASE}/live-data/v2/fetch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asins, metrics: selectedMetrics }),
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ asins, metrics: selectedMetrics, ai: aiEnabled }),
       }).then(r => r.json());
 
       if (res.success) {
@@ -60,12 +66,37 @@ export default function LiveDataInspectorPage() {
     { title: 'Seller', dataIndex: 'seller', key: 'seller', width: 160 },
     ...selectedMetrics.map(key => {
       const m = metrics.find(x => x.key === key);
+      const renderValue = (v) => {
+        if (v === null || v === undefined) return <Text type="secondary">-</Text>;
+        if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }} /></a>;
+        if (key === 'lqsGrade') {
+          const color = { A: '#059669', B: '#2563eb', C: '#d97706', D: '#dc2626' }[String(v)] || '#6b7280';
+          return <Tag color={color} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
+        }
+        if (key === 'mainImageBackground') {
+          const color = v === 'White' ? 'green' : v === 'Possibly non-white' ? 'orange' : v === 'Non-white' ? 'red' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        if (key === 'lqsSource') {
+          const color = v === 'AI' ? 'green' : v === 'AI + Rules' ? 'blue' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        if (key === 'imageCompliance') {
+          const color = String(v).startsWith('Pass') ? 'green' : 'orange';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        if (key === 'hasAplus') {
+          const color = v === 'Yes' ? 'green' : v === 'No' ? 'orange' : 'default';
+          return <Tag color={color} style={{ fontSize: 10 }}>{v}</Tag>;
+        }
+        return <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text>;
+      };
       return {
         title: m?.label || key,
         dataIndex: key,
         key,
-        width: key === 'title' ? 200 : 100,
-        render: (v) => v !== null && v !== undefined ? <Text style={{ fontSize: 'var(--font-size-xs)' }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
+        width: key === 'title' || key === 'lqsIssues' || key === 'titleCriteriaStatus' ? 220 : key === 'mainImage' ? 50 : 100,
+        render: renderValue,
       };
     }),
   ];
@@ -78,7 +109,7 @@ export default function LiveDataInspectorPage() {
           <ThunderboltOutlined style={{ fontSize: 'var(--font-size-xl)', color: '#2563eb' }} />
           <div>
             <Text strong style={{ fontSize: 18 }}>Live Data Inspector</Text>
-            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block' }}>Fetch real-time data from Amazon Creators API</Text>
+            <Text style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', display: 'block' }}>Real-time data from Amazon Creators API, enriched with live Playwright scrapes (A+ content, rating, reviews)</Text>
           </div>
         </Space>
         <Space>
@@ -103,6 +134,14 @@ export default function LiveDataInspectorPage() {
               <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
                 {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
               </Text>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+              <Checkbox checked={aiEnabled} onChange={e => setAiEnabled(e.target.checked)} style={{ marginTop: 1 }}>
+                <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>AI Analysis
+                  <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'block', fontWeight: 400 }}>LQS scored by NVIDIA AI against Amazon criteria + vision check of the main image (slower; falls back to rules on error)</Text>
+                </Text>
+              </Checkbox>
             </div>
 
             <Button type="primary" block onClick={handleFetch} loading={loading} icon={<ThunderboltOutlined />}

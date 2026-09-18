@@ -64,17 +64,12 @@ const StatCard = ({ label, value, icon, trend, color = 'var(--text-brand, #1976D
         borderRadius: "var(--radius-lg)",
         padding: '14px 16px',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.18s ease',
       }}
       onMouseEnter={e => {
         e.currentTarget.style.borderColor = 'var(--border-medium, #CBD5E1)';
-        if (onClick) e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.borderColor = 'var(--border-light)';
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'none';
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>

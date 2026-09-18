@@ -2,7 +2,7 @@ import React from 'react';
 import { Tag, Button, Typography, Badge } from 'antd';
 import { 
   AlertTriangle, ShoppingCart, XCircle, RefreshCw, 
-  Image, FileText, ArrowRight, Clock 
+  FileText, ArrowRight, Clock 
 } from 'lucide-react';
 
 const { Text, Title } = Typography;
@@ -69,7 +69,6 @@ const CriticalActionCenter = ({
     { icon: XCircle, title: 'Failed Listings', description: 'Listings that failed to publish or update', severity: 'critical', count: failedListings, onAction: () => onNavigate('/scrape-tasks') },
     { icon: RefreshCw, title: 'Sync Failures', description: 'Marketplace synchronization errors', severity: 'warning', count: syncFailures, onAction: () => onNavigate('/live-sync-tracker') },
     { icon: FileText, title: 'Pending Approvals', description: 'Content and listings awaiting review', severity: 'info', count: pendingApprovals, onAction: () => onNavigate('/pems/reviews') },
-    { icon: Image, title: 'Image Generation', description: 'AI-generated images awaiting approval', severity: 'info', count: 0, onAction: () => onNavigate('/pems/tasks') },
   ];
 
   const hasActions = actions.some(a => a.count > 0);
@@ -79,7 +78,8 @@ const CriticalActionCenter = ({
       padding: '16px 20px', 
       background: 'var(--bg-primary, #fff)', 
       borderRadius: "var(--radius-xl, 16px)", 
-      border: '1px solid var(--border-light, #d9e6e9)',
+      border: '1px solid var(--dash-border, #e2e8f0)',
+      boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
       marginBottom: 20
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -92,6 +92,20 @@ const CriticalActionCenter = ({
         </div>
         <Button type="link" size="small" style={{ fontSize: 'var(--font-size-sm)', padding: 0 }}>View All</Button>
       </div>
+      {!hasActions && (
+        <div style={{
+          fontSize: 'var(--font-size-sm)',
+          color: 'var(--text-success, #2E7D32)',
+          fontWeight: 600,
+          background: 'var(--bg-success-subtle, #d1fae5)',
+          padding: '8px 12px',
+          borderRadius: "var(--radius-md)",
+          marginBottom: 10,
+          letterSpacing: '0.02em'
+        }}>
+          All clear — no pending critical actions
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
         {actions.map((action, i) => (
           <ActionCard key={i} {...action} />

@@ -224,30 +224,14 @@ const ModuleStatusGrid = ({ moduleStats }) => {
                 gap: 8,
                 marginBottom: 14
             }}>
-                <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
-                    padding: '5px 12px',
-                    borderRadius: 20,
-                    border: '1px solid var(--bg-danger-subtle, #fecaca)'
-                }}>
-                    <Layers size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
-                    <span style={{
-                        fontSize: 'var(--font-size-xs)',
-                        fontWeight: 700,
-                        color: 'var(--text-danger, #D32F2F)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em'
-                    }}>
-                        Module Health Overview
-                    </span>
+                <div className="gd-chip gd-chip-warn">
+                    <Layers size={13} />
+                    <span>Module Health Overview</span>
                 </div>
                 <div style={{
                     flex: 1,
                     height: 1,
-                    background: 'linear-gradient(90deg, var(--border-light, #d9e6e9) 0%, transparent 100%)'
+                    background: '#e2e8f0'
                 }} />
                 <span style={{
                     fontSize: 'var(--font-size-xs)',
