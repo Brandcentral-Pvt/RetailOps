@@ -48,6 +48,9 @@ backend/uploads/*
 uploads/*
 backend/temp/
 
+# Runtime import data (large CSVs/TSVs)
+backend/data/
+
 # Compiled output
 *.tsbuildinfo
 .cache/
