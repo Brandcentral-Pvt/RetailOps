@@ -2,91 +2,54 @@
 # Dependencies
 node_modules/
 
-# Build artifacts
+# Build outputs
 dist/
 build/
-target/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.py.class
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-.python_history
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/modules/
-*.sublime-workspace
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.css.map
 
 # Environment variables
 .env
 .env.local
 .env.*
-!.env.example
 
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
+# Logs
+*.log
 
 # Coverage
 coverage/
 htmlcov/
 .coverage
-.coverage.*
 
 # Temporary files
 *.tmp
-*.temp
-*.bak
-*.backup
+.DS_Store
+Thumbs.db
 
-# Archives
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Testing
+.mypy_cache/
+.pytest_cache/
+
+# Compression files
 *.zip
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.rar
-*.7z
 *.gz
+*.tar
+*.tgz
 *.bz2
 *.xz
+*.7z
+*.rar
 *.zst
 *.lz4
 *.lzh
@@ -97,201 +60,8 @@ htmlcov/
 *.Z
 *.lz
 *.lzo
-
-# Compiled files
-*.exe
-*.dll
-*.so
-*.a
-*.o
-*.obj
-*.out
-*.class
-*.jar
-*.war
-*.ear
-*.iml
-*.ipr
-*.iws
-*.scc
-
-# Testing
-*.pytest_cache/
-.jest/
-.nyc_output/
-
-# Documentation
-docs/_build/
-*.md5
-*.orig
-*.rej
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.yarn-integrity
-.yarn/
-node_modules/
-jspm_packages/
-typings/
-.npm
-.npmrc
-.eslintcache
-.stylelintcache
-.commit
-
-# Bower
-bower_components/
-
-# Grunt
-.grunt
-grunt.js
-Gruntfile.js
-grunt/
-node_modules/
-
-# gulp
-.gulp
-gulpfile.js
-gulp/
-
-# Webpack
-webpack.config.js
-.webpack/
-
-# Browser-sync
-.browser-sync/
-bs-config.json
-bsconfig.json
-
-# Jekyll
-_site/
-.jekyll-metadata
-.jekyll-cache
-
-# Ruby
-Gemfile.lock
-.bundle/
-vendor/bundle/
-vendor/cache/
-vendor/gems/
-vendor/ruby/
-
-# Go
-*.a
-*.o
-*.so
-*.swp
-*~
-.DS_Store
-.svn/
-CVS/
-_deps/
-_GoLand/
-.idea/
-
-# Java
-*.class
-*.jar
-*.war
-*.ear
-*.zip
-hs_err_pid*
-replay_pid*
-*.swp
-*~
-.DS_Store
-.svn/
-CVS/
-*.log
-!*.svg
-*.iml
-*.iws
-*.ipr
-*.bak
-*.tmp
-*.temp
-*.orig
-*.rej
-*.o
-*.obj
-*.out
-*.exe
-*.dll
-*.so
-*.a
-*.lib
-*.dylib
-*.plist
-*.bin
-*.dat
-*.dump
-*.dump.*
-*.prof
-*.gcda
-*.gcno
-*.gcov
-*.lcov
-*.stackdump
-*.idb
-*.pdb
-*.ilk
-*.gch
-*.gmo
-*.pyc
-*.pyo
-*.pyd
-*.py.class
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-.python_history
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/modules/
-*.sublime-workspace
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-.coverage/
-htmlcov/
-.coverage.*
-.nyc_output/
-.cobertura/
-.reports/
-.jscs/
-.jshint/
-eslint/
-.stylelint/
-tslint/
-.mocharc.json
-.nyc_output/
-istanbul/
-coverage/
-.nyc_output/
-.nyc_config
-.nycrc
-.nycrc.json
-.coverage/
-htmlcov/
-.coverage.*
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-.coverage/
-htmlcov/
-.coverage.*
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```
