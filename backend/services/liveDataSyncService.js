@@ -4,6 +4,7 @@ const SystemLogService = require('./SystemLogService');
 const notificationController = require('../controllers/notificationController');
 const listingQualityService = require('./listingQualityService');
 const rulesetEngineService = require('./rulesetEngineService');
+const playwrightScraperService = require('./playwrightScraperService');
 const EventEmitter = require('events');
 
 class LiveDataSyncService extends EventEmitter {
@@ -20,6 +21,8 @@ class LiveDataSyncService extends EventEmitter {
             rateLimitPerSecond: 1,        // API rate = 1 TPS per account
             tpdLimit: 8600,               // Daily limit = 8640 TPD, leave 40 buffer
             maxConcurrency: 1,            // One seller at a time
+            scraperEnrichment: process.env.LIVE_SYNC_SCRAPER_ENRICHMENT === 'true',
+            scraperTimeout: parseInt(process.env.LIVE_SYNC_SCRAPER_TIMEOUT || '25000', 10),
         };
 
         this._sdkClients = new Map();          // credId -> DefaultApi instance (cached SDK client)
@@ -29,6 +32,7 @@ class LiveDataSyncService extends EventEmitter {
         this._credThrottledUntil = new Map();  // credId -> timestamp when throttling ends
         this.activeSyncs = new Map();
         this._globalSyncRunning = false;
+        this._pendingScrapes = new Set();   // in-flight scraper enrichment / full-scrape promises
     }
 
     // Rate limiter — strict 1 req/sec (API limit = 1 TPS per account)
@@ -178,6 +182,15 @@ class LiveDataSyncService extends EventEmitter {
                     console.log(`  ⏳ Batch failed: ${e.message}`);
                 }
             }
+
+            // Wait for queued scraper enrichment / full-scrape applies so
+            // post-sync analysis and completion reflect the final scraped data.
+            if (this._pendingScrapes.size > 0) {
+                const pending = [...this._pendingScrapes];
+                console.log(`   Waiting for ${pending.length} scraper queue item(s) to apply...`);
+                await Promise.allSettled(pending);
+            }
+
             stats.duration = Date.now() - startTime;
 
             console.log(`Live sync complete: Seller ${sellerIdStr}`, {
@@ -435,6 +448,192 @@ class LiveDataSyncService extends EventEmitter {
     }
 
     // ============================================
+    // Internal: Playwright Scraper Enrichment for a batch
+    // Scrapes rating, reviewCount, hasAplus concurrently (or FULL product data
+    // when opts.full=true) for API-inaccessible ASINs. Concurrency is capped by
+    // the scraper service semaphore (SCRAPER_CONCURRENT_PAGES). Never throws —
+    // failures are collected as missing entries. Returns Map<asinCode, data>.
+    // ============================================
+    async _scrapeEnrichmentBatch(codes, opts = {}) {
+        const results = new Map();
+        await Promise.allSettled(codes.map(async (code) => {
+            try {
+                const r = await playwrightScraperService.scrapeAsin(code, opts);
+                if (r && r.title) {
+                    results.set(code, opts.full ? r : {
+                        rating: r.rating ?? null,
+                        reviewCount: r.reviewCount ?? null,
+                        hasAplus: r.hasAplus ?? false,
+                    });
+                }
+            } catch (e) {
+                // Non-fatal — enrichment failure doesn't fail the batch
+            }
+        }));
+        return results;
+    }
+
+    // ============================================
+    // Internal: Apply scraped rating/review/hasAplus to Asins + today's history
+    // Runs AFTER the API batch write, so scraped values always win without
+    // clobbering API-provided fields.
+    // ============================================
+    async _applyScrapeEnrichment(results) {
+        if (!results || results.size === 0) return;
+        for (const [code, d] of results) {
+            try {
+                const pool = await getPool();
+                await pool.request()
+                    .input('asin', sql.NVarChar, code)
+                    .input('rating', sql.Decimal(3, 2), d.rating)
+                    .input('reviewCount', sql.Int, d.reviewCount)
+                    .input('hasAplus', sql.Bit, d.hasAplus)
+                    .query(`
+                        UPDATE Asins SET
+                            Rating = ISNULL(@rating, Rating),
+                            ReviewCount = ISNULL(@reviewCount, ReviewCount),
+                            HasAplus = ISNULL(@hasAplus, HasAplus),
+                            LastScrapedAt = dbo.GetEnvDate(),
+                            LastSyncSource = 'LIVE',
+                            UpdatedAt = dbo.GetEnvDate()
+                        WHERE AsinCode = @asin
+                    `);
+                await pool.request()
+                    .input('asin', sql.NVarChar, code)
+                    .input('rating', sql.Decimal(3, 2), d.rating)
+                    .input('reviewCount', sql.Int, d.reviewCount)
+                    .query(`
+                        UPDATE h SET
+                            Rating = ISNULL(@rating, h.Rating),
+                            ReviewCount = ISNULL(@reviewCount, h.ReviewCount)
+                        FROM AsinHistory h
+                        INNER JOIN Asins a ON a.Id = h.AsinId
+                        WHERE a.AsinCode = @asin
+                          AND CAST(h.Date AS DATE) = CAST(dbo.GetEnvDate() AS DATE)
+                    `);
+            } catch (e) {
+                console.warn(`  ⚠ Scrape enrichment apply failed for ${code}: ${e.message}`);
+            }
+        }
+    }
+
+    // ============================================
+    // Internal: Write FULL scraped product data (API-inaccessible ASINs)
+    // ============================================
+    async _applyFullScrape(results) {
+        if (!results || results.size === 0) return;
+        for (const [code, d] of results) {
+            try {
+                const pool = await getPool();
+                const row = await pool.request()
+                    .input('asin', sql.NVarChar, code)
+                    .query('SELECT Id FROM Asins WHERE AsinCode = @asin');
+                if (!row.recordset[0]) continue;
+
+                const hasDeal = !!(d.dealBadge && d.dealBadge.trim() && !/no deal/i.test(d.dealBadge));
+                const dealBadge = (d.dealBadge ?? '').toString().trim().slice(0, 100);
+                await pool.request()
+                    .input('id', sql.VarChar, row.recordset[0].Id)
+                    .input('title', sql.NVarChar(sql.MAX), d.title)
+                    .input('currentPrice', sql.Decimal(18, 2), d.currentPrice)
+                    .input('mrp', sql.Decimal(18, 2), d.mrp)
+                    .input('discount', sql.Int, d.discountPercentage)
+                    .input('rating', sql.Decimal(3, 2), d.rating)
+                    .input('reviewCount', sql.Int, d.reviewCount)
+                    .input('hasAplus', sql.Bit, d.hasAplus ? 1 : 0)
+                    .input('mainImage', sql.NVarChar(sql.MAX), d.imageUrl)
+                    .input('imageCount', sql.Int, d.imagesCount)
+                    .input('mainCategory', sql.NVarChar, d.category)
+                    .input('brand', sql.NVarChar, d.brand)
+                    .input('availability', sql.NVarChar, d.availability)
+                    .input('soldBy', sql.NVarChar, d.soldBy)
+                    .input('hasDeal', sql.Bit, hasDeal ? 1 : 0)
+                    .input('dealBadge', sql.NVarChar, dealBadge)
+                    .input('dealType', sql.NVarChar, dealBadge.slice(0, 50))
+                    .input('mainBSR', sql.Int, d.bsr)
+                    .input('subBSR', sql.Int, d.subBsr)
+                    .input('subBSRCategory', sql.NVarChar(255), d.subBsrCategory)
+                    .query(`
+                        UPDATE Asins SET
+                            Title = ISNULL(@title, Title),
+                            CurrentPrice = ISNULL(@currentPrice, CurrentPrice),
+                            Mrp = ISNULL(@mrp, Mrp),
+                            DiscountPercentage = ISNULL(@discount, DiscountPercentage),
+                            Rating = ISNULL(@rating, Rating),
+                            ReviewCount = ISNULL(@reviewCount, ReviewCount),
+                            HasAplus = ISNULL(@hasAplus, HasAplus),
+                            ImageUrl = ISNULL(@mainImage, ImageUrl),
+                            ImagesCount = ISNULL(@imageCount, ImagesCount),
+                            Category = ISNULL(@mainCategory, Category),
+                            Brand = ISNULL(@brand, Brand),
+                            AvailabilityStatus = ISNULL(@availability, AvailabilityStatus),
+                            SoldBy = ISNULL(@soldBy, SoldBy),
+                            HasDeal = ISNULL(@hasDeal, HasDeal),
+                            DealBadge = ISNULL(@dealBadge, DealBadge),
+                            DealType = ISNULL(@dealType, DealType),
+                            BSR = ISNULL(@mainBSR, BSR),
+                            SubBSR = ISNULL(@subBSR, SubBSR),
+                            SubBSRCategory = ISNULL(@subBSRCategory, SubBSRCategory),
+                            ScrapeStatus = 'COMPLETED',
+                            LastScrapeStatus = 'COMPLETED',
+                            LastScrapedAt = dbo.GetEnvDate(),
+                            LastSyncSource = 'SCRAPER',
+                            Status = 'Active',
+                            UpdatedAt = dbo.GetEnvDate()
+                        WHERE Id = @id
+                    `);
+
+                // Record today's history snapshot for the full-scraped ASIN
+                await this._upsertAsinHistory(pool, row.recordset[0].Id, {
+                    price: d.currentPrice,
+                    mrp: d.mrp,
+                    bsr: d.bsr,
+                    subBsr: d.subBsr,
+                    rating: d.rating,
+                    reviewCount: d.reviewCount,
+                    source: 'SCRAPER'
+                });
+            } catch (e) {
+                console.warn(`  ⚠ Full scrape apply failed for ${code}: ${e.message}`);
+            }
+        }
+    }
+
+    // ============================================
+    // Internal: Upsert today's AsinHistory snapshot
+    // One row per ASIN per day — price, MRP, BSR, SubBSR, rating, reviews.
+    // ============================================
+    async _upsertAsinHistory(parent, asinId, data) {
+        const { price, mrp, bsr, subBsr, rating, reviewCount, source } = data;
+        await new sql.Request(parent)
+            .input('asinId', sql.VarChar, asinId)
+            .input('price', sql.Decimal(18, 2), price ?? null)
+            .input('mrp', sql.Decimal(18, 2), mrp ?? null)
+            .input('bsr', sql.Int, bsr ?? null)
+            .input('subBSR', sql.Int, subBsr ?? null)
+            .input('rating', sql.Decimal(3, 2), rating ?? null)
+            .input('reviewCount', sql.Int, reviewCount ?? null)
+            .input('source', sql.NVarChar, source)
+            .query(`
+                MERGE AsinHistory AS target
+                USING (SELECT @asinId AS AsinId, CAST(dbo.GetEnvDate() AS DATE) AS [Date]) AS source
+                ON target.AsinId = source.AsinId AND target.[Date] = source.[Date]
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        Price = ISNULL(@price, target.Price),
+                        Mrp = ISNULL(@mrp, target.Mrp),
+                        BSR = ISNULL(@bsr, target.BSR),
+                        SubBSR = ISNULL(@subBSR, target.SubBSR),
+                        Rating = ISNULL(@rating, target.Rating),
+                        ReviewCount = ISNULL(@reviewCount, target.ReviewCount),
+                        Source = @source
+                WHEN NOT MATCHED THEN
+                    INSERT (AsinId, [Date], Price, Mrp, BSR, SubBSR, Rating, ReviewCount, Source)
+                    VALUES (source.AsinId, source.[Date], @price, @mrp, @bsr, @subBSR, @rating, @reviewCount, @source);
+            `);
+    }
+
+    // ============================================
     // Internal: Process Batch
     // ============================================
     async _processBatch(sellerId, batch, credId, stats) {
@@ -467,6 +666,12 @@ class LiveDataSyncService extends EventEmitter {
                 const credInfo = this._getCredInfo(credId);
                 const api = this._getSdkApi(credId);
 
+                // Fire scraper enrichment concurrently — runs during rate-limit wait + API call
+                let scrapePromise = null;
+                if (this._config.scraperEnrichment) {
+                    scrapePromise = this._scrapeEnrichmentBatch(codes);
+                }
+
                 // Strict 1 req/s rate limit (per account)
                 await this._rateLimit();
 
@@ -485,39 +690,66 @@ class LiveDataSyncService extends EventEmitter {
 
                 const items = data.itemsResult?.items || [];
 
-                const apiErrors = data.errors || [];
-                const errorMap = new Map();
-                for (const err of apiErrors) {
-                    let asin = err.asin || err.itemId || err.resourceId;
-                    if (!asin && err.message) {
-                        const match = err.message.match(/(?:ItemId|ASIN|Item)\s+(B[A-Z0-9]{9,})/i);
-                        if (match) asin = match[1];
+                const savePromises = [];
+                const fullScrapeCodes = [];
+                for (const asinRecord of batch) {
+                    const item = items.find(i => i.asin === asinRecord.AsinCode);
+                    if (!item) {
+                        // API cannot serve this ASIN → full Playwright scrape fallback
+                        fullScrapeCodes.push(asinRecord.AsinCode);
+                        continue;
                     }
-                    if (asin) errorMap.set(asin, err.message || err.errorType || err.code || 'API error');
-                }
 
-                const savePromises = batch.map(async (asinRecord) => {
-                    try {
-                        const item = items.find(i => i.asin === asinRecord.AsinCode);
-                        if (!item) {
-                            const reason = errorMap.get(asinRecord.AsinCode) || 'Not returned by API';
-                            stats.errors.push({ asin: asinRecord.AsinCode, error: reason });
-
+                    savePromises.push((async () => {
+                        try {
+                            await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord, null);
+                            stats.successCount++;
+                        } catch (e) {
                             stats.failedCount++;
                             stats.failedAsinCodes.push(asinRecord.AsinCode);
-                            return;
+                            stats.errors.push({ asin: asinRecord.AsinCode, error: e.message });
                         }
-
-                        await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord);
-                        stats.successCount++;
-                    } catch (e) {
-                        stats.failedCount++;
-                        stats.failedAsinCodes.push(asinRecord.AsinCode);
-                        stats.errors.push({ asin: asinRecord.AsinCode, error: e.message });
-                    }
-                });
+                    })());
+                }
 
                 await Promise.all(savePromises);
+
+                // Scraper enrichment applies in the BACKGROUND after this batch's
+                // API write completes (guaranteed ordering → scraped values win).
+                if (scrapePromise) {
+                    const apply = scrapePromise
+                        .then((results) => this._applyScrapeEnrichment(results))
+                        .catch((e) => console.warn(`  ⚠ Scraper enrichment apply failed: ${e.message}`));
+                    this._pendingScrapes.add(apply);
+                    apply.finally(() => this._pendingScrapes.delete(apply));
+                }
+
+                // Full scrape fallback for API-inaccessible ASINs (background queue)
+                if (fullScrapeCodes.length > 0) {
+                    const applyFull = this._scrapeEnrichmentBatch(fullScrapeCodes, { full: true })
+                        .then(async (results) => {
+                            await this._applyFullScrape(results);
+                            for (const code of fullScrapeCodes) {
+                                if (results.has(code)) stats.successCount++;
+                                else {
+                                    stats.failedCount++;
+                                    stats.failedAsinCodes.push(code);
+                                    stats.errors.push({ asin: code, error: 'Scrape fallback failed' });
+                                }
+                            }
+                        })
+                        .catch((e) => {
+                            console.warn(`  ⚠ Full scrape fallback failed: ${e.message}`);
+                            for (const code of fullScrapeCodes) {
+                                stats.failedCount++;
+                                stats.failedAsinCodes.push(code);
+                                stats.errors.push({ asin: code, error: e.message });
+                            }
+                        });
+                    this._pendingScrapes.add(applyFull);
+                    applyFull.finally(() => this._pendingScrapes.delete(applyFull));
+                }
+
                 return; // Success
 
             } catch (error) {
@@ -579,7 +811,7 @@ class LiveDataSyncService extends EventEmitter {
     // ============================================
     // 🔥 KEY: Update ALL Fields EXCEPT A+ and Rating Breakdown
     // ============================================
-    async _updateAsinFromLiveSync(asinId, sellerId, item, asinRecord = null) {
+    async _updateAsinFromLiveSync(asinId, sellerId, item, asinRecord = null, scrapeData = null) {
         const pool = await getPool();
         const transaction = new sql.Transaction(pool);
 
@@ -587,6 +819,12 @@ class LiveDataSyncService extends EventEmitter {
             await transaction.begin();
 
             const extracted = this._extractFields(item);
+
+            // Scraper enrichment overrides API rating/reviewCount when available
+            const rating = (scrapeData && scrapeData.rating != null) ? scrapeData.rating : extracted.rating;
+            const reviewCount = (scrapeData && scrapeData.reviewCount != null) ? scrapeData.reviewCount : extracted.reviewCount;
+            // HasAplus comes ONLY from scraper (API never returns it). Null = leave existing value.
+            const hasAplus = (scrapeData && scrapeData.hasAplus != null) ? (scrapeData.hasAplus ? 1 : 0) : null;
 
             // Price Dispute Calculation — read UploadedPrice from DB record (passed from batch query)
             const uploadedPrice = asinRecord?.UploadedPrice || 0;
@@ -617,8 +855,9 @@ class LiveDataSyncService extends EventEmitter {
                 .input('mrp', sql.Decimal(18, 2), extracted.mrpAmount)
                 .input('discount', sql.Int, extracted.discountPercent)
                 .input('mainImage', sql.NVarChar(sql.MAX), extracted.mainImage)
-                .input('rating', sql.Decimal(3, 2), extracted.rating)
-                .input('reviewCount', sql.Int, extracted.reviewCount)
+                .input('rating', sql.Decimal(3, 2), rating)
+                .input('reviewCount', sql.Int, reviewCount)
+                .input('hasAplus', sql.Bit, hasAplus)
                 .input('mainBSR', sql.Int, extracted.mainBSR)
                 .input('subBSR', sql.Int, extracted.subBSR)
                 .input('subBSRCategory', sql.NVarChar(255), extracted.subBSRCategory)
@@ -656,11 +895,12 @@ class LiveDataSyncService extends EventEmitter {
                         Mrp = @mrp,
                         Category = @mainCategory,
                         Brand = @brand,
-                        BSR = @mainBSR,
-                        SubBSR = @subBSR,
-                        SubBSRCategory = @subBSRCategory,
-                        Rating = @rating,
-                        ReviewCount = @reviewCount,
+                        BSR = ISNULL(@mainBSR, BSR),
+                        SubBSR = ISNULL(@subBSR, SubBSR),
+                        SubBSRCategory = ISNULL(@subBSRCategory, SubBSRCategory),
+                        Rating = ISNULL(@rating, Rating),
+                        ReviewCount = ISNULL(@reviewCount, ReviewCount),
+                        HasAplus = ISNULL(@hasAplus, HasAplus),
                         ImageUrl = @mainImage,
                         ImagesCount = @imageCount,
                         Images = @imagesJson,
@@ -686,7 +926,7 @@ class LiveDataSyncService extends EventEmitter {
                         Manufacturer = @manufacturer,
                         PriceDispute = @priceDispute,
                         DiscountPercentage = @discount,
-                        LastLiveSyncAt = dbo.GetEnvDate(),
+                        LastScrapedAt = dbo.GetEnvDate(),
                         LastSyncSource = 'LIVE',
                         Status = 'Active',
                         UpdatedAt = dbo.GetEnvDate(),
@@ -694,31 +934,18 @@ class LiveDataSyncService extends EventEmitter {
                     WHERE Id = @asinId
                 `);
 
-            // Insert into AsinHistory
-            await new sql.Request(transaction)
-                .input('asinId', sql.VarChar, asinId)
-                .input('price', sql.Decimal(18, 2), extracted.priceAmount)
-                .input('mrp', sql.Decimal(18, 2), extracted.mrpAmount)
-                .input('bsr', sql.Int, extracted.mainBSR)
-                .input('subBSR', sql.Int, extracted.subBSR)
-                .input('rating', sql.Decimal(3, 2), extracted.rating)
-                .input('reviewCount', sql.Int, extracted.reviewCount)
-                .input('source', sql.NVarChar, 'LIVE')
-                .query(`
-                    INSERT INTO AsinHistory (
-                        AsinId, Date, Price, BSR, SubBSR, Rating, ReviewCount, Source
-                    )
-                    VALUES (
-                        @asinId, 
-                        CAST(dbo.GetEnvDate() AS DATE), 
-                        @price, 
-                        @bsr, 
-                        @subBSR,
-                        @rating, 
-                        @reviewCount, 
-                        @source
-                    )
-                `);
+            // Upsert today's AsinHistory snapshot (price/mrp/bsr/subBSR/rating/reviews).
+            // MERGE keyed on (AsinId, Date) — re-syncs update the same-day row
+            // instead of creating duplicates, and nulls preserve existing values.
+            await this._upsertAsinHistory(transaction, asinId, {
+                price: extracted.priceAmount,
+                mrp: extracted.mrpAmount,
+                bsr: extracted.mainBSR,
+                subBsr: extracted.subBSR,
+                rating,
+                reviewCount,
+                source: 'LIVE'
+            });
 
             await transaction.commit();
 

@@ -224,7 +224,7 @@ router.get('/sync-status/:sellerId', authenticate, requirePermission('scraping_v
         const [seller, lastJob, syncRows] = await Promise.all([
             pool.request().input('id', sql.VarChar, sellerId)
                 .query(`
-                    SELECT Id, Name, Marketplace, LastOctoparseSyncAt
+                    SELECT Id, Name, Marketplace, LastSyncAt as LastOctoparseSyncAt
                     FROM Sellers WHERE Id = @id
                 `),
             pool.request().input('sellerId', sql.VarChar, sellerId)

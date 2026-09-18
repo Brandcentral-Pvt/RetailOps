@@ -40,6 +40,11 @@ axiosRateLimited.delete = (url, config) => axiosRateLimited({ method: 'delete', 
 axiosRateLimited.create = (defaults) => axiosRateLimited;
 
 const axios = axiosRateLimited;
+
+// Global safety net: no Octoparse request may hang indefinitely (dead host,
+// quiet DNS, etc.). Per-call timeouts override this where faster failover matters.
+originalAxios.defaults.timeout = 30000;
+
 const { sql, getPool, generateId, query, executeWithRetry } = require('../database/db');
 const config = require('../config/env');
 const imageGenerationService = require('./imageGenerationService');
@@ -206,7 +211,8 @@ class MarketDataSyncService {
                 password: password,
                 grant_type: 'password'
             }, {
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 8000
             });
 
             const data = response.data;
@@ -870,7 +876,8 @@ class MarketDataSyncService {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 8000
             });
 
             const results = response.data?.data || [];
@@ -925,7 +932,8 @@ class MarketDataSyncService {
 
                 const response = await axios.get(`${this.baseUrl}/api/CloudTask/GetTaskStatus`, {
                     params: { taskId: currentId },
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    timeout: 8000
                 });
                 const result = response.data.data;
                 if (result) {
@@ -943,52 +951,31 @@ class MarketDataSyncService {
      */
     async getBulkStatuses(taskIds) {
         if (!taskIds || taskIds.length === 0) return [];
-        const token = await this.authenticate();
 
-        // Strategy: Try modern V2 first (natively supports UUIDs), then legacy list if needed
+        // Dashboard-facing pipeline status. Fail fast: a per-UUID legacy search
+        // across every task group can take minutes per ID, so when the modern
+        // V2 batch call does not answer we return an empty list instead of hanging.
         try {
-            console.log(`🔍 Fetching bulk status for ${taskIds.length} tasks (using direct UUID V2 API)...`);
+            const token = await this.authenticate();
 
-            // 1. Try Modern V2 directly with original taskIds (UUID support)
+            // 1. Modern V2 batch status (UUID native, single call)
             try {
+                console.log(`🔍 Fetching bulk status for ${taskIds.length} tasks (using direct UUID V2 API)...`);
                 const response = await axios.post(`${this.baseUrl}/cloudextraction/statuses/v2`, {
                     taskIds: taskIds
                 }, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    timeout: 8000
                 });
                 if (response.data?.data && response.data.data.length > 0) return response.data.data;
             } catch (v2Err) {
                 console.warn('⚠️ Octoparse V2 Bulk Status failed:', v2Err.response?.data?.message || v2Err.message);
             }
 
-            // 2. Fallback to Legacy List Endpoint (needs resolved IDs)
-            console.log(`🔍 Falling back to legacy status search (Resolving UUIDs)...`);
-            const resolvedIds = await Promise.all(taskIds.map(async id => {
-                if (id.includes('-')) {
-                    const res = await this.resolveTaskIdToInteger(id);
-                    return res || id;
-                }
-                return id;
-            }));
-
-            const legacyRes = await axios.get(`${this.baseUrl}/api/CloudTask/GetTaskStatusList`, {
-                params: { taskIds: resolvedIds.join(',') },
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (legacyRes.data?.data) {
-                const data = Array.isArray(legacyRes.data.data) ? legacyRes.data.data : [legacyRes.data.data];
-                // Normalize legacy return to match V2 schema if possible
-                return data.map((d, index) => ({
-                    taskId: taskIds[index], // Use original ID for consistency
-                    taskStatus: d.TaskStatus || d.status || 'Unknown',
-                    taskName: d.TaskName || d.name
-                }));
-            }
-
+            console.warn('⚠️ Octoparse Bulk Status unavailable — returning empty status list.');
             return [];
         } catch (error) {
-            console.error('❌ Get Bulk Status Error:', error.response?.data || error.message);
+            console.warn('❌ Get Bulk Status Error:', error.message);
             return [];
         }
     }
@@ -2475,7 +2462,7 @@ class MarketDataSyncService {
                 ...(rating > 0 ? { Rating: rating } : {}),
                 ...(reviewCount > 0 ? { ReviewCount: reviewCount } : {}),
                 // Sync metadata
-                LastOctoparseSyncAt: now,
+                LastScrapedAt: now,
                 LastSyncSource: 'OCTOPARSE',
                 ScrapeStatus: 'COMPLETED',
                 Status: asin.Status === 'Scraping' ? 'Active' : asin.Status,
@@ -3569,7 +3556,8 @@ class MarketDataSyncService {
 
                     const response = await axios.get(`${this.baseUrl}/task/search`, {
                         params: { taskGroupId: groupId, size: 50, offset },
-                        headers: { 'Authorization': `Bearer ${await this.authenticate()}` }
+                        headers: { 'Authorization': `Bearer ${await this.authenticate()}` },
+                        timeout: 8000
                     });
                     const tasks = response.data?.data || [];
                     const task = (tasks || []).find(t => t.taskId === uuid || t.id?.toString() === uuid);
@@ -3594,7 +3582,8 @@ class MarketDataSyncService {
 
                     const tasksResponse = await axios.get(`${this.baseUrl}/task/search`, {
                         params: { taskGroupId: id, size: 50, offset },
-                        headers: { 'Authorization': `Bearer ${await this.authenticate()}` }
+                        headers: { 'Authorization': `Bearer ${await this.authenticate()}` },
+                        timeout: 8000
                     });
                     const tasks = tasksResponse.data?.data || [];
                     const found = (tasks || []).find(t => t.taskId === uuid || t.id?.toString() === uuid);
