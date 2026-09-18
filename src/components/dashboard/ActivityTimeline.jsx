@@ -51,7 +51,9 @@ const formatTime = (dateStr) => {
 const TimelineEvent = ({ log }) => {
   const title = log.entityTitle || log.EntityTitle || log.title || 'System Event';
   const description = log.description || log.Description || log.type || '';
-  const user = log.user?.firstName ? `${log.user.firstName} ${log.user.lastName || ''}`.trim() : (log.user || '');
+  const u = log.user || {};
+  const userName = [u.firstName || u.FirstName, u.lastName || u.LastName].filter(Boolean).join(' ');
+  const user = userName || (typeof log.user === 'string' ? log.user : (u.email || u.Email || ''));
   const time = log.createdAt || log.CreatedAt;
   const entityType = log.entityType || log.EntityType || '';
   const severity = log.severity || log.Severity || log.type || '';
@@ -87,7 +89,9 @@ const ActivityTimeline = ({ events = [] }) => {
       padding: '16px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: 'var(--radius-xl, 16px)',
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--dash-border, #e2e8f0)',
+      boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
+      overflow: 'hidden'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

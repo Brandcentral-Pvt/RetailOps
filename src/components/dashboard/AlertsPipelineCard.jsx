@@ -421,10 +421,10 @@ const AlertsPipelineCard = ({
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
+                    border: '1px solid var(--dash-border, #e2e8f0)',
+                    boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
                     background: 'var(--bg-primary, #fff)',
-                    minHeight: 850,
+                    minHeight: 0,
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column'
@@ -435,8 +435,8 @@ const AlertsPipelineCard = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--dash-border, #e2e8f0)',
+                    background: '#fbfdff'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -449,12 +449,11 @@ const AlertsPipelineCard = ({
                                 width: 38,
                                 height: 38,
                                 borderRadius: 11,
-                                background: 'linear-gradient(135deg, #f87171 0%, var(--text-danger, #D32F2F) 100%)',
+                                background: 'var(--bg-info-subtle, #eff6ff)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: 'var(--bg-primary, #fff)',
-                                boxShadow: '0 4px 12px -2px rgba(239, 68, 68, 0.4)'
+                                color: 'var(--text-brand, #1976D2)'
                             }}>
                                 <Bell size={18} strokeWidth={2.5} />
                             </div>
@@ -495,7 +494,7 @@ const AlertsPipelineCard = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '14px 20px 12px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)'
+                    borderBottom: '1px solid var(--dash-border, #e2e8f0)'
                 }}>
                     {/* Section header with stats */}
                     <div style={{
@@ -751,8 +750,8 @@ const AlertsPipelineCard = ({
                             width: '100%',
                             padding: '11px 18px',
                             background: syncLoading
-                                ? 'linear-gradient(135deg, var(--text-tertiary, #94a3b8) 0%, var(--text-secondary, #64748b) 100%)'
-                                : 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
+                                ? '#64748b'
+                                : '#1976D2',
                             color: '#ffffff',
                             border: 'none',
                             borderRadius: 'var(--radius-md, 8px)',

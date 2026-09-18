@@ -19,7 +19,8 @@ const ModuleCard = memo(({ module, onClick }) => {
                 position: 'relative',
                 background: 'var(--bg-primary, #fff)',
                 borderRadius: "var(--radius-xl)",
-                border: '1px solid var(--border-light, #d9e6e9)',
+                border: '1px solid var(--dash-border, #e2e8f0)',
+                boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
                 overflow: 'hidden',
                 cursor: 'pointer',
                 height: '100%',
@@ -35,7 +36,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                 left: 0,
                 right: 0,
                 height: 4,
-                background: gradient || color,
+                background: color,
                 borderRadius: '16px 16px 0 0'
             }} />
 
@@ -52,13 +53,12 @@ const ModuleCard = memo(({ module, onClick }) => {
                             width: 42,
                             height: 42,
                             borderRadius: "var(--radius-lg)",
-                            background: gradient || `${color}15`,
+                            background: `${color}12`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: gradient ? 'var(--bg-primary, #fff)' : color,
+                            color: color,
                             flexShrink: 0,
-                            boxShadow: gradient ? `0 4px 12px -2px ${color}40` : 'none'
                         }}>
                             <Icon
                                 size={20}
@@ -216,7 +216,7 @@ const ModuleCard = memo(({ module, onClick }) => {
                 <div style={{
                     padding: '12px 18px 14px',
                     background: 'var(--bg-secondary, #f8fafc)',
-                    borderTop: '1px solid var(--border-light, #d9e6e9)',
+                    borderTop: '1px solid var(--dash-border, #e2e8f0)',
                     marginTop: 'auto'
                 }}>
                     {segments && segments.length > 0 && (

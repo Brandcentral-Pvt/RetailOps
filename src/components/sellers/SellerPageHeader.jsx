@@ -1,8 +1,18 @@
 import React from 'react';
-import { Button, Space, Dropdown, Tooltip } from 'antd';
+import { Button, Space, Tooltip } from 'antd';
 import {
-  PlusOutlined, DownloadOutlined, EllipsisOutlined, ThunderboltOutlined, ReloadOutlined
+  PlusOutlined, DownloadOutlined, ThunderboltOutlined, ReloadOutlined
 } from '@ant-design/icons';
+
+const btnStyle = {
+  borderRadius: 'var(--radius-md, 8px)',
+  fontWeight: 600,
+  fontSize: 'var(--font-size-xs)',
+  height: 30,
+  borderColor: 'var(--border-light, #d9e6e9)',
+  color: 'var(--text-primary, #0f172a)',
+  background: '#fff',
+};
 
 const SellerPageHeader = ({
   totalItems,
@@ -13,67 +23,53 @@ const SellerPageHeader = ({
   onRestartOctoparse,
   isBrandManager,
 }) => {
-  const moreMenuItems = [
-    ...(!isBrandManager ? [
-      {
-        key: 'add',
-        icon: <PlusOutlined />,
-        label: 'Add Store',
-        onClick: onOpenAddStore,
-      },
-      {
-        key: 'csv',
-        icon: <DownloadOutlined />,
-        label: 'Import CSV',
-        onClick: onOpenCsvImport,
-      },
-    ] : []),
-    { type: 'divider' },
-    {
-      key: 'sync',
-      icon: <ThunderboltOutlined />,
-      label: globalSyncing ? 'Syncing...' : 'Sync All Brands',
-      disabled: globalSyncing,
-      onClick: handleGlobalLiveSync,
-    },
-    {
-      key: 'restart-octo',
-      icon: <ReloadOutlined />,
-      label: 'Restart All Octoparse',
-      onClick: onRestartOctoparse,
-    },
-  ];
-
   return (
     <div style={{
-      padding: '14px 28px 10px', background: '#ffffff', borderBottom: '1px solid var(--border-light, #d9e6e9)',
+      padding: '16px 28px 14px', background: '#ffffff', borderBottom: '1px solid var(--border-light, #d9e6e9)',
     }}>
       <div style={{
-        display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
-        flexWrap: 'wrap', gap: 8,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap', gap: 12,
       }}>
-        <Space size={6}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary, #0f172a)', lineHeight: '20px' }}>
+            Seller Management
+          </div>
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted, #94a3b8)', marginTop: 2 }}>
+            {totalItems} storefront{totalItems === 1 ? '' : 's'}
+          </div>
+        </div>
+
+        <Space size={8} wrap>
           {!isBrandManager && (
             <>
-              <Button icon={<DownloadOutlined />} size="small"
-                style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', borderColor: 'var(--border-light, #d9e6e9)', height: 28 }}>
-                Export
+              <Button icon={<DownloadOutlined />} onClick={onOpenCsvImport} size="small" style={btnStyle}>
+                Import CSV
               </Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAddStore}
                 size="small"
                 style={{
-                  borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 28,
-                  background: 'linear-gradient(135deg, #d94033, #D32F2F)',
-                  borderColor: '#d94033',
+                  borderRadius: 'var(--radius-md, 8px)', fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 30,
+                  background: '#D32F2F', borderColor: '#D32F2F',
                 }}>
                 Add Store
               </Button>
             </>
           )}
-          <Dropdown menu={{ items: moreMenuItems }} trigger={['click']} placement="bottomRight">
-            <Button icon={<EllipsisOutlined />} size="small"
-              style={{ borderRadius: 'var(--radius-md, 8px)', borderColor: 'var(--border-light, #d9e6e9)', height: 28 }} />
-          </Dropdown>
+
+          <Button
+            icon={<ThunderboltOutlined />} onClick={handleGlobalLiveSync}
+            size="small" loading={globalSyncing} disabled={globalSyncing}
+            style={btnStyle}
+          >
+            {globalSyncing ? 'Syncing…' : 'Sync All Brands'}
+          </Button>
+
+          <Tooltip title="Stops all Octoparse tasks, clears locks, and restarts fresh scraping for every active seller">
+            <Button icon={<ReloadOutlined />} onClick={onRestartOctoparse} size="small" style={btnStyle}>
+              Restart Octoparse
+            </Button>
+          </Tooltip>
         </Space>
       </div>
     </div>
