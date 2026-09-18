@@ -1,10 +1,10 @@
 const { sql, getPool } = require('../database/db');
-const directScraperService = require('./directScraperService');
+const playwrightScraperService = require('./playwrightScraperService');
 const socketService = require('./socketService');
-const { calculateLQS } = require('../utils/lqs');
 
 /**
- * Orchestrates high-volume ASIN repair jobs using DirectScraperService.
+ * Orchestrates high-volume ASIN repair jobs using PlaywrightScraperService
+ * (full Chromium engine — replaces the old HTTP DirectScraperService).
  * Handles concurrency, batching, and real-time progress reporting.
  */
 class ScraperRunner {
@@ -89,42 +89,23 @@ class ScraperRunner {
             
             await Promise.all(chunk.map(async (asinDoc) => {
                 try {
-                    const scrapedData = await directScraperService.scrapeAsin(asinDoc.AsinCode);
+const scrapedData = await playwrightScraperService.scrapeAsin(asinDoc.AsinCode);
                     
                     if (scrapedData && scrapedData.title) {
-                        // Calculate standard LQS (CDQ is disabled per user request)
-                        const lqs = Math.round(calculateLQS({
-                            titleLength: scrapedData.title?.length || 0,
-                            hasAplus: scrapedData.hasAplus || false,
-                            bulletCount: scrapedData.bulletPoints?.length || 0,
-                            imageCount: scrapedData.imagesCount || 0,
-                            descriptionLength: 0,
-                            hasEbc: false,
-                            price: scrapedData.currentPrice || 0,
-                            rating: scrapedData.rating || 0,
-                            reviews: scrapedData.reviewCount || 0
-                        }));
-                        
                         await pool.request()
                             .input('id', sql.VarChar, asinDoc.Id)
-                            .input('title', sql.NVarChar, scrapedData.title)
-                            .input('imageUrl', sql.NVarChar, scrapedData.imageUrl)
-                            .input('currentPrice', sql.Decimal(18, 2), scrapedData.currentPrice)
-                            .input('bsr', sql.Int, scrapedData.bsr)
-                            .input('rating', sql.Decimal(3, 2), scrapedData.rating)
-                            .input('reviewCount', sql.Int, scrapedData.reviewCount)
-                            .input('lqs', sql.Decimal(5, 2), lqs)
+                            .input('rating', sql.Decimal(3, 2), scrapedData.rating ?? null)
+                            .input('reviewCount', sql.Int, scrapedData.reviewCount ?? null)
+                            .input('hasAplus', sql.Bit, scrapedData.hasAplus ? 1 : 0)
                             .input('scrapeStatus', sql.NVarChar, 'COMPLETED')
                             .query(`
                                 UPDATE Asins SET
-                                    Title = @title,
-                                    ImageUrl = @imageUrl,
-                                    CurrentPrice = @currentPrice,
-                                    BSR = @bsr,
-                                    Rating = @rating,
-                                    ReviewCount = @reviewCount,
-                                    LQS = @lqs,
+                                    Rating = ISNULL(@rating, Rating),
+                                    ReviewCount = ISNULL(@reviewCount, ReviewCount),
+                                    HasAplus = @hasAplus,
                                     ScrapeStatus = @scrapeStatus,
+                                    LastScrapeStatus = 'COMPLETED',
+                                    LastSyncSource = 'SCRAPER',
                                     LastScrapedAt = dbo.GetEnvDate(),
                                     UpdatedAt = dbo.GetEnvDate()
                                 WHERE Id = @id

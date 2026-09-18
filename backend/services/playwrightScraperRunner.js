@@ -1,8 +1,6 @@
 const { sql, getPool, generateId } = require('../database/db');
 const playwrightScraperService = require('./playwrightScraperService');
 const socketService = require('./socketService');
-const { calculateLQS } = require('../utils/lqs');
-const { parseRatingValue, parseReviewCount, hasAplusContent } = require('../utils/marketDataParser');
 
 /**
  * Orchestrates Playwright scraping jobs:
@@ -310,100 +308,26 @@ class PlaywrightScraperRunner {
                 throw new Error('Empty scrape result');
             }
 
+            // Track success for dynamic concurrency and circuit breaker
+            playwrightScraperService.trackAsinSuccess(asinRow.AsinCode);
+
             const pool = await getPool();
             await pool.request()
                 .input('id', sql.VarChar, asinRow.Id)
-                .input('title', sql.NVarChar, data.title)
-                .input('imageUrl', sql.NVarChar, data.imageUrl || null)
-                .input('currentPrice', sql.Decimal(18, 2), data.currentPrice || 0)
-                .input('mrp', sql.Decimal(18, 2), data.mrp || data.currentPrice || 0)
-                .input('discount', sql.Decimal(5, 2), data.discountPercentage || 0)
-                .input('bsr', sql.Int, data.bsr || 0)
-                .input('subBsr', sql.Int, data.subBsr || 0)
-                .input('subBsrCategory', sql.NVarChar(255), data.subBsrCategory || null)
-                .input('rating', sql.Decimal(3, 2), data.rating || 0)
-                .input('reviewCount', sql.Int, data.reviewCount || 0)
-                .input('category', sql.NVarChar, data.category || null)
-                .input('brand', sql.NVarChar, data.brand || null)
-                .input('availability', sql.NVarChar, data.availability || null)
-                .input('soldBy', sql.NVarChar, data.soldBy || null)
-                .input('imagesCount', sql.Int, data.imagesCount || 0)
+                .input('rating', sql.Decimal(3, 2), data.rating ?? null)
+                .input('reviewCount', sql.Int, data.reviewCount ?? null)
                 .input('hasAplus', sql.Bit, data.hasAplus ? 1 : 0)
-                .input('dealBadge', sql.NVarChar, data.dealBadge || null)
-                .input('dealPrice', sql.Decimal(18, 2), data.dealPrice || 0)
-                .input('savingsAmount', sql.Decimal(18, 2), data.savingsAmount || 0)
-                .input('lqs', sql.Decimal(5, 2), this._computeLqs(data))
                 .query(`
                     UPDATE Asins SET
-                        Title = @title,
-                        ImageUrl = @imageUrl,
-                        CurrentPrice = @currentPrice,
-                        Mrp = @mrp,
-                        DiscountPercentage = @discount,
-                        BSR = @bsr,
-                        SubBSR = @subBsr,
-                        SubBSRCategory = @subBsrCategory,
-                        Rating = @rating,
-                        ReviewCount = @reviewCount,
-                        Category = @category,
-                        Brand = @brand,
-                        AvailabilityStatus = @availability,
-                        SoldBy = @soldBy,
-                        ImagesCount = @imagesCount,
+                        Rating = ISNULL(@rating, Rating),
+                        ReviewCount = ISNULL(@reviewCount, ReviewCount),
                         HasAplus = @hasAplus,
-                        DealBadge = @dealBadge,
-                        DealPrice = @dealPrice,
-                        SavingsAmount = @savingsAmount,
-                        LQS = @lqs,
                         ScrapeStatus = 'COMPLETED',
                         LastScrapeStatus = 'COMPLETED',
                         LastScrapedAt = dbo.GetEnvDate(),
                         LastSyncSource = 'SCRAPER',
-                        Status = 'Active',
                         UpdatedAt = dbo.GetEnvDate()
                     WHERE Id = @id
-                `);
-
-            // Snapshot into AsinScrapeData (real table schema: Asin/Price/…)
-            await pool.request()
-                .input('id', sql.VarChar, generateId())
-                .input('asinCode', sql.VarChar, asinRow.AsinCode)
-                .input('sellerId', sql.VarChar, asinRow.SellerId || job.targetId || '')
-                .input('title', sql.NVarChar, data.title)
-                .input('price', sql.Decimal(18, 2), data.currentPrice || 0)
-                .input('mrp', sql.Decimal(18, 2), data.mrp || 0)
-                .input('discount', sql.Int, data.discountPercentage || 0)
-                .input('rating', sql.Decimal(3, 2), data.rating || 0)
-                .input('reviewCount', sql.Int, data.reviewCount || 0)
-                .input('hasAplus', sql.Bit, data.hasAplus ? 1 : 0)
-                .input('aplusDetails', sql.NVarChar, data.hasAplus ? 'Yes' : 'No')
-                .input('verifiedAsin', sql.VarChar, asinRow.AsinCode)
-                .input('imagesCount', sql.Int, data.imagesCount || 0)
-                .input('mainImage', sql.NVarChar, data.imageUrl || null)
-                .input('brand', sql.NVarChar, data.brand || null)
-                .input('category', sql.NVarChar, data.category || null)
-                .input('availability', sql.NVarChar, data.availability || null)
-                .input('soldBy', sql.NVarChar, data.soldBy || null)
-                .input('dealBadge', sql.NVarChar, data.dealBadge || null)
-                .input('dealPrice', sql.Decimal(18, 2), data.dealPrice || 0)
-                .input('savingsAmount', sql.Decimal(18, 2), data.savingsAmount || 0)
-                .input('subBsr', sql.Int, data.subBsr || 0)
-                .input('bsr', sql.Int, data.bsr || 0)
-                .query(`
-                    INSERT INTO AsinScrapeData (
-                        Id, Asin, SellerId, Rating, ReviewCount, HasAplus, AplusDetails,
-                        VerifiedAsin, Title, Price, Mrp, DiscountPercentage, ImagesCount,
-                        MainImage, Brand, Category, Availability, SoldBy,
-                        DealBadge, DealPrice, SavingsAmount, SubBsr, BSR,
-                        LastScrapedAt, CreatedAt, UpdatedAt
-                    )
-                    VALUES (
-                        @id, @asinCode, @sellerId, @rating, @reviewCount, @hasAplus, @aplusDetails,
-                        @verifiedAsin, @title, @price, @mrp, @discount, @imagesCount,
-                        @mainImage, @brand, @category, @availability, @soldBy,
-                        @dealBadge, @dealPrice, @savingsAmount, @subBsr, @bsr,
-                        dbo.GetEnvDate(), dbo.GetEnvDate(), dbo.GetEnvDate()
-                    )
                 `);
 
             await pool.request()
@@ -423,6 +347,9 @@ class PlaywrightScraperRunner {
             job.completed++;
             job.queued = Math.max(0, job.queued - 1);
         } catch (err) {
+            // Track failure for circuit breaker
+            playwrightScraperService.trackAsinFailure(asinRow.AsinCode);
+
             const isCaptcha = /CAPTCHA/i.test(err.message || '');
             job.failed++;
             job.queued = Math.max(0, job.queued - 1);
@@ -477,24 +404,6 @@ class PlaywrightScraperRunner {
                     UpdatedAt = dbo.GetEnvDate()
                 WHERE Id = @id
             `);
-    }
-
-    _computeLqs(data) {
-        try {
-            return Math.round(calculateLQS({
-                titleLength: (data.title || '').length,
-                hasAplus: !!data.hasAplus,
-                bulletCount: 0,
-                imageCount: data.imagesCount || 0,
-                descriptionLength: 0,
-                hasEbc: false,
-                price: data.currentPrice || 0,
-                rating: data.rating || 0,
-                reviews: data.reviewCount || 0,
-            }));
-        } catch (e) {
-            return 0;
-        }
     }
 
     _publicJob(job) {
