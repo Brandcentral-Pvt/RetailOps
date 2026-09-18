@@ -82,9 +82,9 @@ async function main() {
     FROM Asins a 
     JOIN Sellers s ON a.SellerId = s.Id
     WHERE s.IsActive = 1 AND a.Status = 'Active' AND s.Marketplace = 'amazon.in'
-    AND a.LastLiveSyncAt IS NULL
+    AND a.LastScrapedAt IS NULL
   `);
-  console.log(`\nASINs still missing LastLiveSyncAt: ${remaining.recordset[0].Remaining} (failed or skipped)`);
+  console.log(`\nASINs still missing LastScrapedAt: ${remaining.recordset[0].Remaining} (failed or skipped)`);
 
   process.exit(0);
 }

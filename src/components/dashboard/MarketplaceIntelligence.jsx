@@ -23,13 +23,12 @@ const MarketplaceCard = ({ name, count, color }) => {
   const mpColor = color || getMarketplaceColor(name);
 
   return (
-    <div style={{
-      padding: '16px',
-      background: 'var(--bg-primary, #fff)',
-      border: '1px solid var(--border-light, #d9e6e9)',
-      borderRadius: 'var(--radius-lg, 10px)',
-      borderLeft: `4px solid ${mpColor}`
-    }}>
+<div style={{
+        padding: '16px',
+        background: 'var(--bg-secondary, #f8fafc)',
+        border: '1px solid var(--dash-border, #e2e8f0)',
+        borderRadius: 'var(--radius-lg, 10px)'
+      }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-lg, 10px)', background: `${mpColor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ShoppingCart size={20} color={mpColor} />
@@ -40,9 +39,9 @@ const MarketplaceCard = ({ name, count, color }) => {
         </div>
       </div>
 
-      <div style={{ padding: '8px 10px', background: 'var(--bg-tertiary, #f4f4f5)', borderRadius: 'var(--radius-sm, 6px)' }}>
+      <div style={{ padding: '10px 12px', background: `var(--bg-primary, #fff)`, border: `1px solid ${mpColor}20`, borderRadius: 'var(--radius-sm, 6px)' }}>
         <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary, #64748b)', display: 'block' }}>Total ASINs</Text>
-        <Text style={{ fontSize: 'var(--font-size-xl, 18px)', fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{(count || 0).toLocaleString()}</Text>
+        <Text style={{ fontSize: 'var(--font-size-xl, 18px)', fontWeight: 700, color: mpColor }}>{(count || 0).toLocaleString()}</Text>
       </div>
     </div>
   );
@@ -63,7 +62,9 @@ const MarketplaceIntelligence = ({ marketplaces = [] }) => {
         padding: '16px 20px',
         background: 'var(--bg-primary, #fff)',
         borderRadius: 'var(--radius-xl, 16px)',
-        border: '1px solid var(--border-light, #d9e6e9)'
+        border: '1px solid var(--dash-border, #e2e8f0)',
+        boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
+        overflow: 'hidden'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 8px)', background: 'var(--bg-info-subtle, #eff6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -83,7 +84,9 @@ const MarketplaceIntelligence = ({ marketplaces = [] }) => {
       padding: '16px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: 'var(--radius-xl, 16px)',
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--dash-border, #e2e8f0)',
+      boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
+      overflow: 'hidden'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

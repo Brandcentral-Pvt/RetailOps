@@ -24,7 +24,7 @@ class TrustedDeviceService {
       .input('fingerprint', sql.NVarChar, fingerprint)
       .query(`SELECT TOP 1 Id FROM TrustedDevices WHERE UserId = @userId AND DeviceFingerprint = @fingerprint AND IsRevoked = 0 AND ExpiresAt > GETDATE()`);
     if (result.recordset[0]) {
-      await pool.request().input('id', sql.Int, result.recordset[0].Id).query(`UPDATE TrustedDevices SET LastUsedAt = GETDATE() WHERE Id = @id`);
+      await pool.request().input('id', sql.NVarChar, result.recordset[0].Id).query(`UPDATE TrustedDevices SET LastUsedAt = GETDATE() WHERE Id = @id`);
       return true;
     }
     return false;
@@ -36,16 +36,34 @@ class TrustedDeviceService {
     const expiresAt = new Date(Date.now() + this.TRUST_DURATION_DAYS * 86400000);
     const existing = await pool.request().input('userId', sql.NVarChar, userId).input('fingerprint', sql.NVarChar, fingerprint).query(`SELECT Id FROM TrustedDevices WHERE UserId = @userId AND DeviceFingerprint = @fingerprint`);
     if (existing.recordset[0]) {
-      await pool.request().input('id', sql.Int, existing.recordset[0].Id).input('expiresAt', sql.DateTime, expiresAt).query(`UPDATE TrustedDevices SET ExpiresAt = @expiresAt, IsRevoked = 0, LastUsedAt = GETDATE() WHERE Id = @id`);
+      await pool.request().input('id', sql.NVarChar, existing.recordset[0].Id).input('expiresAt', sql.DateTime, expiresAt).query(`UPDATE TrustedDevices SET ExpiresAt = @expiresAt, IsRevoked = 0, LastUsedAt = GETDATE() WHERE Id = @id`);
     } else {
       const deviceName = this._parseDeviceName(metadata.userAgent);
-      await pool.request().input('userId', sql.NVarChar, userId).input('fingerprint', sql.NVarChar, fingerprint).input('deviceName', sql.NVarChar, deviceName).input('ipAddress', sql.NVarChar, metadata.ipAddress || null).input('expiresAt', sql.DateTime, expiresAt).query(`INSERT INTO TrustedDevices (UserId, DeviceFingerprint, DeviceName, IpAddress, ExpiresAt) VALUES (@userId, @fingerprint, @deviceName, @ipAddress, @expiresAt)`);
+      await pool.request()
+        .input('id', sql.NVarChar, 'td_' + crypto.randomUUID())
+        .input('userId', sql.NVarChar, userId)
+        .input('deviceId', sql.NVarChar, 'dev_' + crypto.randomUUID())
+        .input('fingerprint', sql.NVarChar, fingerprint)
+        .input('deviceName', sql.NVarChar, deviceName)
+        .input('userAgent', sql.NVarChar, metadata.userAgent || null)
+        .input('ipAddress', sql.NVarChar, metadata.ipAddress || null)
+        .input('expiresAt', sql.DateTime, expiresAt)
+        .query(`INSERT INTO TrustedDevices (Id, UserId, DeviceId, DeviceFingerprint, DeviceName, UserAgent, IpAddress, ExpiresAt, IsRevoked, LastUsedAt)
+                VALUES (@id, @userId, @deviceId, @fingerprint, @deviceName, @userAgent, @ipAddress, @expiresAt, 0, GETDATE())`);
     }
   }
 
   async revokeAll(userId) {
     const pool = await getPool();
     await pool.request().input('userId', sql.NVarChar, userId).query(`UPDATE TrustedDevices SET IsRevoked = 1 WHERE UserId = @userId AND IsRevoked = 0`);
+  }
+
+  async revoke(userId, deviceId) {
+    const pool = await getPool();
+    await pool.request()
+      .input('userId', sql.NVarChar, userId)
+      .input('deviceId', sql.NVarChar, String(deviceId))
+      .query(`UPDATE TrustedDevices SET IsRevoked = 1 WHERE UserId = @userId AND Id = @deviceId`);
   }
 
   async getUserDevices(userId) {

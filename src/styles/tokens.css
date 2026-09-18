@@ -536,6 +536,61 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   13.5 DASHBOARD DESIGN LANGUAGE
+   Clean, airy SaaS card system shared by every dashboard component.
+   One consistent surface, border, shadow, radius + accent treatment.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Card chrome */
+  --dash-surface:       var(--bc-white);
+  --dash-surface-2:     var(--bc-slate-50);
+  --dash-surface-hover: var(--bc-slate-50);
+  --dash-border:        var(--bc-slate-200);
+  --dash-border-soft:   var(--bc-slate-100);
+  --dash-radius:        var(--bc-radius-xl);       /* 12px */
+  --dash-radius-lg:     var(--bc-radius-2xl);      /* 16px (pro header blocks) */
+
+  /* Elevation — near-flat on light gray page */
+  --dash-shadow:        0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --dash-shadow-hover:  0 4px 12px -2px rgba(15, 23, 42, 0.10), 0 2px 6px -2px rgba(15, 23, 42, 0.06);
+  --dash-shadow-header: 0 16px 32px -16px rgba(15, 23, 42, 0.14);
+
+  /* Typography */
+  --dash-title-size:     15px;
+  --dash-title-weight:   650;
+  --dash-label-size:     10px;     /* uppercase eyebrow labels */
+  --dash-label-weight:   650;
+  --dash-label-tracking: 0.08em;
+  --dash-label-color:    var(--bc-text-muted);
+  --dash-value-size:     24px;
+  --dash-value-weight:   700;
+
+  /* Accent (BC brand) + semantic accents */
+  --dash-accent:        var(--bc-ro-500);
+  --dash-accent-strong: var(--bc-ro-600);
+  --dash-accent-soft:   var(--bc-ro-50);
+  --dash-accent-border: var(--bc-ro-100);
+  --dash-success:       var(--bc-green-600);
+  --dash-success-soft:  var(--bc-green-50);
+  --dash-warning:       var(--bc-amber-600);
+  --dash-warning-soft:  var(--bc-amber-50);
+  --dash-danger:        var(--bc-red-600);
+  --dash-danger-soft:   var(--bc-red-50);
+  --dash-info:          var(--bc-cyan-600);
+  --dash-info-soft:     var(--bc-cyan-50);
+  --dash-neutral:       var(--bc-slate-400);
+  --dash-neutral-soft:  var(--bc-slate-100);
+
+  /* Chart palette (single-hue brand-focused, muted set) */
+  --dash-chart-1: #1976D2;
+  --dash-chart-2: #7CB8F2;
+  --dash-chart-3: #2E7D32;
+  --dash-chart-4: #ED6C02;
+  --dash-chart-5: #7C3AED;
+  --dash-grid:   var(--bc-slate-200);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    14. DARK MODE — Ready to activate (toggle class on <body>)
    ═══════════════════════════════════════════════════════════════════════════ */
 body.bc-dark {

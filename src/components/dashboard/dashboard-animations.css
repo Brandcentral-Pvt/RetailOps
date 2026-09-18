@@ -20,9 +20,9 @@
    ========================================== */
 
 .kpi-premium-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.1);
-  border-color: var(--border-medium, #cbd0d4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.1);
+  border-color: #cbd5e1;
 }
 
 .kpi-section-header {
@@ -35,7 +35,7 @@
 .kpi-section-divider {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, var(--border-light, #d9e6e9) 0%, transparent 100%);
+  background: #e2e8f0;
 }
 
 @keyframes pulseGlow {
@@ -80,9 +80,9 @@
 }
 
 .module-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
-  border-color: var(--border-medium, #cbd0d4);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -10px rgba(15, 23, 42, 0.12);
+  border-color: #cbd5e1;
 }
 
 .module-card:hover .action-arrow {

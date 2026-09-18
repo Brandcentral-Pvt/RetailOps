@@ -12,16 +12,23 @@ exports.getOverview = async (req, res) => {
   try {
     const pool = await getPool();
 
-    // Overall stats
-    const overview = await pool.request().query(`
-      SELECT 
-        COUNT(*) as totalSellers,
+    // Per-seller latest LIVE sync, one row per seller.
+    const sellerLiveCte = `
+      WITH SellerLive AS (
+        SELECT a.SellerId, MAX(a.LastScrapedAt) as LastLiveScrape, COUNT(*) as LiveCount
+        FROM Asins a
+        WHERE a.LastSyncSource = 'LIVE' AND a.LastScrapedAt IS NOT NULL
+        GROUP BY a.SellerId
+      )
+      SELECT COUNT(*) as totalSellers,
         SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) as activeSellers,
         SUM(CASE WHEN LiveSyncEnabled = 1 THEN 1 ELSE 0 END) as liveSyncEnabled,
-        SUM(CASE WHEN LiveSyncEnabled = 1 AND LastLiveSyncAt IS NOT NULL THEN 1 ELSE 0 END) as syncedSellers,
+        SUM(CASE WHEN LiveSyncEnabled = 1 AND sl.SellerId IS NOT NULL THEN 1 ELSE 0 END) as syncedSellers,
         SUM(CASE WHEN LiveSyncEnabled = 0 OR LiveSyncEnabled IS NULL THEN 1 ELSE 0 END) as notEnabledSellers
-      FROM Sellers
-    `);
+      FROM Sellers s
+      LEFT JOIN SellerLive sl ON sl.SellerId = s.Id`;
+
+    const overview = await pool.request().query(sellerLiveCte);
 
     // ASIN sync stats
     const asinStats = await pool.request().query(`
@@ -30,25 +37,32 @@ exports.getOverview = async (req, res) => {
         SUM(CASE WHEN LastSyncSource = 'LIVE' THEN 1 ELSE 0 END) as liveSynced,
         SUM(CASE WHEN LastSyncSource = 'OCTOPARSE' THEN 1 ELSE 0 END) as octoparseSynced,
         SUM(CASE WHEN LastSyncSource IS NULL OR LastSyncSource = '' THEN 1 ELSE 0 END) as unsynced,
-        SUM(CASE WHEN LastLiveSyncAt IS NOT NULL THEN 1 ELSE 0 END) as hasLiveSyncDate,
-        MAX(LastLiveSyncAt) as latestLiveSync
+        SUM(CASE WHEN LastScrapedAt IS NOT NULL THEN 1 ELSE 0 END) as hasLiveSyncDate,
+        MAX(LastScrapedAt) as latestLiveSync
       FROM Asins
     `);
 
     // Sellers by sync status
     const byStatus = await pool.request().query(`
+      WITH SellerLive AS (
+        SELECT a.SellerId, MAX(a.LastScrapedAt) as LastLiveScrape
+        FROM Asins a
+        WHERE a.LastSyncSource = 'LIVE' AND a.LastScrapedAt IS NOT NULL
+        GROUP BY a.SellerId
+      )
       SELECT 
         CASE 
-          WHEN LiveSyncEnabled = 1 AND LastLiveSyncAt IS NOT NULL THEN 'Synced'
+          WHEN LiveSyncEnabled = 1 AND sl.SellerId IS NOT NULL THEN 'Synced'
           WHEN LiveSyncEnabled = 1 THEN 'Enabled (Not Synced)'
           ELSE 'Not Enabled'
         END as syncStatus,
         COUNT(*) as sellerCount
-      FROM Sellers
+      FROM Sellers s
+      LEFT JOIN SellerLive sl ON sl.SellerId = s.Id
       WHERE IsActive = 1
       GROUP BY 
         CASE 
-          WHEN LiveSyncEnabled = 1 AND LastLiveSyncAt IS NOT NULL THEN 'Synced'
+          WHEN LiveSyncEnabled = 1 AND sl.SellerId IS NOT NULL THEN 'Synced'
           WHEN LiveSyncEnabled = 1 THEN 'Enabled (Not Synced)'
           ELSE 'Not Enabled'
         END
@@ -94,13 +108,14 @@ exports.getSellers = async (req, res) => {
 
     const result = await req_.query(`
       SELECT 
-        s.Id, s.Name, s.Marketplace, s.LiveSyncEnabled, s.LastLiveSyncAt,
-        s.LastLiveSyncAt as SellerLastSync,
+        s.Id, s.Name, s.Marketplace, s.LiveSyncEnabled,
+        (SELECT MAX(a.LastScrapedAt) FROM Asins a WHERE a.SellerId = s.Id AND a.LastSyncSource = 'LIVE') as LastLiveSyncAt,
+        (SELECT MAX(a.LastScrapedAt) FROM Asins a WHERE a.SellerId = s.Id AND a.LastSyncSource = 'LIVE') as SellerLastSync,
         (SELECT COUNT(*) FROM Asins a WHERE a.SellerId = s.Id) as totalAsins,
         (SELECT COUNT(*) FROM Asins a WHERE a.SellerId = s.Id AND a.LastSyncSource = 'LIVE') as liveSyncedAsins,
         (SELECT COUNT(*) FROM Asins a WHERE a.SellerId = s.Id AND a.LastSyncSource = 'OCTOPARSE') as octoparseAsins,
-        (SELECT MAX(a.LastLiveSyncAt) FROM Asins a WHERE a.SellerId = s.Id) as lastAsinSync,
-        (SELECT TOP 1 a.LastLiveSyncAt FROM Asins a WHERE a.SellerId = s.Id AND a.LastSyncSource = 'LIVE' ORDER BY a.LastLiveSyncAt DESC) as lastLiveSyncAt
+        (SELECT MAX(a.LastScrapedAt) FROM Asins a WHERE a.SellerId = s.Id) as lastAsinSync,
+        (SELECT MAX(a.LastScrapedAt) FROM Asins a WHERE a.SellerId = s.Id AND a.LastSyncSource = 'LIVE') as lastLiveSyncAt
       FROM Sellers s
       ${where}
       ORDER BY s.Name
@@ -137,7 +152,9 @@ exports.getSellerDetail = async (req, res) => {
     const { sellerId } = req.params;
 
     const seller = await pool.request().input('sid', sql.VarChar, sellerId)
-      .query(`SELECT Id, Name, Marketplace, LiveSyncEnabled, LastLiveSyncAt FROM Sellers WHERE Id = @sid`);
+      .query(`SELECT Id, Name, Marketplace, LiveSyncEnabled,
+              (SELECT MAX(a.LastScrapedAt) FROM Asins a WHERE a.SellerId = Sellers.Id AND a.LastSyncSource = 'LIVE') as LastLiveSyncAt
+              FROM Sellers WHERE Id = @sid`);
 
     if (!seller.recordset.length) return res.status(404).json({ success: false, error: 'Seller not found' });
 
@@ -150,25 +167,25 @@ exports.getSellerDetail = async (req, res) => {
         SUM(CASE WHEN LastSyncSource = 'LIVE' THEN 1 ELSE 0 END) as liveSynced,
         SUM(CASE WHEN LastSyncSource = 'OCTOPARSE' THEN 1 ELSE 0 END) as octoparseSynced,
         SUM(CASE WHEN LastSyncSource IS NULL OR LastSyncSource = '' THEN 1 ELSE 0 END) as unsynced,
-        MAX(LastLiveSyncAt) as lastSync,
-        MIN(CASE WHEN LastSyncSource = 'LIVE' THEN LastLiveSyncAt END) as firstLiveSync
+        MAX(LastScrapedAt) as lastSync,
+        MIN(CASE WHEN LastSyncSource = 'LIVE' THEN LastScrapedAt END) as firstLiveSync
       FROM Asins WHERE SellerId = @sid
     `);
 
     // Recent sync activity (last 20 synced ASINs)
     const recentSyncs = await pool.request().input('sid', sql.VarChar, sellerId).query(`
-      SELECT TOP 20 AsinCode, LastLiveSyncAt, LastSyncSource, CurrentPrice, BSR
-      FROM Asins WHERE SellerId = @sid AND LastLiveSyncAt IS NOT NULL
-      ORDER BY LastLiveSyncAt DESC
+      SELECT TOP 20 AsinCode, LastScrapedAt as LastLiveSyncAt, LastSyncSource, CurrentPrice, BSR
+      FROM Asins WHERE SellerId = @sid AND LastScrapedAt IS NOT NULL
+      ORDER BY LastScrapedAt DESC
     `);
 
     // Sync by hour (last 24h)
     const hourly = await pool.request().input('sid', sql.VarChar, sellerId).query(`
       SELECT 
-        FORMAT(LastLiveSyncAt, 'yyyy-MM-dd HH:00:00') as hour,
+        FORMAT(LastScrapedAt, 'yyyy-MM-dd HH:00:00') as hour,
         COUNT(*) as asinCount
-      FROM Asins WHERE SellerId = @sid AND LastLiveSyncAt >= DATEADD(HOUR, -24, GETDATE())
-      GROUP BY FORMAT(LastLiveSyncAt, 'yyyy-MM-dd HH:00:00')
+      FROM Asins WHERE SellerId = @sid AND LastScrapedAt >= DATEADD(HOUR, -24, GETDATE())
+      GROUP BY FORMAT(LastScrapedAt, 'yyyy-MM-dd HH:00:00')
       ORDER BY hour
     `);
 
@@ -198,12 +215,12 @@ exports.getActivity = async (req, res) => {
 
     const result = await pool.request().input('limit', sql.Int, parseInt(limit)).query(`
       SELECT TOP (@limit)
-        a.AsinCode, a.LastLiveSyncAt, a.LastSyncSource, a.CurrentPrice, a.BSR, a.Rating,
+        a.AsinCode, a.LastScrapedAt as LastLiveSyncAt, a.LastSyncSource, a.CurrentPrice, a.BSR, a.Rating,
         s.Name as SellerName, s.Id as SellerId
       FROM Asins a
       JOIN Sellers s ON a.SellerId = s.Id
-      WHERE a.LastLiveSyncAt IS NOT NULL AND a.LastSyncSource = 'LIVE'
-      ORDER BY a.LastLiveSyncAt DESC
+      WHERE a.LastScrapedAt IS NOT NULL AND a.LastSyncSource = 'LIVE'
+      ORDER BY a.LastScrapedAt DESC
     `);
 
     res.json({ success: true, data: result.recordset || [] });

@@ -110,7 +110,7 @@ export function useNavigationItems() {
                 }
             ),
             guard(
-                isAdmin || isGlobalUser || isCatalogManager,
+                isAdmin || isGlobalUser || isCatalogManager || hasPermission('keywords_view'),
                 {
                     key: 'keyword-research',
                     label: 'Keyword Research',
@@ -230,6 +230,16 @@ export function useNavigationItems() {
                     label: 'Scheduled Runs',
                     path: '/scheduled-runs',
                     icon: Clock,
+                    section: 'automation',
+                }
+            ),
+            guard(
+                isAdmin || isGlobalUser || hasPermission('scraping_view'),
+                {
+                    key: 'scraper',
+                    label: 'Scraper',
+                    path: '/scraper',
+                    icon: ScanSearch,
                     section: 'automation',
                 }
             ),

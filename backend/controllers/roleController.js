@@ -311,6 +311,8 @@ const defaultPermissions = [
   { name: 'asinmanager_export', displayName: 'ASIN Manager: Export', description: 'Export ASIN catalog', category: 'Marketplace', action: 'export' },
   
   { name: 'asintracker_view', displayName: 'ASIN Tracker: View', description: 'Use the BSR and price tracker tools', category: 'Marketplace', action: 'view' },
+
+  { name: 'keywords_view', displayName: 'Keyword Research: View', description: 'Access keyword search and analysis tools', category: 'Marketplace', action: 'view' },
   
   // Automation (Page-wise)
   { name: 'scraping_view', displayName: 'Scraper Tasks: View', description: 'View status of data extraction tasks', category: 'Automation', action: 'view' },
@@ -440,9 +442,9 @@ exports.seedRolesAndPermissions = async (req, res) => {
     const permissionSets = {
       admin: allPermissions.map(p => p.Id),
       operational_manager: getPermIds(p => !['settings_manage', 'users_view', 'users_manage', 'roles_view', 'roles_manage', 'apikeys_manage'].includes(p.Name)),
-      'brand_manager': getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view', 'gms_tracker_import', 'gms_tracker_export'].includes(p.Name)),
-      catalog_manager: getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view'].includes(p.Name)),
-      listing_team: getPermIds(p => ['seller_view', 'asinmanager_view', 'asintracker_view', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view'].includes(p.Name)),
+      'brand_manager': getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'keywords_view', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view', 'gms_tracker_import', 'gms_tracker_export'].includes(p.Name)),
+      catalog_manager: getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'keywords_view', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view'].includes(p.Name)),
+      listing_team: getPermIds(p => ['seller_view', 'asinmanager_view', 'asintracker_view', 'keywords_view', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view'].includes(p.Name)),
     };
 
     for (const roleData of defaultRoles) {
