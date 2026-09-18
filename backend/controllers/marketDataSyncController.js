@@ -727,7 +727,7 @@ exports.getSellerSyncStatus = async (req, res) => {
         const octoResult = await pool.request()
             .input('sellerId', sql.VarChar, sellerId)
             .query(`
-                SELECT MAX(LastOctoparseSyncAt) as lastOcto
+                SELECT MAX(LastScrapedAt) as lastOcto
                 FROM Asins
                 WHERE SellerId = @sellerId
             `);

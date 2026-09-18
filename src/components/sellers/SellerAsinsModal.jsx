@@ -37,7 +37,6 @@ const SellerAsinsModal = memo(({
   onUpdateAsin,
   onSyncAsin,
   isAdmin,
-  isGlobalUser,
   onRefresh,
   pagination = { page: 1, limit: 50, total: 0, totalPages: 0 },
   onLoadMore,
@@ -91,14 +90,6 @@ const SellerAsinsModal = memo(({
   }, []);
 
   // ─── Selection handlers ────────────────────────────────────────────────
-
-  const toggleSelectAll = useCallback(() => {
-    setSelectedIds(prev =>
-      prev.size === asins.length && asins.length > 0
-        ? new Set()
-        : new Set(asins.map(a => a._id))
-    );
-  }, [asins]);
 
   const handleMatchPastedAsins = useCallback(async () => {
     if (!matchText.trim()) return;
@@ -500,8 +491,6 @@ const SellerAsinsModal = memo(({
               <Button icon={<RefreshCw size={15} />} onClick={onRefresh} loading={loading} />
             </Tooltip>
           }
-          onClose={onClose}
-          sticky
         />
 
         {/* ── Bulk Action Bar ────────────────────────────────────── */}
@@ -701,17 +690,15 @@ const SellerAsinsModal = memo(({
 
         {/* ── Footer ────────────────────────────────────────────── */}
         <ModalFooter
+          onCancel={onClose}
+          cancelText="Close Panel"
           extra={
             <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <AlertCircle size={13} />
               Select multiple records to perform batch operations
             </Text>
           }
-        >
-          <Button onClick={onClose}>
-            Close Panel
-          </Button>
-        </ModalFooter>
+        />
       </div>
 
       {/* ── Sub-modals ─────────────────────────────────────────────── */}

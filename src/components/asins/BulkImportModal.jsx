@@ -4,9 +4,9 @@ import { X, Upload, FileDown, FileUp, Store, Check, AlertCircle, RefreshCw, Glob
 import { sellerApi, bulkApi, asinApi } from '../../services/api';
 
 const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', initialTab = 'catalog' }) => {
-    const [activeTab, setActiveTab] = useState(initialTab); // 'catalog' | 'tags' | 'global' | 'ajio_catalog'
+    const [activeTab, setActiveTab] = useState(initialTab || 'catalog'); // 'catalog' | 'tags' | 'global' | 'ajio_catalog'
     const [sellers, setSellers] = useState([]);
-    const [selectedSellerId, setSelectedSellerId] = useState(initialSellerId);
+    const [selectedSellerId, setSelectedSellerId] = useState(initialSellerId || '');
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [result, setResult] = useState(null);
@@ -15,21 +15,19 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
     const [allowCreation, setAllowCreation] = useState(true);
 
     useEffect(() => {
+        let cancelled = false;
         if (isOpen) {
-            fetchSellers();
-            if (initialSellerId) setSelectedSellerId(initialSellerId);
-            if (initialTab) setActiveTab(initialTab);
+            (async () => {
+                try {
+                    const response = await sellerApi.getAll({ limit: 500 });
+                    if (!cancelled && response.success) setSellers(response.data?.sellers || []);
+                } catch (err) {
+                    console.error('Failed to fetch sellers:', err);
+                }
+            })();
         }
-    }, [isOpen, initialSellerId, initialTab]);
-
-    const fetchSellers = async () => {
-        try {
-            const response = await sellerApi.getAll({ limit: 500 });
-            if (response.success) setSellers(response.data?.sellers || []);
-        } catch (err) {
-            console.error('Failed to fetch sellers:', err);
-        }
-    };
+        return () => { cancelled = true; };
+    }, [isOpen]);
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files?.[0];
@@ -152,9 +150,9 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
 
     return createPortal(
         <div className="position-fixed top-0 bottom-0 start-0 end-0 d-flex align-items-center justify-content-center p-4"
-            style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 9999 }}>
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999 }}>
             
-            <div className="bg-white rounded-4 shadow-2xl" style={{ width: '100%', maxWidth: '550px', overflow: 'hidden' }}>
+            <div className="bg-white rounded-4" style={{ width: '100%', maxWidth: '550px', overflow: 'hidden' }}>
                 {/* Unified Header from Ads Modal */}
                 <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-zinc-50">
                     <div className="d-flex align-items-center gap-2">
@@ -332,7 +330,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
 
                     {/* PROPER SOLID COLOUR BADGES AND ALERTS */}
                     {result && (
-                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: 'var(--font-size-sm)', background: '#2E7D32', border: '1px solid #047857', animation: 'fadeIn 0.2s ease-out' }}>
+                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: 'var(--font-size-sm)', background: '#2E7D32', border: '1px solid #047857' }}>
                             <div className="d-flex align-items-center gap-2 fw-bold mb-3">
                                 <div className="bg-white rounded-circle p-0.5 d-flex"><Check size={14} className="text-emerald-700" /></div>
                                 <span>{result.message || 'Import Operation Successful'}</span>
@@ -370,7 +368,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                     )}
 
                     {error && (
-                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: 'var(--font-size-sm)', background: '#C62828', border: '1px solid #D32F2F', animation: 'fadeIn 0.2s ease-out' }}>
+                        <div className="rounded-3 p-3 mb-3 text-white shadow-sm" style={{ fontSize: 'var(--font-size-sm)', background: '#C62828', border: '1px solid #D32F2F' }}>
                             <div className="d-flex align-items-center gap-2 fw-bold">
                                 <AlertCircle size={16} />
                                 <span>{error}</span>

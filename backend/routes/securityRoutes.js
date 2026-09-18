@@ -72,7 +72,7 @@ router.delete('/trusted-devices/all', authenticate, async (req, res) => {
 
 router.delete('/trusted-devices/:deviceId', authenticate, async (req, res) => {
   try {
-    await trustedDeviceService.revoke(req.user.Id || req.user._id, parseInt(req.params.deviceId));
+    await trustedDeviceService.revoke(req.user.Id || req.user._id, req.params.deviceId);
     res.json({ success: true, message: 'Device revoked' });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });

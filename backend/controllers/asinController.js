@@ -447,7 +447,7 @@ exports.getAsins = async (req, res) => {
                     sortBy === 'imagesCount' ? 'a.ImagesCount' :
                     sortBy === 'hasAplus' ? 'a.HasAplus' :
                     sortBy === 'orders' || sortBy === 'totalOrders' ? '(SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WHERE Asin = a.AsinCode)' :
-                    sortBy === 'lastLiveSyncAt' ? 'a.LastLiveSyncAt' :
+                    sortBy === 'lastLiveSyncAt' ? 'a.LastScrapedAt' :
                     sortBy === 'lastScraped' ? 'a.LastScrapedAt' :
                     sortBy === 'manufacturer' ? 'a.Manufacturer' :
                     sortBy === 'availabilityStatus' ? 'a.AvailabilityStatus' :
@@ -3379,8 +3379,8 @@ exports.fullExport = async (req, res) => {
         a.BuyBoxes,
         a.AllOffers,
         a.LastSyncSource,
-        a.LastLiveSyncAt,
-        a.LastOctoparseSyncAt,
+        a.LastScrapedAt as LastLiveSyncAt,
+        a.LastScrapedAt as LastOctoparseSyncAt,
         a.Status,
         a.ScrapeStatus
       FROM Asins a

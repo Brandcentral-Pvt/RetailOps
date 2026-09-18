@@ -9,6 +9,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
 import api from '../services/api';
 import DashboardErrorBoundary from '../components/dashboard/DashboardErrorBoundary';
+import '../components/dashboard/shared/glass.css';
 import '../components/dashboard/dashboard-animations.css';
 
 // Layer Components
@@ -115,7 +116,8 @@ const Dashboard = () => {
         <>
             <CmdPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
             <motion.div variants={containerVariants} initial="hidden" animate="visible"
-                style={{ background: 'var(--bg-primary, #f8fafc)', minHeight: '100%', padding: '0 24px' }}
+                className="dashboard-mesh"
+                style={{ minHeight: '100%', padding: '0 24px' }}
             >
                 {/* Layer 1: Header + Global Status Bar */}
                 <DashboardHeader filters={filters} setFilters={setFilters} userSellers={userSellers} managers={managers} onSync={refresh} loading={loading} />

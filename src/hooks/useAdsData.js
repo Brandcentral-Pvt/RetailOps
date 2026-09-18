@@ -1,7 +1,25 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { adsApi } from '../services/api';
 import { format } from 'date-fns';
-import { invalidateCache } from '../services/apiCache';
+
+export function deriveAdsMetrics(row = {}) {
+  const metrics = Object.fromEntries(['spend', 'sales', 'orders', 'clicks', 'impressions', 'organicSales', 'organicOrders', 'pageViews'].map(key => [key, Number(row[key] || 0)]));
+  const divide = (numerator, denominator, scale = 1) => denominator > 0 ? numerator / denominator * scale : null;
+  metrics.totalSales = metrics.sales + metrics.organicSales;
+  metrics.totalOrders = metrics.orders + metrics.organicOrders;
+  return {
+    ...row,
+    ...metrics,
+    acos: divide(metrics.spend, metrics.sales, 100),
+    roas: divide(metrics.sales, metrics.spend),
+    tacos: divide(metrics.spend, metrics.totalSales, 100),
+    adSalesPct: divide(metrics.sales, metrics.totalSales, 100),
+    ctr: divide(metrics.clicks, metrics.impressions, 100),
+    cvr: divide(metrics.orders, metrics.clicks, 100),
+    cpc: divide(metrics.spend, metrics.clicks),
+    costPerOrder: divide(metrics.spend, metrics.orders)
+  };
+}
 
 export function useAdsData() {
   const [data, setData] = useState([]);
@@ -10,23 +28,22 @@ export function useAdsData() {
   const [error, setError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [globalChartData, setGlobalChartData] = useState([]);
+  const [scope, setScope] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const abortControllerRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      requestIdRef.current += 1;
+      clearTimeout(debounceRef.current);
     };
   }, []);
 
   const fetchData = useCallback(async (params = {}, isFilterChange = false) => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
+    clearTimeout(debounceRef.current);
+    const requestId = ++requestIdRef.current;
 
     try {
       if (isFilterChange) {
@@ -46,47 +63,56 @@ export function useAdsData() {
         endDate: params.endDate ? format(params.endDate, 'yyyy-MM-dd') : undefined
       };
 
+      // Server-side pagination + scope-wide aggregates for the Ads Manager page.
+      // When paginated, the backend returns one page and we use it directly (no
+      // client-side slicing). Scope aggregates power the KPI/insight widgets over
+      // the full filtered set regardless of the current page.
+      if (params.paginated) {
+        queryParams.page = params.page || 1;
+        queryParams.limit = params.pageSize || 50;
+        queryParams.includeScope = '1';
+      }
+
       Object.keys(queryParams).forEach(key => {
         if (queryParams[key] === undefined) delete queryParams[key];
       });
 
       const res = await adsApi.getAdsManagerData(queryParams);
-      
+
+      if (requestId !== requestIdRef.current) return;
+
       if (res.success) {
         setData(res.data || []);
         setTotalCount(res.total || res.data?.length || 0);
         setGlobalChartData(res.globalChartData || []);
+        setScope(res.scope || null);
       } else {
         setError('Failed to load ads data');
         setData([]);
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       if (err.name === 'AbortError') return;
       console.error('Failed to fetch ads data:', err);
       setError(err.message || 'Failed to load ads data');
       setData([]);
     } finally {
-      setLoading(false);
-      setFilterLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setFilterLoading(false);
+      }
     }
   }, []);
 
-  const debouncedFetch = useMemo(() => {
-    let timeoutId;
-    return (params) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        invalidateCache('ads:');
-        fetchData(params, true);
-      }, 300);
-    };
+  const debouncedFetch = useCallback((params) => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchData(params, true);
+    }, 300);
   }, [fetchData]);
 
-  // Client-side pagination
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, page, pageSize]);
+  // Server-side pagination — data already represents the requested page.
+  const paginatedData = data;
 
   const summary = useMemo(() => {
     const sum = { 
@@ -124,6 +150,7 @@ export function useAdsData() {
     page, setPage,
     pageSize, setPageSize,
     globalChartData, 
+    scope,
     summary, 
     fetchData, 
     debouncedFetch

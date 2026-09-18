@@ -145,7 +145,10 @@ const AsinManagerPage = (props) => {
     localStorage.setItem('selectedSeller', selectedSeller);
   }, [selectedSeller]);
 
-  const [marketplaceFilter, setMarketplaceFilter] = useState(() => localStorage.getItem('selectedMarketplace') || 'all');
+  const [marketplaceFilter, setMarketplaceFilter] = useState(() => {
+    const v = localStorage.getItem('selectedMarketplace');
+    return v && v !== 'undefined' && v !== '' ? v : 'all';
+  });
   // Persist marketplace selection
   useEffect(() => {
     localStorage.setItem('selectedMarketplace', marketplaceFilter);
@@ -171,8 +174,11 @@ const AsinManagerPage = (props) => {
   const [importingTags, setImportingTags] = useState(false);
   const tagsImportRef = useRef(null);
   const initialLoadCompleteRef = useRef(false);
+  const loadTokenRef = useRef(0);
+  const lastStatsScopeRef = useRef(null);
+  const lastStatsRef = useRef(null);
+  const isFirstRenderRef = useRef(true);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [filterTrigger, setFilterTrigger] = useState(0);
   const {
     visibleColumns,
     isVisible: baseIsVisible,
@@ -586,9 +592,6 @@ const AsinManagerPage = (props) => {
     setSelectedIds(new Set());
     setAppliedFilters(filters);
     setFilterPanelOpen(false);
-    // loadData reads appliedFilters via ref, but state update is async
-    // so we force a reload with a trigger
-    setFilterTrigger(t => t + 1);
   };
 
   // Removed client-side filteredAsins useMemo as we now use server-side search
@@ -817,40 +820,59 @@ const AsinManagerPage = (props) => {
 
   const loadData = useCallback(async (page = 1, limit = pagination.limit, seller = selectedSeller, marketplace = marketplaceFilter) => {
     try {
+      const token = ++loadTokenRef.current;
       setLoading(true);
 
-      // Only fetch paginated data and stats - NOT all data (optimization)
-      const asinRes = await asinApi.getAll({
-        page,
-        limit,
-        seller,
-        marketplace: marketplace !== 'all' ? marketplace : undefined,
-        search: appliedSearchQuery,
-        ...appliedFilters,
-        historyDays: appliedFilters.historyDays,
-        sortBy,
-        sortOrder
-      });
+      // Stats are aggregate (per seller/marketplace scope) and cached server-side.
+      // Only fetch again when the scope changes, not on paging/search/sort.
+      const statsScope = `${seller || ''}|${marketplace && marketplace !== 'all' ? marketplace : ''}`;
+      const needsStats = lastStatsScopeRef.current !== statsScope || !lastStatsRef.current;
+      const statsPromise = needsStats
+        ? asinApi.getStats({
+            seller,
+            marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined
+          }).catch(err => {
+            console.warn('Stats fetch failed:', err);
+            return null;
+          })
+        : Promise.resolve(lastStatsRef.current);
 
-      const statsRes = await asinApi.getStats({
-        seller,
-        marketplace: marketplace !== 'all' ? marketplace : undefined
-      });
+      // Fire the list + stats requests concurrently
+      const [asinRes, statsRes] = await Promise.all([
+        asinApi.getAll({
+          page,
+          limit,
+          seller,
+          marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined,
+          search: appliedSearchQuery,
+          ...appliedFilters,
+          historyDays: appliedFilters.historyDays,
+          sortBy,
+          sortOrder
+        }),
+        statsPromise
+      ]);
 
+      // Ignore stale responses from superseded requests (rapid page/sort/filter changes)
+      if (token !== loadTokenRef.current) return;
 
       initialLoadCompleteRef.current = true;
       setAsins(asinRes?.asins || []);
       setGlobalHistoryDates(asinRes?.globalHistoryDates || []);
       setAvailableMonths(asinRes?.months || []);
       setPagination(asinRes?.pagination || { page: 1, limit: limit, total: 0, totalPages: 0 });
+      lastStatsScopeRef.current = statsScope;
+      lastStatsRef.current = statsRes;
       setStats(statsRes);
       setError(null);
     } catch (err) {
-      console.error('Error fetching ASINs:', err);
-      setError(err.message);
-      setAsins([]);
+      if (token === loadTokenRef.current) {
+        console.error('Error fetching ASINs:', err);
+        setError(err.message);
+        setAsins([]);
+      }
     } finally {
-      setLoading(false);
+      if (token === loadTokenRef.current) setLoading(false);
     }
   }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder]);
 
@@ -978,13 +1000,16 @@ const AsinManagerPage = (props) => {
     }
   }, [parentChildren]);
 
-  // Switch view mode and load appropriate data
+  // Switch view mode and load appropriate data.
+  // On first render skip the list branch — the [loadData, refreshCount] effect
+  // below already performs the initial list load, avoiding a wasted duplicate request.
   useEffect(() => {
     if (viewMode === 'parent') {
       loadParentData(parentPagination.page, parentPagination.limit);
-    } else {
+    } else if (!isFirstRenderRef.current) {
       loadData(pagination.page, pagination.limit);
     }
+    isFirstRenderRef.current = false;
   }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSort = (field) => {
@@ -1077,13 +1102,6 @@ const AsinManagerPage = (props) => {
   useEffect(() => {
     loadData();
   }, [loadData, refreshCount]);
-
-  // Reload data when filters are applied
-  useEffect(() => {
-    if (filterTrigger > 0) {
-      loadData(1, pagination.limit);
-    }
-  }, [filterTrigger]);
 
   // Track pending updates for debouncing
   const pendingRefreshRef = useRef(null);

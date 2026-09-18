@@ -25,7 +25,7 @@
 }
 
 .modalHeaderDark {
-  background: linear-gradient(135deg, var(--text-primary, #0f172a) 0%, #1e293b 100%);
+  background: var(--text-primary, #0f172a);
   border-bottom: none;
 }
 
@@ -155,13 +155,11 @@
   border: 1px solid var(--border-light, #d9e6e9);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--bg-primary, #fff);
 }
 
 .subImgGrid:hover {
   border-color: var(--text-brand, #1976D2);
-  transform: translateY(-2px);
 }
 
 /* ── Compact KPI container ── */
@@ -178,7 +176,6 @@
   flex: 1;
   padding: 12px 16px;
   border-right: 1px solid var(--border-light, #d9e6e9);
-  transition: background 0.2s;
 }
 
 .compactKpiItem:last-child {
