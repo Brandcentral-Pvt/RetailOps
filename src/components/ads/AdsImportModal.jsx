@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Segmented, DatePicker, Upload, Alert, Button, Typography, Space } from 'antd';
 import { FileType, X } from 'lucide-react';
-import axios from 'axios';
+import { apiClient } from '../../lib/api-client';
 import dayjs from 'dayjs';
 import { InboxOutlined } from '@ant-design/icons';
 
@@ -47,7 +47,6 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                     formData.append('sellerId', selectedSeller);
                 }
 
-                const backendUrl = `${import.meta.env.VITE_API_URL || '/api'}/upload/upload-ads`;
                 const config = {
                     headers: { 'Content-Type': 'multipart/form-data' },
                     onUploadProgress: (progressEvent) => {
@@ -59,10 +58,7 @@ const AdsImportModal = ({ isOpen, onClose, onComplete, selectedSeller }) => {
                     }
                 };
 
-                const token = localStorage.getItem('token');
-                if (token) { config.headers.Authorization = `Bearer ${token}`; }
-
-                const response = await axios.post(backendUrl, formData, config);
+                const response = await apiClient.post('/upload/upload-ads', formData, config);
 
                 if (response.data?.success) {
                     successCount++;

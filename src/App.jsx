@@ -23,7 +23,7 @@ import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext'
 import { RefreshProvider } from './contexts/RefreshContext';
 const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard'));
 const GlobalNotificationListener = lazy(() => import('./components/GlobalNotificationListener'));
-import CometChatInitializer from './components/chat/CometChatInitializer';
+const CometChatInitializer = lazy(() => import('./components/chat/CometChatInitializer'));
 import './App.css';
 
 // Lazy load pages for better performance
@@ -194,8 +194,12 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <CometChatInitializer>
-        <RefreshProvider>
+      {/* CometChat (very large) initializes asynchronously post-paint; it never
+          gates rendering of the app itself. */}
+      <Suspense fallback={null}>
+        <CometChatInitializer />
+      </Suspense>
+      <RefreshProvider>
           <AuthProvider>
             <OnboardingProvider>
               <SocketProvider>
@@ -219,7 +223,6 @@ function App() {
             </OnboardingProvider>
           </AuthProvider>
         </RefreshProvider>
-      </CometChatInitializer>
     </ErrorBoundary>
   );
 }
