@@ -18,6 +18,7 @@ const StatusItem = ({ icon, label, value, color, tooltip }) => (
 
 const GlobalStatusBar = ({ 
   healthScore = 85,
+  hasTargets = true,
   activeAlerts = 0,
   runningAutomations = 0,
   pendingTasks = 0,
@@ -35,15 +36,20 @@ const GlobalStatusBar = ({
     return 'Critical';
   };
 
+  const healthValue = hasTargets ? `${healthScore}% ${getHealthLabel(healthScore)}` : '— No targets';
+  const healthColor = hasTargets ? getHealthColor(healthScore) : '#94a3b8';
+  const healthTooltip = hasTargets ? 'Overall system health score' : 'Set revenue targets to compute a health score';
+
   return (
     <div style={{ 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'space-between',
-      padding: '12px 20px',
+      padding: '14px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: "var(--radius-xl, 16px)",
-      border: '1px solid var(--border-light, #d9e6e9)',
+      border: '1px solid var(--dash-border, #e2e8f0)',
+      boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
       marginBottom: 20,
       flexWrap: 'wrap',
       gap: 16
@@ -52,9 +58,9 @@ const GlobalStatusBar = ({
         <StatusItem 
           icon={<CheckCircle size={16} />}
           label="Health" 
-          value={`${healthScore}% ${getHealthLabel(healthScore)}`}
-          color={getHealthColor(healthScore)}
-          tooltip="Overall system health score"
+          value={healthValue}
+          color={healthColor}
+          tooltip={healthTooltip}
         />
         <div style={{ width: 1, height: 32, background: 'var(--border-light, #d9e6e9)' }} />
         <StatusItem 

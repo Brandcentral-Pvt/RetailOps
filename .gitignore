@@ -1,62 +1,67 @@
+```
 # Dependencies
 node_modules/
-backend/node_modules/
 
-# Build output
+# Build outputs
 dist/
-dist-ssr/
+build/
+*.css.map
 
 # Environment variables
 .env
+.env.local
 .env.*
-!.env.example
-!.env.staging.example
-!.env.production.example
-backend/.env
-backend/.env.example
 
-# Config files with potential secrets
-backend/config/env.js
-backend/config/proxies.json
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Logs
-logs/
 *.log
-npm-debug.log*
 
-# OS files
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Temporary files
+*.tmp
 .DS_Store
 Thumbs.db
 
-# Editor/IDE
-.vscode/
-.idea/
-*.sw?
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# .NET build artifacts and IDE files
-dotnet/**/bin/
-dotnet/**/obj/
-dotnet/.vs/
-dotnet/**/*.user
-dotnet/**/*.suo
-dotnet/**/*.userprefs
-dotnet/**/*.vsidx
+# Testing
+.mypy_cache/
+.pytest_cache/
 
-# Uploads and temp files
-backend/uploads/*
-!backend/uploads/.gitkeep
-uploads/*
-backend/temp/
-
-# Compiled output
-*.tsbuildinfo
-.cache/
-
-# API keys and secrets
-backend/.env
-*.local
-
-# Test/scratch files
-backend/test_*.js
-check_columns.js
-seed_api_keys.js
+# Compression files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```

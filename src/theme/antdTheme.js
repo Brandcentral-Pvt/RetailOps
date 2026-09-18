@@ -55,6 +55,11 @@ const theme = {
     borderRadiusLG: 12,
     borderRadiusSM: 6,
 
+    // Elevation
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
+    boxShadowSecondary: '0 8px 24px rgba(15, 23, 42, 0.12)',
+    boxShadowTertiary: '0 12px 32px rgba(15, 23, 42, 0.16)',
+
     // Sizing
     controlHeight: 32,
     controlHeightSM: 28,
@@ -91,6 +96,14 @@ const theme = {
     },
     Card: {
       borderRadiusLG: 12,
+      colorBorderSecondary: '#E2E8F0',
+    },
+    DatePicker: {
+      controlHeight: 32,
+      activeBorderColor: '#1976D2',
+      activeShadow: '0 0 0 3px rgba(25,118,210,0.1)',
+      cellActiveWithRangeBg: '#E3F2FD',
+      borderRadius: 8,
     },
     Modal: {
       borderRadiusLG: 16,

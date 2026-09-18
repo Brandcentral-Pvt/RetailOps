@@ -572,7 +572,7 @@ exports.changePassword = async (req, res) => {
 exports.verifyOtp = async (req, res) => {
   try {
     const { tempToken, otp, trustDevice } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) || req.socket.remoteAddress || 'unknown';
     const userAgent = req.headers['user-agent'];
 
     if (!tempToken || !otp) return res.status(400).json({ success: false, message: 'Token and OTP are required' });

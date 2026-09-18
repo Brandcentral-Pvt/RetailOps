@@ -18,7 +18,7 @@ const ImportSellerModal = ({ onClose, onImport }) => {
 
   useEffect(() => {
     userApi.getManagers()
-      .then(data => setManagers(data))
+      .then(res => setManagers(Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : Array.isArray(res?.managers) ? res.managers : []))
       .catch(() => setManagers([]));
   }, []);
 

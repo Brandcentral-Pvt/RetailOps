@@ -273,9 +273,9 @@ const SalesTrendChart = ({
                 styles={{ body: { padding: 0 } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
+                    border: '1px solid var(--dash-border, #e2e8f0)',
                     background: 'var(--bg-primary, #fff)',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
+                    boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
                     height: '100%',
                     overflow: 'hidden'
                 }}
@@ -285,7 +285,7 @@ const SalesTrendChart = ({
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '18px 20px 14px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)'
+                    borderBottom: '1px solid var(--dash-border, #e2e8f0)'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -415,7 +415,7 @@ const SalesTrendChart = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     background: 'var(--bg-secondary, #f8fafc)',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)'
+                    borderBottom: '1px solid var(--dash-border, #e2e8f0)'
                 }}>
                     <div style={{ display: 'flex', gap: 14 }}>
                         <div

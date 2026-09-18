@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api, { marketSyncApi } from '../services/api';
+import api, { marketSyncApi, userApi } from '../services/api';
 import { apiClient } from '../lib/api-client';
 import { db } from '../services/db';
 import { format } from 'date-fns';
@@ -71,6 +71,16 @@ export function useDashboardData(filters: DashboardFilters) {
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
     const [scrapeTasks, setScrapeTasks] = useState<any[]>([]);
 
+    const matchesManagerFilter = useCallback((target: any, managerId: string) => {
+        if (!managerId || managerId === 'all') return true;
+        if (String(target?.UserId || '') === String(managerId)) return true;
+        const mgr = managers.find((m: any) => String(m.id) === String(managerId));
+        if (mgr) {
+            return String(target?.BrandManager || '').toLowerCase() === String(mgr.name || '').toLowerCase();
+        }
+        return String(target?.BrandManager || '') === String(managerId);
+    }, [managers]);
+
     // Use existing orchestration hook
     const orch = useDashboardOrchestration({
         sellerId: filters.sellerId === 'all' ? undefined : filters.sellerId,
@@ -117,14 +127,41 @@ export function useDashboardData(filters: DashboardFilters) {
         }));
     }, [user, sellers, isBrandManager]);
 
-    // Extract unique managers from targets
+    // Load real managers from the user API; fall back to targets-derived names
     useEffect(() => {
-        const targetsList = orch.targets || [];
-        const mgrSet = new Set<string>();
-        targetsList.forEach((t: any) => {
-            if (t.BrandManager) mgrSet.add(t.BrandManager);
-        });
-        setManagers(Array.from(mgrSet).map(name => ({ id: name, name })));
+        let cancelled = false;
+        const mgrMap = new Map<string, string>();
+
+        const load = async () => {
+            try {
+                const r: any = await userApi.getManagers();
+                const data = r?.data?.data ?? r?.data ?? r ?? [];
+                const list: any[] = Array.isArray(data) ? data : data?.users || [];
+                (list || []).forEach((m: any) => {
+                    const mid = m._id || m.id;
+                    if (!mid) return;
+                    const firstName = m.firstName || m.FirstName || '';
+                    const lastName = m.lastName || m.LastName || '';
+                    const name = `${firstName} ${lastName}`.trim() || m.displayName || m.name || m.email || mid;
+                    if (!mgrMap.has(String(mid))) mgrMap.set(String(mid), name);
+                });
+            } catch (err) {
+                console.warn('Failed to load managers:', err);
+            }
+
+            const targetsList = orch.targets || [];
+            targetsList.forEach((t: any) => {
+                if (t.BrandManager && !mgrMap.has(String(t.BrandManager))) {
+                    mgrMap.set(String(t.BrandManager), String(t.BrandManager));
+                }
+            });
+
+            if (cancelled) return;
+            setManagers(Array.from(mgrMap.entries()).map(([id, name]) => ({ id, name })));
+        };
+
+        load();
+        return () => { cancelled = true; };
     }, [orch.targets]);
 
     // Load optimization tasks with React Query caching
@@ -216,8 +253,8 @@ export function useDashboardData(filters: DashboardFilters) {
             );
         }
         if (filters.managerId && filters.managerId !== 'all') {
-            filteredTargets = filteredTargets.filter((t: any) => 
-                t.BrandManager === filters.managerId
+            filteredTargets = filteredTargets.filter((t: any) =>
+                matchesManagerFilter(t, filters.managerId)
             );
         }
         if (filters.goalType && filters.goalType !== 'all') {
@@ -364,17 +401,17 @@ export function useDashboardData(filters: DashboardFilters) {
                 idle,
             },
         };
-    }, [orch.targets, orch.dashboardRaw, optimizationTasks, 
-        activityLogs, scrapeTasks, filters]);
+    }, [orch.targets, orch.dashboardRaw, optimizationTasks,
+        activityLogs, scrapeTasks, filters, matchesManagerFilter]);
 
     const managerSellers = useMemo(() => {
         const targetsList = orch.targets || [];
         return new Set(
             targetsList
-                .filter((t: any) => t.BrandManager === filters.managerId)
+                .filter((t: any) => matchesManagerFilter(t, filters.managerId))
                 .map((t: any) => t.SellerId)
         );
-    }, [orch.targets, filters.managerId]);
+    }, [orch.targets, filters.managerId, matchesManagerFilter]);
 
     const filteredTasks = useMemo(() => {
         let tasks = optimizationTasks;
@@ -439,6 +476,9 @@ export function useDashboardData(filters: DashboardFilters) {
         // Loading
         loading: orch.isLoadingKpis,
         isHydrated: orch.isHydrated,
+        
+        // Helpers
+        matchesManagerFilter,
         
         // Actions
         refresh: () => {

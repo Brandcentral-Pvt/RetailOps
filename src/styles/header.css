@@ -262,12 +262,12 @@
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
-  background: var(--bc-red-50);
+  background: rgba(25, 118, 210, 0.08);
   border: 1px solid var(--bc-red-200);
   border-radius: 100px;
   font-size: 10.5px;
   font-weight: 600;
-  color: var(--bc-red-700);
+  color: var(--corp-primary-hover, #1565c0);
   font-family: 'Inter', sans-serif;
 }
 
@@ -275,7 +275,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
   position: relative;
 }
 
@@ -284,7 +284,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
   animation: liveOrbit 1.8s ease-in-out infinite;
 }
 
@@ -349,7 +349,7 @@
 
 .cmd-palette-item:hover,
 .cmd-palette-item.active {
-  background: var(--bc-red-50);
+  background: rgba(25, 118, 210, 0.08);
 }
 
 .cmd-palette-item-icon {
@@ -366,8 +366,8 @@
 }
 
 .cmd-palette-item.active .cmd-palette-item-icon {
-  background: var(--bc-red-100);
-  color: var(--bc-red-700);
+  background: var(--corp-primary-soft, rgba(25, 118, 210, 0.12));
+  color: var(--corp-primary-hover, #1565c0);
 }
 
 .cmd-palette-item-content {
@@ -452,7 +452,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
 }
 
 .notif-item-icon {
@@ -508,45 +508,45 @@
 
 .date-range-popover .ant-picker:hover,
 .date-range-popover .ant-picker-focused {
-  border-color: var(--bc-red-600);
-  box-shadow: 0 0 0 2px rgba(251, 79, 64, 0.1);
+  border-color: var(--corp-primary, #1976d2);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
 }
 
 .date-range-popover .ant-picker-active-bar {
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-cell-selected .ant-picker-cell-inner {
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-cell-today .ant-picker-cell-inner::before {
-  border-color: var(--bc-red-600);
+  border-color: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
-  background: var(--bc-red-600);
+  background: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-cell-in-view.ant-picker-cell-in-range::before {
-  background: var(--bc-red-50);
+  background: rgba(25, 118, 210, 0.08);
 }
 
 .date-range-popover .ant-picker-header button:hover {
-  color: var(--bc-red-600);
+  color: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-today-btn {
-  color: var(--bc-red-600);
+  color: var(--corp-primary, #1976d2);
 }
 
 .date-range-popover .ant-picker-today-btn:hover {
-  color: var(--bc-red-700);
+  color: var(--corp-primary-hover, #1565c0);
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────── */

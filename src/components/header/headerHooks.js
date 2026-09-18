@@ -35,7 +35,9 @@ export const usePlatform = () => {
 
 export const formatRelativeTime = (date) => {
   if (!date) return 'Never';
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  const parsed = date instanceof Date ? date : new Date(date);
+  if (isNaN(parsed.getTime())) return 'Never';
+  const seconds = Math.floor((Date.now() - parsed.getTime()) / 1000);
   if (seconds < 10) return 'Just now';
   if (seconds < 60) return `${seconds}s ago`;
   const mins = Math.floor(seconds / 60);
