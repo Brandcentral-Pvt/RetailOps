@@ -9,7 +9,7 @@ import {
   ArrowDownRight, BarChart3, Layers, Search, RefreshCw, Calendar, FileUp,
   X, MousePointer, Eye, ShoppingCart, DollarSign, Download, ChevronLeft,
   ChevronRight, Copy, Check, ArrowUp, ArrowDown, Minus, Upload, PieChart,
-  Filter, BarChart2, Settings, Percent, Zap, XCircle
+  Filter, BarChart2, Settings, Percent, Zap, XCircle, ChevronDown
 } from 'lucide-react';
 import DateRangePicker from '../components/common/DateRangePicker';
 import api from '../services/api';

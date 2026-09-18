@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import { Card, Tooltip } from 'antd';
 import {
     TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
@@ -8,6 +8,21 @@ import {
 import { formatIndianCurrencyShort, formatNumber } from './utils';
 
 const formatIndianCurrency = formatIndianCurrencyShort;
+
+// Real % change across the period's series (first non-zero → last point).
+// Returns null when the series is flat/empty so cards can show an honest
+// neutral "no data" state instead of fabricated trends.
+const computeTrend = (series = []) => {
+    const data = (Array.isArray(series) ? series : []).map(Number).filter(v => !isNaN(v));
+    const meaningful = data.filter(v => v !== 0);
+    if (data.length < 2 || meaningful.length === 0) return null;
+    const first = data.find(v => v !== 0) ?? data[0];
+    const last = data[data.length - 1];
+    if (first === 0) return null;
+    const pct = ((last - first) / Math.abs(first)) * 100;
+    if (Math.abs(pct) < 0.05) return { text: 'Flat', isPositive: true };
+    return { text: `${pct > 0 ? '+' : ''}${pct.toFixed(1)}% vs period`, isPositive: pct >= 0 };
+};
 
 // ═══════════════════════════════════════════════════════════════
 // PREMIUM SPARKLINE COMPONENT
@@ -117,17 +132,23 @@ const KpiCard = memo(({ card, isLast }) => {
         label, value, subValue, trend, isPositive, color, sparkline, showProgress, progressValue
     } = card;
 
+    const isNeutral = card.isNeutral ? true : isPositive === null || isPositive === undefined;
     const trendVal = trend ? trend.split(' ')[0] : '';
     const hasPercent = trendVal.includes('%');
-    const displayTrend = hasPercent ? `${isPositive ? '+' : '-'}${trendVal.replace(/[+-]/g, '')}` : trendVal;
-    const indicatorColor = isPositive ? '#2E7D32' : '#D32F2F';
+    const displayTrend = isNeutral
+        ? (trend || '—')
+        : (hasPercent ? `${isPositive ? '+' : '-'}${trendVal.replace(/[+-]/g, '')}` : trendVal);
+    const indicatorColor = isNeutral ? '#94a3b8' : (isPositive ? '#2E7D32' : '#D32F2F');
+
+    const hasSparkTrend = Array.isArray(sparkline) && sparkline.length > 1 && sparkline.some(v => Number(v) !== 0);
 
     return (
         <div
             className="kpi-premium-card"
             style={{
                 borderRadius: "var(--radius-md)",
-                border: '1px solid var(--border-light, #d9e6e9)',
+                border: '1px solid var(--dash-border, #e2e8f0)',
+                boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
                 background: 'var(--bg-primary, #fff)',
                 overflow: 'hidden',
                 height: 135,
@@ -157,17 +178,25 @@ const KpiCard = memo(({ card, isLast }) => {
                         <div style={{ height: 5, background: 'var(--border-light, #d9e6e9)', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${Math.min(progressValue, 100)}%`, background: color, borderRadius: 3 }} />
                         </div>
-                    ) : sparkline ? (
+                    ) : hasSparkTrend ? (
                         <PremiumSparkline data={sparkline} color={indicatorColor} height={32} />
                     ) : (
-                        <PremiumSparkline data={[10, 15, 12, 18, 16, 22, 20]} color={indicatorColor} height={32} />
+                        <div style={{
+                            height: 32,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--text-tertiary, #94a3b8)',
+                            fontWeight: 500,
+                            letterSpacing: '0.04em',
+                            border: '1px dashed var(--border-light, #d9e6e9)',
+                            borderRadius: 'var(--radius-sm, 6px)'
+                        }}>
+                            No data this period
+                        </div>
                     )}
                 </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-light, #d9e6e9)', padding: '6px 12px', background: 'var(--bg-primary, #fff)' }}>
-                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-secondary, #64748b)', display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                    See more details <span style={{ fontSize: 'var(--font-size-xs)' }}>&gt;</span>
-                </span>
             </div>
         </div>
     );
@@ -188,16 +217,16 @@ const KpiStrip = ({
     brandCount = 0,
     sparklineData = {}
 }) => {
-    const defaultSparklines = useMemo(() => ({
-        adSales: [30, 40, 35, 50, 49, 60, 70, 91, 125],
-        orders: [50, 45, 60, 55, 70, 65, 80, 85, 95],
-        acos: [70, 65, 60, 50, 55, 45, 40, 35, 30],
-        units: [20, 30, 25, 40, 35, 50, 45, 60, 75],
-    }), []);
 
     // ═══════════════════════════════════════════════════════════════
     // CARD DEFINITIONS — SPLIT INTO 2 GROUPS
     // ═══════════════════════════════════════════════════════════════
+
+    // Marketplace trends are derived from the real period series
+    const adRevTrend = computeTrend(sparklineData.adSales);
+    const ordersTrend = computeTrend(sparklineData.orders);
+    const acosTrend = computeTrend(sparklineData.acos);
+    const unitsTrend = computeTrend(sparklineData.units);
 
     // GROUP 1: Marketplace & Ads (4 cards)
     const marketplaceCards = [
@@ -205,56 +234,64 @@ const KpiStrip = ({
             label: 'AD REVENUE',
             value: formatIndianCurrency(adSales),
             subValue: `Spend ${formatIndianCurrency(adSpend)}`,
-            trend: '+12.4% vs prior',
-            isPositive: true,
+            trend: adRevTrend ? adRevTrend.text : '—',
+            isPositive: adRevTrend ? adRevTrend.isPositive : null,
+            isNeutral: !adRevTrend,
             icon: <DollarSign size={16} strokeWidth={2.5} />,
             color: 'var(--color-info-blue, #0288D1)',
             gradient: 'linear-gradient(135deg, #0288D1 0%, #0288D1 100%)',
-            sparkline: sparklineData.adSales || defaultSparklines.adSales,
+            sparkline: sparklineData.adSales,
         },
         {
             label: 'TOTAL ORDERS',
             value: formatNumber(orders),
             subValue: 'All channels combined',
-            trend: '+8.4% vs prior',
-            isPositive: true,
+            trend: ordersTrend ? ordersTrend.text : '—',
+            isPositive: ordersTrend ? ordersTrend.isPositive : null,
+            isNeutral: !ordersTrend,
             icon: <ShoppingBag size={16} strokeWidth={2.5} />,
             color: 'var(--color-info-blue, #0288D1)',
             gradient: 'linear-gradient(135deg, #22d3ee 0%, #0288D1 100%)',
-            sparkline: sparklineData.orders || defaultSparklines.orders,
+            sparkline: sparklineData.orders,
         },
         {
             label: 'ACoS RATIO',
-            value: `${acos.toFixed(1)}%`,
-            subValue: acos <= 25 ? 'Healthy range' : 'Needs attention',
-            trend: '-2.1% improved',
-            isPositive: true,
+            value: adSales > 0 && adSpend > 0 ? `${acos.toFixed(1)}%` : '—',
+            subValue: adSales > 0 && adSpend > 0
+                ? (acos <= 25 ? 'Healthy range' : 'Needs attention')
+                : 'No ad spend this period',
+            trend: adSales > 0 && adSpend > 0 && acosTrend ? acosTrend.text : '—',
+            isPositive: acosTrend && adSales > 0 ? !acosTrend.isPositive : null,
+            isNeutral: !(adSales > 0 && adSpend > 0),
             icon: <Percent size={16} strokeWidth={2.5} />,
             color: '#2E7D32',
             gradient: 'linear-gradient(135deg, #34d399 0%, #2E7D32 100%)',
-            sparkline: sparklineData.acos || defaultSparklines.acos,
+            sparkline: sparklineData.acos,
         },
         {
             label: 'UNITS SOLD',
             value: formatNumber(units),
             subValue: 'Across all SKUs',
-            trend: '+15.2% vs prior',
-            isPositive: true,
+            trend: unitsTrend ? unitsTrend.text : '—',
+            isPositive: unitsTrend ? unitsTrend.isPositive : null,
+            isNeutral: !unitsTrend,
             icon: <Package size={16} strokeWidth={2.5} />,
             color: '#9C27B0',
             gradient: 'linear-gradient(135deg, #a78bfa 0%, #9C27B0 100%)',
-            sparkline: sparklineData.units || defaultSparklines.units,
+            sparkline: sparklineData.units,
         },
     ];
 
     // GROUP 2: Targets & Achievement (4 cards)
+    const hasTargets = targetTotal > 0;
     const targetCards = [
         {
             label: 'TARGET POOL',
-            value: formatIndianCurrency(targetTotal),
+            value: hasTargets ? formatIndianCurrency(targetTotal) : '—',
             subValue: `${brandCount} active plans`,
-            trend: 'Goal Set',
-            isPositive: true,
+            trend: hasTargets ? 'Goal Set' : '—',
+            isPositive: hasTargets,
+            isNeutral: !hasTargets,
             icon: <Target size={16} strokeWidth={2.5} />,
             color: '#1976D2',
             gradient: 'linear-gradient(135deg, #818cf8 0%, #1976D2 100%)',
@@ -262,10 +299,11 @@ const KpiStrip = ({
         },
         {
             label: 'REVENUE ACHIEVED',
-            value: formatIndianCurrency(targetAchieved),
-            subValue: 'Cumulative pacing',
-            trend: 'Realized',
-            isPositive: true,
+            value: hasTargets ? formatIndianCurrency(targetAchieved) : '—',
+            subValue: hasTargets ? 'Cumulative pacing' : 'No targets set',
+            trend: hasTargets ? 'Realized' : '—',
+            isPositive: hasTargets,
+            isNeutral: !hasTargets,
             icon: <Zap size={16} strokeWidth={2.5} />,
             color: '#2E7D32',
             gradient: 'linear-gradient(135deg, #34d399 0%, #2E7D32 100%)',
@@ -273,20 +311,27 @@ const KpiStrip = ({
         },
         {
             label: 'PACING RATE',
-            value: `${achievementRate.toFixed(1)}%`,
-            subValue: achievementRate >= 100 ? 'Elite' : achievementRate >= 80 ? 'High' : achievementRate >= 50 ? 'On Track' : 'Critical',
-            trend: achievementRate >= 100 ? 'Outperforming' : achievementRate >= 50 ? 'On Schedule' : 'Below Target',
-            isPositive: achievementRate >= 50,
+            value: hasTargets ? `${achievementRate.toFixed(1)}%` : '—',
+            subValue: hasTargets
+                ? (achievementRate >= 100 ? 'Elite' : achievementRate >= 80 ? 'High' : achievementRate >= 50 ? 'On Track' : 'Critical')
+                : 'No targets this period',
+            trend: hasTargets
+                ? (achievementRate >= 100 ? 'Outperforming' : achievementRate >= 50 ? 'On Schedule' : 'Below Target')
+                : '—',
+            isPositive: !hasTargets ? null : achievementRate >= 50,
+            isNeutral: !hasTargets,
             icon: <Award size={16} strokeWidth={2.5} />,
-            color: achievementRate >= 100 ? '#2E7D32' : achievementRate >= 80 ? 'var(--color-info-blue, #0288D1)' : achievementRate >= 50 ? '#ED6C02' : '#D32F2F',
-            gradient: achievementRate >= 100
-                ? 'linear-gradient(135deg, #34d399 0%, #2E7D32 100%)'
-                : achievementRate >= 80
-                    ? 'linear-gradient(135deg, #60a5fa 0%, #0288D1 100%)'
-                    : achievementRate >= 50
-                        ? 'linear-gradient(135deg, #fbbf24 0%, #E65100 100%)'
-                        : 'linear-gradient(135deg, #f87171 0%, #D32F2F 100%)',
-            showProgress: true,
+            color: !hasTargets ? '#94a3b8' : achievementRate >= 100 ? '#2E7D32' : achievementRate >= 80 ? 'var(--color-info-blue, #0288D1)' : achievementRate >= 50 ? '#ED6C02' : '#D32F2F',
+            gradient: !hasTargets
+                ? 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)'
+                : achievementRate >= 100
+                    ? 'linear-gradient(135deg, #34d399 0%, #2E7D32 100%)'
+                    : achievementRate >= 80
+                        ? 'linear-gradient(135deg, #60a5fa 0%, #0288D1 100%)'
+                        : achievementRate >= 50
+                            ? 'linear-gradient(135deg, #fbbf24 0%, #E65100 100%)'
+                            : 'linear-gradient(135deg, #f87171 0%, #D32F2F 100%)',
+            showProgress: hasTargets,
             progressValue: achievementRate,
             accentLeft: false,
         },
@@ -312,28 +357,21 @@ const KpiStrip = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
+                        background: '#f8fafc',
                         padding: '5px 12px',
-                        borderRadius: 20,
-                        border: '1px solid var(--bg-danger-subtle, #fecaca)'
+                        borderRadius: 8,
+                        border: '1px solid #e2e8f0'
                     }}>
-                        <BarChart3 size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
+                        <BarChart3 size={13} style={{ color: '#1976D2' }} />
                         <span style={{
                             fontSize: 'var(--font-size-xs)',
-                            fontWeight: 700,
-                            color: 'var(--text-danger, #D32F2F)',
+                            fontWeight: 650,
+                            color: '#334155',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.08em'
+                            letterSpacing: '0.06em'
                         }}>
                             Marketplace & Ads Performance
                         </span>
-                        <div className="kpi-live-indicator" style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            background: 'var(--text-danger, #D32F2F)',
-                            marginLeft: 4
-                        }} />
                     </div>
                     <div className="kpi-section-divider" />
                 </div>
@@ -360,28 +398,21 @@ const KpiStrip = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: 'linear-gradient(135deg, var(--bg-danger-subtle, #fef2f2) 0%, var(--bg-danger-subtle, #fee2e2) 100%)',
+                        background: '#f8fafc',
                         padding: '5px 12px',
-                        borderRadius: 20,
-                        border: '1px solid var(--bg-danger-subtle, #fecaca)'
+                        borderRadius: 8,
+                        border: '1px solid #e2e8f0'
                     }}>
-                        <Target size={13} style={{ color: 'var(--text-danger, #D32F2F)' }} />
+                        <Target size={13} style={{ color: '#1976D2' }} />
                         <span style={{
                             fontSize: 'var(--font-size-xs)',
-                            fontWeight: 700,
-                            color: 'var(--text-danger, #D32F2F)',
+                            fontWeight: 650,
+                            color: '#334155',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.08em'
+                            letterSpacing: '0.06em'
                         }}>
                             Revenue Targets & Achievements
                         </span>
-                        <div className="kpi-live-indicator" style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            background: 'var(--text-danger, #D32F2F)',
-                            marginLeft: 4
-                        }} />
                     </div>
                     <div className="kpi-section-divider" />
                 </div>

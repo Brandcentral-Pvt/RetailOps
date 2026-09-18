@@ -181,6 +181,7 @@ const pemsLiveSyncRoutes = require('./routes/pems/liveSyncTrackerRoutes');
 const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
+const scraperRoutes = require('./routes/scraperRoutes');
 
 // Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
 app.use(require('./middleware/maintenanceMode'));
@@ -206,6 +207,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/market-sync', marketSyncRoutes);
 app.use('/api/live-data', liveDataRoutes);
+app.use('/api/scraper', scraperRoutes);
 app.use('/api', growthExecutionRoutes);
 app.use('/api/logs', systemLogRoutes);
 app.use('/api/security', securityRoutes);

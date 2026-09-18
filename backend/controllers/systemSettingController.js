@@ -117,21 +117,26 @@ exports.testEmail = async (req, res) => {
  * GET /api/settings/octoparse-automation
  */
 exports.getOctoparseAutomation = async (req, res) => {
+  const enabled = process.env.AUTOMATION_ENABLED !== 'false';
   res.json({
     success: true,
-    data: { enabled: true }
+    data: { enabled }
   });
 };
 
 /**
  * Toggle Octoparse automation on/off
  * POST /api/settings/octoparse-automation
+ * Octoparse is being replaced by the in-house Playwright scraper, so the flag
+ * now reflects the global AUTOMATION_ENABLED setting (disable, not remove).
  */
 exports.toggleOctoparseAutomation = async (req, res) => {
+  const enabled = req.body?.enabled !== false;
+  process.env.AUTOMATION_ENABLED = enabled ? 'true' : 'false';
   res.json({
     success: true,
-    data: { enabled: true },
-    message: `Octoparse automation is forced to enabled globally`
+    data: { enabled },
+    message: `Octoparse automation ${enabled ? 'enabled' : 'disabled'}`
   });
 };
 

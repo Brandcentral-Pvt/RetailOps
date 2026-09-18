@@ -295,3 +295,35 @@ htmlcov/
 htmlcov/
 .coverage.*
 ```
+*.sw?
+
+# .NET build artifacts and IDE files
+dotnet/**/bin/
+dotnet/**/obj/
+dotnet/.vs/
+dotnet/**/*.user
+dotnet/**/*.suo
+dotnet/**/*.userprefs
+dotnet/**/*.vsidx
+
+# Uploads and temp files
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+backend/temp/
+
+# Runtime import data (large CSVs/TSVs)
+backend/data/
+
+# Compiled output
+*.tsbuildinfo
+.cache/
+
+# API keys and secrets
+backend/.env
+*.local
+
+# Test/scratch files
+backend/test_*.js
+check_columns.js
+seed_api_keys.js

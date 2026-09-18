@@ -80,7 +80,7 @@ const TopAsinsCard = ({ products = [] }) => {
     // Process products
     const processedProducts = useMemo(() => {
         return products.map(p => ({
-            title: p.title || 'Unknown Product',
+            title: p.title || p.asin || 'Untitled',
             asin: p.asin || 'N/A',
             brand: p.brand || p.sku || 'N/A',
             units: Number(p.units || p.orders || 0),
@@ -129,8 +129,8 @@ const TopAsinsCard = ({ products = [] }) => {
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
+                    border: '1px solid var(--dash-border, #e2e8f0)',
+                    boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
                     background: 'var(--bg-primary, #fff)',
                     height: 820,
                     overflow: 'hidden',
@@ -143,8 +143,8 @@ const TopAsinsCard = ({ products = [] }) => {
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, var(--border-light, #d9e6e9))',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--dash-border, #e2e8f0)',
+                    background: '#fbfdff'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -158,12 +158,11 @@ const TopAsinsCard = ({ products = [] }) => {
                                 width: 38,
                                 height: 38,
                                 borderRadius: 11,
-                                background: 'linear-gradient(135deg, #D32F2F 0%, #d94033 100%)',
+                                background: 'var(--bg-info-subtle, #eff6ff)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: 'var(--bg-primary, #fff)',
-                                boxShadow: '0 4px 12px -2px rgba(251, 79, 64, 0.5)',
+                                color: 'var(--text-brand, #1976D2)',
                                 flexShrink: 0
                             }}>
                                 <Trophy size={20} strokeWidth={2.5} className="crown-animate" />
@@ -198,7 +197,7 @@ const TopAsinsCard = ({ products = [] }) => {
                             style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: 'var(--text-danger, #D32F2F)',
+                                color: 'var(--text-brand, #1976D2)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 3,

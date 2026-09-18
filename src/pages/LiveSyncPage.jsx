@@ -16,9 +16,9 @@ dayjs.extend(relativeTime);
 const { Text, Title } = Typography;
 const API_BASE = import.meta.env?.VITE_API_URL || '/api';
 
-const authHeaders = () => {
+const authHeaders = (extra) => {
   const token = localStorage.getItem('authToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
 };
 
 export default function LiveSyncPage() {
@@ -37,6 +37,7 @@ export default function LiveSyncPage() {
   const [inspectorResults, setInspectorResults] = useState([]);
   const [inspectorLoading, setInspectorLoading] = useState(false);
   const [lastFetch, setLastFetch] = useState(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   // ── Active Tab ──
   const [activeTab, setActiveTab] = useState('overview');
@@ -54,7 +55,7 @@ export default function LiveSyncPage() {
 
   const loadMetrics = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/live-data/metrics`).then(r => r.json());
+      const res = await fetch(`${API_BASE}/live-data/metrics`, { headers: authHeaders() }).then(r => r.json());
       if (res.success) { setMetrics(res.data); setSelectedMetrics(res.data.map(m => m.key)); }
     } catch (e) { /* metrics endpoint may not exist */ }
   }, []);
@@ -130,9 +131,9 @@ export default function LiveSyncPage() {
     if (selectedMetrics.length === 0) { message.warning('Select at least one metric'); return; }
     setInspectorLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/live-data/fetch`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asins, metrics: selectedMetrics }),
+      const res = await fetch(`${API_BASE}/live-data/v2/fetch`, {
+        method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ asins, metrics: selectedMetrics, ai: aiEnabled }),
       }).then(r => r.json());
       if (res.success) { setInspectorResults(res.data || []); setLastFetch(new Date()); message.success(`Fetched data for ${res.total} ASINs`); }
       else message.error(res.error || 'Failed');
@@ -210,8 +211,16 @@ export default function LiveSyncPage() {
       const m = metrics.find(x => x.key === key);
       return {
         title: m?.label || key, dataIndex: key, key,
-        width: key === 'title' ? 200 : 100,
-        render: (v) => v != null ? <Text style={{ fontSize: 'var(--bc-text-xs)' }}>{String(v)}</Text> : <Text type="secondary">-</Text>,
+        width: key === 'title' || key === 'lqsIssues' || key === 'titleCriteriaStatus' ? 220 : key === 'mainImage' ? 50 : 100,
+        render: (v) => {
+          if (v == null) return <Text type="secondary">-</Text>;
+          if (key === 'mainImage') return <a href={v} target="_blank" rel="noreferrer"><img src={v} alt="main" onError={(e) => { e.target.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, objectFit: 'contain', border: '1px solid var(--bc-border-default)', borderRadius: 6, background: '#fff' }} /></a>;
+          if (key === 'lqsGrade') return <Tag color={{ A: 'green', B: 'blue', C: 'orange', D: 'red' }[String(v)] || 'default'} style={{ fontSize: 10, fontWeight: 600 }}>{v}</Tag>;
+          if (key === 'mainImageBackground') return <Tag color={v === 'White' ? 'green' : v === 'Possibly non-white' ? 'orange' : v === 'Non-white' ? 'red' : 'default'} style={{ fontSize: 10 }}>{v}</Tag>;
+          if (key === 'lqsSource') return <Tag color={v === 'AI' ? 'green' : v === 'AI + Rules' ? 'blue' : 'default'} style={{ fontSize: 10 }}>{v}</Tag>;
+          if (key === 'imageCompliance') return <Tag color={String(v).startsWith('Pass') ? 'green' : 'orange'} style={{ fontSize: 10 }}>{v}</Tag>;
+          return <Text style={{ fontSize: 'var(--bc-text-xs)' }}>{String(v)}</Text>;
+        },
       };
     }),
   ];
@@ -327,6 +336,13 @@ export default function LiveSyncPage() {
                       <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', marginTop: 4 }}>
                         {asinInput.split(/[\n,]+/).filter(a => a.trim()).length} ASINs entered
                       </Text>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+                      <Checkbox checked={aiEnabled} onChange={e => setAiEnabled(e.target.checked)} style={{ marginTop: 1 }}>
+                        <Text style={{ fontSize: 'var(--bc-text-xs)', fontWeight: 600 }}>AI Analysis
+                          <Text type="secondary" style={{ fontSize: 'var(--bc-text-xs)', display: 'block', fontWeight: 400 }}>LQS scored by NVIDIA AI vs Amazon criteria + vision check (slower)</Text>
+                        </Text>
+                      </Checkbox>
                     </div>
                     <Button type="primary" block onClick={handleInspectorFetch} loading={inspectorLoading}
                       icon={<ThunderboltOutlined />} style={{ borderRadius: 'var(--bc-radius-md)', fontWeight: 600, marginBottom: 12 }}>

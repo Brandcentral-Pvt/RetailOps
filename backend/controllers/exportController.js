@@ -520,8 +520,8 @@ async function processExportJob(downloadId, params, userId) {
             'sellerId': 'a.SellerId',
             'sellerExternalId': 'a.SellerExternalId',
             'lastSyncSource': 'a.LastSyncSource',
-            'lastLiveSyncAt': 'a.LastLiveSyncAt',
-            'lastOctoparseSyncAt': 'a.LastOctoparseSyncAt',
+            'lastLiveSyncAt': 'a.LastScrapedAt',
+            'lastOctoparseSyncAt': 'a.LastScrapedAt',
             // Date fields removed per request — users don't need them in export
             'lastScraped': null,
             'createdAt': null,

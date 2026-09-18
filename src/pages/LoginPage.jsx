@@ -19,6 +19,7 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(expiresIn || 300);
   const [trustDevice, setTrustDevice] = useState(false);
+  const trustDeviceRef = useRef(false);
   const [resendCooldown, setResendCooldown] = useState(60);
   const inputRefs = useRef([]);
 
@@ -46,7 +47,7 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
   const verify = async (code) => {
     setLoading(true); setError('');
     try {
-      const res = await authApi.verifyOtp(tempToken, code, trustDevice);
+      const res = await authApi.verifyOtp(tempToken, code, trustDeviceRef.current);
       if (res.success) {
         await completeLogin(res);
         if (res.requiresSetup || res.needsPasswordReset) {
@@ -90,6 +91,12 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
 
       {error && <Alert message={error} type="error" showIcon closable onClose={() => setError('')} style={{ marginBottom: 16, borderRadius: 'var(--radius-md)' }} />}
 
+      <div style={{ marginBottom: 16 }}>
+        <Checkbox checked={trustDevice} onChange={e => { const v = e.target.checked; setTrustDevice(v); trustDeviceRef.current = v; }}>
+          <span style={{ fontSize: 'var(--font-size-sm)' }}>Trust this device for 12 hours</span>
+        </Checkbox>
+      </div>
+
       <div className={styles.otpContainer} role="group" aria-label="One-time password input">
         {otp.map((d, i) => (
           <input
@@ -117,12 +124,6 @@ const OtpStep = ({ tempToken, destination, expiresIn, onBack }) => {
       ) : (
         <Alert type="warning" message="Code expired. Please request a new one." showIcon style={{ marginBottom: 16, borderRadius: 'var(--radius-md)' }} />
       )}
-
-      <div style={{ marginBottom: 16 }}>
-        <Checkbox checked={trustDevice} onChange={e => setTrustDevice(e.target.checked)}>
-          <span style={{ fontSize: 'var(--font-size-sm)' }}>Trust this device for 12 hours</span>
-        </Checkbox>
-      </div>
 
       <Button type="primary" block size="large" loading={loading} disabled={otp.some(d => !d)}
         onClick={() => verify(otp.join(''))} className={styles.authBtn}>

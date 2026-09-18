@@ -8,12 +8,12 @@ async function main() {
   const sellers = await pool.request().query(`
     SELECT s.Id, s.Name, 
            COUNT(a.Id) as Total,
-           SUM(CASE WHEN a.LastLiveSyncAt IS NOT NULL THEN 1 ELSE 0 END) as Synced
+           SUM(CASE WHEN a.LastScrapedAt IS NOT NULL THEN 1 ELSE 0 END) as Synced
     FROM Sellers s
     JOIN Asins a ON a.SellerId = s.Id
     WHERE s.IsActive = 1 AND a.Status = 'Active' AND s.Marketplace = 'amazon.in'
     GROUP BY s.Id, s.Name
-    ORDER BY (COUNT(a.Id) - SUM(CASE WHEN a.LastLiveSyncAt IS NOT NULL THEN 1 ELSE 0 END)) DESC
+    ORDER BY (COUNT(a.Id) - SUM(CASE WHEN a.LastScrapedAt IS NOT NULL THEN 1 ELSE 0 END)) DESC
   `);
 
   const totalUnsynced = sellers.recordset.reduce((s, r) => s + (r.Total - r.Synced), 0);
@@ -69,7 +69,7 @@ async function main() {
     SELECT COUNT(*) as Remaining
     FROM Asins a JOIN Sellers s ON a.SellerId = s.Id
     WHERE s.IsActive = 1 AND a.Status = 'Active' AND s.Marketplace = 'amazon.in'
-    AND a.LastLiveSyncAt IS NULL
+    AND a.LastScrapedAt IS NULL
   `);
   console.log(`\nRemaining unsynced ASINs: ${remaining.recordset[0].Remaining}`);
   process.exit(0);
