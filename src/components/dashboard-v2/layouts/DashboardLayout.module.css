@@ -1,0 +1,162 @@
+.dashboardLayout {
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.dashboardHeader {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+}
+
+.pageTitle {
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerRight :global(.ant-btn) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: transparent;
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.headerRight :global(.ant-btn:hover) {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.headerRight :global(.ant-btn-primary) {
+  background: #ffffff;
+  color: #667eea;
+}
+
+.headerRight :global(.ant-select-selector) {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+.headerRight :global(.ant-select-arrow) {
+  color: #ffffff !important;
+}
+
+.headerRight :global(.ant-picker) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.headerRight :global(.ant-picker:hover) {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.dashboardContent {
+  padding: 24px;
+}
+
+.contentWrapper {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.gridView {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.listView {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Spin animation for refresh button */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .gridView {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboardHeader {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .headerLeft {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  .pageTitle {
+    font-size: 20px;
+  }
+  
+  .headerRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .dashboardContent {
+    padding: 16px;
+  }
+  
+  .gridView {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .dashboardLayout {
+    background: #0f1419;
+  }
+  
+  .dashboardHeader {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%);
+  }
+  
+  .pageTitle {
+    color: #e2e8f0;
+  }
+}
