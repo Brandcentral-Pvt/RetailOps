@@ -1,4 +1,4 @@
-const AIService = require('./AIService');
+const nvidiaAiService = require('./nvidiaAiService');
 const keywordResearchService = require('./keywordResearchService');
 
 class KeywordAnalysisService {
@@ -94,10 +94,16 @@ Rules:
 
         const userPrompt = JSON.stringify(prompt, null, 2);
 
-        const content = await AIService.chat([
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-        ], { model: 'meta/llama-3.1-8b-instruct', temperature: 0.3, json: true });
+        let content;
+        try {
+            content = await nvidiaAiService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ], { model: 'meta/llama-3.1-8b-instruct', temperature: 0.3, json: true });
+        } catch (error) {
+            console.error('[KW Analysis] AI inference failed, using fallback analysis:', error.message);
+            return this._fallbackAnalysis(seedKeyword, products);
+        }
 
         try {
             const cleaned = content.replace(/```json\n?|```/g, '').trim();

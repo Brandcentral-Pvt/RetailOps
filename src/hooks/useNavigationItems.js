@@ -110,7 +110,7 @@ export function useNavigationItems() {
                 }
             ),
             guard(
-                isAdmin || isGlobalUser || isCatalogManager,
+                isAdmin || isGlobalUser || isCatalogManager || hasPermission('keywords_view'),
                 {
                     key: 'keyword-research',
                     label: 'Keyword Research',
