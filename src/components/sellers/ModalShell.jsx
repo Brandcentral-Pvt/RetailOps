@@ -47,6 +47,7 @@ export const ModalFooter = ({
   onCancel,
   onConfirm,
   confirmText = 'Save',
+  cancelText = 'Cancel',
   loading = false,
   disabled = false,
   confirmIcon,
@@ -63,7 +64,7 @@ export const ModalFooter = ({
         disabled={loading}
         className={styles.modalFooterCancel}
       >
-        Cancel
+        {cancelText}
       </Button>
       {onConfirm && (
         <Button

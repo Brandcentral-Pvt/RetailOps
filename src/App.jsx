@@ -23,11 +23,12 @@ import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext'
 import { RefreshProvider } from './contexts/RefreshContext';
 const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard'));
 const GlobalNotificationListener = lazy(() => import('./components/GlobalNotificationListener'));
-import CometChatInitializer from './components/chat/CometChatInitializer';
+const CometChatInitializer = lazy(() => import('./components/chat/CometChatInitializer'));
 import './App.css';
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const DashboardV2 = lazy(() => import('./pages/DashboardV2'));
 const SkuReport = lazy(() => import('./pages/SkuReport'));
 const ParentAsinReport = lazy(() => import('./pages/ParentAsinReport'));
 const MonthWiseReport = lazy(() => import('./pages/MonthWiseReport'));
@@ -45,6 +46,7 @@ const SellerAsinTrackerPage = lazy(() => import('./pages/SellerAsinTrackerPage')
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const ScrapeTasksPage = lazy(() => import('./pages/ScrapeTasksPage'));
+const ScraperDashboardPage = lazy(() => import('./pages/ScraperDashboardPage'));
 const SellersPage = lazy(() => import('./pages/SellersPage'));
 const ScheduledRunsPage = lazy(() => import('./pages/ScheduledRunsPage'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
@@ -126,6 +128,7 @@ function AppRoutes() {
                 <Routes>
                   <Route path="/" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
+                  <Route path="/dashboard-v2" element={<ProtectedRoute permission="dashboard_view"><DashboardV2 /></ProtectedRoute>} />
                   <Route path="/sku-report" element={<ProtectedRoute permission="skureport_view"><SkuReport /></ProtectedRoute>} />
                   <Route path="/parent-asin-report" element={<ProtectedRoute permission="parentreport_view"><ParentAsinReport /></ProtectedRoute>} />
                   <Route path="/month-wise-report" element={<ProtectedRoute permission="monthlyreport_view"><MonthWiseReport /></ProtectedRoute>} />
@@ -149,6 +152,7 @@ function AppRoutes() {
                   <Route path="/rule-sets/new" element={<ProtectedRoute permission="rules_manage"><RulesetBuilderPage /></ProtectedRoute>} />
                   <Route path="/rule-sets/:id" element={<ProtectedRoute permission="rules_manage"><RulesetBuilderPage /></ProtectedRoute>} />
                    <Route path="/scrape-tasks" element={<ProtectedRoute permission="scraping_view"><ScrapeTasksPage /></ProtectedRoute>} />
+                   <Route path="/scraper" element={<ProtectedRoute permission="scraping_view"><ScraperDashboardPage /></ProtectedRoute>} />
                    <Route path="/live-sync-tracker" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-data-inspector" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                    <Route path="/live-sync" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
@@ -192,8 +196,12 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <CometChatInitializer>
-        <RefreshProvider>
+      {/* CometChat (very large) initializes asynchronously post-paint; it never
+          gates rendering of the app itself. */}
+      <Suspense fallback={null}>
+        <CometChatInitializer />
+      </Suspense>
+      <RefreshProvider>
           <AuthProvider>
             <OnboardingProvider>
               <SocketProvider>
@@ -217,7 +225,6 @@ function App() {
             </OnboardingProvider>
           </AuthProvider>
         </RefreshProvider>
-      </CometChatInitializer>
     </ErrorBoundary>
   );
 }

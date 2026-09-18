@@ -1028,7 +1028,11 @@ export const asinApi = {
   },
 
   getStats: async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '' && val !== 'undefined') acc[key] = val;
+      return acc;
+    }, {});
+    const query = new URLSearchParams(cleanParams).toString();
     const res = await fetch(`${API_BASE}/asins/stats?${query}`, {
       headers: { ...getAuthHeader() }
     });
@@ -1499,7 +1503,6 @@ export const bulkApi = {
 const api = {
   get: async (endpoint, params = {}) => {
     const authHeader = getAuthHeader();
-    console.log('[API GET]', endpoint, 'Auth:', Object.keys(authHeader).length > 0 ? 'Token present' : 'NO TOKEN');
     const query = new URLSearchParams(params).toString();
     const url = `${API_BASE}${endpoint}${query ? `?${query}` : ''}`;
     const res = await fetch(url, { headers: authHeader });
@@ -2106,4 +2109,142 @@ export const keywordAnalysisApi = {
     if (!res.ok) throw new Error('Keyword analysis failed');
     return res.json();
   }
+};
+
+// Playwright Scraper API (replaces Octoparse)
+export const scraperApi = {
+  getHealth: async () => {
+    const res = await fetch(`${API_BASE}/scraper/health`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Scraper health check failed');
+    return res.json();
+  },
+
+  testScrape: async (asin) => {
+    const res = await fetch(`${API_BASE}/scraper/test`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asin }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Test scrape failed');
+    }
+    return res.json();
+  },
+
+  startScrape: async ({ sellerId, asinIds = [], onlyMissing = false }) => {
+    const res = await fetch(`${API_BASE}/scraper/scrape/start`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sellerId, asinIds, onlyMissing }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to start scrape job');
+    }
+    return res.json();
+  },
+
+  startBulkScrape: async (asinIds = []) => {
+    const res = await fetch(`${API_BASE}/scraper/scrape/start-bulk`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asinIds }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to start bulk scrape');
+    }
+    return res.json();
+  },
+
+  getJobStatus: async (jobId) => {
+    const res = await fetch(`${API_BASE}/scraper/scrape/status/${jobId}`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch job status');
+    return res.json();
+  },
+
+  cancelJob: async (jobId) => {
+    const res = await fetch(`${API_BASE}/scraper/scrape/cancel/${jobId}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to cancel job');
+    }
+    return res.json();
+  },
+
+  retryJob: async (jobId) => {
+    const res = await fetch(`${API_BASE}/scraper/scrape/retry/${jobId}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to retry job');
+    }
+    return res.json();
+  },
+
+  getJobs: async ({ limit = 20, status } = {}) => {
+    const params = new URLSearchParams();
+    params.set('limit', limit);
+    if (status) params.set('status', status);
+    const res = await fetch(`${API_BASE}/scraper/jobs?${params.toString()}`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch jobs');
+    return res.json();
+  },
+
+  getJobDetails: async (jobId) => {
+    const res = await fetch(`${API_BASE}/scraper/jobs/${jobId}/details`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch job details');
+    return res.json();
+  },
+
+  getStats: async () => {
+    const res = await fetch(`${API_BASE}/scraper/stats`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch scraper stats');
+    return res.json();
+  },
+
+  getSellersSummary: async () => {
+    const res = await fetch(`${API_BASE}/scraper/sellers/summary`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch sellers summary');
+    return res.json();
+  },
+
+  syncSeller: async (sellerId, { asinIds = [], onlyMissing = false } = {}) => {
+    const res = await fetch(`${API_BASE}/scraper/sync-seller/${sellerId}`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asinIds, onlyMissing }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to start seller sync');
+    }
+    return res.json();
+  },
+
+  getSyncStatus: async (sellerId) => {
+    const res = await fetch(`${API_BASE}/scraper/sync-status/${sellerId}`, {
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) throw new Error('Failed to fetch sync status');
+    return res.json();
+  },
 };

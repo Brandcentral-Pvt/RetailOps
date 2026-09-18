@@ -26,26 +26,15 @@ const DashboardHeader = ({
 
   return (
     <>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-        padding: '12px 0px',
-        flexWrap: 'wrap',
-      }}>
-        <h1 style={{
-          margin: 0,
-          fontSize: 'var(--font-size-xl)',
-          fontWeight: 600,
-          color: 'var(--text-primary, #0f172a)',
-          letterSpacing: '-0.3px',
-          whiteSpace: 'nowrap',
-        }}>
-          Dashboard
-        </h1>
+      <div className="dash-page-header">
+        <div style={{ minWidth: 0 }}>
+          <h1 className="dash-page-title">Operations Command Center</h1>
+          <p className="dash-page-subtitle">
+            Real-time view across catalog, ads, targets and pipeline
+          </p>
+        </div>
 
-        <div className="dash-header-filter" style={{
+        <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -67,7 +56,7 @@ const DashboardHeader = ({
               }
             }}
             size="middle"
-            style={{ minWidth: 240 }}
+            style={{ minWidth: 230 }}
             separator={<span style={{ color: 'var(--text-secondary, #64748b)' }}>—</span>}
           />
 
@@ -123,6 +112,7 @@ const DashboardHeader = ({
               fontWeight: 600,
               cursor: loading ? 'wait' : 'pointer',
               whiteSpace: 'nowrap',
+              boxShadow: '0 2px 6px rgba(25, 118, 210, 0.25)',
               transition: 'background 0.15s',
             }}
           >
@@ -138,7 +128,8 @@ const DashboardHeader = ({
               fontSize: 'var(--font-size-xs)',
               fontWeight: 600,
               color: 'var(--text-secondary, #64748b)',
-              background: 'var(--bg-secondary, #f8fafc)',
+              background: 'var(--dash-surface-2, #f8fafc)',
+              border: '1px solid var(--dash-border, #e2e8f0)',
               padding: '2px 8px',
               borderRadius: "var(--radius-sm)",
             }}>

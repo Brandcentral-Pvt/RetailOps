@@ -2,14 +2,11 @@ import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useRef } from 'react';
 import KPICard from '../components/KPICard';
 import ProgressBar from '../components/common/ProgressBar';
-import { marketSyncApi } from '../services/api';
+import { scraperApi } from '../services/api';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { 
-  Store, 
   RefreshCcw, 
-  Package, 
-  Percent, 
   Play, 
   CloudDownload, 
   Clock, 
@@ -17,8 +14,7 @@ import {
   PauseCircle, 
   AlertTriangle, 
   Info,
-  Rocket,
-  Plus
+  Rocket
 } from 'lucide-react';
 
 const ScrapeTasksPage = () => {
@@ -34,8 +30,23 @@ const ScrapeTasksPage = () => {
     else setRefreshing(true);
     
     try {
-      const response = await marketSyncApi.getSyncTasks();
-      setTasks(response.tasks || []);
+      const [summaryRes, statsRes] = await Promise.allSettled([
+        scraperApi.getSellersSummary(),
+        scraperApi.getStats(),
+      ]);
+      const sellers = summaryRes.status === 'fulfilled' ? (summaryRes.value.sellers || []) : [];
+      const stats = statsRes.status === 'fulfilled' ? (statsRes.value.stats || {}) : {};
+      setTasks(sellers.map(seller => ({
+        sellerId: seller.sellerId,
+        sellerName: seller.sellerName,
+        marketplace: 'amazon.in',
+        taskId: seller.sellerId.slice(0, 13),
+        asinCount: seller.totalAsins || 0,
+        lastSync: seller.lastScrapedAt,
+        status: stats.running > 0 ? 'RUNNING' : 'IDLE',
+        progress: stats.running > 0 ? 50 : 0,
+        scrapedCount: seller.scrapedCount || 0,
+      })));
     } catch (error) {
       console.error('Failed to load sync tasks:', error);
     } finally {
@@ -56,17 +67,23 @@ const ScrapeTasksPage = () => {
   }, []);
 
   const handleBulkInject = async () => {
-    if (!window.confirm('This will re-inject all active ASIN URLs into their respective Octoparse tasks. Continue?')) {
+    if (!window.confirm('This will start a global Playwright scrape across all sellers. Continue?')) {
       return;
     }
 
     setBulkSyncing(true);
     try {
-      const res = await marketSyncApi.bulkInjectAsins();
-      alert(res.message || 'Bulk injection started');
+      let started = 0;
+      for (const task of tasks) {
+        try {
+          await scraperApi.syncSeller(task.sellerId);
+          started++;
+        } catch (e) { /* skip failures */ }
+      }
+      alert(`Global scrape started for ${started} of ${tasks.length} sellers.`);
       loadSyncTasks(false);
     } catch (err) {
-      console.error('Bulk injection failed:', err);
+      console.error('Bulk scrape failed:', err);
       alert('Failed: ' + err.message);
     } finally {
       setBulkSyncing(false);
@@ -76,9 +93,9 @@ const ScrapeTasksPage = () => {
   const handleStartSync = async (sellerId) => {
     setSyncing(prev => ({ ...prev, [sellerId]: true }));
     try {
-      const response = await marketSyncApi.startTask(sellerId);
+      const response = await scraperApi.syncSeller(sellerId);
       setTimeout(() => loadSyncTasks(false), 2000);
-      alert(response.message || 'Extraction process started successfully in Octoparse Cloud.');
+      alert(response.message || 'Playwright scrape job started for seller.');
     } catch (error) {
       console.error('Failed to start extraction:', error);
       alert('Failed: ' + error.message);
@@ -90,31 +107,17 @@ const ScrapeTasksPage = () => {
   const handleFetchResults = async (sellerId) => {
     setSyncing(prev => ({ ...prev, [sellerId]: true }));
     try {
-      const response = await marketSyncApi.syncResults(sellerId);
+      const response = await scraperApi.getSyncStatus(sellerId);
       loadSyncTasks(false);
-      alert(response.message || 'Data successfully pulled and mapped to dashboard.');
+      const summary = response.summary || {};
+      alert(summary.totalAsins
+        ? `Scraper data: ${summary.scrapedOk} scraped, ${summary.scrapedFailed} failed of ${summary.totalAsins} ASINs (last ${summary.lastScrapedAt || 'never'})`
+        : 'No scraper data yet for this seller.');
     } catch (error) {
       console.error('Failed to sync results:', error);
       alert('Failed: ' + error.message);
     } finally {
       setSyncing(prev => ({ ...prev, [sellerId]: false }));
-    }
-  };
-
-  const handleBulkDuplicate = async () => {
-    if (!window.confirm('This will create dedicated Octoparse tasks for all selected sellers using your master template. Continue?')) {
-      return;
-    }
-
-    setBulkSyncing(true);
-    try {
-      const res = await marketSyncApi.bulkUpdateTasks();
-      alert(res.message || 'Bulk task duplication completed.');
-      loadSyncTasks(true);
-    } catch (err) {
-      alert('Failed: ' + err.message);
-    } finally {
-      setBulkSyncing(false);
     }
   };
 
@@ -262,24 +265,16 @@ const ScrapeTasksPage = () => {
               Refresh Status
             </button>
             <button 
-                className="btn btn-outline-info shadow-sm px-3 d-flex align-items-center gap-2" 
-                onClick={handleBulkDuplicate} 
-                disabled={bulkSyncing || loading}
-            >
-                {bulkSyncing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <Plus size={16} />}
-                {bulkSyncing ? 'Creating Tasks...' : 'Assign & Duplicate Tasks'}
-            </button>
-            <button 
                 className="btn btn-outline-primary shadow-sm px-3 d-flex align-items-center gap-2" 
                 onClick={handleBulkInject} 
                 disabled={bulkSyncing || loading}
             >
                 {bulkSyncing ? <span className="icon-[svg-spinners--eclipse]" aria-hidden="true"></span> : <CloudDownload size={16} />}
-                {bulkSyncing ? 'Syncing ASINs...' : 'Sync ASINs to Cloud'}
+                {bulkSyncing ? 'Scraping...' : 'Scrape All Sellers'}
             </button>
-            <button className="btn btn-primary shadow-sm px-4 d-flex align-items-center gap-2" onClick={() => marketSyncApi.ingestAllResults().then(() => alert('Global ingestion started'))}>
+            <button className="btn btn-primary shadow-sm px-4 d-flex align-items-center gap-2" onClick={() => scraperApi.getHealth().then(() => loadSyncTasks(true))}>
               <Rocket size={16} />
-              Ingest All Data
+              Refresh Health
             </button>
           </div>
         </div>
@@ -322,7 +317,7 @@ const ScrapeTasksPage = () => {
                   <td colSpan="6" className="text-center py-5">
                     <div className="text-muted opacity-50">
                       <div className="mb-3"><RefreshCcw size={48} /></div>
-                      No sellers found with active Octoparse sync tasks.
+                      No sellers found with active scrape tasks.
                     </div>
                   </td>
                 </tr>
@@ -343,7 +338,7 @@ const ScrapeTasksPage = () => {
                     <td>
                       <div className="d-flex flex-column">
                         <div className="font-monospace text-primary fw-medium" style={{ fontSize: '0.75rem', letterSpacing: '-0.01em' }}>{task.taskId}</div>
-                        <div className="text-muted x-small mt-0.5">Octoparse Cloud Task</div>
+                        <div className="text-muted x-small mt-0.5">Playwright Scrape Job</div>
                       </div>
                     </td>
                     <td>
@@ -398,8 +393,8 @@ const ScrapeTasksPage = () => {
         <div>
           <h6 className="fw-bold text-dark mb-1">Pipeline Optimization Engaged</h6>
           <p className="text-muted small mb-0">
-            The platform automatically handles high-scale concurrent tasks. You can manually force an update by clicking 
-            <strong> Start Sync</strong> to re-inject ASINs into the Octoparse cloud loop.
+            Scraping now runs in-house with Playwright — no Octoparse required. Click the play button to start a seller's
+            scrape job; the download button shows live per-seller progress (streamed via Socket.IO).
           </p>
         </div>
       </div>

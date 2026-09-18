@@ -3,7 +3,7 @@ import { Card } from 'antd';
 import {
     Award, Activity, AlertTriangle,
     TrendingUp, TrendingDown, Sparkles, Target,
-    ArrowUpRight, CheckCircle2, Zap
+    ArrowUpRight, CheckCircle2, Zap, Crown, Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PremiumDonutChart from './PremiumDonutChart';
@@ -145,8 +145,8 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
                 style={{
                     borderRadius: "var(--radius-xl)",
-                    border: '1px solid var(--border-light, #d9e6e9)',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
+                    border: '1px solid var(--dash-border, #e2e8f0)',
+                    boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
                     background: 'var(--bg-primary, #fff)',
                     height: '100%',
                     overflow: 'hidden',
@@ -159,8 +159,8 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 ═══════════════════════════════════════════════════ */}
                 <div style={{
                     padding: '16px 20px',
-                    borderBottom: '1px solid var(--border-light, #d9e6e9)',
-                    background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)'
+                    borderBottom: '1px solid var(--dash-border, #e2e8f0)',
+                    background: '#fbfdff'
                 }}>
                     <div style={{
                         display: 'flex',
@@ -244,7 +244,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                             width: 64,
                             height: 64,
                             borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                            background: '#fef3c7',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',

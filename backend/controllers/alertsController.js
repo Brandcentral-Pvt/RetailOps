@@ -23,7 +23,7 @@ exports.getAlerts = async (req, res) => {
                 return res.json({ success: true, data: [] });
             }
             const inClause = buildInClause(request, 'alertSeller', assignedSellerIds);
-            whereClause += ` AND SellerId IN (${inClause})`;
+            whereClause += ` AND a.SellerId IN (${inClause})`;
         }
 
         const result = await request.query(`
@@ -67,7 +67,7 @@ exports.getAlertRules = async (req, res) => {
         const isGlobalUser = isGlobalUserRole(roleName);
         const pool = await getPool();
 
-        let whereClause = isGlobalUser ? '' : "WHERE (SellerId IS NULL OR SellerId NOT LIKE '%') OR SellerId IN (SELECT SellerId FROM UserSellers WHERE UserId = @userId)";
+        let whereClause = isGlobalUser ? '' : "WHERE (ar.SellerId IS NULL OR ar.SellerId NOT LIKE '%') OR ar.SellerId IN (SELECT SellerId FROM UserSellers WHERE UserId = @userId)";
         const request = pool.request();
         if (!isGlobalUser) {
             request.input('userId', sql.VarChar, req.user.Id || req.user._id);

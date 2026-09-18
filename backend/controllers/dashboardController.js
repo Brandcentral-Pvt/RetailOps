@@ -99,7 +99,9 @@ exports.getDashboardData = async (req, res) => {
         SELECT 
           COUNT(*) as Total,
           SUM(CASE WHEN Status IN ('Active', 'Scraping') THEN 1 ELSE 0 END) as Active,
-          SUM(CASE WHEN Status IN ('Active', 'Scraping') AND (StockLevel = 0 OR StockLevel IS NULL) THEN 1 ELSE 0 END) as OutOfStock,
+          SUM(CASE WHEN Status IN ('Active', 'Scraping')
+                   AND (AvailabilityStatus LIKE '%unavailable%' OR AvailabilityStatus LIKE '%out of stock%')
+              THEN 1 ELSE 0 END) as OutOfStock,
           SUM(CASE WHEN CreatedAt >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) THEN 1 ELSE 0 END) as NewThisMonth,
           SUM(ISNULL(CurrentPrice, 0)) as PortfolioValue
         FROM Asins ${asinFilter}
