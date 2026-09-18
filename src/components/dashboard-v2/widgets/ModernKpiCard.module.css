@@ -1,0 +1,140 @@
+.kpiCard {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  position: relative;
+}
+
+.kpiCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--card-color, #1890ff), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.kpiCard:hover::before {
+  opacity: 1;
+}
+
+.compact {
+  padding: 12px !important;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.iconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(24, 144, 255, 0.1), rgba(24, 144, 255, 0.05));
+  color: var(--card-color, #1890ff);
+}
+
+.trendTag {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cardValue {
+  margin: 16px 0;
+}
+
+.sparklineContainer {
+  margin-top: 12px;
+  opacity: 0.9;
+}
+
+.targetSection {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.targetLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.achievementText {
+  font-size: 11px;
+  color: #999;
+  margin-top: 6px;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .kpiCard {
+    margin-bottom: 12px;
+  }
+  
+  .cardValue :global(.ant-statistic-title) {
+    font-size: 12px;
+  }
+  
+  .cardValue :global(.ant-statistic-content) {
+    font-size: 20px !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .kpiCard {
+    background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .cardTitle {
+    color: #a0aec0;
+  }
+  
+  .targetLabel {
+    color: #718096;
+  }
+  
+  .achievementText {
+    color: #4a5568;
+  }
+}

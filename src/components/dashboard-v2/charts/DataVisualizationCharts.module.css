@@ -1,0 +1,73 @@
+.chartCard {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.chartCard:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chartCard :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #2d3748;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.chartCard :global(.ant-card-body) {
+  padding: 20px;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #a0aec0;
+  font-size: 14px;
+}
+
+/* Recharts tooltip customization */
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chartCard {
+    margin-bottom: 16px;
+  }
+  
+  .chartCard :global(.ant-card-head) {
+    font-size: 14px;
+    padding: 12px 16px;
+  }
+  
+  .chartCard :global(.ant-card-body) {
+    padding: 16px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .chartCard {
+    background: #1e1e1e;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .chartCard :global(.ant-card-head) {
+    background: linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%);
+    color: #e2e8f0;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .emptyState {
+    color: #4a5568;
+  }
+}
