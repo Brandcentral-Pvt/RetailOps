@@ -228,7 +228,6 @@ app.use('/api/pems', pemsRoutes);
 app.use('/api/live-sync-tracker', pemsLiveSyncRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/keyword-analysis', keywordAnalysisRoutes);
-app.use('/api/scraper', scraperRoutes);
 
 // Health check endpoints
 app.get('/api/health', async (req, res) => {

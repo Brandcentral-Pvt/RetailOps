@@ -1,6 +1,6 @@
 const { sql, getPool, generateId } = require('../database/db');
 
-const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_INVOKE_URL = `${process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'}/chat/completions`;
 const DEFAULT_VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
 const DEFAULT_FAST_MODEL = "meta/llama-3.1-8b-instruct";
 
@@ -62,6 +62,21 @@ class NvidiaAiService {
 
         const data = await response.json();
         return data.choices?.[0]?.message?.content || '';
+    }
+
+    /**
+     * General-purpose chat completion via NVIDIA NIM (text).
+     * Used as the AI backend for keyword analysis and other text
+     * inference paths. Falls back to fast model unless overridden.
+     */
+    async chat(messages, options = {}) {
+        return this._callNvidia(messages, {
+            model: options.model || this._getFastModel(),
+            temperature: options.temperature ?? 0.3,
+            max_tokens: options.max_tokens || 2048,
+            json: !!options.json,
+            ...(options.extraBody || {}),
+        });
     }
 
     _extractJSON(text) {

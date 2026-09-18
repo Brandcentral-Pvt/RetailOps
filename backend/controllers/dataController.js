@@ -684,36 +684,40 @@ exports.getCategories = async (req, res) => {
  */
 exports.getAdsManagerData = async (req, res) => {
     try {
-        const { groupBy = 'asin', startDate, endDate, search, sellerId, page = 1, limit = 50, sortBy = 'sales', sortOrder = 'desc', reportType = 'daily' } = req.query;
+        const { groupBy = 'asin', startDate, endDate, search, sellerId, page = 1, limit, sortBy = 'sales', sortOrder = 'desc', reportType = 'daily' } = req.query;
         const pool = await getPool();
-        const request = pool.request();
+        const buildRequest = () => {
+            const r = pool.request();
+            if (reportType) r.input('reportType', sql.VarChar, reportType);
+            if (startDate) r.input('startDate', sql.Date, new Date(startDate));
+            if (endDate) r.input('endDate', sql.Date, new Date(endDate));
+            if (search) r.input('search', sql.VarChar, `%${search}%`);
+            if (sellerId) r.input('sellerId', sql.VarChar, sellerId);
+            return r;
+        };
+        const request = buildRequest();
 
         let whereClause = 'WHERE 1=1';
 
         if (reportType) {
             whereClause += " AND p.ReportType = @reportType";
-            request.input('reportType', sql.VarChar, reportType);
         }
 
         if (startDate) {
             whereClause += " AND p.Date >= @startDate";
-            request.input('startDate', sql.Date, new Date(startDate));
         } else {
             whereClause += " AND p.Date >= DATEADD(day, -30, dbo.GetEnvDate())";
         }
         if (endDate) {
             whereClause += " AND p.Date <= @endDate";
-            request.input('endDate', sql.Date, new Date(endDate));
         }
 
         if (search) {
             whereClause += " AND (p.Asin LIKE @search OR a.Sku LIKE @search OR a.Title LIKE @search)";
-            request.input('search', sql.VarChar, `%${search}%`);
         }
 
         if (sellerId) {
             whereClause += " AND a.SellerId = @sellerId";
-            request.input('sellerId', sql.VarChar, sellerId);
         }
 
         // 1. Get Global Chart Data (Aggregated by Date)
@@ -749,8 +753,10 @@ exports.getAdsManagerData = async (req, res) => {
 
         // 3. Paginated Aggregation CTE
         const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 50;
-        const offset = (pageNum - 1) * limitNum;
+        const hasLimit = limit !== undefined && limit !== null && limit !== '';
+        const limitNum = hasLimit ? (parseInt(limit) || 50) : null;
+        const offset = (pageNum - 1) * (limitNum || 0);
+        const fetchClause = limitNum ? `OFFSET ${offset} ROWS\n            FETCH NEXT ${limitNum} ROWS ONLY` : '';
 
         let sortCol = 'sales';
         if (sortBy === 'spend') sortCol = 'SUM(ISNULL(p.AdSpend, 0))';
@@ -794,8 +800,7 @@ exports.getAdsManagerData = async (req, res) => {
             ${whereClause}
             GROUP BY ${groupField}
             ORDER BY ${sortCol} ${sortDir}
-            OFFSET ${offset} ROWS
-            FETCH NEXT ${limitNum} ROWS ONLY
+            ${fetchClause}
         `;
 
         const pagedResult = await request.query(pagedQuery);
@@ -948,12 +953,56 @@ exports.getAdsManagerData = async (req, res) => {
             });
         }
 
+        // 5. Scope aggregates (only when explicitly requested — used by the Ads Manager page for
+        // scope-wide KPIs/insights; keeps the Reports page payload lean)
+        let scope = null;
+        if (req.query.includeScope === '1') {
+            const [topSpendersR, wasteR, organicWinsR] = await Promise.all([
+                buildRequest().query(`
+                    SELECT TOP 5 p.Asin as asin,
+                           MAX(a.Title) as title,
+                           CONVERT(decimal(18,2), SUM(ISNULL(p.AdSpend, 0))) as spend
+                    FROM AdsPerformance p
+                    LEFT JOIN Asins a ON p.Asin = a.AsinCode
+                    ${whereClause}
+                    GROUP BY p.Asin
+                    ORDER BY spend DESC
+                `),
+                buildRequest().query(`
+                    SELECT COUNT(*) as total FROM (
+                        SELECT p.Asin
+                        FROM AdsPerformance p
+                        LEFT JOIN Asins a ON p.Asin = a.AsinCode
+                        ${whereClause}
+                        GROUP BY p.Asin
+                        HAVING SUM(ISNULL(p.AdSpend, 0)) > 1000 AND SUM(ISNULL(p.AdSales, 0)) < 100
+                    ) t
+                `),
+                buildRequest().query(`
+                    SELECT COUNT(*) as total FROM (
+                        SELECT p.Asin
+                        FROM AdsPerformance p
+                        LEFT JOIN Asins a ON p.Asin = a.AsinCode
+                        ${whereClause}
+                        GROUP BY p.Asin
+                        HAVING SUM(ISNULL(p.OrganicSales, 0)) > SUM(ISNULL(p.AdSales, 0))
+                    ) t
+                `)
+            ]);
+            scope = {
+                topSpenders: topSpendersR.recordset,
+                wasteCount: wasteR.recordset[0]?.total || 0,
+                organicWinsCount: organicWinsR.recordset[0]?.total || 0
+            };
+        }
+
         res.json({
             success: true,
             total: totalRows,
             page: pageNum,
-            limit: limitNum,
+            limit: hasLimit ? limitNum : null,
             data: finalRows,
+            scope,
             globalChartData: globalChartResult.recordset.map(day => {
                 const totalS = day.sales + day.organicSales;
                 return {
