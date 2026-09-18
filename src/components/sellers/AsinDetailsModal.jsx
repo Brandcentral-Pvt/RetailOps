@@ -25,10 +25,6 @@ const AsinDetailsModal = ({ asin, onClose }) => {
       styles={{
         body: { padding: '20px 24px', backgroundColor: 'var(--bg-primary)' }
       }}
-      maskStyle={{
-        backdropFilter: 'blur(6px)',
-        backgroundColor: 'rgba(15, 23, 42, 0.3)'
-      }}
     >
       <ModalHeader
         icon={Package}
@@ -118,7 +114,7 @@ const AsinDetailsModal = ({ asin, onClose }) => {
 
             {/* Dense Sentiment Block */}
             <div style={{ 
-              background: 'linear-gradient(135deg, var(--text-primary, #0f172a) 0%, var(--text-primary, #0f172a) 100%)', 
+              background: 'var(--text-primary, #0f172a)', 
               borderRadius: 'var(--radius-lg)', 
               padding: '14px',
               color: '#fff'

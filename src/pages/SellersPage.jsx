@@ -25,6 +25,7 @@ import { useSocket } from '../contexts/SocketContext';
 import SellerPageHeader from '../components/sellers/SellerPageHeader';
 import SellerStatsStrip from '../components/sellers/SellerStatsStrip';
 import SellerToolbar from '../components/sellers/SellerToolbar';
+import SellerLandscape from '../components/sellers/SellerLandscape';
 import styles from './Sellers.module.css';
 import { PERMISSIONS } from '../constants/permissions';
 
@@ -40,11 +41,11 @@ const { Text } = Typography;
 
 // Marketplace-based avatar colors — all sellers of same marketplace get same color
 const MARKETPLACE_COLORS = {
-  'amazon.in': { gradient: 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))', color: 'var(--text-brand, #1976D2)', bg: '#E3F2FD' },
-  'ajio': { gradient: 'linear-gradient(135deg, #C2185B, #E91E63)', color: '#E91E63', bg: '#FCE4EC' },
-  'myntra': { gradient: 'linear-gradient(135deg, #E65100, #FF5722)', color: '#FF5722', bg: '#FBE9E7' },
+  'amazon.in': { solid: '#1976D2', color: 'var(--text-brand, #1976D2)', bg: '#E3F2FD' },
+  'ajio': { solid: '#9C27B0', color: '#9C27B0', bg: '#F3E5F5' },
+  'myntra': { solid: '#E65100', color: '#E65100', bg: '#FBE9E7' },
 };
-const DEFAULT_MARKETPLACE = { gradient: 'linear-gradient(135deg, #455A64, #607D8B)', color: '#607D8B', bg: '#ECEFF1' };
+const DEFAULT_MARKETPLACE = { solid: '#607D8B', color: '#607D8B', bg: '#ECEFF1' };
 
 function getMarketplaceColor(marketplace) {
   const m = (marketplace || '').toLowerCase();
@@ -54,6 +55,7 @@ function getMarketplaceColor(marketplace) {
 function formatTimeAgo(dateString) {
   if (!dateString) return 'Never';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'Unknown';
   const diff = Math.floor((Date.now() - date.getTime()) / 1000);
   if (diff < 60) return 'Just now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -77,7 +79,7 @@ const SellersPage = () => {
 
   const canViewEmail = useMemo(() => {
     const role = (currentUser?.role?.name || '').toString().toLowerCase();
-    return role === 'super_admin' || role === 'admin' || role === 'operation manager' || role === 'operation_manager';
+    return role === 'super_admin' || role === 'admin' || role === 'operation manager' || role === 'operation_manager' || role === 'operational_manager';
   }, [currentUser?.role]);
 
   // ── Data state ─────────────────────────────────────────────────────────
@@ -231,7 +233,7 @@ const SellersPage = () => {
   useEffect(() => {
     setPage(1);
     void loadSellers({ page: 1, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch });
-  }, [activeTab, marketplaceFilter, managerFilter, statusFilter, debouncedSearch, loadSellers]);
+  }, [activeTab, marketplaceFilter, managerFilter, statusFilter, debouncedSearch, loadSellers, limit]);
 
   // Trigger on page/limit change only (skip initial render — already handled above)
   const isFirstPageRender = useRef(true);
@@ -722,7 +724,7 @@ const SellersPage = () => {
       toastRef.current(error.message, 'error');
       setGlobalSyncing(false);
     }
-  }, [page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, debouncedSearch]);
+  }, []); // uses refs + setState only
 
   // Cleanup poll on unmount
   useEffect(() => {
@@ -832,10 +834,9 @@ const SellersPage = () => {
                   borderRadius: 'var(--radius-md, 8px)',
                   fontWeight: 600,
                   fontSize: 'var(--font-size-xs)',
-                  background: isLiveSyncing ? '#90CAF9' : 'linear-gradient(135deg, var(--text-brand-dark, #1565C0), var(--text-brand, #1976D2))',
-                  borderColor: isLiveSyncing ? '#90CAF9' : 'var(--text-brand-dark, #1565C0)',
+                  background: isLiveSyncing ? '#90CAF9' : 'var(--text-brand, #1976D2)',
+                  borderColor: isLiveSyncing ? '#90CAF9' : 'var(--text-brand, #1976D2)',
                   color: isLiveSyncing ? 'var(--text-brand-dark, #1565C0)' : '#fff',
-                  boxShadow: isLiveSyncing ? 'none' : '0 1px 3px rgba(25,118,210,0.3)',
                   height: 26,
                   padding: '0 8px',
                 }}
@@ -900,7 +901,7 @@ const SellersPage = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 32, height: 32, borderRadius: "var(--radius-md)", flexShrink: 0,
-            background: getMarketplaceColor(seller.marketplace).gradient,
+            background: getMarketplaceColor(seller.marketplace).solid,
             color: '#fff', display: 'flex', alignItems: 'center',
             justifyContent: 'center', fontWeight: 700, fontSize: 'var(--font-size-xs)'
           }}>
@@ -986,7 +987,7 @@ const SellersPage = () => {
       title: 'STATUS', dataIndex: 'status', key: 'status', align: 'center', width: 100,
       render: (status) => getStatusBadge(status)
     },
-  ], [getMarketplaceBadge, getStatusBadge, handleViewAsins]);
+  ], [getMarketplaceBadge, getStatusBadge, handleViewAsins, canViewEmail]);
 
   const actionColumn = useMemo(() => ({
     title: 'ACTIONS', key: 'actions', fixed: 'right', width: 180, align: 'right',
@@ -1070,11 +1071,21 @@ const SellersPage = () => {
         hasActiveFilters={activeTab !== 'all' || marketplaceFilter !== 'all' || managerFilter !== 'all' || searchQuery}
       />
 
+      {/* ── Seller Landscape Analytics─────────────────────────────── */}
+      <div style={{ padding: '12px 24px 16px', background: '#fff' }}>
+        <SellerLandscape
+          statusFilter={statusFilter}
+          marketplaceFilter={marketplaceFilter}
+          managerFilter={managerFilter}
+          debouncedSearch={debouncedSearch}
+        />
+      </div>
+
       {/* ── Global Live Sync Progress ──────────────────────────────── */}
       {globalSyncing && globalSyncProgress && (
         <div style={{
           padding: '10px 24px',
-          background: 'linear-gradient(135deg, #FFEBEE, #EF9A9A)',
+          background: '#FFEBEE',
           borderBottom: '1px solid #EF9A9A',
           display: 'flex', alignItems: 'center', gap: 12
         }}>
@@ -1193,6 +1204,7 @@ const SellersPage = () => {
           <PoolManagementModal stats={poolStats} onClose={() => setShowPoolModal(false)} onRefresh={fetchPoolStats} />
         )}
         <BulkImportModal
+          key={`${showBulkImportModal ? 'open' : 'closed'}-${bulkImportConfig.sellerId}-${bulkImportConfig.tab}`}
           isOpen={showBulkImportModal}
           onClose={() => setShowBulkImportModal(false)}
           onComplete={() => loadSellers({ page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, search: debouncedSearch, silent: true })}

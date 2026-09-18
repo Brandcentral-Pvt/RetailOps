@@ -51,7 +51,7 @@ const NotificationItem = ({ notification }) => {
       alignItems: 'flex-start',
       gap: 10,
       padding: '10px 0',
-      borderBottom: '1px solid var(--border-light, #f4f4f5)',
+      borderBottom: '1px solid var(--dash-border, #eef2f7)',
       opacity: isRead ? 0.6 : 1
     }}>
       <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md, 7px)', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -78,10 +78,15 @@ const NotificationsFeed = ({
 
   return (
     <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
       padding: '16px 20px',
       background: 'var(--bg-primary, #fff)',
       borderRadius: 'var(--radius-xl, 16px)',
-      border: '1px solid var(--border-light, #d9e6e9)'
+      border: '1px solid var(--dash-border, #e2e8f0)',
+      boxShadow: 'var(--dash-shadow, 0 1px 3px rgba(15,23,42,0.05))',
+      overflow: 'hidden'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -102,7 +107,7 @@ const NotificationsFeed = ({
           </Button>
         </div>
       </div>
-      <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 220, overflowY: 'auto' }}>
         {notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-tertiary, #a1a1aa)', fontSize: 'var(--font-size-sm)' }}>
             No recent activity

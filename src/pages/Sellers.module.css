@@ -11,20 +11,11 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Slide-down entrance animation ── */
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
+/* ── Slide-down entrance (motion removed — kept for layout hook) ── */
 .slideDown {
-  animation: slideDown 0.3s ease-out;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 /* ── Premium seller table overrides ── */
