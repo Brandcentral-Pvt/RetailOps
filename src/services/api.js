@@ -1028,7 +1028,11 @@ export const asinApi = {
   },
 
   getStats: async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '' && val !== 'undefined') acc[key] = val;
+      return acc;
+    }, {});
+    const query = new URLSearchParams(cleanParams).toString();
     const res = await fetch(`${API_BASE}/asins/stats?${query}`, {
       headers: { ...getAuthHeader() }
     });
@@ -1499,7 +1503,6 @@ export const bulkApi = {
 const api = {
   get: async (endpoint, params = {}) => {
     const authHeader = getAuthHeader();
-    console.log('[API GET]', endpoint, 'Auth:', Object.keys(authHeader).length > 0 ? 'Token present' : 'NO TOKEN');
     const query = new URLSearchParams(params).toString();
     const url = `${API_BASE}${endpoint}${query ? `?${query}` : ''}`;
     const res = await fetch(url, { headers: authHeader });

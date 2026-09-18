@@ -4,7 +4,8 @@ import {
   ChevronDown, ChevronRight, ChevronLeft,
   Eye, Package, TrendingUp, TrendingDown, Activity,
   BarChart3, Target, RefreshCw, Eye as EyeIcon,
-  FileBarChart, Layers, TrendingUp as TrendUpIcon
+  FileBarChart, Layers, TrendingUp as TrendUpIcon,
+  ChevronUp
 } from 'lucide-react';
 
 const { Text } = Typography;
