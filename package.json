@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@cometchat/calls-sdk-javascript": "^5.0.0",
-    "@cometchat/chat-sdk-javascript": "^4.1.9",
+    "@cometchat/chat-sdk-javascript": "^4.2.0",
     "@cometchat/chat-uikit-react": "^6.4.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -24,9 +24,9 @@
     "@mui/x-charts": "^9.13.0",
     "@mui/x-data-grid": "^9.13.0",
     "@pusher/push-notifications-web": "^1.1.0",
-    "@syncfusion/ej2-react-dropdowns": "^33.2.7",
+    "@syncfusion/ej2-react-dropdowns": "^34.2.8",
     "@tabler/icons-react": "^3.44.0",
-    "@tanstack/react-query": "^5.100.11",
+    "@tanstack/react-query": "^5.102.8",
     "@types/dompurify": "^3.0.5",
     "@untitledui/icons": "^0.0.22",
     "@vercel/analytics": "^2.0.1",
@@ -40,7 +40,7 @@
     "cors": "^2.8.6",
     "cursor": "^0.1.5",
     "date-fns": "^4.4.0",
-    "dayjs": "^1.11.21",
+    "dayjs": "^1.11.23",
     "dompurify": "^3.4.8",
     "express": "^5.2.1",
     "framer-motion": "^13.3.0",
@@ -67,7 +67,7 @@
     "superagent": "^10.3.0",
     "tailwind-merge": "^3.7.0",
     "xlsx": "^0.18.5",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -82,7 +82,7 @@
     "eslint": "^10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
+    "globals": "^17.12.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
