@@ -125,13 +125,22 @@ Configure with the existing provider keys (`NVIDIA_NIM_API_KEY`, `PERPLEXITY_API
 
 ---
 
-## 8. Live review checklist (against the real database)
+## 8. Deploy notes
+
+1. **Run the permission seeder once** — `POST /api/roles/seed` (needs `roles_edit`, i.e. an admin session, or the Roles page action). It inserts the new `adsreport_import` permission and re-applies the role permission sets. Until it runs, the Import button is hidden for everyone and `POST /api/upload/upload-ads` answers 403 (`admin`/`operational_manager` are the only roles that receive it).
+2. **Optional:** grant `adsreport_view` to `brand_manager` / `catalog_manager` / `listing_team` if those teams should see ads. This upgrade deliberately left the role allow-lists untouched; the data is now safe to expose because reads are seller-scoped, but the decision is yours to make in Roles.
+3. **AI keys** — the Analyst button needs `NVIDIA_NIM_API_KEY` or `PERPLEXITY_API_KEY` (NVIDIA is tried first). Without either, the endpoint returns `502 ai_unavailable` and the page keeps showing the rule findings. Optional: `ADS_AI_TIMEOUT_MS` (default 45000).
+4. **No migration needed** — no schema change. The export directory honours `ADS_EXPORTS_DIR` if you mount a volume.
+
+---
+
+## 9. Live review checklist (against the real database)
 
 1. `/ads-manager` loads with the global date range; KPI numbers equal the previous Ads Manager for the same window, and now equal the Report tab for the same window.
 2. Change seller/brand/category/daily-monthly/flags/search → the network tab shows one `/api/ads/*` request per change, and every request carries `sellerId` (for scoped users) and `reportType`.
 3. Paginate to page 5+ and sort by ACoS/TACoS → instant, no full-dataset fetch; footer totals stay constant across pages.
 4. As a brand-manager account, open the module → only assigned sellers appear; append `&sellerId=<someone else>` to an `/api/ads/overview` request → **403 `forbidden_seller`**.
 5. Export → the file now appears in your downloads, matches the on-screen window and report type, and includes organic/ACoS/TACoS columns.
-6. Try `GET /api/data/ads-manager?sellerId=<other seller>` with a scoped account → this legacy route is *not* scoped; retire it (two-line change in `dataRoutes.js`) once the new module is confirmed in production.
+6. Try `GET /api/data/ads-manager?sellerId=<other seller>` with a scoped account → **403 `forbidden_seller`** (the legacy route is scoped too now); retire it once nothing external calls it.
 7. Press **Generate AI review** on the Analyst tab → a narrative appears with quoted figures; pull the network cable / unset the AI key and press it again → the rules remain and the banner explains the AI failure.
 8. Upload a daily workbook as a scoped user including an ASIN owned by another seller → 403 with the resolved seller named.
