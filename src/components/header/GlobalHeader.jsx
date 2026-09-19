@@ -1,4 +1,6 @@
 import React from 'react';
+import { Menu } from 'lucide-react';
+import { useSidebar } from '../../contexts/SidebarContext';
 import HeaderBrand from './HeaderBrand';
 import SearchTrigger from './SearchTrigger';
 import DownloadDrawer from './DownloadDrawer';
@@ -10,9 +12,22 @@ import UserMenu from './UserMenu';
 import '../../styles/header.css';
 
 const GlobalHeader = () => {
+  const { toggleMobile, isMobile, isOpen } = useSidebar();
+
   return (
     <>
       <header className="global-header">
+        <button
+          type="button"
+          className="header-mobile-toggle"
+          onClick={toggleMobile}
+          aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={isOpen}
+          aria-controls="sidebar"
+        >
+          <Menu size={20} aria-hidden="true" />
+        </button>
+
         <HeaderBrand />
 
         <SearchTrigger />
