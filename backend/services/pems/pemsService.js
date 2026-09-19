@@ -1,6 +1,7 @@
 const { sql, getPool, generateId, withTransaction } = require('../../database/db');
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
 const { canActOnTask } = require('./pemsPolicy');
+const { isGlobalUserRole } = require('../../utils/roleUtils');
 const eventBus = require('../eventBus');
 const eventStore = require('./eventStore');
 const logger = require('../../utils/logger');
@@ -263,14 +264,57 @@ async function createInstance(data) {
   });
 }
 
-async function getInstances(filters = {}) {
+async function getInstances(filters = {}, requester = null) {
   const pool = await getPool();
   let where = 'WHERE 1=1';
   const req = pool.request();
 
   if (filters.status && filters.status.includes(',')) { where += " AND ',' + @status + ',' LIKE '%,' + i.Status + ',%'"; req.input('status', sql.VarChar, filters.status); }
   else if (filters.status) { where += ' AND i.Status = @status'; req.input('status', sql.VarChar, filters.status); }
-  if (filters.sellerId) { where += ' AND i.SellerId = @sellerId'; req.input('sellerId', sql.VarChar, filters.sellerId); }
+
+  // ✅ Seller-scope enforcement: restricted (non-global) users may only list
+  // instances within their assigned sellers. An explicitly requested sellerId
+  // outside that scope yields an empty set, never another seller's data.
+  // NOTE: params are collected (not bound here) because the WHERE fragment is
+  // shared by BOTH the count and the data queries, which each use their own
+  // request object — binding on a single request caused
+  // "Must declare the scalar variable" errors (and would leak scope on the
+  // other). Bind order matters: applyFilterInputs runs first, scope params
+  // are re-applied right after on each request.
+  const requestedSellerIds = filters.sellerId && filters.sellerId !== 'all'
+    ? String(filters.sellerId).split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+  const requesterRole = requester?.role?.name || requester?.role || '';
+  // No requester (internal jobs) → no scope applied; the HTTP controller
+  // always passes req.user, which is what the scoping below protects.
+  const sellerScope = { clause: '', params: [] };
+  const bindSellerEquality = (value) => {
+    // applyFilterInputs already declares @sellerId from raw filters; re-input
+    // with the (validated) value to keep one code path.
+    sellerScope.params.push(['sellerId', value]);
+    sellerScope.clause = ' AND i.SellerId = @sellerId';
+  };
+  const bindSellerInList = (values) => {
+    sellerScope.params.push(...values.map((v, idx) => [`scopeSeller_${idx}`, v]));
+    const placeholders = values.map((_v, idx) => `@scopeSeller_${idx}`).join(',');
+    sellerScope.clause = ` AND i.SellerId IN (${placeholders})`;
+  };
+
+  if (!requester || isGlobalUserRole(requesterRole)) {
+    if (requestedSellerIds.length === 1) bindSellerEquality(requestedSellerIds[0]);
+    else if (requestedSellerIds.length > 1) bindSellerInList(requestedSellerIds);
+  } else {
+    const allowed = (requester?.assignedSellers || [])
+      .map(s => (typeof s === 'string' ? s : s?._id || s?.Id || s)?.toString())
+      .filter(Boolean);
+    const effective = requestedSellerIds.length > 0
+      ? requestedSellerIds.filter(id => allowed.includes(id))
+      : allowed;
+    if (effective.length === 1) bindSellerEquality(effective[0]);
+    else if (effective.length > 1) bindSellerInList(effective);
+    else sellerScope.clause = ' AND 1=0';
+  }
+  where += sellerScope.clause;
   if (filters.assignedTo) { where += ' AND i.AssignedTo = @assignedTo'; req.input('assignedTo', sql.VarChar, filters.assignedTo); }
   if (filters.reviewerId) { where += ' AND i.ReviewerId = @reviewerId'; req.input('reviewerId', sql.VarChar, filters.reviewerId); }
   if (filters.priority) { where += ' AND i.Priority = @priority'; req.input('priority', sql.VarChar, filters.priority); }
@@ -293,6 +337,7 @@ async function getInstances(filters = {}) {
 
   const countReq = pool.request();
   applyFilterInputs(countReq, filters);
+  sellerScope.params.forEach(([n, v]) => countReq.input(n, sql.VarChar, v));
   if (filters.dueBefore) countReq.input('dueBefore', sql.DateTime2, new Date(filters.dueBefore));
   if (filters.dueAfter) countReq.input('dueAfter', sql.DateTime2, new Date(filters.dueAfter));
   const countResult = await countReq.query(`SELECT COUNT(*) as total FROM PemsTaskInstances i ${where}`);
@@ -300,6 +345,7 @@ async function getInstances(filters = {}) {
 
   const dataReq = pool.request();
   applyFilterInputs(dataReq, filters);
+  sellerScope.params.forEach(([n, v]) => dataReq.input(n, sql.VarChar, v));
   if (filters.dueBefore) dataReq.input('dueBefore', sql.DateTime2, new Date(filters.dueBefore));
   if (filters.dueAfter) dataReq.input('dueAfter', sql.DateTime2, new Date(filters.dueAfter));
   dataReq.input('offset', sql.Int, offset);

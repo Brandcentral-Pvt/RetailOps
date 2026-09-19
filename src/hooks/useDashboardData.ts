@@ -9,6 +9,7 @@ import { useDateRange } from '../contexts/DateRangeContext';
 import { useDashboardOrchestration } from './useDashboardOrchestration';
 import { useTargetPermissions } from './useTargetPermissions';
 import { useSocket } from '../contexts/SocketContext';
+import { computeBlendedAchievement, targetAchievementPct } from '../utils/targetMetrics';
 
 export interface DashboardFilters {
     sellerId: string;
@@ -78,8 +79,17 @@ export function useDashboardData(filters: DashboardFilters) {
         if (mgr) {
             return String(target?.BrandManager || '').toLowerCase() === String(mgr.name || '').toLowerCase();
         }
-        return String(target?.BrandManager || '') === String(managerId);
+        return String(target?.BrandManager || '').toLowerCase() === String(managerId).toLowerCase();
     }, [managers]);
+
+    // ✅ Seller filters may be a comma-separated id list (manager → seller
+    // resolution produces lists) — compare against every id, not the raw string.
+    const matchesSellerFilter = useCallback((target: any, sellerId: string) => {
+        if (!sellerId || sellerId === 'all') return true;
+        const ids = String(sellerId).split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (ids.length === 0) return true;
+        return ids.includes(String(target?.SellerId ?? ''));
+    }, []);
 
     // Use existing orchestration hook
     const orch = useDashboardOrchestration({
@@ -164,31 +174,85 @@ export function useDashboardData(filters: DashboardFilters) {
         return () => { cancelled = true; };
     }, [orch.targets]);
 
-    // Load optimization tasks with React Query caching
+    // Load tasks from the PEMS workspace (/pems/tasks) — the single task
+    // source the task workspace itself uses, so the dashboard's task counts
+    // always match what users see when they click through.
+    // ✅ Source-consistency fix: the dashboard previously read the `Tasks`
+    // table while the workspace renders PemsTaskInstances.
     const tasksQuery = useQuery({
-        queryKey: ['tasks', 'optimization', filters.sellerId],
+        queryKey: ['tasks', 'pems-instances', filters.sellerId],
         queryFn: async () => {
-            const params: any = {};
+            const params: any = { limit: 200 };
             if (filters.sellerId && filters.sellerId !== 'all') {
                 params.sellerId = filters.sellerId;
             }
-            const r = await apiClient.get('/tasks', { params });
-            const tasks = (r as any).data?.data?.tasks || (r as any).data?.tasks || (r as any).data?.data || [];
-            return Array.isArray(tasks) ? tasks : [];
+            const r = await apiClient.get('/pems/instances', { params });
+            const body: any = (r as any).data ?? r ?? {};
+            const list = body?.data?.instances ?? body?.instances ?? body?.data ?? [];
+            if (!Array.isArray(list)) return [];
+
+            // Normalize the PEMS instance contract (PascalCase + workflow
+            // statuses) to the dashboard's task shape. Status mapping keeps
+            // the card labels truthful: ASSIGNED (not yet started) -> PENDING,
+            // DRAFT -> TODO, REVIEW -> IN_REVIEW, APPROVED -> COMPLETED.
+            const STATUS_MAP: Record<string, string> = {
+                DRAFT: 'TODO',
+                TODO: 'TODO',
+                ASSIGNED: 'PENDING',
+                ACCEPTED: 'IN_PROGRESS',
+                IN_PROGRESS: 'IN_PROGRESS',
+                REVIEW: 'IN_REVIEW',
+                IN_REVIEW: 'IN_REVIEW',
+                COMPLETED: 'COMPLETED',
+                APPROVED: 'COMPLETED',
+                CANCELLED: 'CANCELLED',
+                REJECTED: 'CANCELLED',
+            };
+            return list.map((inst: any) => {
+                const rawStatus = String(inst.Status || inst.status || '').toUpperCase();
+                return {
+                    id: inst.Id || inst.id,
+                    title: inst.Title || inst.title || 'Untitled task',
+                    status: STATUS_MAP[rawStatus] || rawStatus || 'TODO',
+                    rawStatus,
+                    priority: inst.Priority || inst.priority || 'MEDIUM',
+                    category: inst.TemplateCategory || inst.Category || inst.category || 'General',
+                    sellerId: inst.SellerId || inst.sellerId,
+                    sellerName: inst.SellerName || inst.sellerName,
+                    assignedTo: inst.AssignedTo || inst.assignedTo,
+                    assigneeName: inst.AssignedToName || inst.assigneeName || null,
+                    dueDate: inst.DueDate || inst.dueDate || null,
+                    createdAt: inst.CreatedAt || inst.createdAt,
+                    slaStatus: inst.SLAStatus || null,
+                    source: 'pems',
+                };
+            });
         },
-        staleTime: 2 * 60_000,
+        staleTime: 60_000,
         gcTime: 5 * 60_000,
         refetchOnWindowFocus: false,
     });
 
     const optimizationTasks = tasksQuery.data ?? [];
+    // ✅ Explicit task-section state so the dashboard can render an
+    // unavailable state instead of a silent zero count.
+    const tasksLoading = tasksQuery.isLoading;
+    const tasksError = tasksQuery.isError
+        ? ((tasksQuery.error as any)?.message ?? 'Tasks failed to load')
+        : null;
 
     // Load activity logs
+    // ✅ Envelope fix: /logs returns { success, data: [...] } but this hook
+    // checked Array.isArray on the whole payload, so activity logs NEVER
+    // rendered. Unwrap the envelope and tolerate both shapes.
     const loadLogs = useCallback(async () => {
         try {
-            const data = await db.getSystemLogs();
-            if (Array.isArray(data)) {
-                setActivityLogs(data.slice(0, 10));
+            const res: any = await db.getSystemLogs();
+            const payload = Array.isArray(res)
+                ? res
+                : res?.data ?? res?.logs ?? [];
+            if (Array.isArray(payload)) {
+                setActivityLogs(payload.slice(0, 10));
             }
         } catch (err) {
             console.error('Failed to load logs:', err);
@@ -271,15 +335,19 @@ export function useDashboardData(filters: DashboardFilters) {
         let completed = 0;
 
         filteredTargets.forEach((t: any) => {
-            totalTarget += (t.TotalTargetValue || 0);
-            totalAchieved += (t.overallAchieved || 0);
-            const pct = t.TotalTargetValue > 0 
-                ? (t.overallAchieved / t.TotalTargetValue) * 100 
-                : 0;
+            // ✅ Goal-separation: inverted math for lower-is-better (ACoS)
+            // goals; currency goals classified by their own ratio.
+            const pct = targetAchievementPct(t);
             if (pct >= 100) completed++;
             else if (pct >= 50) onTrack++;
             else atRisk++;
         });
+
+        // ✅ Blended rate: currency goals (GMS/ADS) summed; ratio goals no
+        // longer pollute the combined percentage.
+        const blended = computeBlendedAchievement(filteredTargets);
+        totalTarget = blended.totalTarget;
+        totalAchieved = blended.totalAchieved;
 
         // Ads stats from dashboard raw
         const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
@@ -288,10 +356,10 @@ export function useDashboardData(filters: DashboardFilters) {
         const totalAdSales = adSalesData.reduce((a: number, b: number) => a + b, 0);
         const totalAdSpend = adSpendData.reduce((a: number, b: number) => a + b, 0);
 
-        // Get sellerIds for selected manager
+        // Get sellerIds for selected manager (match UserId OR BrandManager name)
         const managerSellers = new Set(
             targetsList
-                .filter((t: any) => t.BrandManager === filters.managerId)
+                .filter((t: any) => matchesManagerFilter(t, filters.managerId))
                 .map((t: any) => t.SellerId)
         );
 
@@ -300,23 +368,17 @@ export function useDashboardData(filters: DashboardFilters) {
         if (filters.managerId && filters.managerId !== 'all') {
             tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
         }
-        const taskCompleted = tasks.filter((t: any) => 
-            t.status === 'COMPLETED' || t.status === 'completed'
-        ).length;
-        const taskPending = tasks.filter((t: any) => 
-            t.status === 'PENDING' || t.status === 'pending'
-        ).length;
+        // Statuses arrive normalized from the PEMS instances mapping above.
+        const isStatus = (t: any, ...names: string[]) => names.includes(String(t.status || '').toUpperCase());
+        const taskCompleted = tasks.filter((t: any) => isStatus(t, 'COMPLETED')).length;
+        const taskPending = tasks.filter((t: any) => isStatus(t, 'PENDING')).length;
         const taskOverdue = tasks.filter((t: any) => {
-            if (t.status === 'COMPLETED' || t.status === 'completed') return false;
+            if (isStatus(t, 'COMPLETED', 'CANCELLED')) return false;
             if (t.dueDate) return new Date(t.dueDate) < new Date();
             return false;
         }).length;
-        const taskInProgress = tasks.filter((t: any) => 
-            t.status === 'IN_PROGRESS' || t.status === 'in_progress'
-        ).length;
-        const taskTodo = tasks.filter((t: any) => 
-            t.status === 'TODO' || t.status === 'todo'
-        ).length;
+        const taskInProgress = tasks.filter((t: any) => isStatus(t, 'IN_PROGRESS')).length;
+        const taskTodo = tasks.filter((t: any) => isStatus(t, 'TODO')).length;
 
         // Pipeline stats
         let finalScrapeTasks = scrapeTasks;
@@ -363,7 +425,7 @@ export function useDashboardData(filters: DashboardFilters) {
                 onTrack,
                 atRisk,
                 completed,
-                rate: totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0,
+                rate: blended.rate,
             },
             asins: {
                 total: orch.dashboardRaw?.stats?.totalAsins || 0,
@@ -424,13 +486,13 @@ export function useDashboardData(filters: DashboardFilters) {
     const filteredScrapeTasks = useMemo(() => {
         let tasks = scrapeTasks;
         if (filters.sellerId && filters.sellerId !== 'all') {
-            tasks = tasks.filter((t: any) => t.sellerId === filters.sellerId);
+            tasks = tasks.filter((t: any) => matchesSellerFilter(t, filters.sellerId));
         }
         if (filters.managerId && filters.managerId !== 'all') {
             tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
         }
         return tasks;
-    }, [scrapeTasks, managerSellers, filters.sellerId, filters.managerId]);
+    }, [scrapeTasks, managerSellers, filters.sellerId, filters.managerId, matchesSellerFilter]);
 
     const filteredActivityLogs = useMemo(() => {
         let logs = activityLogs;
@@ -476,9 +538,13 @@ export function useDashboardData(filters: DashboardFilters) {
         // Loading
         loading: orch.isLoadingKpis,
         isHydrated: orch.isHydrated,
+        tasksLoading,
+        tasksError,
+        sectionStatus: orch.sectionStatus,
         
         // Helpers
         matchesManagerFilter,
+        matchesSellerFilter,
         
         // Actions
         refresh: () => {

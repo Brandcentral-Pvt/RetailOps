@@ -75,7 +75,8 @@ exports.createInstance = async (req, res) => {
 
 exports.getInstances = async (req, res) => {
   try {
-    const result = await pemsService.getInstances(req.query);
+    // Requester passed through so the service can enforce seller-level scope.
+    const result = await pemsService.getInstances(req.query, req.user);
     res.json({ success: true, ...result });
   } catch (err) {
     console.error('getInstances error:', err);
