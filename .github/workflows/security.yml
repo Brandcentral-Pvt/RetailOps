@@ -1,0 +1,132 @@
+name: Scheduled Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Every Sunday at 2 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ─── Dependency Audit ────────────────────────────────────────────────
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit root dependencies
+        run: npm audit --audit-level=moderate --json > npm-audit-root.json || true
+
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: npm audit --audit-level=moderate --json > npm-audit-backend.json || true
+
+      - name: Check for vulnerabilities
+        run: |
+          CRITICAL=0
+          HIGH=0
+          MODERATE=0
+
+          for f in npm-audit-root.json backend/npm-audit-backend.json; do
+            if [ -f "$f" ]; then
+              C=$(jq '.metadata.vulnerabilities.critical // 0' "$f")
+              H=$(jq '.metadata.vulnerabilities.high // 0' "$f")
+              M=$(jq '.metadata.vulnerabilities.moderate // 0' "$f")
+              CRITICAL=$((CRITICAL + C))
+              HIGH=$((HIGH + H))
+              MODERATE=$((MODERATE + M))
+            fi
+          done
+
+          echo "Critical: $CRITICAL, High: $HIGH, Moderate: $MODERATE"
+
+          if [ $CRITICAL -gt 0 ] || [ $HIGH -gt 0 ]; then
+            echo "❌ Critical/High vulnerabilities found"
+            for f in npm-audit-root.json backend/npm-audit-backend.json; do
+              if [ -f "$f" ]; then
+                jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | {package: .key, severity: .value.severity, title: .value.title, url: .value.url}' "$f"
+              fi
+            done
+            exit 1
+          fi
+
+          echo "✅ No critical/high vulnerabilities found"
+
+  # ─── CodeQL Analysis ─────────────────────────────────────────────────
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+    strategy:
+      matrix:
+        language: [javascript, typescript]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ─── Trivy Container Scan ────────────────────────────────────────────
+  trivy:
+    name: Trivy Container Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: |
+          docker build -t retail-ops-backend:security-scan -f Dockerfile.backend --target production .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'retail-ops-backend:security-scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ─── Secret Scan ─────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
