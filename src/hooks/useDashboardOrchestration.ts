@@ -442,8 +442,30 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const targetsData2 = loader.targets ?? null;
     const topProductsData = loader.topProducts ?? null;
 
+    // ── 10b · Per-section status — drives explicit error/unavailable states ──
+    // ✅ Honest states: consumers can render "section unavailable" instead of
+    // silent zeros when a segment's query failed.
+    const sectionStatus = useMemo(() => {
+        const statusOf = (seg: DashboardSegment): 'loading' | 'ready' | 'error' => {
+            if (loader.errors?.[seg]) return 'error';
+            const sec = loader.sections.get(seg);
+            return sec && sec.snapshot !== null ? 'ready' : 'loading';
+        };
+        return {
+            kpis: statusOf(DashboardSegment.KPIS),
+            revenueSeries: statusOf(DashboardSegment.REVENUE_SERIES),
+            adsPerformance: statusOf(DashboardSegment.ADS_PERFORMANCE),
+            categories: statusOf(DashboardSegment.CATEGORIES),
+            topProducts: statusOf(DashboardSegment.TOP_PRODUCTS),
+            alerts: statusOf(DashboardSegment.ALERTS),
+            targets: statusOf(DashboardSegment.TARGETS),
+        };
+    }, [loader.sections, loader.errors]);
+
     // ── 11 · Stable return surface ─────────────────────────────────────────────
     return {
+        // Per-section load status ('loading' | 'ready' | 'error')
+        sectionStatus,
         // Section data
         kpis: kpisData,
         alerts: alertsData2,

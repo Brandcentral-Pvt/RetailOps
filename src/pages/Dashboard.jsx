@@ -9,6 +9,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
 import api, { marketSyncApi } from '../services/api';
 import DashboardErrorBoundary from '../components/dashboard/DashboardErrorBoundary';
+import SectionState from '../components/dashboard/SectionState';
 import { computeBlendedAchievement } from '../utils/targetMetrics';
 import '../components/dashboard/shared/glass.css';
 import '../components/dashboard/dashboard-animations.css';
@@ -76,7 +77,8 @@ const Dashboard = () => {
     const {
         userSellers, managers, activityLogs, scrapeTasks,
         optimizationTasks, topProducts, orch, moduleStats,
-        loading, isHydrated, refresh, matchesManagerFilter
+        loading, isHydrated, refresh, matchesManagerFilter,
+        tasksError, sectionStatus
     } = useDashboardData(filters);
 
     const [notifications, setNotifications] = useState([]);
@@ -215,7 +217,9 @@ const Dashboard = () => {
                 </DashboardErrorBoundary>
 
                 {/* Layer 3: Operations Control Center */}
-                <DashboardErrorBoundary fallbackText="KPI strip failed to load">
+                {(sectionStatus?.kpis) === 'error' ? (
+                    <SectionState title="KPI metrics unavailable" message="Ad sales, spend, orders and targets could not be loaded." onRetry={refresh} height={150} />
+                ) : (
                     <KpiStrip
                         adSales={kpiValues.adSales}
                         adSpend={kpiValues.adSpend}
@@ -228,15 +232,19 @@ const Dashboard = () => {
                         brandCount={userSellers?.length || 0}
                         sparklineData={sparklineData}
                     />
-                </DashboardErrorBoundary>
-                <DashboardErrorBoundary fallbackText="Module status failed to load">
+                )}
+                {(sectionStatus?.kpis) === 'error' ? (
+                    <SectionState title="Module status unavailable" message="Module health could not be loaded." onRetry={refresh} height={140} />
+                ) : (
                     <ModuleStatusGrid moduleStats={moduleStats} />
-                </DashboardErrorBoundary>
+                )}
 
                 {/* Layer 4: Marketplace Intelligence */}
-                <DashboardErrorBoundary fallbackText="Marketplace intelligence failed to load">
+                {(sectionStatus?.categories) === 'error' ? (
+                    <SectionState title="Marketplace mix unavailable" message="Marketplace distribution could not be loaded." onRetry={refresh} height={180} />
+                ) : (
                     <MarketplaceIntelligence marketplaces={marketplaceCategory} />
-                </DashboardErrorBoundary>
+                )}
 
                 {/* Layer 6: Live Operations + Notifications */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
@@ -267,22 +275,44 @@ const Dashboard = () => {
                 {/* Layer 7: Analytics */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={14}>
-                        <DashboardErrorBoundary fallbackText="Sales chart failed to load">
+                        {(sectionStatus?.revenueSeries) === 'error' ? (
+                            <SectionState title="Sales trend unavailable" message="Revenue and spend history could not be loaded." onRetry={refresh} height={300} />
+                        ) : (
                             <SalesTrendChart labels={salesTrendLabels} revenueData={salesTrendRevenue} spendData={salesTrendSpend} />
-                        </DashboardErrorBoundary>
+                        )}
                     </Col>
                     <Col xs={24} lg={10}>
-                        <DashboardErrorBoundary fallbackText="Achievement chart failed to load">
+                        {(sectionStatus?.targets) === 'error' ? (
+                            <SectionState title="Achievement status unavailable" message="Target achievement could not be loaded." onRetry={refresh} height={300} />
+                        ) : (
                             <AchievementDonut targets={visibleTargets} overallRate={kpiValues.achievementRate} goalType={filters.goalType} />
-                        </DashboardErrorBoundary>
+                        )}
                     </Col>
                 </Row>
 
                 {/* Layer 9: Data Cards */}
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Top ASINs failed to load"><TopAsinsCard products={topProducts || []} /></DashboardErrorBoundary></Col>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Tasks failed to load"><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></DashboardErrorBoundary></Col>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Alerts failed to load"><AlertsPipelineCard alerts={orch.alerts || []} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></DashboardErrorBoundary></Col>
+                    <Col xs={24} md={8}>
+                    {(sectionStatus?.topProducts) === 'error' ? (
+                        <SectionState title="Top ASINs unavailable" message="Product performance could not be loaded." onRetry={refresh} height={280} />
+                    ) : (
+                    <DashboardErrorBoundary fallbackText="Top ASINs failed to load"><TopAsinsCard products={topProducts || []} /></DashboardErrorBoundary>
+                    )}
+</Col>
+                    <Col xs={24} md={8}>
+                    {tasksError ? (
+                        <SectionState title="Tasks unavailable" message={tasksError} onRetry={refresh} height={280} />
+                    ) : (
+                    <DashboardErrorBoundary fallbackText="Tasks failed to load"><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></DashboardErrorBoundary>
+                    )}
+</Col>
+                    <Col xs={24} md={8}>
+                    {(sectionStatus?.alerts) === 'error' ? (
+                        <SectionState title="Alerts unavailable" message="The alert feed could not be loaded." onRetry={refresh} height={280} />
+                    ) : (
+                    <DashboardErrorBoundary fallbackText="Alerts failed to load"><AlertsPipelineCard alerts={orch.alerts || []} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></DashboardErrorBoundary>
+                    )}
+</Col>
                 </Row>
 
                 {/* Layer 8: Activity Timeline */}

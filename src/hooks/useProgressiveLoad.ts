@@ -101,6 +101,13 @@ export function useProgressiveLoad(
         const minMs   = def.minMs ?? 400;
         const updated = opts?.updated ?? false;
 
+        // ✅ Recovery fix: a successful receive must clear the section's
+        // previous error — otherwise a section that failed once stayed
+        // 'error' forever (banner + error states persisted even after a
+        // successful retry refetch). Guarded write: same-state returns prev,
+        // so no extra renders when there was no error.
+        setErrors((prev) => (prev[key] != null ? { ...prev, [key]: null } : prev));
+
         setSections((prev) => {
             const existing = prev.get(key);
             

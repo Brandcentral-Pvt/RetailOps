@@ -234,6 +234,12 @@ export function useDashboardData(filters: DashboardFilters) {
     });
 
     const optimizationTasks = tasksQuery.data ?? [];
+    // ✅ Explicit task-section state so the dashboard can render an
+    // unavailable state instead of a silent zero count.
+    const tasksLoading = tasksQuery.isLoading;
+    const tasksError = tasksQuery.isError
+        ? ((tasksQuery.error as any)?.message ?? 'Tasks failed to load')
+        : null;
 
     // Load activity logs
     // ✅ Envelope fix: /logs returns { success, data: [...] } but this hook
@@ -532,6 +538,9 @@ export function useDashboardData(filters: DashboardFilters) {
         // Loading
         loading: orch.isLoadingKpis,
         isHydrated: orch.isHydrated,
+        tasksLoading,
+        tasksError,
+        sectionStatus: orch.sectionStatus,
         
         // Helpers
         matchesManagerFilter,
