@@ -187,10 +187,9 @@ const scraperRoutes = require('./routes/scraperRoutes');
 app.use(require('./middleware/maintenanceMode'));
 
 app.use('/api', dataRoutes);
-// ✅ Route precedence fix: taskRoutes MUST be mounted before the wildcard
-// growthExecutionRoutes below. growthExecutionRoutes also serves GET /tasks,
-// and being mounted at /api first it shadowed GET /api/tasks — the dashboard
-// received legacy Actions-table stub data instead of real Tasks.
+// ✅ Route precedence fix: taskRoutes is the SINGLE owner of /api/tasks.
+// It must be mounted before the wildcard /api routers below; the duplicate
+// GET /tasks route was removed from growthExecutionRoutes entirely.
 app.use('/api/tasks', taskRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', alertsRoutes);
