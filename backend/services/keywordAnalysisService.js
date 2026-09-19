@@ -2,19 +2,59 @@ const nvidiaAiService = require('./nvidiaAiService');
 const keywordResearchService = require('./keywordResearchService');
 
 class KeywordAnalysisService {
+    /**
+     * Fetch the seed keyword's products and hand them to the LLM.
+     *
+     * The LLM call itself is unchanged (same model, prompt, fallback). What is
+     * new is the surrounding contract: the caller may pass the same filters the
+     * research tab uses, and the full extracted items are returned alongside
+     * the reduced `products` payload so the controller can add deterministic
+     * market analytics and catalog flags without a second upstream call.
+     */
     async analyze(params) {
-        const { keyword, itemCount = 10 } = params;
+        const {
+            keyword,
+            itemCount = 10,
+            searchIndex,
+            brand,
+            minPrice,
+            maxPrice,
+            minReviewsRating,
+            minSavingPercent,
+            availability,
+            condition,
+            sortBy = 'Featured',
+            marketplace,
+            cache = true,
+        } = params;
         if (!keyword || !keyword.trim()) throw new Error('Keyword is required');
 
         const searchResult = await keywordResearchService.searchItems({
             keywords: keyword,
             itemCount: Math.min(itemCount, 20),
-            sortBy: 'Featured',
+            sortBy,
+            searchIndex,
+            brand,
+            minPrice,
+            maxPrice,
+            minReviewsRating,
+            minSavingPercent,
+            availability,
+            condition,
+            marketplace,
+            cache,
         });
 
         const products = searchResult.items || [];
         if (products.length === 0) {
-            return { keyword, products: [], analysis: null, message: 'No products found for analysis' };
+            return {
+                keyword,
+                products: [],
+                items: [],
+                analysis: null,
+                cached: !!searchResult.cached,
+                message: 'No products found for analysis',
+            };
         }
 
         const productData = products.map(p => ({
@@ -32,7 +72,14 @@ class KeywordAnalysisService {
 
         const analysis = await this._runAIKeywordAnalysis(keyword, productData);
 
-        return { keyword, products: productData, analysis };
+        return {
+            keyword,
+            products: productData,
+            items: products,
+            analysis,
+            cached: !!searchResult.cached,
+            source: analysis?.source || 'llm',
+        };
     }
 
     async _runAIKeywordAnalysis(seedKeyword, products) {
@@ -107,7 +154,7 @@ Rules:
 
         try {
             const cleaned = content.replace(/```json\n?|```/g, '').trim();
-            return JSON.parse(cleaned);
+            return { ...JSON.parse(cleaned), source: 'llm' };
         } catch {
             console.error('[KW Analysis] Failed to parse AI response:', content.substring(0, 300));
             return this._fallbackAnalysis(seedKeyword, products);
@@ -123,6 +170,7 @@ Rules:
         const topWords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([w]) => w);
 
         return {
+            source: 'fallback',
             suggestedKeywords: topWords.map((w, i) => ({
                 keyword: w,
                 type: i < 5 ? 'body' : 'long-tail',
