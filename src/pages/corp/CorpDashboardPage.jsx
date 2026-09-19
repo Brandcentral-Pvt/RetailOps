@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../../contexts/PageTitleContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
+import { computeBlendedAchievement, targetAchievementPct } from '../../utils/targetMetrics';
 import api from '../../services/api';
 import { Spinner } from '../../components/Spinner';
+import { Alert } from 'antd';
 import {
   CorpCard, CorpMetric, CorpChip, CorpMeter, CorpEmpty, CorpSel, CorpStat, Sparkline,
 } from '../../components/corp/primitives';
@@ -707,7 +709,10 @@ const CorpDashboardPage = () => {
   useEffect(() => {
     api.notificationApi.getNotifications({ page: 1, limit: 20 })
       .then((res) => {
-        const data = res?.data?.data?.notifications || res?.data?.data || [];
+        // ✅ Envelope-tolerant unwrap (same as Dashboard): the notifications
+        // API returns { success, data: [...] }.
+        const body = res?.data ?? res ?? {};
+        const data = body?.data?.notifications ?? body?.notifications ?? body?.data ?? [];
         setNotifications(Array.isArray(data) ? data : []);
       })
       .catch(() => {});
@@ -720,23 +725,27 @@ const CorpDashboardPage = () => {
     const orders = orch.dashboardRaw?.kpi?.[0]?.trend || 0;
     const acos = adSales > 0 ? (adSpend / adSales) * 100 : 0;
     const unitsSeries = orch.dashboardRaw?.unitsSeries || [];
-    const units = unitsSeries.reduce((a, b) => a + b, 0) || Math.round(orders * 1.48);
+    // ✅ Actual orders — the unlabeled orders × 1.48 estimate is gone.
+    const units = unitsSeries.reduce((a, b) => a + b, 0) || orders;
 
     const targetsList = orch.targets || [];
-    let totalTarget = 0, totalAchieved = 0;
+    let totalTarget, totalAchieved;
     let completed = 0, atRisk = 0;
     let filteredTargets = targetsList;
     if (filters.sellerId !== 'all') filteredTargets = filteredTargets.filter((t) => t.SellerId === filters.sellerId);
     if (filters.managerId !== 'all') filteredTargets = filteredTargets.filter((t) => matchesManagerFilter(t, filters.managerId));
     if (filters.goalType !== 'all') filteredTargets = filteredTargets.filter((t) => (t.GoalType || 'GMS').toUpperCase() === filters.goalType);
     filteredTargets.forEach((t) => {
-      totalTarget += t.TotalTargetValue || 0;
-      totalAchieved += t.overallAchieved || 0;
-      const pct = t.TotalTargetValue > 0 ? (t.overallAchieved / t.TotalTargetValue) * 100 : 0;
+      // ✅ Goal separation: per-target inverted math for lower-is-better
+      // (ACoS) goals; blended rate sums currency goals only.
+      const pct = targetAchievementPct(t);
       if (pct >= 100) completed++;
       else if (pct < 50) atRisk++;
     });
-    const achievementRate = totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
+    const blended = computeBlendedAchievement(filteredTargets);
+    totalTarget = blended.totalTarget;
+    totalAchieved = blended.totalAchieved;
+    const achievementRate = blended.rate;
 
     return {
       adSales, adSpend, orders, acos, units,
@@ -775,10 +784,28 @@ const CorpDashboardPage = () => {
 
   const hasTargets = kpiValues.targetTotal > 0;
   const runningPipelines = scrapeTasks?.filter((t) => t.status === 'RUNNING')?.length || 0;
-  const pendingTasks = optimizationTasks?.filter((t) => t.status === 'pending')?.length || 0;
+  const pendingTasks = optimizationTasks?.filter((t) => String(t.status || '').toUpperCase() === 'PENDING')?.length || 0;
   const criticalAlerts = moduleStats?.alerts?.critical || activityLogs?.filter((a) => !a.AcknowledgedAt)?.length || 0;
 
+  // ✅ Explicit errors: surface failed sections instead of silent zeros.
+  // (Hooks must run before any early return.)
+  const orchErrors = useMemo(
+    () => Object.entries(orch.errors || {}).filter(([, v]) => !!v),
+    [orch.errors]
+  );
+
   if (loading && !isHydrated) return <Spinner tip="Loading your dashboard data..." minHeight={400} />;
+
+  // ✅ Explicit errors: surface failed sections instead of silent zeros.
+  const errorBanner = orchErrors.length > 0 ? (
+    <Alert
+      type="error"
+      showIcon
+      style={{ marginBottom: 16 }}
+      message="Some dashboard sections failed to load"
+      description={`${orchErrors.map(([section, msg]) => `${section}: ${msg}`).join(' \u00b7 ')} — use Sync to retry.`}
+    />
+  ) : null;
 
   const metrics = [
     {
@@ -821,6 +848,7 @@ const CorpDashboardPage = () => {
 
   return (
     <div className="corp-content-inner">
+      {errorBanner}
       {/* Page head + filters */}
       <div className="corp-page-head">
         <div>

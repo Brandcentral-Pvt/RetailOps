@@ -81,7 +81,7 @@ const PROGRESSIVE_DEFINITIONS = Object.fromEntries(
 
 export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const {
-        pollIntervalSeconds: pollInt = 0,
+        pollIntervalSeconds: pollInt = 60, // ✅ default polling ON (60s) — dashboard was static before
         sseEndpoint,
         sseSilenceThresholdSeconds: sseSilence = 15,
         defaultRetryAttempts: rawRetries = 3,
@@ -122,13 +122,17 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const loader = useProgressiveLoad(PROGRESSIVE_DEFINITIONS);
 
     // ── 3 · Fetch targets first — needed to resolve manager → seller mapping ──
+    // ✅ Filter-consistency fix: key includes BOTH sellerId and managerId, and
+    // brandManager is forwarded so the backend can filter server-side too.
     const targetsQuery = useQuery({
-        queryKey: [...QK_TARGETS, sellerId],
+        queryKey: [...QK_TARGETS, sellerId ?? 'all', managerId ?? 'all'],
         queryFn: async () => {
-            const r = await apiClient.get('/targets', { params: { sellerId } });
+            const r = await apiClient.get('/targets', {
+                params: { sellerId, brandManager: managerId }
+            });
             return (r as any).data?.data ?? (r as any).data;
         },
-        staleTime: 4 * 60_000,
+        staleTime: 60_000,
         gcTime: 8 * 60_000,
         placeholderData: keepPreviousData,
         refetchOnWindowFocus: false,
@@ -138,20 +142,28 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     });
 
     // ── 3b · Resolve effective seller IDs from seller + manager filters ────
+    // ✅ Manager matching now accepts BOTH the manager's UserId and their
+    // display name (the managers dropdown can carry either as its id).
+    const managerMatchesTarget = useCallback((t: any, mgrId?: string) => {
+        if (!mgrId || mgrId === 'all') return true;
+        if (String(t?.UserId ?? '') === String(mgrId)) return true;
+        return String(t?.BrandManager ?? '').toLowerCase() === String(mgrId).toLowerCase();
+    }, []);
+
     const effectiveSellerId = useMemo(() => {
         if (sellerId && sellerId !== 'all') return sellerId;
         if (managerId && managerId !== 'all') {
             const targetsData = targetsQuery.data ?? [];
             const ids = Array.from(new Set(
                 targetsData
-                    .filter((t: any) => t.BrandManager === managerId)
+                    .filter((t: any) => managerMatchesTarget(t, managerId))
                     .map((t: any) => t.SellerId)
                     .filter(Boolean)
             ));
             return ids.length > 0 ? ids.join(',') : undefined;
         }
         return undefined;
-    }, [sellerId, managerId, targetsQuery.data]);
+    }, [sellerId, managerId, targetsQuery.data, managerMatchesTarget]);
 
     // ── 4 · React Query — dashboard (includes resolved seller IDs in key) ───
     // ✅ Fix 1: REMOVED withRetry — React Query handles retries natively.
@@ -164,13 +176,16 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
             });
             return (r as any).data;
         },
-        staleTime: 5 * 60_000,
+        // ✅ Freshness fix: 5-minute staleTime left stale KPIs on long-lived
+        // tabs. 60s staleTime + 60s polling (below) keeps the dashboard live.
+        staleTime: 60_000,
         gcTime: 10 * 60_000,
         placeholderData: keepPreviousData,
         refetchOnWindowFocus: false,
         refetchOnReconnect: true,
         retry: retries,
         retryDelay: dashboardBackoff,
+        refetchInterval: pollInt > 0 ? pollInt * 1_000 : false,
     });
 
     // ✅ Fix 3: alerts query key includes filter params
@@ -362,17 +377,14 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     );
 
     const forceRefresh = useCallback(async () => {
-        // ✅ Fix 5: reset loader AFTER invalidation completes, not before
-        // Previously called loader.reset() then immediately invalidated
-        // causing race where skeleton resets mid-fetch
-        setDashboardRawRef.current = null;
-
+        // ✅ Race fix: previously called loader.reset() BEFORE refetching,
+        // throwing every section back to skeleton mid-fetch (flash + sections
+        // stuck unresolved if a refetch failed). Now we only invalidate and
+        // refetch — React Query keeps showing current data until fresh data
+        // lands, and the progressive loader updates in place.
         await qc.invalidateQueries({ type: 'active' } as any);
-        await qc.refetchQueries({ queryKey: QK_DASHBOARD as unknown as QueryKey });
-
-        // Reset loader skeleton only after refetch is initiated
-        loader.reset();
-    }, [loader, qc]);
+        await qc.refetchQueries({ type: 'active' } as any);
+    }, [qc]);
 
     // ✅ Fix 2 + Fix 14: correct mutation call signature + real async wait
     const updateAsinTag = useCallback(
@@ -423,7 +435,6 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     // ── 10 · dashboardRaw — derived from query cache, never stale ────────────
     // ✅ Fix 6: replaced useState/setDashboardRaw with direct reference to
     // dashboardQuery.data — always in sync with React Query cache, zero lag
-    const setDashboardRawRef = useRef<any>(null); // used only by forceRefresh reset
 
     // ✅ Fix 12: removed `as any ?? null` pattern — use proper null-safe access
     const kpisData = loader.kpis ?? null;
@@ -431,8 +442,30 @@ export function useDashboardOrchestration(cfg: OrchestrationConfig = {}) {
     const targetsData2 = loader.targets ?? null;
     const topProductsData = loader.topProducts ?? null;
 
+    // ── 10b · Per-section status — drives explicit error/unavailable states ──
+    // ✅ Honest states: consumers can render "section unavailable" instead of
+    // silent zeros when a segment's query failed.
+    const sectionStatus = useMemo(() => {
+        const statusOf = (seg: DashboardSegment): 'loading' | 'ready' | 'error' => {
+            if (loader.errors?.[seg]) return 'error';
+            const sec = loader.sections.get(seg);
+            return sec && sec.snapshot !== null ? 'ready' : 'loading';
+        };
+        return {
+            kpis: statusOf(DashboardSegment.KPIS),
+            revenueSeries: statusOf(DashboardSegment.REVENUE_SERIES),
+            adsPerformance: statusOf(DashboardSegment.ADS_PERFORMANCE),
+            categories: statusOf(DashboardSegment.CATEGORIES),
+            topProducts: statusOf(DashboardSegment.TOP_PRODUCTS),
+            alerts: statusOf(DashboardSegment.ALERTS),
+            targets: statusOf(DashboardSegment.TARGETS),
+        };
+    }, [loader.sections, loader.errors]);
+
     // ── 11 · Stable return surface ─────────────────────────────────────────────
     return {
+        // Per-section load status ('loading' | 'ready' | 'error')
+        sectionStatus,
         // Section data
         kpis: kpisData,
         alerts: alertsData2,

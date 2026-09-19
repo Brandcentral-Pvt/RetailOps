@@ -187,6 +187,10 @@ const scraperRoutes = require('./routes/scraperRoutes');
 app.use(require('./middleware/maintenanceMode'));
 
 app.use('/api', dataRoutes);
+// ✅ Route precedence fix: taskRoutes is the SINGLE owner of /api/tasks.
+// It must be mounted before the wildcard /api routers below; the duplicate
+// GET /tasks route was removed from growthExecutionRoutes entirely.
+app.use('/api/tasks', taskRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', alertsRoutes);
 app.use('/api/export', exportRoutes);
@@ -208,7 +212,6 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/market-sync', marketSyncRoutes);
 app.use('/api/live-data', liveDataRoutes);
 app.use('/api/scraper', scraperRoutes);
-app.use('/api', growthExecutionRoutes);
 app.use('/api/logs', systemLogRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/setup-wizard', setupWizardRoutes);
@@ -220,7 +223,6 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/asins-table', asinTableRoutes);
 app.use('/api/listing-quality', listingQualityRoutes);
 app.use('/api/bulk', bulkLimiter, bulkRoutes);
-app.use('/api/tasks', taskRoutes);
 app.use('/api/scheduled-runs', scheduledRunRoutes);
 app.use('/api/targets', targetRoutes);
 app.use('/api/webhooks', webhookRoutes);
@@ -228,6 +230,12 @@ app.use('/api/pems', pemsRoutes);
 app.use('/api/live-sync-tracker', pemsLiveSyncRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/keyword-analysis', keywordAnalysisRoutes);
+
+// ✅ Mount LAST: growthExecutionRoutes registers wildcard /api routes
+// (GET /tasks, /goals/current, /analytics/performance, /insights). Mounted
+// any earlier it would shadow the specific routers above — most critically
+// GET /api/tasks (taskRoutes, mounted at the top of this block).
+app.use('/api', growthExecutionRoutes);
 
 // Health check endpoints
 app.get('/api/health', async (req, res) => {

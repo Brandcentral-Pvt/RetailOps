@@ -17,8 +17,10 @@ router.get('/goals/current', growthExecutionController.getCurrentGoal);
 // Performance Analytics
 router.get('/analytics/performance', growthExecutionController.getPerformanceAnalytics);
 
-// Tasks
-router.get('/tasks', growthExecutionController.getFilteredTasks);
+// ✅ GET /tasks was REMOVED from this router: it duplicated GET /api/tasks
+// (taskRoutes) and previously shadowed it when this router was mounted first.
+// The dashboard consumes the Tasks-table contract from taskRoutes — keep a
+// single owner for the /tasks path.
 
 // Intelligence Insights
 router.get('/insights', growthExecutionController.getIntelligenceInsights);

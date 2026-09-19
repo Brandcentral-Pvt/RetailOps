@@ -2,13 +2,18 @@ const express = require('express');
 const router = express.Router();
 const alertsController = require('../controllers/alertsController');
 
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate, requirePermission, requireAnyPermission } = require('../middleware/auth');
+
+// ✅ Permission alignment: the dashboard's alerts feed is reachable by users
+// with either dashboard_view or targets_view (brand managers), matching the
+// frontend ProtectedRoute behavior.
+const DASHBOARD_ALERT_PERM = requireAnyPermission(['dashboard_view', 'targets_view']);
 
 // Alert routes
-router.get('/alerts', authenticate, requirePermission('dashboard_view'), alertsController.getAlerts);
-router.get('/alerts/count', authenticate, requirePermission('dashboard_view'), alertsController.getUnreadAlertCount);
-router.patch('/alerts/:id', authenticate, requirePermission('dashboard_view'), alertsController.acknowledgeAlert);
-router.patch('/alerts/acknowledge-all', authenticate, requirePermission('dashboard_view'), alertsController.acknowledgeAllAlerts);
+router.get('/alerts', authenticate, DASHBOARD_ALERT_PERM, alertsController.getAlerts);
+router.get('/alerts/count', authenticate, DASHBOARD_ALERT_PERM, alertsController.getUnreadAlertCount);
+router.patch('/alerts/:id', authenticate, DASHBOARD_ALERT_PERM, alertsController.acknowledgeAlert);
+router.patch('/alerts/acknowledge-all', authenticate, DASHBOARD_ALERT_PERM, alertsController.acknowledgeAllAlerts);
 
 // Alert rule routes
 router.get('/alert-rules', authenticate, requirePermission('rules_view'), alertsController.getAlertRules);

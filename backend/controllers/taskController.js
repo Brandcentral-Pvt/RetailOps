@@ -4,6 +4,47 @@ const { buildInClause } = require('../utils/sqlHelpers');
 const TaskAnalyzer = require('../utils/taskAnalyzer');
 
 /**
+ * Seller-level access guard for task mutations.
+ *
+ * ✅ Authorization fix: updateTaskStatus / assignTask / deleteTask previously
+ * accepted ANY task id from ANY authenticated user — a restricted user could
+ * mutate another seller's tasks by id. Restricted (non-global) users may now
+ * only mutate tasks whose SellerId is one of their assigned sellers.
+ *
+ * @returns {'OK' | 'NOT_FOUND' | 'FORBIDDEN'}
+ */
+const checkTaskSellerAccess = async (req, pool, taskId) => {
+    const roleName = req.user?.role?.name || req.user?.role || '';
+    if (isGlobalUserRole(roleName)) return 'OK';
+
+    const taskResult = await pool.request()
+        .input('taskId', sql.VarChar, taskId)
+        .query('SELECT TOP 1 SellerId FROM Tasks WHERE Id = @taskId');
+    const task = taskResult.recordset[0];
+    if (!task) return 'NOT_FOUND';
+
+    const allowedSellerIds = (req.user?.assignedSellers || [])
+        .map(s => (typeof s === 'string' ? s : s?._id || s?.Id || s)?.toString())
+        .filter(Boolean);
+    if (!task.SellerId || allowedSellerIds.length === 0) return 'FORBIDDEN';
+
+    return allowedSellerIds.includes(String(task.SellerId)) ? 'OK' : 'FORBIDDEN';
+};
+
+/** Responds on the caller's behalf when access is denied; true when denied. */
+const respondOnTaskAccessDenial = (res, access) => {
+    if (access === 'NOT_FOUND') {
+        res.status(404).json({ success: false, error: 'Task not found' });
+        return true;
+    }
+    if (access === 'FORBIDDEN') {
+        res.status(403).json({ success: false, error: 'You do not have access to this task' });
+        return true;
+    }
+    return false;
+};
+
+/**
  * Generate tasks from selected ASINs
  * POST /api/tasks/generate
  */
@@ -272,6 +313,10 @@ exports.updateTaskStatus = async (req, res) => {
         const userId = (req.user?._id || req.user?.id || '').toString();
         const pool = await getPool();
 
+        // ✅ Seller-level access enforcement
+        const access = await checkTaskSellerAccess(req, pool, id);
+        if (respondOnTaskAccessDenial(res, access)) return;
+
         let setClause = 'Status = @status, UpdatedAt = dbo.GetEnvDate()';
         const request = pool.request()
             .input('id', sql.VarChar, id)
@@ -307,6 +352,10 @@ exports.assignTask = async (req, res) => {
         const { userId } = req.body;
         const pool = await getPool();
 
+        // ✅ Seller-level access enforcement
+        const access = await checkTaskSellerAccess(req, pool, id);
+        if (respondOnTaskAccessDenial(res, access)) return;
+
         await pool.request()
             .input('id', sql.VarChar, id)
             .input('userId', sql.VarChar, userId)
@@ -326,6 +375,11 @@ exports.deleteTask = async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
+
+        // ✅ Seller-level access enforcement
+        const access = await checkTaskSellerAccess(req, pool, id);
+        if (respondOnTaskAccessDenial(res, access)) return;
+
         await pool.request().input('id', sql.VarChar, id).query('DELETE FROM Tasks WHERE Id = @id');
         res.json({ success: true, message: 'Task deleted' });
     } catch (error) {

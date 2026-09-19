@@ -1,7 +1,7 @@
 import React from 'react';
 import { Progress, Tag, Typography, Badge } from 'antd';
 import { 
-  RefreshCw, FileText, CheckCircle, Zap, Sparkles 
+  RefreshCw, FileText, CheckCircle, XCircle, Zap, Clock
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -60,25 +60,28 @@ const OperationItem = ({ icon: Icon, title, progress, status, count, color, onCl
   );
 };
 
-const LiveOperations = ({ 
-  listingPipeline = 0,
-  publishingQueue = 0,
-  aiImageGen = 0,
-  contentGen = 0,
-  validationQueue = 0,
-  marketplaceSync = 0,
+const LiveOperations = ({
+  pipelineTotal = 0,
+  running = 0,
+  completed = 0,
+  failed = 0,
+  idle = 0,
+  tasksInProgress = 0,
   onNavigate
 }) => {
+  // ✅ Honesty fix: rows previously showed made-up queues (AI Image Gen,
+  // Publishing Queue, Content Generation) fed with unrelated counts. Every
+  // row now reflects a real pipeline/task status count.
   const operations = [
-    { icon: RefreshCw, title: 'Marketplace Sync', count: marketplaceSync, status: marketplaceSync > 0 ? 'running' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/live-sync-tracker') },
-    { icon: FileText, title: 'Listing Pipeline', count: listingPipeline, status: listingPipeline > 0 ? 'running' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/scrape-tasks') },
-    { icon: CheckCircle, title: 'Publishing Queue', count: publishingQueue, status: publishingQueue > 0 ? 'queued' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/scheduled-runs') },
-    { icon: Sparkles, title: 'AI Image Generation', count: aiImageGen, status: aiImageGen > 0 ? 'running' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/pems/tasks') },
-    { icon: FileText, title: 'Content Generation', count: contentGen, status: contentGen > 0 ? 'queued' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/pems/templates') },
-    { icon: CheckCircle, title: 'Validation Queue', count: validationQueue, status: validationQueue > 0 ? 'queued' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/pems/reviews') },
+    { icon: FileText, title: 'Sync Pipeline', count: pipelineTotal, status: running > 0 ? 'running' : (pipelineTotal > 0 ? 'queued' : 'idle'), color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/scrape-tasks') },
+    { icon: RefreshCw, title: 'Running Now', count: running, status: running > 0 ? 'running' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/scrape-tasks') },
+    { icon: CheckCircle, title: 'Completed', count: completed, status: completed > 0 ? 'completed' : 'idle', color: '#2E7D32', onClick: () => onNavigate('/scrape-tasks') },
+    { icon: XCircle, title: 'Failed', count: failed, status: failed > 0 ? 'failed' : 'idle', color: '#D32F2F', onClick: () => onNavigate('/scrape-tasks') },
+    { icon: Clock, title: 'Idle / Queued', count: idle, status: idle > 0 ? 'queued' : 'idle', color: 'var(--text-tertiary, #94a3b8)', onClick: () => onNavigate('/scrape-tasks') },
+    { icon: Zap, title: 'Tasks In Progress', count: tasksInProgress, status: tasksInProgress > 0 ? 'running' : 'idle', color: 'var(--text-brand, #1976D2)', onClick: () => onNavigate('/tasks') },
   ];
 
-  const runningCount = operations.filter(o => o.status === 'running').length;
+  const runningCount = running;
 
   return (
     <div style={{ 

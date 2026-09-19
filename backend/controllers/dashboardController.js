@@ -207,7 +207,10 @@ exports.getDashboardData = async (req, res) => {
     ];
 
     // Chart processing
-    const { revenueData, areaSeries, stackedBarSeries, adsPerformanceSeries, labels } = processChartData(days, adsData, endDate);
+    const {
+      revenueData, areaSeries, stackedBarSeries, adsPerformanceSeries,
+      ordersSeries, unitsSeries, acosSeries, labels
+    } = processChartData(days, adsData, endDate);
 
     // 7. Optimized Marketplace Distribution (Safe high-performance decouple)
     // First: Get raw counts using ONLY covering index on Asins (super fast)
@@ -246,7 +249,12 @@ exports.getDashboardData = async (req, res) => {
     }));
 
     // 8. Top ASINs Table
-    const topAsinsResult = await pool.request()
+    // ✅ Fix: this query previously used pool.request() while embedding ${asinFilter},
+    // which references @dashSeller_* params — SQL error "Must declare the scalar
+    // variable @dashSeller_0" whenever a seller filter was active. Use buildDashReq()
+    // so all seller params are bound. The LEFT JOIN also had NO date/type filter,
+    // so lifetime AdsPerformance rows polluted the "top ASINs in range" table.
+    const topAsinsResult = await buildDashReq()
       .input('startDate', sql.Date, startDate)
       .input('endDate', sql.Date, endDate)
       .query(`
@@ -260,20 +268,24 @@ exports.getDashboardData = async (req, res) => {
       FROM Asins A
       JOIN Sellers S ON A.SellerId = S.Id
       LEFT JOIN AdsPerformance AP ON A.AsinCode = AP.Asin
+        AND AP.Date BETWEEN @startDate AND @endDate
+        AND AP.ReportType = 'daily'
       ${asinFilter}
       GROUP BY A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice, S.Name
       ORDER BY TotalOrders DESC
     `);
 
     const tableData = topAsinsResult.recordset.map(asin => {
-      const totalRev = asin.TotalAdSales + asin.TotalOrganicSales;
+      const totalRev = (asin.TotalAdSales || 0) + (asin.TotalOrganicSales || 0);
       const acos = asin.TotalAdSales > 0 ? (asin.TotalAdSpend / asin.TotalAdSales) * 100 : 0;
       return {
         sku: asin.Sku || asin.AsinCode,
         asin: asin.AsinCode,
         title: asin.Title || 'Unknown Product',
         category: asin.Category || 'Uncategorized',
-        revenue: totalRev || asin.CurrentPrice || 0,
+        // ✅ Fix: CurrentPrice fallback inflated revenue for ASINs with no sales.
+        // Revenue is Ad + Organic sales only; 0 when there are no sales.
+        revenue: totalRev || 0,
         units: asin.TotalOrders || 0,
         acos: acos.toFixed(1) + '%',
       };
@@ -285,6 +297,11 @@ exports.getDashboardData = async (req, res) => {
       areaSeries,
       stackedBarSeries,
       adsPerformanceSeries,
+      // ✅ Fix: chart series were computed in processChartData but never
+      // returned, leaving KPI sparklines (orders/units/ACoS) empty.
+      ordersSeries,
+      unitsSeries,
+      acosSeries,
       labels,
       category: categoryData,
       tableData,
@@ -385,7 +402,9 @@ function processChartData(days, adsData = [], endDate) {
       { name: 'Ad Spend', data: buckets.map(b => Math.round(b.adsSpend)) }
     ],
     ordersSeries: buckets.map(b => b.orders),
-    unitsSeries: buckets.map(b => Math.round((b.orders || 0) * 1.48)),
+    // ✅ Fix: units were estimated as orders * 1.48 — report actual orders
+    // instead of fabricating a conversion multiplier.
+    unitsSeries: buckets.map(b => Math.round(b.orders || 0)),
     acosSeries: buckets.map(b => b.ppc > 0 ? Math.round((b.adsSpend / b.ppc) * 100) : 0),
     labels
   };

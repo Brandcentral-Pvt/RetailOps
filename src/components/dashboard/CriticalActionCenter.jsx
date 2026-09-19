@@ -55,20 +55,24 @@ const ActionCard = ({ icon: Icon, title, description, severity, count, assignee,
   );
 };
 
-const CriticalActionCenter = ({ 
-  priceDisputes = 0, 
-  outOfStock = 0, 
-  failedListings = 0, 
-  pendingApprovals = 0,
-  syncFailures = 0,
+const CriticalActionCenter = ({
+  criticalAlerts = 0,
+  outOfStock = 0,
+  pipelineFailed = 0,
+  pendingTasks = 0,
+  overdueTasks = 0,
   onNavigate
 }) => {
+  // ✅ Honesty fix: the previous labels (Price Disputes, Failed Listings,
+  // Sync Failures, Pending Approvals) were unrelated to the counts piped in —
+  // e.g. "Price Disputes" actually showed critical alerts. Each card now
+  // states what its count really is.
   const actions = [
-    { icon: AlertTriangle, title: 'Price Disputes', description: 'Products with price conflicts across marketplaces', severity: 'critical', count: priceDisputes, onAction: () => onNavigate('/asin-tracker') },
+    { icon: AlertTriangle, title: 'Critical Alerts', description: 'Errors and failures in the activity feed', severity: 'critical', count: criticalAlerts, onAction: () => onNavigate('/alerts') },
     { icon: ShoppingCart, title: 'Out of Stock', description: 'Products currently unavailable for purchase', severity: 'warning', count: outOfStock, onAction: () => onNavigate('/inventory') },
-    { icon: XCircle, title: 'Failed Listings', description: 'Listings that failed to publish or update', severity: 'critical', count: failedListings, onAction: () => onNavigate('/scrape-tasks') },
-    { icon: RefreshCw, title: 'Sync Failures', description: 'Marketplace synchronization errors', severity: 'warning', count: syncFailures, onAction: () => onNavigate('/live-sync-tracker') },
-    { icon: FileText, title: 'Pending Approvals', description: 'Content and listings awaiting review', severity: 'info', count: pendingApprovals, onAction: () => onNavigate('/pems/reviews') },
+    { icon: XCircle, title: 'Failed Sync Runs', description: 'Marketplace sync pipelines that failed', severity: 'critical', count: pipelineFailed, onAction: () => onNavigate('/scrape-tasks') },
+    { icon: RefreshCw, title: 'Overdue Tasks', description: 'Open tasks past their due date', severity: 'warning', count: overdueTasks, onAction: () => onNavigate('/tasks') },
+    { icon: FileText, title: 'Pending Tasks', description: 'Open tasks waiting to be picked up', severity: 'info', count: pendingTasks, onAction: () => onNavigate('/tasks') },
   ];
 
   const hasActions = actions.some(a => a.count > 0);

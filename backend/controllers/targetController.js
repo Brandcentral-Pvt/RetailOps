@@ -131,6 +131,31 @@ exports.getTargets = async (req, res) => {
             }
         }
 
+        // ✅ Brand filter fix: the dashboard passes sellerId (possibly a
+        // comma-separated list), goalType and brandManager (user id OR name).
+        // These were silently ignored before, so filters never affected results.
+        const { sellerId: sellerIdFilter, goalType: goalTypeFilter, brandManager: brandManagerFilter } = req.query;
+
+        if (sellerIdFilter && sellerIdFilter !== 'all') {
+            const ids = String(sellerIdFilter).split(',').map(s => s.trim()).filter(Boolean);
+            if (ids.length === 1) {
+                request.input('fsellerId', sql.VarChar, ids[0]);
+                whereClause += ' AND t.SellerId = @fsellerId';
+            } else if (ids.length > 1) {
+                const fsellerIn = buildInClause(request, 'fseller', ids);
+                whereClause += ` AND t.SellerId IN (${fsellerIn})`;
+            }
+        }
+        if (goalTypeFilter && goalTypeFilter !== 'all') {
+            request.input('fgoalType', sql.NVarChar, goalTypeFilter);
+            whereClause += ' AND UPPER(t.GoalType) = UPPER(@fgoalType)';
+        }
+        if (brandManagerFilter && brandManagerFilter !== 'all') {
+            request.input('fbmId', sql.VarChar, brandManagerFilter);
+            request.input('fbmName', sql.NVarChar, brandManagerFilter);
+            whereClause += ' AND (t.UserId = @fbmId OR LOWER(t.BrandManager) = LOWER(@fbmName))';
+        }
+
         const targetsQuery = `
             SELECT 
                 t.Id, t.SellerId, t.BrandManager, t.TargetType, t.Year, t.Month, t.TotalTargetValue, t.GoalType, t.CreatedAt,

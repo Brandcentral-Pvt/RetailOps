@@ -3,7 +3,7 @@ const router = express.Router();
 const controller = require('../controllers/dataController');
 const dashboardController = require('../controllers/dashboardController');
 
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate, requirePermission, requireAnyPermission } = require('../middleware/auth');
 
 router.get('/master-revenue', authenticate, requirePermission('skureport_view'), controller.getMasterWithRevenue);
 router.get('/chart-data', authenticate, requirePermission('dashboard_view'), controller.getChartData); // Monthly trend
@@ -16,6 +16,9 @@ router.get('/data/parent-asin-report', authenticate, requirePermission('parentre
 router.get('/data/month-wise-report', authenticate, requirePermission('monthlyreport_view'), controller.getMonthWiseReport);
 router.get('/categories', authenticate, controller.getCategories); // Category options
 router.get('/search', authenticate, controller.globalSearch);
-router.get('/dashboard', authenticate, requirePermission('dashboard_view'), dashboardController.getDashboardData);
+// ✅ Permission alignment: brand managers reach the dashboard via the
+// targets_view permission (frontend ProtectedRoute allows this), so the
+// backend must accept either permission — otherwise they get a 403 here.
+router.get('/dashboard', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), dashboardController.getDashboardData);
 
 module.exports = router;
