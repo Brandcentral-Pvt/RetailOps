@@ -36,7 +36,7 @@
     "mongodb": "^7.6.0",
     "mssql": "^12.7.2",
     "multer": "^2.1.1",
-    "node-cron": "^4.2.1",
+    "node-cron": "^4.6.0",
     "node-fetch": "^3.3.2",
     "nodemailer": "^10.0.10",
     "openai": "^6.38.0",
