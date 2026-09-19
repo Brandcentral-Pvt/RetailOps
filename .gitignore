@@ -49,3 +49,7 @@ test-results/
 backend/test_*.js
 check_columns.js
 seed_api_keys.js
+
+# Runtime artifacts (logs, generated exports)
+backend/logs/
+backend/uploads/exports/

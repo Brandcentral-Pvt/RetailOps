@@ -1876,21 +1876,67 @@ export const exportApi = {
     }
 };
 
-export const adsApi = {
-    getAdsManagerData: async (params = {}) => {
-        const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
-            if (val !== undefined && val !== null && val !== '') acc[key] = val;
-            return acc;
-        }, {});
-        return api.get('/data/ads-manager', cleanParams);
-    },
-    exportAdsManagerData: async (params = {}) => {
-        const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
-            if (val !== undefined && val !== null && val !== '') acc[key] = val;
-            return acc;
-        }, {});
-        return api.post('/export/start-ads', cleanParams);
+// ── Ads Intelligence ─────────────────────────────────────────────────────
+// One module, three surfaces (Ads Manager, Ads Report, AI Analyst) over the
+// scoped /api/ads endpoints. `adsRequest` keeps the structured error code
+// (403 forbidden_seller, 422 no_data, 502 ai_unavailable) so the UI can
+// explain *why* something is unavailable instead of showing a generic failure.
+
+const cleanParams = (params = {}) => Object.entries(params).reduce((acc, [key, val]) => {
+    if (val !== undefined && val !== null && val !== '') acc[key] = val;
+    return acc;
+}, {});
+
+const adsRequest = async (path, { method = 'GET', params, body } = {}) => {
+    const query = params ? new URLSearchParams(cleanParams(params)).toString() : '';
+    const res = await fetch(`${API_BASE}${path}${query ? `?${query}` : ''}`, {
+        method,
+        headers: { ...getAuthHeader(), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+
+    let payload;
+    try { payload = await res.json(); } catch { payload = null; }
+
+    if (!res.ok || (payload && payload.success === false)) {
+        const error = new Error(
+            (payload && (payload.message || payload.error)) || `Ads request failed (${res.status})`
+        );
+        error.status = res.status;
+        error.code = payload?.code || null;
+        error.details = payload || null;
+        throw error;
     }
+    return payload;
+};
+
+export const adsApi = {
+    /** KPIs, chart series, mixes, movers, efficiency, targets, freshness + rule insights. */
+    getOverview: (params) => adsRequest('/ads/overview', { params }),
+    /** Chart-only refresh (granularity switches, focus changes). */
+    getSeries: (params) => adsRequest('/ads/series', { params }),
+    /** Server-side paginated/sorted/filtered ASIN table. */
+    getTable: (params) => adsRequest('/ads/table', { params }),
+    /** Daily drill-down for one ASIN / parent ASIN. */
+    getHistory: (params) => adsRequest('/ads/history', { params }),
+    /** Scope-aware seller/brand/category options. */
+    getFilterOptions: (params) => adsRequest('/ads/filter-options', { params }),
+    /** Month-by-month performance vs ADS/ACoS targets. */
+    getReport: (params) => adsRequest('/ads/report', { params }),
+    /** Deterministic rules only — no LLM, no cost. */
+    getInsights: (params) => adsRequest('/ads/insights', { params }),
+    /** On-demand LLM narrative over the server-side digest. */
+    generateAiReview: (body = {}) => adsRequest('/ads/ai-review', { method: 'POST', body }),
+    /** Thresholds/labels so the UI can explain its own rules. */
+    getMeta: () => adsRequest('/ads/meta'),
+    /** Queued XLSX export (requires adsreport_export). */
+    exportData: (params = {}) => api.post('/export/start-ads', cleanParams(params)),
+    /** Ads workbook upload (requires adsreport_import). */
+    uploadData: (formData) => api.post('/upload/upload-ads', formData),
+
+    // Back-compat aliases (legacy callers / bookmarked call sites).
+    getAdsManagerData: (params = {}) => adsRequest('/ads/overview', { params: cleanParams(params) }),
+    exportAdsManagerData: (params = {}) => api.post('/export/start-ads', cleanParams(params)),
 };
 
 export const targetsApi = {

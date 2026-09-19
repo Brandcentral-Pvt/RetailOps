@@ -3,6 +3,12 @@
 **Date:** 2026-09-19
 **Commit analysed:** `36252a6` (plus working-tree state on `arena/01a0b907-retailops`)
 **Companion doc:** [`project-analysis.md`](./project-analysis.md) (whole-project + recent-changes analysis)
+> **Implementation status (2026-09-19, same branch):** the P0/P1 fixes authorised after this audit are
+> shipped — see [`ads-module-upgrade.md`](./ads-module-upgrade.md) for the rebuilt module, the
+> `/api/ads/*` surface, the permissions added, the rules + on-demand-LLM design, the 46 new tests and
+> the remaining items (F10 writer-side day keys, F13 index tuning, legacy `/api/data/ads-*` routes).
+> The findings below are preserved as the audit of record.
+
 **Method:** full read of every ads-related file, plus **executable probes** — the controller was driven through a mocked MSSQL pool (`backend/testUtils/fakePool.js` pattern) to capture the exact SQL it builds, the parameters it binds, the payload it returns, and its CPU cost. Probe scripts: `/tmp/adsprobe/{probe,probe2,probe3,perf}.cjs` (throwaway, not committed). Nothing was run against a live database.
 
 ---

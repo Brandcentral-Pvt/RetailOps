@@ -4,6 +4,7 @@ const { sql, getPool, generateId, executeWithRetry } = require('../database/db')
 const { buildInClause } = require('../utils/sqlHelpers');
 const marketDataSyncService = require("../services/marketDataSyncService");
 const SystemLogService = require('../services/SystemLogService');
+const { resolveSellerScope } = require('../utils/sellerScope');
 
 // Helper: find a value in row by possible keys
 const findValue = (row, fields) => {
@@ -195,6 +196,23 @@ exports.uploadAdsData = async (req, res) => {
     const reportDate = req.body.date;
     if (!reportDate) throw new Error('Report date is required');
 
+    // ── Seller authorisation (deep-dive F1/F2) ────────────────────────────
+    // This endpoint used to accept an upload from any authenticated user for any
+    // seller, including the "no seller given" case where it guessed the seller
+    // from the newest row in Sellers. Scope is resolved up front; when no seller
+    // is supplied, the ASIN owner is inferred below and validated against the
+    // caller's assignments before anything is written.
+    const scope = resolveSellerScope(req.user, req.body.sellerId || req.body.selectedSeller || req.body.seller);
+    if (scope.denied) {
+      return res.status(403).json({
+        success: false,
+        code: 'forbidden_seller',
+        message: 'You do not have access to the requested seller(s).',
+        requestedSellers: scope.requested,
+        assignedSellers: scope.allowed,
+      });
+    }
+
     // Standardized column specification matching database inspection
     const columnsList = [
       { name: 'Asin', type: sql.VarChar(50), required: true },
@@ -373,12 +391,28 @@ exports.uploadAdsData = async (req, res) => {
         `);
         if (sellerCheck.recordset.length > 0) {
           targetSellerId = sellerCheck.recordset[0].SellerId;
-        } else {
+        } else if (!scope.isGlobal && !scope.unrestricted && scope.sellerIds.length > 0) {
+          // Scoped user: fall back to one of *their* sellers, never to the
+          // newest seller in the table (that was the old cross-tenant leak).
+          targetSellerId = scope.sellerIds[0];
+        } else if (scope.isGlobal) {
           const defaultSeller = await pool.request().query("SELECT TOP 1 Id FROM Sellers ORDER BY CreatedAt DESC");
           if (defaultSeller.recordset.length > 0) {
             targetSellerId = defaultSeller.recordset[0].Id;
           }
         }
+      }
+
+      // Final guard: whatever seller the upload resolved to must be in scope.
+      if (!scope.isGlobal && !scope.unrestricted && targetSellerId
+          && !scope.sellerIds.includes(targetSellerId)) {
+        return res.status(403).json({
+          success: false,
+          code: 'forbidden_seller',
+          message: `This ads upload resolves to seller '${targetSellerId}', which is not assigned to your account.`,
+          requestedSellers: scope.requested.length ? scope.requested : [targetSellerId],
+          assignedSellers: scope.allowed,
+        });
       }
 
       // Auto-create skeleton rows in Asins for any advertised ASINs not in master table

@@ -289,6 +289,7 @@ const defaultPermissions = [
   
   { name: 'adsreport_view', displayName: 'Ads Intelligence: View', description: 'Access to advertising performance data', category: 'Reports', action: 'view' },
   { name: 'adsreport_export', displayName: 'Ads Intelligence: Export', description: 'Export ads performance data', category: 'Reports', action: 'export' },
+  { name: 'adsreport_import', displayName: 'Ads Intelligence: Import', description: 'Upload daily/monthly advertising workbooks (seller-scoped)', category: 'Reports', action: 'import' },
   
   { name: 'pnlreport_view', displayName: 'P&L Report: View', description: 'Access to financial and P&L reports', category: 'Reports', action: 'view' },
   { name: 'pnlreport_export', displayName: 'P&L Report: Export', description: 'Export P&L report data', category: 'Reports', action: 'export' },

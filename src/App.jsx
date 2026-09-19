@@ -34,7 +34,6 @@ const DashboardV2 = lazy(() => import('./pages/DashboardV2'));
 const SkuReport = lazy(() => import('./pages/SkuReport'));
 const ParentAsinReport = lazy(() => import('./pages/ParentAsinReport'));
 const MonthWiseReport = lazy(() => import('./pages/MonthWiseReport'));
-const AdsReport = lazy(() => import('./pages/AdsReport'));
 const UploadExport = lazy(() => import('./pages/UploadExport'));
 const AlertRulesPage = lazy(() => import('./pages/AlertRulesPage'));
 const RuleSetsPage = lazy(() => import('./pages/RuleSetsPage'));
@@ -42,7 +41,8 @@ const RulesetBuilderPage = lazy(() => import('./pages/RulesetBuilderPage'));
 const ProfitLossPage = lazy(() => import('./pages/ProfitLossPage'));
 const InventoryPage = lazy(() => import('./pages/InventoryPage'));
 const AsinManagerPage = lazy(() => import('./pages/AsinManagerPage'));
-const AdsManagerPage = lazy(() => import('./pages/AdsManagerPage'));
+// Ads Intelligence = Ads Manager + Ads Report + AI Analyst in one rebuilt module
+const AdsIntelligencePage = lazy(() => import('./pages/ads/AdsManagerPage'));
 const GmsTrackerPage = lazy(() => import('./pages/GmsTrackerPage'));
 const SellerAsinTrackerPage = lazy(() => import('./pages/SellerAsinTrackerPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -134,10 +134,11 @@ function AppRoutes() {
                   <Route path="/sku-report" element={<ProtectedRoute permission="skureport_view"><SkuReport /></ProtectedRoute>} />
                   <Route path="/parent-asin-report" element={<ProtectedRoute permission="parentreport_view"><ParentAsinReport /></ProtectedRoute>} />
                   <Route path="/month-wise-report" element={<ProtectedRoute permission="monthlyreport_view"><MonthWiseReport /></ProtectedRoute>} />
-                  <Route path="/ads-report" element={<ProtectedRoute permission="adsreport_view"><AdsReport /></ProtectedRoute>} />
+                  {/* Legacy route kept as a redirect: the Ads Report surface is now a view inside Ads Intelligence. */}
+                  <Route path="/ads-report" element={<Navigate to="/ads-manager" replace />} />
                   <Route path="/asin-tracker" element={<ProtectedRoute permission="asinmanager_view"><AsinManagerPage /></ProtectedRoute>} />
                   <Route path="/keyword-research" element={<ProtectedRoute><KeywordResearchPage /></ProtectedRoute>} />
-                  <Route path="/ads-manager" element={<ProtectedRoute permission="adsreport_view"><AdsManagerPage /></ProtectedRoute>} />
+                  <Route path="/ads-manager" element={<ProtectedRoute permission="adsreport_view"><AdsIntelligencePage /></ProtectedRoute>} />
                   <Route path="/gms-tracker" element={<ProtectedRoute permission="gms_tracker_view"><GmsTrackerPage /></ProtectedRoute>} />
                   <Route path="/profit-loss" element={<ProtectedRoute permission="pnlreport_view"><ProfitLossPage /></ProtectedRoute>} />
                   <Route path="/inventory" element={<ProtectedRoute permission="inventoryreport_view"><InventoryPage /></ProtectedRoute>} />
