@@ -4,7 +4,7 @@ import {
   RefreshCw, Download, Filter, Grid3x3, List, 
   Maximize2, Settings, Bell, Search, Plus 
 } from 'lucide-react';
-import { RangePicker } from 'antd/es/date-picker';
+const { RangePicker } = DatePicker;
 import styles from './DashboardLayout.module.css';
 
 const { Header, Content } = Layout;

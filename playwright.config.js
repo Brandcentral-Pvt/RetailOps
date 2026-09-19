@@ -4,7 +4,7 @@ import process from 'node:process';
 // The browser tests intercept authentication requests. They never start the
 // backend, send real email, or require a database or production credentials.
 export default defineConfig({
-  testDir: './tests/auth',
+  testDir: './tests',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
