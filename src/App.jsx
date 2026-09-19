@@ -28,6 +28,7 @@ import './App.css';
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const DashboardV2 = lazy(() => import('./pages/DashboardV2'));
 const SkuReport = lazy(() => import('./pages/SkuReport'));
 const ParentAsinReport = lazy(() => import('./pages/ParentAsinReport'));
 const MonthWiseReport = lazy(() => import('./pages/MonthWiseReport'));
@@ -127,6 +128,7 @@ function AppRoutes() {
                 <Routes>
                   <Route path="/" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute permission="dashboard_view"><Dashboard /></ProtectedRoute>} />
+                  <Route path="/dashboard-v2" element={<ProtectedRoute permission="dashboard_view"><DashboardV2 /></ProtectedRoute>} />
                   <Route path="/sku-report" element={<ProtectedRoute permission="skureport_view"><SkuReport /></ProtectedRoute>} />
                   <Route path="/parent-asin-report" element={<ProtectedRoute permission="parentreport_view"><ParentAsinReport /></ProtectedRoute>} />
                   <Route path="/month-wise-report" element={<ProtectedRoute permission="monthlyreport_view"><MonthWiseReport /></ProtectedRoute>} />
