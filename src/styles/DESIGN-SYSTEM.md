@@ -22,7 +22,6 @@
 | `src/components/Sidebar.css` | 331 | Legacy sidebar (Bootstrap-based, uses tokens.css vars) |
 | `src/components/common/Sidebar.css` | 373 | Active sidebar (Ant Design Sider-based, uses index.css vars) |
 | `src/pages/Alerts.css` | 148 | iOS-glassmorphism notification styles |
-| `src/pages/AdsReport.css` | 287 | Ads page: uses Zinc primitives directly, not tokens |
 | `src/pages/UsersPage.css` | TBD | Page-specific |
 | `src/pages/WebhookSettingsPage.css` | TBD | Page-specific |
 | `src/components/actions/ActionModal.css` | 176 | Action modal: hardcoded hex everywhere |
