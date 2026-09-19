@@ -6,13 +6,28 @@
  * { match, rows } routes — the first matching regex wins; unmatched
  * queries return an empty recordset.
  */
+/**
+ * Type markers double as factories: `sql.VarChar` can be passed as a value and
+ * `sql.Decimal(18, 2)` can be called, mirroring the real `mssql` namespace.
+ */
+const typeFactory = (name) => {
+    const fn = (lengthOrPrecision, scale) => ({ type: name, length: lengthOrPrecision, precision: lengthOrPrecision, scale });
+    fn.type = name;
+    fn.toString = () => name;
+    return fn;
+};
+
 const FAKE_SQL = {
-    VarChar: 'VarChar',
-    NVarChar: 'NVarChar',
-    Int: 'Int',
-    Date: 'Date',
-    Bit: 'Bit',
-    UniqueIdentifier: 'UniqueIdentifier',
+    VarChar: typeFactory('VarChar'),
+    NVarChar: typeFactory('NVarChar'),
+    Int: typeFactory('Int'),
+    BigInt: typeFactory('BigInt'),
+    Decimal: typeFactory('Decimal'),
+    Float: typeFactory('Float'),
+    Date: typeFactory('Date'),
+    DateTime: typeFactory('DateTime'),
+    Bit: typeFactory('Bit'),
+    UniqueIdentifier: typeFactory('UniqueIdentifier'),
 };
 
 function makeFakePool(routes = []) {

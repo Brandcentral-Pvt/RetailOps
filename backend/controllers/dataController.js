@@ -1,4 +1,5 @@
 const { sql, getPool } = require('../database/db');
+const { resolveSellerScope, bindSellerFilter } = require('../utils/sellerScope');
 const { buildInClause } = require('../utils/sqlHelpers');
 
 /**
@@ -65,8 +66,24 @@ exports.getAdsReport = async (req, res) => {
         const { asin, startDate, endDate, sellerId, reportType = 'daily' } = req.query;
         const pool = await getPool();
 
+        // Seller authorisation (deep-dive F1): this legacy endpoint is still
+        // routed for API consumers, so it must obey the same scope contract as
+        // /api/ads/*. Denied → 403; empty scope → failure-closed predicate
+        // (AND 1 = 0) so the response shape stays intact but returns no rows.
+        const sellerScope = resolveSellerScope(req.user, sellerId);
+        if (sellerScope.denied) {
+            return res.status(403).json({
+                success: false,
+                code: 'forbidden_seller',
+                message: 'You do not have access to the requested seller(s).',
+                requestedSellers: sellerScope.requested,
+                assignedSellers: sellerScope.allowed,
+            });
+        }
+
         let whereClause = 'WHERE 1=1';
         const request = pool.request();
+        const scopePredicate = bindSellerFilter(request, sellerScope, { alias: 'a', prefix: 'legacyAdsScope' });
 
         if (reportType) {
             whereClause += " AND p.ReportType = @reportType";
@@ -84,10 +101,12 @@ exports.getAdsReport = async (req, res) => {
             whereClause += " AND p.Date <= @endDate";
             request.input('endDate', sql.Date, endDate);
         }
-        if (sellerId) {
+        if (sellerId && sellerScope.isGlobal) {
+            // A global user's explicit selection still narrows the query.
             whereClause += " AND a.SellerId = @sellerId";
             request.input('sellerId', sql.VarChar, sellerId);
         }
+        whereClause += scopePredicate;
 
         // 1. Fetch relations from Asins table instead of non-existent AsinRelations
         const relResult = await pool.request().query('SELECT AsinCode as ChildAsin, ParentAsin FROM Asins WHERE ParentAsin IS NOT NULL AND ParentAsin <> \'\'');
@@ -686,13 +705,29 @@ exports.getAdsManagerData = async (req, res) => {
     try {
         const { groupBy = 'asin', startDate, endDate, search, sellerId, page = 1, limit, sortBy = 'sales', sortOrder = 'desc', reportType = 'daily' } = req.query;
         const pool = await getPool();
+
+        // Seller authorisation (deep-dive F1) — see getAdsReport.
+        const sellerScope = resolveSellerScope(req.user, sellerId);
+        if (sellerScope.denied) {
+            return res.status(403).json({
+                success: false,
+                code: 'forbidden_seller',
+                message: 'You do not have access to the requested seller(s).',
+                requestedSellers: sellerScope.requested,
+                assignedSellers: sellerScope.allowed,
+            });
+        }
+        let scopePredicate = '';
         const buildRequest = () => {
             const r = pool.request();
             if (reportType) r.input('reportType', sql.VarChar, reportType);
             if (startDate) r.input('startDate', sql.Date, new Date(startDate));
             if (endDate) r.input('endDate', sql.Date, new Date(endDate));
             if (search) r.input('search', sql.VarChar, `%${search}%`);
-            if (sellerId) r.input('sellerId', sql.VarChar, sellerId);
+            if (sellerId && sellerScope.isGlobal) r.input('sellerId', sql.VarChar, sellerId);
+            // Bind the scope parameters on *this* request as well: the
+            // whereClause referencing them is shared across every request.
+            scopePredicate = bindSellerFilter(r, sellerScope, { alias: 'a', prefix: 'legacyMgrScope' });
             return r;
         };
         const request = buildRequest();
@@ -716,9 +751,10 @@ exports.getAdsManagerData = async (req, res) => {
             whereClause += " AND (p.Asin LIKE @search OR a.Sku LIKE @search OR a.Title LIKE @search)";
         }
 
-        if (sellerId) {
+        if (sellerId && sellerScope.isGlobal) {
             whereClause += " AND a.SellerId = @sellerId";
         }
+        whereClause += scopePredicate;
 
         // 1. Get Global Chart Data (Aggregated by Date)
         const globalChartQuery = `

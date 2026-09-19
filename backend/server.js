@@ -182,11 +182,13 @@ const liveDataRoutes = require('./routes/pems/liveDataRoutes');
 const keywordRoutes = require('./routes/keywordRoutes');
 const keywordAnalysisRoutes = require('./routes/keywordAnalysisRoutes');
 const scraperRoutes = require('./routes/scraperRoutes');
+const adsRoutes = require('./routes/adsRoutes');
 
 // Maintenance mode — returns 503 for /api/* when MAINTENANCE_MODE=true
 app.use(require('./middleware/maintenanceMode'));
 
 app.use('/api', dataRoutes);
+app.use('/api/ads', adsRoutes);
 // ✅ Route precedence fix: taskRoutes is the SINGLE owner of /api/tasks.
 // It must be mounted before the wildcard /api routers below; the duplicate
 // GET /tasks route was removed from growthExecutionRoutes entirely.

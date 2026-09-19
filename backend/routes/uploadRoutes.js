@@ -44,7 +44,7 @@ const upload = multer({
 });
 
 router.post('/upload/upload-monthly', authenticate, upload.single('file'), uploadController.uploadMonthlyData);
-router.post('/upload/upload-ads', authenticate, upload.single('file'), uploadController.uploadAdsData);
+router.post('/upload/upload-ads', authenticate, requirePermission('adsreport_import'), upload.single('file'), uploadController.uploadAdsData);
 router.post('/upload/octoparse', authenticate, upload.single('file'), uploadController.uploadOctoparseData);
 router.get('/upload/upload-stats', authenticate, uploadController.getUploadStats);
 
