@@ -103,7 +103,7 @@ export function useNavigationItems() {
                 isAdmin || isGlobalUser || hasPermission('adsreport_view'),
                 {
                     key: 'ads-manager',
-                    label: 'Ads Manager',
+                    label: 'Ads Intelligence',
                     path: '/ads-manager',
                     icon: BarChart3,
                     section: 'catalog',
