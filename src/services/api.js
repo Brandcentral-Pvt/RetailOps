@@ -2081,16 +2081,42 @@ export const gmsApi = {
   }
 };
 
+/**
+ * Keyword Research.
+ *
+ * The list endpoints return the whole enriched payload (products + market
+ * analytics + catalog flags + rule-based insights); the export endpoint posts
+ * back the dataset the page is currently showing and streams an XLSX, so the
+ * file always matches the screen and costs no extra upstream calls.
+ */
+const kwClean = (params = {}) => Object.fromEntries(
+  Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+);
+
+const kwError = async (res, fallback) => {
+  let message = fallback;
+  try {
+    const body = await res.json();
+    if (body?.error) message = body.error;
+    if (body?.message) message = body.message;
+    const err = new Error(message);
+    err.status = res.status;
+    err.code = body?.code;
+    err.assignedSellers = body?.assignedSellers;
+    throw err;
+  } catch (e) {
+    if (e instanceof Error && e.message !== fallback) throw e;
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+};
+
 export const keywordApi = {
   search: async (params = {}) => {
-    const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
-    );
-    const query = new URLSearchParams(cleanParams).toString();
-    const res = await fetch(`${API_BASE}/keywords/search?${query}`, {
-      headers: { ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error('Keyword search failed');
+    const query = new URLSearchParams(kwClean(params)).toString();
+    const res = await fetch(`${API_BASE}/keywords/search?${query}`, { headers: { ...getAuthHeader() } });
+    if (!res.ok) return kwError(res, 'Keyword search failed');
     return res.json();
   },
 
@@ -2098,31 +2124,55 @@ export const keywordApi = {
     const res = await fetch(`${API_BASE}/keywords/batch-search`, {
       method: 'POST',
       headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(kwClean(payload)),
     });
-    if (!res.ok) throw new Error('Batch search failed');
+    if (!res.ok) return kwError(res, 'Batch search failed');
     return res.json();
   },
 
   getCategories: async () => {
-    const res = await fetch(`${API_BASE}/keywords/categories`, {
-      headers: { ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error('Failed to fetch categories');
+    const res = await fetch(`${API_BASE}/keywords/categories`, { headers: { ...getAuthHeader() } });
+    if (!res.ok) return kwError(res, 'Failed to fetch categories');
     return res.json();
-  }
+  },
+
+  getMeta: async () => {
+    const res = await fetch(`${API_BASE}/keywords/meta`, { headers: { ...getAuthHeader() } });
+    if (!res.ok) return kwError(res, 'Failed to fetch keyword metadata');
+    return res.json();
+  },
+
+  /** Downloads the workbook for whatever the page is showing (needs keywords_export). */
+  export: async ({ kind = 'single', dataset, label } = {}) => {
+    const res = await fetch(`${API_BASE}/keywords/export`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, dataset, label }),
+    });
+    if (!res.ok) return kwError(res, 'Export failed');
+
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    const blob = await res.blob();
+    return { blob, fileName: match ? match[1] : `keyword-research-${Date.now()}.xlsx` };
+  },
+
+  /** keywords_manage: drop the shared snapshot cache. */
+  clearCache: async () => {
+    const res = await fetch(`${API_BASE}/keywords/cache/clear`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+    });
+    if (!res.ok) return kwError(res, 'Failed to clear the cache');
+    return res.json();
+  },
 };
 
 export const keywordAnalysisApi = {
   analyze: async (params = {}) => {
-    const cleanParams = Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
-    );
-    const query = new URLSearchParams(cleanParams).toString();
-    const res = await fetch(`${API_BASE}/keyword-analysis/analyze?${query}`, {
-      headers: { ...getAuthHeader() }
-    });
-    if (!res.ok) throw new Error('Keyword analysis failed');
+    const query = new URLSearchParams(kwClean(params)).toString();
+    const res = await fetch(`${API_BASE}/keyword-analysis/analyze?${query}`, { headers: { ...getAuthHeader() } });
+    if (!res.ok) return kwError(res, 'Keyword analysis failed');
     return res.json();
   }
 };

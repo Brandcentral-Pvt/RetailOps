@@ -5,11 +5,69 @@ class KeywordResearchService {
     constructor() {
         this._lastRequestTime = 0;
         this._config = {
-            requestDelay: 1100,
+            requestDelay: Number(process.env.KEYWORD_REQUEST_DELAY_MS || 1100),
             maxRetries: 2,
             retryDelay: 3000,
+            concurrency: Number(process.env.KEYWORD_BATCH_CONCURRENCY || 4),
+            cacheTtlMs: Number(process.env.KEYWORD_CACHE_TTL_MS || 10 * 60 * 1000),
+            cacheMaxEntries: Number(process.env.KEYWORD_CACHE_MAX || 300),
         };
         this._sdkApis = new Map();
+
+        // In-memory snapshot cache. The module persists nothing by design, so
+        // this is the whole caching story: a re-run of the same search (a tab
+        // switch, a saved list, an export straight after a search) costs no
+        // upstream call. Nothing here survives a restart, which is intended.
+        this._cache = new Map();
+        this._cacheHits = 0;
+        this._cacheMisses = 0;
+    }
+
+    /* ── cache ─────────────────────────────────────────────────────────── */
+
+    _cacheKey(params) {
+        const keys = [
+            'keywords', 'searchIndex', 'brand', 'minPrice', 'maxPrice', 'minReviewsRating',
+            'minSavingPercent', 'availability', 'condition', 'sortBy', 'itemCount', 'itemPage', 'marketplace',
+        ];
+        return keys.map(k => `${k}=${params[k] ?? ''}`).join('&').toLowerCase();
+    }
+
+    _getCached(key) {
+        const hit = this._cache.get(key);
+        if (!hit) return null;
+        if (Date.now() > hit.expiresAt) {
+            this._cache.delete(key);
+            return null;
+        }
+        return hit.value;
+    }
+
+    _setCached(key, value) {
+        if (this._cache.size >= this._config.cacheMaxEntries) {
+            // Map preserves insertion order → drop the oldest entry.
+            const oldest = this._cache.keys().next().value;
+            this._cache.delete(oldest);
+        }
+        this._cache.set(key, { value, expiresAt: Date.now() + this._config.cacheTtlMs });
+    }
+
+    getCacheStats() {
+        const total = this._cacheHits + this._cacheMisses;
+        return {
+            entries: this._cache.size,
+            hits: this._cacheHits,
+            misses: this._cacheMisses,
+            hitRate: total > 0 ? Number(((this._cacheHits / total) * 100).toFixed(1)) : null,
+            ttlMs: this._config.cacheTtlMs,
+            maxEntries: this._config.cacheMaxEntries,
+        };
+    }
+
+    clearCache() {
+        const size = this._cache.size;
+        this._cache.clear();
+        return size;
     }
 
     _getSdkApi() {
@@ -27,13 +85,58 @@ class KeywordResearchService {
         return api;
     }
 
-    async _rateLimit() {
-        const now = Date.now();
-        const elapsed = now - this._lastRequestTime;
-        if (elapsed < this._config.requestDelay) {
-            await this._delay(this._config.requestDelay - elapsed);
+    /**
+     * Reserve a rate-limit slot.
+     *
+     * The upstream limit is one call per `requestDelay` (1.1 s) per API key.
+     * The old implementation awaited *after* reading `_lastRequestTime`, so two
+     * concurrent callers computed the same wait and fired together — batch was
+     * therefore written as a strictly sequential loop, and every keyword cost a
+     * full round trip before the next one could start.
+     *
+     * Here the reservation is serialised (the queue below) but the wait is not:
+     * a caller books its start time, releases the queue immediately, and only
+     * then sleeps. Starts stay exactly `requestDelay` apart, while the HTTP
+     * calls themselves overlap — so a batch of N keywords takes roughly
+     * N x requestDelay instead of N x (requestDelay + latency).
+     */
+    async _acquireSlot() {
+        if (!this._slotQueue) {
+            this._slotQueue = Promise.resolve();
         }
-        this._lastRequestTime = Date.now();
+        const previous = this._slotQueue;
+        let release;
+        this._slotQueue = new Promise((resolve) => { release = resolve; });
+        await previous;
+
+        const now = Date.now();
+        const wait = Math.max(0, this._lastRequestTime + this._config.requestDelay - now);
+        this._lastRequestTime = now + wait;
+        release();
+
+        if (wait > 0) await this._delay(wait);
+    }
+
+    async _rateLimit() {
+        return this._acquireSlot();
+    }
+
+    /** Simple promise-pool so a batch cannot open unbounded sockets. */
+    async _mapWithConcurrency(items, limit, worker) {
+        const results = new Array(items.length);
+        let cursor = 0;
+        const size = Math.max(1, Math.min(limit, items.length));
+
+        const runners = Array.from({ length: size }, async () => {
+            while (cursor < items.length) {
+                const index = cursor;
+                cursor += 1;
+                results[index] = await worker(items[index], index);
+            }
+        });
+
+        await Promise.all(runners);
+        return results;
     }
 
     async searchItems(params) {
@@ -51,7 +154,18 @@ class KeywordResearchService {
             itemCount = 10,
             itemPage = 1,
             marketplace = 'www.amazon.in',
+            cache = true,
         } = params;
+
+        const cacheKey = cache ? this._cacheKey({ ...params, keywords, marketplace, itemCount, itemPage }) : null;
+        if (cacheKey) {
+            const cached = this._getCached(cacheKey);
+            if (cached) {
+                this._cacheHits += 1;
+                return { ...cached, cached: true };
+            }
+            this._cacheMisses += 1;
+        }
 
         const api = this._getSdkApi();
         const cred = Credentials.get();
@@ -98,7 +212,7 @@ class KeywordResearchService {
 
         for (let attempt = 0; attempt <= this._config.maxRetries; attempt++) {
             try {
-                await this._rateLimit();
+                await this._acquireSlot();
 
                 const raw = await api.searchItems(marketplace, {
                     searchItemsRequestContent: request,
@@ -119,13 +233,19 @@ class KeywordResearchService {
                 const items = (searchResult.items || []).map(item => this._extractItem(item));
                 const refinements = data.searchRefinements || null;
 
-                return {
+                const payload = {
                     items,
                     totalResultCount: searchResult.totalResultCount || items.length,
                     searchRefinements: refinements,
                     itemPage,
                     itemCount,
                 };
+
+                if (cacheKey) this._setCached(cacheKey, payload);
+
+                // `cached: false` lets the UI say whether a result came from the
+                // snapshot cache or cost a fresh upstream call.
+                return { ...payload, cached: false };
             } catch (err) {
                 lastError = err;
                 const status = err.status || err.response?.status;
@@ -152,24 +272,39 @@ class KeywordResearchService {
         throw lastError || new Error('Search failed after retries');
     }
 
-    async batchSearchItems(keywordsArray, params = {}) {
-        const results = [];
-        const totalKeywords = keywordsArray.length;
+    /**
+     * Search several keywords.
+     *
+     * Runs through `_mapWithConcurrency`, which is safe because upstream starts
+     * are still spaced by the shared 1.1 s slot queue — parallelism buys back
+     * the request latency, it does not exceed the rate limit. Results keep the
+     * caller's keyword order, failures stay per-keyword, and a cache hit costs
+     * nothing.
+     */
+    async batchSearchItems(keywordsArray, params = {}, options = {}) {
+        const cleaned = (keywordsArray || [])
+            .map((k) => String(k || '').trim())
+            .filter(Boolean);
 
-        for (let i = 0; i < totalKeywords; i++) {
-            const kw = keywordsArray[i].trim();
-            if (!kw) continue;
+        const concurrency = Math.max(1, Math.min(
+            Number(options.concurrency || this._config.concurrency),
+            cleaned.length || 1,
+        ));
 
-            console.log(`[KW Batch] ${i + 1}/${totalKeywords}: "${kw}"`);
+        const started = Date.now();
+        let failed = 0;
+        let cachedCount = 0;
+
+        const results = await this._mapWithConcurrency(cleaned, concurrency, async (kw, index) => {
+            console.log(`[KW Batch] ${index + 1}/${cleaned.length}: "${kw}"`);
             try {
                 const result = await this.searchItems({ ...params, keywords: kw });
-                results.push({
-                    keyword: kw,
-                    ...result,
-                });
+                if (result.cached) cachedCount += 1;
+                return { keyword: kw, ...result };
             } catch (err) {
+                failed += 1;
                 console.error(`[KW Batch] Failed for "${kw}": ${err.message}`);
-                results.push({
+                return {
                     keyword: kw,
                     items: [],
                     totalResultCount: 0,
@@ -177,11 +312,22 @@ class KeywordResearchService {
                     error: err.message,
                     itemPage: params.itemPage || 1,
                     itemCount: params.itemCount || 10,
-                });
+                };
             }
-        }
+        });
 
-        return { results, totalKeywords: results.length };
+        return {
+            results,
+            totalKeywords: results.length,
+            meta: {
+                requested: cleaned.length,
+                failed,
+                cached: cachedCount,
+                fresh: results.length - cachedCount - failed,
+                concurrency,
+                elapsedMs: Date.now() - started,
+            },
+        };
     }
 
     _extractItem(item) {

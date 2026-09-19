@@ -77,7 +77,7 @@ const FileManagerPage = lazy(() => import('./pages/FileManagerPage'));
 const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
 const WebhookSettingsPage = lazy(() => import('./pages/WebhookSettingsPage'));
 const SetupWizardPage = lazy(() => import('./pages/SetupWizardPage'));
-const KeywordResearchPage = lazy(() => import('./pages/KeywordResearchPage'));
+const KeywordResearchPage = lazy(() => import('./pages/keywords/KeywordResearchPage'));
 
 // Layout wrapper — flex row: Sidebar takes its own width, content fills the rest
 function AppLayout({ children }) {
