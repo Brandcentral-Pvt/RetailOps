@@ -24,7 +24,7 @@
     "@mui/x-charts": "^9.2.0",
     "@mui/x-data-grid": "^9.1.0",
     "@pusher/push-notifications-web": "^1.1.0",
-    "@syncfusion/ej2-react-dropdowns": "^33.2.7",
+    "@syncfusion/ej2-react-dropdowns": "^34.2.8",
     "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-query": "^5.100.11",
     "@types/dompurify": "^3.0.5",
