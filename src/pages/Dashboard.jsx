@@ -9,6 +9,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
 import api, { marketSyncApi } from '../services/api';
 import DashboardErrorBoundary from '../components/dashboard/DashboardErrorBoundary';
+import { computeBlendedAchievement } from '../utils/targetMetrics';
 import '../components/dashboard/shared/glass.css';
 import '../components/dashboard/dashboard-animations.css';
 
@@ -112,6 +113,18 @@ const Dashboard = () => {
         }
     }, [syncing, refresh]);
 
+    // ✅ Filter consistency: ONE seller/manager-filtered target list shared by
+    // the KPI strip and the achievement donut — the donut previously computed
+    // its tier mix from the UNFILTERED target list.
+    const visibleTargets = useMemo(() => {
+        const targetsList = orch.targets || [];
+        let filtered = targetsList;
+        if (filters.sellerId !== 'all') filtered = filtered.filter(t => sellerMatches(t, filters.sellerId));
+        // Match manager by UserId OR BrandManager name (case-insensitive)
+        if (filters.managerId !== 'all') filtered = filtered.filter(t => matchesManagerFilter(t, filters.managerId));
+        return filtered;
+    }, [orch.targets, filters.sellerId, filters.managerId, matchesManagerFilter]);
+
     const kpiValues = useMemo(() => {
         const adsPerf = orch.dashboardRaw?.adsPerformanceSeries || [];
         const adSales = (adsPerf[0]?.data || []).reduce((a, b) => a + b, 0);
@@ -119,22 +132,24 @@ const Dashboard = () => {
         const orders = orch.dashboardRaw?.kpi?.[0]?.trend || 0;
         const acos = adSales > 0 ? (adSpend / adSales) * 100 : 0;
         const unitsSeries = orch.dashboardRaw?.unitsSeries || [];
-        // ✅ Fix: removed the orders*1.48 estimation fallback — units are the
-        // actual orders series from the backend now.
+        // Units are the actual orders series from the backend (no estimator).
         const units = unitsSeries.reduce((a, b) => a + b, 0) || orders;
 
-        const targetsList = orch.targets || [];
-        let totalTarget = 0, totalAchieved = 0;
-        let filteredTargets = targetsList;
-        if (filters.sellerId !== 'all') filteredTargets = filteredTargets.filter(t => sellerMatches(t, filters.sellerId));
-        // ✅ Fix: match manager by UserId OR BrandManager name (case-insensitive)
-        if (filters.managerId !== 'all') filteredTargets = filteredTargets.filter(t => matchesManagerFilter(t, filters.managerId));
-        if (filters.goalType !== 'all') filteredTargets = filteredTargets.filter(t => (t.GoalType || 'GMS').toUpperCase() === filters.goalType);
-        filteredTargets.forEach(t => { totalTarget += (t.TotalTargetValue || 0); totalAchieved += (t.overallAchieved || 0); });
-        const achievementRate = totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
+        let goalTargets = visibleTargets;
+        if (filters.goalType !== 'all') goalTargets = goalTargets.filter(t => (t.GoalType || 'GMS').toUpperCase() === filters.goalType);
 
-        return { adSales, adSpend, orders, acos, units, targetTotal: totalTarget, targetAchieved: totalAchieved, achievementRate };
-    }, [orch.dashboardRaw, orch.targets, filters, matchesManagerFilter]);
+        // ✅ Goal separation: currency goals (GMS/ADS) blended by value;
+        // ratio goals (ACoS) excluded from the blend (inverted math applied
+        // per-target instead of polluting the revenue achievement rate).
+        const blended = computeBlendedAchievement(goalTargets);
+
+        return {
+            adSales, adSpend, orders, acos, units,
+            targetTotal: blended.totalTarget,
+            targetAchieved: blended.totalAchieved,
+            achievementRate: blended.rate,
+        };
+    }, [orch.dashboardRaw, visibleTargets, filters.goalType]);
 
     // ✅ Surface orchestration errors — previously failures were silent and
     // sections just showed skeletons forever.
@@ -175,11 +190,14 @@ const Dashboard = () => {
                     />
                 )}
                 <DashboardErrorBoundary fallbackText="Status bar failed to load">
+                    {/* ✅ Honest counts: activeAlerts counts unacknowledged ALERTS
+                        (activity logs have no acknowledged state) and pendingTasks
+                        comes from the normalized module stats. */}
                     <GlobalStatusBar 
                         healthScore={Math.round(kpiValues.achievementRate)}
-                        activeAlerts={activityLogs?.filter(a => !a.AcknowledgedAt)?.length || 0}
+                        activeAlerts={(orch.alerts || []).filter(a => !(a.acknowledged ?? a.Acknowledged)).length}
                         runningAutomations={scrapeTasks?.filter(t => t.status === 'RUNNING')?.length || 0}
-                        pendingTasks={optimizationTasks?.filter(t => t.status === 'pending')?.length || 0}
+                        pendingTasks={moduleStats.tasks?.pending || 0}
                         marketplaceStatus={scrapeTasks?.some(t => t.status === 'RUNNING') ? 'operational' : 'idle'}
                     />
                 </DashboardErrorBoundary>
@@ -255,7 +273,7 @@ const Dashboard = () => {
                     </Col>
                     <Col xs={24} lg={10}>
                         <DashboardErrorBoundary fallbackText="Achievement chart failed to load">
-                            <AchievementDonut targets={orch.targets || []} overallRate={kpiValues.achievementRate} goalType={filters.goalType} />
+                            <AchievementDonut targets={visibleTargets} overallRate={kpiValues.achievementRate} goalType={filters.goalType} />
                         </DashboardErrorBoundary>
                     </Col>
                 </Row>
@@ -264,7 +282,7 @@ const Dashboard = () => {
                 <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
                     <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Top ASINs failed to load"><TopAsinsCard products={topProducts || []} /></DashboardErrorBoundary></Col>
                     <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Tasks failed to load"><TasksOverviewCard tasks={optimizationTasks} loading={loading} /></DashboardErrorBoundary></Col>
-                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Alerts failed to load"><AlertsPipelineCard alerts={activityLogs} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></DashboardErrorBoundary></Col>
+                    <Col xs={24} md={8}><DashboardErrorBoundary fallbackText="Alerts failed to load"><AlertsPipelineCard alerts={orch.alerts || []} pipelineTasks={scrapeTasks} onSyncClick={refresh} syncLoading={loading} /></DashboardErrorBoundary></Col>
                 </Row>
 
                 {/* Layer 8: Activity Timeline */}
