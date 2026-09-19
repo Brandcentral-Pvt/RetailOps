@@ -15,6 +15,39 @@
   font-family: var(--font-family);
 }
 
+/* Mobile nav toggle — hidden on desktop, visible ≤992px matching SidebarContext */
+.header-mobile-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.header-mobile-toggle:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.header-mobile-toggle:focus-visible {
+  outline: 2px solid var(--corp-primary, #1976d2);
+  outline-offset: 2px;
+}
+
+@media (max-width: 992px) {
+  .header-mobile-toggle {
+    display: inline-flex;
+  }
+}
+
 .header-toggle-btn {
   width: 32px;
   height: 32px;
