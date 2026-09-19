@@ -316,6 +316,28 @@
 .kw-scroll { max-height: 420px; overflow: auto; }
 .kw-table-scroll { max-height: 560px; }
 
+/* ── product table pager ──────────────────────────────────────────── */
+
+.ops-table__pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--kw-line-soft, #eef1f5);
+}
+.ops-table__pager .ant-pagination { display: inline-flex; align-items: center; }
+.ops-table__pager .ant-pagination-total-text { margin-right: 8px; color: var(--kw-ink-3, #8896ab); }
+.ops-table__more {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.ops-table__more .kw-errline { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── progress ──────────────────────────────────────────────────────── */
 
 .kw-progress { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }

@@ -7,7 +7,10 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const domain = env.VITE_API_URL ? new URL(env.VITE_API_URL).hostname : 'data.brandcentral.in';
+  let domain = 'data.brandcentral.in';
+  try {
+    if (env.VITE_API_URL) domain = new URL(env.VITE_API_URL).hostname || domain;
+  } catch { /* VITE_API_URL may be a relative path like '/api' */ }
 
   return {
     plugins: [react(), tailwindcss()],

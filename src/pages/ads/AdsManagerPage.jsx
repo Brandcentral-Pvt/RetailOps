@@ -230,7 +230,7 @@ const AdsManagerPage = () => {
                             </>
                         )}
                         <span>·</span>
-                        <span>Updated {timeAgo(new Date(overview.dataUpdatedAt || now.getTime()).toISOString())}</span>
+                        <span>Updated {timeAgo(new Date(overview.dataUpdatedAt || now).toISOString())}</span>
                     </div>
                 </div>
                 <div className="ops-head__controls">

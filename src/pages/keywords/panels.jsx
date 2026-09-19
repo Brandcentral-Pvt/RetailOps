@@ -8,9 +8,9 @@
  * next to them, and "—" wherever the API had nothing to give.
  */
 import React, { useState } from 'react';
-import { Button, Input, Select, Tag, Tooltip as AntTooltip } from 'antd';
+import { Button, Input, Pagination, Select, Tag, Tooltip as AntTooltip } from 'antd';
 import {
-    CheckCircleFilled, DownloadOutlined, ReloadOutlined, SearchOutlined,
+    CheckCircleFilled, DownloadOutlined, PlusOutlined, ReloadOutlined, SearchOutlined,
     StarFilled, StarOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
@@ -648,11 +648,26 @@ const PRODUCT_COLUMNS = [
 
 export const ProductTable = ({
     items = [], sort, onWatch, onOpen, watched = [], showKeyword = false, onExport, canExport, exporting,
+    onLoadMore, moreLoading = false, moreError = null, totalHits = null,
 }) => {
     const columns = PRODUCT_COLUMNS;
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+
+    const sourceKey = `${items.length}|${items[0]?.asin}|${sort?.key}|${sort?.dir}`;
+    const [source, setSource] = useState(() => sourceKey);
+    if (sourceKey !== source) {
+        setSource(sourceKey);
+        setPage(1);
+    }
+
     if (!items.length) {
         return <Panel span={12} kicker="Products"><MiniState tone="empty" title="No products" note="The API returned no listings for these filters." /></Panel>;
     }
+
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+    const current = Math.min(page, totalPages);
+    const paged = items.slice((current - 1) * pageSize, current * pageSize);
 
     return (
         <Panel
@@ -664,7 +679,7 @@ export const ProductTable = ({
                 <Button size="small" icon={<DownloadOutlined />} onClick={onExport} loading={exporting}>Export XLSX</Button>
             ) : null}
         >
-            <div className="ops-table__wrap kw-scroll kw-table-scroll">
+            <div className="ops-table__wrap">
                 <table className="ops-table ops-table--dense">
                     <thead>
                         <tr>
@@ -685,7 +700,7 @@ export const ProductTable = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item) => (
+                        {paged.map((item) => (
                             <tr className="ops-table__row" key={`${item.keyword || ''}-${item.asin}`}>
                                 <td className="ops-num ops-table__rank">{item.position ?? '—'}</td>
                                 <td>
@@ -712,6 +727,38 @@ export const ProductTable = ({
                     </tbody>
                 </table>
             </div>
+            {(onLoadMore || items.length > 10) ? (
+                <div className="ops-table__pager">
+                    {onLoadMore ? (
+                        <span className="ops-table__more">
+                            <Button
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onClick={onLoadMore}
+                                loading={moreLoading}
+                            >
+                                {moreLoading ? 'Loading next page…' : totalHits != null
+                                    ? `Show next products (${items.length} of ${Number(totalHits).toLocaleString('en-IN')})`
+                                    : 'Show more products'}
+                            </Button>
+                            {moreError ? <span className="kw-errline">{moreError}</span> : null}
+                        </span>
+                    ) : null}
+                    {items.length > 10 ? (
+                        <Pagination
+                            size="small"
+                            current={current}
+                            pageSize={pageSize}
+                            total={items.length}
+                            showTotal={(t, range) => `${range[0]}–${range[1]} of ${t} listings`}
+                            showSizeChanger
+                            pageSizeOptions={[10, 20, 50, 100]}
+                            onChange={(p, size) => { setPage(p); setPageSize(size); }}
+                            showLessItems
+                        />
+                    ) : null}
+                </div>
+            ) : null}
         </Panel>
     );
 };
