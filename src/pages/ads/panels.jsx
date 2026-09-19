@@ -10,10 +10,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Input, Modal, Progress, Select, Tooltip as AntTooltip } from 'antd';
 import {
-    Panel, MiniState, Delta, Tile, Chip, Segmented, SegmentedBar,
+    Panel, MiniState, Delta, Chip, Tip, Segmented, SegmentedBar,
     SortHeader, ShareBar, fmtINR, fmtINRFull, fmtNum, fmtNumFull, timeAgo,
 } from '../opsCenter/primitives';
-import { Sparkline, TrendChart, Bars, Ring } from '../opsCenter/charts';
+import { Sparkline, Bars, Ring } from '../opsCenter/charts';
+import { AdsAreaChart } from './AdsAreaChart';
 import { useAdsHistory } from '../../hooks/useAdsModule';
 
 /* ────────────────────────────── helpers ───────────────────────────────── */
@@ -57,40 +58,57 @@ const GranularityOptions = [
     { value: 'month', label: 'Month' },
 ];
 
-/** Series builder: current window + the positionally-aligned previous window. */
+const BUCKET_LABEL = { day: 'daily', week: 'weekly', month: 'monthly' };
+
+/** 'YYYY-MM-DD' -> '20 Aug' (short locale form, no timezone shifts). */
+const shortDate = (iso) => {
+    if (!iso) return '';
+    const dt = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(dt.getTime()) ? iso : dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+};
+
+const trendRange = (period) => (period ? `${shortDate(period.start)} – ${shortDate(period.end)}` : 'no window');
+
+/** Series builder: current window + the positionally-aligned previous window.
+ *  Null leaves (buckets with no ad rows) are preserved instead of being
+ *  replaced with fabricated zeroes, so the chart shows honest gaps and the
+ *  tooltip never invents spend/sales on inactive dates. Line weight and dash
+ *  create a readable hierarchy when series overlap (primary > secondary >
+ *  lighter/lower-confidence). */
 const buildChartSeries = (overview, mode) => {
     const cur = overview?.series?.current || {};
     const prev = overview?.series?.previous || {};
-    const s = (key, name, color, source = cur, dashed = false) => ({
-        key, name, color, dashed, data: sparkNums(source[key]),
+    const dataOf = (source, key) => (source[key] || []).map((v) => (has(v) ? Number(v) : null));
+    const s = (key, name, color, source = cur, { dashed = false, weight = 1.8 } = {}) => ({
+        key, name, color, dashed, weight, data: dataOf(source, key),
     });
     const defs = {
         revenue: [
-            ['totalSales', 'Total sales', '#1349c6'],
-            ['sales', 'Ad sales', '#6172f3'],
-            ['organicSales', 'Organic', '#0e7490'],
+            ['totalSales', 'Total sales', '#1349c6', { weight: 2.4 }],
+            ['sales', 'Ad sales', '#6172f3', { weight: 1.8 }],
+            ['organicSales', 'Organic', '#0e9039', { weight: 1.5, dashed: true }],
         ],
         spend: [
-            ['spend', 'Ad spend', '#b54708'],
-            ['sales', 'Ad sales', '#1349c6'],
+            ['spend', 'Ad spend', '#b54708', { weight: 2.2 }],
+            ['sales', 'Ad sales', '#1349c6', { weight: 1.8 }],
         ],
         efficiency: [
-            ['acos', 'ACoS', '#d92d20'],
-            ['tacos', 'TACoS', '#b54708'],
+            ['acos', 'ACoS', '#d92d20', { weight: 2.2 }],
+            ['tacos', 'TACoS', '#b54708', { weight: 1.6, dashed: true }],
         ],
         traffic: [
-            ['impressions', 'Impressions', '#6172f3'],
-            ['clicks', 'Clicks', '#0e7490'],
-            ['pageViews', 'Page views', '#8896ab'],
+            ['impressions', 'Impressions', '#6172f3', { weight: 2.0 }],
+            ['clicks', 'Clicks', '#0e7490', { weight: 1.6 }],
+            ['pageViews', 'Page views', '#8896ab', { weight: 1.4, dashed: true }],
         ],
         orders: [
-            ['orders', 'Ad orders', '#1349c6'],
-            ['totalOrders', 'Total orders', '#067647'],
+            ['orders', 'Ad orders', '#1349c6', { weight: 2.2 }],
+            ['totalOrders', 'Total orders', '#067647', { weight: 1.6, dashed: true }],
         ],
     };
-    const list = (defs[mode] || defs.revenue).map(([k, n, c]) => s(k, n, c));
+    const list = (defs[mode] || defs.revenue).map(([k, n, c, o]) => s(k, n, c, cur, o));
     if (overview?.previousAvailable) {
-        list.push(...(defs[mode] || defs.revenue).map(([k, n, c]) => s(`prev_${k}`, `${n} · prev`, c, prev, true)));
+        list.push(...(defs[mode] || defs.revenue).map(([k, n, c, o]) => s(`prev_${k}`, `${n} · prev`, c, prev, { ...o, dashed: true })));
     }
     return list;
 };
@@ -101,73 +119,139 @@ export const SERIES_MODE = { spend: 'spend', sales: 'revenue', totalSales: 'reve
 
 /* ───────────────────────────── KPI strip ──────────────────────────────── */
 
+/** Single KPI card: uppercase label with an inline delta / no-prior slot, big
+ *  tabular value, a small sparkline (direction + volatility) and a supporting
+ *  fact line. The comparison sentence is deliberately absent — the right slot
+ *  carries either the real delta or a muted "No prior data" marker. */
+const KpiCard = ({ label, value, delta, sub, spark, noPrior, active, onClick, tip }) => {
+    const clickable = typeof onClick === 'function';
+    return (
+        <div
+            className={`ops-panel ads-kpi ${clickable ? 'ads-kpi--clickable' : ''} ${active ? 'ads-kpi--active' : ''}`}
+            role={clickable ? 'button' : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            aria-pressed={clickable ? !!active : undefined}
+            onClick={onClick}
+            onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+        >
+            <div className="ads-kpi__head">
+                <span className="ads-kpi__label">{tip ? <Tip text={tip}>{label}</Tip> : label}</span>
+                {delta || (noPrior ? <span className="ads-kpi__noprior">No prior data</span> : null)}
+            </div>
+            <div className="ads-kpi__value ops-num">{value}</div>
+            {spark && (
+                <div className="ads-kpi__spark">
+                    <Sparkline data={spark} width={84} height={30} />
+                </div>
+            )}
+            {sub && <div className="ads-kpi__sub ops-num">{sub}</div>}
+        </div>
+    );
+};
+
 export const KpiRow = ({ overview, focus, onFocus }) => {
     const t = overview?.totals || {};
     const d = overview?.delta || {};
-    const spark = (key) => <Sparkline data={sparkNums(overview?.series?.current?.[key])} />;
-    const tile = (props) => (
-        <Tile
-            key={props.seriesKey || props.label}
-            {...props}
-            spark={props.seriesKey ? spark(props.seriesKey) : undefined}
-            active={focus === props.seriesKey}
-            onClick={props.seriesKey ? () => onFocus(props.seriesKey) : undefined}
-        />
-    );
+    const period = overview?.period || {};
+    const previousAvailable = !!overview?.previousAvailable;
+    const deltaTitle = `vs previous ${period.days || 0} days`;
+    const card = (c) => {
+        const { key: _key, ...rest } = c;
+        return {
+            ...rest,
+            active: focus === c.key,
+            onClick: c.key ? () => onFocus(c.key) : undefined,
+            spark: c.key ? sparkNums(overview?.series?.current?.[c.key]) : undefined,
+            delta: previousAvailable && c.delta ? <Delta {...c.delta} compact title={deltaTitle} /> : undefined,
+            noPrior: !previousAvailable,
+        };
+    };
 
     return (
-        <>
-            {tile({
-                label: 'Ad spend', value: money(t.spend), seriesKey: 'spend',
-                sub: `CPC ${has(t.cpc) ? fmtINR(t.cpc) : '—'} · ${int(t.clicks)} clicks`,
-                delta: <Delta value={d.spend} neutral />,
-                tip: 'Total advertising cost in the selected window (ReportType is pinned, so daily and monthly rows are never mixed).',
-            })}
-            {tile({
-                label: 'Ad sales', value: money(t.sales), seriesKey: 'sales',
-                sub: `${int(t.orders)} orders · AOV ${money(t.aov)}`,
-                delta: <Delta value={d.sales} />,
-                tip: 'Sales attributed to advertising, from the ads report rows only.',
-            })}
-            {tile({
-                label: 'Total sales', value: money(t.totalSales), seriesKey: 'totalSales',
-                sub: `Organic ${money(t.organicSales)} (${fmtPct(t.adSharePct === null ? null : 100 - Number(t.adSharePct))})`,
-                delta: <Delta value={d.totalSales} />,
-                tip: 'Ad sales + organic sales in the same window.',
-            })}
-            {tile({
-                label: 'ACoS', value: has(t.acos) ? Number(t.acos).toFixed(1) : '—', unit: has(t.acos) ? '%' : '',
-                seriesKey: 'acos',
-                sub: overview?.targets?.acos ? `Target ${fmtPct(overview.targets.acos.target)}` : `ROAS ${fmtX(t.roas)}`,
-                delta: <Delta value={d.acos} invert points label="vs prev" />,
-                tip: 'Advertising cost of sale = spend ÷ ad sales. Lower is better.',
-            })}
-            {tile({
-                label: 'TACoS', value: has(t.tacos) ? Number(t.tacos).toFixed(1) : '—', unit: has(t.tacos) ? '%' : '',
-                seriesKey: 'tacos',
-                sub: `Ad share ${fmtPct(t.adSharePct)}`,
-                delta: <Delta value={d.tacos} invert points label="vs prev" />,
-                tip: 'Total advertising cost of sale = spend ÷ (ad sales + organic sales). The truest efficiency read.',
-            })}
-            {tile({
-                label: 'ROAS', value: fmtX(t.roas), seriesKey: 'roas',
-                sub: `Cost/order ${money(t.costPerOrder)}`,
-                delta: <Delta value={d.roas} label="vs prev" />,
-                tip: 'Return on ad spend = ad sales ÷ spend.',
-            })}
-            {tile({
-                label: 'Orders', value: int(t.orders), seriesKey: 'orders',
-                sub: `CVR ${fmtPct(t.cvr)}`,
-                delta: <Delta value={d.orders} label="vs prev" />,
-                tip: 'Orders attributed to advertising.',
-            })}
-            {tile({
-                label: 'Traffic', value: int(t.impressions), seriesKey: 'impressions',
-                sub: `CTR ${fmtPct(t.ctr, 2)} · ${int(t.clicks)} clicks`,
-                delta: <Delta value={d.impressions} label="vs prev" />,
-                tip: 'Impressions served. CTR below ~0.35% with high volume usually means relevance, not bids.',
-            })}
-        </>
+        <div className="ads-kpis" aria-label="Key performance indicators">
+            {[
+                {
+                    key: 'spend', label: 'Ad spend', value: money(t.spend),
+                    delta: { value: d.spend, neutral: true },
+                    sub: `CPC ${has(t.cpc) ? fmtINR(t.cpc) : '—'} · ${int(t.clicks)} clicks`,
+                    tip: 'Total advertising cost in the selected window (ReportType is pinned, so daily and monthly rows are never mixed).',
+                },
+                {
+                    key: 'sales', label: 'Ad sales', value: money(t.sales),
+                    delta: { value: d.sales },
+                    sub: `${int(t.orders)} orders · AOV ${money(t.aov)}`,
+                    tip: 'Sales attributed to advertising, from the ads report rows only.',
+                },
+                {
+                    key: 'totalSales', label: 'Total sales', value: money(t.totalSales),
+                    delta: { value: d.totalSales },
+                    sub: `Organic ${money(t.organicSales)} · ${fmtPct(has(t.adSharePct) ? 100 - Number(t.adSharePct) : null)}`,
+                    tip: 'Ad sales + organic sales in the same window.',
+                },
+                {
+                    key: 'acos', label: 'ACoS', value: has(t.acos) ? `${Number(t.acos).toFixed(1)}%` : '—',
+                    delta: { value: d.acos, invert: true, points: true },
+                    sub: overview?.targets?.acos ? `Target ${fmtPct(overview.targets.acos.target)}` : `ROAS ${fmtX(t.roas)}`,
+                    tip: 'Advertising cost of sale = spend ÷ ad sales. Lower is better.',
+                },
+                {
+                    key: 'tacos', label: 'TACoS', value: has(t.tacos) ? `${Number(t.tacos).toFixed(1)}%` : '—',
+                    delta: { value: d.tacos, invert: true, points: true },
+                    sub: `Ad share ${fmtPct(t.adSharePct)}`,
+                    tip: 'Total advertising cost of sale = spend ÷ (ad sales + organic sales). The truest efficiency read.',
+                },
+                {
+                    key: 'roas', label: 'ROAS', value: fmtX(t.roas),
+                    delta: { value: d.roas },
+                    sub: `Cost/order ${money(t.costPerOrder)}`,
+                    tip: 'Return on ad spend = ad sales ÷ spend.',
+                },
+                {
+                    key: 'orders', label: 'Orders', value: int(t.orders),
+                    delta: { value: d.orders },
+                    sub: `CVR ${fmtPct(t.cvr)}`,
+                    tip: 'Orders attributed to advertising.',
+                },
+                {
+                    key: 'impressions', label: 'Traffic', value: int(t.impressions),
+                    delta: { value: d.impressions },
+                    sub: `CTR ${fmtPct(t.ctr, 2)} · ${int(t.clicks)} clicks`,
+                    tip: 'Impressions served. CTR below ~0.35% with high volume usually means relevance, not bids.',
+                },
+            ].map((c) => <KpiCard key={c.key} {...card(c)} />)}
+        </div>
+    );
+};
+
+/** Supporting performance facts derived from the same scoped rows, laid out as
+ *  a two-row summary instrument (sales mix on top, ratios below) with small
+ *  relationship explanations instead of six unrelated labels. */
+export const PerformanceHealth = ({ overview }) => {
+    const t = overview?.totals || {};
+    const adShare = has(t.adSharePct) ? Number(t.adSharePct) : null;
+    const sales = (label, value, sub) => ({ label, value, sub });
+    const items = [
+        sales('Paid sales', money(t.sales), adShare === null ? `of total ${money(t.totalSales)}` : `${fmtPct(adShare)} of ${money(t.totalSales)}`),
+        sales('Organic sales', money(t.organicSales), adShare === null ? `of total ${money(t.totalSales)}` : `${fmtPct(has(t.totalSales) ? 100 - adShare : null)} of ${money(t.totalSales)}`),
+        sales('Total sales', money(t.totalSales), `${int(t.totalOrders)} total orders`),
+        sales('Paid contribution', adShare === null ? '—' : fmtPct(adShare), `${money(t.sales)} / ${money(t.totalSales)}`),
+        sales('AOV', money(t.aov), `${int(t.orders)} ad orders`),
+        sales('CVR', fmtPct(t.cvr), `${int(t.clicks)} clicks`),
+    ];
+    const stat = (it) => (
+        <div className="ops-stat" key={it.label}>
+            <span className="ops-stat__label">{it.label}</span>
+            <span className="ops-stat__value ops-num">{it.value}</span>
+            <span className="ops-stat__sub ops-muted ops-num">{it.sub}</span>
+        </div>
+    );
+    return (
+        <Panel id="panel-health" span={12} kicker="Performance health" meta="From the same scoped rows">
+            <div className="ads-health">
+                <div className="ops-statrow ads-health__row">{items.slice(0, 3).map(stat)}</div>
+                <div className="ops-statrow ads-health__row ads-health__row--sub">{items.slice(3, 6).map(stat)}</div>
+            </div>
+        </Panel>
     );
 };
 
@@ -206,27 +290,34 @@ export const TrendPanel = ({
     }
 
     const period = overview?.period;
+    const granBucket = BUCKET_LABEL[overview?.series?.granularity || period?.granularity] || 'daily';
+    const periodDesc = period
+        ? `${trendRange(period)} · ${period.days} day${period.days === 1 ? '' : 's'} · ${granBucket} buckets`
+        : 'no window';
 
     return (
-        <Panel
-            id="panel-trends"
-            span={12}
-            kicker="Performance trend"
-            meta={period ? `${period.label} · ${period.days} day${period.days === 1 ? '' : 's'} · ${period.granularity} buckets` : null}
-            actions={(
-                <>
+        <Panel id="panel-trends" span={12} className="ads-trend">
+            <div className="ops-panel__head">
+                <span className="ads-trend__title">
+                    <span className="ops-panel__kicker">Performance trend</span>
+                    <span className="ops-panel__sub">
+                        Daily trend of advertising performance · {periodDesc}
+                    </span>
+                </span>
+                <span className="ops-panel__meta">
                     <Segmented options={ChartMode} value={mode} onChange={changeMode} ariaLabel="Trend metric" />
                     <Segmented options={GranularityOptions} value={granularity} onChange={onGranularity} ariaLabel="Bucket size" />
-                </>
-            )}
-        >
-            {!overview ? (
+                </span>
+            </div>
+            {status === 'empty' ? (
+                <MiniState tone="empty" title="No advertising data for this period." note="Pick a different window or seller — nothing is shown rather than a zeroed baseline." />
+            ) : !overview ? (
                 <MiniState tone="empty" title="No data loaded" note="Pick a window and seller to load the trend." />
             ) : (
                 <>
-                    <TrendChart
+                    <AdsAreaChart
                         labels={overview.series?.keys || []}
-                        series={series.map((s) => ({ ...s, data: s.data.map((v) => (v === null ? 0 : v)) }))}
+                        series={series}
                         unit={unit}
                         hidden={hidden}
                         onToggle={toggle}
@@ -236,8 +327,8 @@ export const TrendPanel = ({
                         height={240}
                     />
                     {!overview.previousAvailable && (
-                        <div className="ops-muted" style={{ marginTop: 6, fontSize: 11.5 }}>
-                            No comparable previous window exists yet — deltas stay blank rather than showing a fabricated baseline.
+                        <div className="ops-muted" style={{ marginTop: 6, fontSize: 11 }}>
+                            No comparable previous window exists yet — comparison deltas are intentionally left blank.
                         </div>
                     )}
                 </>
@@ -647,33 +738,30 @@ export const FreshnessPanel = ({ freshness, period, reportType, scope }) => (
 
 export const InsightRail = ({ insights, onJump }) => {
     const list = insights?.insights || [];
-    if (list.length === 0) {
-        return (
-            <div className="ops-insights">
-                <span className="ops-muted" style={{ fontSize: 12 }}>No rule findings for this window.</span>
-            </div>
-        );
-    }
+    if (list.length === 0) return null;
+    const showCounts = (insights?.counts?.neg || insights?.counts?.warn) ? (
+        <span className="ops-muted ads-signals__counts">
+            {insights.counts.neg || 0} critical · {insights.counts.warn || 0} warning
+        </span>
+    ) : null;
     return (
-        <div className="ops-insights" role="list" aria-label="Rule-based insights">
+        <div className="ops-insights ads-signals" role="list" aria-label="Rule-based insights">
             {list.slice(0, 10).map((insight) => (
                 <button
                     key={insight.id}
                     type="button"
                     role="listitem"
-                    className={`ops-insight ops-insight--${insight.tone}`}
+                    className={`ads-signal ads-signal--${insight.tone}`}
                     onClick={() => onJump && insight.target && onJump(insight.target)}
                     title={insight.detail || insight.text}
                 >
-                    <i />
-                    <span>{insight.text}</span>
+                    <span className="ads-signal__fact">
+                        <i />
+                        <span className="ads-signal__text">{insight.text}</span>
+                    </span>
                 </button>
             ))}
-            {(insights?.counts?.neg || insights?.counts?.warn) ? (
-                <span className="ops-muted" style={{ fontSize: 11.5, alignSelf: 'center' }}>
-                    {insights.counts.neg || 0} critical · {insights.counts.warn || 0} warning
-                </span>
-            ) : null}
+            {showCounts}
         </div>
     );
 };
@@ -987,6 +1075,11 @@ const ImpactChip = ({ level, kind = 'impact' }) => {
 export const AiAnalystPanel = ({ insights, ai, onRun, question, setQuestion, canRun = true }) => {
     const narrative = ai?.data?.narrative;
     const error = ai?.error;
+    const isPending = !!ai?.isPending;
+    const run = React.useCallback(() => {
+        if (isPending) return;
+        onRun();
+    }, [isPending, onRun]);
 
     return (
         <Panel
@@ -998,9 +1091,9 @@ export const AiAnalystPanel = ({ insights, ai, onRun, question, setQuestion, can
                 <Button
                     size="small"
                     type="primary"
-                    loading={ai?.isPending}
-                    disabled={!canRun}
-                    onClick={() => onRun()}
+                    loading={isPending}
+                    disabled={!canRun || isPending}
+                    onClick={run}
                 >
                     {narrative ? 'Regenerate review' : 'Generate AI review'}
                 </Button>
@@ -1018,7 +1111,7 @@ export const AiAnalystPanel = ({ insights, ai, onRun, question, setQuestion, can
                     placeholder="Ask a question (optional) — e.g. where did ACoS drift come from?"
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
-                    onPressEnter={() => onRun()}
+                    onPressEnter={run}
                     maxLength={400}
                 />
             </div>
@@ -1163,7 +1256,7 @@ export const ReportPanel = ({ report, status, onRetry, onOpenMonth }) => {
                     <MiniState tone="empty" title="No monthly data" note="No ads rows for this window with the current filters." />
                 ) : (
                     <>
-                        <TrendChart
+                        <AdsAreaChart
                             labels={months.map((m) => m.key)}
                             series={[
                                 { key: 'spend', name: 'Ad spend', color: '#b54708', data: months.map((m) => num(m.spend)) },

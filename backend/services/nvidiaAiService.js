@@ -2,7 +2,7 @@ const { sql, getPool, generateId } = require('../database/db');
 
 const NVIDIA_INVOKE_URL = `${process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'}/chat/completions`;
 const DEFAULT_VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
-const DEFAULT_FAST_MODEL = "meta/llama-3.1-8b-instruct";
+const DEFAULT_FAST_MODEL = "z-ai/glm-5.3-flash";
 
 /**
  * NVIDIA AI Service — Product Intelligence Platform

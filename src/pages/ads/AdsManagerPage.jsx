@@ -19,13 +19,13 @@ import { usePageTitle } from '../../contexts/PageTitleContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { adsApi } from '../../services/api';
-import { Panel, MiniState, Segmented, SkeletonPage, fmtNum, timeAgo, useNow } from '../opsCenter/primitives';
+import { Panel, MiniState, Segmented, fmtNum, timeAgo, useNow } from '../opsCenter/primitives';
 import { useAdsOverview, useAdsTable, useAdsReport, useAdsFilterOptions, useAiReview } from '../../hooks/useAdsModule';
 import AdsImportModal from '../../components/ads/AdsImportModal';
 import {
     KpiRow, TrendPanel, MixPanel, MoversPanel, EfficiencyPanel, TargetsPanel,
     FreshnessPanel, InsightRail, TablePanel, DrillModal, AiAnalystPanel, ReportPanel,
-    SERIES_MODE,
+    PerformanceHealth, SERIES_MODE,
 } from './panels';
 import '../opsCenter/ops.css';
 import './ads.css';
@@ -50,9 +50,52 @@ const TABS = [
 
 const dateLabel = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—');
 
+const PRESET_DAYS = [7, 30, 90, 180];
+
+/** Loading shell that mirrors the upper page geometry exactly:
+ *  head, filter bar, signal rail, eight KPI cards and the trend chart. */
+const AdsSkeleton = () => (
+    <div className="ops ads-page">
+        <div className="ops-head ads-head">
+            <div>
+                <div className="ops-skel ads-skel--crumb" />
+                <div className="ops-skel ads-skel--title" style={{ marginTop: 10 }} />
+                <div className="ops-skel ads-skel--line" />
+            </div>
+        </div>
+        <div className="ads-filters">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="ops-skel ads-skel--filter" style={{ maxWidth: i === 3 ? 160 : undefined }} />
+            ))}
+        </div>
+        <div className="ops-insights ads-signals">
+            {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="ops-panel" style={{ minWidth: 260, height: 52, borderStyle: 'dashed' }}>
+                    <div className="ops-skel" style={{ width: '70%', height: 10 }} />
+                    <div className="ops-skel" style={{ width: '90%', height: 9, marginTop: 10 }} />
+                </div>
+            ))}
+        </div>
+        <div className="ads-kpis">
+            {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="ops-panel ads-skel--kpi">
+                    <div className="ops-skel" style={{ width: '55%', height: 10 }} />
+                    <div className="ops-skel" style={{ width: '70%', height: 20, marginTop: 10 }} />
+                    <div className="ops-skel" style={{ width: '45%', height: 9, marginTop: 10 }} />
+                    <div className="ops-skel" style={{ width: '100%', height: 24, marginTop: 12 }} />
+                </div>
+            ))}
+        </div>
+        <div className="ops-panel">
+            <div className="ops-skel" style={{ width: 160, height: 10 }} />
+            <div className="ops-skel" style={{ width: '100%', height: 240, marginTop: 14 }} />
+        </div>
+    </div>
+);
+
 const AdsManagerPage = () => {
     const { setPageTitle } = usePageTitle();
-    const { startDate, endDate, updateDateRange, openPicker } = useDateRange();
+    const { startDate, endDate, rangeType, updateDateRange, openPicker } = useDateRange();
     const { hasPermission } = useAuth();
     const now = useNow(30000);
 
@@ -200,40 +243,48 @@ const AdsManagerPage = () => {
         updateDateRange({ startDate: start, endDate: end, rangeType: `last${days}` });
     };
 
-    if (loading && !data) return <SkeletonPage />;
+    if (loading && !data) return <AdsSkeleton />;
 
     return (
         <div className="ops ads-page">
-            <div className="ops-head">
-                <div>
-                    <div className="ops-head__title">Ads Intelligence</div>
-                    <div className="ops-head__sub">
-                        <span className={`ops-pill ${data?.freshness?.complete ? 'ops-pill--live' : 'ops-pill--reconnecting'}`}>
-                            <span className="ops-pill__dot" />
-                            {filters.reportType === 'daily' ? 'Daily rows' : 'Monthly rows'}
-                        </span>
-                        <span className="ops-num">{dateLabel(startDate)} – {dateLabel(endDate)}</span>
-                        <span className="ops-muted">vs previous {data?.period?.days || 0} days</span>
-                        <span>·</span>
-                        <span>{sellerLabel}</span>
-                        {data?.freshness?.lastDate && (
-                            <>
-                                <span>·</span>
-                                <span>
-                                    Last row <span className="ops-num">{data.freshness.lastDate}</span>
-                                    {(data.freshness.gapDays || []).length > 0 && (
-                                        <Tooltip title={`Missing: ${data.freshness.gapDays.slice(0, 12).join(', ')}`}>
-                                            <span style={{ color: '#b54708' }}> · {data.freshness.gapDays.length} gap day(s)</span>
-                                        </Tooltip>
-                                    )}
-                                </span>
-                            </>
-                        )}
-                        <span>·</span>
-                        <span>Updated {timeAgo(new Date(overview.dataUpdatedAt || now).toISOString())}</span>
+            {/* <div className="ops-head ads-head"> */}
+                {/* <div>
+                    <div className="ads-crumb">
+                        Workspace / Ads Manager
                     </div>
-                </div>
-                <div className="ops-head__controls">
+                    <div className="ops-head__title">Ads Intelligence</div>
+                    <div className="ads-head__sub">Advertising performance and optimization workspace.</div>
+                </div> */}
+            {/* </div> */}
+
+            <div className="ads-ctx" role="note" aria-label="Data context">
+                <span className={`ops-pill ${data?.freshness?.complete ? 'ops-pill--live' : 'ops-pill--reconnecting'}`}>
+                    <span className="ops-pill__dot" />
+                    {filters.reportType === 'daily' ? 'Daily rows' : 'Monthly rows'}
+                </span>
+                <span className="ops-num">{dateLabel(startDate)} – {dateLabel(endDate)}</span>
+                <span className="ops-muted">vs previous {data?.period?.days || 0} days</span>
+                <span className="ads-ctx__sep">·</span>
+                <span>{sellerLabel}</span>
+                {data?.freshness?.lastDate && (
+                    <>
+                        <span className="ads-ctx__sep">·</span>
+                        <span>
+                            Last row <span className="ops-num">{data.freshness.lastDate}</span>
+                        </span>
+                        {(data.freshness.gapDays || []).length > 0 && (
+                            <Tooltip title={`Missing: ${data.freshness.gapDays.slice(0, 12).join(', ')}`}>
+                                <span className="ads-ctx__warn">· {data.freshness.gapDays.length} gap day(s)</span>
+                            </Tooltip>
+                        )}
+                    </>
+                )}
+                <span className="ads-ctx__sep">·</span>
+                <span>Updated {timeAgo(new Date(overview.dataUpdatedAt || now).toISOString())}</span>
+            </div>
+
+            <div className="ads-filters">
+                <span className="ads-filters__group">
                     <Select
                         size="small"
                         className="ops-select"
@@ -269,26 +320,42 @@ const AdsManagerPage = () => {
                         style={{ minWidth: 150 }}
                         options={(options.data?.categories || []).map((c) => ({ value: c, label: c }))}
                     />
+                </span>
+                <span className="ads-filters__sep" />
+                <span className="ads-filters__group">
                     <Segmented
                         options={[{ value: 'daily', label: 'Daily' }, { value: 'monthly', label: 'Monthly' }]}
                         value={filters.reportType}
                         onChange={(v) => patchFilters({ reportType: v, page: 1 })}
                         ariaLabel="Report type"
                     />
-                    <Segmented
-                        options={[{ value: 7, label: '7D' }, { value: 30, label: '30D' }, { value: 90, label: '90D' }, { value: 180, label: '180D' }]}
-                        value={null}
-                        onChange={(v) => applyPreset(v)}
-                        ariaLabel="Quick range"
-                    />
-                    <Button size="small" onClick={openPicker}>Custom range</Button>
+                </span>
+                <span className="ads-filters__sep" />
+                <span className="ads-filters__group" role="group" aria-label="Quick range">
+                    {PRESET_DAYS.map((days) => (
+                        <button
+                            key={days}
+                            type="button"
+                            aria-pressed={rangeType === `last${days}`}
+                            className={`ads-preset ${rangeType === `last${days}` ? 'ads-preset--on' : ''}`}
+                            onClick={() => applyPreset(days)}
+                        >
+                            {days}D
+                        </button>
+                    ))}
+                    <button type="button" className={`ads-preset ${rangeType === 'custom' ? 'ads-preset--on' : ''}`} onClick={openPicker}>
+                        Custom
+                    </button>
+                </span>
+                <span className="ads-filters__spacer" />
+                <span className="ads-filters__group">
                     <Button size="small" loading={overview.isFetching || table.isFetching} onClick={() => { overview.refetch(); table.refetch(); if (tab === 'report') report.refetch(); }}>
                         Refresh
                     </Button>
                     <Button size="small" type="primary" loading={exporting} disabled={!canExport} onClick={handleExport} title={canExport ? 'Queue an XLSX export of the current filter set' : 'Requires the ads export permission'}>
                         Export
                     </Button>
-                </div>
+                </span>
             </div>
 
             {scopeError && (
@@ -296,7 +363,7 @@ const AdsManagerPage = () => {
                     type="error"
                     showIcon
                     style={{ marginBottom: 12 }}
-                    message="Seller scope denied"
+                    title="Seller scope denied"
                     description={`${scopeError.message} Assigned: ${(scopeError.details?.assignedSellers || []).join(', ') || 'none'}.`}
                 />
             )}
@@ -306,7 +373,7 @@ const AdsManagerPage = () => {
                     type="error"
                     showIcon
                     style={{ marginBottom: 12 }}
-                    message="Ads data failed to load"
+                    title="Ads data failed to load"
                     description={overview.error?.message || 'Unknown error'}
                     action={<Button size="small" onClick={() => overview.refetch()}>Retry</Button>}
                 />
@@ -339,7 +406,7 @@ const AdsManagerPage = () => {
                                 overview={data}
                                 focus={chartFocus}
                                 onFocus={(seriesKey) => {
-                                    // Tile → chart: switch the metric group and focus the series.
+                                    // KPI card → chart: switch the metric group and focus the series.
                                     setChartMode(SERIES_MODE[seriesKey] || 'revenue');
                                     setChartFocus(seriesKey);
                                     if (tab !== 'performance') setTab('performance');
@@ -361,6 +428,7 @@ const AdsManagerPage = () => {
                                     focusKey={chartFocus}
                                     onFocusKey={setChartFocus}
                                 />
+                                <PerformanceHealth overview={data} />
                                 <MixPanel
                                     mix={data.mix}
                                     dim={mixDim}
