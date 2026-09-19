@@ -1,0 +1,219 @@
+/**
+ * Ads Intelligence — module-specific styles.
+ *
+ * Deliberately thin: everything structural (panels, tiles, tables, chips,
+ * deltas, charts) comes from opsCenter/ops.css so the module is visually
+ * identical to the Operations Command Center. Only the pieces opsCenter does
+ * not already own are defined here, all on the same CSS variables.
+ */
+
+.ads-page {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Stat groups (used inside panels instead of the label/value row) ──── */
+
+.ads-page .ops-statrow {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    justify-content: flex-start;
+    border-bottom: none;
+    padding: 0;
+    flex-wrap: wrap;
+}
+
+.ads-page .ops-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1 1 120px;
+    min-width: 0;
+}
+
+.ads-page .ops-stat__label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ops-ink-3);
+    white-space: nowrap;
+}
+
+.ads-page .ops-stat__value {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ops-ink-1);
+}
+
+.ads-page .ops-stat__value small {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ops-ink-3);
+}
+
+.ads-page .ops-stat__sub {
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+/* ── Clickable list rows (movers, drill-downs) ───────────────────────── */
+
+.ads-page .ops-item--btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--ops-line-soft);
+    cursor: pointer;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 4px;
+    font: inherit;
+    color: inherit;
+    transition: background 0.12s ease;
+}
+
+.ads-page .ops-item--btn:last-child { border-bottom: none; }
+.ads-page .ops-item--btn:hover { background: #f7f9fc; }
+.ads-page .ops-item--btn:focus-visible { outline: 2px solid var(--ops-accent); outline-offset: -2px; }
+
+.ads-page .ops-item__title {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.ads-page .ops-item__sub {
+    display: block;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ads-page .ops-mover__delta { font-size: 12px; }
+
+/* ── AI analyst: narrative cards + rule findings ─────────────────────── */
+
+.ads-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+}
+
+.ads-ai-card {
+    border: 1px solid var(--ops-line);
+    border-radius: 4px;
+    padding: 9px 11px;
+    background: #fff;
+}
+
+.ads-ai-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.ads-ai-card__body {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ops-ink-2);
+}
+
+.ads-ai-card__ev {
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: var(--ops-ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ads-rule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 460px;
+    overflow-y: auto;
+}
+
+.ads-rule {
+    border: 1px solid var(--ops-line);
+    border-left-width: 3px;
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+}
+
+.ads-rule--pos { border-left-color: var(--ops-pos); }
+.ads-rule--neg { border-left-color: var(--ops-neg); background: #fffbfb; }
+.ads-rule--warn { border-left-color: var(--ops-warn); background: #fffdf8; }
+.ads-rule--info { border-left-color: var(--ops-accent); }
+
+.ads-rule__head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.ads-rule__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ads-rule__dot--pos { background: var(--ops-pos); }
+.ads-rule__dot--neg { background: var(--ops-neg); }
+.ads-rule__dot--warn { background: var(--ops-warn); }
+.ads-rule__dot--info { background: var(--ops-accent); }
+
+.ads-rule__detail {
+    margin-top: 4px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--ops-ink-2);
+}
+
+.ads-rule__metrics {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: var(--ops-ink-3);
+}
+
+.ads-rule__metrics em {
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ads-rule__metrics b { color: var(--ops-ink-1); }
+
+/* ── Table footer (totals row) ───────────────────────────────────────── */
+
+.ads-page .ops-table tfoot td {
+    border-top: 2px solid var(--ops-line);
+    border-bottom: none;
+    background: #f7f9fc;
+    font-weight: 700;
+    font-size: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+    .ads-page .ops-statrow { flex-wrap: wrap; }
+}
