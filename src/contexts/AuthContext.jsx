@@ -1,5 +1,7 @@
 // contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authApi } from '../services/api';
+import { AuthRequestError, safeAuthError } from '../services/authRequest';
 
 const AuthContext = createContext(null);
 
@@ -63,82 +65,20 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     // ----- Login -----
-    const login = async (email, password) => {
-        const MIN_BOOTSTRAP_MS = 1500;
-        const startTime = Date.now();
+    // The authentication screen defers session publication until its success
+    // transition. Other callers retain the normal immediate-login behavior.
+    const login = async (email, password, options = {}) => {
         setBootstrapping(true);
         setError(null);
-
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Login failed');
-
-            // OTP required — return OTP data without setting user
-            if (result.requiresOtp) {
-                setBootstrapping(false);
-                return { success: true, requiresOtp: true, tempToken: result.tempToken, destination: result.destination, expiresIn: result.expiresIn };
-            }
-
-            // Trusted device or forcePasswordReset — return directly
-            if (result.forcePasswordReset) {
-                setBootstrapping(false);
-                return { success: true, forcePasswordReset: true, reason: result.reason };
-            }
-
-            const { user: rawUser, accessToken } = result.data;
-            let normalized = normalizeUser(rawUser);
-
-            // If the login response already includes the permissions array, use it immediately.
-            if (normalized.permissions && normalized.permissions.length > 0) {
-                // Store first then trigger reactivity
-                localStorage.setItem('authToken', accessToken);
-                localStorage.setItem('user', JSON.stringify(normalized));
-                setUser(normalized);
-            } else {
-                // Permissions missing – fetch them now
-                localStorage.setItem('authToken', accessToken);
-                setUser(normalized);                // set user without permissions
-                setLoadingPermissions(true);        // start permission loading
-                try {
-                    const meRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                        headers: { Authorization: `Bearer ${accessToken}` },
-                    });
-                    if (meRes.ok) {
-                        const meResult = await meRes.json();
-                        if (meResult.success && meResult.data) {
-                            const updated = normalizeUser({ ...normalized, permissions: meResult.data.permissions || [] });
-                            setUser(updated);
-                            localStorage.setItem('user', JSON.stringify(updated));
-                        }
-                    }
-                } catch (permErr) {
-                    console.warn('Permission fetch failed:', permErr.message);
-                } finally {
-                    setLoadingPermissions(false);   // done loading permissions
-                }
-            }
-
-            return { 
-                success: true, 
-                requiresSetup: result.requiresSetup, 
-                needsPasswordReset: result.needsPasswordReset, 
-                forcePasswordReset: result.forcePasswordReset 
-            };
+            const result = await authApi.login(email, password, { ...options, deferSession: true });
+            if (!result.requiresOtp && !options.deferSession) await completeLogin(result);
+            return result;
         } catch (err) {
-            setError(err.message);
-            return { success: false, error: err.message };
+            const safe = safeAuthError(err);
+            if (!options.signal?.aborted) setError(safe.message);
+            return { success: false, error: safe.message, ...safe };
         } finally {
-            const elapsed = Date.now() - startTime;
-            const remaining = MIN_BOOTSTRAP_MS - elapsed;
-            if (remaining > 0) {
-                await new Promise(r => setTimeout(r, remaining));
-            }
             setBootstrapping(false);
         }
     };
@@ -248,11 +188,13 @@ export const AuthProvider = ({ children }) => {
     const completeLogin = async (loginData) => {
         try {
             const { user: rawUser, accessToken, refreshToken } = loginData.data || loginData;
+            if (!rawUser || !accessToken) throw new AuthRequestError('SERVER_ERROR');
             const normalized = normalizeUser(rawUser);
 
             // Store tokens
             localStorage.setItem('authToken', accessToken);
             if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+            else localStorage.removeItem('refreshToken');
             localStorage.setItem('user', JSON.stringify(normalized));
             setUser(normalized);
 
@@ -277,8 +219,12 @@ export const AuthProvider = ({ children }) => {
                     }
                 } catch (e) { console.warn('Permission fetch failed:', e.message); }
             }
-        } catch (err) {
-            console.error('completeLogin error:', err);
+        } catch {
+            setUser(null);
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            throw new AuthRequestError('SERVER_ERROR');
         }
     };
 

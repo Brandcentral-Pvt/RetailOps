@@ -1,4 +1,5 @@
 import { cachedFetch, invalidateCachePattern } from './apiCache';
+import { requestAuthentication, storeAuthSession } from './authRequest';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -30,51 +31,20 @@ const handleResponse = async (res, defaultErrorMsg = 'Request failed') => {
 
 // Auth API
 export const authApi = {
-  login: async (email, password) => {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Login failed');
-    }
-    const data = await res.json();
-    // Only store tokens if this is a direct login (trusted device)
-    if (data.success && data.data?.accessToken) {
-      localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-    }
+  login: async (email, password, options = {}) => {
+    const data = await requestAuthentication('login', { email, password }, options);
+    if (data.data?.accessToken && !options.deferSession) storeAuthSession(data);
     return data;
   },
 
-  verifyOtp: async (tempToken, otp, trustDevice = false) => {
-    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tempToken, otp, trustDevice }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'OTP verification failed');
-    if (data.success && data.data?.accessToken) {
-      localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-    }
+  verifyOtp: async (tempToken, otp, trustDevice = false, options = {}) => {
+    const data = await requestAuthentication('verify-otp', { tempToken, otp, trustDevice }, options);
+    if (!options.deferSession) storeAuthSession(data);
     return data;
   },
 
-  resendOtp: async (tempToken) => {
-    const res = await fetch(`${API_BASE}/auth/resend-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tempToken }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to resend OTP');
-    return data;
+  resendOtp: async (tempToken, options = {}) => {
+    return requestAuthentication('resend-otp', { tempToken }, options);
   },
 
   post: async (endpoint, body = {}) => {

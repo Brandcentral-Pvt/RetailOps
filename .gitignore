@@ -41,27 +41,11 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 
-# Compression files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-```
+# Browser test artifacts
+playwright-report/
+test-results/
+
+# Test/scratch files
+backend/test_*.js
+check_columns.js
+seed_api_keys.js

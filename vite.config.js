@@ -96,6 +96,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: '0.0.0.0',
+      allowedHosts: ['.e2b.app', domain],
       proxy: {
         '/api': {
           target: 'http://localhost:3001',
