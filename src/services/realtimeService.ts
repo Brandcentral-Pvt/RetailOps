@@ -32,6 +32,7 @@ const RECONNECT_ATTEMPTS = Infinity;
 
 let socket  = null;   // lazy singleton — created once, reused everywhere
 let _subs   = new Map();   // channelName => Set<{ raw, wrapped }>
+let _creationToken: string | undefined;   // token the singleton was created with
 
 // Known server events → friendly EVENT_BUS aliases (in addition to the raw
 // `realtime:<event>` forward that onAny performs for every event).
@@ -75,6 +76,7 @@ function ensureSocket() {
         return socket;
     }
 
+    _creationToken = getAuthToken();
     socket = io(getSocketUrl(), {
         transports: ['websocket'],
         reconnection: true,
@@ -84,7 +86,7 @@ function ensureSocket() {
         autoConnect: true,
         // ✅ Auth fix: the server verifies socket.handshake.auth.token and
         // disconnects unauthenticated sockets on connect.
-        auth: { token: getAuthToken() },
+        auth: { token: _creationToken },
     });
 
     // ✅ Bus mapping: forward EVERY server event onto the event-bus under the
@@ -108,6 +110,12 @@ function ensureSocket() {
 
     socket.on('connect_error', () => {
         EVENT_BUS.emit('realtime:error', { type: 'connection', code: 'connection_failed' });
+        // ✅ Token rotation: if the auth token changed since this socket was
+        // created (login/refresh), the server will keep rejecting the stale
+        // one — drop the singleton so the next attempt authenticates afresh.
+        if (getAuthToken() && getAuthToken() !== _creationToken) {
+            reconnect();
+        }
     });
 
     socket.on('disconnect', (reason) => {
@@ -136,12 +144,9 @@ function ensureSocket() {
 export function subscribe(channel, listener) {
     ensureSocket();
 
-    const wrapped = (payload) => {
-        try {
-            EVENT_BUS.emit(`realtime:${channel}`, payload);
-        } catch { /* ignore bus errors */ }
-        listener(payload);
-    };
+    // NOTE: no EVENT_BUS emission here — the socket-level `onAny` bridge
+    // already maps every server event to `realtime:<event>` exactly once.
+    const wrapped = (payload) => listener(payload);
 
     if (!_subs.has(channel)) _subs.set(channel, new Set());
     const entry = { raw: listener, wrapped };
@@ -150,6 +155,15 @@ export function subscribe(channel, listener) {
     socket.on(channel, wrapped);
 
     return () => unsubscribe(channel, listener);
+}
+
+/**
+ * Access the shared singleton socket directly (e.g. for contexts that attach
+ * feature listeners such as chat). Guarantees the connection exists and is
+ * the SAME authenticated connection the realtime channels use.
+ */
+export function getSocket() {
+    return ensureSocket();
 }
 
 /**
