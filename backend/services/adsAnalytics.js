@@ -32,7 +32,7 @@ const FLAGS = new Set(['all', 'top', 'rising', 'falling', 'waste', 'no_sales', '
 
 /** Columns every key-level query selects (current + previous window). */
 const KEY_COLUMNS = `
-    key, sku, title, imageUrl, brand, category, sellerId, sellerName, marketplace, childCount,
+    [key], sku, title, imageUrl, brand, category, sellerId, sellerName, marketplace, childCount,
     cur_spend AS spend, cur_sales AS sales, cur_organicSales AS organicSales,
     cur_orders AS orders, cur_organicOrders AS organicOrders,
     cur_impressions AS impressions, cur_clicks AS clicks,
@@ -301,7 +301,7 @@ class AdsWindow {
   keyAggCte(groupBy) {
     return `WITH Agg AS (
       SELECT
-        ${this.keyExpr(groupBy)} AS key,
+        ${this.keyExpr(groupBy)} AS [key],
         MAX(a.Sku) AS sku,
         MAX(a.Title) AS title,
         MAX(a.ImageUrl) AS imageUrl,
@@ -518,7 +518,7 @@ function shapeKeyRow(row = {}) {
 const POST_FILTERS = {
   waste: 'spend > @wasteSpendFloor AND sales = 0',
   no_sales: 'sales = 0',
-  high_acos: 'sales > 0 AND spend / sales * 100 > @highAcosThreshold',
+  high_acos: 'sales > 0 AND spend * 100 > sales * @highAcosThreshold',
   low_ctr: 'impressions > 500 AND clicks * 1.0 / impressions * 100 < 0.35',
   top: 'totalSales > 0',
   rising: 'prevTotalSales > 0 AND totalSales > prevTotalSales * 1.15',
@@ -553,7 +553,7 @@ async function fetchRows(win, options = {}) {
   };
 
   const searchClause = options.search
-    ? ` AND (key LIKE @rowSearch OR ISNULL(sku, '') LIKE @rowSearch OR ISNULL(title, '') LIKE @rowSearch)`
+    ? ` AND ([key] LIKE @rowSearch OR ISNULL(sku, '') LIKE @rowSearch OR ISNULL(title, '') LIKE @rowSearch)`
     : '';
   const flagClause = flag !== 'all' ? ` AND (${POST_FILTERS[flag]})` : '';
   const where = `WHERE totalSales >= @minTotalSales${flagClause}${searchClause}`;
@@ -579,7 +579,7 @@ async function fetchRows(win, options = {}) {
       SELECT *, COUNT(*) OVER () AS totalCount
       FROM Keys
       ${where}
-      ORDER BY ${sortMap[sortBy]} ${dir}, key ASC
+      ORDER BY ${sortMap[sortBy]} ${dir}, [key] ASC
       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
     `),
     totalsRequest.query(`
@@ -682,9 +682,9 @@ async function fetchEfficiency(win, options = {}) {
       SELECT
         SUM(CASE WHEN spend >= @wasteSpendFloor AND sales = 0 THEN 1 ELSE 0 END) AS zeroSalesKeys,
         SUM(CASE WHEN spend >= @wasteSpendFloor AND sales = 0 THEN spend ELSE 0 END) AS zeroSalesSpend,
-        SUM(CASE WHEN sales > 0 AND spend / sales > 0.40 THEN 1 ELSE 0 END) AS highAcosKeys,
-        SUM(CASE WHEN sales > 0 AND spend / sales > 0.40 THEN spend ELSE 0 END) AS highAcosSpend,
-        SUM(CASE WHEN sales > 0 AND spend / sales > 0.40 THEN sales ELSE 0 END) AS highAcosSales
+        SUM(CASE WHEN sales > 0 AND spend * 100 > sales * 40 THEN 1 ELSE 0 END) AS highAcosKeys,
+        SUM(CASE WHEN sales > 0 AND spend * 100 > sales * 40 THEN spend ELSE 0 END) AS highAcosSpend,
+        SUM(CASE WHEN sales > 0 AND spend * 100 > sales * 40 THEN sales ELSE 0 END) AS highAcosSales
       FROM Keys
     `),
   ]);
@@ -785,7 +785,7 @@ async function fetchFreshness(win) {
       SELECT
         CONVERT(varchar(10), MAX(p.Date), 23) AS lastDate,
         CONVERT(varchar(19), MAX(p.UploadedAt), 120) AS lastUpload,
-        COUNT(*) AS rowCount,
+        COUNT(*) AS [rowCount],
         COUNT(DISTINCT p.Asin) AS asinCount
       FROM AdsPerformance p
       ${win.joins}
@@ -871,7 +871,7 @@ async function fetchSparklines(win, keys, groupBy = 'asin') {
     });
     const result = await request.query(`
       SELECT
-        ${keyExprText} AS key,
+        ${keyExprText} AS [key],
         CONVERT(varchar(10), p.Date, 23) AS date,
         ${METRIC_SELECT(win.currentWindowSql, 'cur_')}
       FROM AdsPerformance p
