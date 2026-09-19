@@ -59,6 +59,10 @@ backend/data/
 backend/.env
 *.local
 
+# Browser test artifacts
+playwright-report/
+test-results/
+
 # Test/scratch files
 backend/test_*.js
 check_columns.js
