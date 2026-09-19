@@ -146,7 +146,7 @@ Rules:
             content = await nvidiaAiService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
-            ], { model: 'meta/llama-3.1-8b-instruct', temperature: 0.3, json: true });
+            ], { model: 'openai/gpt-oss-20b', temperature: 0.3, json: true });
         } catch (error) {
             console.error('[KW Analysis] AI inference failed, using fallback analysis:', error.message);
             return this._fallbackAnalysis(seedKeyword, products);

@@ -14,7 +14,7 @@
 
 const { buildAiDigest } = require('./adsInsights');
 
-const DEFAULT_TIMEOUT_MS = Number(process.env.ADS_AI_TIMEOUT_MS) || 45000;
+const DEFAULT_TIMEOUT_MS = Number(process.env.ADS_AI_TIMEOUT_MS) || 15000;
 
 const SYSTEM_PROMPT = `You are a senior Amazon advertising analyst embedded in a retail operations platform (India, INR).
 You receive a JSON digest of aggregated advertising data for one period, already compared to the previous period of equal length.
@@ -141,8 +141,14 @@ async function generateNarrative({ overview, insights = [], question = null, pro
   const chain = providers
     ? [['injected', providers.primary ?? providers]].filter(([, fn]) => typeof fn === 'function')
     : [
-        ['nvidia', (m, o) => require('./nvidiaAiService').chat(m, o)],
-        ['perplexity', (m, o) => require('./AIService').chat(m, o)],
+        ['nvidia', async (m, o) => {
+          try {
+            return await require('./nvidiaAiService').chat(m, o);
+          } catch (e) {
+            console.error('[adsAiService] nvidia provider error:', e.message, e.stack?.slice(0, 500));
+            throw e;
+          }
+        }],
       ];
 
   let lastError = null;

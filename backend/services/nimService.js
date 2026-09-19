@@ -18,7 +18,7 @@ class NIMService {
   async chat(messages, options = {}) {
     try {
       const completion = await this.client.chat.completions.create({
-        model: options.model || "meta/llama-3.1-8b-instruct",
+        model: options.model || "openai/gpt-oss-20b",
         messages,
         temperature: options.temperature || 0.6,
         max_tokens: options.max_tokens || 2048,

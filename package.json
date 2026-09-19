@@ -30,6 +30,8 @@
     "@types/dompurify": "^3.2.0",
     "@untitledui/icons": "^0.0.22",
     "@vercel/analytics": "^2.0.1",
+    "@visactor/react-vchart": "^2.1.7",
+    "@visactor/vchart": "^2.1.7",
     "antd": "^6.6.4",
     "apexcharts": "^5.12.0",
     "axios": "^1.16.1",
