@@ -25,6 +25,7 @@ import AdsImportModal from '../../components/ads/AdsImportModal';
 import {
     KpiRow, TrendPanel, MixPanel, MoversPanel, EfficiencyPanel, TargetsPanel,
     FreshnessPanel, InsightRail, TablePanel, DrillModal, AiAnalystPanel, ReportPanel,
+    SERIES_MODE,
 } from './panels';
 import '../opsCenter/ops.css';
 import './ads.css';
@@ -77,6 +78,8 @@ const AdsManagerPage = () => {
     });
     const [question, setQuestion] = useState('');
     const [mixDim, setMixDim] = useState('brand');
+    const [chartMode, setChartMode] = useState('revenue');
+    const [chartFocus, setChartFocus] = useState(null);
     const [drill, setDrill] = useState(null);
     const [importOpen, setImportOpen] = useState(false);
     const [exporting, setExporting] = useState(false);
@@ -332,7 +335,17 @@ const AdsManagerPage = () => {
 
                     <div className="ops-grid">
                         {(tab === 'performance' || tab === 'efficiency') && (
-                            <KpiRow overview={data} focus={null} onFocus={() => { if (tab === 'performance') jumpTo('panel-trends'); }} />
+                            <KpiRow
+                                overview={data}
+                                focus={chartFocus}
+                                onFocus={(seriesKey) => {
+                                    // Tile → chart: switch the metric group and focus the series.
+                                    setChartMode(SERIES_MODE[seriesKey] || 'revenue');
+                                    setChartFocus(seriesKey);
+                                    if (tab !== 'performance') setTab('performance');
+                                    setTimeout(() => jumpTo('panel-trends'), tab === 'performance' ? 0 : 260);
+                                }}
+                            />
                         )}
 
                         {tab === 'performance' && (
@@ -343,6 +356,10 @@ const AdsManagerPage = () => {
                                     onRetry={() => overview.refetch()}
                                     granularity={filters.granularity}
                                     onGranularity={(v) => patchFilters({ granularity: v })}
+                                    mode={chartMode}
+                                    onMode={(m) => { setChartMode(m); setChartFocus(null); }}
+                                    focusKey={chartFocus}
+                                    onFocusKey={setChartFocus}
                                 />
                                 <MixPanel
                                     mix={data.mix}

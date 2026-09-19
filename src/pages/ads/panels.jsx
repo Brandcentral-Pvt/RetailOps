@@ -97,7 +97,7 @@ const buildChartSeries = (overview, mode) => {
 
 const TrendUnit = { revenue: 'inr', spend: 'inr', efficiency: 'pct', traffic: 'num', orders: 'num' };
 
-const SERIES_MODE = { spend: 'spend', sales: 'revenue', totalSales: 'revenue', organicSales: 'revenue', acos: 'efficiency', tacos: 'efficiency', roas: 'spend', orders: 'orders', totalOrders: 'orders' };
+export const SERIES_MODE = { spend: 'spend', sales: 'revenue', totalSales: 'revenue', organicSales: 'revenue', acos: 'efficiency', tacos: 'efficiency', roas: 'spend', orders: 'orders', totalOrders: 'orders' };
 
 /* ───────────────────────────── KPI strip ──────────────────────────────── */
 
@@ -173,9 +173,16 @@ export const KpiRow = ({ overview, focus, onFocus }) => {
 
 /* ───────────────────────────── trend panel ────────────────────────────── */
 
-export const TrendPanel = ({ overview, status, onRetry, granularity, onGranularity }) => {
-    const [mode, setMode] = useState('revenue');
-    const [focus, setFocus] = useState(null);
+export const TrendPanel = ({
+    overview, status, onRetry, granularity, onGranularity,
+    mode: modeProp, onMode, focusKey, onFocusKey,
+}) => {
+    const [internalMode, setInternalMode] = useState('revenue');
+    const mode = modeProp || internalMode;
+    const setMode = onMode || setInternalMode;
+    const [internalFocus, setInternalFocus] = useState(null);
+    const focus = focusKey !== undefined ? focusKey : internalFocus;
+    const setFocus = onFocusKey || setInternalFocus;
     const [hidden, setHidden] = useState([]);
     const series = useMemo(() => buildChartSeries(overview, mode), [overview, mode]);
     const unit = TrendUnit[mode] || 'inr';
