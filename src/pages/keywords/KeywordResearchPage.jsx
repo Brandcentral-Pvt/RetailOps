@@ -98,6 +98,8 @@ const KeywordResearchPage = () => {
     const [liveResults, setLiveResults] = useState({});      // saved-list id → fresh payload
     const [checkingWatch, setCheckingWatch] = useState(false);
 
+    const [stock, setStock] = useState({ page: 1, items: [], loading: false, error: null, done: false });
+
     const [compareInput, setCompareInput] = useState('');
     const [compareResults, setCompareResults] = useState([]);
     const [compareProgress, setCompareProgress] = useState(null);
@@ -124,6 +126,17 @@ const KeywordResearchPage = () => {
     const scopeLabel = meta.data?.scope?.isGlobal
         ? 'all sellers'
         : `${(meta.data?.scope?.sellerIds || []).length} assigned seller(s)`;
+
+    /* ── progressive "load more" over upstream pages ────────────────────── */
+    const totalHits = num(result?.raw?.totalResultCount);
+    const payloadStamp = result ? `${result.raw?.itemPage ?? 1}|${result.items?.length}|${result.items?.[0]?.asin}` : null;
+    const [stockStamp, setStockStamp] = useState(null);
+    if (payloadStamp && payloadStamp !== stockStamp) {
+        setStockStamp(payloadStamp);
+        setStock({ page: 1, items: result.items || [], loading: false, error: null, done: false });
+    }
+    const moreAvailable = !!result && !search.isFetching && !stock.done && !stock.loading
+        && (totalHits === null || stock.items.length < totalHits);
 
     /* ── watchlist sync on every fresh result ─────────────────────────── */
 
@@ -218,6 +231,32 @@ const KeywordResearchPage = () => {
             message.error(err?.message || 'Comparison failed');
         }
     }, [compareInput, filters, batch, store, syncWatch]);
+
+    /** Fetch the next upstream page and append it to the product table. */
+    const loadMore = useCallback(async () => {
+        if (stock.loading || !result) return;
+        const nextPage = stock.page + 1;
+        setStock((s) => ({ ...s, loading: true, error: null }));
+        try {
+            const res = await keywordApi.search({ ...committed, itemPage: nextPage });
+            if (!res?.success) throw new Error(res?.error || 'Failed to load more products');
+            const incoming = res.items || [];
+            setStock((s) => {
+                if (s.page !== stock.page) return s;
+                const seen = new Set(s.items.map((i) => i.asin));
+                const appended = incoming.filter((i) => !seen.has(i.asin));
+                return {
+                    page: nextPage,
+                    items: [...s.items, ...appended],
+                    loading: false,
+                    error: null,
+                    done: appended.length === 0,
+                };
+            });
+        } catch (err) {
+            setStock((s) => ({ ...s, loading: false, error: err?.message || 'Failed to load more products' }));
+        }
+    }, [committed, result, stock.loading, stock.page]);
 
     const runAnalysis = useCallback(async () => {
         const keyword = anaKeyword.trim();
@@ -349,8 +388,8 @@ const KeywordResearchPage = () => {
     /* ── derived table data ─────────────────────────────────────────── */
 
     const tableItems = useMemo(() => {
-        if (!result?.items) return [];
-        let items = result.items;
+        if (!stock.items.length) return [];
+        let items = stock.items;
         if (band) {
             const bands = result.market?.price?.bands || [];
             const index = bands.findIndex((b) => b.key === band);
@@ -367,7 +406,7 @@ const KeywordResearchPage = () => {
             if (av === null) return 1;
             return -1;
         });
-    }, [result, band, sort]);
+    }, [stock.items, band, sort, result]);
 
     const compareItems = useMemo(() => (compareResults || []).flatMap((r) => (r.items || []).map((i) => ({ ...i, keyword: r.keyword }))), [compareResults]);
 
@@ -514,6 +553,10 @@ const KeywordResearchPage = () => {
                                     watched={store.watchlist.map((w) => w.asin)}
                                     onWatch={toggleWatch}
                                     onOpen={setSelectedItem}
+                                    onLoadMore={moreAvailable ? loadMore : undefined}
+                                    moreLoading={stock.loading}
+                                    moreError={stock.error}
+                                    totalHits={totalHits}
                                 />
                             </>
                         ) : null}
@@ -687,7 +730,7 @@ const KeywordResearchPage = () => {
                 onCancel={() => setSaveOpen(false)}
                 onOk={saveCurrent}
                 okText="Save"
-                destroyOnClose
+                destroyOnHidden
             >
                 <p className="kw-muted">
                     Stored in this browser only. Saved lists keep a snapshot so a later re-check can tell you exactly what moved.
