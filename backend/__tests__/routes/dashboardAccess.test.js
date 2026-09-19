@@ -7,8 +7,9 @@
  *   - Seller selection does not cause SQL errors — every /dashboard query
  *     that embeds the seller IN-clause must have the @dashSeller_* params
  *     BOUND on that same request (the top-ASINs query used to miss them).
- *   - Top ASIN results respect the selected period (date params + the
- *     daily-report restriction on the AdsPerformance join).
+ *   - Top products are ranked by the ASIN's GMS (GmsDailyPerformance ordered
+ *     revenue), respect the selected period, and only LEFT JOIN the
+ *     daily-report-restricted ads aggregate for context columns.
  */
 const express = require('express');
 const request = require('supertest');
@@ -83,11 +84,14 @@ const dashboardPool = () => makeFakePool([
     { match: /SELECT SellerId, COUNT\(\*\) as Count/, rows: [{ SellerId: 's1', Count: 4 }] },
     { match: /SELECT Id, Marketplace FROM Sellers/, rows: [{ Id: 's1', Marketplace: 'Amazon' }] },
     {
+        // GMS-ranked top products: revenue/units come from GmsDailyPerformance.
         match: /TOP 200/,
         rows: [{
             Id: 'a1', AsinCode: 'B0TEST0001', Sku: 'SKU-1', Title: 'Widget',
-            Category: 'Home', CurrentPrice: 4999, SellerName: 'ACME',
-            TotalAdSales: 100, TotalOrganicSales: 150, TotalAdSpend: 25, TotalOrders: 5,
+            Category: 'Home', CurrentPrice: 4999, SellerId: 's1', SellerName: 'ACME', Marketplace: 'Amazon',
+            GmsRevenue: 250, GmsUnits: 5, ShippedRevenue: 200, Returns: 0,
+            PrevGmsRevenue: 0, PrevGmsUnits: 0, ActiveDays: 1,
+            AdSales: 100, AdSpend: 25, AdOrders: 5,
         }],
     },
     // /alerts endpoint
@@ -172,13 +176,18 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         expect(asinCounts.inputs.dashSeller_0).toBe('s1');
     });
 
-    test('top-ASINs join is restricted to the selected period and daily reports', async () => {
+    test('top-products query is GMS-ranked, restricted to the selected period and daily ad reports', async () => {
         mockState.user = mkUser({ id: 'u-period-1', permissions: ['targets_view'], assignedSellers: ['s1'] });
         const res = await request(buildApp()).get('/api/dashboard?period=7d');
         expect(res.status).toBe(200);
 
         const topAsins = mockState.pool.callWhere(/TOP 200/);
-        expect(topAsins.sql).toMatch(/LEFT JOIN AdsPerformance AP ON A\.AsinCode = AP\.Asin\s+AND AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
+        // Ranking is driven by GMS (ordered revenue), not by AdsPerformance.
+        expect(topAsins.sql).toMatch(/FROM GmsDailyPerformance g\s+WHERE g\.Date BETWEEN @prevStart AND @endDate/);
+        expect(topAsins.sql).toMatch(/ORDER BY G\.GmsRevenue DESC/);
+        // Ads is context only: LEFT JOIN of a window + daily restricted aggregate.
+        expect(topAsins.sql).toMatch(/LEFT JOIN AdsAgg AD ON AD\.Asin = G\.Asin/);
+        expect(topAsins.sql).toMatch(/AP\.Date BETWEEN @startDate AND @endDate\s+AND AP\.ReportType = 'daily'/);
         expect(topAsins.inputs.startDate).toBeDefined();
         expect(topAsins.inputs.endDate).toBeDefined();
 
@@ -190,14 +199,19 @@ describe('GET /api/dashboard — SQL binding & period correctness', () => {
         expect(spanDays).toBeLessThanOrEqual(8);
     });
 
-    test('revenue excludes the CurrentPrice fallback and series are returned', async () => {
+    test('revenue is the ASIN GMS (no CurrentPrice / ad-sales fallback) and series are returned', async () => {
         mockState.user = mkUser({ id: 'u-rev-1', permissions: ['targets_view'], assignedSellers: ['s1'] });
         const res = await request(buildApp()).get('/api/dashboard');
         expect(res.status).toBe(200);
 
-        // CurrentPrice is 4999 — revenue must be AdSales + OrganicSales (250).
+        // CurrentPrice is 4999 and ad sales 100 — revenue must be the GMS
+        // ordered revenue (250) and units the GMS ordered units (5).
         expect(res.body.tableData[0].revenue).toBe(250);
+        expect(res.body.tableData[0].gmsRevenue).toBe(250);
         expect(res.body.tableData[0].units).toBe(5);
+        expect(res.body.tableData[0].adSales).toBe(100);
+        expect(res.body.gms).toBeDefined();
+        expect(res.body.previous).toBeDefined();
 
         // Chart series that used to be computed but never returned.
         expect(Array.isArray(res.body.ordersSeries)).toBe(true);

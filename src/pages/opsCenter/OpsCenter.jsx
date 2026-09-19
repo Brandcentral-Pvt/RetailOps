@@ -1,27 +1,36 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Select, Button } from 'antd';
 import { usePageTitle } from '../../contexts/PageTitleContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { marketSyncApi } from '../../services/api';
-import { Panel, MiniState, SkeletonPage, fmtNum, timeAgo } from './primitives';
+import { Panel, MiniState, SkeletonPage, fmtNum, timeAgo, useNow } from './primitives';
 import {
     KpiRow, TrendPanel, MixPanel, AchievementPanel, AsinHealthPanel,
-    TasksPanel, AlertsPanel, PipelinePanel, TopAsinsPanel, ActivityPanel,
+    TasksPanel, AlertsPanel, PipelinePanel, ActivityPanel,
+    BrandLeaderboardPanel, InsightsPanel, FOCUS_MAP,
 } from './panels';
+import { TopProductsPanel } from './topProducts';
+import { buildInsights } from './insights';
 import './ops.css';
 
 /**
- * OpsCenter — the Operations Command Center, redesigned from scratch.
+ * OpsCenter — the Operations Command Center.
  *
  * Corporate, data-driven layout: flat panels on a 12-column grid, uppercase
- * micro-labels, tabular numerals, dependency-free SVG charts. Built entirely
- * on the hardened data layer (useDashboardData): one task source (PEMS
- * workspace), goal-type-separated achievement math, filter-consistent
- * targets, explicit per-section error/empty states — no misleading zeros.
+ * micro-labels, tabular numerals, dependency-free SVG charts. Built on the
+ * hardened data layer (useDashboardData): one task source (PEMS workspace),
+ * goal-type-separated achievement math, filter-consistent targets, explicit
+ * per-section error/empty states — no misleading zeros.
  *
- * No component from the legacy dashboard (src/components/dashboard/*) is
- * imported here.
+ * GMS-first: the revenue KPIs, the trend and the top-products table are
+ * defined by the ASIN's ordered revenue (GMS feed). Advertising figures are
+ * context (ad share, TACoS, ACoS), never the ranking basis.
+ *
+ * Interactions: KPI tiles focus the trend chart; the chart has hover
+ * tooltips and legend toggles; brands filter the whole page; product rows
+ * drill down; status legends filter their lists; insights jump to panels.
  */
 
 const sellerMatches = (t, sellerId) => {
@@ -37,9 +46,16 @@ const CONNECTION_LABEL = {
     offline: { label: 'Offline', cls: 'ops-pill--offline' },
 };
 
+const fmtRange = (start, end) => {
+    if (!start || !end) return '';
+    const o = { day: '2-digit', month: 'short' };
+    return `${new Date(start).toLocaleDateString('en-IN', o)} – ${new Date(end).toLocaleDateString('en-IN', o)}`;
+};
+
 const OpsCenter = () => {
     const { setPageTitle } = usePageTitle();
     const { startDate, endDate } = useDateRange();
+    const { hasPermission } = useAuth();
 
     useEffect(() => {
         setPageTitle('Operations Command Center');
@@ -60,10 +76,29 @@ const OpsCenter = () => {
 
     const {
         userSellers, managers, activityLogs, scrapeTasks,
-        optimizationTasks, orch,
+        optimizationTasks, topProducts, orch,
         loading, isHydrated, refresh, matchesManagerFilter,
         tasksError, sectionStatus,
     } = useDashboardData(dashboardFilters);
+
+    // ── KPI tile ⇄ trend chart focus ────────────────────────────────────
+    const [focus, setFocus] = useState('gms');
+    const [chartMode, setChartMode] = useState('revenue');
+    const handleFocus = useCallback((key) => {
+        setFocus(key);
+        const map = FOCUS_MAP[key];
+        if (map) setChartMode(map.mode);
+    }, []);
+    const handleMode = useCallback((mode) => {
+        setChartMode(mode);
+        // Keep the focused tile consistent with the visible mode.
+        setFocus((f) => (FOCUS_MAP[f]?.mode === mode ? f : null));
+    }, []);
+    const focusSeries = FOCUS_MAP[focus]?.mode === chartMode ? FOCUS_MAP[focus].series : null;
+    const handleFocusSeries = useCallback((seriesKey) => {
+        const entry = Object.entries(FOCUS_MAP).find(([, v]) => v.series === seriesKey && v.mode === chartMode);
+        if (entry) setFocus(entry[0]);
+    }, [chartMode]);
 
     // ── Sync (real ingestion, not just a reload) ────────────────────────
     const [syncing, setSyncing] = useState(false);
@@ -84,13 +119,8 @@ const OpsCenter = () => {
         }
     }, [syncing, refresh]);
 
-    // ── "Updated X ago" ticker ──────────────────────────────────────────
-    const [, setTick] = useState(0);
-    const tickRef = useRef();
-    useEffect(() => {
-        tickRef.current = setInterval(() => setTick((t) => t + 1), 30000);
-        return () => clearInterval(tickRef.current);
-    }, []);
+    // ── "Updated X ago" ticker (also refreshes overdue/insight clocks) ──
+    const now = useNow(30000);
 
     // ── Derived selections ──────────────────────────────────────────────
     const visibleTargets = useMemo(() => {
@@ -109,11 +139,38 @@ const OpsCenter = () => {
         [orch.errors]
     );
 
+    const selectableSellers = useMemo(() => new Set(userSellers.map((s) => String(s.id))), [userSellers]);
+
+    const insights = useMemo(() => buildInsights({
+        dashboardRaw: orch.dashboardRaw,
+        products: topProducts || [],
+        targets: visibleTargets,
+        tasks: optimizationTasks || [],
+        pipeline: scrapeTasks || [],
+        now,
+    }), [orch.dashboardRaw, topProducts, visibleTargets, optimizationTasks, scrapeTasks, now]);
+
+    const jumpTo = useCallback((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ops-panel--flash');
+        setTimeout(() => el.classList.remove('ops-panel--flash'), 1400);
+    }, []);
+
+    const links = useMemo(() => ({
+        gmsTracker: hasPermission('gms_tracker_view') ? '/gms-tracker' : null,
+        skuReport: hasPermission('skureport_view') ? '/sku-report' : null,
+    }), [hasPermission]);
+
     if (loading && !isHydrated) return <SkeletonPage />;
 
     const conn = CONNECTION_LABEL[orch.connectionStatus] || CONNECTION_LABEL.offline;
-    const stats = orch.dashboardRaw?.stats || {};
+    const raw = orch.dashboardRaw;
+    const stats = raw?.stats || {};
+    const period = raw?.period;
     const kpisErrored = sectionStatus?.kpis === 'error';
+    const activeSeller = filters.sellerId !== 'all' ? userSellers.find((s) => String(s.id) === String(filters.sellerId)) : null;
 
     return (
         <div className="ops">
@@ -130,6 +187,22 @@ const OpsCenter = () => {
                             Updated {timeAgo(orch.syncTimestamp || new Date())}
                             {' · '}
                             {fmtNum(stats.totalSellers)} sellers · {fmtNum(stats.totalAsins)} ASINs
+                            {period ? (
+                                <>
+                                    {' · '}
+                                    <span className="ops-num">{fmtRange(period.startDate, period.endDate)}</span>
+                                    {' '}
+                                    <span className="ops-muted">vs {fmtRange(period.prevStartDate, period.prevEndDate)}</span>
+                                </>
+                            ) : null}
+                            {activeSeller ? (
+                                <>
+                                    {' · '}
+                                    <button type="button" className="ops-filterchip" onClick={() => setFilters((f) => ({ ...f, sellerId: 'all' }))} title="Clear brand filter">
+                                        {activeSeller.name} ×
+                                    </button>
+                                </>
+                            ) : null}
                         </span>
                     </div>
                 </div>
@@ -137,6 +210,8 @@ const OpsCenter = () => {
                     <Select
                         size="small"
                         className="ops-select"
+                        showSearch
+                        optionFilterProp="label"
                         value={filters.sellerId}
                         onChange={(v) => setFilters((f) => ({ ...f, sellerId: v }))}
                         options={[
@@ -147,6 +222,8 @@ const OpsCenter = () => {
                     <Select
                         size="small"
                         className="ops-select"
+                        showSearch
+                        optionFilterProp="label"
                         value={filters.managerId}
                         onChange={(v) => setFilters((f) => ({ ...f, managerId: v }))}
                         options={[
@@ -185,6 +262,9 @@ const OpsCenter = () => {
                 </div>
             )}
 
+            {/* ── Insights (rule-based, from the loaded data only) ──── */}
+            {!kpisErrored && <InsightsPanel insights={insights} onJump={jumpTo} />}
+
             {/* ── Grid ──────────────────────────────────────────────── */}
             <div className="ops-grid">
                 {kpisErrored ? (
@@ -192,25 +272,52 @@ const OpsCenter = () => {
                         <MiniState
                             tone="error"
                             title="KPI metrics unavailable"
-                            note="Ad sales, spend, orders, units, ACoS and ROAS could not be loaded."
+                            note="GMS, units, ad sales, spend, ACoS and ROAS could not be loaded."
                             onRetry={refresh}
                         />
                     </Panel>
                 ) : (
-                    <KpiRow dashboardRaw={orch.dashboardRaw} />
+                    <KpiRow dashboardRaw={raw} focus={focus} onFocus={handleFocus} />
                 )}
 
-                <TrendPanel dashboardRaw={orch.dashboardRaw} status={sectionStatus?.revenueSeries} onRetry={refresh} />
-                <MixPanel dashboardRaw={orch.dashboardRaw} status={sectionStatus?.categories} onRetry={refresh} />
+                <TrendPanel
+                    dashboardRaw={raw}
+                    status={sectionStatus?.revenueSeries}
+                    onRetry={refresh}
+                    mode={chartMode}
+                    onMode={handleMode}
+                    focusSeries={focusSeries}
+                    onFocusSeries={handleFocusSeries}
+                />
+                <BrandLeaderboardPanel
+                    rows={raw?.gmsBySeller || []}
+                    status={sectionStatus?.kpis}
+                    onRetry={refresh}
+                    activeSellerId={filters.sellerId !== 'all' ? filters.sellerId : null}
+                    onSelectSeller={(id) => setFilters((f) => ({ ...f, sellerId: id }))}
+                    selectable={selectableSellers}
+                    periodDays={period?.days}
+                />
+
+                <TopProductsPanel
+                    products={topProducts || []}
+                    status={sectionStatus?.topProducts}
+                    onRetry={refresh}
+                    labels={raw?.labels || []}
+                    granularity={period?.granularity || 'day'}
+                    periodDays={period?.days || 0}
+                    periodTotal={Number(raw?.gms?.revenue) || 0}
+                    links={links}
+                />
 
                 <AchievementPanel targets={visibleTargets} status={sectionStatus?.targets} onRetry={refresh} />
-                <AsinHealthPanel stats={stats} />
+                <MixPanel dashboardRaw={raw} status={sectionStatus?.categories} onRetry={refresh} />
 
+                <AsinHealthPanel stats={stats} gms={raw?.gms} />
                 <TasksPanel tasks={optimizationTasks} error={tasksError} onRetry={refresh} />
                 <AlertsPanel alerts={orch.alerts || []} status={sectionStatus?.alerts} onRetry={refresh} />
-                <PipelinePanel tasks={scrapeTasks} onRetry={refresh} />
 
-                <TopAsinsPanel products={orch.topProducts || []} status={sectionStatus?.topProducts} onRetry={refresh} />
+                <PipelinePanel tasks={scrapeTasks} onRetry={refresh} />
                 <ActivityPanel logs={activityLogs} />
             </div>
         </div>
