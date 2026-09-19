@@ -40,7 +40,7 @@
     "cors": "^2.8.6",
     "cursor": "^0.1.5",
     "date-fns": "^4.4.0",
-    "dayjs": "^1.11.21",
+    "dayjs": "^1.11.23",
     "dompurify": "^3.4.8",
     "express": "^5.2.1",
     "framer-motion": "^12.39.0",
@@ -67,7 +67,7 @@
     "superagent": "^10.3.0",
     "tailwind-merge": "^3.7.0",
     "xlsx": "^0.18.5",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
