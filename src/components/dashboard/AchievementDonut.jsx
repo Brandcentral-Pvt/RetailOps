@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PremiumDonutChart from './PremiumDonutChart';
+import { targetAchievementPct } from '../../utils/targetMetrics';
 import TierRow from './TierRow';
 
 // ═══════════════════════════════════════════════════════════════
@@ -34,18 +35,10 @@ const AchievementDonut = ({ targets = [], overallRate = 0, goalType = 'all' }) =
         let critical = 0;
 
         filteredTargets.forEach((t) => {
-            const total = t.TotalTargetValue || 0;
-            const achieved = t.overallAchieved || 0;
-            const type = (t.GoalType || 'GMS').toUpperCase();
-
-            // ✅ ACoS inversion fix: ACoS is lower-is-better. An ACoS target of
-            // 20% with 40% actual is BAD, but achieved/target (40/20 = 200%)
-            // crowned it "Elite". Invert the ratio for ACoS (and any
-            // lower-is-better metric): target/actual, so 20/40 = 50%.
-            const lowerIsBetter = type === 'ACOS';
-            const pct = lowerIsBetter
-                ? (achieved > 0 ? (total / achieved) * 100 : 0)
-                : (total > 0 ? (achieved / total) * 100 : 0);
+            // ✅ Shared goal math: lower-is-better goals (ACoS) are inverted
+            // (target/actual) via the shared helper — one definition across
+            // KPI strip, module stats, and this donut.
+            const pct = targetAchievementPct(t);
 
             if (pct >= 100) elite++;
             else if (pct >= 80) high++;
