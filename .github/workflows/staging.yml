@@ -1,0 +1,144 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+env:
+  DEPLOY_PATH: /var/www/retail-ops-staging
+
+jobs:
+  # ─── Pre-deploy Checks ───────────────────────────────────────────────
+  pre-deploy:
+    name: Pre-deploy Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.STAGING_SSH_PRIVATE_KEY }}" ]; then
+            echo "❌ STAGING_SSH_PRIVATE_KEY secret not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.STAGING_DEPLOY_HOST }}" ]; then
+            echo "❌ STAGING_DEPLOY_HOST secret not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.STAGING_DEPLOY_USER }}" ]; then
+            echo "❌ STAGING_DEPLOY_USER secret not set"
+            exit 1
+          fi
+          echo "✅ All required staging secrets present"
+
+  # ─── Deploy ──────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Staging VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    needs: pre-deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+
+      - name: Deploy to Staging VPS
+        env:
+          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+          echo "🚀 Deploying ${{ github.sha }} to staging at $HOST"
+
+          ssh $USER@$HOST << 'DEPLOY'
+          set -e
+
+          DEPLOY_PATH="${DEPLOY_PATH:-/var/www/retail-ops-staging}"
+
+          echo "📡 Pulling latest code..."
+          cd "$DEPLOY_PATH"
+          git fetch origin
+          git reset --hard origin/develop
+
+          echo "📦 Installing backend dependencies..."
+          cd backend
+          npm ci --omit=dev 2>&1 | tail -3
+
+          echo "🔄 Running database migrations..."
+          npm run migrate 2>&1 | tail -10 || echo "⚠️ No migrate script or migration failed"
+
+          echo "📁 Ensuring directories..."
+          mkdir -p logs uploads/exports uploads/temp
+
+          echo "🔄 Restarting API..."
+          pm2 restart brand-central-api-staging --update-env 2>/dev/null || \
+          pm2 start server.js --name brand-central-api-staging \
+            --max-memory-restart 2G \
+            --node-options="--max-old-space-size=2048" \
+            --env production
+
+          echo "💾 Saving PM2 state..."
+          pm2 save 2>/dev/null || true
+
+          echo "✅ Staging deploy complete"
+          pm2 status
+          DEPLOY
+
+      - name: Health check
+        env:
+          HEALTH_URL: https://${{ secrets.STAGING_DEPLOY_HOST }}/api/health
+        run: |
+          echo "⏳ Waiting for staging server..."
+          for i in 1 2 3 4 5 6; do
+            sleep 5
+            if curl -sf --max-time 10 "$HEALTH_URL" 2>/dev/null; then
+              echo "✅ Staging health check passed"
+              exit 0
+            fi
+            echo "⏳ Attempt $i/6..."
+          done
+          echo "❌ Staging health check failed after 6 attempts"
+          exit 1
+
+  # ─── Summary ─────────────────────────────────────────────────────────
+  summary:
+    name: Staging Deployment Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: deploy
+    if: always()
+
+    steps:
+      - name: Summary
+        run: |
+          echo "🚀 Staging deployment summary"
+          echo "   Commit: ${{ github.sha }}"
+          echo "   Branch: develop"
+          echo "   Status: ${{ needs.deploy.result }}"
+          echo "   Time:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "✅ Staging deployment successful"
+          else
+            echo "❌ Staging deployment failed"
+          fi

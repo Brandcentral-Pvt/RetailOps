@@ -1,0 +1,107 @@
+version: 2
+updates:
+  # Root package.json (frontend)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(frontend)"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "typescript"
+          - "vite*"
+          - "tailwind*"
+          - "postcss"
+          - "autoprefixer"
+      ui-dependencies:
+        patterns:
+          - "@mui/*"
+          - "@emotion/*"
+          - "antd"
+          - "rsuite"
+          - "react*"
+          - "framer-motion"
+          - "chart.js"
+          - "recharts"
+      build-dependencies:
+        patterns:
+          - "xlsx"
+          - "date-fns"
+          - "dayjs"
+          - "axios"
+          - "zustand"
+          - "socket.io-client"
+
+  # Backend package.json
+  - package-ecosystem: "npm"
+    directory: "backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(backend)"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "jest"
+          - "nodemon"
+          - "supertest"
+      database-dependencies:
+        patterns:
+          - "mssql"
+          - "mongodb"
+          - "redis"
+          - "ioredis"
+      auth-dependencies:
+        patterns:
+          - "jsonwebtoken"
+          - "bcryptjs"
+          - "@clerk/*"
+      queue-dependencies:
+        patterns:
+          - "bull"
+          - "p-limit"
+      scraping-dependencies:
+        patterns:
+          - "playwright"
+          - "puppeteer*"
+          - "xmldom"
+          - "xpath"
+      build-dependencies:
+        patterns:
+          - "express"
+          - "cors"
+          - "helmet"
+          - "dotenv"
+          - "winston*"
+          - "pm2"
+          - "socket.io"
+          - "axios"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

@@ -7,6 +7,7 @@
     "start-cluster": "pm2 start ecosystem.config.js",
     "dev": "nodemon --max-old-space-size=4096 server.js",
     "force-sync": "node scripts/force_sync_all.js",
+    "migrate": "node scripts/runMigrations.js",
     "test": "node --experimental-vm-modules node_modules/.bin/jest --forceExit --detectOpenHandles",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
