@@ -1,63 +1,48 @@
-import React from 'react';
 import { ConfigProvider } from 'antd';
-import { motion } from 'framer-motion';
-import { ShieldCheck } from 'lucide-react';
+import AuthFooter from './AuthFooter';
 import styles from './Auth.module.css';
 
-const AuthLayout = ({ children, footerText = 'RetailOps' }) => {
-  return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#1976D2',
-          borderRadius: 10,
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-          colorBgContainer: '#FFFFFF',
-          colorText: '#111827',
-          colorTextDescription: '#4B5563',
-        },
-        components: {
-          Button: { controlHeight: 44, borderRadius: 10, fontWeight: 600, fontSize: 'var(--font-size-base)' },
-          Input: { controlHeight: 44, borderRadius: 10 },
-        },
-      }}
-    >
-      <div className={styles.wrapper}>
-        <div className={styles.bgOrb1} />
-        <div className={styles.bgOrb2} />
-
-        <motion.div
-          className={styles.container}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className={styles.logoWrap}>
-            <img
-              src="https://brandcentral.in/wp-content/uploads/2024/09/logo.png"
-              alt="RetailOps"
-              className={styles.logo}
-            />
-          </div>
-
-          <div className={styles.card}>
-            <div className={styles.cardAccent} />
-            <div className={styles.cardBody}>
-              {children}
-
-              <div className={styles.footer}>
-                <div className={styles.securityBadge}>
-                  <ShieldCheck size={14} color="#2E7D32" />
-                  <span className={styles.securityText}>Secured by enterprise encryption</span>
-                </div>
-                <span className={styles.copyright}>&copy; {new Date().getFullYear()} RetailOps. All rights reserved.</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </ConfigProvider>
-  );
+const authTheme = {
+  token: {
+    colorPrimary: '#1976d2',
+    borderRadius: 8,
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    colorBgContainer: '#ffffff',
+    colorText: '#19283f',
+    colorTextDescription: '#5b687c',
+    colorBorder: '#ccd6e2',
+    controlHeight: 50,
+    controlHeightLG: 50,
+    fontSize: 14,
+  },
+  components: {
+    Button: { controlHeight: 50, controlHeightLG: 50, borderRadius: 8, fontWeight: 600 },
+    Input: { controlHeight: 50, controlHeightLG: 50, borderRadius: 8 },
+  },
 };
 
-export default AuthLayout;
+export default function AuthLayout({ children }) {
+  return (
+    <ConfigProvider theme={authTheme}>
+      <main className={styles.wrapper}>
+        <div className={styles.container}>
+          <div className={styles.logoWrap}>
+            <img
+              src="/brandcentral-logo.png"
+              alt="BrandCentral"
+              width="875"
+              height="166"
+              className={styles.logo}
+              fetchPriority="high"
+            />
+          </div>
+          <section className={styles.card} aria-label="RetailOps authentication">
+            <div className={styles.cardAccent} aria-hidden="true" />
+            <div className={styles.cardBody}>{children}</div>
+          </section>
+          <AuthFooter />
+        </div>
+      </main>
+    </ConfigProvider>
+  );
+}
