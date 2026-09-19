@@ -160,9 +160,12 @@ exports.getDashboardData = async (req, res) => {
     let cleanEnd = (endQuery === 'null' || endQuery === 'undefined') ? null : endQuery;
 
     if (cleanStart && cleanEnd) {
-      startDate = new Date(cleanStart);
-      endDate = new Date(cleanEnd);
-      days = Math.max(1, Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
+      // ✅ Parse yyyy-mm-dd as LOCAL dates: the pool runs with useUTC=false,
+      // so DATE columns round-trip as local midnight. Parsing inputs as UTC
+      // (new Date('yyyy-mm-dd')) shifted the window by a day in IST.
+      startDate = parseLocalDate(cleanStart);
+      endDate = parseLocalDate(cleanEnd);
+      days = Math.max(1, Math.round(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
     } else {
       days = Math.min(parsePeriod(period), 365);
       endDate = new Date();
@@ -170,33 +173,90 @@ exports.getDashboardData = async (req, res) => {
       startDate.setDate(startDate.getDate() - days);
     }
 
-    // 6. Ads Performance & Charts
-    // Join Asins with AdsPerformance
-    const adsDataResult = await buildDashReq()
+    // ✅ Period-over-period: the window immediately preceding the selected
+    // range, same length. Used for every "vs previous period" delta.
+    const prevEnd = new Date(startDate);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(startDate);
+    prevStart.setDate(prevStart.getDate() - days);
+    const startKey = toDateKey(startDate);
+    const endKey = toDateKey(endDate);
+    const prevStartKey = toDateKey(prevStart);
+    const prevEndKey = toDateKey(prevEnd);
+    const isCurrentRow = (row) => toDateKey(row.Date) >= startKey;
+
+    // Seller restriction expressed against the aliased Asins table (A) so it
+    // can be appended to any join without column ambiguity.
+    const asinJoinFilter = asinFilter ? asinFilter.replace('WHERE', 'AND').replace('SellerId IN', 'A.SellerId IN') : '';
+    // Seller restriction for tables that carry only an ASIN code (GMS rows):
+    // an EXISTS against Asins avoids double-counting when the same ASIN is
+    // tracked under more than one seller.
+    const gmsScopeFilter = `AND EXISTS (SELECT 1 FROM Asins A WHERE A.AsinCode = g.Asin ${asinJoinFilter})`;
+
+    const buildRangeReq = () => buildDashReq()
       .input('startDate', sql.Date, startDate)
       .input('endDate', sql.Date, endDate)
+      .input('prevStart', sql.Date, prevStart);
+
+    // 6. Ads Performance & Charts
+    // ✅ Aggregated per day (the charts and KPIs only ever consume per-day
+    // totals) across the current AND previous window in a single pass — the
+    // previous window feeds the period-over-period deltas.
+    const adsDataResult = await buildRangeReq()
       .query(`
-        SELECT 
-          A.AsinCode,
+        SELECT
           AP.Date,
-          AP.AdSales,
-          AP.AdSpend,
-          AP.Orders,
-          AP.OrganicSales,
-          AP.Impressions,
-          AP.Clicks
+          SUM(ISNULL(AP.AdSales, 0)) AS AdSales,
+          SUM(ISNULL(AP.AdSpend, 0)) AS AdSpend,
+          SUM(ISNULL(AP.Orders, 0)) AS Orders,
+          SUM(ISNULL(AP.OrganicSales, 0)) AS OrganicSales,
+          SUM(ISNULL(AP.Impressions, 0)) AS Impressions,
+          SUM(ISNULL(AP.Clicks, 0)) AS Clicks
         FROM AdsPerformance AP
         JOIN Asins A ON AP.Asin = A.AsinCode
-        WHERE AP.Date BETWEEN @startDate AND @endDate
+        WHERE AP.Date BETWEEN @prevStart AND @endDate
         AND AP.ReportType = 'daily'
-        ${asinFilter ? asinFilter.replace('WHERE', 'AND') : ''}
+        ${asinJoinFilter}
+        GROUP BY AP.Date
       `);
 
-    const adsData = adsDataResult.recordset || [];
-    const totalAdSales = adsData.reduce((sum, ad) => sum + (ad.AdSales || 0), 0);
-    const totalAdSpend = adsData.reduce((sum, ad) => sum + (ad.AdSpend || 0), 0);
-    const totalOrders = adsData.reduce((sum, ad) => sum + (ad.Orders || 0), 0);
+    const allAdsRows = adsDataResult.recordset || [];
+    const adsData = allAdsRows.filter(isCurrentRow);
+    const prevAdsData = allAdsRows.filter(r => !isCurrentRow(r));
+    const sumBy = (rows, key) => rows.reduce((sum, r) => sum + (Number(r[key]) || 0), 0);
+    const totalAdSales = sumBy(adsData, 'AdSales');
+    const totalAdSpend = sumBy(adsData, 'AdSpend');
+    const totalOrders = sumBy(adsData, 'Orders');
+    const totalOrganicSales = sumBy(adsData, 'OrganicSales');
+    const totalImpressions = sumBy(adsData, 'Impressions');
+    const totalClicks = sumBy(adsData, 'Clicks');
     const totalCatalogValue = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].PortfolioValue || 0 : 0;
+
+    // 6b. GMS (ordered revenue / units) per day — the merchandise truth the
+    // top-products table and the GMS KPIs are built on. Same 2× window.
+    const gmsDailyResult = await buildRangeReq()
+      .query(`
+        SELECT
+          g.Date,
+          SUM(ISNULL(g.OrderedRevenue, 0)) AS Revenue,
+          SUM(ISNULL(g.OrderedUnits, 0)) AS Units,
+          SUM(ISNULL(g.ShippedRevenue, 0)) AS ShippedRevenue,
+          SUM(ISNULL(g.CustomerReturns, 0)) AS Returns
+        FROM GmsDailyPerformance g
+        WHERE g.Date BETWEEN @prevStart AND @endDate
+        ${gmsScopeFilter}
+        GROUP BY g.Date
+      `);
+
+    const allGmsRows = gmsDailyResult.recordset || [];
+    const gmsRows = allGmsRows.filter(isCurrentRow);
+    const prevGmsRows = allGmsRows.filter(r => !isCurrentRow(r));
+    const gmsRevenue = sumBy(gmsRows, 'Revenue');
+    const gmsUnits = sumBy(gmsRows, 'Units');
+    const gmsShipped = sumBy(gmsRows, 'ShippedRevenue');
+    const gmsReturns = sumBy(gmsRows, 'Returns');
+    const prevGmsRevenue = sumBy(prevGmsRows, 'Revenue');
+    const prevGmsUnits = sumBy(prevGmsRows, 'Units');
 
     const activeAsinCount = (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Active || 0 : 0;
     const kpi = [
@@ -209,8 +269,9 @@ exports.getDashboardData = async (req, res) => {
     // Chart processing
     const {
       revenueData, areaSeries, stackedBarSeries, adsPerformanceSeries,
-      ordersSeries, unitsSeries, acosSeries, labels
-    } = processChartData(days, adsData, endDate);
+      ordersSeries, unitsSeries, acosSeries, labels, bucketKeys,
+      gmsSeries, gmsUnitsSeries, tacosSeries, granularity, bucketize
+    } = processChartData(days, adsData, endDate, gmsRows);
 
     // 7. Optimized Marketplace Distribution (Safe high-performance decouple)
     // First: Get raw counts using ONLY covering index on Asins (super fast)
@@ -248,48 +309,218 @@ exports.getDashboardData = async (req, res) => {
       color: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'][idx % 5]
     }));
 
-    // 8. Top ASINs Table
-    // ✅ Fix: this query previously used pool.request() while embedding ${asinFilter},
-    // which references @dashSeller_* params — SQL error "Must declare the scalar
-    // variable @dashSeller_0" whenever a seller filter was active. Use buildDashReq()
-    // so all seller params are bound. The LEFT JOIN also had NO date/type filter,
-    // so lifetime AdsPerformance rows polluted the "top ASINs in range" table.
-    const topAsinsResult = await buildDashReq()
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate)
+    // 8. Top ASINs Table — ranked by GMS (ordered revenue of the ASIN).
+    // ✅ Definition fix: "top products" means the ASIN's merchandise sales
+    // (GmsDailyPerformance.OrderedRevenue), NOT its advertising numbers.
+    // AdsPerformance is only LEFT JOINed for context columns (ad share,
+    // TACoS, ACoS). Both aggregates are restricted to the selected window;
+    // the GMS aggregate also folds in the previous window for deltas.
+    // Seller params are bound via buildDashReq() (regression: @dashSeller_*).
+    const topAsinsPromise = buildRangeReq()
       .query(`
-      SELECT TOP 200 
-        A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice,
-        S.Name as SellerName,
-        SUM(ISNULL(AP.AdSales, 0)) as TotalAdSales,
-        SUM(ISNULL(AP.OrganicSales, 0)) as TotalOrganicSales,
-        SUM(ISNULL(AP.AdSpend, 0)) as TotalAdSpend,
-        SUM(ISNULL(AP.Orders, 0)) as TotalOrders
-      FROM Asins A
+      WITH GmsAgg AS (
+        SELECT
+          g.Asin,
+          SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS GmsRevenue,
+          SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedUnits, 0) ELSE 0 END) AS GmsUnits,
+          SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.ShippedRevenue, 0) ELSE 0 END) AS ShippedRevenue,
+          SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.CustomerReturns, 0) ELSE 0 END) AS Returns,
+          SUM(CASE WHEN g.Date < @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS PrevGmsRevenue,
+          SUM(CASE WHEN g.Date < @startDate THEN ISNULL(g.OrderedUnits, 0) ELSE 0 END) AS PrevGmsUnits,
+          COUNT(DISTINCT CASE WHEN g.Date >= @startDate AND ISNULL(g.OrderedRevenue, 0) > 0 THEN g.Date END) AS ActiveDays
+        FROM GmsDailyPerformance g
+        WHERE g.Date BETWEEN @prevStart AND @endDate
+        GROUP BY g.Asin
+      ),
+      AdsAgg AS (
+        SELECT
+          AP.Asin,
+          SUM(ISNULL(AP.AdSales, 0)) AS AdSales,
+          SUM(ISNULL(AP.AdSpend, 0)) AS AdSpend,
+          SUM(ISNULL(AP.Orders, 0)) AS AdOrders
+        FROM AdsPerformance AP
+        WHERE AP.Date BETWEEN @startDate AND @endDate
+          AND AP.ReportType = 'daily'
+        GROUP BY AP.Asin
+      )
+      SELECT TOP 200
+        A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.Brand, A.ParentAsin,
+        A.CurrentPrice, A.ImageUrl, A.Status, A.AvailabilityStatus, A.SellerId,
+        S.Name AS SellerName, S.Marketplace,
+        G.GmsRevenue, G.GmsUnits, G.ShippedRevenue, G.Returns,
+        G.PrevGmsRevenue, G.PrevGmsUnits, G.ActiveDays,
+        ISNULL(AD.AdSales, 0) AS AdSales,
+        ISNULL(AD.AdSpend, 0) AS AdSpend,
+        ISNULL(AD.AdOrders, 0) AS AdOrders
+      FROM GmsAgg G
+      JOIN Asins A ON A.AsinCode = G.Asin
       JOIN Sellers S ON A.SellerId = S.Id
-      LEFT JOIN AdsPerformance AP ON A.AsinCode = AP.Asin
-        AND AP.Date BETWEEN @startDate AND @endDate
-        AND AP.ReportType = 'daily'
-      ${asinFilter}
-      GROUP BY A.Id, A.AsinCode, A.Sku, A.Title, A.Category, A.CurrentPrice, S.Name
-      ORDER BY TotalOrders DESC
+      LEFT JOIN AdsAgg AD ON AD.Asin = G.Asin
+      WHERE (G.GmsRevenue > 0 OR G.GmsUnits > 0)
+      ${asinJoinFilter}
+      ORDER BY G.GmsRevenue DESC, G.GmsUnits DESC
     `);
 
-    const tableData = topAsinsResult.recordset.map(asin => {
-      const totalRev = (asin.TotalAdSales || 0) + (asin.TotalOrganicSales || 0);
-      const acos = asin.TotalAdSales > 0 ? (asin.TotalAdSpend / asin.TotalAdSales) * 100 : 0;
+    // 9. GMS by seller (brand leaderboard) — current + previous window.
+    const gmsBySellerPromise = buildRangeReq()
+      .query(`
+        SELECT
+          A.SellerId, S.Name AS SellerName, S.Marketplace,
+          SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS Revenue,
+          SUM(CASE WHEN g.Date >= @startDate THEN ISNULL(g.OrderedUnits, 0) ELSE 0 END) AS Units,
+          SUM(CASE WHEN g.Date < @startDate THEN ISNULL(g.OrderedRevenue, 0) ELSE 0 END) AS PrevRevenue,
+          COUNT(DISTINCT CASE WHEN g.Date >= @startDate AND ISNULL(g.OrderedRevenue, 0) > 0 THEN g.Asin END) AS AsinsWithSales
+        FROM GmsDailyPerformance g
+        JOIN Asins A ON A.AsinCode = g.Asin
+        JOIN Sellers S ON S.Id = A.SellerId
+        WHERE g.Date BETWEEN @prevStart AND @endDate
+        ${asinJoinFilter}
+        GROUP BY A.SellerId, S.Name, S.Marketplace
+        ORDER BY Revenue DESC
+      `);
+
+    // Distinct ASINs with ordered revenue in the current window (scoped).
+    const sellingAsinsPromise = buildRangeReq()
+      .query(`
+        SELECT COUNT(DISTINCT g.Asin) AS AsinsWithSales
+        FROM GmsDailyPerformance g
+        WHERE g.Date BETWEEN @startDate AND @endDate
+          AND ISNULL(g.OrderedRevenue, 0) > 0
+        ${gmsScopeFilter}
+      `);
+
+    const [topAsinsResult, gmsBySellerResult, sellingAsinsResult] = await Promise.all([
+      topAsinsPromise, gmsBySellerPromise, sellingAsinsPromise,
+    ]);
+
+    const topRows = topAsinsResult.recordset || [];
+
+    // 8b. Per-ASIN GMS trend (bucket-aligned with `labels`) for the leaders —
+    // a second, narrow query so the ranking query stays a pure aggregate.
+    const SPARK_LIMIT = 25;
+    const sparkAsins = Array.from(new Set(topRows.slice(0, SPARK_LIMIT).map(r => r.AsinCode).filter(Boolean)));
+    const trendByAsin = {};
+    if (sparkAsins.length > 0) {
+      const sparkReq = buildRangeReq();
+      const sparkClause = buildInClause(sparkReq, 'sparkAsin', sparkAsins);
+      const sparkResult = await sparkReq.query(`
+        SELECT g.Asin, g.Date,
+          SUM(ISNULL(g.OrderedRevenue, 0)) AS Revenue,
+          SUM(ISNULL(g.OrderedUnits, 0)) AS Units
+        FROM GmsDailyPerformance g
+        WHERE g.Date BETWEEN @startDate AND @endDate
+          AND g.Asin IN (${sparkClause})
+        GROUP BY g.Asin, g.Date
+      `);
+      (sparkResult.recordset || []).forEach(row => {
+        if (!trendByAsin[row.Asin]) {
+          trendByAsin[row.Asin] = { revenue: bucketKeys.map(() => 0), units: bucketKeys.map(() => 0) };
+        }
+        const idx = bucketize(row.Date);
+        if (idx >= 0) {
+          trendByAsin[row.Asin].revenue[idx] += Math.round(Number(row.Revenue) || 0);
+          trendByAsin[row.Asin].units[idx] += Number(row.Units) || 0;
+        }
+      });
+    }
+
+    const pct = (num, den) => (den > 0 ? (num / den) * 100 : 0);
+    const deltaPct = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
+    const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+    const rankedTotal = topRows.reduce((s, r) => s + (Number(r.GmsRevenue) || 0), 0);
+    const shareBase = gmsRevenue > 0 ? gmsRevenue : rankedTotal;
+
+    const tableData = topRows.map((asin, i) => {
+      const revenue = Number(asin.GmsRevenue) || 0;
+      const units = Number(asin.GmsUnits) || 0;
+      const prevRevenue = Number(asin.PrevGmsRevenue) || 0;
+      const prevUnits = Number(asin.PrevGmsUnits) || 0;
+      const adSales = Number(asin.AdSales) || 0;
+      const adSpend = Number(asin.AdSpend) || 0;
+      const returns = Number(asin.Returns) || 0;
+      const acos = pct(adSpend, adSales);
+      const trend = trendByAsin[asin.AsinCode] || null;
       return {
+        rank: i + 1,
+        id: asin.Id,
         sku: asin.Sku || asin.AsinCode,
         asin: asin.AsinCode,
         title: asin.Title || 'Unknown Product',
         category: asin.Category || 'Uncategorized',
-        // ✅ Fix: CurrentPrice fallback inflated revenue for ASINs with no sales.
-        // Revenue is Ad + Organic sales only; 0 when there are no sales.
-        revenue: totalRev || 0,
-        units: asin.TotalOrders || 0,
+        brand: asin.Brand || null,
+        parentAsin: asin.ParentAsin || null,
+        imageUrl: asin.ImageUrl || null,
+        status: asin.Status || null,
+        availability: asin.AvailabilityStatus || null,
+        sellerId: asin.SellerId,
+        sellerName: asin.SellerName || null,
+        marketplace: asin.Marketplace || null,
+        currentPrice: Number(asin.CurrentPrice) || 0,
+        // Legacy keys (consumed by the older dashboards) — now GMS-based.
+        revenue: round2(revenue),
+        units,
         acos: acos.toFixed(1) + '%',
+        // GMS block
+        gmsRevenue: round2(revenue),
+        gmsUnits: units,
+        shippedRevenue: round2(asin.ShippedRevenue),
+        returns,
+        returnRate: round2(pct(returns, units)),
+        prevGmsRevenue: round2(prevRevenue),
+        prevGmsUnits: prevUnits,
+        deltaPct: deltaPct(revenue, prevRevenue) === null ? null : round2(deltaPct(revenue, prevRevenue)),
+        unitsDeltaPct: deltaPct(units, prevUnits) === null ? null : round2(deltaPct(units, prevUnits)),
+        asp: units > 0 ? round2(revenue / units) : 0,
+        share: round2(pct(revenue, shareBase)),
+        activeDays: Number(asin.ActiveDays) || 0,
+        // Ads context (never the ranking basis)
+        adSales: round2(adSales),
+        adSpend: round2(adSpend),
+        adOrders: Number(asin.AdOrders) || 0,
+        acosPct: round2(acos),
+        tacos: round2(pct(adSpend, revenue)),
+        adShare: round2(pct(adSales, revenue)),
+        trend: trend ? trend.revenue : null,
+        unitsTrend: trend ? trend.units : null,
       };
     });
+
+    const gmsBySeller = (gmsBySellerResult.recordset || [])
+      .map(r => {
+        const revenue = Number(r.Revenue) || 0;
+        const prevRevenue = Number(r.PrevRevenue) || 0;
+        return {
+          sellerId: r.SellerId,
+          sellerName: r.SellerName || r.SellerId,
+          marketplace: r.Marketplace || 'Other',
+          revenue: round2(revenue),
+          units: Number(r.Units) || 0,
+          prevRevenue: round2(prevRevenue),
+          deltaPct: deltaPct(revenue, prevRevenue) === null ? null : round2(deltaPct(revenue, prevRevenue)),
+          share: round2(pct(revenue, shareBase)),
+          asinsWithSales: Number(r.AsinsWithSales) || 0,
+        };
+      })
+      .filter(r => r.revenue > 0 || r.prevRevenue > 0);
+
+    const gmsByMarketplaceMap = {};
+    gmsBySeller.forEach(r => {
+      const m = gmsByMarketplaceMap[r.marketplace] || { name: r.marketplace, revenue: 0, units: 0, prevRevenue: 0, sellers: 0 };
+      m.revenue += r.revenue;
+      m.units += r.units;
+      m.prevRevenue += r.prevRevenue;
+      m.sellers += 1;
+      gmsByMarketplaceMap[r.marketplace] = m;
+    });
+    const gmsByMarketplace = Object.values(gmsByMarketplaceMap)
+      .map(m => ({ ...m, revenue: round2(m.revenue), prevRevenue: round2(m.prevRevenue), share: round2(pct(m.revenue, shareBase)) }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const prevAdSales = sumBy(prevAdsData, 'AdSales');
+    const prevAdSpend = sumBy(prevAdsData, 'AdSpend');
+    const prevOrders = sumBy(prevAdsData, 'Orders');
+    const prevOrganicSales = sumBy(prevAdsData, 'OrganicSales');
+    const asinsWithSales = Number((sellingAsinsResult.recordset || [])[0]?.AsinsWithSales) || 0;
 
     const response = {
       kpi,
@@ -322,7 +553,67 @@ exports.getDashboardData = async (req, res) => {
         activeAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].Active || 0 : 0,
         outOfStockAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].OutOfStock || 0 : 0,
         newThisMonthAsins: (asinCounts.recordset && asinCounts.recordset[0]) ? asinCounts.recordset[0].NewThisMonth || 0 : 0,
-      }
+      },
+      // ── Deep-data blocks (additive; older consumers ignore them) ──────
+      period: {
+        startDate: startKey,
+        endDate: endKey,
+        days,
+        granularity,
+        bucketKeys,
+        prevStartDate: prevStartKey,
+        prevEndDate: prevEndKey,
+      },
+      gms: {
+        revenue: round2(gmsRevenue),
+        units: gmsUnits,
+        shippedRevenue: round2(gmsShipped),
+        returns: gmsReturns,
+        returnRate: round2(pct(gmsReturns, gmsUnits)),
+        asp: gmsUnits > 0 ? round2(gmsRevenue / gmsUnits) : 0,
+        prevRevenue: round2(prevGmsRevenue),
+        prevUnits: prevGmsUnits,
+        deltaPct: deltaPct(gmsRevenue, prevGmsRevenue) === null ? null : round2(deltaPct(gmsRevenue, prevGmsRevenue)),
+        unitsDeltaPct: deltaPct(gmsUnits, prevGmsUnits) === null ? null : round2(deltaPct(gmsUnits, prevGmsUnits)),
+        tacos: round2(pct(totalAdSpend, gmsRevenue)),
+        adShare: round2(pct(totalAdSales, gmsRevenue)),
+        asinsWithSales,
+        activeDays: gmsRows.filter(r => (Number(r.Revenue) || 0) > 0).length,
+        series: gmsSeries,
+        unitsSeries: gmsUnitsSeries,
+        tacosSeries,
+        dailyAverage: days > 0 ? round2(gmsRevenue / days) : 0,
+        rankedAsins: topRows.length,
+        rankedRevenue: round2(rankedTotal),
+      },
+      ads: {
+        adSales: round2(totalAdSales),
+        adSpend: round2(totalAdSpend),
+        orders: totalOrders,
+        organicSales: round2(totalOrganicSales),
+        impressions: totalImpressions,
+        clicks: totalClicks,
+        ctr: round2(pct(totalClicks, totalImpressions)),
+        cpc: totalClicks > 0 ? round2(totalAdSpend / totalClicks) : 0,
+        acos: round2(pct(totalAdSpend, totalAdSales)),
+        roas: totalAdSpend > 0 ? round2(totalAdSales / totalAdSpend) : 0,
+      },
+      previous: {
+        startDate: prevStartKey,
+        endDate: prevEndKey,
+        days,
+        adSales: round2(prevAdSales),
+        adSpend: round2(prevAdSpend),
+        orders: prevOrders,
+        organicSales: round2(prevOrganicSales),
+        acos: round2(pct(prevAdSpend, prevAdSales)),
+        roas: prevAdSpend > 0 ? round2(prevAdSales / prevAdSpend) : 0,
+        gmsRevenue: round2(prevGmsRevenue),
+        gmsUnits: prevGmsUnits,
+        tacos: round2(pct(prevAdSpend, prevGmsRevenue)),
+      },
+      gmsBySeller,
+      gmsByMarketplace,
     };
 
     dashboardCache.set(cacheKey, response);
@@ -334,7 +625,33 @@ exports.getDashboardData = async (req, res) => {
   }
 };
 
-function processChartData(days, adsData = [], endDate) {
+/**
+ * yyyy-mm-dd in the process's LOCAL timezone. The mssql pool is configured
+ * with useUTC=false (and server.js pins TZ), so DATE columns arrive as local
+ * midnight — ISO/UTC keys would land on the previous day for IST.
+ */
+function toDateKey(value) {
+  if (!value) return '';
+  const str = value instanceof Date ? null : String(value);
+  if (str && /^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const d = value instanceof Date ? value : new Date(str);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Parse yyyy-mm-dd (or any date string) as a LOCAL-midnight Date. */
+function parseLocalDate(value) {
+  const str = String(value);
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(str);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function processChartData(days, adsData = [], endDate, gmsRows = []) {
   const endDateObj = new Date(endDate);
   const useWeekly = days > 60;
   const bucketCount = useWeekly ? Math.ceil(days / 7) : days;
@@ -346,15 +663,18 @@ function processChartData(days, adsData = [], endDate) {
     if (useWeekly) d.setDate(d.getDate() - i * 7);
     else d.setDate(d.getDate() - i);
     
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = toDateKey(d);
     const bucket = {
       key: dateStr,
       ts: d.getTime(),
+      index: buckets.length,
       revenue: 0,
       organic: 0,
       ppc: 0,
       adsSpend: 0,
-      orders: 0
+      orders: 0,
+      gms: 0,
+      gmsUnits: 0
     };
     buckets.push(bucket);
     bucketMap[dateStr] = bucket;
@@ -362,27 +682,36 @@ function processChartData(days, adsData = [], endDate) {
 
   const findBucket = (adDateStr) => {
     if (bucketMap[adDateStr]) return bucketMap[adDateStr];
+    const t = parseLocalDate(adDateStr).getTime();
     let best = buckets[0];
-    let bestDist = Math.abs(buckets[0].ts - new Date(adDateStr).getTime());
+    let bestDist = Math.abs(buckets[0].ts - t);
     for (let i = 1; i < buckets.length; i++) {
-      const dist = Math.abs(buckets[i].ts - new Date(adDateStr).getTime());
+      const dist = Math.abs(buckets[i].ts - t);
       if (dist < bestDist) { bestDist = dist; best = buckets[i]; }
     }
     return best;
   };
 
+  const rowKey = (row) => toDateKey(row.Date) || toDateKey(row);
+
   adsData.forEach(ad => {
-    const b = findBucket(ad.Date?.toISOString?.()?.split('T')[0] || ad.Date);
-    const rev = ad.AdSales + ad.OrganicSales;
+    const b = findBucket(rowKey(ad));
+    const rev = (Number(ad.AdSales) || 0) + (Number(ad.OrganicSales) || 0);
     b.revenue += rev;
-    b.organic += ad.OrganicSales || 0;
-    b.ppc += ad.AdSales || 0;
-    b.adsSpend += ad.AdSpend || 0;
-    b.orders += ad.Orders || 0;
+    b.organic += Number(ad.OrganicSales) || 0;
+    b.ppc += Number(ad.AdSales) || 0;
+    b.adsSpend += Number(ad.AdSpend) || 0;
+    b.orders += Number(ad.Orders) || 0;
+  });
+
+  gmsRows.forEach(g => {
+    const b = findBucket(rowKey(g));
+    b.gms += Number(g.Revenue) || 0;
+    b.gmsUnits += Number(g.Units) || 0;
   });
 
   const labels = buckets.map(b => {
-    const date = new Date(b.key);
+    const date = parseLocalDate(b.key);
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   });
 
@@ -406,7 +735,20 @@ function processChartData(days, adsData = [], endDate) {
     // instead of fabricating a conversion multiplier.
     unitsSeries: buckets.map(b => Math.round(b.orders || 0)),
     acosSeries: buckets.map(b => b.ppc > 0 ? Math.round((b.adsSpend / b.ppc) * 100) : 0),
-    labels
+    // GMS (merchandise) series, bucket-aligned with the ads series above.
+    gmsSeries: buckets.map(b => Math.round(b.gms)),
+    gmsUnitsSeries: buckets.map(b => Math.round(b.gmsUnits)),
+    tacosSeries: buckets.map(b => b.gms > 0 ? Math.round((b.adsSpend / b.gms) * 1000) / 10 : 0),
+    labels,
+    bucketKeys: buckets.map(b => b.key),
+    granularity: useWeekly ? 'week' : 'day',
+    /** Map any date-like value to its bucket index (or -1 when there are no buckets). */
+    bucketize: (value) => {
+      if (buckets.length === 0) return -1;
+      const key = toDateKey(value);
+      if (!key) return -1;
+      return findBucket(key).index;
+    },
   };
 }
 
