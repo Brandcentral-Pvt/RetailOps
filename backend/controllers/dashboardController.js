@@ -297,6 +297,11 @@ exports.getDashboardData = async (req, res) => {
       areaSeries,
       stackedBarSeries,
       adsPerformanceSeries,
+      // ✅ Fix: chart series were computed in processChartData but never
+      // returned, leaving KPI sparklines (orders/units/ACoS) empty.
+      ordersSeries,
+      unitsSeries,
+      acosSeries,
       labels,
       category: categoryData,
       tableData,
