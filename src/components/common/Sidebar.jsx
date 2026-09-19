@@ -41,21 +41,21 @@ const { Sider } = Layout;
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
-    const { collapsed, toggle, isMobile, isOpen, toggleMobile, setCollapsed } = useSidebar();
+    const { collapsed, toggle, isMobile, isOpen, toggleMobile, closeMobile, setCollapsed } = useSidebar();
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Local hover state for auto expand/collapsed logic
+    // Local hover state for auto expand/collapsed logic — disabled on mobile drawer
     const [isHovered, setIsHovered] = useState(false);
     
-    // The actual visual collapsed state of the Sidebar component
-    const visuallyCollapsed = collapsed && !isHovered;
+    // On mobile the drawer is always fully expanded when open; collapsed only applies to desktop
+    const visuallyCollapsed = !isMobile && collapsed && !isHovered;
 
     // Track initial path to determine when the user navigates for the first time
     const initialPathRef = useRef(location.pathname);
 
     useEffect(() => {
-        // If user navigates away from their landing route, auto-collapse the sidebar
+        // If user navigates away from their landing route, auto-collapse the sidebar (desktop only)
         if (location.pathname !== initialPathRef.current) {
             if (!isMobile && setCollapsed && !collapsed) {
                 setCollapsed(true);
@@ -96,7 +96,7 @@ const Sidebar = () => {
 
     const handleNavigate = (to) => {
         navigate(to);
-        if (isMobile && isOpen) toggleMobile();
+        if (isMobile && isOpen) closeMobile?.() || toggleMobile();
     };
 
     const initials = (
@@ -157,9 +157,10 @@ const Sidebar = () => {
     return (
         <>
             {isMobile && isOpen && (
-                <div 
-                    className="sidebar-mobile-backdrop" 
-                    onClick={toggleMobile} 
+                <div
+                    className="sidebar-mobile-backdrop"
+                    onClick={closeMobile || toggleMobile}
+                    aria-hidden="true"
                 />
             )}
             <ConfigProvider
@@ -180,12 +181,14 @@ const Sidebar = () => {
                 }}
             >
                 <Sider
+                id="sidebar"
                 width={240}
                 collapsedWidth={70}
                 collapsed={visuallyCollapsed}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                onMouseEnter={() => !isMobile && setIsHovered(true)}
+                onMouseLeave={() => !isMobile && setIsHovered(false)}
                 className={`sidebar-sider ${isMobile && !isOpen ? 'mobile-hidden' : ''}`}
+                aria-label="Main navigation"
                 style={{
                     height: '100vh',
                     position: 'relative',
