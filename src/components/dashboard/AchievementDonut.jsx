@@ -12,7 +12,18 @@ import TierRow from './TierRow';
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
+const AchievementDonut = ({ targets = [], overallRate = 0, goalType = 'all' }) => {
+    // ═══════════════════════════════════════════════════════════════
+    // GOAL-TYPE FILTER
+    // ═══════════════════════════════════════════════════════════════
+    // ✅ Goal-type fix: the KPI cards filtered by goal type but the donut
+    // counted ALL targets — GMS/ADS/ACoS were blended into one ring.
+    const filteredTargets = useMemo(() => (
+        goalType && goalType !== 'all'
+            ? targets.filter((t) => (t.GoalType || 'GMS').toUpperCase() === String(goalType).toUpperCase())
+            : targets
+    ), [targets, goalType]);
+
     // ═══════════════════════════════════════════════════════════════
     // CALCULATE SEGMENTS
     // ═══════════════════════════════════════════════════════════════
@@ -22,10 +33,19 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
         let onTrack = 0;
         let critical = 0;
 
-        targets.forEach((t) => {
+        filteredTargets.forEach((t) => {
             const total = t.TotalTargetValue || 0;
             const achieved = t.overallAchieved || 0;
-            const pct = total > 0 ? (achieved / total) * 100 : 0;
+            const type = (t.GoalType || 'GMS').toUpperCase();
+
+            // ✅ ACoS inversion fix: ACoS is lower-is-better. An ACoS target of
+            // 20% with 40% actual is BAD, but achieved/target (40/20 = 200%)
+            // crowned it "Elite". Invert the ratio for ACoS (and any
+            // lower-is-better metric): target/actual, so 20/40 = 50%.
+            const lowerIsBetter = type === 'ACOS';
+            const pct = lowerIsBetter
+                ? (achieved > 0 ? (total / achieved) * 100 : 0)
+                : (total > 0 ? (achieved / total) * 100 : 0);
 
             if (pct >= 100) elite++;
             else if (pct >= 80) high++;
@@ -75,7 +95,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 icon: AlertTriangle
             }
         ];
-    }, [targets]);
+    }, [filteredTargets]);
 
     const total = tiers.reduce((sum, t) => sum + t.value, 0);
 
@@ -229,7 +249,7 @@ const AchievementDonut = ({ targets = [], overallRate = 0 }) => {
                 {/* ═══════════════════════════════════════════════════
                     BODY
                 ═══════════════════════════════════════════════════ */}
-                {targets.length === 0 ? (
+                {filteredTargets.length === 0 ? (
                     /* Empty State */
                     <div style={{
                         flex: 1,

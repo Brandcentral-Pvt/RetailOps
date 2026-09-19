@@ -78,8 +78,17 @@ export function useDashboardData(filters: DashboardFilters) {
         if (mgr) {
             return String(target?.BrandManager || '').toLowerCase() === String(mgr.name || '').toLowerCase();
         }
-        return String(target?.BrandManager || '') === String(managerId);
+        return String(target?.BrandManager || '').toLowerCase() === String(managerId).toLowerCase();
     }, [managers]);
+
+    // ✅ Seller filters may be a comma-separated id list (manager → seller
+    // resolution produces lists) — compare against every id, not the raw string.
+    const matchesSellerFilter = useCallback((target: any, sellerId: string) => {
+        if (!sellerId || sellerId === 'all') return true;
+        const ids = String(sellerId).split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (ids.length === 0) return true;
+        return ids.includes(String(target?.SellerId ?? ''));
+    }, []);
 
     // Use existing orchestration hook
     const orch = useDashboardOrchestration({
@@ -184,11 +193,17 @@ export function useDashboardData(filters: DashboardFilters) {
     const optimizationTasks = tasksQuery.data ?? [];
 
     // Load activity logs
+    // ✅ Envelope fix: /logs returns { success, data: [...] } but this hook
+    // checked Array.isArray on the whole payload, so activity logs NEVER
+    // rendered. Unwrap the envelope and tolerate both shapes.
     const loadLogs = useCallback(async () => {
         try {
-            const data = await db.getSystemLogs();
-            if (Array.isArray(data)) {
-                setActivityLogs(data.slice(0, 10));
+            const res: any = await db.getSystemLogs();
+            const payload = Array.isArray(res)
+                ? res
+                : res?.data ?? res?.logs ?? [];
+            if (Array.isArray(payload)) {
+                setActivityLogs(payload.slice(0, 10));
             }
         } catch (err) {
             console.error('Failed to load logs:', err);
@@ -288,10 +303,10 @@ export function useDashboardData(filters: DashboardFilters) {
         const totalAdSales = adSalesData.reduce((a: number, b: number) => a + b, 0);
         const totalAdSpend = adSpendData.reduce((a: number, b: number) => a + b, 0);
 
-        // Get sellerIds for selected manager
+        // Get sellerIds for selected manager (match UserId OR BrandManager name)
         const managerSellers = new Set(
             targetsList
-                .filter((t: any) => t.BrandManager === filters.managerId)
+                .filter((t: any) => matchesManagerFilter(t, filters.managerId))
                 .map((t: any) => t.SellerId)
         );
 
@@ -303,9 +318,12 @@ export function useDashboardData(filters: DashboardFilters) {
         const taskCompleted = tasks.filter((t: any) => 
             t.status === 'COMPLETED' || t.status === 'completed'
         ).length;
-        const taskPending = tasks.filter((t: any) => 
-            t.status === 'PENDING' || t.status === 'pending'
-        ).length;
+        const taskPending = tasks.filter((t: any) => {
+            const s = String(t.status || '').toLowerCase();
+            // ✅ Status-source fix: Tasks-table statuses are 'To-Do', legacy
+            // Actions used 'PENDING' — count both so "pending" stays accurate.
+            return s === 'pending' || s === 'to-do' || s === 'todo';
+        }).length;
         const taskOverdue = tasks.filter((t: any) => {
             if (t.status === 'COMPLETED' || t.status === 'completed') return false;
             if (t.dueDate) return new Date(t.dueDate) < new Date();
@@ -424,13 +442,13 @@ export function useDashboardData(filters: DashboardFilters) {
     const filteredScrapeTasks = useMemo(() => {
         let tasks = scrapeTasks;
         if (filters.sellerId && filters.sellerId !== 'all') {
-            tasks = tasks.filter((t: any) => t.sellerId === filters.sellerId);
+            tasks = tasks.filter((t: any) => matchesSellerFilter(t, filters.sellerId));
         }
         if (filters.managerId && filters.managerId !== 'all') {
             tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
         }
         return tasks;
-    }, [scrapeTasks, managerSellers, filters.sellerId, filters.managerId]);
+    }, [scrapeTasks, managerSellers, filters.sellerId, filters.managerId, matchesSellerFilter]);
 
     const filteredActivityLogs = useMemo(() => {
         let logs = activityLogs;
@@ -479,6 +497,7 @@ export function useDashboardData(filters: DashboardFilters) {
         
         // Helpers
         matchesManagerFilter,
+        matchesSellerFilter,
         
         // Actions
         refresh: () => {

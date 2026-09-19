@@ -854,6 +854,9 @@ class DatabaseService {
    */
   async getSystemLogs(params = {}) {
     const qs = new URLSearchParams(params).toString();
+    // NOTE: returns the raw { success, data, pagination } envelope — consumers
+    // choose their shape (ActivityLog uses pagination; the dashboard hook
+    // unwraps .data). Don't unwrap here.
     return this.request(`/logs?${qs}`, { method: 'GET' }, null);
   }
 
