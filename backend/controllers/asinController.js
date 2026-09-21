@@ -10,6 +10,8 @@ const AsinDataParser = require('../services/asinDataParser');
 const listingQualityService = require('../services/listingQualityService');
 const { bindSellerFilter } = require('../utils/sellerScope');
 const asinScope = require('../utils/asinScope');
+const asinHistoryService = require('../services/asinHistoryService');
+const dataFreshnessService = require('../services/dataFreshnessService');
 const SystemLogService = require('../services/SystemLogService');
 
 // Lightweight short-lived in-memory cache for ASIN stats to protect database CPU
@@ -30,7 +32,42 @@ const setCachedAsinStats = (key, data) => {
   asinStatsCache.set(key, { data, timestamp: Date.now() });
 };
 
-const clearAsinStatsCache = () => {
+/**
+ * Invalidate cached stats. With a sellerId only the scopes that include that
+ * seller are dropped — a bulk import used to clear every user's stats on every
+ * write (docs/asin-manager-deep-dive.md → F12). Without an argument the whole
+ * cache is cleared (used by tests and full rebuilds).
+ */
+const matchesStatsCacheScope = (cacheKey, sellerId) => {
+  try {
+    const parsed = JSON.parse(cacheKey);
+    const ids = [...(parsed.assignedSellers || []), parsed.seller]
+      .filter(Boolean)
+      .map(String);
+    // A scope that names no seller is unscoped (global user, no filter) and
+    // therefore covers every seller — drop it too rather than let it go stale.
+    if (ids.length === 0) return true;
+    return ids.includes(String(sellerId));
+  } catch (e) {
+    // Unparseable key: treat as matching, so it is dropped rather than serving
+    // stale numbers.
+    return true;
+  }
+};
+
+const clearAsinStatsCache = (sellerId) => {
+  if (sellerId) {
+    let dropped = 0;
+    for (const key of [...asinStatsCache.keys()]) {
+      if (matchesStatsCacheScope(key, sellerId)) {
+        asinStatsCache.delete(key);
+        dropped++;
+      }
+    }
+    console.log(`[STATS CACHE] Invalidated ${dropped} scope(s) for seller ${sellerId}.`);
+    return;
+  }
+
   console.log('[STATS CACHE] Invalidation triggered - clearing cached ASIN stats.');
   asinStatsCache.clear();
   try {
@@ -44,6 +81,37 @@ const clearAsinStatsCache = () => {
 };
 
 exports.clearAsinStatsCache = clearAsinStatsCache;
+exports.matchesStatsCacheScope = matchesStatsCacheScope;
+
+/**
+ * The list of months that have GMS rows changes once a month, but the
+ * `SELECT DISTINCT FORMAT(Date, 'yyyy-MM')` scan was executed on **every** list
+ * request (docs/asin-manager-deep-dive.md → F5). Cached for six hours; a failed
+ * refresh falls back to the previous value instead of failing the request.
+ */
+const MONTHS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+let monthsCache = { data: null, timestamp: 0 };
+
+const getAvailableMonths = async (pool) => {
+  if (monthsCache.data && Date.now() - monthsCache.timestamp < MONTHS_CACHE_TTL_MS) {
+    return monthsCache.data;
+  }
+  try {
+    const result = await pool.request().query(`
+      SELECT DISTINCT FORMAT(Date, 'yyyy-MM') as Month
+      FROM GmsDailyPerformance WITH (NOLOCK)
+      WHERE Date IS NOT NULL
+      ORDER BY Month ASC
+    `);
+    monthsCache = { data: result.recordset.map(r => r.Month), timestamp: Date.now() };
+    return monthsCache.data;
+  } catch (err) {
+    console.warn('Available months query failed:', err.message);
+    return monthsCache.data || [];
+  }
+};
+
+exports.clearAsinMonthsCache = () => { monthsCache = { data: null, timestamp: 0 }; };
 
 // Helper to safely parse JSON
 const tryParse = (data, fallback = []) => {
@@ -133,6 +201,12 @@ const parseFlexibleDate = (val) => {
 /**
  * Get all ASINs (SQL Version)
  */
+/**
+ * Sentinel that separates the caller's seller scope from the applied filters
+ * inside the WHERE clause, so one aggregate can produce both counts.
+ */
+const FILTER_MARK = '/*__FILTERS__*/';
+
 exports.getAsins = async (req, res) => {
   try {
     await executeWithRetry(async () => {
@@ -241,6 +315,11 @@ exports.getAsins = async (req, res) => {
     if (req.query.marketplace) {
       whereClause += ' AND s.Marketplace = @marketplace';
     }
+
+    // Everything past this marker is a *filter*; above it is the caller's seller
+    // scope. The unfiltered scope count and the filtered count are then produced
+    // by a single aggregate instead of two full COUNT(*) scans (F5).
+    whereClause += ` ${FILTER_MARK}`;
 
     // [1.5] Trend Filters
     if (req.query.bsrTrend) whereClause += ' AND BsrTrend = @bsrTrend';
@@ -394,7 +473,25 @@ exports.getAsins = async (req, res) => {
       whereClause += ' AND (AsinCode LIKE @search OR Title LIKE @search OR Sku LIKE @search)';
     }
 
-    // [5] Count Total
+    // [4b] Data freshness — "stale" is the work queue the team actually acts on.
+    // The SLA is a clamped integer (1…90) so it is inlined rather than bound.
+    const slaDays = dataFreshnessService.normalizeSlaDays(req.query.slaDays);
+    if (req.query.freshness && ['fresh', 'stale', 'never'].includes(req.query.freshness)) {
+      if (req.query.freshness === 'fresh') {
+        whereClause += ` AND (a.LastScrapedAt IS NOT NULL AND a.LastScrapedAt >= DATEADD(day, -${slaDays}, dbo.GetEnvDate()))`;
+      } else if (req.query.freshness === 'never') {
+        whereClause += ' AND a.LastScrapedAt IS NULL';
+      } else {
+        whereClause += ` AND (a.LastScrapedAt IS NULL OR a.LastScrapedAt < DATEADD(day, -${slaDays}, dbo.GetEnvDate()))`;
+      }
+    }
+
+    // [5] Count Total (filtered) + scope total (unfiltered) — one statement.
+    // The previous shape ran two `COUNT(*)` queries, the second over the whole
+    // seller scope, on every page of every list request.
+    const [scopeClause, filterClause] = whereClause.split(FILTER_MARK);
+    const pageWhereClause = whereClause.split(FILTER_MARK).join(' ');
+
     const countRequest = applyInputs(pool.request());
     if (!isGlobalUser && allowedSellerIds.length > 0) {
       buildInClause(countRequest, 'allowedSeller', allowedSellerIds);
@@ -407,22 +504,19 @@ exports.getAsins = async (req, res) => {
     if (req.query.maxImageScore) countRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
     if (req.query.minDescriptionScore) countRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
     if (req.query.maxDescriptionScore) countRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
-    const countResult = await countRequest.query(`SELECT COUNT(*) as total FROM Asins a JOIN Sellers s ON a.SellerId = s.Id ${whereClause}`);
-    const total = countResult.recordset[0].total;
-
-    // [5b] Raw total count (no status filter) — accurate ASIN count matching seller stats
-    const rawCountRequest = pool.request();
-    let rawWhere = 'WHERE 1=1';
-    if (!isGlobalUser && allowedSellerIds.length > 0) {
-      const rawSellerClause = buildInClause(rawCountRequest, 'rawSeller', allowedSellerIds);
-      rawWhere += ` AND a.SellerId IN (${rawSellerClause})`;
-    }
-    if (seller) rawWhere += ' AND a.SellerId = @rawSeller';
-    if (req.query.marketplace) rawWhere += ' AND a.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @rawMp)';
-    if (seller) rawCountRequest.input('rawSeller', sql.VarChar, seller);
-    if (req.query.marketplace) rawCountRequest.input('rawMp', sql.VarChar, req.query.marketplace);
-    const rawCountResult = await rawCountRequest.query(`SELECT COUNT(*) as total FROM Asins a ${rawWhere}`);
-    const rawTotal = rawCountResult.recordset[0].total;
+    const countResult = await countRequest.query(`
+      SELECT
+        COUNT(*) as scopeTotal,
+        ISNULL(SUM(CASE WHEN 1=1 ${filterClause.trim()} THEN 1 ELSE 0 END), 0) as total
+      FROM Asins a WITH (NOLOCK)
+      JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+      ${scopeClause}
+    `);
+    // `total` counts the filters actually applied; `scopeTotal` is the unfiltered
+    // count for the caller's scope (header copy / "all ASINs").
+    const countRow = countResult.recordset[0] || {};
+    const total = countRow.total || 0;
+    const rawTotal = countRow.scopeTotal || 0;
 
     // [6] Fetch ASINs
     // Map sortBy from frontend names to SQL ORDER BY clause
@@ -479,7 +573,7 @@ exports.getAsins = async (req, res) => {
                    (SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode) as TotalOrders
             FROM Asins a WITH (NOLOCK)
             JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
-            ${whereClause}
+            ${pageWhereClause}
             ORDER BY ${getOrderBy()}
             OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
         `);
@@ -507,72 +601,71 @@ exports.getAsins = async (req, res) => {
     const asinIdValues = asins.map(a => a.Id);
     const asinCodeValues = asins.map(a => a.AsinCode);
 
-    const histDailyReq = pool.request();
-    const histWeekReq = pool.request();
-    const histSubBsrReq = pool.request();
+    // Three history reads, one round trip (three result sets): the list endpoint
+    // used to issue ten statements, each with its own round-trip latency (F5).
+    const histReq = pool.request();
     const histOrdersReq = pool.request();
-    const histAsinIds = buildInClause(histDailyReq, 'histAsin', asinIdValues);
-    const histAsinIds2 = buildInClause(histWeekReq, 'histAsin', asinIdValues);
-    const histAsinIds3 = buildInClause(histSubBsrReq, 'histAsin', asinIdValues);
+    const histAsinIds = buildInClause(histReq, 'histAsin', asinIdValues);
     const histAsinCodes = buildInClause(histOrdersReq, 'histCode', asinCodeValues);
 
-    const [dailyHistoryResult, weekHistoryResult, subBsrHistoryResult, monthsResult, monthlyOrdersResult, monthlyGmsRevenueResult] = await Promise.all([
-      // [7.1] Daily History
-      histDailyReq.query(`
+    const [historyResult, availableMonths, monthlyResult] = await Promise.all([
+      histReq.query(`
+      -- [7.1] Daily History
+      
         SELECT AsinId, FORMAT(Date, 'yyyy-MM-dd') as dateStr, Price as price, BSR as bsr, 
                Rating as rating, ReviewCount as reviews, 
                StockLevel as stockLevel, LQS as lqs
         FROM AsinHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds}) 
+        WHERE AsinId IN (${histAsinIds})
         AND Date >= DATEADD(day, -${historyDays}, dbo.GetEnvDate())
-        ORDER BY Date ASC
-      `),
-      // [7.2] Week History
-      histWeekReq.query(`
-        SELECT AsinId, FORMAT(WeekStartDate, 'yyyy-MM-dd') as dateStr, WeekStartDate, AvgPrice as price, AvgBSR as bsr, AvgRating as rating, TotalReviews as reviews
+        ORDER BY Date ASC;
+
+      -- [7.2] Week History — bounded to the last 12 weeks: an unbounded read grew
+      -- with the table on every list request (F5), and the UI only shows a
+      -- handful of week badges.
+      
+        SELECT AsinId, FORMAT(WeekStartDate, 'yyyy-MM-dd') as dateStr, WeekStartDate,
+               ${asinHistoryService.isoWeekSql('WeekStartDate')} as isoWeek,
+               AvgPrice as price, AvgBSR as bsr, AvgRating as rating, TotalReviews as reviews
         FROM AsinWeekHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds2}) 
-        ORDER BY WeekStartDate ASC
-      `),
-      // [7.3] Sub BSR History
-      histSubBsrReq.query(`
+        WHERE AsinId IN (${histAsinIds})
+          AND WeekStartDate >= DATEADD(week, -12, dbo.GetEnvDate())
+        ORDER BY WeekStartDate ASC;
+
+      -- [7.3] Sub BSR History
+      
         SELECT AsinId, Date, SubBsrRank as rank, SubBsrCategory as category
         FROM SubBsrHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds3})
+        WHERE AsinId IN (${histAsinIds})
         AND Date >= DATEADD(day, -14, dbo.GetEnvDate())
         ORDER BY Date ASC, CreatedAt DESC
       `),
-      // [7.4] Available months (from GMS for orders)
-      pool.request().query(`
-        SELECT DISTINCT FORMAT(Date, 'yyyy-MM') as Month 
-        FROM GmsDailyPerformance WITH (NOLOCK)
-        WHERE Date IS NOT NULL
-        ORDER BY Month ASC
-      `),
-      // [7.5] Monthly orders (from GMS OrderedUnits)
+      // [7.4] Available months — cached (was a full DISTINCT scan per request, F5)
+      getAvailableMonths(pool),
+      // [7.5] Period aggregates — orders and revenue in a single pass
       histOrdersReq.query(`
-        SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedUnits, 0)) as Orders
+        SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month,
+               SUM(ISNULL(OrderedUnits, 0)) as Orders,
+               SUM(ISNULL(OrderedRevenue, 0)) as Revenue
         FROM GmsDailyPerformance WITH (NOLOCK)
         WHERE Asin IN (${histAsinCodes})
         AND Date IS NOT NULL
         GROUP BY Asin, FORMAT(Date, 'yyyy-MM')
-      `),
-      // [7.6] Monthly GMS revenue (from GmsDailyPerformance)
-      (() => {
-        const req = pool.request();
-        if (asinCodeValues.length > 0) {
-          const inClause = buildInClause(req, 'gmsRevAsin', asinCodeValues);
-          return req.query(`
-            SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedRevenue, 0)) as Revenue
-            FROM GmsDailyPerformance WITH (NOLOCK)
-            WHERE Asin IN (${inClause})
-            AND Date IS NOT NULL
-            GROUP BY Asin, FORMAT(Date, 'yyyy-MM')
-          `);
-        }
-        return { recordset: [] };
-      })()
+      `)
     ]);
+
+    // One request, three result sets — fall back to the first recordset for
+    // pools/drivers that only expose a single one (test harness).
+    const historySets = Array.isArray(historyResult.recordsets) && historyResult.recordsets.length > 0
+      ? historyResult.recordsets
+      : [historyResult.recordset || [], [], []];
+    const dailyHistoryResult = { recordset: historySets[0] || [] };
+    const weekHistoryResult = { recordset: historySets[1] || [] };
+    const subBsrHistoryResult = { recordset: historySets[2] || [] };
+    const monthlyOrdersResult = monthlyResult;
+    const monthlyGmsRevenueResult = monthlyResult;
+
+    // (slaDays was resolved with the WHERE clause above and is in scope here)
 
     // Process daily history
     const historyMap = {};
@@ -594,7 +687,7 @@ exports.getAsins = async (req, res) => {
     weekHistoryResult.recordset.forEach(h => {
       if (!weekHistoryMap[h.AsinId]) weekHistoryMap[h.AsinId] = [];
       weekHistoryMap[h.AsinId].push({
-        week: h.WeekStartDate ? `W${Math.ceil(new Date(h.WeekStartDate).getDate() / 7)}` : '',
+        week: h.isoWeek ? `W${h.isoWeek}` : '',
         date: h.dateStr || '',
         price: h.price || 0,
         bsr: h.bsr || 0,
@@ -615,28 +708,26 @@ exports.getAsins = async (req, res) => {
       });
     });
 
-    // Process months and monthly orders
-    const availableMonths = monthsResult.recordset.map(r => {
-      return r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-    });
-
+    // Process months, monthly orders and monthly GMS revenue (one result set)
     const monthlyOrdersMap = {};
-    monthlyOrdersResult.recordset.forEach(r => {
-      if (!monthlyOrdersMap[r.Asin]) monthlyOrdersMap[r.Asin] = {};
-      const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-      monthlyOrdersMap[r.Asin][monthStr] = r.Orders;
-    });
-
-    // Process monthly GMS revenue
     const monthlyGmsRevenueMap = {};
-    monthlyGmsRevenueResult.recordset.forEach(r => {
-      if (!monthlyGmsRevenueMap[r.Asin]) monthlyGmsRevenueMap[r.Asin] = {};
+    monthlyResult.recordset.forEach(r => {
       const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
+      if (!monthlyOrdersMap[r.Asin]) monthlyOrdersMap[r.Asin] = {};
+      if (!monthlyGmsRevenueMap[r.Asin]) monthlyGmsRevenueMap[r.Asin] = {};
+      monthlyOrdersMap[r.Asin][monthStr] = r.Orders;
       monthlyGmsRevenueMap[r.Asin][monthStr] = r.Revenue;
     });
 
     // [8] Process for frontend
     const processedAsins = asins.map(a => {
+        // Freshness is derived from LastScrapedAt, never stored (SLA in days)
+        const lastScrapedDate = a.LastScrapedAt ? new Date(a.LastScrapedAt) : null;
+        const freshnessDays = lastScrapedDate
+          ? Math.max(0, Math.floor((Date.now() - lastScrapedDate.getTime()) / 86400000))
+          : null;
+        const isStale = freshnessDays === null ? true : freshnessDays >= slaDays;
+
         // Build history and weekHistory
         const dailyHistory = (historyMap[a.Id] || []);
         const weekHistory = (weekHistoryMap[a.Id] || []);
@@ -882,6 +973,8 @@ exports.getAsins = async (req, res) => {
             // Timestamps
             lastScraped: a.LastScrapedAt || null,
             lastScrapedAt: a.LastScrapedAt || null,
+            freshnessDays,
+            isStale,
             createdAt: a.CreatedAt,
             updatedAt: a.UpdatedAt,
             
@@ -897,19 +990,13 @@ exports.getAsins = async (req, res) => {
         };
     });
 
-    const datesResult = await pool.request().query(`
-      SELECT DISTINCT TOP 7 Date 
-      FROM AsinHistory 
-      ORDER BY Date DESC
-    `);
-    const globalHistoryDates = datesResult.recordset.map(r => {
-      const d = r.Date;
-      if (!d) return null;
-      const yr = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, '0');
-      const da = String(d.getDate()).padStart(2, '0');
-      return `${yr}-${mo}-${da}`;
-    }).filter(Boolean).sort();
+    // History dates for the visible page, derived from the daily rows already in
+    // memory. This used to be `SELECT DISTINCT TOP 7 Date FROM AsinHistory` with
+    // no WHERE at all — a full scan of every seller's history on every list
+    // request that also leaked tenant-wide activity dates to scoped users (F5).
+    const globalHistoryDates = [...new Set(
+      dailyHistoryResult.recordset.map(r => r.dateStr).filter(Boolean)
+    )].sort().reverse().slice(0, 7).sort();
 
     if (res.headersSent) return;
     res.json({
@@ -1118,10 +1205,17 @@ exports.getAsinTrends = async (req, res) => {
     // 2. Fetch History
     const historyResult = await pool.request()
       .input('id', sql.VarChar, id)
-      .query('SELECT * FROM AsinWeekHistory WHERE AsinId = @id ORDER BY WeekStartDate ASC');
+      .query(`
+        SELECT WeekStartDate,
+               ${asinHistoryService.isoWeekSql('WeekStartDate')} as isoWeek,
+               AvgPrice, AvgBSR, AvgRating, TotalReviews, AvgLQS
+        FROM AsinWeekHistory WITH (NOLOCK)
+        WHERE AsinId = @id
+        ORDER BY WeekStartDate ASC
+      `);
 
     const weekHistory = historyResult.recordset.map(h => ({
-      week: h.WeekStartDate ? `W${Math.ceil(new Date(h.WeekStartDate).getDate() / 7)}` : '',
+      week: h.isoWeek ? `W${h.isoWeek}` : '',
       date: h.WeekStartDate,
       price: h.AvgPrice || 0,
       bsr: h.AvgBSR || 0,
@@ -1345,7 +1439,7 @@ exports.getAsinStats = async (req, res) => {
 async function updateSellerAsinCount(sellerId, io) {
   if (!sellerId) return;
   try {
-    clearAsinStatsCache();
+    clearAsinStatsCache(sellerId);
     const pool = await getPool();
     const statsResult = await pool.request()
       .input('sellerId', sql.VarChar, sellerId)
@@ -1505,7 +1599,7 @@ exports.updateAsin = async (req, res) => {
       }
     }
 
-    clearAsinStatsCache();
+    clearAsinStatsCache(existing.SellerId);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1567,6 +1661,35 @@ exports.bulkDeleteAsins = async (req, res) => {
     res.json({ message: 'ASINs deleted successfully', deletedCount: ids.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Data freshness for the caller's scope — how much of the catalogue is fresh,
+ * stale or never scraped, per seller, plus the worst ASINs to repair first.
+ * GET /api/asins/freshness?seller=&slaDays=&limit=
+ */
+exports.getFreshness = async (req, res) => {
+  try {
+    const pool = await getPool();
+    const options = {
+      user: req.user,
+      sellerId: req.query.seller || req.query.sellerId,
+      slaDays: req.query.slaDays,
+    };
+
+    const report = await dataFreshnessService.getFreshnessReport(pool, options);
+    if (report.denied) return asinScope.forbidden(res);
+
+    const worstAsins = await dataFreshnessService.findStaleAsins(pool, {
+      ...options,
+      limit: req.query.limit || 25,
+    });
+
+    res.json({ success: true, ...report, worstAsins });
+  } catch (error) {
+    console.error('getFreshness Error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -2217,10 +2340,11 @@ exports.updateWeekHistory = async (req, res) => {
     const guard = await asinScope.loadAsinInScope(req, res, id, { columns: 'Id, SellerId' });
     if (!guard) return;
 
-    // In SQL, we upsert into AsinWeekHistory
     // weekData has { date, price, bsr, rating, reviews, lqs, ... }
+    // The bucket key is the ISO week start (Monday) computed in SQL — the old JS
+    // `setHours(0,0,0,0)` produced process-timezone-dependent, non-ISO buckets,
+    // and the UI labelled them by day-of-month (F13).
     const weekDate = new Date(weekData.date || new Date());
-    weekDate.setHours(0, 0, 0, 0);
 
     await pool.request()
       .input('asinId', sql.VarChar, id)
@@ -2231,16 +2355,18 @@ exports.updateWeekHistory = async (req, res) => {
       .input('reviews', sql.Int, weekData.reviews || 0)
       .input('lqs', sql.Decimal(5, 2), weekData.lqs || 0)
       .query(`
-        IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @date)
+        DECLARE @weekStart DATE = ${asinHistoryService.weekStartSql('@date')};
+
+        IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @weekStart)
         BEGIN
-          UPDATE AsinWeekHistory SET 
+          UPDATE AsinWeekHistory SET
             AvgPrice = @price, AvgBSR = @bsr, AvgRating = @rating, TotalReviews = @reviews, AvgLQS = @lqs
-          WHERE AsinId = @asinId AND WeekStartDate = @date
+          WHERE AsinId = @asinId AND WeekStartDate = @weekStart
         END
         ELSE
         BEGIN
           INSERT INTO AsinWeekHistory (AsinId, WeekStartDate, AvgPrice, AvgBSR, AvgRating, TotalReviews, AvgLQS)
-          VALUES (@asinId, @date, @price, @bsr, @rating, @reviews, @lqs)
+          VALUES (@asinId, @weekStart, @price, @bsr, @rating, @reviews, @lqs)
         END
       `);
 
@@ -2533,7 +2659,6 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
       for (const update of updates) {
         const { asinId, weekData } = update;
         const weekDate = new Date(weekData.date || new Date());
-        weekDate.setHours(0, 0, 0, 0);
 
         await transaction.request()
           .input('asinId', sql.VarChar, asinId)
@@ -2544,16 +2669,18 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
           .input('reviews', sql.Int, weekData.reviews || 0)
           .input('lqs', sql.Decimal(5, 2), weekData.lqs || 0)
           .query(`
-            IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @date)
+            DECLARE @weekStart DATE = ${asinHistoryService.weekStartSql('@date')};
+
+            IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @weekStart)
             BEGIN
-              UPDATE AsinWeekHistory SET 
+              UPDATE AsinWeekHistory SET
                 AvgPrice = @price, AvgBSR = @bsr, AvgRating = @rating, TotalReviews = @reviews, AvgLQS = @lqs
-              WHERE AsinId = @asinId AND WeekStartDate = @date
+              WHERE AsinId = @asinId AND WeekStartDate = @weekStart
             END
             ELSE
             BEGIN
               INSERT INTO AsinWeekHistory (AsinId, WeekStartDate, AvgPrice, AvgBSR, AvgRating, TotalReviews, AvgLQS)
-              VALUES (@asinId, @date, @price, @bsr, @rating, @reviews, @lqs)
+              VALUES (@asinId, @weekStart, @price, @bsr, @rating, @reviews, @lqs)
             END
           `);
       }

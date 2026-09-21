@@ -74,10 +74,8 @@ const ROW = {
 
 beforeEach(() => {
     mockState.pool = makeFakePool([
-        // [5] filtered count
-        { match: /SELECT COUNT\(\*\) as total FROM Asins a JOIN Sellers/, rows: [{ total: 7 }] },
-        // [5b] raw count (no status filter)
-        { match: /SELECT COUNT\(\*\) as total FROM Asins a WHERE/, rows: [{ total: 99 }] },
+        // [5] filtered count + unfiltered scope count, one aggregate
+        { match: /COUNT\(\*\) as scopeTotal/, rows: [{ total: 7, scopeTotal: 99 }] },
         // [6] page
         { match: /SELECT a\.\*, s\.Name as sellerName/, rows: [ROW] },
     ]);
@@ -102,25 +100,28 @@ describe('getAsins pagination', () => {
         expect(res.body.asins).toHaveLength(1);
     });
 
-    test('the filtered count is the one carrying the WHERE clause', async () => {
+    test('one aggregate carries the filters and stays inside the caller scope', async () => {
         const req = { query: { status: 'Active', limit: '25' }, params: {}, user: SCOPED_USER, app: { get: () => null } };
         const res = makeRes();
 
         await asinController.getAsins(req, res);
 
-        const filtered = mockState.pool.callWhere(/SELECT COUNT\(\*\) as total FROM Asins a JOIN Sellers/);
-        const raw = mockState.pool.callWhere(/SELECT COUNT\(\*\) as total FROM Asins a WHERE/);
-        expect(filtered.sql).toMatch(/a\.Status = @status/);
-        expect(raw.sql).not.toMatch(/a\.Status = @status/);
-        // and both stay inside the caller's seller scope
-        expect(filtered.sql).toMatch(/a\.SellerId IN \(@allowedSeller_0\)/);
-        expect(raw.inputs.rawSeller_0).toBe('S1');
+        const countQueries = mockState.pool.callsWhere(/COUNT\(\*/);
+        expect(countQueries).toHaveLength(1);
+        const count = countQueries[0];
+
+        // the applied filters are the aggregate's CASE predicate…
+        expect(count.sql).toMatch(/SUM\(CASE WHEN 1=1[\s\S]*a\.Status = @status[\s\S]*THEN 1 ELSE 0 END\)/);
+        // …while the seller scope is the query's own WHERE clause
+        const outsideFrom = count.sql.split('FROM Asins a WITH (NOLOCK)')[1];
+        expect(outsideFrom).toMatch(/WHERE 1=1 AND a\.SellerId IN \(@allowedSeller_0\)/);
+        expect(outsideFrom).not.toMatch(/a\.Status = @status/);
+        expect(count.inputs.allowedSeller_0).toBe('S1');
     });
 
     test('an empty page still reports honest numbers', async () => {
         mockState.pool = makeFakePool([
-            { match: /SELECT COUNT\(\*\) as total FROM Asins a JOIN Sellers/, rows: [{ total: 0 }] },
-            { match: /SELECT COUNT\(\*\) as total FROM Asins a WHERE/, rows: [{ total: 42 }] },
+            { match: /COUNT\(\*\) as scopeTotal/, rows: [{ total: 0, scopeTotal: 42 }] },
             { match: /SELECT a\.\*, s\.Name as sellerName/, rows: [] },
         ]);
         const req = { query: { limit: '25' }, params: {}, user: SCOPED_USER, app: { get: () => null } };

@@ -997,6 +997,19 @@ export const asinApi = {
     return res.json();
   },
 
+  getFreshness: async (params = {}) => {
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '') acc[key] = val;
+      return acc;
+    }, {});
+    const query = new URLSearchParams(cleanParams).toString();
+    const res = await fetch(`${API_BASE}/asins/freshness?${query}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch data freshness');
+    return res.json();
+  },
+
   getStats: async (params = {}) => {
     const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
       if (val !== undefined && val !== null && val !== '' && val !== 'undefined') acc[key] = val;

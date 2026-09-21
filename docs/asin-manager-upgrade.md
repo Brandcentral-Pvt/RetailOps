@@ -131,7 +131,9 @@ Each step is one reviewable increment: code + tests + a short "what changed / ho
 
 **Acceptance:** a scoped user gets 403 (never silent rows) for every foreign seller/ASIN access path; bulk add creates correctly attributed rows; totals match the applied filters; `recalculate-lqs` preserves component scores; `npm run test` green in `backend/`.
 
-### Step 2 — Trust the data *(freshness, history, schema)*
+### Step 2 — Trust the data ✅ **delivered** *(freshness, history, schema)*
+
+> Results, file list and verification: §8. F5, F10, F12, F13 and F15 are now repaired in code.
 
 **Do:** remove the two unbounded scans and cache the months list; bound week-history reads; write `AsinWeekHistory` + `SubBsrHistory` from the sync path (plus a one-off backfill script); add a freshness model (`LastScrapedAt` SLA, "stale" filter, stale-first repair queue replacing the no-op `integrityRepair`); add migrations for `Asins` / `AsinHistory` / `AsinWeekHistory` + indexes for the hot paths; compute week keys in SQL (ISO) and store UTC-consistent dates; scope-invalidate the stats cache; validate the raw-payload contract in `asinDataParser`.
 
@@ -236,3 +238,62 @@ Frontend: `npm ci && npm run build` → **✓ built** (only pre-existing third-p
 1. Run the four suites against staging data and confirm the 403 paths behave for the real role set (brand_manager / catalog_manager / listing_team).
 2. Confirm `Asins.SellerId` nullability — if it is nullable, check for existing rows with `SellerId IS NULL` produced by the old bulk-add path and decide whether to quarantine or delete them.
 3. Watch the import path once: `POST /import-csv` now rejects a missing seller with 400 by design.
+
+
+---
+
+## 8. Step 2 results (delivered)
+
+**Goal:** the module's data should be *current*, *complete* and *provisionable* — a list request that cannot scan the world, history that actually fills in, a defined freshness SLA, and schema/indexes that live in migrations instead of in someone's memory.
+
+### What changed
+
+| # | Change | Files |
+|---|---|---|
+| 1 | **Two `COUNT(*)` scans → one aggregate.** `getAsins` split its WHERE clause into the caller's **scope** part and the applied **filters** part (sentinel-separated, stripped before the page query). One statement now returns `scopeTotal` (scope only) and `total` (filters applied) with `SUM(CASE WHEN … THEN 1 ELSE 0 END)` — same contract as Step 1, half the scans | `backend/controllers/asinController.js` |
+| 2 | **Three history queries → one round trip.** Daily (`AsinHistory`), weekly (`AsinWeekHistory`) and sub-BSR (`SubBsrHistory`) reads are issued as one batch and read back as three result sets. Order and period aggregates (orders + GMS revenue) are a single `GROUP BY` pass instead of two | `asinController.js`, `backend/testUtils/fakePool.js` (multi-result-set support) |
+| 3 | **The months list is cached (6 h)** instead of running `SELECT DISTINCT FORMAT(Date,'yyyy-MM') FROM GmsDailyPerformance` on every page/sort/filter change; a failed refresh keeps the previous list. `clearAsinMonthsCache()` exists for tests/rebuilds | `asinController.js` |
+| 4 | **The last-7-dates query is gone.** `globalHistoryDates` is now derived from the daily history rows already on the page, scoped and bounded — the tenant-wide `SELECT DISTINCT TOP 7 Date FROM AsinHistory` (also a cross-seller leak) no longer exists | `asinController.js` |
+| 5 | **Week history is bounded** to the last 12 weeks (was unbounded and grew with the table) | `asinController.js` |
+| 6 | **Freshness model (F5/F10 direction).** New `GET /api/asins/freshness` returns per-seller fresh / stale / never-scraped counts against an SLA in days (default 7, clamped 1–90) plus the worst ASINs to repair first. The list endpoint gained `?freshness=fresh\|stale\|never` (filtered count **and** page use it) and every row now carries derived `freshnessDays` / `isStale` | `backend/services/dataFreshnessService.js` *(new)*, `asinController.js`, `backend/routes/asinRoutes.js` |
+| 7 | **The no-op repair cron is a real freshness check.** `0 */6 * * *` used to log "skipped (Refactoring in progress)". It now logs the fresh/stale/never numbers and, only when `FRESHNESS_AUTO_REPAIR_ENABLED=true`, hands the worst sellers to the existing `scraperRunner.startRepairJob` queue (dry-run otherwise) | `backend/services/schedulerService.js` |
+| 8 | **One history writer (F10).** New `services/asinHistoryService.js`: `recordSnapshot()` writes the daily row, the weekly aggregate **derived from that week's daily rows** (AVG price/BSR/rating, MAX reviews, AVG LQS) and one row per sub-BSR category. Wired into every ingestion path — `liveDataSyncService` (SCRAPER + LIVE) and `marketDataSyncService.updateAsinMetrics` (OCTOPARSE), which previously wrote **no** history at all; the old hand-written MERGE in `liveDataSyncService` is deleted | `backend/services/asinHistoryService.js` *(new)*, `liveDataSyncService.js`, `marketDataSyncService.js` |
+| 9 | **Sub-BSR ranks are stored.** The Octoparse path already parsed every rank and then dropped all but the first — they are now written to `Asins.SubBsr` / `Asins.SubBSRs` and recorded in `SubBsrHistory` (the table read by three endpoints and written by nothing) | `marketDataSyncService.js` |
+| 10 | **ISO weeks computed in SQL (F13).** The week bucket is the ISO Monday derived in SQL (independent of `@@DATEFIRST` and of the Node timezone) and the UI label is `DATEPART(iso_week)` — the old JS `setHours(0,0,0,0)` key plus `W{ceil(day/7)}` label disagreed with each other and with the calendar | `asinHistoryService.js`, `asinController.js` |
+| 11 | **Scoped stats-cache invalidation (F12).** `clearAsinStatsCache(sellerId)` drops only the cache entries whose scope contains that seller; a bulk import no longer wipes every user's cached stats | `asinController.js` |
+| 12 | **Schema as code.** Migration `025` creates `AsinHistory` / `AsinWeekHistory` when missing (nothing in the repo created them — only `SubBsrHistory` had a migration) and adds the indexes the new queries need: freshness (`Asins.SellerId, LastScrapedAt`), history window (`AsinHistory.AsinId, Date`), sub-BSR key (`SubBsrHistory.AsinId, Date, SubBsrCategory`), weekly uniqueness + period aggregation. All best-effort with skips, matching 023/024. `Asins` is **not** invented — its ~110-column shape exists only in the production database, and the migration says so loudly instead of fabricating it | `backend/migrations/025_asin_history_schema_and_indexes.js` *(new)* |
+| 13 | **One-off backfill.** `scripts/backfillAsinHistory.js` rebuilds weekly rows for the last N ISO weeks from existing daily rows and seeds `SubBsrHistory` from the `Asins` sub-BSR values that were collected but never recorded. Idempotent MERGEs, `--dry-run` supported | `backend/scripts/backfillAsinHistory.js` *(new)* |
+| 14 | **Raw-payload contract (F15).** `AsinDataParser.validateRawPayload()` validates before any database work and returns `{valid, asinCode, missing, warnings}`; `upsertAsinFromRaw` throws `INVALID_RAW_PAYLOAD` with the missing fields, and `bulkUpsertAsins` reports per-row `missing`/`warnings` so a batch no longer fails vaguely mid-transform | `backend/services/asinDataParser.js` |
+| 15 | **"% fresh" in the KPI strip.** The header now shows data freshness (fresh %, stale/never counts, SLA) from the new endpoint, for the same seller/marketplace scope as the other tiles | `src/pages/AsinManagerPage.jsx`, `src/services/api.js` |
+
+### How it was verified
+
+`backend/` — `npm test` (Jest 30 + `testUtils/fakePool.js`, no database needed):
+
+| Suite | Tests | What it pins |
+|---|---|---|
+| `__tests__/unit/asinHistoryWriter.test.js` | 8 | daily MERGE keyed on ASIN + today with null-preserving fields; weekly row **derived** from the daily rows (AVG/MAX, `DATEADD(day, 7, @weekStart)` window); ISO week start computed in SQL and free of `@@DATEFIRST`/`DATEPART(weekday)`; sub-BSR rows for the current category **and** every scraped `#rank in Category` string; no rank → no sub-BSR rows |
+| `__tests__/unit/asinFreshness.test.js` | 8 | SLA clamping; per-seller fresh/stale/never aggregation + totals; scope predicates (`@freshScope_0`) and denial of a foreign seller; oldest-first repair ordering; dry-run starts nothing; armed cycle starts the repair job per candidate seller; nothing above the threshold → no job |
+| `__tests__/unit/asinQueryCost.test.js` | 8 | months scan runs **once** then serves from cache; week read bounded to 12 weeks and labelled by ISO week; history dates derived from page rows (no `AsinHistory` scan); the three history reads share one round trip; **statement budget: a warm list request issues ≤5 statements, none of them unbounded**; `?freshness=` filtering on both counts and the page; rows carry `isStale`/`freshnessDays`; an unknown freshness value is ignored |
+| `__tests__/unit/asinRawPayloadContract.test.js` | 7 | valid payload → no warnings; missing URL vs URL-without-ASIN distinguished; unparseable input reported not thrown; missing soft fields are warnings; invalid row throws `INVALID_RAW_PAYLOAD` **before** any query; a batch keeps the good rows and reports `missing` for the bad one |
+| `__tests__/unit/asinStatsCacheScope.test.js` | 5 | scoped invalidation decisions: a scope listing the written seller, a scope filtered to that seller, other sellers untouched, unscoped/global keys dropped, unreadable keys dropped |
+| `__tests__/unit/asinListContract.test.js` | 3 | *(updated)* same Step 1 contract, now through one aggregate: exactly one `COUNT(*)` per request, filters inside the `CASE`, scope predicate in the query's own WHERE |
+
+Result: **304 passing / 305 in `backend/`** (39 new/updated tests in this step; the single failure is the pre-existing `nvidiaAiService` suite, which needs `NVIDIA_NIM_API_KEY` and is untouched).
+
+Frontend: `npm run build` → **✓ built** (only pre-existing third-party warnings).
+
+### Deliberately not done in this step
+
+- **`Asins` is not created by migration 025.** Its column set exists only in production; the migration warns instead of guessing. If you want a fresh-environment bootstrap, the fastest path is a schema dump (`sqlpackage /Action:Export`) checked in as a baseline migration — say the word and that is Step 6 work.
+- **The months list still reads every seller's `GmsDailyPerformance`** when it misses the cache (≤4×/day). The month picker is not seller-scoped by design, so this stays cross-seller — it is now amortised instead of per-request.
+- **Auto-repair stays off by default** (`FRESHNESS_AUTO_REPAIR_ENABLED=true` to arm it); the cron reports and plans, it does not scrape.
+- **Streaming/batched exports, import v2 (validate → diff → commit → undo) and load tests** — Step 6 by design.
+- **`SubBsrHistory` retention** — rows are one per ASIN/day/category and nothing prunes them yet (Step 6).
+
+### Pending in your environment (needs the real database)
+
+1. `npm run migrate` — apply `025` (creates the two history tables when missing, then the indexes; expect `⏭ skip` lines for anything already present, and a duplicate-key skip if `AsinWeekHistory` already holds duplicate `(AsinId, WeekStartDate)` rows).
+2. `node backend/scripts/backfillAsinHistory.js --dry-run` first, then without the flag — expect the weekly buckets to match the number of (ASIN, week) pairs in `AsinHistory`.
+3. Watch one live sync: after a scrape, `AsinHistory` gets today's row, `AsinWeekHistory` the current ISO week, and `SubBsrHistory` one row per category for the ASIN.
+4. Decide the SLA (`?slaDays=` / `FRESHNESS_AUTO_REPAIR_ENABLED`) once you see the real fresh/stale split for your catalogue.

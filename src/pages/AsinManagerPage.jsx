@@ -108,6 +108,7 @@ const AsinManagerPage = (props) => {
   const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
   const [scrapingIds, setScrapingIds] = useState(new Set());
   const [stats, setStats] = useState(null);
+  const [freshness, setFreshness] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
   const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -837,8 +838,18 @@ const AsinManagerPage = (props) => {
           })
         : Promise.resolve(lastStatsRef.current);
 
+      // Data freshness (SLA-based) — the "is this data current?" number the KPI
+      // strip shows. Same seller/marketplace scope as the stats it sits beside.
+      const freshnessPromise = asinApi.getFreshness({
+        seller,
+        marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined
+      }).catch(err => {
+        console.warn('Freshness fetch failed:', err);
+        return null;
+      });
+
       // Fire the list + stats requests concurrently
-      const [asinRes, statsRes] = await Promise.all([
+      const [asinRes, statsRes, freshnessRes] = await Promise.all([
         asinApi.getAll({
           page,
           limit,
@@ -850,7 +861,8 @@ const AsinManagerPage = (props) => {
           sortBy,
           sortOrder
         }),
-        statsPromise
+        statsPromise,
+        freshnessPromise
       ]);
 
       // Ignore stale responses from superseded requests (rapid page/sort/filter changes)
@@ -864,6 +876,7 @@ const AsinManagerPage = (props) => {
       lastStatsScopeRef.current = statsScope;
       lastStatsRef.current = statsRes;
       setStats(statsRes);
+      setFreshness(freshnessRes && freshnessRes.success ? freshnessRes : null);
       setError(null);
     } catch (err) {
       if (token === loadTokenRef.current) {
@@ -1221,7 +1234,26 @@ const AsinManagerPage = (props) => {
     }
   }, [marketplaceFilter]);
 
+  // "% fresh" — the share of the caller's ASINs scraped inside the freshness SLA.
+  // Derived from LastScrapedAt on the server (GET /api/asins/freshness), never
+  // stored, so it cannot drift from the timestamp it describes.
+  const freshnessKpi = useMemo(() => {
+    if (!freshness) return null;
+    const total = Number(freshness.total) || 0;
+    if (total === 0) return null;
+    const pct = Math.round(((Number(freshness.fresh) || 0) / total) * 100);
+    const color = pct >= 80 ? 'var(--text-success)' : (pct >= 50 ? 'var(--text-warning)' : 'var(--text-danger)');
+    return {
+      label: 'DATA FRESHNESS',
+      value: `${pct}%`,
+      color,
+      icon: <RefreshCw size={14} />,
+      sub: `${freshness.stale || 0} stale · ${freshness.never || 0} never scraped (${freshness.slaDays || 7}d SLA)`,
+    };
+  }, [freshness]);
+
   const kpis = useMemo(() => {
+    const freshnessTiles = freshnessKpi ? [freshnessKpi] : [];
     if (stats) {
       const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
       const reviewTrend = reviewChange >= 0 ? '↑' : '↓';
@@ -1235,6 +1267,7 @@ const AsinManagerPage = (props) => {
       const totalReviews = Number(stats.totalReviews) || 0;
       const avgReviewsPerParent = uniqueParents > 0 ? Math.round(totalReviews / uniqueParents) : 0;
       const standaloneCount = totalNum - activeNum;
+      const freshnessTile = freshnessTiles;
       const avgPriceNum = parseFloat(stats.avgPrice) || 0;
       const avgLqsNum = parseFloat(stats.avgLQS) || 0;
 
@@ -1291,6 +1324,7 @@ const AsinManagerPage = (props) => {
           icon: <TrendingUp size={14} />,
           sub: `${stats.reviewAnalysis?.currentWeek || 0} vs ${stats.reviewAnalysis?.previousWeek || 0}`
         },
+        ...freshnessTile,
       ];
     }
 
@@ -1299,8 +1333,9 @@ const AsinManagerPage = (props) => {
     return [
       { label: 'ALL ASINS', value: total.toLocaleString(), color: 'var(--text-brand)', icon: <Package size={14} /> },
       { label: 'ACTIVE', value: asins.filter(a => a.status === 'Active').length, color: 'var(--text-success)', icon: <Activity size={14} /> },
+      ...freshnessTiles,
     ];
-  }, [asins, stats]);
+  }, [asins, stats, freshnessTiles]);
 
 
   const handleSync = useCallback(async () => {

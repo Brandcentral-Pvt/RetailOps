@@ -1,4 +1,5 @@
 const { sql, getPool } = require('../database/db');
+const asinHistoryService = require('./asinHistoryService');
 const CreatorsApiSdk = require('../lib/creatorsapi-sdk/index');
 const SystemLogService = require('./SystemLogService');
 const notificationController = require('../controllers/notificationController');
@@ -589,6 +590,7 @@ class LiveDataSyncService extends EventEmitter {
                     mrp: d.mrp,
                     bsr: d.bsr,
                     subBsr: d.subBsr,
+                    subBsrCategory: d.subBsrCategory,
                     rating: d.rating,
                     reviewCount: d.reviewCount,
                     source: 'SCRAPER'
@@ -600,37 +602,13 @@ class LiveDataSyncService extends EventEmitter {
     }
 
     // ============================================
-    // Internal: Upsert today's AsinHistory snapshot
-    // One row per ASIN per day — price, MRP, BSR, SubBSR, rating, reviews.
+    // Internal: record this ASIN's history trail
+    // One daily row + the weekly aggregate + sub-BSR ranks, all through the
+    // shared writer (services/asinHistoryService.js) so every ingestion path
+    // leaves the same trail and AsinWeekHistory/SubBsrHistory actually exist.
     // ============================================
     async _upsertAsinHistory(parent, asinId, data) {
-        const { price, mrp, bsr, subBsr, rating, reviewCount, source } = data;
-        await new sql.Request(parent)
-            .input('asinId', sql.VarChar, asinId)
-            .input('price', sql.Decimal(18, 2), price ?? null)
-            .input('mrp', sql.Decimal(18, 2), mrp ?? null)
-            .input('bsr', sql.Int, bsr ?? null)
-            .input('subBSR', sql.Int, subBsr ?? null)
-            .input('rating', sql.Decimal(3, 2), rating ?? null)
-            .input('reviewCount', sql.Int, reviewCount ?? null)
-            .input('source', sql.NVarChar, source)
-            .query(`
-                MERGE AsinHistory AS target
-                USING (SELECT @asinId AS AsinId, CAST(dbo.GetEnvDate() AS DATE) AS [Date]) AS source
-                ON target.AsinId = source.AsinId AND target.[Date] = source.[Date]
-                WHEN MATCHED THEN
-                    UPDATE SET
-                        Price = ISNULL(@price, target.Price),
-                        Mrp = ISNULL(@mrp, target.Mrp),
-                        BSR = ISNULL(@bsr, target.BSR),
-                        SubBSR = ISNULL(@subBSR, target.SubBSR),
-                        Rating = ISNULL(@rating, target.Rating),
-                        ReviewCount = ISNULL(@reviewCount, target.ReviewCount),
-                        Source = @source
-                WHEN NOT MATCHED THEN
-                    INSERT (AsinId, [Date], Price, Mrp, BSR, SubBSR, Rating, ReviewCount, Source)
-                    VALUES (source.AsinId, source.[Date], @price, @mrp, @bsr, @subBSR, @rating, @reviewCount, @source);
-            `);
+        return asinHistoryService.recordSnapshot(parent, asinId, data);
     }
 
     // ============================================
@@ -942,6 +920,7 @@ class LiveDataSyncService extends EventEmitter {
                 mrp: extracted.mrpAmount,
                 bsr: extracted.mainBSR,
                 subBsr: extracted.subBSR,
+                subBsrCategory: extracted.subBSRCategory,
                 rating,
                 reviewCount,
                 source: 'LIVE'

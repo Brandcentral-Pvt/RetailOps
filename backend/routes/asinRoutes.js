@@ -43,6 +43,7 @@ router.get('/search', protect, requirePermission('asinmanager_view'), asinContro
 router.get('/stats', protect, requirePermission('asinmanager_view'), asinController.getAsinStats);
 router.get('/filters', protect, requirePermission('asinmanager_view'), asinController.getAsinFilterOptions);
 router.get('/brands', protect, requirePermission('asinmanager_view'), asinController.getAsinBrands);
+router.get('/freshness', protect, requirePermission('asinmanager_view'), asinController.getFreshness);
 router.get('/lqs-top', protect, requirePermission('asinmanager_view'), asinController.getAsinsByLQS);
 
 // Parent view & auto-tags — must be before /:id to avoid conflict

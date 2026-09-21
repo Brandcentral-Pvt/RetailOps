@@ -177,8 +177,30 @@ class SchedulerService {
 
         // 4. Database Integrity Repair (Every 6 hours)
         this.jobs.integrityRepair = cron.schedule('0 */6 * * *', async () => {
-            logger.info('🕒 Starting Global Database Integrity Repair Check...');
-            logger.info('ℹ️ Repair task skipped (Refactoring in progress)');
+            logger.info('🕒 Starting ASIN data-freshness check...');
+            try {
+                const { getPool } = require('../database/db');
+                const freshness = require('./dataFreshnessService');
+                const pool = await getPool();
+
+                const report = await freshness.getFreshnessReport(pool, { global: true });
+                logger.info(
+                    `🧾 Freshness (SLA ${report.slaDays}d): ${report.fresh}/${report.total} fresh, ` +
+                    `${report.stale} stale, ${report.never} never scraped`
+                );
+
+                // Auto-repair is opt-in; the default is to report only, so a
+                // scheduled job can never mass-trigger scrapes by surprise.
+                const autoRepair = String(process.env.FRESHNESS_AUTO_REPAIR_ENABLED || '').toLowerCase() === 'true';
+                const cycle = await freshness.runStaleRepairCycle(pool, { dryRun: !autoRepair });
+                if (cycle.ran) {
+                    logger.info(`🔧 Stale repair started for ${cycle.started.length} seller(s)`);
+                } else {
+                    logger.info(`ℹ️ No repair started (${cycle.reason || (cycle.dryRun ? 'auto-repair disabled' : 'nothing above threshold')})`);
+                }
+            } catch (err) {
+                logger.error('ASIN freshness check failed:', err.message);
+            }
         }, cronOptions);
 
         // 4. Automated Weekly Database Backup (Every Sunday at 00:00)
