@@ -949,7 +949,7 @@ const AsinManagerPage = (props) => {
       ]);
 
       // Ignore stale responses from superseded requests (rapid page/sort/filter changes)
-      if (token !== loadTokenRef.current) return;
+      if (requestToken !== loadTokenRef.current) return;
 
       initialLoadCompleteRef.current = true;
       setAsins(asinRes?.asins || []);
@@ -962,13 +962,13 @@ const AsinManagerPage = (props) => {
       setFreshness(freshnessRes && freshnessRes.success ? freshnessRes : null);
       setError(null);
     } catch (err) {
-      if (token === loadTokenRef.current) {
+      if (requestToken === loadTokenRef.current) {
         console.error('Error fetching ASINs:', err);
         setError(err.message);
         setAsins([]);
       }
     } finally {
-      if (token === loadTokenRef.current) setLoading(false);
+      if (requestToken === loadTokenRef.current) setLoading(false);
     }
   }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder, visibleColumns]);
 
@@ -1533,6 +1533,10 @@ const AsinManagerPage = (props) => {
       sub: `${freshness.stale || 0} stale · ${freshness.never || 0} never scraped (${freshness.slaDays || 7}d SLA)`,
     };
   }, [freshness]);
+
+  // KPI tiles derived from the freshness KPI (defined outside the memo so the
+  // memo deps can reference it).
+  const freshnessTiles = useMemo(() => (freshnessKpi ? [freshnessKpi] : []), [freshnessKpi]);
 
   const kpis = useMemo(() => {
     const freshnessTiles = freshnessKpi ? [freshnessKpi] : [];
