@@ -898,8 +898,9 @@ const AsinManagerPage = (props) => {
   };
 
   const loadData = useCallback(async (page = 1, limit = pagination.limit, seller = selectedSeller, marketplace = marketplaceFilter) => {
+    let token;
     try {
-      const token = ++loadTokenRef.current;
+      token = ++loadTokenRef.current;
       setLoading(true);
 
       // Stats are aggregate (per seller/marketplace scope) and cached server-side.
@@ -1535,6 +1536,7 @@ const AsinManagerPage = (props) => {
 
   const kpis = useMemo(() => {
     const freshnessTiles = freshnessKpi ? [freshnessKpi] : [];
+
     if (stats) {
       const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
       const reviewTrend = reviewChange >= 0 ? '↑' : '↓';
@@ -1548,7 +1550,6 @@ const AsinManagerPage = (props) => {
       const totalReviews = Number(stats.totalReviews) || 0;
       const avgReviewsPerParent = uniqueParents > 0 ? Math.round(totalReviews / uniqueParents) : 0;
       const standaloneCount = totalNum - activeNum;
-      const freshnessTile = freshnessTiles;
       const avgPriceNum = parseFloat(stats.avgPrice) || 0;
       const avgLqsNum = parseFloat(stats.avgLQS) || 0;
 
@@ -1605,7 +1606,7 @@ const AsinManagerPage = (props) => {
           icon: <TrendingUp size={14} />,
           sub: `${stats.reviewAnalysis?.currentWeek || 0} vs ${stats.reviewAnalysis?.previousWeek || 0}`
         },
-        ...freshnessTile,
+        ...freshnessTiles,
       ];
     }
 
@@ -1616,7 +1617,7 @@ const AsinManagerPage = (props) => {
       { label: 'ACTIVE', value: asins.filter(a => a.status === 'Active').length, color: 'var(--text-success)', icon: <Activity size={14} /> },
       ...freshnessTiles,
     ];
-  }, [asins, stats, freshnessTiles]);
+  }, [asins, stats, freshnessKpi]);
 
 
   const handleSync = useCallback(async () => {

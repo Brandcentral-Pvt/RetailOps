@@ -266,7 +266,7 @@ const ASIN_BASE_COLUMNS = [
   'a.TitleScore', 'a.TitleGrade', 'a.BulletScore', 'a.BulletGrade',
   'a.ImageScore', 'a.ImageGrade', 'a.DescriptionScore', 'a.DescriptionGrade',
   'a.SubBsr', 'a.SubBSRCategory', 'a.ImagesCount', 'a.VideoCount', 'a.BulletPoints',
-  'a.DescLength', 'a.HasAplus', 'a.AplusAbsentSince', 'a.AplusPresentSince',
+  'a.HasAplus', 'a.AplusAbsentSince', 'a.AplusPresentSince',
   'a.SoldBy', 'a.SoldBySec', 'a.StockLevel', 'a.AvailabilityStatus',
   'a.LastScrapedAt', 'a.SellerId', 'a.SellerExternalId',
 ];
@@ -1035,7 +1035,7 @@ exports.getAsins = async (req, res) => {
             imagesCount: parseInt(a.ImagesCount) || 0,
             videoCount: parseInt(a.VideoCount) || 0,
             bulletPoints: bulletPointsCount,
-            descLength: parseInt(a.DescLength) || 0,
+descLength: 0,
             
             // Sub BSR
             subBsr: currentSubBsr,
@@ -1219,7 +1219,7 @@ exports.getAsin = async (req, res) => {
       imagesCount: parseInt(a.ImagesCount) || 0,
       videoCount: parseInt(a.VideoCount) || 0,
       bulletPoints: parseInt(a.BulletPoints) || 0,
-      descLength: parseInt(a.DescLength) || 0,
+descLength: 0,
       
       cdq: parseInt(a.Cdq) || 0,
       cdqGrade: a.CdqGrade || 'N/A',
@@ -3211,7 +3211,7 @@ exports.exportData = async (req, res) => {
       videoCount: 'VideoCount',
       bulletPoints: 'BulletPoints',
       bulletPointsText: 'BulletPointsText',
-      descLength: 'DescLength',
+      
       availabilityStatus: 'AvailabilityStatus',
       stockLevel: 'StockLevel',
       aplusAbsentSince: 'AplusAbsentSince',
@@ -3236,7 +3236,7 @@ exports.exportData = async (req, res) => {
       buyBoxWin: 'BuyBox Winner', soldBy: 'Sold By (Primary)', soldBySec: 'Sold By (Secondary)',
       allOffers: 'All Offers', hasAplus: 'Has A+', imagesCount: 'Image Count',
       videoCount: 'Video Count', bulletPoints: 'Bullet Points',
-      bulletPointsText: 'Bullet Points Text', descLength: 'Desc Length',
+      bulletPointsText: 'Bullet Points Text',
       lastScraped: 'Last Scraped', createdAt: 'Created At', updatedAt: 'Updated At',
       tags: 'Tags',
       priceDispute: 'Price Dispute'
