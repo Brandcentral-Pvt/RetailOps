@@ -899,7 +899,7 @@ const AsinManagerPage = (props) => {
 
   const loadData = useCallback(async (page = 1, limit = pagination.limit, seller = selectedSeller, marketplace = marketplaceFilter) => {
     try {
-      const token = ++loadTokenRef.current;
+      const requestToken = ++loadTokenRef.current;
       setLoading(true);
 
       // Stats are aggregate (per seller/marketplace scope) and cached server-side.
@@ -948,7 +948,7 @@ const AsinManagerPage = (props) => {
       ]);
 
       // Ignore stale responses from superseded requests (rapid page/sort/filter changes)
-      if (token !== loadTokenRef.current) return;
+      if (requestToken !== loadTokenRef.current) return;
 
       initialLoadCompleteRef.current = true;
       setAsins(asinRes?.asins || []);
@@ -961,13 +961,13 @@ const AsinManagerPage = (props) => {
       setFreshness(freshnessRes && freshnessRes.success ? freshnessRes : null);
       setError(null);
     } catch (err) {
-      if (token === loadTokenRef.current) {
+      if (requestToken === loadTokenRef.current) {
         console.error('Error fetching ASINs:', err);
         setError(err.message);
         setAsins([]);
       }
     } finally {
-      if (token === loadTokenRef.current) setLoading(false);
+      if (requestToken === loadTokenRef.current) setLoading(false);
     }
   }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder, visibleColumns]);
 
