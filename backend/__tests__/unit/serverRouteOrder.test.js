@@ -32,6 +32,23 @@ describe('server route precedence', () => {
         expect(growthRouterSrc).not.toMatch(/router\.get\(\s*['"]\/tasks['"]/);
     });
 
+    test('asinRoutes literal paths are declared above GET /:id', () => {
+        // `/asin-tracker`-style literal routes shadow easily: router.get('/:id')
+        // is the last route in asinRoutes and would swallow /facets, /views and
+        // /column-preferences if any of them were registered after it.
+        const asinRouterSrc = fs.readFileSync(
+            path.join(__dirname, '../../routes/asinRoutes.js'),
+            'utf8'
+        );
+        const idRoute = asinRouterSrc.lastIndexOf("router.get('/:id'");
+        expect(idRoute).toBeGreaterThan(-1);
+
+        for (const literal of ["'/facets'", "'/views'", "'/views/:id'", "'/column-preferences'"]) {
+            expect(asinRouterSrc.indexOf(literal)).toBeGreaterThan(-1);
+            expect(asinRouterSrc.indexOf(literal)).toBeLessThan(idRoute);
+        }
+    });
+
     test('growthExecutionRoutes mounts after the last feature router', () => {
         const growthMount = serverSrc.indexOf("app.use('/api', growthExecutionRoutes)");
         const keywordAnalysisMount = serverSrc.indexOf("app.use('/api/keyword-analysis', keywordAnalysisRoutes)");

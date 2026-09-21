@@ -207,6 +207,86 @@ const parseFlexibleDate = (val) => {
  */
 const FILTER_MARK = '/*__FILTERS__*/';
 
+/**
+ * Server-side column projection (Step 3 — "project only the visible columns").
+ *
+ * The list payload is dominated by a handful of JSON/`NVARCHAR(MAX)` columns
+ * (`ProductDescription`, `BulletPointsText`, `AllOffers`, `BuyBoxes`, `Images`,
+ * `VariantImages`, `Dimensions`, `History`, the per-component quality issue
+ * lists…). Clients may pass `?columns=urlKeyA,urlKeyB` — the keys used by the
+ * frontend column selector — and only those heavy columns are added back on top
+ * of the base (non-heavy) set.
+ *
+ * The base set is deliberately broad: the row mapper derives price-dispute,
+ * buy-box, deal and trend values from ~60 base columns, and those derivations
+ * happen even when the corresponding column is hidden, so dropping base columns
+ * would silently change values the UI still computes. What is *not* sent unless
+ * asked for is the payload weight — which is where the bytes are.
+ */
+const ASIN_HEAVY_FIELDS = {
+  productDescription: ['a.ProductDescription'],
+  bulletPointsText: ['a.BulletPointsText'],
+  images: ['a.Images'],
+  allOffers: ['a.AllOffers'],
+  buyBoxes: ['a.BuyBoxes'],
+  variantImages: ['a.VariantImages'],
+  dimensions: ['a.Dimensions'],
+  cdqComponents: ['a.CdqComponents'],
+  ratingBreakdown: ['a.RatingBreakdown'],
+  lqsDetails: ['a.LqsDetails'],
+  feePreview: ['a.FeePreview'],
+  history: ['a.History'],
+  subBSRs: ['a.SubBSRs', 'a.SubBsrCategories'],
+  // Aliases: the UI key is not always the server column. The BuyBox cell renders
+  // from the `BuyBoxes` JSON, the SUB BSR cell reads `SubBSRs`, and the bullet
+  // count falls back to `BulletPointsText` — without these aliases those columns
+  // (BuyBox is visible by default!) would come back silently empty once the
+  // client starts sending `?columns=`.
+  currentBuybox: ['a.BuyBoxes'],
+  otherBuybox: ['a.BuyBoxes'],
+  subBsr: ['a.SubBSRs', 'a.SubBsrCategories'],
+  bulletPoints: ['a.BulletPointsText'],
+  qualityIssues: [
+    'a.TitleIssues', 'a.TitleRecommendations', 'a.TitleDetails',
+    'a.BulletIssues', 'a.BulletRecommendations', 'a.BulletDetails',
+    'a.ImageIssues', 'a.ImageRecommendations', 'a.ImageDetails',
+    'a.DescriptionIssues', 'a.DescriptionRecommendations', 'a.DescriptionDetails',
+  ],
+};
+
+/** Column list used when a client asks for a projection. */
+const ASIN_BASE_COLUMNS = [
+  'a.Id', 'a.AsinCode', 'a.Sku', 'a.Status', 'a.ScrapeStatus', 'a.Category', 'a.Brand',
+  'a.Title', 'a.ImageUrl', 'a.Tags', 'a.ParentAsin', 'a.ReleaseDate', 'a.Ads',
+  'a.CurrentPrice', 'a.Mrp', 'a.UploadedPrice', 'a.SecondAsp', 'a.AspDifference',
+  'a.DealBadge', 'a.PriceType', 'a.DiscountPercentage', 'a.Manufacturer',
+  'a.DealStartTime', 'a.DealEndTime', 'a.DealAccessType', 'a.DealPercentClaimed',
+  'a.BSR', 'a.BsrTrend', 'a.Rating', 'a.RatingTrend', 'a.ReviewCount',
+  'a.LQS', 'a.LQSGrade', 'a.Cdq', 'a.CdqGrade',
+  'a.TitleScore', 'a.TitleGrade', 'a.BulletScore', 'a.BulletGrade',
+  'a.ImageScore', 'a.ImageGrade', 'a.DescriptionScore', 'a.DescriptionGrade',
+  'a.SubBsr', 'a.SubBSRCategory', 'a.ImagesCount', 'a.VideoCount', 'a.BulletPoints',
+  'a.DescLength', 'a.HasAplus', 'a.AplusAbsentSince', 'a.AplusPresentSince',
+  'a.SoldBy', 'a.SoldBySec', 'a.StockLevel', 'a.AvailabilityStatus',
+  'a.LastScrapedAt', 'a.SellerId', 'a.SellerExternalId',
+];
+
+// Exposed for the projection tests (and for any future schema tooling).
+exports.ASIN_HEAVY_FIELDS = ASIN_HEAVY_FIELDS;
+
+const buildAsinProjection = (columnsParam) => {
+  if (!columnsParam) return null;
+  const requested = String(columnsParam).split(',').map((c) => c.trim()).filter(Boolean);
+  const extras = [];
+  for (const key of requested) {
+    const cols = ASIN_HEAVY_FIELDS[key];
+    if (!cols) continue;
+    for (const col of cols) if (!extras.includes(col)) extras.push(col);
+  }
+  return [...ASIN_BASE_COLUMNS, ...extras].join(', ');
+};
+exports.buildAsinProjection = buildAsinProjection;
+
 exports.getAsins = async (req, res) => {
   try {
     await executeWithRetry(async () => {
@@ -320,6 +400,19 @@ exports.getAsins = async (req, res) => {
     // scope. The unfiltered scope count and the filtered count are then produced
     // by a single aggregate instead of two full COUNT(*) scans (F5).
     whereClause += ` ${FILTER_MARK}`;
+
+    // Incremental row patch (Step 3): after a socket event the table refreshes the
+    // rows that actually changed instead of re-querying/re-rendering the page.
+    // `ids` is a filter (it sits after the marker) so it can never widen the
+    // caller's seller scope — it only narrows it.
+    const patchIds = String(req.query.ids || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    if (patchIds.length > 0) {
+      whereClause += ` AND a.Id IN (${patchIds.map((_, i) => `@patchId${i}`).join(', ')})`;
+    }
 
     // [1.5] Trend Filters
     if (req.query.bsrTrend) whereClause += ' AND BsrTrend = @bsrTrend';
@@ -553,7 +646,11 @@ exports.getAsins = async (req, res) => {
         return `${col} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
     };
     
+    // Heavy columns only when the matching UI column is visible
+    const projectedColumns = buildAsinProjection(req.query.columns);
+
     const dataRequest = applyInputs(pool.request());
+    patchIds.forEach((id, i) => dataRequest.input(`patchId${i}`, sql.NVarChar, id));
     if (!isGlobalUser && allowedSellerIds.length > 0) {
       buildInClause(dataRequest, 'allowedSeller', allowedSellerIds);
     }
@@ -569,7 +666,7 @@ exports.getAsins = async (req, res) => {
         .input('offset', sql.Int, offset)
         .input('limit', sql.Int, limitNum)
         .query(`
-            SELECT a.*, s.Name as sellerName, s.Marketplace as sellerMarketplace,
+            SELECT ${projectedColumns || 'a.*'}, s.Name as sellerName, s.Marketplace as sellerMarketplace,
                    (SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode) as TotalOrders
             FROM Asins a WITH (NOLOCK)
             JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
@@ -1003,6 +1100,7 @@ exports.getAsins = async (req, res) => {
       asins: processedAsins,
       months: availableMonths,
       globalHistoryDates,
+      projection: projectedColumns ? 'light' : 'full',
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -1692,6 +1790,155 @@ exports.getFreshness = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+/**
+ * Facet counts for the workspace filter rail (Step 3).
+ *
+ * Returns how many ASINs sit behind each filter value — status, scrape status,
+ * freshness bucket, category, brand, seller and tag — for the caller's scope
+ * (plus optional marketplace/search narrowing). The UI uses these to show
+ * "Active (1,204)" instead of a blind checkbox, and to let a number be clicked
+ * straight into the filtered table.
+ *
+ * One round trip for the scalar facets; tags go in their own request because
+ * `OPENJSON` needs SQL Server 2016+ (compat level 130+) and a server that lacks
+ * it must not take the whole rail down. Cached briefly: facet counts are cheap
+ * to be slightly stale and expensive to recompute on every keystroke.
+ */
+const FACETS_CACHE_TTL_MS = 60 * 1000;
+const facetsCache = new Map();
+
+const buildFacetFilters = (request, scope, { marketplace, search }) => {
+  let clause = bindSellerFilter(request, scope, { alias: 'a', prefix: 'facetScope' });
+  if (marketplace) {
+    request.input('facetMarketplace', sql.NVarChar, marketplace);
+    clause += ' AND s.Marketplace = @facetMarketplace';
+  }
+  if (search) {
+    request.input('facetSearch', sql.NVarChar, `%${search}%`);
+    clause += ' AND (a.AsinCode LIKE @facetSearch OR a.Title LIKE @facetSearch OR a.Sku LIKE @facetSearch)';
+  }
+  return clause;
+};
+
+const facetRows = (result, index) => {
+  const sets = result.recordsets || [result.recordset || []];
+  return (sets[index] || []).map((r) => ({ value: r.value, count: Number(r.count) || 0 }));
+};
+
+exports.getAsinFacets = async (req, res) => {
+  try {
+    const seller = req.query.seller || req.query.sellerId;
+    const scope = asinScope.scopeFor(req, seller);
+    if (scope.denied) return asinScope.forbidden(res);
+
+    const marketplace = req.query.marketplace || null;
+    const search = (req.query.search || '').trim() || null;
+    const slaDays = dataFreshnessService.normalizeSlaDays(req.query.slaDays);
+
+    const empty = {
+      total: 0,
+      facets: { status: [], scrapeStatus: [], freshness: [], category: [], brand: [], seller: [], tags: [] },
+    };
+    if (scope.empty) return res.json({ success: true, ...empty, slaDays, cached: false });
+
+    const cacheKey = JSON.stringify({ ids: scope.unrestricted ? '*' : scope.sellerIds, marketplace, search, slaDays });
+    const cached = facetsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < FACETS_CACHE_TTL_MS) {
+      return res.json({ success: true, ...cached.data, slaDays, cached: true });
+    }
+
+    const pool = await getPool();
+    const request = pool.request();
+    const where = buildFacetFilters(request, scope, { marketplace, search });
+    request.input('facetSlaDays', sql.Int, slaDays);
+
+    const result = await request.query(`
+      SELECT COUNT(*) as value_count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where};
+
+      SELECT a.Status as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} GROUP BY a.Status ORDER BY count DESC;
+
+      SELECT a.ScrapeStatus as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} GROUP BY a.ScrapeStatus ORDER BY count DESC;
+
+      SELECT
+          CASE
+            WHEN a.LastScrapedAt IS NULL THEN 'never'
+            WHEN a.LastScrapedAt < DATEADD(day, -@facetSlaDays, dbo.GetEnvDate()) THEN 'stale'
+            ELSE 'fresh'
+          END as value,
+          COUNT(*) as count
+        FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where}
+        GROUP BY CASE
+            WHEN a.LastScrapedAt IS NULL THEN 'never'
+            WHEN a.LastScrapedAt < DATEADD(day, -@facetSlaDays, dbo.GetEnvDate()) THEN 'stale'
+            ELSE 'fresh'
+          END;
+
+      SELECT TOP 25 a.Category as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} AND a.Category IS NOT NULL AND a.Category <> ''
+        GROUP BY a.Category ORDER BY count DESC;
+
+      SELECT TOP 25 a.Brand as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} AND a.Brand IS NOT NULL AND a.Brand <> ''
+        GROUP BY a.Brand ORDER BY count DESC;
+
+      SELECT TOP 25 s.Name as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} GROUP BY s.Name ORDER BY count DESC;
+    `);
+
+    const sets = result.recordsets || [result.recordset || []];
+    const data = {
+      total: (sets[0] && sets[0][0] && Number(sets[0][0].value_count)) || 0,
+      facets: {
+        status: facetRows(result, 1),
+        scrapeStatus: facetRows(result, 2),
+        freshness: facetRows(result, 3),
+        category: facetRows(result, 4),
+        brand: facetRows(result, 5),
+        seller: facetRows(result, 6),
+        tags: [],
+      },
+    };
+
+    // Tags live in a JSON column — OPENJSON needs SQL Server 2016+, so a failure
+    // here degrades to "no tag counts" rather than failing the whole rail.
+    try {
+      const tagRequest = pool.request();
+      const tagWhere = buildFacetFilters(tagRequest, scope, { marketplace, search });
+      const tagResult = await tagRequest.query(`
+        SELECT TOP 25 j.value as value, COUNT(*) as count
+        FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        CROSS APPLY OPENJSON(a.Tags) j
+        WHERE 1=1${tagWhere} AND a.Tags IS NOT NULL AND a.Tags <> '' AND a.Tags <> '[]'
+        GROUP BY j.value
+        ORDER BY count DESC
+      `);
+      data.facets.tags = tagResult.recordset.map((r) => ({ value: r.value, count: Number(r.count) || 0 }));
+    } catch (tagError) {
+      console.warn('Facet tag counts unavailable:', tagError.message);
+    }
+
+    facetsCache.set(cacheKey, { data, timestamp: Date.now() });
+    res.json({ success: true, ...data, slaDays, cached: false });
+  } catch (error) {
+    console.error('getAsinFacets Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.clearAsinFacetsCache = () => facetsCache.clear();
 
 /**
  * Search ASINs (SQL Version)

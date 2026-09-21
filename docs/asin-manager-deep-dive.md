@@ -251,7 +251,7 @@ Socket events emitted on write: `scrape_data_ingested` (per ASIN), `scrape_batch
 
 Severity: 🔴 high (data exposure / broken core function) · 🟠 medium (correctness, cost, maintainability) · 🟡 low.
 
-> **Repair status:** F1, F2, F3, F4, F6, F7, F8 and F11 were fixed in Step 1 of [`docs/asin-manager-upgrade.md`](./asin-manager-upgrade.md) (§7); F5, F10, F12, F13 and F15 were fixed in Step 2 (§8: one aggregate instead of two counts, one round trip for history, cached month list, derived date list, freshness SLA + repair queue, one history writer for all ingestion paths, ISO weeks from SQL, scoped stats-cache invalidation, raw-payload contract). The findings below are kept as written — they describe the audit of `ad13de6`, not the current state.
+> **Repair status:** F1, F2, F3, F4, F6, F7, F8 and F11 were fixed in Step 1 of [`docs/asin-manager-upgrade.md`](./asin-manager-upgrade.md) (§7); F5, F10, F12, F13 and F15 were fixed in Step 2 (§8: one aggregate instead of two counts, one round trip for history, cached month list, derived date list, freshness SLA + repair queue, one history writer for all ingestion paths, ISO weeks from SQL, scoped stats-cache invalidation, raw-payload contract). Step 3 (§9) added server-side column projection, facet counts with click-through, saved views + server-side column preferences, URL-carried workspace state, the Seller ASIN Tracker fold-in and incremental socket row patching — table virtualisation is deliberately deferred (no browser in this environment; paging already bounds the DOM). The findings below are kept as written — they describe the audit of `ad13de6`, not the current state.
 
 ### F1 🔴 `GET /api/asins-table` — unauthenticated-by-permission, unscoped catalogue dump
 

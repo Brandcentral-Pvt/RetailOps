@@ -119,6 +119,32 @@ describe('getAsins pagination', () => {
         expect(count.inputs.allowedSeller_0).toBe('S1');
     });
 
+    test('?ids= narrows the page to the changed rows (socket-driven patch)', async () => {
+        mockState.pool = makeFakePool([
+            { match: /COUNT\(\*\) as scopeTotal/, rows: [{ total: 2, scopeTotal: 900 }] },
+            { match: /SELECT a\.\*, s\.Name as sellerName/, rows: [ROW, ROW] },
+        ]);
+        const req = {
+            query: { limit: '25', ids: 'A1, A2' },
+            params: {},
+            user: SCOPED_USER,
+            app: { get: () => null },
+        };
+        const res = makeRes();
+
+        await asinController.getAsins(req, res);
+
+        const page = mockState.pool.callWhere(/SELECT a\.\*, s\.Name as sellerName/);
+        expect(page.sql).toMatch(/AND a\.Id IN \(@patchId0, @patchId1\)/);
+        expect(page.inputs.patchId0).toBe('A1');
+        expect(page.inputs.patchId1).toBe('A2');
+        // the ids filter can only narrow the caller's own rows: the seller scope
+        // predicate is still there and comes first
+        expect(page.sql).toMatch(/a\.SellerId IN \(@allowedSeller_0\)/);
+        expect(page.sql.indexOf('@allowedSeller_0')).toBeLessThan(page.sql.indexOf('@patchId0'));
+        expect(res.body.asins).toHaveLength(2);
+    });
+
     test('an empty page still reports honest numbers', async () => {
         mockState.pool = makeFakePool([
             { match: /COUNT\(\*\) as scopeTotal/, rows: [{ total: 0, scopeTotal: 42 }] },

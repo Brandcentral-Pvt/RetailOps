@@ -139,7 +139,9 @@ Each step is one reviewable increment: code + tests + a short "what changed / ho
 
 **Acceptance:** list request costs ≤5 statements with no unscoped scan; a fresh environment can be provisioned from migrations; Sub-BSR and week-history surfaces return real rows; the KPI strip can show "% fresh".
 
-### Step 3 — The workspace *(table, filters, views)*
+### Step 3 — The workspace ✅ **delivered** *(table, filters, views)*
+
+> Results, file list and verification: §9. F14 (frontend weight and render cost) is addressed by the projection, the facet rail and the incremental row patch — table virtualisation is deliberately out (§9). The Seller ASIN Tracker is folded in as a surface of this workspace (§6 Q5).
 
 **Do:** virtualise the table and project only the visible columns server-side; faceted filters with counts and URL-synced state; **saved views/segments** (new table, per user/team, incl. column + sort + filter sets); per-user column persistence server-side; socket-driven incremental row patching + job progress centre; unify or align the Seller ASIN Tracker surface.
 
@@ -297,3 +299,52 @@ Frontend: `npm run build` → **✓ built** (only pre-existing third-party warni
 2. `node backend/scripts/backfillAsinHistory.js --dry-run` first, then without the flag — expect the weekly buckets to match the number of (ASIN, week) pairs in `AsinHistory`.
 3. Watch one live sync: after a scrape, `AsinHistory` gets today's row, `AsinWeekHistory` the current ISO week, and `SubBsrHistory` one row per category for the ASIN.
 4. Decide the SLA (`?slaDays=` / `FRESHNESS_AUTO_REPAIR_ENABLED`) once you see the real fresh/stale split for your catalogue.
+
+---
+
+## 9. Step 3 results (delivered)
+
+### What changed
+
+| # | Change | Where |
+|---|---|---|
+| 1 | **The list only carries the columns you look at.** `GET /api/asins?columns=<ui keys>` (the keys of the column selector) returns ~60 base columns plus *only* the heavy blobs the visible columns need — product description, bullet HTML, image arrays, offers, buy-box JSON, variant images, dimensions, CDQ components, rating breakdown, fee preview, history, sub-BSR lists and the twelve per-component quality-issue arrays are no longer shipped with every row. No `columns` parameter → the old `SELECT a.*` behaviour, unchanged. | `backend/controllers/asinController.js` |
+| 2 | **UI key ≠ column name, and that matters.** The BuyBox cell renders from the `BuyBoxes` JSON, the SUB BSR cell from `SubBSRs`, the bullet count from `BulletPointsText` — so the projection carries aliases for `currentBuybox`, `otherBuybox`, `subBsr` and `bulletPoints`. Without them the **default** layout (BuyBox is visible by default) would have come back silently empty. Two tests pin it, one of them read from the hook's own `defaultVisible: true` markers. | `backend/controllers/asinController.js`, `backend/__tests__/unit/asinProjection.test.js` |
+| 3 | **Facet counts, click-through.** `GET /api/asins/facets` returns status, scrape status, freshness (`never` / `stale` / `fresh` against the SLA) and the top 25 categories, brands, sellers and tags for the caller's scope, plus the scope total; 60 s module cache. The rail renders each count as a chip that toggles the same filter the table understands, so a number is always the number the table would return. | `backend/controllers/asinController.js`, `backend/routes/asinRoutes.js`, `src/components/asins/FacetRail.jsx` *(new)*, `src/services/api.js` |
+| 4 | **Saved views.** A view is the whole workspace state — filters, search, sort, visible columns, marketplace, seller and which surface you are on. Table `AsinSavedViews` (migration 026), CRUD at `/api/asins/views`, private or shared with everyone, owner-or-global-role to change or delete, ≤50 per user, names ≤120 chars. Views are the unit of "hand this over to a teammate". | `backend/controllers/asinViewController.js` *(new)*, `backend/migrations/026_asin_saved_views.js` *(new)*, `src/components/asins/SavedViewsMenu.jsx` *(new)* |
+| 5 | **Column choice follows the user, not the browser.** `AsinColumnPreferences` (+ unique index on `UserId`) with `GET`/`PUT /column-preferences`; the hook reads the server copy first and keeps localStorage as the offline/legacy fallback. Writes are debounced and only fire for user-made changes — the first render and the server response never write back. | `src/hooks/useColumnVisibility.js`, `backend/controllers/asinViewController.js` |
+| 6 | **The URL is the shareable object.** `?view=<id>`, `?tab=tracker`, `?seller=<id>`, the applied filter keys and `?q=` are read on load and written back with `replaceState`; a pasted URL restores the exact list without saving a view first. The `?view=` deep link is resolved exactly once, when the view list arrives. | `src/pages/AsinManagerPage.jsx` |
+| 7 | **The Seller ASIN Tracker is now a surface here (Q5).** The toolbar segments are ASINs / Parents / Tracker; `/seller-tracker` and `/seller-tracker/:sellerId` redirect to `/asin-tracker?tab=tracker[&seller=…]`; `/asin-tracker` accepts `asinmanager_view` **or** `asintracker_view`, and a user holding only the tracker permission lands on the tracker surface instead of a 403 table. Nobody loses a bookmark and there is one module for ASIN work. | `src/App.jsx`, `src/pages/AsinManagerPage.jsx`, `src/pages/SellerAsinTrackerPage.jsx` |
+| 8 | **Socket events patch rows instead of reloading the page.** `?ids=` narrows the list query (≤200 ids, applied *after* the scope marker, so it can only shrink the caller's own result set); the ingested-ASIN handler fetches just those rows with the projection the table is using and splices them in — no count, no history, no months, no scroll loss. If a patch fails it falls back to the full reload it replaced. | `backend/controllers/asinController.js`, `src/pages/AsinManagerPage.jsx` |
+| 9 | **A pre-existing crash is gone.** Six call sites called `setFilterTrigger`, a setter that **was never declared** anywhere in the file (`no-undef` in the lint baseline): the quick-filter dropdown (price dispute / falling BSR / falling rating), removing a filter badge and "Clear All" all threw a `ReferenceError` mid-handler. Each of them already updates `appliedFilters`, which reloads the table through `loadData`'s dependency list, so the calls were dead weight — removed. | `src/pages/AsinManagerPage.jsx` |
+
+### How it was verified
+
+`backend/` — `npm test` (Jest 30 + `testUtils/fakePool.js`, no database needed):
+
+| Suite | Tests | What it pins |
+|---|---|---|
+| `__tests__/unit/asinFacets.test.js` | 7 | scope predicate on the facet query (`a.SellerId IN (@facetScope_0)`) and 403 with **zero** queries for a foreign seller; empty-seller user → zeroed facets and no query; global user unfiltered; cache hit flagged `cached:true`; a failing tag query degrades to `[]` instead of failing the request |
+| `__tests__/unit/asinSavedViews.test.js` | 18 | `sanitizeView` drops unknown keys; name/mode/filter/search/column bounds and the 50-view cap (`too_many_views`); own+shared listing with `isOwner`; owner-or-global for update/delete (`view_not_found` 404 / `not_view_owner` 403); MERGE on `UserId` for column preferences; empty column list rejected; malformed stored JSON degrades to a usable view |
+| `__tests__/unit/asinProjection.test.js` | 9 | no `columns` → `projection:'full'` and the old SQL; with `columns` → base + only the requested heavy columns; the quality-issue bundle switches as one; **UI-key aliases** for the buy-box/sub-BSR/bullet blobs; the default-visible layout still selects `BuyBoxes`; every key the column hook can show is known to the server |
+| `__tests__/unit/asinListContract.test.js` | 4 | *(updated)* the Step 1/2 contract plus `?ids=` producing `AND a.Id IN (@patchId0, @patchId1)` **after** the seller scope predicate |
+| `__tests__/unit/serverRouteOrder.test.js` | 5 | *(updated)* `/facets`, `/views`, `/views/:id` and `/column-preferences` are all declared **above** the trailing `router.get('/:id')` that would otherwise swallow them |
+
+Result: **340 passing / 341 in `backend/`** (36 new/updated tests in this step; the single failure is the pre-existing `nvidiaAiService` suite, which needs `NVIDIA_NIM_API_KEY`).
+
+Frontend: `npm run build` → **✓ built**. ESLint over the touched files reports **87** problems against **90** at the previous commit — the new feature added none and removed five (`npm run lint` is red repo-wide at 486 problems on this branch and on `main`; not fixing that is a separate decision).
+
+### Deliberately not done in this step
+
+- **Table virtualisation.** Server-side pagination already caps the DOM at 25/50/100/200 rows — a 50 000-ASIN seller is *paged*, not scrolled — and the two things that actually made it feel heavy are fixed: the payload (projection) and the re-render churn (row patching, no full reload on ingest). Windowing a `<table>` that has a sticky two-row header, sticky checkbox/ASIN columns and variable row heights needs a browser to validate, and this environment has none; shipping unverifiable changes into the core table is the wrong trade when the acceptance criterion is already met by paging. If you want it anyway, `@tanstack/react-virtual` over the `<tbody>` is the smallest version of the change — say so and I will land it as a reviewed follow-up on staging.
+- **Facet counts are scope-level, not query-level.** Clicking a category does not re-count the other categories (that would be one aggregate per facet per keystroke). The counts answer "what is in my scope and how much", which is what the rail is for.
+- **The KPI strip is not patched by socket events.** Row patches update rows; aggregates refresh on the next natural load or batch-complete event.
+- **No job-progress centre.** The existing progress chips and the repair bar stay as they are — a job centre is Step 6 material once jobs are first-class.
+- **Heavy blobs for hidden columns are genuinely not fetched.** A view that hides the offers/description columns will not have them in the row; the detail modals fetch what they need themselves.
+
+### Pending in your environment (needs the real database)
+
+- `npm run migrate` — **026** creates `AsinSavedViews` and `AsinColumnPreferences` (both `createTableIfMissing`, plus the unique index on `AsinColumnPreferences.UserId`). Until it runs, `/api/asins/views` returns an empty list and column preferences silently stay in localStorage (the hook is built to degrade exactly like that).
+- Open the table with the default layout and confirm the **BuyBox**, **SUB BSR**, **B min/max** and **Rating breakdown** cells render — that is the projection's alias path; it is the one place where a server column name mismatch would show up as empty cells.
+- Check that the facet chip labels read naturally for your data (they print the stored `Status` / `ScrapeStatus` values verbatim).
+- Confirm the `/seller-tracker` bookmarks your team uses still land — they now redirect to `/asin-tracker?tab=tracker`.

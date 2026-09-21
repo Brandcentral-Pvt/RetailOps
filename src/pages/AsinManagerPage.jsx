@@ -79,6 +79,12 @@ import BulkTagsModal from '../components/asins/BulkTagsModal';
 import TrendBadge from '../components/asins/TrendBadge';
 import { useColumnVisibility, ALL_COLUMNS, COLUMN_CATEGORIES } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
+import SavedViewsMenu from '../components/asins/SavedViewsMenu';
+import FacetRail from '../components/asins/FacetRail';
+// The Seller ASIN Tracker is now a surface of this workspace (no separate page):
+// it is the per-seller sync/token view of the same catalogue, so it belongs
+// next to the table rather than in a second module.
+const SellerAsinTrackerPage = lazy(() => import('./SellerAsinTrackerPage'));
 import {
   generateHistoryStructure,
   generateHistoryStructureFromDates,
@@ -89,6 +95,42 @@ import {
 } from '../utils/asinHistory.jsx';
 
 import Popover from '../components/common/Popover';
+
+// ── URL state (Step 3) ───────────────────────────────────────────────────────
+// A filtered workspace is the thing people paste into a chat. The applied filters
+// and the search term ride in the query string next to ?view= and ?tab=, so a URL
+// restores the exact list without having to save a view first.
+const URL_FILTER_KEYS = [
+  'status', 'category', 'freshness', 'brand', 'scrapeStatus', 'parentAsin', 'tag', 'sku',
+  'minPrice', 'maxPrice', 'minBSR', 'maxBSR', 'minRating', 'maxRating',
+  'minReviewCount', 'maxReviewCount', 'minImagesCount', 'maxImagesCount',
+  'minBulletPoints', 'maxBulletPoints', 'subBsrCategory', 'buyBoxWin', 'hasAplus',
+  'hasVideo', 'hasDeal', 'ageFilter', 'minReleaseDate', 'maxReleaseDate',
+  'priceDispute', 'bsrTrend', 'ratingTrend', 'historyDays', 'ads',
+  'availabilityStatus', 'manufacturer', 'dealAccessType', 'selectedTags',
+];
+const URL_ARRAY_FILTER_KEYS = ['selectedTags'];
+
+const readUrlFilters = () => {
+  const out = {};
+  try {
+    const params = new URLSearchParams(window.location.search);
+    for (const key of URL_FILTER_KEYS) {
+      const raw = params.get(key);
+      if (raw === null || raw === '') continue;
+      out[key] = URL_ARRAY_FILTER_KEYS.includes(key) ? raw.split(',').filter(Boolean) : raw;
+    }
+  } catch { /* no window (tests/SSR) */ }
+  return out;
+};
+
+const readUrlSearch = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('q') || '';
+  } catch {
+    return '';
+  }
+};
 
 const AsinManagerPage = (props) => {
   const { isAdmin, isGlobalUser, hasPermission } = useAuth();
@@ -109,6 +151,19 @@ const AsinManagerPage = (props) => {
   const [scrapingIds, setScrapingIds] = useState(new Set());
   const [stats, setStats] = useState(null);
   const [freshness, setFreshness] = useState(null);
+
+  // ── Step 3 workspace: counts, saved views, server-side column prefs ─────────
+  const [facets, setFacets] = useState(null);
+  const [facetsLoading, setFacetsLoading] = useState(false);
+  const [facetSlaDays, setFacetSlaDays] = useState(7);
+  const [savedViews, setSavedViews] = useState([]);
+  const [activeViewId, setActiveViewId] = useState(null);
+  const [activeViewName, setActiveViewName] = useState('');
+  const [savingView, setSavingView] = useState(false);
+  // Guards: don't write a half-restored view back to the server, and don't
+  // resolve the ?view= deep link twice.
+  const skipPrefWriteRef = useRef(false);
+  const viewResolvedRef = useRef(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
   const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -180,6 +235,7 @@ const AsinManagerPage = (props) => {
   const lastStatsRef = useRef(null);
   const isFirstRenderRef = useRef(true);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const columnVisibility = useColumnVisibility();
   const {
     visibleColumns,
     isVisible: baseIsVisible,
@@ -312,54 +368,32 @@ const AsinManagerPage = (props) => {
   const [tagSearch, setTagSearch] = useState('');
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   // Parent view state
-  const [viewMode, setViewMode] = useState('asin'); // 'asin' | 'parent'
+  // 'asin' | 'parent' | 'tracker'. ?tab=tracker comes from the legacy
+  // /seller-tracker redirect and from saved views.
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get('tab') === 'tracker') return 'tracker';
+    } catch { /* no window (tests/SSR) */ }
+    // Someone with only the tracker permission (the legacy /seller-tracker
+    // audience) lands straight on the tracker surface instead of a 403 table.
+    return (!hasPermission('asinmanager_view') && hasPermission('asintracker_view')) ? 'tracker' : 'asin';
+  });
+  const [deepLinkSeller] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('seller') || '';
+    } catch {
+      return '';
+    }
+  });
   const [parentData, setParentData] = useState([]);
   const [parentPagination, setParentPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
   const [expandedParents, setExpandedParents] = useState(new Set());
   const [parentChildren, setParentChildren] = useState({});
   const [loadingParent, setLoadingParent] = useState(false);
-  const [filters, setFilters] = useState({
-    category: '',
-    brand: '',
-    scrapeStatus: '',
-    parentAsin: '',
-    tag: '',
-    sku: '',
-    minPrice: '',
-    maxPrice: '',
-    minBSR: '',
-    maxBSR: '',
-    minRating: '',
-    maxRating: '',
-    minReviewCount: '',
-    maxReviewCount: '',
-    minImagesCount: '',
-    maxImagesCount: '',
-    minBulletPoints: '',
-    maxBulletPoints: '',
-    subBsrCategory: '',
-    buyBoxWin: '',
-    hasAplus: '',
-    hasVideo: '',
-    hasDeal: '',
-    ageFilter: '',
-    selectedTags: [],
-    minReleaseDate: '',
-    maxReleaseDate: '',
-    priceDispute: '',
-    bsrTrend: '',
-    ratingTrend: '',
-    historyDays: '',
-    ads: '',
-    availabilityStatus: '',
-    manufacturer: '',
-    dealAccessType: ''
-  });
-
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({
+  const [filters, setFilters] = useState(() => ({
     status: '',
     category: '',
+    freshness: '',
     brand: '',
     scrapeStatus: '',
     parentAsin: '',
@@ -393,8 +427,51 @@ const AsinManagerPage = (props) => {
     ads: '',
     availabilityStatus: '',
     manufacturer: '',
-    dealAccessType: ''
-  });
+    dealAccessType: '',
+    ...readUrlFilters()
+  }));
+
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState(readUrlSearch);
+  const [appliedFilters, setAppliedFilters] = useState(() => ({
+    status: '',
+    category: '',
+    freshness: '',
+    brand: '',
+    scrapeStatus: '',
+    parentAsin: '',
+    tag: '',
+    sku: '',
+    minPrice: '',
+    maxPrice: '',
+    minBSR: '',
+    maxBSR: '',
+    minRating: '',
+    maxRating: '',
+    minReviewCount: '',
+    maxReviewCount: '',
+    minImagesCount: '',
+    maxImagesCount: '',
+    minBulletPoints: '',
+    maxBulletPoints: '',
+    subBsrCategory: '',
+    buyBoxWin: '',
+    hasAplus: '',
+    hasVideo: '',
+    hasDeal: '',
+    ageFilter: '',
+    selectedTags: [],
+    minReleaseDate: '',
+    maxReleaseDate: '',
+    priceDispute: '',
+    bsrTrend: '',
+    ratingTrend: '',
+    historyDays: '',
+    ads: '',
+    availabilityStatus: '',
+    manufacturer: '',
+    dealAccessType: '',
+    ...readUrlFilters()
+  }));
   const [filterOptions, setFilterOptions] = useState({
     categories: [],
     brands: [],
@@ -431,6 +508,7 @@ const AsinManagerPage = (props) => {
 
   const resetAllFilters = useCallback(() => {
     const resetState = {
+      status: '', freshness: '',
       category: '', brand: '', scrapeStatus: '',
       parentAsin: '', sku: '', subBsrCategory: '',
       minPrice: '', maxPrice: '', minBSR: '', maxBSR: '',
@@ -448,7 +526,6 @@ const AsinManagerPage = (props) => {
     setSearchQuery('');
     setAppliedSearchQuery('');
     setFilterPanelOpen(false);
-    setFilterTrigger(t => t + 1);
   }, []);
 
   const removeAppliedFilter = useCallback((key, value = null) => {
@@ -471,7 +548,6 @@ const AsinManagerPage = (props) => {
       }
       return next;
     });
-    setFilterTrigger(t => t + 1);
   }, []);
 
   const getAppliedFiltersBadges = useCallback(() => {
@@ -503,7 +579,9 @@ const AsinManagerPage = (props) => {
       ads: 'Ads',
       availabilityStatus: 'Availability',
       manufacturer: 'Manufacturer',
-      dealAccessType: 'Deal Type'
+      dealAccessType: 'Deal Type',
+      status: 'Status',
+      freshness: 'Freshness'
     };
 
     Object.entries(appliedFilters).forEach(([key, value]) => {
@@ -859,7 +937,11 @@ const AsinManagerPage = (props) => {
           ...appliedFilters,
           historyDays: appliedFilters.historyDays,
           sortBy,
-          sortOrder
+          sortOrder,
+          // Ask only for the columns this user actually shows: the heavy JSON
+          // blobs (offers, images, descriptions, history) are ~90% of the row
+          // weight and most of them are hidden in the default layout.
+          columns: visibleColumns
         }),
         statsPromise,
         freshnessPromise
@@ -887,7 +969,7 @@ const AsinManagerPage = (props) => {
     } finally {
       if (token === loadTokenRef.current) setLoading(false);
     }
-  }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder]);
+  }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder, visibleColumns]);
 
   // Parent View data loading — transforms parent data into ASIN-shaped rows
   // so the SAME table rendering code works for both views
@@ -1019,7 +1101,9 @@ const AsinManagerPage = (props) => {
   useEffect(() => {
     if (viewMode === 'parent') {
       loadParentData(parentPagination.page, parentPagination.limit);
-    } else if (!isFirstRenderRef.current) {
+    } else if (viewMode === 'asin' && !isFirstRenderRef.current) {
+      // Returning to the table after the tracker surface: reload so it reflects
+      // anything the tracker's sync changed.
       loadData(pagination.page, pagination.limit);
     }
     isFirstRenderRef.current = false;
@@ -1113,12 +1197,209 @@ const AsinManagerPage = (props) => {
   const { refreshCount } = useRefresh();
 
   useEffect(() => {
+    if (viewMode === 'tracker') return; // the tracker surface loads its own data
     loadData();
-  }, [loadData, refreshCount]);
+  }, [loadData, refreshCount, viewMode]);
+
+  // ── Facet counts ────────────────────────────────────────────────────────────
+  // Counts describe the *applied* query, so they are fetched from the same
+  // applied state the table used — never from the draft inside the filter drawer.
+  const loadFacets = useCallback(async (sellerIdOverride) => {
+    const sellerId = sellerIdOverride !== undefined ? sellerIdOverride : selectedSeller;
+    if (!sellerId) { setFacets(null); return; }
+    setFacetsLoading(true);
+    try {
+      const res = await asinApi.getFacets({
+        seller: sellerId,
+        marketplace: marketplaceFilter || undefined,
+        search: appliedSearchQuery || undefined,
+      });
+      setFacets(res.facets ? { ...res.facets, total: res.total } : null);
+      if (res.slaDays) setFacetSlaDays(res.slaDays);
+    } catch (err) {
+      // Counts are an enhancement: a failure must not blank the workspace.
+      console.error('Facet counts error:', err);
+    } finally {
+      setFacetsLoading(false);
+    }
+  }, [selectedSeller, marketplaceFilter, appliedSearchQuery]);
+
+  useEffect(() => { loadFacets(); }, [loadFacets]);
+
+  // Facet chips are drill-through, not a draft: they update both the drawer
+  // state and the applied state in one go, so the table reloads immediately
+  // (loadData depends on appliedFilters).
+  const commitFacet = useCallback((field, next) => {
+    setSelectedIds(new Set());
+    setPagination(p => (p.page === 1 ? p : { ...p, page: 1 }));
+    setFilters(prev => ({ ...prev, [field]: next }));
+    setAppliedFilters(applied => ({ ...applied, [field]: next }));
+  }, []);
+
+  // Toggle semantics for status/scrape chips (click again to clear).
+  const handleFacetToggle = useCallback((field, value) => {
+    const current = appliedFilters[field];
+    const isActive = Array.isArray(current) ? current.includes(value) : current === value;
+    commitFacet(field, isActive ? (Array.isArray(current) ? current.filter(v => v !== value) : '') : value);
+  }, [commitFacet, appliedFilters]);
+
+  // Set semantics for the picker menus (category/brand/tag/seller, freshness).
+  const handleFacetSet = useCallback((field, value) => {
+    commitFacet(field, value === undefined ? (Array.isArray(appliedFilters[field]) ? [] : '') : value);
+  }, [commitFacet, appliedFilters]);
+
+  // ── Saved views ─────────────────────────────────────────────────────────────
+  const loadSavedViews = useCallback(async () => {
+    try {
+      const res = await asinApi.getViews();
+      setSavedViews(res.views || []);
+    } catch (err) {
+      console.error('Saved views error:', err);
+    }
+  }, []);
+
+  useEffect(() => { loadSavedViews(); }, [loadSavedViews]);
+
+  const buildViewSnapshot = useCallback(() => ({
+    view: viewMode === 'parent' ? 'asins' : viewMode,
+    filters,
+    search: { query: searchQuery || '', applied: appliedSearchQuery || '' },
+    sort: { by: sortBy, order: sortOrder },
+    columns: columnVisibility.visibleColumns,
+    marketplace: marketplaceFilter || '',
+    sellerId: selectedSeller || '',
+  }), [viewMode, filters, searchQuery, appliedSearchQuery, sortBy, sortOrder, columnVisibility.visibleColumns, marketplaceFilter, selectedSeller]);
+
+  const handleSaveView = useCallback(async ({ name, isShared }) => {
+    setSavingView(true);
+    try {
+      const res = await asinApi.createView({ name, isShared, viewJson: buildViewSnapshot() });
+      await loadSavedViews();
+      if (res.view?.id) { setActiveViewId(res.view.id); setActiveViewName(res.view.name); }
+      message.success('View saved');
+    } catch (err) {
+      message.error(err.message || 'Could not save view');
+    } finally {
+      setSavingView(false);
+    }
+  }, [buildViewSnapshot, loadSavedViews]);
+
+  const applySavedView = useCallback((view) => {
+    const payload = view?.viewJson || {};
+    skipPrefWriteRef.current = true;
+    setFilters(prev => ({ ...prev, ...(payload.filters || {}), sellerId: undefined }));
+    setSearchQuery(payload.search?.query || '');
+    setAppliedSearchQuery(payload.search?.applied || '');
+    if (payload.sort?.by) { setSortBy(payload.sort.by); setSortOrder(payload.sort.order || 'desc'); }
+    if (Array.isArray(payload.columns) && payload.columns.length > 0) columnVisibility.updateVisibleColumns(payload.columns);
+    if (payload.marketplace !== undefined) setMarketplaceFilter(payload.marketplace || '');
+    setPagination(p => ({ ...p, page: 1 }));
+    setActiveViewId(view.id);
+    setActiveViewName(view.name);
+    message.success(`Applied view: ${view.name}`);
+    setTimeout(() => { skipPrefWriteRef.current = false; }, 1500);
+  }, [columnVisibility]);
+
+  const handleUpdateView = useCallback(async (view) => {
+    try {
+      await asinApi.updateView(view.id, { name: view.name, isShared: view.isShared, viewJson: buildViewSnapshot() });
+      message.success('View updated with the current filters');
+      loadSavedViews();
+    } catch (err) {
+      message.error(err.message || 'Could not update view');
+    }
+  }, [buildViewSnapshot, loadSavedViews]);
+
+  const handleDeleteView = useCallback(async (view) => {
+    try {
+      await asinApi.deleteView(view.id);
+      setSavedViews(prev => prev.filter(v => v.id !== view.id));
+      if (activeViewId === view.id) { setActiveViewId(null); setActiveViewName(''); }
+      message.success('View deleted');
+    } catch (err) {
+      message.error(err.message || 'Could not delete view');
+    }
+  }, [activeViewId]);
+
+  const handleToggleShare = useCallback(async (view) => {
+    try {
+      await asinApi.updateView(view.id, { name: view.name, isShared: !view.isShared, viewJson: view.viewJson });
+      loadSavedViews();
+    } catch (err) {
+      message.error(err.message || 'Could not change sharing');
+    }
+  }, [loadSavedViews]);
+
+  // ?view=<id> deep link / shareable URL, resolved exactly once, as soon as the
+  // view list is known. Kept in a ref so the effect depends only on the list.
+  const applySavedViewRef = useRef(null);
+  applySavedViewRef.current = applySavedView;
+
+  useEffect(() => {
+    if (viewResolvedRef.current || savedViews.length === 0) return;
+    viewResolvedRef.current = true;
+    const wanted = new URLSearchParams(window.location.search).get('view');
+    if (!wanted) return;
+    const match = savedViews.find(v => String(v.id) === String(wanted));
+    if (match) applySavedViewRef.current(match);
+  }, [savedViews]);
+
+  // Keep the URL in step with the active view so a pasted link restores it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (activeViewId) params.set('view', activeViewId);
+    else params.delete('view');
+    if (viewMode === 'tracker') params.set('tab', 'tracker');
+    else params.delete('tab');
+    // The applied state rides along so the URL is the shareable object: filters,
+    // search, surface and (when one is active) the saved view.
+    for (const key of URL_FILTER_KEYS) {
+      const value = appliedFilters[key];
+      const hasValue = Array.isArray(value) ? value.length > 0 : (value !== '' && value !== undefined && value !== null);
+      if (hasValue) params.set(key, Array.isArray(value) ? value.join(',') : String(value));
+      else params.delete(key);
+    }
+    if (appliedSearchQuery) params.set('q', appliedSearchQuery);
+    else params.delete('q');
+
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash || ''}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash || ''}`;
+    if (next !== current) window.history.replaceState({}, '', next);
+  }, [activeViewId, viewMode, appliedFilters, appliedSearchQuery]);
 
   // Track pending updates for debouncing
   const pendingRefreshRef = useRef(null);
   const updatedAsinIdsRef = useRef(new Set());
+
+  // Incremental row patch (Step 3): one ingested ASIN used to force the whole
+  // page — count + rows + history + months + stats — to reload, which is what
+  // made the table flash and lose scroll position during a scrape. Now we
+  // refetch only the rows that changed, with the projection the table is
+  // actually using, and splice them in. Ids that are not on the current page
+  // are ignored: nothing visible changed for them, so nothing needs to.
+  const patchAsinRows = useCallback(async (ids) => {
+    const wanted = Array.from(ids || []).filter(Boolean).slice(0, 200);
+    if (wanted.length === 0) return;
+    try {
+      const res = await asinApi.getAll({
+        seller: selectedSeller,
+        marketplace: marketplaceFilter && marketplaceFilter !== 'all' ? marketplaceFilter : undefined,
+        ids: wanted,
+        limit: wanted.length,
+        columns: visibleColumns
+      });
+      const fresh = res?.asins || [];
+      if (fresh.length === 0) return;
+      const byId = new Map(fresh.map(a => [a._id || a.Id, a]));
+      setAsins(prev => prev.map(row => byId.get(row._id || row.Id) || row));
+    } catch (err) {
+      // A failed patch must never leave a stale row silently on screen — fall
+      // back to the full reload it replaced.
+      console.warn('Incremental row patch failed, reloading instead:', err);
+      loadData(pagination.page);
+    }
+  }, [selectedSeller, marketplaceFilter, visibleColumns, loadData, pagination.page]);
 
   useEffect(() => {
     if (!socket) return;
@@ -1142,13 +1423,13 @@ const AsinManagerPage = (props) => {
       // Clear existing timeout
       if (pendingRefreshRef.current) clearTimeout(pendingRefreshRef.current);
 
-      // Wait 3 seconds for more updates, then refresh once
+      // Wait 3 seconds for more updates, then patch the changed rows in place
       pendingRefreshRef.current = setTimeout(() => {
-        console.log(`📬 Batch refresh: Updating table after ${updatedAsinIdsRef.current.size} ASINs changed via socket`);
+        const changed = Array.from(updatedAsinIdsRef.current);
         updatedAsinIdsRef.current.clear();
-        loadData(pagination.page);
         pendingRefreshRef.current = null;
-      }, 3000); // Increased batch window to 3 seconds for stability
+        patchAsinRows(changed);
+      }, 3000); // Batch window: 3 seconds for stability
     });
 
     socket.on('scrape_batch_complete', (data) => {
@@ -1212,7 +1493,7 @@ const AsinManagerPage = (props) => {
       socket.off('SELLERS_UPDATED');
       if (pendingRefreshRef.current) clearTimeout(pendingRefreshRef.current);
     };
-  }, [socket, loadData, pagination.page]);
+  }, [socket, loadData, pagination.page, patchAsinRows]);
 
   const fetchSellerDropdownData = useCallback(async (page = 1, search = '') => {
     try {
@@ -2098,6 +2379,8 @@ const AsinManagerPage = (props) => {
 
       {/* Relocated header actions to Table Toolbar for dense view UI */}
 
+      {viewMode !== 'tracker' && (
+      <>
       {/* ANALYTICS MODULE AREA - RECTANGULAR PILLS STYLE */}
       <div className="flex-shrink-0 overflow-hidden" style={{ maxHeight: showDashboard ? '52px' : '0px', transition: 'all 0.3s ease', opacity: showDashboard ? 1 : 0, pointerEvents: showDashboard ? 'auto' : 'none' }}>
         <div className={`px-3 py-1 d-flex align-items-center gap-2 overflow-x-auto ${styles.customScrollbar}`} style={{ width: '100%' }}>
@@ -2148,7 +2431,7 @@ const AsinManagerPage = (props) => {
         </div>
       </div>
 
-      {/* Repair Progress simplified */}
+      /* Repair Progress simplified */
       {repairStatus && (
         <div className="mt-2 py-1 px-3 bg-amber-50 border border-amber-100 rounded-2 d-flex align-items-center gap-3">
           <span className="icon-[svg-spinners--eclipse] text-amber-500" style={{ fontSize: 12 }} aria-hidden="true" />
@@ -2159,8 +2442,14 @@ const AsinManagerPage = (props) => {
           <span className="smallest text-amber-600 fw-bold" style={{ fontSize: '9px' }}>{repairStatus.processed}/{repairStatus.total}</span>
         </div>
       )}
+      </>
+      )}
 
       <div className="page-content flex-grow-1 d-flex flex-column overflow-hidden px-3 pb-3" style={{ minHeight: 0 }}>
+        {/* ASIN + Parent surfaces: everything below is table-shaped, so it is
+            replaced wholesale by the Tracker surface when that tab is active. */}
+        {viewMode !== 'tracker' && (
+        <div className="flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
         {/* Alerts & Errors row */}
         {error && (
           <div className="alert alert-danger border-0 shadow-sm rounded-3 py-2 px-3 mb-3 d-flex align-items-center gap-2" role="alert">
@@ -2266,7 +2555,6 @@ const AsinManagerPage = (props) => {
                             const newFilters = { ...appliedFilters, priceDispute: appliedFilters.priceDispute === 'true' ? '' : 'true' };
                             setAppliedFilters(newFilters);
                             setFilters(newFilters);
-                            setFilterTrigger(t => t + 1);
                           }
                         },
                         {
@@ -2277,7 +2565,6 @@ const AsinManagerPage = (props) => {
                             const newFilters = { ...appliedFilters, bsrTrend: appliedFilters.bsrTrend === 'Down' ? '' : 'Down' };
                             setAppliedFilters(newFilters);
                             setFilters(newFilters);
-                            setFilterTrigger(t => t + 1);
                           }
                         },
                         {
@@ -2288,7 +2575,6 @@ const AsinManagerPage = (props) => {
                             const newFilters = { ...appliedFilters, ratingTrend: appliedFilters.ratingTrend === 'Down' ? '' : 'Down' };
                             setAppliedFilters(newFilters);
                             setFilters(newFilters);
-                            setFilterTrigger(t => t + 1);
                           }
                         }
                       ]
@@ -2385,13 +2671,37 @@ const AsinManagerPage = (props) => {
               <div style={{ flex: '1 1 0', minWidth: 0 }} />
 
               <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
+                {activeViewName && (
+                  <Tooltip title={`Saved view: ${activeViewName}`}>
+                    <span
+                      className="d-flex align-items-center gap-1 px-2"
+                      style={{ height: 32, borderRadius: 'var(--radius-md)', background: 'var(--bg-active, #f4f4f5)', fontSize: 11, fontWeight: 600, maxWidth: 160 }}
+                    >
+                      <Filter size={11} />
+                      <span className="text-truncate">{activeViewName}</span>
+                    </span>
+                  </Tooltip>
+                )}
+                <SavedViewsMenu
+                  views={savedViews}
+                  activeViewId={activeViewId}
+                  onApply={applySavedView}
+                  onSave={handleSaveView}
+                  onUpdate={handleUpdateView}
+                  onDelete={handleDeleteView}
+                  onToggleShare={handleToggleShare}
+                  building={savingView}
+                />
                 <Segmented
                   size="small"
                   value={viewMode}
                   onChange={(val) => setViewMode(val)}
                   options={[
-                    { label: 'ASINs', value: 'asin' },
-                    { label: 'Parents', value: 'parent' }
+                    ...(hasPermission('asinmanager_view') ? [
+                      { label: 'ASINs', value: 'asin' },
+                      { label: 'Parents', value: 'parent' }
+                    ] : []),
+                    ...(hasPermission('asintracker_view') ? [{ label: 'Tracker', value: 'tracker' }] : [])
                   ]}
                   style={{ borderRadius: 'var(--radius-md)' }}
                 />
@@ -2588,6 +2898,19 @@ const AsinManagerPage = (props) => {
                 Deselect All
               </button>
             </div>
+          )}
+
+          {/* FACET RAIL — counts are rendered from the applied query, so a
+              number here is always the number the table would return. */}
+          {viewMode !== 'parent' && (
+            <FacetRail
+              facets={facets}
+              appliedFilters={appliedFilters}
+              onToggle={handleFacetToggle}
+              onSetFilter={handleFacetSet}
+              loading={facetsLoading}
+              slaDays={facetSlaDays}
+            />
           )}
 
           {/* APPLIED FILTERS BADGES */}
@@ -4015,6 +4338,20 @@ const AsinManagerPage = (props) => {
             </Suspense>
           </div>
         </div>
+        </div>
+        )}
+
+        {viewMode === 'tracker' && (
+          <div className="flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+            <Suspense fallback={
+              <div className="d-flex align-items-center justify-content-center flex-grow-1">
+                <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 24 }} aria-hidden="true" />
+              </div>
+            }>
+              <SellerAsinTrackerPage embeddedSellerId={deepLinkSeller || selectedSeller || null} />
+            </Suspense>
+          </div>
+        )}
 
         {/* [M] Modals Consolidated */}
         <Suspense fallback={<div />}>
