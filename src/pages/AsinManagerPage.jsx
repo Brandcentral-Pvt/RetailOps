@@ -1533,8 +1533,11 @@ const AsinManagerPage = (props) => {
     };
   }, [freshness]);
 
+  // KPI tiles derived from the freshness KPI (defined outside the memo so the
+  // memo deps can reference it).
+  const freshnessTiles = useMemo(() => (freshnessKpi ? [freshnessKpi] : []), [freshnessKpi]);
+
   const kpis = useMemo(() => {
-    const freshnessTiles = freshnessKpi ? [freshnessKpi] : [];
     if (stats) {
       const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
       const reviewTrend = reviewChange >= 0 ? '↑' : '↓';
@@ -1548,7 +1551,6 @@ const AsinManagerPage = (props) => {
       const totalReviews = Number(stats.totalReviews) || 0;
       const avgReviewsPerParent = uniqueParents > 0 ? Math.round(totalReviews / uniqueParents) : 0;
       const standaloneCount = totalNum - activeNum;
-      const freshnessTile = freshnessTiles;
       const avgPriceNum = parseFloat(stats.avgPrice) || 0;
       const avgLqsNum = parseFloat(stats.avgLQS) || 0;
 
@@ -1605,7 +1607,7 @@ const AsinManagerPage = (props) => {
           icon: <TrendingUp size={14} />,
           sub: `${stats.reviewAnalysis?.currentWeek || 0} vs ${stats.reviewAnalysis?.previousWeek || 0}`
         },
-        ...freshnessTile,
+        ...freshnessTiles,
       ];
     }
 
