@@ -2,6 +2,8 @@ const { sql, getPool, generateId } = require('../database/db');
 const XLSX = require('xlsx');
 const fs = require('fs');
 const { logTagChange } = require('./tagsHistoryController');
+const { bindSellerFilter } = require('../utils/sellerScope');
+const asinScope = require('../utils/asinScope');
 
 // Default tags
 const DEFAULT_TAGS = [
@@ -20,12 +22,21 @@ const DEFAULT_TAGS = [
 exports.getTags = async (req, res) => {
     try {
         const pool = await getPool();
-        
+
+        // Tag vocabulary is derived from the ASINs the caller may see
+        const { sellerId } = req.query;
+        const scope = asinScope.scopeFor(req, sellerId);
+        if (scope.denied) return asinScope.forbidden(res);
+
+        const tagsRequest = pool.request();
+        const sellerClause = bindSellerFilter(tagsRequest, scope, { alias: 'a', prefix: 'tagScope' });
+
         // Run both queries in parallel
         const [predefinedResult, tagsResult] = await Promise.all([
             pool.request().query('SELECT Name FROM PredefinedTags ORDER BY Category, Name').catch(() => ({ recordset: [] })),
-            pool.request().query(`
-                SELECT Tags FROM Asins WHERE Tags IS NOT NULL AND Tags != '[]' AND Tags != ''
+            tagsRequest.query(`
+                SELECT a.Tags FROM Asins a
+                WHERE a.Tags IS NOT NULL AND a.Tags != '[]' AND a.Tags != ''${sellerClause}
             `)
         ]);
         
@@ -80,20 +91,15 @@ exports.updateAsinTags = async (req, res) => {
 
         const pool = await getPool();
 
-        // Get current tags BEFORE update
-        const currentResult = await pool.request()
-            .input('id', sql.VarChar, asinId)
-            .query('SELECT Tags FROM Asins WHERE Id = @id');
-
-        if (currentResult.recordset.length === 0) {
-            return res.status(404).json({ success: false, error: 'ASIN not found' });
-        }
+        // Current tags BEFORE update — scoped: another seller's ASIN is not writable
+        const guard = await asinScope.loadAsinInScope(req, res, asinId, { columns: 'Id, Tags, SellerId' });
+        if (!guard) return;
 
         let currentTags = [];
-        try { 
-            currentTags = JSON.parse(currentResult.recordset[0].Tags || '[]'); 
-        } catch { 
-            currentTags = []; 
+        try {
+            currentTags = JSON.parse(guard.asin.Tags || '[]');
+        } catch {
+            currentTags = [];
         }
 
         const newTags = Array.isArray(tags) ? tags : [];
@@ -144,6 +150,13 @@ exports.bulkUpdateTagsCSV = async (req, res) => {
             ? `${firstName} ${lastName}`.trim() 
             : (email || 'Unknown User');
         
+        // CSV tag import writes into sellers, so it is scoped like every other write
+        const scope = asinScope.requireSellerScope(req, res, sellerId);
+        if (!scope) {
+            asinScope.cleanupUpload(req.file.path);
+            return;
+        }
+
         const filePath = req.file.path;
         const workbook = XLSX.readFile(filePath);
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -171,15 +184,11 @@ exports.bulkUpdateTagsCSV = async (req, res) => {
             const newTags = tagsStr ? tagsStr.split(/[,|;]/).map(t => t.trim()).filter(Boolean) : [];
             
             try {
-                // Fetch current ASIN and tags to log diff
-                let selectQuery = 'SELECT Id, Tags FROM Asins WHERE AsinCode = @asinCode';
+                // Fetch current ASIN and tags to log diff — restricted to the scope
                 const selectRequest = pool.request().input('asinCode', sql.VarChar, asinCode);
-                
-                if (sellerId) {
-                    selectQuery += ' AND SellerId = @sellerId';
-                    selectRequest.input('sellerId', sql.VarChar, sellerId);
-                }
-                
+                const sellerClause = bindSellerFilter(selectRequest, scope, { alias: 'a', prefix: 'tagCsvScope' });
+                const selectQuery = `SELECT a.Id, a.Tags FROM Asins a WHERE a.AsinCode = @asinCode${sellerClause}`;
+
                 const currentResult = await selectRequest.query(selectQuery);
                 
                 if (currentResult.recordset.length > 0) {
@@ -251,12 +260,12 @@ exports.downloadTagsTemplate = async (req, res) => {
         `;
         
         const request = pool.request();
-        
-        if (sellerId) {
-            query += ' AND a.SellerId = @sellerId';
-            request.input('sellerId', sql.VarChar, sellerId);
-        }
-        
+
+        // A scoped user gets a template for their sellers only
+        const scope = asinScope.scopeFor(req, sellerId);
+        if (scope.denied) return asinScope.forbidden(res);
+        query += bindSellerFilter(request, scope, { alias: 'a', prefix: 'templateScope' });
+
         query += ' ORDER BY a.ParentAsin, a.AsinCode';
         
         const result = await request.query(query);
@@ -346,8 +355,11 @@ exports.bulkUpdateTags = async (req, res) => {
       return res.status(400).json({ success: false, error: 'No tags provided' });
     }
 
+    // Every targeted ASIN must be inside the caller's seller scope
+    if (!(await asinScope.assertAsinsInScope(req, res, asinIds))) return;
+
     const pool = await getPool();
-    
+
     const request = pool.request();
     asinIds.forEach((id, i) => request.input(`asinId${i}`, sql.VarChar, id));
     const placeholders = asinIds.map((_, i) => `@asinId${i}`).join(',');

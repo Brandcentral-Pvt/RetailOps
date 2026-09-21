@@ -202,6 +202,53 @@ class AsinDataParser {
         return 'Unknown';
     }
 
+    /** Raw field carrying the product URL — the only strictly required input. */
+    static REQUIRED_RAW_FIELDS = ['Original_URL'];
+
+    /** Fields whose absence degrades the row; reported, never fatal. */
+    static SOFT_RAW_FIELDS = ['Title', 'Price', 'BSR', 'Rating', 'Image_count', 'Category'];
+
+    /**
+     * Validate a raw Octoparse payload *before* any of it reaches the database.
+     *
+     * Returns a report rather than throwing, so an importer can reject one row
+     * with a reason while the rest of the batch continues, and so the raw-upload
+     * endpoint can explain what was wrong with the file it was given (F15).
+     *
+     * `missing` → the row cannot be stored; `warnings` → it can, but the fields
+     * are empty and every downstream surface (LQS, trends, filters) will show
+     * blanks. The warnings list is therefore also the "data completeness" signal
+     * the import report exposes.
+     */
+    static validateRawPayload(rawData) {
+        let parsed;
+        try {
+            parsed = this.parseRawData(rawData);
+        } catch (err) {
+            return { valid: false, asinCode: null, missing: ['parseable payload'], warnings: [], error: err.message };
+        }
+
+        const url = parsed.Original_URL || parsed.Page_URL || parsed.page_url || parsed.url || '';
+        const asinCode = url ? this.extractAsin(url) : null;
+        const missing = [];
+        if (!url) missing.push('Original_URL');
+        else if (!asinCode) missing.push('ASIN in URL');
+
+        const warnings = [];
+        const has = (key, alt) => {
+            const value = parsed[key] !== undefined ? parsed[key] : (alt ? parsed[alt] : undefined);
+            return value !== undefined && value !== null && String(value).trim() !== '';
+        };
+        if (!has('Title', 'title')) warnings.push('Title');
+        if (!has('Price', 'price')) warnings.push('Price');
+        if (!has('BSR', 'bsr')) warnings.push('BSR');
+        if (!has('Rating', 'rating')) warnings.push('Rating');
+        if (!has('Image_count', 'image_count')) warnings.push('Image_count');
+        if (!has('Category', 'category')) warnings.push('Category');
+
+        return { valid: missing.length === 0, asinCode, missing, warnings };
+    }
+
     /**
      * Transform raw Octoparse data into Asins table row
      */
@@ -394,6 +441,17 @@ class AsinDataParser {
      */
     static async upsertAsinFromRaw(rawData, sellerId) {
         const pool = await getPool();
+
+        // Contract check first: a row without a URL/ASIN used to fail deep inside
+        // the transform with a vague message, after the pool was already open.
+        const contract = this.validateRawPayload(rawData);
+        if (!contract.valid) {
+            const err = new Error(`Invalid raw payload (${contract.missing.join(', ')})`);
+            err.code = 'INVALID_RAW_PAYLOAD';
+            err.report = contract;
+            throw err;
+        }
+
         const row = this.transformToAsinRow(rawData, sellerId);
 
         const request = pool.request();
@@ -473,7 +531,12 @@ class AsinDataParser {
                     updatedAsinCodes.push(result.asinCode);
                 }
             } catch (err) {
-                results.push({ success: false, error: err.message });
+                results.push({
+                    success: false,
+                    error: err.message,
+                    ...(err.code ? { code: err.code } : {}),
+                    ...(err.report ? { missing: err.report.missing, warnings: err.report.warnings } : {}),
+                });
             }
         }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { asinApi } from '../services/api';
 
 const STORAGE_KEY = 'asin-datatable-columns';
 
@@ -106,6 +107,42 @@ export function useColumnVisibility() {
     return COLUMN_CATEGORIES;
   }, [isCatalogManager, allowedCategoriesForCatalogManager]);
 
+  // ── Server-side persistence (Step 3) ──────────────────────────────────────
+  // localStorage alone tied "my columns" to one browser. The server copy is the
+  // source of truth when it exists; localStorage stays as the instant/failed-
+  // request fallback, and is what the next render reads before the fetch lands.
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await asinApi.getColumnPreferences();
+        if (cancelled || !res?.columns?.length) return;
+        setVisibleColumns(res.columns);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(res.columns)); } catch { /* storage full or blocked */ }
+      } catch {
+        // Offline / older backend: localStorage remains the store of record.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Debounced write-through on every change (including the ones that only
+  // touched localStorage before).
+  useEffect(() => {
+    // Only persist user-made changes: the initial render and the server fetch
+    // must never write back (that would clobber this user's other device).
+    if (!dirtyRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      dirtyRef.current = false;
+      asinApi.saveColumnPreferences(visibleColumns).catch(() => {});
+    }, 800);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [visibleColumns]);
+
   const isVisible = useCallback((key) => {
     if (isCatalogManager) {
       const col = ALL_COLUMNS.find(c => c.key === key);
@@ -119,6 +156,7 @@ export function useColumnVisibility() {
       const col = ALL_COLUMNS.find(c => c.key === key);
       if (!col || !allowedCategoriesForCatalogManager.includes(col.category)) return;
     }
+    dirtyRef.current = true;
     setVisibleColumns(prev => {
       const column = ALL_COLUMNS.find(c => c.key === key);
       if (column?.required) return prev; // Don't toggle required columns
@@ -138,6 +176,7 @@ export function useColumnVisibility() {
 
   const toggleCategory = useCallback((category, makeVisible) => {
     if (isCatalogManager && !allowedCategoriesForCatalogManager.includes(category)) return;
+    dirtyRef.current = true;
     setVisibleColumns(prev => {
       const categoryKeys = ALL_COLUMNS
         .filter(c => c.category === category && !c.required)
@@ -160,6 +199,7 @@ export function useColumnVisibility() {
   }, [isCatalogManager, allowedCategoriesForCatalogManager]);
 
   const resetToDefaults = useCallback(() => {
+    dirtyRef.current = true;
     let defaults = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.key);
     if (isCatalogManager) {
       defaults = ALL_COLUMNS
@@ -173,6 +213,7 @@ export function useColumnVisibility() {
   }, [isCatalogManager, allowedCategoriesForCatalogManager]);
 
   const selectAll = useCallback(() => {
+    dirtyRef.current = true;
     let all = ALL_COLUMNS.map(c => c.key);
     if (isCatalogManager) {
       all = ALL_COLUMNS
@@ -186,6 +227,7 @@ export function useColumnVisibility() {
   }, [isCatalogManager, allowedCategoriesForCatalogManager]);
 
   const updateVisibleColumns = useCallback((newKeys) => {
+    dirtyRef.current = true;
     const requiredKeys = ALL_COLUMNS.filter(c => c.required).map(c => c.key);
     const finalKeys = [...new Set([...newKeys, ...requiredKeys])];
     

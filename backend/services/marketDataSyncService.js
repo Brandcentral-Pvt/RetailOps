@@ -46,6 +46,7 @@ const axios = axiosRateLimited;
 originalAxios.defaults.timeout = 30000;
 
 const { sql, getPool, generateId, query, executeWithRetry } = require('../database/db');
+const asinHistoryService = require('./asinHistoryService');
 const config = require('../config/env');
 const imageGenerationService = require('./imageGenerationService');
 const { JSDOM } = require('jsdom');
@@ -2448,7 +2449,15 @@ class MarketDataSyncService {
                 aplusModuleCount = asin.AplusModuleCount;
             }
 
+            // Sub-BSR ranks were parsed for every scrape and then discarded —
+            // they are now stored on the ASIN and recorded in SubBsrHistory.
+            const bsrForHistory = this._parseBSR(rawData);
+
             const updates = {
+                ...(bsrForHistory.sub ? { SubBsr: bsrForHistory.sub } : {}),
+                ...(bsrForHistory.allRanks && bsrForHistory.allRanks.length > 0
+                    ? { SubBSRs: JSON.stringify(bsrForHistory.allRanks) }
+                    : {}),
                 // A+ Content (Octoparse specialty — PA-API doesn't have this)
                 HasAplus: hasAplus ? 1 : 0,
                 AplusContent: aplusContent,
@@ -2480,6 +2489,23 @@ class MarketDataSyncService {
             await executeWithRetry(async () => {
                 await request.query(`UPDATE Asins SET ${setClause} WHERE Id = @asinId`);
             });
+
+            // Record the daily + weekly + sub-BSR history trail (F10). A history
+            // failure must never fail the metrics update itself.
+            try {
+                await asinHistoryService.recordSnapshot(pool, asinId, {
+                    price: price || null,
+                    mrp: mrp || null,
+                    bsr: bsr || null,
+                    rating: rating > 0 ? rating : null,
+                    reviewCount: reviewCount > 0 ? reviewCount : null,
+                    subBsr: bsrForHistory.sub || null,
+                    subBsrList: bsrForHistory.allRanks,
+                    source: 'OCTOPARSE'
+                });
+            } catch (historyError) {
+                console.warn(`[MarketSync] History write skipped for ASIN ${asinId}: ${historyError.message}`);
+            }
 
             // 12. Socket Notification - Restored for live updates
             const io = SocketService.getIo();

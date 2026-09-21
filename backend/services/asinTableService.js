@@ -1,5 +1,6 @@
 const { sql, getPool } = require('../database/db');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
+const { bindSellerFilter } = require('../utils/sellerScope');
 
 /**
  * ASIN Table Service - High-Performance Data Orchestration (SQL Version)
@@ -10,10 +11,10 @@ class AsinTableService {
    * Fetches and transforms ASIN data optimized for the Table UI
    */
   async getAsinTableData(filters = {}) {
-    const { 
-      sellerId, search, category,
-      page = 1, limit = 50, 
-      sortBy = 'CreatedAt', sortOrder = 'DESC' 
+    const {
+      scope, search, category,
+      page = 1, limit = 50,
+      sortBy = 'CreatedAt', sortOrder = 'DESC'
     } = filters;
     
     const pageNum = parseInt(page);
@@ -22,13 +23,10 @@ class AsinTableService {
 
     try {
       const pool = await getPool();
-      let whereClause = "WHERE 1=1";
       const request = pool.request();
+      // Every query below runs against `Asins a` and carries the caller's sellers
+      let whereClause = 'WHERE 1=1' + bindSellerFilter(request, scope, { alias: 'a', prefix: 'tableScope' });
 
-      if (sellerId) {
-        whereClause += " AND SellerId = @sellerId";
-        request.input('sellerId', sql.VarChar, sellerId);
-      }
       if (category) {
         whereClause += " AND Category = @category";
         request.input('category', sql.NVarChar, category);
@@ -39,7 +37,7 @@ class AsinTableService {
       }
 
       // 1. Get Total Count
-      const countResult = await request.query(`SELECT COUNT(*) as total FROM Asins ${whereClause}`);
+      const countResult = await request.query(`SELECT COUNT(*) as total FROM Asins a ${whereClause}`);
       const total = countResult.recordset[0].total;
 
       // 2. Fetch Paginated ASINs
@@ -50,9 +48,9 @@ class AsinTableService {
         .input('offset', sql.Int, offset)
         .input('limit', sql.Int, limitNum)
         .query(`
-          SELECT * FROM Asins 
+          SELECT a.* FROM Asins a
           ${whereClause}
-          ORDER BY ${sortField} ${order}
+          ORDER BY a.${sortField} ${order}
           OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
         `);
       

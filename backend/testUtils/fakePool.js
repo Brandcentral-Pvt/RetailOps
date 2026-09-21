@@ -46,6 +46,19 @@ function makeFakePool(routes = []) {
                 calls.push(entry);
                 for (const route of routes) {
                     if (route.match.test(sqlText)) {
+                        // Multi-statement batches (one request → several result
+                        // sets) are declared with `recordsets`; single queries
+                        // keep using `rows` for backwards compatibility.
+                        if (route.recordsets) {
+                            const sets = typeof route.recordsets === 'function'
+                                ? route.recordsets(entry)
+                                : route.recordsets;
+                            return {
+                                recordsets: sets,
+                                recordset: sets[0] || [],
+                                rowsAffected: sets.map((set) => set.length),
+                            };
+                        }
                         const rows = typeof route.rows === 'function'
                             ? route.rows(entry)
                             : (route.rows || []);

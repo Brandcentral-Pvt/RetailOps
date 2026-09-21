@@ -997,6 +997,79 @@ export const asinApi = {
     return res.json();
   },
 
+  getFacets: async (params = {}) => {
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '') acc[key] = val;
+      return acc;
+    }, {});
+    const query = new URLSearchParams(cleanParams).toString();
+    const res = await fetch(`${API_BASE}/asins/facets?${query}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch filter counts');
+    return res.json();
+  },
+
+  // Saved views — the whole workspace state (filters, sort, columns, surface)
+  getViews: async () => {
+    const res = await fetch(`${API_BASE}/asins/views`, { headers: { ...getAuthHeader() } });
+    if (!res.ok) throw new Error('Failed to load saved views');
+    return res.json();
+  },
+  createView: async (payload) => {
+    const res = await fetch(`${API_BASE}/asins/views`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to save view');
+    return res.json();
+  },
+  updateView: async (id, payload) => {
+    const res = await fetch(`${API_BASE}/asins/views/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to update view');
+    return res.json();
+  },
+  deleteView: async (id) => {
+    const res = await fetch(`${API_BASE}/asins/views/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to delete view');
+    return res.json();
+  },
+  getColumnPreferences: async () => {
+    const res = await fetch(`${API_BASE}/asins/column-preferences`, { headers: { ...getAuthHeader() } });
+    if (!res.ok) throw new Error('Failed to load column preferences');
+    return res.json();
+  },
+  saveColumnPreferences: async (columns) => {
+    const res = await fetch(`${API_BASE}/asins/column-preferences`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ columns })
+    });
+    if (!res.ok) throw new Error('Failed to save column preferences');
+    return res.json();
+  },
+
+  getFreshness: async (params = {}) => {
+    const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
+      if (val !== undefined && val !== null && val !== '') acc[key] = val;
+      return acc;
+    }, {});
+    const query = new URLSearchParams(cleanParams).toString();
+    const res = await fetch(`${API_BASE}/asins/freshness?${query}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch data freshness');
+    return res.json();
+  },
+
   getStats: async (params = {}) => {
     const cleanParams = Object.entries(params).reduce((acc, [key, val]) => {
       if (val !== undefined && val !== null && val !== '' && val !== 'undefined') acc[key] = val;

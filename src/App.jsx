@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
 import retailOpsTheme from './theme/antdTheme';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -44,7 +44,16 @@ const AsinManagerPage = lazy(() => import('./pages/AsinManagerPage'));
 // Ads Intelligence = Ads Manager + Ads Report + AI Analyst in one rebuilt module
 const AdsIntelligencePage = lazy(() => import('./pages/ads/AdsManagerPage'));
 const GmsTrackerPage = lazy(() => import('./pages/GmsTrackerPage'));
-const SellerAsinTrackerPage = lazy(() => import('./pages/SellerAsinTrackerPage'));
+// Legacy /seller-tracker paths now live as the Tracker surface inside ASIN
+// Manager. Keep the URLs working (bookmarks, team messages) by redirecting,
+// carrying the seller through so the same seller opens on the tracker tab.
+const LegacySellerTrackerRedirect = () => {
+  const { sellerId } = useParams();
+  const target = sellerId
+    ? `/asin-tracker?tab=tracker&seller=${encodeURIComponent(sellerId)}`
+    : '/asin-tracker?tab=tracker';
+  return <Navigate to={target} replace />;
+};
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const ScrapeTasksPage = lazy(() => import('./pages/ScrapeTasksPage'));
@@ -136,7 +145,7 @@ function AppRoutes() {
                   <Route path="/month-wise-report" element={<ProtectedRoute permission="monthlyreport_view"><MonthWiseReport /></ProtectedRoute>} />
                   {/* Legacy route kept as a redirect: the Ads Report surface is now a view inside Ads Intelligence. */}
                   <Route path="/ads-report" element={<Navigate to="/ads-manager" replace />} />
-                  <Route path="/asin-tracker" element={<ProtectedRoute permission="asinmanager_view"><AsinManagerPage /></ProtectedRoute>} />
+                  <Route path="/asin-tracker" element={<ProtectedRoute permission={['asinmanager_view', 'asintracker_view']}><AsinManagerPage /></ProtectedRoute>} />
                   <Route path="/keyword-research" element={<ProtectedRoute><KeywordResearchPage /></ProtectedRoute>} />
                   <Route path="/ads-manager" element={<ProtectedRoute permission="adsreport_view"><AdsIntelligencePage /></ProtectedRoute>} />
                   <Route path="/gms-tracker" element={<ProtectedRoute permission="gms_tracker_view"><GmsTrackerPage /></ProtectedRoute>} />
@@ -161,8 +170,8 @@ function AppRoutes() {
                    <Route path="/live-sync" element={<ProtectedRoute permission="scraping_view"><LiveSyncPage /></ProtectedRoute>} />
                   <Route path="/scheduled-runs" element={<ProtectedRoute permission="scraping_view"><ScheduledRunsPage /></ProtectedRoute>} />
                   <Route path="/sellers" element={<ProtectedRoute permission="seller_view"><ErrorBoundary><SellersPage /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
-                  <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
+                  <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><LegacySellerTrackerRedirect /></ProtectedRoute>} />
+                  <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><LegacySellerTrackerRedirect /></ProtectedRoute>} />
                   <Route path="/activity-log" element={<ProtectedRoute permission="activitylogs_view"><ActivityLog /></ProtectedRoute>} />
                   <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
                   <Route path="/actions/achievement-report" element={<ProtectedRoute permission="monthlyreport_view"><GoalAchievementReport /></ProtectedRoute>} />

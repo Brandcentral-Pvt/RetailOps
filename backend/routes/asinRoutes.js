@@ -4,7 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const asinController = require('../controllers/asinController');
 const tagController = require('../controllers/tagController');
-const { authenticate: protect, requirePermission, checkSellerAccess } = require('../middleware/auth');
+const asinViews = require('../controllers/asinViewController');
+const { authenticate: protect, requirePermission, requireAnyPermission, checkSellerAccess } = require('../middleware/auth');
 const { getTagsHistory, getTagsSummary } = require('../controllers/tagsHistoryController');
 
 // Configure multer for CSV uploads
@@ -43,7 +44,20 @@ router.get('/search', protect, requirePermission('asinmanager_view'), asinContro
 router.get('/stats', protect, requirePermission('asinmanager_view'), asinController.getAsinStats);
 router.get('/filters', protect, requirePermission('asinmanager_view'), asinController.getAsinFilterOptions);
 router.get('/brands', protect, requirePermission('asinmanager_view'), asinController.getAsinBrands);
+router.get('/freshness', protect, requirePermission('asinmanager_view'), asinController.getFreshness);
+router.get('/facets', protect, requirePermission('asinmanager_view'), asinController.getAsinFacets);
 router.get('/lqs-top', protect, requirePermission('asinmanager_view'), asinController.getAsinsByLQS);
+
+// Saved views + column preferences (Step 3). These must be declared before the
+// `/:id` catch-all at the bottom of this file. Saving a view is available to
+// tracker-only users too, which is why they use requireAnyPermission.
+const workspaceViewAccess = requireAnyPermission(['asinmanager_view', 'asintracker_view']);
+router.get('/views', protect, workspaceViewAccess, asinViews.listViews);
+router.post('/views', protect, workspaceViewAccess, asinViews.createView);
+router.put('/views/:id', protect, workspaceViewAccess, asinViews.updateView);
+router.delete('/views/:id', protect, workspaceViewAccess, asinViews.deleteView);
+router.get('/column-preferences', protect, workspaceViewAccess, asinViews.getColumnPreferences);
+router.put('/column-preferences', protect, workspaceViewAccess, asinViews.saveColumnPreferences);
 
 // Parent view & auto-tags — must be before /:id to avoid conflict
 router.get('/parent-view', protect, requirePermission('asinmanager_view'), asinController.getParentView);

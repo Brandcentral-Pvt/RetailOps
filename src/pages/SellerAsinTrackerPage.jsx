@@ -1425,8 +1425,12 @@ const SellerDetailView = ({ seller, onSync, syncing, refreshKey }) => {
 // ═══════════════════════════════════════════════════════════════
 // MAIN PAGE COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const SellerAsinTrackerPage = () => {
+// `embeddedSellerId` is passed when the tracker is rendered as a surface of the
+// ASIN Manager workspace: the workspace's seller selector then drives which
+// tracker is open, so both tabs stay on the same seller.
+const SellerAsinTrackerPage = ({ embeddedSellerId = null }) => {
   const { sellerId: urlSellerId } = useParams();
+  const preferredSellerId = urlSellerId || embeddedSellerId || null;
   const [sellers, setSellers] = useState([]);
   const [activeSeller, setActiveSeller] = useState(null);
   const [tokenStatus, setTokenStatus] = useState(null);
@@ -1446,7 +1450,7 @@ const SellerAsinTrackerPage = () => {
         setTokenStatus(res.tokenStatus);
         setKeepaKeyMissing(false);
         if (res.data?.length > 0 && !activeSeller) {
-          const urlSeller = urlSellerId ? res.data.find(s => s._id === urlSellerId) : null;
+          const urlSeller = preferredSellerId ? res.data.find(s => s._id === preferredSellerId) : null;
           setActiveSeller(urlSeller || res.data[0]);
         }
       }

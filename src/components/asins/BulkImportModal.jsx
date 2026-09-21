@@ -2,9 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Upload, FileDown, FileUp, Store, Check, AlertCircle, RefreshCw, Globe, FileType } from 'lucide-react';
 import { sellerApi, bulkApi, asinApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', initialTab = 'catalog' }) => {
-    const [activeTab, setActiveTab] = useState(initialTab || 'catalog'); // 'catalog' | 'tags' | 'global' | 'ajio_catalog'
+    const { isAdmin, isGlobalUser } = useAuth();
+    // "All sellers" writes rows for every seller in the file, so the server only
+    // accepts it from users who may see every seller (Step 1 of the ASIN upgrade).
+    const canImportAllSellers = isAdmin || isGlobalUser;
+    const [activeTab, setActiveTab] = useState(
+        initialTab === 'global' && !canImportAllSellers ? 'catalog' : (initialTab || 'catalog')
+    ); // 'catalog' | 'tags' | 'global' | 'ajio_catalog'
     const [sellers, setSellers] = useState([]);
     const [selectedSellerId, setSelectedSellerId] = useState(initialSellerId || '');
     const [file, setFile] = useState(null);
@@ -46,6 +53,11 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
 
         if ((activeTab === 'catalog' || activeTab === 'tags' || activeTab === 'octoparse') && !selectedSellerId) {
             setError('Please select a target seller');
+            return;
+        }
+
+        if (activeTab === 'global' && !canImportAllSellers) {
+            setError('Importing for all sellers is limited to administrators');
             return;
         }
 
@@ -195,7 +207,7 @@ const BulkImportModal = ({ isOpen, onClose, onComplete, initialSellerId = '', in
                     <button
                         className={`flex-grow-1 py-2 border-0 rounded-2 fw-bold transition-all ${activeTab === 'global' ? 'bg-zinc-100 text-zinc-900' : 'bg-transparent text-zinc-400 hover-bg-zinc-50'}`}
                         onClick={() => { setActiveTab('global'); setFile(null); setResult(null); setError(null); }}
-                        style={{ fontSize: 'var(--font-size-sm)' }}
+                        style={{ fontSize: 'var(--font-size-sm)', display: canImportAllSellers ? undefined : 'none' }}
                     >
                         Global Upload
                     </button>

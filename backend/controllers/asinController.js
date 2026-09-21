@@ -7,7 +7,11 @@ const imageGenerationService = require('../services/imageGenerationService');
 const XLSX = require('xlsx');
 const fs = require('fs');
 const AsinDataParser = require('../services/asinDataParser');
-const LQS = require('../utils/lqs');
+const listingQualityService = require('../services/listingQualityService');
+const { bindSellerFilter } = require('../utils/sellerScope');
+const asinScope = require('../utils/asinScope');
+const asinHistoryService = require('../services/asinHistoryService');
+const dataFreshnessService = require('../services/dataFreshnessService');
 const SystemLogService = require('../services/SystemLogService');
 
 // Lightweight short-lived in-memory cache for ASIN stats to protect database CPU
@@ -28,7 +32,42 @@ const setCachedAsinStats = (key, data) => {
   asinStatsCache.set(key, { data, timestamp: Date.now() });
 };
 
-const clearAsinStatsCache = () => {
+/**
+ * Invalidate cached stats. With a sellerId only the scopes that include that
+ * seller are dropped — a bulk import used to clear every user's stats on every
+ * write (docs/asin-manager-deep-dive.md → F12). Without an argument the whole
+ * cache is cleared (used by tests and full rebuilds).
+ */
+const matchesStatsCacheScope = (cacheKey, sellerId) => {
+  try {
+    const parsed = JSON.parse(cacheKey);
+    const ids = [...(parsed.assignedSellers || []), parsed.seller]
+      .filter(Boolean)
+      .map(String);
+    // A scope that names no seller is unscoped (global user, no filter) and
+    // therefore covers every seller — drop it too rather than let it go stale.
+    if (ids.length === 0) return true;
+    return ids.includes(String(sellerId));
+  } catch (e) {
+    // Unparseable key: treat as matching, so it is dropped rather than serving
+    // stale numbers.
+    return true;
+  }
+};
+
+const clearAsinStatsCache = (sellerId) => {
+  if (sellerId) {
+    let dropped = 0;
+    for (const key of [...asinStatsCache.keys()]) {
+      if (matchesStatsCacheScope(key, sellerId)) {
+        asinStatsCache.delete(key);
+        dropped++;
+      }
+    }
+    console.log(`[STATS CACHE] Invalidated ${dropped} scope(s) for seller ${sellerId}.`);
+    return;
+  }
+
   console.log('[STATS CACHE] Invalidation triggered - clearing cached ASIN stats.');
   asinStatsCache.clear();
   try {
@@ -42,6 +81,37 @@ const clearAsinStatsCache = () => {
 };
 
 exports.clearAsinStatsCache = clearAsinStatsCache;
+exports.matchesStatsCacheScope = matchesStatsCacheScope;
+
+/**
+ * The list of months that have GMS rows changes once a month, but the
+ * `SELECT DISTINCT FORMAT(Date, 'yyyy-MM')` scan was executed on **every** list
+ * request (docs/asin-manager-deep-dive.md → F5). Cached for six hours; a failed
+ * refresh falls back to the previous value instead of failing the request.
+ */
+const MONTHS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+let monthsCache = { data: null, timestamp: 0 };
+
+const getAvailableMonths = async (pool) => {
+  if (monthsCache.data && Date.now() - monthsCache.timestamp < MONTHS_CACHE_TTL_MS) {
+    return monthsCache.data;
+  }
+  try {
+    const result = await pool.request().query(`
+      SELECT DISTINCT FORMAT(Date, 'yyyy-MM') as Month
+      FROM GmsDailyPerformance WITH (NOLOCK)
+      WHERE Date IS NOT NULL
+      ORDER BY Month ASC
+    `);
+    monthsCache = { data: result.recordset.map(r => r.Month), timestamp: Date.now() };
+    return monthsCache.data;
+  } catch (err) {
+    console.warn('Available months query failed:', err.message);
+    return monthsCache.data || [];
+  }
+};
+
+exports.clearAsinMonthsCache = () => { monthsCache = { data: null, timestamp: 0 }; };
 
 // Helper to safely parse JSON
 const tryParse = (data, fallback = []) => {
@@ -131,6 +201,92 @@ const parseFlexibleDate = (val) => {
 /**
  * Get all ASINs (SQL Version)
  */
+/**
+ * Sentinel that separates the caller's seller scope from the applied filters
+ * inside the WHERE clause, so one aggregate can produce both counts.
+ */
+const FILTER_MARK = '/*__FILTERS__*/';
+
+/**
+ * Server-side column projection (Step 3 — "project only the visible columns").
+ *
+ * The list payload is dominated by a handful of JSON/`NVARCHAR(MAX)` columns
+ * (`ProductDescription`, `BulletPointsText`, `AllOffers`, `BuyBoxes`, `Images`,
+ * `VariantImages`, `Dimensions`, `History`, the per-component quality issue
+ * lists…). Clients may pass `?columns=urlKeyA,urlKeyB` — the keys used by the
+ * frontend column selector — and only those heavy columns are added back on top
+ * of the base (non-heavy) set.
+ *
+ * The base set is deliberately broad: the row mapper derives price-dispute,
+ * buy-box, deal and trend values from ~60 base columns, and those derivations
+ * happen even when the corresponding column is hidden, so dropping base columns
+ * would silently change values the UI still computes. What is *not* sent unless
+ * asked for is the payload weight — which is where the bytes are.
+ */
+const ASIN_HEAVY_FIELDS = {
+  productDescription: ['a.ProductDescription'],
+  bulletPointsText: ['a.BulletPointsText'],
+  images: ['a.Images'],
+  allOffers: ['a.AllOffers'],
+  buyBoxes: ['a.BuyBoxes'],
+  variantImages: ['a.VariantImages'],
+  dimensions: ['a.Dimensions'],
+  cdqComponents: ['a.CdqComponents'],
+  ratingBreakdown: ['a.RatingBreakdown'],
+  lqsDetails: ['a.LqsDetails'],
+  feePreview: ['a.FeePreview'],
+  history: ['a.History'],
+  subBSRs: ['a.SubBSRs', 'a.SubBsrCategories'],
+  // Aliases: the UI key is not always the server column. The BuyBox cell renders
+  // from the `BuyBoxes` JSON, the SUB BSR cell reads `SubBSRs`, and the bullet
+  // count falls back to `BulletPointsText` — without these aliases those columns
+  // (BuyBox is visible by default!) would come back silently empty once the
+  // client starts sending `?columns=`.
+  currentBuybox: ['a.BuyBoxes'],
+  otherBuybox: ['a.BuyBoxes'],
+  subBsr: ['a.SubBSRs', 'a.SubBsrCategories'],
+  bulletPoints: ['a.BulletPointsText'],
+  qualityIssues: [
+    'a.TitleIssues', 'a.TitleRecommendations', 'a.TitleDetails',
+    'a.BulletIssues', 'a.BulletRecommendations', 'a.BulletDetails',
+    'a.ImageIssues', 'a.ImageRecommendations', 'a.ImageDetails',
+    'a.DescriptionIssues', 'a.DescriptionRecommendations', 'a.DescriptionDetails',
+  ],
+};
+
+/** Column list used when a client asks for a projection. */
+const ASIN_BASE_COLUMNS = [
+  'a.Id', 'a.AsinCode', 'a.Sku', 'a.Status', 'a.ScrapeStatus', 'a.Category', 'a.Brand',
+  'a.Title', 'a.ImageUrl', 'a.Tags', 'a.ParentAsin', 'a.ReleaseDate', 'a.Ads',
+  'a.CurrentPrice', 'a.Mrp', 'a.UploadedPrice', 'a.SecondAsp', 'a.AspDifference',
+  'a.DealBadge', 'a.PriceType', 'a.DiscountPercentage', 'a.Manufacturer',
+  'a.DealStartTime', 'a.DealEndTime', 'a.DealAccessType', 'a.DealPercentClaimed',
+  'a.BSR', 'a.BsrTrend', 'a.Rating', 'a.RatingTrend', 'a.ReviewCount',
+  'a.LQS', 'a.LQSGrade', 'a.Cdq', 'a.CdqGrade',
+  'a.TitleScore', 'a.TitleGrade', 'a.BulletScore', 'a.BulletGrade',
+  'a.ImageScore', 'a.ImageGrade', 'a.DescriptionScore', 'a.DescriptionGrade',
+  'a.SubBsr', 'a.SubBSRCategory', 'a.ImagesCount', 'a.VideoCount', 'a.BulletPoints',
+  'a.DescLength', 'a.HasAplus', 'a.AplusAbsentSince', 'a.AplusPresentSince',
+  'a.SoldBy', 'a.SoldBySec', 'a.StockLevel', 'a.AvailabilityStatus',
+  'a.LastScrapedAt', 'a.SellerId', 'a.SellerExternalId',
+];
+
+// Exposed for the projection tests (and for any future schema tooling).
+exports.ASIN_HEAVY_FIELDS = ASIN_HEAVY_FIELDS;
+
+const buildAsinProjection = (columnsParam) => {
+  if (!columnsParam) return null;
+  const requested = String(columnsParam).split(',').map((c) => c.trim()).filter(Boolean);
+  const extras = [];
+  for (const key of requested) {
+    const cols = ASIN_HEAVY_FIELDS[key];
+    if (!cols) continue;
+    for (const col of cols) if (!extras.includes(col)) extras.push(col);
+  }
+  return [...ASIN_BASE_COLUMNS, ...extras].join(', ');
+};
+exports.buildAsinProjection = buildAsinProjection;
+
 exports.getAsins = async (req, res) => {
   try {
     await executeWithRetry(async () => {
@@ -238,6 +394,24 @@ exports.getAsins = async (req, res) => {
 
     if (req.query.marketplace) {
       whereClause += ' AND s.Marketplace = @marketplace';
+    }
+
+    // Everything past this marker is a *filter*; above it is the caller's seller
+    // scope. The unfiltered scope count and the filtered count are then produced
+    // by a single aggregate instead of two full COUNT(*) scans (F5).
+    whereClause += ` ${FILTER_MARK}`;
+
+    // Incremental row patch (Step 3): after a socket event the table refreshes the
+    // rows that actually changed instead of re-querying/re-rendering the page.
+    // `ids` is a filter (it sits after the marker) so it can never widen the
+    // caller's seller scope — it only narrows it.
+    const patchIds = String(req.query.ids || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    if (patchIds.length > 0) {
+      whereClause += ` AND a.Id IN (${patchIds.map((_, i) => `@patchId${i}`).join(', ')})`;
     }
 
     // [1.5] Trend Filters
@@ -392,7 +566,25 @@ exports.getAsins = async (req, res) => {
       whereClause += ' AND (AsinCode LIKE @search OR Title LIKE @search OR Sku LIKE @search)';
     }
 
-    // [5] Count Total
+    // [4b] Data freshness — "stale" is the work queue the team actually acts on.
+    // The SLA is a clamped integer (1…90) so it is inlined rather than bound.
+    const slaDays = dataFreshnessService.normalizeSlaDays(req.query.slaDays);
+    if (req.query.freshness && ['fresh', 'stale', 'never'].includes(req.query.freshness)) {
+      if (req.query.freshness === 'fresh') {
+        whereClause += ` AND (a.LastScrapedAt IS NOT NULL AND a.LastScrapedAt >= DATEADD(day, -${slaDays}, dbo.GetEnvDate()))`;
+      } else if (req.query.freshness === 'never') {
+        whereClause += ' AND a.LastScrapedAt IS NULL';
+      } else {
+        whereClause += ` AND (a.LastScrapedAt IS NULL OR a.LastScrapedAt < DATEADD(day, -${slaDays}, dbo.GetEnvDate()))`;
+      }
+    }
+
+    // [5] Count Total (filtered) + scope total (unfiltered) — one statement.
+    // The previous shape ran two `COUNT(*)` queries, the second over the whole
+    // seller scope, on every page of every list request.
+    const [scopeClause, filterClause] = whereClause.split(FILTER_MARK);
+    const pageWhereClause = whereClause.split(FILTER_MARK).join(' ');
+
     const countRequest = applyInputs(pool.request());
     if (!isGlobalUser && allowedSellerIds.length > 0) {
       buildInClause(countRequest, 'allowedSeller', allowedSellerIds);
@@ -405,22 +597,19 @@ exports.getAsins = async (req, res) => {
     if (req.query.maxImageScore) countRequest.input('maxImageScore', sql.Float, parseFloat(req.query.maxImageScore));
     if (req.query.minDescriptionScore) countRequest.input('minDescriptionScore', sql.Float, parseFloat(req.query.minDescriptionScore));
     if (req.query.maxDescriptionScore) countRequest.input('maxDescriptionScore', sql.Float, parseFloat(req.query.maxDescriptionScore));
-    const countResult = await countRequest.query(`SELECT COUNT(*) as total FROM Asins a JOIN Sellers s ON a.SellerId = s.Id ${whereClause}`);
-    const total = countResult.recordset[0].total;
-
-    // [5b] Raw total count (no status filter) — accurate ASIN count matching seller stats
-    const rawCountRequest = pool.request();
-    let rawWhere = 'WHERE 1=1';
-    if (!isGlobalUser && allowedSellerIds.length > 0) {
-      const rawSellerClause = buildInClause(rawCountRequest, 'rawSeller', allowedSellerIds);
-      rawWhere += ` AND a.SellerId IN (${rawSellerClause})`;
-    }
-    if (seller) rawWhere += ' AND a.SellerId = @rawSeller';
-    if (req.query.marketplace) rawWhere += ' AND a.SellerId IN (SELECT Id FROM Sellers WHERE Marketplace = @rawMp)';
-    if (seller) rawCountRequest.input('rawSeller', sql.VarChar, seller);
-    if (req.query.marketplace) rawCountRequest.input('rawMp', sql.VarChar, req.query.marketplace);
-    const rawCountResult = await rawCountRequest.query(`SELECT COUNT(*) as total FROM Asins a ${rawWhere}`);
-    const rawTotal = rawCountResult.recordset[0].total;
+    const countResult = await countRequest.query(`
+      SELECT
+        COUNT(*) as scopeTotal,
+        ISNULL(SUM(CASE WHEN 1=1 ${filterClause.trim()} THEN 1 ELSE 0 END), 0) as total
+      FROM Asins a WITH (NOLOCK)
+      JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+      ${scopeClause}
+    `);
+    // `total` counts the filters actually applied; `scopeTotal` is the unfiltered
+    // count for the caller's scope (header copy / "all ASINs").
+    const countRow = countResult.recordset[0] || {};
+    const total = countRow.total || 0;
+    const rawTotal = countRow.scopeTotal || 0;
 
     // [6] Fetch ASINs
     // Map sortBy from frontend names to SQL ORDER BY clause
@@ -457,7 +646,11 @@ exports.getAsins = async (req, res) => {
         return `${col} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}`;
     };
     
+    // Heavy columns only when the matching UI column is visible
+    const projectedColumns = buildAsinProjection(req.query.columns);
+
     const dataRequest = applyInputs(pool.request());
+    patchIds.forEach((id, i) => dataRequest.input(`patchId${i}`, sql.NVarChar, id));
     if (!isGlobalUser && allowedSellerIds.length > 0) {
       buildInClause(dataRequest, 'allowedSeller', allowedSellerIds);
     }
@@ -473,11 +666,11 @@ exports.getAsins = async (req, res) => {
         .input('offset', sql.Int, offset)
         .input('limit', sql.Int, limitNum)
         .query(`
-            SELECT a.*, s.Name as sellerName, s.Marketplace as sellerMarketplace,
+            SELECT ${projectedColumns || 'a.*'}, s.Name as sellerName, s.Marketplace as sellerMarketplace,
                    (SELECT SUM(ISNULL(OrderedUnits, 0)) FROM GmsDailyPerformance WITH (NOLOCK) WHERE Asin = a.AsinCode) as TotalOrders
             FROM Asins a WITH (NOLOCK)
             JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
-            ${whereClause}
+            ${pageWhereClause}
             ORDER BY ${getOrderBy()}
             OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
         `);
@@ -486,7 +679,18 @@ exports.getAsins = async (req, res) => {
 
     if (asins.length === 0) {
       if (res.headersSent) return;
-      return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total: rawTotal, totalPages: Math.ceil(rawTotal / limitNum) } });
+      return res.json({
+        asins: [],
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          // `total` counts the filters actually applied; `scopeTotal` is the
+          // unfiltered count for the caller's scope (header copy / "all ASINs").
+          total,
+          scopeTotal: rawTotal,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
     }
 
     // [7] Fetch all history data IN PARALLEL to avoid sequential timeouts
@@ -494,72 +698,71 @@ exports.getAsins = async (req, res) => {
     const asinIdValues = asins.map(a => a.Id);
     const asinCodeValues = asins.map(a => a.AsinCode);
 
-    const histDailyReq = pool.request();
-    const histWeekReq = pool.request();
-    const histSubBsrReq = pool.request();
+    // Three history reads, one round trip (three result sets): the list endpoint
+    // used to issue ten statements, each with its own round-trip latency (F5).
+    const histReq = pool.request();
     const histOrdersReq = pool.request();
-    const histAsinIds = buildInClause(histDailyReq, 'histAsin', asinIdValues);
-    const histAsinIds2 = buildInClause(histWeekReq, 'histAsin', asinIdValues);
-    const histAsinIds3 = buildInClause(histSubBsrReq, 'histAsin', asinIdValues);
+    const histAsinIds = buildInClause(histReq, 'histAsin', asinIdValues);
     const histAsinCodes = buildInClause(histOrdersReq, 'histCode', asinCodeValues);
 
-    const [dailyHistoryResult, weekHistoryResult, subBsrHistoryResult, monthsResult, monthlyOrdersResult, monthlyGmsRevenueResult] = await Promise.all([
-      // [7.1] Daily History
-      histDailyReq.query(`
+    const [historyResult, availableMonths, monthlyResult] = await Promise.all([
+      histReq.query(`
+      -- [7.1] Daily History
+      
         SELECT AsinId, FORMAT(Date, 'yyyy-MM-dd') as dateStr, Price as price, BSR as bsr, 
                Rating as rating, ReviewCount as reviews, 
                StockLevel as stockLevel, LQS as lqs
         FROM AsinHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds}) 
+        WHERE AsinId IN (${histAsinIds})
         AND Date >= DATEADD(day, -${historyDays}, dbo.GetEnvDate())
-        ORDER BY Date ASC
-      `),
-      // [7.2] Week History
-      histWeekReq.query(`
-        SELECT AsinId, FORMAT(WeekStartDate, 'yyyy-MM-dd') as dateStr, WeekStartDate, AvgPrice as price, AvgBSR as bsr, AvgRating as rating, TotalReviews as reviews
+        ORDER BY Date ASC;
+
+      -- [7.2] Week History — bounded to the last 12 weeks: an unbounded read grew
+      -- with the table on every list request (F5), and the UI only shows a
+      -- handful of week badges.
+      
+        SELECT AsinId, FORMAT(WeekStartDate, 'yyyy-MM-dd') as dateStr, WeekStartDate,
+               ${asinHistoryService.isoWeekSql('WeekStartDate')} as isoWeek,
+               AvgPrice as price, AvgBSR as bsr, AvgRating as rating, TotalReviews as reviews
         FROM AsinWeekHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds2}) 
-        ORDER BY WeekStartDate ASC
-      `),
-      // [7.3] Sub BSR History
-      histSubBsrReq.query(`
+        WHERE AsinId IN (${histAsinIds})
+          AND WeekStartDate >= DATEADD(week, -12, dbo.GetEnvDate())
+        ORDER BY WeekStartDate ASC;
+
+      -- [7.3] Sub BSR History
+      
         SELECT AsinId, Date, SubBsrRank as rank, SubBsrCategory as category
         FROM SubBsrHistory WITH (NOLOCK)
-        WHERE AsinId IN (${histAsinIds3})
+        WHERE AsinId IN (${histAsinIds})
         AND Date >= DATEADD(day, -14, dbo.GetEnvDate())
         ORDER BY Date ASC, CreatedAt DESC
       `),
-      // [7.4] Available months (from GMS for orders)
-      pool.request().query(`
-        SELECT DISTINCT FORMAT(Date, 'yyyy-MM') as Month 
-        FROM GmsDailyPerformance WITH (NOLOCK)
-        WHERE Date IS NOT NULL
-        ORDER BY Month ASC
-      `),
-      // [7.5] Monthly orders (from GMS OrderedUnits)
+      // [7.4] Available months — cached (was a full DISTINCT scan per request, F5)
+      getAvailableMonths(pool),
+      // [7.5] Period aggregates — orders and revenue in a single pass
       histOrdersReq.query(`
-        SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedUnits, 0)) as Orders
+        SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month,
+               SUM(ISNULL(OrderedUnits, 0)) as Orders,
+               SUM(ISNULL(OrderedRevenue, 0)) as Revenue
         FROM GmsDailyPerformance WITH (NOLOCK)
         WHERE Asin IN (${histAsinCodes})
         AND Date IS NOT NULL
         GROUP BY Asin, FORMAT(Date, 'yyyy-MM')
-      `),
-      // [7.6] Monthly GMS revenue (from GmsDailyPerformance)
-      (() => {
-        const req = pool.request();
-        if (asinCodeValues.length > 0) {
-          const inClause = buildInClause(req, 'gmsRevAsin', asinCodeValues);
-          return req.query(`
-            SELECT Asin, FORMAT(Date, 'yyyy-MM') as Month, SUM(ISNULL(OrderedRevenue, 0)) as Revenue
-            FROM GmsDailyPerformance WITH (NOLOCK)
-            WHERE Asin IN (${inClause})
-            AND Date IS NOT NULL
-            GROUP BY Asin, FORMAT(Date, 'yyyy-MM')
-          `);
-        }
-        return { recordset: [] };
-      })()
+      `)
     ]);
+
+    // One request, three result sets — fall back to the first recordset for
+    // pools/drivers that only expose a single one (test harness).
+    const historySets = Array.isArray(historyResult.recordsets) && historyResult.recordsets.length > 0
+      ? historyResult.recordsets
+      : [historyResult.recordset || [], [], []];
+    const dailyHistoryResult = { recordset: historySets[0] || [] };
+    const weekHistoryResult = { recordset: historySets[1] || [] };
+    const subBsrHistoryResult = { recordset: historySets[2] || [] };
+    const monthlyOrdersResult = monthlyResult;
+    const monthlyGmsRevenueResult = monthlyResult;
+
+    // (slaDays was resolved with the WHERE clause above and is in scope here)
 
     // Process daily history
     const historyMap = {};
@@ -581,7 +784,7 @@ exports.getAsins = async (req, res) => {
     weekHistoryResult.recordset.forEach(h => {
       if (!weekHistoryMap[h.AsinId]) weekHistoryMap[h.AsinId] = [];
       weekHistoryMap[h.AsinId].push({
-        week: h.WeekStartDate ? `W${Math.ceil(new Date(h.WeekStartDate).getDate() / 7)}` : '',
+        week: h.isoWeek ? `W${h.isoWeek}` : '',
         date: h.dateStr || '',
         price: h.price || 0,
         bsr: h.bsr || 0,
@@ -602,28 +805,26 @@ exports.getAsins = async (req, res) => {
       });
     });
 
-    // Process months and monthly orders
-    const availableMonths = monthsResult.recordset.map(r => {
-      return r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-    });
-
+    // Process months, monthly orders and monthly GMS revenue (one result set)
     const monthlyOrdersMap = {};
-    monthlyOrdersResult.recordset.forEach(r => {
-      if (!monthlyOrdersMap[r.Asin]) monthlyOrdersMap[r.Asin] = {};
-      const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
-      monthlyOrdersMap[r.Asin][monthStr] = r.Orders;
-    });
-
-    // Process monthly GMS revenue
     const monthlyGmsRevenueMap = {};
-    monthlyGmsRevenueResult.recordset.forEach(r => {
-      if (!monthlyGmsRevenueMap[r.Asin]) monthlyGmsRevenueMap[r.Asin] = {};
+    monthlyResult.recordset.forEach(r => {
       const monthStr = r.Month instanceof Date ? r.Month.toISOString().split('T')[0] : r.Month;
+      if (!monthlyOrdersMap[r.Asin]) monthlyOrdersMap[r.Asin] = {};
+      if (!monthlyGmsRevenueMap[r.Asin]) monthlyGmsRevenueMap[r.Asin] = {};
+      monthlyOrdersMap[r.Asin][monthStr] = r.Orders;
       monthlyGmsRevenueMap[r.Asin][monthStr] = r.Revenue;
     });
 
     // [8] Process for frontend
     const processedAsins = asins.map(a => {
+        // Freshness is derived from LastScrapedAt, never stored (SLA in days)
+        const lastScrapedDate = a.LastScrapedAt ? new Date(a.LastScrapedAt) : null;
+        const freshnessDays = lastScrapedDate
+          ? Math.max(0, Math.floor((Date.now() - lastScrapedDate.getTime()) / 86400000))
+          : null;
+        const isStale = freshnessDays === null ? true : freshnessDays >= slaDays;
+
         // Build history and weekHistory
         const dailyHistory = (historyMap[a.Id] || []);
         const weekHistory = (weekHistoryMap[a.Id] || []);
@@ -869,6 +1070,8 @@ exports.getAsins = async (req, res) => {
             // Timestamps
             lastScraped: a.LastScrapedAt || null,
             lastScrapedAt: a.LastScrapedAt || null,
+            freshnessDays,
+            isStale,
             createdAt: a.CreatedAt,
             updatedAt: a.UpdatedAt,
             
@@ -884,30 +1087,26 @@ exports.getAsins = async (req, res) => {
         };
     });
 
-    const datesResult = await pool.request().query(`
-      SELECT DISTINCT TOP 7 Date 
-      FROM AsinHistory 
-      ORDER BY Date DESC
-    `);
-    const globalHistoryDates = datesResult.recordset.map(r => {
-      const d = r.Date;
-      if (!d) return null;
-      const yr = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, '0');
-      const da = String(d.getDate()).padStart(2, '0');
-      return `${yr}-${mo}-${da}`;
-    }).filter(Boolean).sort();
+    // History dates for the visible page, derived from the daily rows already in
+    // memory. This used to be `SELECT DISTINCT TOP 7 Date FROM AsinHistory` with
+    // no WHERE at all — a full scan of every seller's history on every list
+    // request that also leaked tenant-wide activity dates to scoped users (F5).
+    const globalHistoryDates = [...new Set(
+      dailyHistoryResult.recordset.map(r => r.dateStr).filter(Boolean)
+    )].sort().reverse().slice(0, 7).sort();
 
     if (res.headersSent) return;
     res.json({
       asins: processedAsins,
       months: availableMonths,
       globalHistoryDates,
+      projection: projectedColumns ? 'light' : 'full',
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: rawTotal,
-        totalPages: Math.ceil(rawTotal / limitNum),
+        total,
+        scopeTotal: rawTotal,
+        totalPages: Math.ceil(total / limitNum),
       },
     });
 
@@ -943,12 +1142,8 @@ exports.getAsin = async (req, res) => {
 
     const a = result.recordset[0];
 
-    // User Scope Check
-    const roleName = req.user?.role?.name || req.user?.role;
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(roleName);
-    const isAssigned = isGlobalUser || (req.user && req.user.assignedSellers.some(s => (s._id || s).toString() === a.SellerId));
-
-    if (!isAssigned) {
+    // User Scope Check — the fetched row's seller must be inside the caller's scope.
+    if (asinScope.scopeFor(req, a.SellerId).denied) {
       return res.status(403).json({ error: 'Unauthorized access to ASIN details' });
     }
 
@@ -1098,23 +1293,27 @@ exports.getAsinTrends = async (req, res) => {
     const { id } = req.params;
     const pool = await getPool();
 
-    // 1. Fetch ASIN
-    const asinResult = await pool.request()
-      .input('id', sql.VarChar, id)
-      .query('SELECT * FROM Asins WHERE Id = @id');
-
-    if (asinResult.recordset.length === 0) {
-      return res.status(404).json({ error: 'ASIN not found' });
-    }
-    const asin = asinResult.recordset[0];
+    // 1. Fetch ASIN — scoped: another seller's week history is not readable
+    const guard = await asinScope.loadAsinInScope(req, res, id, {
+      columns: 'Id, SellerId, AsinCode, CurrentPrice, BSR, Rating, ReviewCount, LQS',
+    });
+    if (!guard) return;
+    const asin = guard.asin;
 
     // 2. Fetch History
     const historyResult = await pool.request()
       .input('id', sql.VarChar, id)
-      .query('SELECT * FROM AsinWeekHistory WHERE AsinId = @id ORDER BY WeekStartDate ASC');
+      .query(`
+        SELECT WeekStartDate,
+               ${asinHistoryService.isoWeekSql('WeekStartDate')} as isoWeek,
+               AvgPrice, AvgBSR, AvgRating, TotalReviews, AvgLQS
+        FROM AsinWeekHistory WITH (NOLOCK)
+        WHERE AsinId = @id
+        ORDER BY WeekStartDate ASC
+      `);
 
     const weekHistory = historyResult.recordset.map(h => ({
-      week: h.WeekStartDate ? `W${Math.ceil(new Date(h.WeekStartDate).getDate() / 7)}` : '',
+      week: h.isoWeek ? `W${h.isoWeek}` : '',
       date: h.WeekStartDate,
       price: h.AvgPrice || 0,
       bsr: h.AvgBSR || 0,
@@ -1338,7 +1537,7 @@ exports.getAsinStats = async (req, res) => {
 async function updateSellerAsinCount(sellerId, io) {
   if (!sellerId) return;
   try {
-    clearAsinStatsCache();
+    clearAsinStatsCache(sellerId);
     const pool = await getPool();
     const statsResult = await pool.request()
       .input('sellerId', sql.VarChar, sellerId)
@@ -1498,7 +1697,7 @@ exports.updateAsin = async (req, res) => {
       }
     }
 
-    clearAsinStatsCache();
+    clearAsinStatsCache(existing.SellerId);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1562,6 +1761,184 @@ exports.bulkDeleteAsins = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Data freshness for the caller's scope — how much of the catalogue is fresh,
+ * stale or never scraped, per seller, plus the worst ASINs to repair first.
+ * GET /api/asins/freshness?seller=&slaDays=&limit=
+ */
+exports.getFreshness = async (req, res) => {
+  try {
+    const pool = await getPool();
+    const options = {
+      user: req.user,
+      sellerId: req.query.seller || req.query.sellerId,
+      slaDays: req.query.slaDays,
+    };
+
+    const report = await dataFreshnessService.getFreshnessReport(pool, options);
+    if (report.denied) return asinScope.forbidden(res);
+
+    const worstAsins = await dataFreshnessService.findStaleAsins(pool, {
+      ...options,
+      limit: req.query.limit || 25,
+    });
+
+    res.json({ success: true, ...report, worstAsins });
+  } catch (error) {
+    console.error('getFreshness Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * Facet counts for the workspace filter rail (Step 3).
+ *
+ * Returns how many ASINs sit behind each filter value — status, scrape status,
+ * freshness bucket, category, brand, seller and tag — for the caller's scope
+ * (plus optional marketplace/search narrowing). The UI uses these to show
+ * "Active (1,204)" instead of a blind checkbox, and to let a number be clicked
+ * straight into the filtered table.
+ *
+ * One round trip for the scalar facets; tags go in their own request because
+ * `OPENJSON` needs SQL Server 2016+ (compat level 130+) and a server that lacks
+ * it must not take the whole rail down. Cached briefly: facet counts are cheap
+ * to be slightly stale and expensive to recompute on every keystroke.
+ */
+const FACETS_CACHE_TTL_MS = 60 * 1000;
+const facetsCache = new Map();
+
+const buildFacetFilters = (request, scope, { marketplace, search }) => {
+  let clause = bindSellerFilter(request, scope, { alias: 'a', prefix: 'facetScope' });
+  if (marketplace) {
+    request.input('facetMarketplace', sql.NVarChar, marketplace);
+    clause += ' AND s.Marketplace = @facetMarketplace';
+  }
+  if (search) {
+    request.input('facetSearch', sql.NVarChar, `%${search}%`);
+    clause += ' AND (a.AsinCode LIKE @facetSearch OR a.Title LIKE @facetSearch OR a.Sku LIKE @facetSearch)';
+  }
+  return clause;
+};
+
+const facetRows = (result, index) => {
+  const sets = result.recordsets || [result.recordset || []];
+  return (sets[index] || []).map((r) => ({ value: r.value, count: Number(r.count) || 0 }));
+};
+
+exports.getAsinFacets = async (req, res) => {
+  try {
+    const seller = req.query.seller || req.query.sellerId;
+    const scope = asinScope.scopeFor(req, seller);
+    if (scope.denied) return asinScope.forbidden(res);
+
+    const marketplace = req.query.marketplace || null;
+    const search = (req.query.search || '').trim() || null;
+    const slaDays = dataFreshnessService.normalizeSlaDays(req.query.slaDays);
+
+    const empty = {
+      total: 0,
+      facets: { status: [], scrapeStatus: [], freshness: [], category: [], brand: [], seller: [], tags: [] },
+    };
+    if (scope.empty) return res.json({ success: true, ...empty, slaDays, cached: false });
+
+    const cacheKey = JSON.stringify({ ids: scope.unrestricted ? '*' : scope.sellerIds, marketplace, search, slaDays });
+    const cached = facetsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < FACETS_CACHE_TTL_MS) {
+      return res.json({ success: true, ...cached.data, slaDays, cached: true });
+    }
+
+    const pool = await getPool();
+    const request = pool.request();
+    const where = buildFacetFilters(request, scope, { marketplace, search });
+    request.input('facetSlaDays', sql.Int, slaDays);
+
+    const result = await request.query(`
+      SELECT COUNT(*) as value_count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where};
+
+      SELECT a.Status as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} GROUP BY a.Status ORDER BY count DESC;
+
+      SELECT a.ScrapeStatus as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} GROUP BY a.ScrapeStatus ORDER BY count DESC;
+
+      SELECT
+          CASE
+            WHEN a.LastScrapedAt IS NULL THEN 'never'
+            WHEN a.LastScrapedAt < DATEADD(day, -@facetSlaDays, dbo.GetEnvDate()) THEN 'stale'
+            ELSE 'fresh'
+          END as value,
+          COUNT(*) as count
+        FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where}
+        GROUP BY CASE
+            WHEN a.LastScrapedAt IS NULL THEN 'never'
+            WHEN a.LastScrapedAt < DATEADD(day, -@facetSlaDays, dbo.GetEnvDate()) THEN 'stale'
+            ELSE 'fresh'
+          END;
+
+      SELECT TOP 25 a.Category as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} AND a.Category IS NOT NULL AND a.Category <> ''
+        GROUP BY a.Category ORDER BY count DESC;
+
+      SELECT TOP 25 a.Brand as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} AND a.Brand IS NOT NULL AND a.Brand <> ''
+        GROUP BY a.Brand ORDER BY count DESC;
+
+      SELECT TOP 25 s.Name as value, COUNT(*) as count FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        WHERE 1=1${where} GROUP BY s.Name ORDER BY count DESC;
+    `);
+
+    const sets = result.recordsets || [result.recordset || []];
+    const data = {
+      total: (sets[0] && sets[0][0] && Number(sets[0][0].value_count)) || 0,
+      facets: {
+        status: facetRows(result, 1),
+        scrapeStatus: facetRows(result, 2),
+        freshness: facetRows(result, 3),
+        category: facetRows(result, 4),
+        brand: facetRows(result, 5),
+        seller: facetRows(result, 6),
+        tags: [],
+      },
+    };
+
+    // Tags live in a JSON column — OPENJSON needs SQL Server 2016+, so a failure
+    // here degrades to "no tag counts" rather than failing the whole rail.
+    try {
+      const tagRequest = pool.request();
+      const tagWhere = buildFacetFilters(tagRequest, scope, { marketplace, search });
+      const tagResult = await tagRequest.query(`
+        SELECT TOP 25 j.value as value, COUNT(*) as count
+        FROM Asins a WITH (NOLOCK)
+        JOIN Sellers s WITH (NOLOCK) ON a.SellerId = s.Id
+        CROSS APPLY OPENJSON(a.Tags) j
+        WHERE 1=1${tagWhere} AND a.Tags IS NOT NULL AND a.Tags <> '' AND a.Tags <> '[]'
+        GROUP BY j.value
+        ORDER BY count DESC
+      `);
+      data.facets.tags = tagResult.recordset.map((r) => ({ value: r.value, count: Number(r.count) || 0 }));
+    } catch (tagError) {
+      console.warn('Facet tag counts unavailable:', tagError.message);
+    }
+
+    facetsCache.set(cacheKey, { data, timestamp: Date.now() });
+    res.json({ success: true, ...data, slaDays, cached: false });
+  } catch (error) {
+    console.error('getAsinFacets Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.clearAsinFacetsCache = () => facetsCache.clear();
 
 /**
  * Search ASINs (SQL Version)
@@ -1763,6 +2140,16 @@ exports.getRepairJobStatus = async (req, res) => {
 exports.importFromCsv = async (req, res) => {
   try {
     const { sellerId } = req.body;
+    if (!sellerId) {
+      asinScope.cleanupUpload(req.file && req.file.path);
+      return res.status(400).json({ error: 'sellerId is required' });
+    }
+    // The seller arrives in the body, which the route middleware cannot see —
+    // without this, any importer could write rows into any seller.
+    if (!asinScope.requireSellerScope(req, res, sellerId)) {
+      asinScope.cleanupUpload(req.file && req.file.path);
+      return;
+    }
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     const workbook = XLSX.readFile(req.file.path);
@@ -1955,6 +2342,12 @@ exports.importFromCsv = async (req, res) => {
  */
 exports.bulkUploadAllSellers = async (req, res) => {
     try {
+        // Writes rows for every seller named in the file by design → global only
+        const scope = asinScope.scopeFor(req, null);
+        if (!scope.isGlobal) {
+            asinScope.cleanupUpload(req.file && req.file.path);
+            return asinScope.forbidden(res, 'Importing ASINs for all sellers requires global seller access.');
+        }
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
         const pool = await getPool();
@@ -2190,14 +2583,15 @@ exports.updateWeekHistory = async (req, res) => {
     const weekData = req.body;
     const pool = await getPool();
 
-    // Check ASIN existence
-    const asinResult = await pool.request().input('id', sql.VarChar, id).query('SELECT Id FROM Asins WHERE Id = @id');
-    if (asinResult.recordset.length === 0) return res.status(404).json({ error: 'ASIN not found' });
+    // Check ASIN existence inside the caller's seller scope
+    const guard = await asinScope.loadAsinInScope(req, res, id, { columns: 'Id, SellerId' });
+    if (!guard) return;
 
-    // In SQL, we upsert into AsinWeekHistory
     // weekData has { date, price, bsr, rating, reviews, lqs, ... }
+    // The bucket key is the ISO week start (Monday) computed in SQL — the old JS
+    // `setHours(0,0,0,0)` produced process-timezone-dependent, non-ISO buckets,
+    // and the UI labelled them by day-of-month (F13).
     const weekDate = new Date(weekData.date || new Date());
-    weekDate.setHours(0, 0, 0, 0);
 
     await pool.request()
       .input('asinId', sql.VarChar, id)
@@ -2208,16 +2602,18 @@ exports.updateWeekHistory = async (req, res) => {
       .input('reviews', sql.Int, weekData.reviews || 0)
       .input('lqs', sql.Decimal(5, 2), weekData.lqs || 0)
       .query(`
-        IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @date)
+        DECLARE @weekStart DATE = ${asinHistoryService.weekStartSql('@date')};
+
+        IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @weekStart)
         BEGIN
-          UPDATE AsinWeekHistory SET 
+          UPDATE AsinWeekHistory SET
             AvgPrice = @price, AvgBSR = @bsr, AvgRating = @rating, TotalReviews = @reviews, AvgLQS = @lqs
-          WHERE AsinId = @asinId AND WeekStartDate = @date
+          WHERE AsinId = @asinId AND WeekStartDate = @weekStart
         END
         ELSE
         BEGIN
           INSERT INTO AsinWeekHistory (AsinId, WeekStartDate, AvgPrice, AvgBSR, AvgRating, TotalReviews, AvgLQS)
-          VALUES (@asinId, @date, @price, @bsr, @rating, @reviews, @lqs)
+          VALUES (@asinId, @weekStart, @price, @bsr, @rating, @reviews, @lqs)
         END
       `);
 
@@ -2254,28 +2650,71 @@ exports.generateImages = async (req, res) => {
 };
 
 /**
- * Bulk Create ASINs (SQL Version)
+ * Bulk Create ASINs
+ *
+ * Callers nest the seller per item (`sellerId`, or `seller` as the older seller
+ * modals do); a top-level `sellerId` is still accepted as a batch default. The
+ * previous implementation read only the top level, so every nested seller became
+ * `NULL` (mssql coerces undefined → null) and the rows could not be attributed
+ * — docs/asin-manager-deep-dive.md → F4.
  */
 exports.createAsins = async (req, res) => {
   try {
-    const { asins, sellerId } = req.body;
-    if (!asins || !Array.isArray(asins)) return res.status(400).json({ error: 'ASINs array required' });
+    const body = req.body || {};
+    const { asins } = body;
+    if (!asins || !Array.isArray(asins) || asins.length === 0) {
+      return res.status(400).json({ error: 'ASINs array required' });
+    }
+
+    const batchSellerId = body.sellerId || body.seller || null;
+    const items = asins.map(a => ({
+      ...a,
+      sellerId: (a && (a.sellerId || a.seller)) || batchSellerId,
+      asinCode: a && (a.asinCode || a.asin) ? String(a.asinCode || a.asin).trim() : null,
+    }));
+
+    const invalid = items.filter(i => !i.sellerId || !i.asinCode);
+    if (invalid.length > 0) {
+      return res.status(400).json({
+        error: 'Each ASIN requires a sellerId and an asinCode',
+        invalidCount: invalid.length,
+      });
+    }
+
+    // Every seller in the batch must be inside the caller's scope
+    if (!asinScope.assertSellersInScope(req, res, items.map(i => i.sellerId))) return;
 
     const pool = await getPool();
+    const sellerIds = [...new Set(items.map(i => String(i.sellerId)))];
+
+    // Marketplace comes from the seller (the import path does the same)
+    const mpRequest = pool.request();
+    const mpIn = buildInClause(mpRequest, 'mpSeller', sellerIds);
+    const mpResult = await mpRequest.query(`SELECT Id, Marketplace FROM Sellers WHERE Id IN (${mpIn})`);
+    const marketplaceBySeller = new Map(mpResult.recordset.map(r => [String(r.Id), r.Marketplace || null]));
+
+    // Duplicates are counted, not thrown: one existing row must not fail the batch
+    const dupRequest = pool.request();
+    const dupIn = buildInClause(dupRequest, 'dupCode', items.map(i => i.asinCode.toUpperCase()));
+    const dupResult = await dupRequest.query(`
+      SELECT UPPER(AsinCode) as code, SellerId FROM Asins WHERE UPPER(AsinCode) IN (${dupIn})
+    `);
+    const existing = new Set(dupResult.recordset.map(r => `${r.SellerId}::${r.code}`));
+    const toInsert = items.filter(i => !existing.has(`${i.sellerId}::${i.asinCode.toUpperCase()}`));
+
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
-
     try {
-      for (const item of asins) {
-         const id = generateId();
+      for (const item of toInsert) {
         await transaction.request()
-          .input('id', sql.VarChar, id)
-          .input('asin', sql.VarChar, item.asinCode)
-          .input('sellerId', sql.VarChar, sellerId)
+          .input('id', sql.VarChar, generateId())
+          .input('asin', sql.VarChar, item.asinCode.toUpperCase())
+          .input('sellerId', sql.VarChar, item.sellerId)
           .input('sku', sql.NVarChar, item.sku || null)
+          .input('marketplace', sql.VarChar, marketplaceBySeller.get(String(item.sellerId)) || 'amazon.in')
           .query(`
-            INSERT INTO Asins (Id, AsinCode, SellerId, Sku, Status, ScrapeStatus, CreatedAt, UpdatedAt)
-            VALUES (@id, @asin, @sellerId, @sku, 'Active', 'PENDING', dbo.GetEnvDate(), dbo.GetEnvDate())
+            INSERT INTO Asins (Id, AsinCode, SellerId, Sku, Status, ScrapeStatus, Marketplace, CreatedAt, UpdatedAt)
+            VALUES (@id, @asin, @sellerId, @sku, 'Active', 'PENDING', @marketplace, dbo.GetEnvDate(), dbo.GetEnvDate())
           `);
       }
       await transaction.commit();
@@ -2284,9 +2723,24 @@ exports.createAsins = async (req, res) => {
       throw err;
     }
 
-    await updateSellerAsinCount(sellerId, req.app.get('io'));
-    res.json({ success: true, createdCount: asins.length });
+    // Same post-insert side effects as the single-ASIN create
+    const io = req.app.get('io');
+    for (const sellerId of sellerIds) {
+      await updateSellerAsinCount(sellerId, io);
+      if (marketDataSyncService.isConfigured()) {
+        marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { triggerScrape: true }).catch(console.error);
+      }
+    }
+
+    const insertedCount = toInsert.length;
+    res.status(201).json({
+      success: true,
+      insertedCount,
+      createdCount: insertedCount,                        // back-compat for older callers
+      duplicatesCount: items.length - insertedCount,
+    });
   } catch (error) {
+    console.error('createAsins Error:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -2310,6 +2764,12 @@ exports.bulkUpdateAsins = async (req, res) => {
       buildInClause(sellersReq, 'bulkId', ids);
       const sellersResult = await sellersReq.query(`SELECT DISTINCT SellerId FROM Asins WHERE Id IN (${idPlaceholders})`);
       const sellerIds = sellersResult.recordset.map(r => r.SellerId);
+
+      // Refuse the whole batch when any id belongs to a seller outside the scope
+      if (!asinScope.assertSellersInScope(req, res, sellerIds)) {
+        await transaction.rollback();
+        return;
+      }
 
       // Build SET clause
       const setParts = [];
@@ -2381,95 +2841,45 @@ exports.bulkUpdateAsins = async (req, res) => {
 /**
  * Recalculate LQS for selected ASINs or all ASINs in scope
  */
+/**
+ * Recalculate LQS for selected ASINs or all ASINs in scope
+ *
+ * Delegates to listingQualityService — the analyzer-weighted score (title 30 /
+ * bullets 25 / images 25 / description 20) that the live sync writes — instead of
+ * recomputing from columns the SELECT never fetched and then zeroing the
+ * component scores (docs/asin-manager-deep-dive.md → F7/F8).
+ */
 exports.recalculateLqs = async (req, res) => {
     try {
-        const { ids } = req.body;
+        const { ids } = req.body || {};
         const pool = await getPool();
-        
-        let query = `
-            SELECT Id, Title, BulletPoints, ImagesUrls, HasAplus, Category, SellerId
-            FROM Asins
-        `;
-        
-        const request = pool.request();
-        
+        let targetIds = [];
+
         if (ids && Array.isArray(ids) && ids.length > 0) {
-            const idList = ids.map((id, i) => {
-                request.input(`id${i}`, sql.VarChar, id);
-                return `@id${i}`;
-            }).join(',');
-            query += ` WHERE Id IN (${idList})`;
+            // Explicit selection → the caller must own every ASIN in it
+            if (!(await asinScope.assertAsinsInScope(req, res, ids))) return;
+            targetIds = ids;
         } else {
-            // If no IDs provided, recalculate for all ASINs within user's scope
-            const roleName = req.user?.role?.name || req.user?.role;
-            const isGlobalUser = isGlobalUserRole(roleName);
-            
-            if (!isGlobalUser) {
-                const allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
-                if (allowedSellerIds.length === 0) {
-                    return res.json({ success: true, processedCount: 0 });
-                }
-                const sellerInClause = buildInClause(request, 'allowedSeller', allowedSellerIds);
-                query += ` WHERE SellerId IN (${sellerInClause})`;
-            }
+            // No ids → everything inside the caller's seller scope
+            const scope = asinScope.scopeFor(req, null);
+            if (scope.empty) return asinScope.forbidden(res);
+
+            const request = pool.request();
+            const sellerClause = bindSellerFilter(request, scope, { alias: 'a', prefix: 'lqsScope' });
+            const result = await request.query(`SELECT a.Id FROM Asins a WHERE 1 = 1${sellerClause}`);
+            targetIds = result.recordset.map(r => r.Id);
         }
-        
-        const result = await request.query(query);
-        const asins = result.recordset;
-        
+
         let successCount = 0;
-        
-        // Process in small chunks to avoid long transactions
-        for (const asin of asins) {
+        for (const asinId of targetIds) {
             try {
-                const bulletPoints = tryParse(asin.BulletPoints, []);
-                const imageUrls = tryParse(asin.ImagesUrls, []);
-                
-                // CDQ system disabled per user request, using standard LQS instead
-                const score = LQS.calculateLQS({
-                    titleLength: asin.Title?.length || 0,
-                    hasAplus: !!asin.HasAplus,
-                    bulletCount: bulletPoints.length,
-                    imageCount: imageUrls.length,
-                    descriptionLength: 0,
-                    hasEbc: false,
-                    price: asin.CurrentPrice || 0,
-                    rating: asin.Rating || 0,
-                    reviews: asin.ReviewCount || 0
-                });
-                
-                const grade = LQS.getGrade(score);
-                const issues = []; // Or populate from a standard issues generator if needed
-                
-                await pool.request()
-                    .input('id', sql.VarChar, asin.Id)
-                    .input('lqsScore', sql.Decimal(5, 2), score)
-                    .input('lqsGrade', sql.NVarChar(5), grade)
-                    .input('lqsIssues', sql.NVarChar(sql.MAX), JSON.stringify(issues))
-                    .input('titleScore', sql.Decimal(5, 2), 0)
-                    .input('bulletScore', sql.Decimal(5, 2), 0)
-                    .input('imageScore', sql.Decimal(5, 2), 0)
-                    .input('descriptionScore', sql.Decimal(5, 2), 0)
-                    .query(`
-                        UPDATE Asins 
-                        SET LQS = @lqsScore,
-                            LqsScore = @lqsScore, 
-                            LQSGrade = @lqsGrade,
-                            LqsIssues = @lqsIssues,
-                            TitleScore = @titleScore,
-                            BulletScore = @bulletScore,
-                            ImageScore = @imageScore,
-                            DescriptionScore = @descriptionScore,
-                            UpdatedAt = dbo.GetEnvDate()
-                        WHERE Id = @id
-                    `);
-                
-                successCount++;
+                const scored = await listingQualityService.analyzeAndSaveFull(asinId);
+                if (scored) successCount++;
             } catch (err) {
-                console.error(`Error recalculating LQS for ${asin.Id}:`, err.message);
+                console.error(`Error recalculating LQS for ${asinId}:`, err.message);
             }
         }
-        
+
         res.json({ success: true, processedCount: successCount });
     } catch (error) {
         console.error('Recalculate LQS Error:', error);
@@ -2485,6 +2895,9 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
     const { updates } = req.body; // Array of { asinId, weekData }
     if (!updates || !Array.isArray(updates)) return res.status(400).json({ error: 'Updates array required' });
 
+    // Every targeted ASIN must be inside the caller's seller scope
+    if (!(await asinScope.assertAsinsInScope(req, res, updates.map(u => u && u.asinId)))) return;
+
     const pool = await getPool();
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -2493,7 +2906,6 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
       for (const update of updates) {
         const { asinId, weekData } = update;
         const weekDate = new Date(weekData.date || new Date());
-        weekDate.setHours(0, 0, 0, 0);
 
         await transaction.request()
           .input('asinId', sql.VarChar, asinId)
@@ -2504,16 +2916,18 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
           .input('reviews', sql.Int, weekData.reviews || 0)
           .input('lqs', sql.Decimal(5, 2), weekData.lqs || 0)
           .query(`
-            IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @date)
+            DECLARE @weekStart DATE = ${asinHistoryService.weekStartSql('@date')};
+
+            IF EXISTS (SELECT 1 FROM AsinWeekHistory WHERE AsinId = @asinId AND WeekStartDate = @weekStart)
             BEGIN
-              UPDATE AsinWeekHistory SET 
+              UPDATE AsinWeekHistory SET
                 AvgPrice = @price, AvgBSR = @bsr, AvgRating = @rating, TotalReviews = @reviews, AvgLQS = @lqs
-              WHERE AsinId = @asinId AND WeekStartDate = @date
+              WHERE AsinId = @asinId AND WeekStartDate = @weekStart
             END
             ELSE
             BEGIN
               INSERT INTO AsinWeekHistory (AsinId, WeekStartDate, AvgPrice, AvgBSR, AvgRating, TotalReviews, AvgLQS)
-              VALUES (@asinId, @date, @price, @bsr, @rating, @reviews, @lqs)
+              VALUES (@asinId, @weekStart, @price, @bsr, @rating, @reviews, @lqs)
             END
           `);
       }
@@ -2544,6 +2958,7 @@ exports.uploadRawAsins = async (req, res) => {
         if (!sellerId) {
             return res.status(400).json({ error: 'sellerId is required' });
         }
+        if (!asinScope.requireSellerScope(req, res, sellerId)) return;
 
         if (!Array.isArray(rawDataArray) || rawDataArray.length === 0) {
             return res.status(400).json({ error: 'data array with raw scraped entries is required' });
@@ -2593,54 +3008,6 @@ exports.testParseRaw = async (req, res) => {
         const parsed = AsinDataParser.transformToAsinRow(rawData, 'test-seller-id');
         res.json({ success: true, parsed });
     } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-/**
- * Simple text upload endpoint for raw Octoparse data
- * POST /api/asins/upload-raw-text
- * Body: { sellerId: string, entries: [string, string...] }
- */
-exports.uploadRawText = async (req, res) => {
-    try {
-        const { sellerId, entries } = req.body;
-        const userId = req.user.Id || req.user._id;
-
-        if (!sellerId) {
-            return res.status(400).json({ error: 'sellerId is required' });
-        }
-
-        if (!Array.isArray(entries) || entries.length === 0) {
-            return res.status(400).json({ error: 'entries array with raw text data is required' });
-        }
-
-        const AsinDataParser = require('../services/asinDataParser');
-        const results = await AsinDataParser.bulkUpsertAsins(entries, sellerId);
-        const successCount = results.filter(r => r.success).length;
-        const errorCount = results.filter(r => !r.success).length;
-
-        // Update seller's scrape stats
-        const pool = await getPool();
-        await pool.request()
-            .input('sellerId', sql.VarChar, sellerId)
-            .input('count', sql.Int, successCount)
-            .query(`
-                UPDATE Sellers
-                SET ScrapeUsed = ScrapeUsed + @count,
-                    LastScrapedAt = dbo.GetEnvDate(),
-                    UpdatedAt = dbo.GetEnvDate()
-                WHERE Id = @sellerId
-            `);
-
-        res.json({
-            success: true,
-            message: `Processed ${entries.length} entries`,
-            stats: { total: entries.length, success: successCount, failed: errorCount },
-            results: results.slice(0, 10)
-        });
-    } catch (error) {
-        console.error('Upload raw ASINs error:', error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -2971,231 +3338,6 @@ exports.exportData = async (req, res) => {
 
 module.exports = exports;
 
-// ─────────────────────────────────────────────
-// TAGS HANDLERS
-// ─────────────────────────────────────────────
-
-/**
- * PUT /api/asins/:id/tags
- * Update tags for a single ASIN
- */
-exports.updateAsinTags = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { tags } = req.body;
-
-    if (!Array.isArray(tags)) {
-      return res.status(400).json({ success: false, error: 'tags must be an array' });
-    }
-
-    const pool = await getPool();
-    const tagsJson = JSON.stringify(tags);
-
-    await pool.request()
-      .input('id', sql.VarChar, id)
-      .input('tags', sql.NVarChar, tagsJson)
-      .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
-
-    res.json({ success: true, data: { id, tags } });
-  } catch (error) {
-    console.error('[Tags] updateAsinTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * GET /api/asins/tags
- * Return the list of all distinct tags in use across ASINs
- */
-exports.getAllTags = async (req, res) => {
-  try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .query("SELECT Tags FROM Asins WHERE Tags IS NOT NULL AND Tags != '[]' AND Tags != ''");
-
-    const tagSet = new Set();
-    for (const row of result.recordset) {
-      try {
-        const parsed = JSON.parse(row.Tags);
-        if (Array.isArray(parsed)) parsed.forEach(t => tagSet.add(t));
-      } catch (_) {}
-    }
-
-    res.json({ success: true, data: Array.from(tagSet).sort() });
-  } catch (error) {
-    console.error('[Tags] getAllTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * GET /api/asins/tags/template
- * Download an Excel template pre-filled with all ASINs for bulk tag editing
- */
-exports.downloadTagsTemplate = async (req, res) => {
-  try {
-    const pool = await getPool();
-    const { sellerId } = req.query;
-
-    let query = `
-      SELECT a.Id, a.AsinCode, a.ParentAsin, a.Title, a.Tags,
-             s.Name as SellerName
-      FROM Asins a
-      LEFT JOIN Sellers s ON a.SellerId = s.Id
-      WHERE 1=1
-    `;
-    const request = pool.request();
-    if (sellerId) {
-      query += ' AND a.SellerId = @sellerId';
-      request.input('sellerId', sql.VarChar, sellerId);
-    }
-    query += ' ORDER BY s.Name, a.AsinCode';
-
-    const result = await request.query(query);
-
-    const templateData = result.recordset.map(row => {
-      let tags = '';
-      try { tags = JSON.parse(row.Tags || '[]').join(', '); } catch (_) {}
-      return {
-        'Parent ASIN': row.ParentAsin || '',
-        'Child ASIN': row.AsinCode || '',
-        'Seller Name': row.SellerName || '',
-        'Tags': tags,
-        'Title': row.Title || '',
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    ws['!cols'] = [
-      { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 50 }, { wch: 60 }
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Tags Template');
-
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    const now = new Date();
-    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-    const fileName = `tags_template_${istTime.toISOString().split('T')[0]}.xlsx`;
-
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buffer);
-  } catch (error) {
-    console.error('[Tags] downloadTagsTemplate error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * POST /api/asins/tags/bulk
- * Upload an Excel file and update tags for all matched ASINs
- */
-exports.bulkUploadTags = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
-    }
-
-    const wb = XLSX.readFile(req.file.path);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws);
-
-    fs.unlinkSync(req.file.path); // clean up
-
-    if (!rows.length) {
-      return res.status(400).json({ success: false, error: 'File is empty' });
-    }
-
-    const pool = await getPool();
-    let updated = 0;
-    const errors = [];
-
-    for (const row of rows) {
-      const asinCode = (row['Child ASIN'] || row['ASIN'] || '').trim().toUpperCase();
-      const rawTags = (row['Tags'] || '').trim();
-      if (!asinCode) continue;
-
-      const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
-      const tagsJson = JSON.stringify(tags);
-
-      try {
-        const result = await pool.request()
-          .input('asinCode', sql.NVarChar, asinCode)
-          .input('tags', sql.NVarChar, tagsJson)
-          .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE AsinCode = @asinCode');
-        if (result.rowsAffected[0] > 0) updated++;
-      } catch (err) {
-        errors.push({ asin: asinCode, error: err.message });
-      }
-    }
-
-    res.json({ success: true, updated, total: rows.length, errors });
-  } catch (error) {
-    console.error('[Tags] bulkUploadTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * PUT /api/asins/:id/tags
- * Update tags for a specific ASIN
- */
-exports.updateTags = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { tags } = req.body; // Expects array of strings
-    
-    if (!Array.isArray(tags)) {
-      return res.status(400).json({ success: false, error: 'Tags must be an array' });
-    }
-
-    const pool = await getPool();
-    const tagsJson = JSON.stringify(tags);
-
-    const result = await pool.request()
-      .input('id', sql.VarChar, id)
-      .input('tags', sql.NVarChar, tagsJson)
-      .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
-
-    if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({ success: false, error: 'ASIN not found' });
-    }
-
-    res.json({ success: true, message: 'Tags updated' });
-  } catch (error) {
-    console.error('[Tags] updateTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * GET /api/asins/tags
- * Get all unique tags across all ASINs
- */
-exports.getTags = async (req, res) => {
-  try {
-    const pool = await getPool();
-    const result = await pool.request().query('SELECT Tags FROM Asins WHERE Tags IS NOT NULL');
-    
-    const allTags = new Set();
-    result.recordset.forEach(row => {
-      try {
-        const tags = JSON.parse(row.Tags || '[]');
-        if (Array.isArray(tags)) {
-          tags.forEach(t => allTags.add(t));
-        }
-      } catch (e) {
-        // skip invalid json
-      }
-    });
-
-    res.json({ success: true, data: Array.from(allTags).sort() });
-  } catch (error) {
-    console.error('[Tags] getTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
 /**
  * Get Sub BSR trend data for an ASIN
  * GET /api/asins/:id/subbsr-trend
@@ -3206,16 +3348,10 @@ exports.getSubBsrTrend = async (req, res) => {
     const { days = 30 } = req.query;
     const pool = await getPool();
 
-    // Verify ASIN exists
-    const asinResult = await pool.request()
-      .input('id', sql.VarChar, id)
-      .query('SELECT Id, AsinCode, SubBSRs FROM Asins WHERE Id = @id');
-
-    if (asinResult.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'ASIN not found' });
-    }
-
-    const asin = asinResult.recordset[0];
+    // Verify ASIN exists inside the caller's seller scope
+    const guard = await asinScope.loadAsinInScope(req, res, id, { columns: 'Id, AsinCode, SubBSRs, SellerId' });
+    if (!guard) return;
+    const asin = guard.asin;
 
     // Get Sub BSR history for the last N days
     const historyResult = await pool.request()
@@ -3295,6 +3431,7 @@ exports.matchAsins = async (req, res) => {
     if (!sellerId || !asinCodes || !Array.isArray(asinCodes)) {
       return res.status(400).json({ success: false, error: 'sellerId and asinCodes array are required' });
     }
+    if (!asinScope.requireSellerScope(req, res, sellerId)) return;
     
     if (asinCodes.length === 0) {
       return res.json({ success: true, matchedIds: [] });
@@ -3332,13 +3469,15 @@ exports.fullExport = async (req, res) => {
     const { sellerId, status, limit: limitParam } = req.query;
     const limit = Math.min(parseInt(limitParam) || 0, 200000);
 
-    let whereClause = 'WHERE a.AsinCode IS NOT NULL';
-    const request = pool.request();
+    // Scoped like every other read: a scoped user exports their assigned
+    // sellers, a global user may narrow to one, and naming a foreign seller is
+    // a 403 rather than a whole-catalogue workbook.
+    const scope = asinScope.scopeFor(req, sellerId);
+    if (scope.denied || scope.empty) return asinScope.forbidden(res);
 
-    if (sellerId) {
-      request.input('sellerId', sql.VarChar, sellerId);
-      whereClause += ' AND a.SellerId = @sellerId';
-    }
+    const request = pool.request();
+    let whereClause = 'WHERE a.AsinCode IS NOT NULL'
+      + bindSellerFilter(request, scope, { alias: 'a', prefix: 'exportScope' });
     if (status) {
       request.input('status', sql.NVarChar, status);
       whereClause += ' AND a.Status = @status';
@@ -3663,9 +3802,14 @@ exports.getParentChildren = async (req, res) => {
     const pool = await getPool();
     const { parentAsin } = req.params;
 
-    const result = await pool.request()
-      .input('parentAsin', sql.NVarChar, parentAsin)
-      .query(`
+    // Children of another seller's parent ASIN are not readable
+    const scope = asinScope.scopeFor(req, null);
+    if (scope.empty) return asinScope.forbidden(res);
+
+    const request = pool.request().input('parentAsin', sql.NVarChar, parentAsin);
+    const sellerClause = bindSellerFilter(request, scope, { alias: 'a', prefix: 'parentScope' });
+
+    const result = await request.query(`
         SELECT
           a.Id, a.AsinCode, a.Title, a.CurrentPrice, a.Mrp, a.BSR,
           a.Rating, a.ReviewCount, a.LQS, a.Status, a.Sku,
@@ -3674,7 +3818,7 @@ exports.getParentChildren = async (req, res) => {
           s.Name as sellerName
         FROM Asins a
         LEFT JOIN Sellers s ON a.SellerId = s.Id
-        WHERE a.ParentAsin = @parentAsin
+        WHERE a.ParentAsin = @parentAsin ${sellerClause}
         ORDER BY a.CurrentPrice ASC
       `);
 

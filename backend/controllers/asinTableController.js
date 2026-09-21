@@ -1,4 +1,5 @@
 const asinTableService = require('../services/asinTableService');
+const asinScope = require('../utils/asinScope');
 
 /**
  * ASIN Table Controller - Unified Integration Layer
@@ -18,9 +19,14 @@ class AsinTableController {
         sortBy = 'CreatedAt', sortOrder = 'DESC'
       } = req.query;
 
-      // 1. Delegate to service for orchestration
+      // 1. Resolve the caller's seller scope — this endpoint used to answer for
+      //    every seller in the database (docs/asin-manager-deep-dive.md → F1)
+      const scope = asinScope.scopeFor(req, sellerId);
+      if (scope.denied || scope.empty) return asinScope.forbidden(res);
+
+      // 2. Delegate to service for orchestration
       const result = await asinTableService.getAsinTableData({
-        sellerId,
+        scope,
         search,
         category,
         page,
