@@ -69,11 +69,10 @@ module.exports = {
     requestTimeout: 120000,
     connectionTimeout: 60000
   } : null,
-  jwt: {
+jwt: {
     secret: process.env.JWT_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
-    expiresIn: '2h',
-    refreshExpiresIn: '7d'
+    expiresIn: '12h',
   },
   redis: {
     url: process.env.REDIS_URL || 'redis://localhost:6379'

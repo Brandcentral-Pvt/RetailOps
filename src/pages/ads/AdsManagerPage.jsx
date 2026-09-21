@@ -243,6 +243,11 @@ const AdsManagerPage = () => {
         updateDateRange({ startDate: start, endDate: end, rangeType: `last${days}` });
     };
 
+    const openCustomPicker = () => {
+        updateDateRange({ startDate, endDate, rangeType: 'custom' });
+        openPicker();
+    };
+
     if (loading && !data) return <AdsSkeleton />;
 
     return (
@@ -343,7 +348,7 @@ const AdsManagerPage = () => {
                             {days}D
                         </button>
                     ))}
-                    <button type="button" className={`ads-preset ${rangeType === 'custom' ? 'ads-preset--on' : ''}`} onClick={openPicker}>
+                    <button type="button" className={`ads-preset ${rangeType === 'custom' ? 'ads-preset--on' : ''}`} onClick={openCustomPicker}>
                         Custom
                     </button>
                 </span>
