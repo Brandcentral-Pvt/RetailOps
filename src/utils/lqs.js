@@ -1,4 +1,14 @@
 /**
+ * DEPRECATED — display-only heuristic, kept so existing screens keep rendering.
+ *
+ * The canonical score is the analyzer-weighted one produced by the backend
+ * (`backend/services/listingQualityService.js`: title 30 / bullets 25 / images 25
+ * / description 20) and stored on `Asins.LQS` + the component score columns.
+ * This subtractive heuristic answers a different question from different inputs,
+ * which is why the same ASIN could show two different numbers
+ * (docs/asin-manager-deep-dive.md → F7). New code must read the server value;
+ * this file is scheduled for removal in the LQS step of docs/asin-manager-upgrade.md.
+ *
  * Calculate LQS (Listing Quality Score) for an ASIN
  * @param {Object} asin
  * @returns {number} Score between 0 and 100

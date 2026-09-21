@@ -116,10 +116,10 @@ const AsinManagerPage = (props) => {
   useEffect(() => {
     setPageMeta({
       title: 'ASIN Manager',
-      subtitle: `Managing ${pagination.total} ASINs`,
+      subtitle: `Managing ${pagination.scopeTotal ?? pagination.total} ASINs`,
       breadcrumbs: [{ label: 'Workspace' }, { label: 'ASIN Manager' }],
     });
-  }, [setPageMeta, pagination.total]);
+  }, [setPageMeta, pagination.total, pagination.scopeTotal]);
   const [scrapeProgress, setScrapeProgress] = useState(null);
   const socket = useSocket();
   const [selectedAsin, setSelectedAsin] = useState(null);

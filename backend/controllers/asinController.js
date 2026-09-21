@@ -7,7 +7,9 @@ const imageGenerationService = require('../services/imageGenerationService');
 const XLSX = require('xlsx');
 const fs = require('fs');
 const AsinDataParser = require('../services/asinDataParser');
-const LQS = require('../utils/lqs');
+const listingQualityService = require('../services/listingQualityService');
+const { bindSellerFilter } = require('../utils/sellerScope');
+const asinScope = require('../utils/asinScope');
 const SystemLogService = require('../services/SystemLogService');
 
 // Lightweight short-lived in-memory cache for ASIN stats to protect database CPU
@@ -486,7 +488,18 @@ exports.getAsins = async (req, res) => {
 
     if (asins.length === 0) {
       if (res.headersSent) return;
-      return res.json({ asins: [], pagination: { page: pageNum, limit: limitNum, total: rawTotal, totalPages: Math.ceil(rawTotal / limitNum) } });
+      return res.json({
+        asins: [],
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          // `total` counts the filters actually applied; `scopeTotal` is the
+          // unfiltered count for the caller's scope (header copy / "all ASINs").
+          total,
+          scopeTotal: rawTotal,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      });
     }
 
     // [7] Fetch all history data IN PARALLEL to avoid sequential timeouts
@@ -906,8 +919,9 @@ exports.getAsins = async (req, res) => {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: rawTotal,
-        totalPages: Math.ceil(rawTotal / limitNum),
+        total,
+        scopeTotal: rawTotal,
+        totalPages: Math.ceil(total / limitNum),
       },
     });
 
@@ -943,12 +957,8 @@ exports.getAsin = async (req, res) => {
 
     const a = result.recordset[0];
 
-    // User Scope Check
-    const roleName = req.user?.role?.name || req.user?.role;
-    const isGlobalUser = ['admin', 'super_admin', 'developer', 'operational_manager'].includes(roleName);
-    const isAssigned = isGlobalUser || (req.user && req.user.assignedSellers.some(s => (s._id || s).toString() === a.SellerId));
-
-    if (!isAssigned) {
+    // User Scope Check — the fetched row's seller must be inside the caller's scope.
+    if (asinScope.scopeFor(req, a.SellerId).denied) {
       return res.status(403).json({ error: 'Unauthorized access to ASIN details' });
     }
 
@@ -1098,15 +1108,12 @@ exports.getAsinTrends = async (req, res) => {
     const { id } = req.params;
     const pool = await getPool();
 
-    // 1. Fetch ASIN
-    const asinResult = await pool.request()
-      .input('id', sql.VarChar, id)
-      .query('SELECT * FROM Asins WHERE Id = @id');
-
-    if (asinResult.recordset.length === 0) {
-      return res.status(404).json({ error: 'ASIN not found' });
-    }
-    const asin = asinResult.recordset[0];
+    // 1. Fetch ASIN — scoped: another seller's week history is not readable
+    const guard = await asinScope.loadAsinInScope(req, res, id, {
+      columns: 'Id, SellerId, AsinCode, CurrentPrice, BSR, Rating, ReviewCount, LQS',
+    });
+    if (!guard) return;
+    const asin = guard.asin;
 
     // 2. Fetch History
     const historyResult = await pool.request()
@@ -1763,6 +1770,16 @@ exports.getRepairJobStatus = async (req, res) => {
 exports.importFromCsv = async (req, res) => {
   try {
     const { sellerId } = req.body;
+    if (!sellerId) {
+      asinScope.cleanupUpload(req.file && req.file.path);
+      return res.status(400).json({ error: 'sellerId is required' });
+    }
+    // The seller arrives in the body, which the route middleware cannot see —
+    // without this, any importer could write rows into any seller.
+    if (!asinScope.requireSellerScope(req, res, sellerId)) {
+      asinScope.cleanupUpload(req.file && req.file.path);
+      return;
+    }
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     const workbook = XLSX.readFile(req.file.path);
@@ -1955,6 +1972,12 @@ exports.importFromCsv = async (req, res) => {
  */
 exports.bulkUploadAllSellers = async (req, res) => {
     try {
+        // Writes rows for every seller named in the file by design → global only
+        const scope = asinScope.scopeFor(req, null);
+        if (!scope.isGlobal) {
+            asinScope.cleanupUpload(req.file && req.file.path);
+            return asinScope.forbidden(res, 'Importing ASINs for all sellers requires global seller access.');
+        }
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
         const pool = await getPool();
@@ -2190,9 +2213,9 @@ exports.updateWeekHistory = async (req, res) => {
     const weekData = req.body;
     const pool = await getPool();
 
-    // Check ASIN existence
-    const asinResult = await pool.request().input('id', sql.VarChar, id).query('SELECT Id FROM Asins WHERE Id = @id');
-    if (asinResult.recordset.length === 0) return res.status(404).json({ error: 'ASIN not found' });
+    // Check ASIN existence inside the caller's seller scope
+    const guard = await asinScope.loadAsinInScope(req, res, id, { columns: 'Id, SellerId' });
+    if (!guard) return;
 
     // In SQL, we upsert into AsinWeekHistory
     // weekData has { date, price, bsr, rating, reviews, lqs, ... }
@@ -2254,28 +2277,71 @@ exports.generateImages = async (req, res) => {
 };
 
 /**
- * Bulk Create ASINs (SQL Version)
+ * Bulk Create ASINs
+ *
+ * Callers nest the seller per item (`sellerId`, or `seller` as the older seller
+ * modals do); a top-level `sellerId` is still accepted as a batch default. The
+ * previous implementation read only the top level, so every nested seller became
+ * `NULL` (mssql coerces undefined → null) and the rows could not be attributed
+ * — docs/asin-manager-deep-dive.md → F4.
  */
 exports.createAsins = async (req, res) => {
   try {
-    const { asins, sellerId } = req.body;
-    if (!asins || !Array.isArray(asins)) return res.status(400).json({ error: 'ASINs array required' });
+    const body = req.body || {};
+    const { asins } = body;
+    if (!asins || !Array.isArray(asins) || asins.length === 0) {
+      return res.status(400).json({ error: 'ASINs array required' });
+    }
+
+    const batchSellerId = body.sellerId || body.seller || null;
+    const items = asins.map(a => ({
+      ...a,
+      sellerId: (a && (a.sellerId || a.seller)) || batchSellerId,
+      asinCode: a && (a.asinCode || a.asin) ? String(a.asinCode || a.asin).trim() : null,
+    }));
+
+    const invalid = items.filter(i => !i.sellerId || !i.asinCode);
+    if (invalid.length > 0) {
+      return res.status(400).json({
+        error: 'Each ASIN requires a sellerId and an asinCode',
+        invalidCount: invalid.length,
+      });
+    }
+
+    // Every seller in the batch must be inside the caller's scope
+    if (!asinScope.assertSellersInScope(req, res, items.map(i => i.sellerId))) return;
 
     const pool = await getPool();
+    const sellerIds = [...new Set(items.map(i => String(i.sellerId)))];
+
+    // Marketplace comes from the seller (the import path does the same)
+    const mpRequest = pool.request();
+    const mpIn = buildInClause(mpRequest, 'mpSeller', sellerIds);
+    const mpResult = await mpRequest.query(`SELECT Id, Marketplace FROM Sellers WHERE Id IN (${mpIn})`);
+    const marketplaceBySeller = new Map(mpResult.recordset.map(r => [String(r.Id), r.Marketplace || null]));
+
+    // Duplicates are counted, not thrown: one existing row must not fail the batch
+    const dupRequest = pool.request();
+    const dupIn = buildInClause(dupRequest, 'dupCode', items.map(i => i.asinCode.toUpperCase()));
+    const dupResult = await dupRequest.query(`
+      SELECT UPPER(AsinCode) as code, SellerId FROM Asins WHERE UPPER(AsinCode) IN (${dupIn})
+    `);
+    const existing = new Set(dupResult.recordset.map(r => `${r.SellerId}::${r.code}`));
+    const toInsert = items.filter(i => !existing.has(`${i.sellerId}::${i.asinCode.toUpperCase()}`));
+
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
-
     try {
-      for (const item of asins) {
-         const id = generateId();
+      for (const item of toInsert) {
         await transaction.request()
-          .input('id', sql.VarChar, id)
-          .input('asin', sql.VarChar, item.asinCode)
-          .input('sellerId', sql.VarChar, sellerId)
+          .input('id', sql.VarChar, generateId())
+          .input('asin', sql.VarChar, item.asinCode.toUpperCase())
+          .input('sellerId', sql.VarChar, item.sellerId)
           .input('sku', sql.NVarChar, item.sku || null)
+          .input('marketplace', sql.VarChar, marketplaceBySeller.get(String(item.sellerId)) || 'amazon.in')
           .query(`
-            INSERT INTO Asins (Id, AsinCode, SellerId, Sku, Status, ScrapeStatus, CreatedAt, UpdatedAt)
-            VALUES (@id, @asin, @sellerId, @sku, 'Active', 'PENDING', dbo.GetEnvDate(), dbo.GetEnvDate())
+            INSERT INTO Asins (Id, AsinCode, SellerId, Sku, Status, ScrapeStatus, Marketplace, CreatedAt, UpdatedAt)
+            VALUES (@id, @asin, @sellerId, @sku, 'Active', 'PENDING', @marketplace, dbo.GetEnvDate(), dbo.GetEnvDate())
           `);
       }
       await transaction.commit();
@@ -2284,9 +2350,24 @@ exports.createAsins = async (req, res) => {
       throw err;
     }
 
-    await updateSellerAsinCount(sellerId, req.app.get('io'));
-    res.json({ success: true, createdCount: asins.length });
+    // Same post-insert side effects as the single-ASIN create
+    const io = req.app.get('io');
+    for (const sellerId of sellerIds) {
+      await updateSellerAsinCount(sellerId, io);
+      if (marketDataSyncService.isConfigured()) {
+        marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { triggerScrape: true }).catch(console.error);
+      }
+    }
+
+    const insertedCount = toInsert.length;
+    res.status(201).json({
+      success: true,
+      insertedCount,
+      createdCount: insertedCount,                        // back-compat for older callers
+      duplicatesCount: items.length - insertedCount,
+    });
   } catch (error) {
+    console.error('createAsins Error:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -2310,6 +2391,12 @@ exports.bulkUpdateAsins = async (req, res) => {
       buildInClause(sellersReq, 'bulkId', ids);
       const sellersResult = await sellersReq.query(`SELECT DISTINCT SellerId FROM Asins WHERE Id IN (${idPlaceholders})`);
       const sellerIds = sellersResult.recordset.map(r => r.SellerId);
+
+      // Refuse the whole batch when any id belongs to a seller outside the scope
+      if (!asinScope.assertSellersInScope(req, res, sellerIds)) {
+        await transaction.rollback();
+        return;
+      }
 
       // Build SET clause
       const setParts = [];
@@ -2381,95 +2468,45 @@ exports.bulkUpdateAsins = async (req, res) => {
 /**
  * Recalculate LQS for selected ASINs or all ASINs in scope
  */
+/**
+ * Recalculate LQS for selected ASINs or all ASINs in scope
+ *
+ * Delegates to listingQualityService — the analyzer-weighted score (title 30 /
+ * bullets 25 / images 25 / description 20) that the live sync writes — instead of
+ * recomputing from columns the SELECT never fetched and then zeroing the
+ * component scores (docs/asin-manager-deep-dive.md → F7/F8).
+ */
 exports.recalculateLqs = async (req, res) => {
     try {
-        const { ids } = req.body;
+        const { ids } = req.body || {};
         const pool = await getPool();
-        
-        let query = `
-            SELECT Id, Title, BulletPoints, ImagesUrls, HasAplus, Category, SellerId
-            FROM Asins
-        `;
-        
-        const request = pool.request();
-        
+        let targetIds = [];
+
         if (ids && Array.isArray(ids) && ids.length > 0) {
-            const idList = ids.map((id, i) => {
-                request.input(`id${i}`, sql.VarChar, id);
-                return `@id${i}`;
-            }).join(',');
-            query += ` WHERE Id IN (${idList})`;
+            // Explicit selection → the caller must own every ASIN in it
+            if (!(await asinScope.assertAsinsInScope(req, res, ids))) return;
+            targetIds = ids;
         } else {
-            // If no IDs provided, recalculate for all ASINs within user's scope
-            const roleName = req.user?.role?.name || req.user?.role;
-            const isGlobalUser = isGlobalUserRole(roleName);
-            
-            if (!isGlobalUser) {
-                const allowedSellerIds = req.user.assignedSellers.map(s => (s._id || s).toString());
-                if (allowedSellerIds.length === 0) {
-                    return res.json({ success: true, processedCount: 0 });
-                }
-                const sellerInClause = buildInClause(request, 'allowedSeller', allowedSellerIds);
-                query += ` WHERE SellerId IN (${sellerInClause})`;
-            }
+            // No ids → everything inside the caller's seller scope
+            const scope = asinScope.scopeFor(req, null);
+            if (scope.empty) return asinScope.forbidden(res);
+
+            const request = pool.request();
+            const sellerClause = bindSellerFilter(request, scope, { alias: 'a', prefix: 'lqsScope' });
+            const result = await request.query(`SELECT a.Id FROM Asins a WHERE 1 = 1${sellerClause}`);
+            targetIds = result.recordset.map(r => r.Id);
         }
-        
-        const result = await request.query(query);
-        const asins = result.recordset;
-        
+
         let successCount = 0;
-        
-        // Process in small chunks to avoid long transactions
-        for (const asin of asins) {
+        for (const asinId of targetIds) {
             try {
-                const bulletPoints = tryParse(asin.BulletPoints, []);
-                const imageUrls = tryParse(asin.ImagesUrls, []);
-                
-                // CDQ system disabled per user request, using standard LQS instead
-                const score = LQS.calculateLQS({
-                    titleLength: asin.Title?.length || 0,
-                    hasAplus: !!asin.HasAplus,
-                    bulletCount: bulletPoints.length,
-                    imageCount: imageUrls.length,
-                    descriptionLength: 0,
-                    hasEbc: false,
-                    price: asin.CurrentPrice || 0,
-                    rating: asin.Rating || 0,
-                    reviews: asin.ReviewCount || 0
-                });
-                
-                const grade = LQS.getGrade(score);
-                const issues = []; // Or populate from a standard issues generator if needed
-                
-                await pool.request()
-                    .input('id', sql.VarChar, asin.Id)
-                    .input('lqsScore', sql.Decimal(5, 2), score)
-                    .input('lqsGrade', sql.NVarChar(5), grade)
-                    .input('lqsIssues', sql.NVarChar(sql.MAX), JSON.stringify(issues))
-                    .input('titleScore', sql.Decimal(5, 2), 0)
-                    .input('bulletScore', sql.Decimal(5, 2), 0)
-                    .input('imageScore', sql.Decimal(5, 2), 0)
-                    .input('descriptionScore', sql.Decimal(5, 2), 0)
-                    .query(`
-                        UPDATE Asins 
-                        SET LQS = @lqsScore,
-                            LqsScore = @lqsScore, 
-                            LQSGrade = @lqsGrade,
-                            LqsIssues = @lqsIssues,
-                            TitleScore = @titleScore,
-                            BulletScore = @bulletScore,
-                            ImageScore = @imageScore,
-                            DescriptionScore = @descriptionScore,
-                            UpdatedAt = dbo.GetEnvDate()
-                        WHERE Id = @id
-                    `);
-                
-                successCount++;
+                const scored = await listingQualityService.analyzeAndSaveFull(asinId);
+                if (scored) successCount++;
             } catch (err) {
-                console.error(`Error recalculating LQS for ${asin.Id}:`, err.message);
+                console.error(`Error recalculating LQS for ${asinId}:`, err.message);
             }
         }
-        
+
         res.json({ success: true, processedCount: successCount });
     } catch (error) {
         console.error('Recalculate LQS Error:', error);
@@ -2484,6 +2521,9 @@ exports.bulkUpdateWeekHistory = async (req, res) => {
   try {
     const { updates } = req.body; // Array of { asinId, weekData }
     if (!updates || !Array.isArray(updates)) return res.status(400).json({ error: 'Updates array required' });
+
+    // Every targeted ASIN must be inside the caller's seller scope
+    if (!(await asinScope.assertAsinsInScope(req, res, updates.map(u => u && u.asinId)))) return;
 
     const pool = await getPool();
     const transaction = new sql.Transaction(pool);
@@ -2544,6 +2584,7 @@ exports.uploadRawAsins = async (req, res) => {
         if (!sellerId) {
             return res.status(400).json({ error: 'sellerId is required' });
         }
+        if (!asinScope.requireSellerScope(req, res, sellerId)) return;
 
         if (!Array.isArray(rawDataArray) || rawDataArray.length === 0) {
             return res.status(400).json({ error: 'data array with raw scraped entries is required' });
@@ -2593,54 +2634,6 @@ exports.testParseRaw = async (req, res) => {
         const parsed = AsinDataParser.transformToAsinRow(rawData, 'test-seller-id');
         res.json({ success: true, parsed });
     } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-/**
- * Simple text upload endpoint for raw Octoparse data
- * POST /api/asins/upload-raw-text
- * Body: { sellerId: string, entries: [string, string...] }
- */
-exports.uploadRawText = async (req, res) => {
-    try {
-        const { sellerId, entries } = req.body;
-        const userId = req.user.Id || req.user._id;
-
-        if (!sellerId) {
-            return res.status(400).json({ error: 'sellerId is required' });
-        }
-
-        if (!Array.isArray(entries) || entries.length === 0) {
-            return res.status(400).json({ error: 'entries array with raw text data is required' });
-        }
-
-        const AsinDataParser = require('../services/asinDataParser');
-        const results = await AsinDataParser.bulkUpsertAsins(entries, sellerId);
-        const successCount = results.filter(r => r.success).length;
-        const errorCount = results.filter(r => !r.success).length;
-
-        // Update seller's scrape stats
-        const pool = await getPool();
-        await pool.request()
-            .input('sellerId', sql.VarChar, sellerId)
-            .input('count', sql.Int, successCount)
-            .query(`
-                UPDATE Sellers
-                SET ScrapeUsed = ScrapeUsed + @count,
-                    LastScrapedAt = dbo.GetEnvDate(),
-                    UpdatedAt = dbo.GetEnvDate()
-                WHERE Id = @sellerId
-            `);
-
-        res.json({
-            success: true,
-            message: `Processed ${entries.length} entries`,
-            stats: { total: entries.length, success: successCount, failed: errorCount },
-            results: results.slice(0, 10)
-        });
-    } catch (error) {
-        console.error('Upload raw ASINs error:', error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -2971,231 +2964,6 @@ exports.exportData = async (req, res) => {
 
 module.exports = exports;
 
-// ─────────────────────────────────────────────
-// TAGS HANDLERS
-// ─────────────────────────────────────────────
-
-/**
- * PUT /api/asins/:id/tags
- * Update tags for a single ASIN
- */
-exports.updateAsinTags = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { tags } = req.body;
-
-    if (!Array.isArray(tags)) {
-      return res.status(400).json({ success: false, error: 'tags must be an array' });
-    }
-
-    const pool = await getPool();
-    const tagsJson = JSON.stringify(tags);
-
-    await pool.request()
-      .input('id', sql.VarChar, id)
-      .input('tags', sql.NVarChar, tagsJson)
-      .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
-
-    res.json({ success: true, data: { id, tags } });
-  } catch (error) {
-    console.error('[Tags] updateAsinTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * GET /api/asins/tags
- * Return the list of all distinct tags in use across ASINs
- */
-exports.getAllTags = async (req, res) => {
-  try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .query("SELECT Tags FROM Asins WHERE Tags IS NOT NULL AND Tags != '[]' AND Tags != ''");
-
-    const tagSet = new Set();
-    for (const row of result.recordset) {
-      try {
-        const parsed = JSON.parse(row.Tags);
-        if (Array.isArray(parsed)) parsed.forEach(t => tagSet.add(t));
-      } catch (_) {}
-    }
-
-    res.json({ success: true, data: Array.from(tagSet).sort() });
-  } catch (error) {
-    console.error('[Tags] getAllTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * GET /api/asins/tags/template
- * Download an Excel template pre-filled with all ASINs for bulk tag editing
- */
-exports.downloadTagsTemplate = async (req, res) => {
-  try {
-    const pool = await getPool();
-    const { sellerId } = req.query;
-
-    let query = `
-      SELECT a.Id, a.AsinCode, a.ParentAsin, a.Title, a.Tags,
-             s.Name as SellerName
-      FROM Asins a
-      LEFT JOIN Sellers s ON a.SellerId = s.Id
-      WHERE 1=1
-    `;
-    const request = pool.request();
-    if (sellerId) {
-      query += ' AND a.SellerId = @sellerId';
-      request.input('sellerId', sql.VarChar, sellerId);
-    }
-    query += ' ORDER BY s.Name, a.AsinCode';
-
-    const result = await request.query(query);
-
-    const templateData = result.recordset.map(row => {
-      let tags = '';
-      try { tags = JSON.parse(row.Tags || '[]').join(', '); } catch (_) {}
-      return {
-        'Parent ASIN': row.ParentAsin || '',
-        'Child ASIN': row.AsinCode || '',
-        'Seller Name': row.SellerName || '',
-        'Tags': tags,
-        'Title': row.Title || '',
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    ws['!cols'] = [
-      { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 50 }, { wch: 60 }
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Tags Template');
-
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    const now = new Date();
-    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-    const fileName = `tags_template_${istTime.toISOString().split('T')[0]}.xlsx`;
-
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buffer);
-  } catch (error) {
-    console.error('[Tags] downloadTagsTemplate error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * POST /api/asins/tags/bulk
- * Upload an Excel file and update tags for all matched ASINs
- */
-exports.bulkUploadTags = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
-    }
-
-    const wb = XLSX.readFile(req.file.path);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws);
-
-    fs.unlinkSync(req.file.path); // clean up
-
-    if (!rows.length) {
-      return res.status(400).json({ success: false, error: 'File is empty' });
-    }
-
-    const pool = await getPool();
-    let updated = 0;
-    const errors = [];
-
-    for (const row of rows) {
-      const asinCode = (row['Child ASIN'] || row['ASIN'] || '').trim().toUpperCase();
-      const rawTags = (row['Tags'] || '').trim();
-      if (!asinCode) continue;
-
-      const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
-      const tagsJson = JSON.stringify(tags);
-
-      try {
-        const result = await pool.request()
-          .input('asinCode', sql.NVarChar, asinCode)
-          .input('tags', sql.NVarChar, tagsJson)
-          .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE AsinCode = @asinCode');
-        if (result.rowsAffected[0] > 0) updated++;
-      } catch (err) {
-        errors.push({ asin: asinCode, error: err.message });
-      }
-    }
-
-    res.json({ success: true, updated, total: rows.length, errors });
-  } catch (error) {
-    console.error('[Tags] bulkUploadTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * PUT /api/asins/:id/tags
- * Update tags for a specific ASIN
- */
-exports.updateTags = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { tags } = req.body; // Expects array of strings
-    
-    if (!Array.isArray(tags)) {
-      return res.status(400).json({ success: false, error: 'Tags must be an array' });
-    }
-
-    const pool = await getPool();
-    const tagsJson = JSON.stringify(tags);
-
-    const result = await pool.request()
-      .input('id', sql.VarChar, id)
-      .input('tags', sql.NVarChar, tagsJson)
-      .query('UPDATE Asins SET Tags = @tags, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id');
-
-    if (result.rowsAffected[0] === 0) {
-      return res.status(404).json({ success: false, error: 'ASIN not found' });
-    }
-
-    res.json({ success: true, message: 'Tags updated' });
-  } catch (error) {
-    console.error('[Tags] updateTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * GET /api/asins/tags
- * Get all unique tags across all ASINs
- */
-exports.getTags = async (req, res) => {
-  try {
-    const pool = await getPool();
-    const result = await pool.request().query('SELECT Tags FROM Asins WHERE Tags IS NOT NULL');
-    
-    const allTags = new Set();
-    result.recordset.forEach(row => {
-      try {
-        const tags = JSON.parse(row.Tags || '[]');
-        if (Array.isArray(tags)) {
-          tags.forEach(t => allTags.add(t));
-        }
-      } catch (e) {
-        // skip invalid json
-      }
-    });
-
-    res.json({ success: true, data: Array.from(allTags).sort() });
-  } catch (error) {
-    console.error('[Tags] getTags error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
 /**
  * Get Sub BSR trend data for an ASIN
  * GET /api/asins/:id/subbsr-trend
@@ -3206,16 +2974,10 @@ exports.getSubBsrTrend = async (req, res) => {
     const { days = 30 } = req.query;
     const pool = await getPool();
 
-    // Verify ASIN exists
-    const asinResult = await pool.request()
-      .input('id', sql.VarChar, id)
-      .query('SELECT Id, AsinCode, SubBSRs FROM Asins WHERE Id = @id');
-
-    if (asinResult.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'ASIN not found' });
-    }
-
-    const asin = asinResult.recordset[0];
+    // Verify ASIN exists inside the caller's seller scope
+    const guard = await asinScope.loadAsinInScope(req, res, id, { columns: 'Id, AsinCode, SubBSRs, SellerId' });
+    if (!guard) return;
+    const asin = guard.asin;
 
     // Get Sub BSR history for the last N days
     const historyResult = await pool.request()
@@ -3295,6 +3057,7 @@ exports.matchAsins = async (req, res) => {
     if (!sellerId || !asinCodes || !Array.isArray(asinCodes)) {
       return res.status(400).json({ success: false, error: 'sellerId and asinCodes array are required' });
     }
+    if (!asinScope.requireSellerScope(req, res, sellerId)) return;
     
     if (asinCodes.length === 0) {
       return res.json({ success: true, matchedIds: [] });
@@ -3332,13 +3095,15 @@ exports.fullExport = async (req, res) => {
     const { sellerId, status, limit: limitParam } = req.query;
     const limit = Math.min(parseInt(limitParam) || 0, 200000);
 
-    let whereClause = 'WHERE a.AsinCode IS NOT NULL';
-    const request = pool.request();
+    // Scoped like every other read: a scoped user exports their assigned
+    // sellers, a global user may narrow to one, and naming a foreign seller is
+    // a 403 rather than a whole-catalogue workbook.
+    const scope = asinScope.scopeFor(req, sellerId);
+    if (scope.denied || scope.empty) return asinScope.forbidden(res);
 
-    if (sellerId) {
-      request.input('sellerId', sql.VarChar, sellerId);
-      whereClause += ' AND a.SellerId = @sellerId';
-    }
+    const request = pool.request();
+    let whereClause = 'WHERE a.AsinCode IS NOT NULL'
+      + bindSellerFilter(request, scope, { alias: 'a', prefix: 'exportScope' });
     if (status) {
       request.input('status', sql.NVarChar, status);
       whereClause += ' AND a.Status = @status';
@@ -3663,9 +3428,14 @@ exports.getParentChildren = async (req, res) => {
     const pool = await getPool();
     const { parentAsin } = req.params;
 
-    const result = await pool.request()
-      .input('parentAsin', sql.NVarChar, parentAsin)
-      .query(`
+    // Children of another seller's parent ASIN are not readable
+    const scope = asinScope.scopeFor(req, null);
+    if (scope.empty) return asinScope.forbidden(res);
+
+    const request = pool.request().input('parentAsin', sql.NVarChar, parentAsin);
+    const sellerClause = bindSellerFilter(request, scope, { alias: 'a', prefix: 'parentScope' });
+
+    const result = await request.query(`
         SELECT
           a.Id, a.AsinCode, a.Title, a.CurrentPrice, a.Mrp, a.BSR,
           a.Rating, a.ReviewCount, a.LQS, a.Status, a.Sku,
@@ -3674,7 +3444,7 @@ exports.getParentChildren = async (req, res) => {
           s.Name as sellerName
         FROM Asins a
         LEFT JOIN Sellers s ON a.SellerId = s.Id
-        WHERE a.ParentAsin = @parentAsin
+        WHERE a.ParentAsin = @parentAsin ${sellerClause}
         ORDER BY a.CurrentPrice ASC
       `);
 

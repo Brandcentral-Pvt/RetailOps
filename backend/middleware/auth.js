@@ -202,6 +202,15 @@ exports.requireRole = (...roles) => {
 
 /**
  * Check Seller Access Middleware (SQL Version)
+ *
+ * Reads the seller from the path, the query **and the body** — the body case was
+ * the hole that let `POST /api/asins/bulk`, `/match`, `/import-csv`,
+ * `/bulk-upload-all-sellers` and `/upload-raw` name any seller they liked
+ * (docs/asin-manager-deep-dive.md → F3). Accepts a single id or an array/list,
+ * and tolerates `assignedSellers` holding objects as well as ids.
+ *
+ * Fail-closed: when a seller is named and it is not inside `assignedSellers`,
+ * the request is rejected — it is never silently promoted to "no filter".
  */
 exports.checkSellerAccess = async (req, res, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
@@ -209,11 +218,32 @@ exports.checkSellerAccess = async (req, res, next) => {
   const roleName = req.user.role?.Name || req.user.role?.name;
   if (isGlobalUserRole(roleName)) return next();
 
-  const sellerId = req.params.id || req.params.sellerId || req.query?.sellerId;
-  if (!sellerId) return next();
+  const sellerId = req.params.id
+    || req.params.sellerId
+    || req.query?.sellerId
+    || req.query?.seller
+    || req.body?.sellerId
+    || req.body?.seller;
+  if (sellerId === undefined || sellerId === null || sellerId === '') return next();
 
-  if (!req.user.assignedSellers || !req.user.assignedSellers.includes(sellerId.toString())) {
-    return res.status(403).json({ success: false, message: 'Access to this seller denied' });
+  const assigned = (Array.isArray(req.user.assignedSellers) ? req.user.assignedSellers : [])
+    .map((s) => (s && typeof s === 'object' ? (s._id || s.Id || s.id) : s))
+    .filter((s) => s !== undefined && s !== null)
+    .map((s) => String(s));
+
+  const requested = (Array.isArray(sellerId) ? sellerId : [sellerId])
+    .flatMap((v) => String(v).split(','))
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const denied = requested.filter((id) => id !== 'all' && id !== '*').some((id) => !assigned.includes(id));
+  if (denied) {
+    return res.status(403).json({
+      success: false,
+      error: 'forbidden_seller',
+      code: 'forbidden_seller',
+      message: 'Access to this seller denied',
+    });
   }
   next();
 };
