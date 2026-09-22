@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "RetailOps",
+    "slug": "retailops-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "retailops",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.brandcentral.retailops"
+    },
+    "android": {
+      "package": "in.brandcentral.retailops",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "EXPO_PUBLIC_API_URL": "https://data.brandcentral.in/api",
+      "EXPO_PUBLIC_SOCKET_URL": "https://data.brandcentral.in",
+      "EXPO_PUBLIC_API_TIMEOUT": "30000"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "RetailOps uses your photos to send image attachments in chats."
+        }
+      ]
+    ]
+  }
+}

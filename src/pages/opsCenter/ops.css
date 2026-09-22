@@ -186,6 +186,15 @@
     color: var(--ops-ink-3);
 }
 
+/* Muted "no prior data" marker in KPI head slots — never a full sentence
+   repeated across every card. */
+.ops-tile__noprior {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ops-ink-3);
+    white-space: nowrap;
+}
+
 .ops-tile__value {
     margin-top: 6px;
     font-size: 25px;
@@ -616,6 +625,54 @@
 /* ── Interactive charts ──────────────────────────────────────────── */
 .ops-chart { position: relative; }
 .ops-chart svg { display: block; cursor: crosshair; }
+
+/* Below-chart analytical summary strip (peak / low / average / coverage) */
+.ops-trend__sum {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    margin-top: 12px;
+    border: 1px solid var(--ops-line);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ops-line);
+}
+
+.ops-trend__stat {
+    background: #fafbfd;
+    padding: 8px 12px 9px;
+    min-width: 0;
+}
+
+.ops-trend__stat-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ops-ink-3);
+}
+
+.ops-trend__stat-value {
+    display: block;
+    margin-top: 3px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ops-trend__stat-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: var(--ops-ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 .ops-tooltip {
     position: absolute;
