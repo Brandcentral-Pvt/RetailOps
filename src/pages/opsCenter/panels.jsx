@@ -4,7 +4,8 @@ import {
     fmtINR, fmtINRFull, fmtNum, fmtNumFull, fmtPct, pctDelta, pointDelta, timeAgo,
     OPS_COLOR, TASK_STATUS_COLORS, PIPELINE_COLORS, PRIORITY_CHIP,
 } from './primitives';
-import { Sparkline, TrendChart, Ring } from './charts';
+import { Sparkline, Ring, fmtByUnit } from './charts';
+import { AreaTrendChart } from './AreaTrendChart';
 import { targetAchievementPct } from '../../utils/targetMetrics';
 
 /**
@@ -46,23 +47,33 @@ export const buildSeries = (dashboardRaw) => {
     const organic = (dashboardRaw?.stackedBarSeries || [])[2]?.data || [];
     return {
         revenue: [
-            { key: 'gms', name: 'GMS', color: OPS_COLOR.accent, data: gms },
-            { key: 'adSales', name: 'Ad sales', color: OPS_COLOR.pos, data: adSales },
-            { key: 'organic', name: 'Organic sales', color: OPS_COLOR.violet, data: organic, dashed: true },
-            { key: 'adSpend', name: 'Ad spend', color: OPS_COLOR.warn, data: adSpend },
+            { key: 'gms', name: 'GMS', color: OPS_COLOR.accent, weight: 2.4, data: gms },
+            { key: 'adSales', name: 'Ad sales', color: OPS_COLOR.pos, weight: 1.8, axis: 'right', data: adSales },
+            { key: 'organic', name: 'Organic sales', color: OPS_COLOR.violet, weight: 1.5, dashed: true, data: organic },
+            { key: 'adSpend', name: 'Ad spend', color: OPS_COLOR.warn, weight: 1.6, axis: 'right', data: adSpend },
         ].filter((s) => s.data.length > 0),
         volume: [
-            { key: 'gmsUnits', name: 'Units (GMS)', color: OPS_COLOR.accent, data: gmsUnits },
-            { key: 'adOrders', name: 'Ad orders', color: OPS_COLOR.pos, data: dashboardRaw?.ordersSeries || [] },
+            { key: 'gmsUnits', name: 'Units (GMS)', color: OPS_COLOR.accent, weight: 2.2, data: gmsUnits },
+            { key: 'adOrders', name: 'Ad orders', color: OPS_COLOR.pos, weight: 1.6, data: dashboardRaw?.ordersSeries || [] },
         ].filter((s) => s.data.length > 0),
         efficiency: [
-            { key: 'acos', name: 'ACoS', color: OPS_COLOR.warn, data: dashboardRaw?.acosSeries || [] },
-            { key: 'tacos', name: 'TACoS', color: OPS_COLOR.accent, data: tacos },
+            { key: 'acos', name: 'ACoS', color: OPS_COLOR.warn, weight: 2.2, data: dashboardRaw?.acosSeries || [] },
+            { key: 'tacos', name: 'TACoS', color: OPS_COLOR.accent, weight: 1.5, dashed: true, data: tacos },
         ].filter((s) => s.data.length > 0),
     };
 };
 
 // ── KPI strip ─────────────────────────────────────────────────────────
+
+/** KPI head slot: the delta chip when a prior value exists, otherwise a
+ *  muted "No prior data" marker so the strip never says the same sentence
+ *  on every card. */
+const kpiDelta = (value, { asDelta, props } = {}) => {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+        return <span className="ops-tile__noprior">No prior data</span>;
+    }
+    return asDelta(value, props);
+};
 
 export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
     const adsPerf = dashboardRaw?.adsPerformanceSeries || [];
@@ -91,42 +102,42 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
             sub: hasGms
                 ? (gmsRevenue > 0 ? `${fmtINR(gms.dailyAverage)} / day · ${fmtNum(gms.asinsWithSales)} ASINs selling` : 'no GMS recorded in period')
                 : 'GMS feed unavailable',
-            delta: hasGms ? <Delta value={gms.deltaPct} label={vs} compact /> : null,
+            delta: kpiDelta(gms?.deltaPct ?? null, { asDelta: ((v) => <Delta value={v} label={vs} compact />) }),
             spark: <Sparkline data={gms?.series || []} color={OPS_COLOR.accent} />,
         },
         {
             key: 'units', label: 'Units', tip: 'Ordered units from the GMS daily feed.',
             value: hasGms ? fmtNum(gmsUnits) : '—',
             sub: hasGms && gmsUnits > 0 ? `ASP ${fmtINRFull(gms.asp)} · returns ${fmtPct(gms.returnRate)}` : 'ordered units',
-            delta: hasGms ? <Delta value={gms.unitsDeltaPct} label={vs} compact /> : null,
+            delta: kpiDelta(gms?.unitsDeltaPct ?? null, { asDelta: ((v) => <Delta value={v} label={vs} compact />) }),
             spark: <Sparkline data={gms?.unitsSeries || []} color={OPS_COLOR.accent} />,
         },
         {
             key: 'adSales', label: 'Ad sales', tip: 'Ad-attributed sales in the period (AdsPerformance).',
             value: fmtINR(adSales),
             sub: adShare !== null ? `${fmtPct(adShare)} of GMS · ${fmtNum(adOrders)} ad orders` : `${fmtNum(adOrders)} ad orders`,
-            delta: <Delta value={prev ? pctDelta(adSales, prev.adSales) : null} label={vs} compact />,
+            delta: kpiDelta(prev ? pctDelta(adSales, prev.adSales) : null, { asDelta: ((v) => <Delta value={v} label={vs} compact />) }),
             spark: <Sparkline data={adsPerf[0]?.data || []} color={OPS_COLOR.pos} />,
         },
         {
             key: 'adSpend', label: 'Ad spend', tip: 'Advertising spend in the period. Change is informational (neither good nor bad on its own).',
             value: fmtINR(adSpend),
             sub: tacos !== null ? `TACoS ${fmtPct(tacos)} · ${fmtINR(dailySpend)} / day` : `${fmtINR(dailySpend)} / day`,
-            delta: <Delta value={prev ? pctDelta(adSpend, prev.adSpend) : null} label={vs} compact neutral />,
+            delta: kpiDelta(prev ? pctDelta(adSpend, prev.adSpend) : null, { asDelta: ((v) => <Delta value={v} label={vs} compact neutral />) }),
             spark: <Sparkline data={adsPerf[1]?.data || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'acos', label: 'ACoS', tip: 'Ad spend ÷ ad sales. Lower is better; change shown in percentage points.',
             value: fmtPct(acos),
-            sub: 'spend ÷ ad sales · lower is better',
-            delta: <Delta value={prev && prev.adSales > 0 ? pointDelta(acos, prev.acos) : null} label={vs} compact invert points />,
+            sub: adSpend > 0 && adSales > 0 ? `ROAS ${roas.toFixed(2)}×` : `${fmtINR(adSpend)} / ${fmtINR(adSales)}`,
+            delta: kpiDelta(prev && prev.adSales > 0 ? pointDelta(acos, prev.acos) : null, { asDelta: ((v) => <Delta value={v} label={vs} compact invert points />) }),
             spark: <Sparkline data={dashboardRaw?.acosSeries || []} color={OPS_COLOR.warn} />,
         },
         {
             key: 'roas', label: 'ROAS', tip: 'Ad sales ÷ ad spend. Shown as ACoS on the trend chart.',
             value: roas.toFixed(2), unit: '×',
-            sub: 'ad sales ÷ spend',
-            delta: <Delta value={prev && prev.adSpend > 0 ? pctDelta(roas, prev.roas) : null} label={vs} compact />,
+            sub: adOrders > 0 && adSpend > 0 ? `Cost/order ${fmtINR(adSpend / adOrders)}` : 'ad sales ÷ spend',
+            delta: kpiDelta(prev && prev.adSpend > 0 ? pctDelta(roas, prev.roas) : null, { asDelta: ((v) => <Delta value={v} label={vs} compact />) }),
             spark: <Sparkline data={(dashboardRaw?.acosSeries || []).map((v) => (v > 0 ? 100 / v : 0))} color={OPS_COLOR.pos} />,
         },
     ];
@@ -150,6 +161,76 @@ export const KpiRow = ({ dashboardRaw, focus, onFocus, span = 2 }) => {
 
 // ── Revenue / volume / efficiency trend ───────────────────────────────
 
+const BUCKET_LABEL = { day: 'daily', week: 'weekly', month: 'monthly' };
+const shortDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+};
+
+/** Analytical summary strip below the trend chart, derived from the series
+ *  that is actually visible/focused — never fabricated. */
+const TrendSummary = ({ labels = [], series = [], unit, focusKey, hidden = [], granularity = 'day' }) => {
+    const hiddenSet = new Set(hidden);
+    const visible = series.filter((s) => !hiddenSet.has(s.key));
+    const primary = visible.find((s) => s.key === focusKey) || visible[0];
+    if (!primary) return null;
+    const data = (primary.data || []).map((v) => Number(v) || 0);
+    if (data.length === 0) return null;
+
+    const recorded = data.filter((v) => v > 0).length;
+    const activeIdx = data.map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);
+    let peakIdx = -1;
+    let troughIdx = -1;
+    if (activeIdx.length > 0) {
+        peakIdx = activeIdx[0];
+        troughIdx = activeIdx[0];
+        activeIdx.forEach((i) => {
+            if (data[i] > data[peakIdx]) peakIdx = i;
+            if (data[i] < data[troughIdx]) troughIdx = i;
+        });
+    }
+    const total = data.reduce((a, b) => a + b, 0);
+    const days = labels.length;
+    const avg = days > 0 ? total / days : 0;
+    const bucketLabel = (BUCKET_LABEL[granularity] || 'daily');
+
+    const cells = [
+        {
+            label: 'Peak',
+            value: peakIdx >= 0 ? fmtByUnit(data[peakIdx], unit) : '—',
+            sub: peakIdx >= 0 ? labels[peakIdx] : 'no recorded bucket',
+        },
+        {
+            label: 'Low',
+            value: troughIdx >= 0 ? fmtByUnit(data[troughIdx], unit) : '—',
+            sub: troughIdx >= 0 ? labels[troughIdx] : 'no recorded bucket',
+        },
+        {
+            label: 'Daily average',
+            value: days > 0 ? fmtByUnit(avg, unit) : '—',
+            sub: `across ${days} ${bucketLabel} ${days === 1 ? 'bucket' : 'buckets'}`,
+        },
+        {
+            label: 'Recorded days',
+            value: `${recorded} / ${days}`,
+            sub: recorded < days ? `${days - recorded} silent bucket${days - recorded === 1 ? '' : 's'}` : 'full coverage',
+        },
+    ];
+
+    return (
+        <div className="ops-trend__sum" role="group" aria-label={`${primary.name} summary`}>
+            {cells.map((c) => (
+                <div className="ops-trend__stat" key={c.label}>
+                    <span className="ops-trend__stat-label">{c.label}</span>
+                    <span className="ops-trend__stat-value ops-num">{c.value}</span>
+                    <span className="ops-trend__stat-sub ops-num">{c.sub}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusSeries, onFocusSeries }) => {
     const labels = dashboardRaw?.labels || [];
     const all = useMemo(() => buildSeries(dashboardRaw), [dashboardRaw]);
@@ -157,6 +238,10 @@ export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusS
     const [hidden, setHidden] = useState(() => ({ revenue: ['organic'], volume: [], efficiency: [] }));
     const granularity = dashboardRaw?.period?.granularity || 'day';
     const days = dashboardRaw?.period?.days;
+    const bucketLabel = BUCKET_LABEL[granularity] || 'daily';
+    const range = dashboardRaw?.period?.startDate
+        ? `${shortDate(dashboardRaw.period.startDate)} – ${shortDate(dashboardRaw.period.endDate)}`
+        : null;
     const ready = status !== 'error' && labels.length > 0 && series.length > 0;
     const hasAny = series.some((s) => s.data.some((v) => Number(v) > 0));
 
@@ -166,12 +251,19 @@ export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusS
         return { ...h, [mode]: Array.from(cur) };
     });
 
+    const meta = [
+        range,
+        days ? `${days} day${days === 1 ? '' : 's'}` : null,
+        `${labels.length} ${bucketLabel} ${labels.length === 1 ? 'point' : 'points'}`,
+        'hover for values',
+    ].filter(Boolean).join(' · ');
+
     return (
         <Panel
             id="ops-trend"
             span={8}
-            kicker="Trend"
-            meta={`${labels.length} ${granularity === 'week' ? 'weekly' : 'daily'} points${days ? ` · ${days}d` : ''} · hover for values`}
+            kicker="Performance trend"
+            meta={meta}
             actions={(
                 <Segmented
                     ariaLabel="Chart mode"
@@ -188,16 +280,26 @@ export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusS
             ) : !hasAny ? (
                 <MiniState tone="empty" title={`No ${CHART_MODES[mode].label.toLowerCase()} recorded`} note="Every point in this period is zero for the selected series." />
             ) : (
-                <TrendChart
-                    labels={labels}
-                    series={series}
-                    unit={CHART_MODES[mode].unit}
-                    hidden={hidden[mode] || []}
-                    onToggle={toggle}
-                    focusKey={focusSeries}
-                    onFocus={onFocusSeries}
-                    granularity={granularity}
-                />
+                <>
+                    <AreaTrendChart
+                        labels={labels}
+                        series={series}
+                        unit={CHART_MODES[mode].unit}
+                        hidden={hidden[mode] || []}
+                        onToggle={toggle}
+                        focusKey={focusSeries}
+                        onFocus={onFocusSeries}
+                        granularity={granularity}
+                    />
+                    <TrendSummary
+                        labels={labels}
+                        series={series}
+                        unit={CHART_MODES[mode].unit}
+                        focusKey={focusSeries}
+                        hidden={hidden[mode] || []}
+                        granularity={granularity}
+                    />
+                </>
             )}
         </Panel>
     );

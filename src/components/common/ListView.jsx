@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, LayoutGrid, CheckSquare, Square } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, LayoutGrid, CheckSquare, Square } from '../../icons/fluent';
 
 const ListView = ({
     columns = [],
