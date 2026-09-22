@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Spin, Tooltip } from 'antd';
-import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock } from '../../icons/fluent';
 
 export const SavingIndicator = memo(({
     id,

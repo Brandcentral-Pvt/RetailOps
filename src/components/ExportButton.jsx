@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useState } from 'react';
+import { Download } from '../icons/fluent';
 
 const ExportButton = ({ data, fileName = 'export', format = 'excel', className = '' }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +59,7 @@ const ExportButton = ({ data, fileName = 'export', format = 'excel', className =
         </>
       ) : (
         <>
-          <i className="bi bi-download me-2"></i>
+          <Download size={16} className="me-2" aria-hidden="true" />
           Export {format === 'excel' ? 'Excel' : 'CSV'}
         </>
       )}
