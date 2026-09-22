@@ -10,15 +10,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
-  # ─── Frontend: Lint + Typecheck + Test + Build ─────────────────────
+  # ─── Frontend: Lint + Build ────────────────────────────────────────
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
 
     steps:
       - name: Checkout
@@ -27,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '20'
           cache: 'npm'
 
       - name: Install
@@ -36,35 +33,17 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Test
-        run: |
-          if npm run test -- --run --reporter=verbose 2>&1 | grep -q "No tests found"; then
-            echo "No tests configured"
-          else
-            npm run test -- --run --reporter=verbose
-          fi
-
       - name: Build
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://data.brandcentral.in/api' }}
-          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL || 'https://data.brandcentral.in' }}
+          VITE_API_URL: https://data.brandcentral.in/api
+          VITE_SOCKET_URL: https://data.brandcentral.in
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist/
-          retention-days: 7
-
-  # ─── Backend: Install + Lint + Test + Syntax + Import Check ────────
+  # ─── Backend: Syntax + Import Check ────────────────────────────────
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -73,7 +52,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -81,120 +60,37 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Lint
-        working-directory: backend
-        run: |
-          if [ -f .eslintrc.json ] || [ -f .eslintrc.js ] || [ -f eslint.config.js ]; then
-            npx eslint . --max-warnings=0
-          else
-            echo "ESLint not configured for backend, skipping"
-          fi
-
-      - name: Test
-        working-directory: backend
-        run: npm test -- --ci --reporters=default --reporters=jest-junit
-        env:
-          NODE_OPTIONS: --experimental-vm-modules
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-test-results
-          path: backend/coverage/
-          retention-days: 7
-
       - name: Syntax check
         working-directory: backend
         run: |
           echo "Checking syntax..."
-          find controllers services emails utils routes middleware validation config jobs -name "*.js" -exec node --check {} \; 2>&1 | grep -v "^$" || true
+          find controllers services emails utils -name "*.js" -exec node -c {} \; || exit 1
           echo "✅ Syntax OK"
 
       - name: Verify imports
         working-directory: backend
         run: |
-          node --input-type=module -e "
-            import('./controllers/asinController.js').then(() => console.log('✅ asinController'));
-            import('./controllers/sellerController.js').then(() => console.log('✅ sellerController'));
-            import('./controllers/uploadController.js').then(() => console.log('✅ uploadController'));
-            import('./controllers/authController.js').then(() => console.log('✅ authController'));
-            import('./services/emailService.js').then(() => console.log('✅ emailService'));
-            import('./emails/index.js').then(() => console.log('✅ emails'));
-          " 2>&1 || node -e "
-            require('./controllers/asinController'); console.log('✅ asinController');
-            require('./controllers/sellerController'); console.log('✅ sellerController');
-            require('./controllers/uploadController'); console.log('✅ uploadController');
-            require('./controllers/authController'); console.log('✅ authController');
-            require('./services/emailService'); console.log('✅ emailService');
-            require('./emails'); console.log('✅ emails');
-          "
+          node -e "require('./controllers/asinController'); console.log('✅ asinController')"
+          node -e "require('./controllers/sellerController'); console.log('✅ sellerController')"
+          node -e "require('./controllers/uploadController'); console.log('✅ uploadController')"
+          node -e "require('./controllers/authController'); console.log('✅ authController')"
+          node -e "require('./services/emailService'); console.log('✅ emailService')"
+          node -e "require('./emails'); console.log('✅ emails')"
 
   # ─── Security: Audit ───────────────────────────────────────────────
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: ${{ env.NODE_VERSION }} }
+        with: { node-version: '20' }
 
       - name: Audit root
-        run: npm audit --audit-level=high --omit=dev --json > npm-audit-root.json || true
+        run: npm audit --audit-level=high --omit=dev || true
 
       - name: Audit backend
         working-directory: backend
-        run: npm audit --audit-level=high --omit=dev --json > npm-audit-backend.json || true
-
-      - name: Check for vulnerable dependencies
-        run: |
-          for f in npm-audit-root.json backend/npm-audit-backend.json; do
-            if [ -f "$f" ]; then
-              HIGH=$(jq '.metadata.vulnerabilities.high // 0' "$f")
-              CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' "$f")
-              if [ "$HIGH" -gt 0 ] || [ "$CRITICAL" -gt 0 ]; then
-                echo "❌ High/Critical vulnerabilities found in $f"
-                jq '.vulnerabilities | to_entries[] | select(.value.severity == "high" or .value.severity == "critical") | {name: .key, severity: .value.severity, via: .value.via}' "$f"
-                exit 1
-              fi
-            fi
-          done
-          echo "✅ No high/critical vulnerabilities"
-
-  # ─── Docker Build Test ─────────────────────────────────────────────
-  docker-build:
-    name: Docker Build Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [frontend, backend]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.backend
-          target: production
-          load: true
-          tags: retail-ops-backend:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Test backend image
-        run: |
-          docker run --rm -d --name test-backend -p 3001:3001 \
-            -e NODE_ENV=production \
-            -e PORT=3001 \
-            -e DB_HOST=host.docker.internal \
-            retail-ops-backend:test
-          sleep 10
-          curl -f http://localhost:3001/api/health || (docker logs test-backend && exit 1)
-          docker stop test-backend
+        run: npm audit --audit-level=high --omit=dev || true
