@@ -1,5 +1,17 @@
 const { sql, getPool, generateId } = require('../database/db');
 
+/** Derive a friendly push title from the in-app notification type. */
+function notificationTitle(type) {
+    if (!type) return 'RetailOps';
+    const label = String(type)
+        .toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!label) return 'RetailOps';
+    return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 /**
  * Get notifications for the current user (SQL Version)
  */
@@ -196,6 +208,18 @@ exports.createNotification = async (recipientId, type, referenceModel, reference
             });
         } catch (socketErr) {
             // Socket service might not be initialized yet, ignore
+        }
+
+        // Dispatch device push (Expo). Best-effort — never breaks notification creation.
+        try {
+            const PushService = require('../services/pushService');
+            await PushService.sendPush(recipientId, {
+                title: notificationTitle(type),
+                body: message,
+                data: { notificationId: id, type, referenceModel, referenceId },
+            });
+        } catch (pushErr) {
+            console.error('Expo push dispatch error:', pushErr.message);
         }
 
         return { id };
