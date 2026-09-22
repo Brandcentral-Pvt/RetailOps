@@ -157,6 +157,8 @@ const teamRoutes = require('./routes/teamRoutes');
 const rulesetRoutes = require('./routes/rulesetRoutes');
 const objectiveRoutes = require('./routes/objectiveRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const pushRoutes = require('./routes/pushRoutes');
+const messagingRoutes = require('./routes/messagingRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const marketSyncRoutes = require('./routes/marketDataSyncRoutes');
 const growthExecutionRoutes = require('./routes/growthExecutionRoutes');
@@ -210,6 +212,8 @@ app.use('/api/keys', apiKeyRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/objectives', objectiveRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/messaging', messagingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/market-sync', marketSyncRoutes);
 app.use('/api/live-data', liveDataRoutes);
@@ -434,6 +438,8 @@ io.on('connection', async (socket) => {
       logger.debug(`Socket ${socket.id} joined room: ${roomId}`);
     }
   });
+
+  require('./sockets/chatSocket').register(socket, io);
 
   socket.on('update_role_permissions', async ({ roleId, permissions }) => {
     try {
