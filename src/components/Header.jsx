@@ -10,7 +10,7 @@ import {
     Bell, Search, Menu, Download,
     MessageSquare, Info, Check,
     BellRing, ShieldAlert
-} from 'lucide-react';
+} from '../icons/fluent';
 import { useSidebar } from '../contexts/SidebarContext';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';

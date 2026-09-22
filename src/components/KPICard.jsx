@@ -1,9 +1,7 @@
 import React from 'react';
-import * as LucideIcons from 'lucide-react';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, KpiIcon } from '../icons/fluent';
 
 const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 'vs last month', color }) => {
-  const IconComponent = LucideIcons[icon] || LucideIcons.Activity;
 
   // Use design system colors: primary #1976D2, success #2E7D32, error #D32F2F
   const cardColor = color || '#1976D2';
@@ -32,7 +30,7 @@ const KPICard = ({ title, value, icon, trend, trendType = 'neutral', subtitle = 
             background: `${cardColor}12`, color: cardColor,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <IconComponent size={20} strokeWidth={2} />
+            <KpiIcon name={icon} size={20} strokeWidth={2} />
           </div>
           {trend !== undefined && (
             <div style={{

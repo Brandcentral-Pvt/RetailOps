@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronRight, Sparkles } from '../../icons/fluent';
 
 /**
  * Premium PageHeader Component

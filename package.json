@@ -17,6 +17,7 @@
     "@cometchat/chat-uikit-react": "^6.4.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@iconify/react": "^6.0.2",
     "@iconify/tailwind": "^1.2.0",
     "@iconify/tailwind4": "^1.2.3",
     "@mui/icons-material": "^9.4.0",
@@ -74,6 +75,8 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
+    "@iconify-json/fluent": "^1.2.58",
+    "@iconify-json/fluent-color": "^1.2.21",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.0",
