@@ -4,7 +4,8 @@ import {
     fmtINR, fmtINRFull, fmtNum, fmtNumFull, fmtPct, pctDelta, pointDelta, timeAgo,
     OPS_COLOR, TASK_STATUS_COLORS, PIPELINE_COLORS, PRIORITY_CHIP,
 } from './primitives';
-import { Sparkline, TrendChart, Ring } from './charts';
+import { Sparkline, Ring } from './charts';
+import { AreaTrendChart } from './AreaTrendChart';
 import { targetAchievementPct } from '../../utils/targetMetrics';
 
 /**
@@ -188,7 +189,7 @@ export const TrendPanel = ({ dashboardRaw, status, onRetry, mode, onMode, focusS
             ) : !hasAny ? (
                 <MiniState tone="empty" title={`No ${CHART_MODES[mode].label.toLowerCase()} recorded`} note="Every point in this period is zero for the selected series." />
             ) : (
-                <TrendChart
+                <AreaTrendChart
                     labels={labels}
                     series={series}
                     unit={CHART_MODES[mode].unit}
