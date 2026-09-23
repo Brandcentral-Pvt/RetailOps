@@ -50,6 +50,11 @@ backend/test_*.js
 check_columns.js
 seed_api_keys.js
 
-# Runtime artifacts (logs, generated exports)
+# Runtime artifacts (logs, generated exports, uploads, data)
 backend/logs/
 backend/uploads/exports/
+backend/uploads/files/
+backend/data/
+
+# Backup files
+*.bak
