@@ -14,9 +14,10 @@
   "dependencies": {
     "@cometchat/calls-sdk-javascript": "^5.0.0",
     "@cometchat/chat-sdk-javascript": "^4.2.0",
-    "@cometchat/chat-uikit-react": "^6.4.4",
+"@cometchat/chat-uikit-react": "^6.5.6",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@iconify/react": "^6.0.2",
     "@iconify/tailwind": "^1.2.0",
     "@iconify/tailwind4": "^1.2.3",
     "@mui/icons-material": "^9.4.0",
