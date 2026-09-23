@@ -29,30 +29,33 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
+import type { MD3Theme } from 'react-native-paper';
 import {
   StyleSheet,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
+import CallsNavigator from './CallsNavigator';
 import BrandLogo from '../components/BrandLogo';
 import { useAuthStore } from '../store/authStore';
-import { useNotificationStore } from '../store/notificationStore';
 
 type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  Calls: undefined;
 };
 
 const Stack =
   createNativeStackNavigator<RootStackParamList>();
 
 function buildNavigationTheme(
-  paperTheme: ReturnType<typeof useTheme>,
+  paperTheme: MD3Theme,
 ): NavigationTheme {
   const baseTheme = paperTheme.dark
     ? NavigationDarkTheme
@@ -85,27 +88,27 @@ function BootstrapScreen() {
   const { colors } = useTheme();
 
   return (
-    <View
-      style={[
-        styles.bootstrap,
-        {
-          backgroundColor: colors.background,
-        },
-      ]}
+    <LinearGradient
+      colors={[colors.background, colors.primaryContainer, colors.background]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.bootstrap}
     >
       <View
         style={[
           styles.logoContainer,
           {
             backgroundColor: colors.surface,
+            shadowColor: colors.shadow,
+            ...styles.elevation,
           },
         ]}
       >
-        <BrandLogo size={52} />
+        <BrandLogo size={36} />
       </View>
 
       <Text
-        variant="titleMedium"
+        variant="titleLarge"
         style={[
           styles.brandName,
           {
@@ -117,7 +120,7 @@ function BootstrapScreen() {
       </Text>
 
       <Text
-        variant="bodySmall"
+        variant="bodyMedium"
         style={[
           styles.loadingText,
           {
@@ -133,12 +136,12 @@ function BootstrapScreen() {
         color={colors.primary}
         style={styles.indicator}
       />
-    </View>
+    </LinearGradient>
   );
 }
 
 export default function RootNavigator() {
-  const paperTheme = useTheme();
+  const paperTheme = useTheme() as MD3Theme;
 
   const bootstrap = useAuthStore(
     (state) => state.bootstrap,
@@ -200,6 +203,17 @@ export default function RootNavigator() {
             component={AuthNavigator}
           />
         )}
+
+        {/* Call stack overlays the whole app (incoming calls, active call) */}
+        <Stack.Screen
+          name="Calls"
+          component={CallsNavigator}
+          options={{
+            presentation: 'containedTransparentModal',
+            gestureEnabled: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -213,32 +227,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
+  elevation: {
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+
   logoContainer: {
-    width: 76,
-    height: 76,
+    width: 88,
+    height: 64,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-
-    /*
-     * No shadow/elevation here.
-     *
-     * The bootstrap screen should be intentionally quiet
-     * rather than looking like a splash animation.
-     */
   },
 
   brandName: {
-    marginTop: 18,
+    marginTop: 20,
     fontWeight: '700',
-    letterSpacing: -0.2,
   },
 
   loadingText: {
-    marginTop: 4,
+    marginTop: 6,
   },
 
   indicator: {
-    marginTop: 18,
+    marginTop: 20,
   },
 });

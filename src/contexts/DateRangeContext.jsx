@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar } from '../icons/fluent';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import {
     format,
     subDays,

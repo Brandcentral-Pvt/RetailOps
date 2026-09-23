@@ -7,7 +7,7 @@ import api from '../services/api';
 import HeaderNavigation from './HeaderNavigation';
 import { DropdownButton } from './DropdownButton';
 import { Dropdown } from './base/dropdown/dropdown';
-import { Bell as BellIcon, Search, Menu, User, Check, X, MessageSquare, Info, RefreshCw } from '../icons/fluent';
+import { Bell as BellIcon, Search, Menu, User, Check, X, MessageSquare, Info, RefreshCw } from 'lucide-react';
 
 const Topbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();

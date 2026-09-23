@@ -87,7 +87,7 @@ export default function OtpScreen({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [resendCountdown]);
+  }, []);
 
   /* ---------------------------------------------------------
      Verify OTP

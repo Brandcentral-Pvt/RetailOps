@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from '../../icons/fluent';
+import { ChevronRight } from 'lucide-react';
 
 const Breadcrumbs = ({ items = [], className = '' }) => {
     return (

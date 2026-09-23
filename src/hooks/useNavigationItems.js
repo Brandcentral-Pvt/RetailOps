@@ -8,7 +8,7 @@ import {
     Settings, Activity, FileText, Layers,
     ShoppingBag, Zap, Bell, FolderOpen,
     MessageSquare, ChevronRight, Store, KeyRound, Database, Map, ListTodo, GitBranch, LayoutTemplate, Clock, BarChart2, ScanSearch, Warehouse, Webhook, ClipboardList, CheckSquare, UserCheck, LineChart, RefreshCcw, Search
-} from '../icons/fluent';
+} from 'lucide-react';
 
 export function useNavigationItems() {
     const { user, isAdmin, isGlobalUser, hasPermission } = useAuth();

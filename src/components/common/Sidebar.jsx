@@ -33,7 +33,7 @@ import {
     CheckCircle,
     Bell,
     Target
-} from '../../icons/fluent';
+} from 'lucide-react';
 import { RetailOpsWordmark, RetailOpsMark } from './BrandLogo';
 import './Sidebar.css';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Minus } from '../../icons/fluent';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const NumberChart = ({
     label,

@@ -1,5 +1,7 @@
 /** Shared domain types for the RetailOps mobile app. */
 
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export interface Role {
   Name?: string;
   DisplayName?: string;
@@ -132,6 +134,9 @@ export type AuthStackParamList = {
     tempToken: string;
     destination?: string;
   };
+  ForgotPassword: {
+    email?: string;
+  };
 };
 
 /**
@@ -152,6 +157,8 @@ export type MainDrawerParamList = {
   Dashboard: undefined;
   Notifications: undefined;
   Messages: undefined;
+  CallHistory: undefined;
+  Calls: NavigatorScreenParams<CallsStackParamList>;
 
   // Catalog
   Products: undefined;
@@ -222,6 +229,7 @@ export interface ChatMessage {
   readBy: string[];
   pending?: boolean;
   failed?: boolean;
+  replyTo?: string;
 }
 
 export interface ChatParticipant {
@@ -274,4 +282,74 @@ export type MessagesStackParamList = {
     conversationId: string;
     title?: string;
   };
+};
+
+/**
+ * Calling (WebRTC) — `/api/calls` + Socket.IO signaling.
+ */
+export type CallType = 'audio' | 'video';
+export type CallStatus = 'idle' | 'ringing' | 'connecting' | 'active' | 'ended' | 'failed';
+export type CallDirection = 'incoming' | 'outgoing';
+
+export interface CallParticipant {
+  _id: string;
+  name: string;
+  avatar?: string;
+}
+
+export interface CallSession {
+  id: string;
+  conversationId?: string;
+  caller: CallParticipant;
+  callee: CallParticipant;
+  type: CallType;
+  direction: CallDirection;
+  status: CallStatus;
+  startedAt: string;
+  endedAt?: string;
+  duration?: number; // seconds
+  endReason?: 'ended' | 'rejected' | 'missed' | 'failed' | 'busy';
+}
+
+export interface CallSignalPayload {
+  callId: string;
+  conversationId?: string;
+  callerId?: string;
+  calleeId?: string;
+  callType?: CallType;
+  offer?: RTCSessionDescriptionInit;
+  answer?: RTCSessionDescriptionInit;
+  candidate?: RTCIceCandidateInit;
+  reason?: 'ended' | 'rejected' | 'missed' | 'failed' | 'busy';
+}
+
+export interface IncomingCallData {
+  callId: string;
+  conversationId?: string;
+  caller: CallParticipant;
+  callType: CallType;
+  offer: RTCSessionDescriptionInit;
+}
+
+/** Stack for the calling module. */
+export type CallsStackParamList = {
+  IncomingCall: {
+    callId: string;
+    caller: CallParticipant;
+    callType: CallType;
+    offer: RTCSessionDescriptionInit;
+  };
+  OutgoingCall: {
+    callId: string;
+    callee: CallParticipant;
+    callType: CallType;
+    conversationId?: string;
+  };
+  ActiveCall: {
+    callId: string;
+    otherParticipant: CallParticipant;
+    callType: CallType;
+    isIncoming: boolean;
+  };
+  CallHistory: undefined;
 };

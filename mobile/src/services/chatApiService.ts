@@ -35,6 +35,7 @@ function normalizeMessage(raw: Record<string, unknown> & Partial<ChatMessage>): 
     attachmentName: raw.attachmentName,
     createdAt: raw.createdAt ?? new Date().toISOString(),
     readBy: Array.isArray(raw.readBy) ? (raw.readBy as string[]) : [],
+    replyTo: raw.replyTo ? String(raw.replyTo) : undefined,
   };
 }
 
@@ -129,6 +130,7 @@ async function sendMessage(
     type?: string;
     attachmentUrl?: string;
     attachmentName?: string;
+    replyTo?: string;
   },
 ): Promise<ChatMessage> {
   const { data } = await apiClient.post(
@@ -146,6 +148,11 @@ async function markRead(conversationId: string): Promise<{ unreadCount: number; 
     unreadCount: Number(data?.unreadCount ?? 0),
     lastReadAt: data?.lastReadAt ?? new Date().toISOString(),
   };
+}
+
+async function getTurnCredentials(): Promise<{ credentials: { urls: string; username: string; credential: string }[] }> {
+  const { data } = await apiClient.get('/calls/turn-credentials');
+  return { credentials: data?.credentials || [] };
 }
 
 async function uploadImage(uri: string, fileName?: string | null, mimeType?: string | null): Promise<string> {
@@ -173,6 +180,7 @@ export const chatApiService = {
   sendMessage,
   markRead,
   uploadImage,
+  getTurnCredentials,
   assetUrl,
   getErrorMessage: getApiErrorMessage,
 };

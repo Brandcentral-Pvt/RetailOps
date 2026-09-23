@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
 import { SPACING } from '../theme/theme';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 interface Props {
   children: React.ReactNode;
@@ -15,10 +16,21 @@ interface Props {
 export default function ScreenContainer({ children, scroll = false, padded = true, style }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { contentGutter } = useResponsiveLayout();
   const contentStyle = [
     styles.content,
-    padded && { padding: SPACING.md },
-    { paddingBottom: insets.bottom + SPACING.md },
+    padded && {
+      paddingTop: insets.top + SPACING.lg,
+      paddingLeft: Math.max(insets.left, contentGutter),
+      paddingRight: Math.max(insets.right, contentGutter),
+      paddingBottom: insets.bottom + SPACING.xl,
+    },
+    !padded && {
+      paddingTop: insets.top,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+      paddingBottom: insets.bottom,
+    },
     style,
   ];
 

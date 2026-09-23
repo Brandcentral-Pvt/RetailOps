@@ -218,9 +218,16 @@ function getTaskIcon(type: TaskType): string {
   }
 }
 
+type ThemeColors = {
+  error: string;
+  tertiary: string;
+  primary: string;
+  onSurfaceVariant: string;
+};
+
 function getPriorityColor(
   priority: TaskPriority,
-  colors: ReturnType<typeof useTheme>['colors'],
+  colors: ThemeColors,
 ): string {
   switch (priority) {
     case 'High':

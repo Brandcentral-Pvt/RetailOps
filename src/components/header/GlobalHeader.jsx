@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu } from '../../icons/fluent';
+import { Menu } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import HeaderBrand from './HeaderBrand';
 import SearchTrigger from './SearchTrigger';

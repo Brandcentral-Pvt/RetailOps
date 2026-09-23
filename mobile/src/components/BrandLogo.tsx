@@ -1,27 +1,51 @@
-/** Brand logo (BrandCentral) with an optional wordmark. */
+/** Premium BrandCentral wordmark with a stable aspect ratio. */
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 const LOGO = require('../../assets/brandcentral-logo.png');
+const LOGO_ASPECT = 875 / 166;
 
 interface Props {
+  /** Visual height of the wordmark. */
   size?: number;
   showWordmark?: boolean;
   wordmarkColor?: string;
+  accessible?: boolean;
 }
 
-export default function BrandLogo({ size = 64, showWordmark = false, wordmarkColor }: Props) {
+export default function BrandLogo({
+  size = 42,
+  showWordmark = false,
+  wordmarkColor,
+  accessible = true,
+}: Props) {
   return (
-    <View style={styles.row}>
+    <View
+      style={styles.row}
+      accessibilityLabel={accessible ? 'BrandCentral RetailOps' : undefined}
+      accessibilityRole="image"
+    >
       <Image
         source={LOGO}
-        style={{ width: size, height: size }}
+        style={[
+          styles.logo,
+          {
+            width: size * LOGO_ASPECT,
+            height: size,
+          },
+        ]}
         resizeMode="contain"
-        accessibilityLabel="BrandCentral"
+        accessible={false}
       />
       {showWordmark ? (
-        <Text variant="titleLarge" style={[styles.wordmark, wordmarkColor ? { color: wordmarkColor } : null]}>
+        <Text
+          variant="titleLarge"
+          style={[
+            styles.wordmark,
+            wordmarkColor ? { color: wordmarkColor } : null,
+          ]}
+        >
           RetailOps
         </Text>
       ) : null}
@@ -30,6 +54,16 @@ export default function BrandLogo({ size = 64, showWordmark = false, wordmarkCol
 }
 
 const styles = StyleSheet.create({
-  row: { alignItems: 'center', justifyContent: 'center' },
-  wordmark: { marginTop: 8, fontWeight: '700', letterSpacing: -0.3 },
+  row: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logo: {
+    flexShrink: 1,
+  },
+  wordmark: {
+    fontWeight: '700',
+  },
 });

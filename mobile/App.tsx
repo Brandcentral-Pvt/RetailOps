@@ -3,8 +3,7 @@
  * Providers (top → bottom): SafeArea → Paper (theme) → Navigation.
  */
 import React from 'react';
-import { useColorScheme } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar, useColorScheme, View } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,16 +12,23 @@ import { darkTheme, lightTheme } from './src/theme/theme';
 
 export default function App() {
   const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? darkTheme : lightTheme;
+  const isDark = scheme === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <PaperProvider theme={theme}>
-          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-          <RootNavigator />
-        </PaperProvider>
-      </SafeAreaProvider>
+      <View style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <PaperProvider theme={theme}>
+            <StatusBar
+              animated
+              barStyle={isDark ? 'light-content' : 'dark-content'}
+              backgroundColor={theme.colors.background}
+            />
+            <RootNavigator />
+          </PaperProvider>
+        </SafeAreaProvider>
+      </View>
     </GestureHandlerRootView>
   );
 }
