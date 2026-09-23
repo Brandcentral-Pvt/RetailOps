@@ -100,18 +100,31 @@ export default function LiveSyncPage() {
             status: res.isRunning ? 'RUNNING' : 'COMPLETE',
             activeSyncs: res.activeSyncs || 0,
             syncs: res.syncs || [],
+            globalProgress: res.globalProgress || null,
           });
           if (!res.isRunning) {
             clearInterval(poll);
             setSyncRunning(false);
             loadSellers(); // Refresh data
+            message.success('Global live sync completed!');
           }
+        } else {
+          console.error('Sync status error:', res.error);
         }
-      } catch (e) { /* poll error */ }
+      } catch (e) {
+        console.error('Sync status poll failed:', e);
+        // Don't clear interval on transient errors, keep polling
+      }
     }, 5000);
-    // Stop polling after 30 min max
-    setTimeout(() => clearInterval(poll), 30 * 60 * 1000);
-  }, [loadSellers]);
+    // Stop polling after 2 hours max (safety net)
+    setTimeout(() => {
+      clearInterval(poll);
+      if (syncRunning) {
+        setSyncRunning(false);
+        message.error('Sync polling timeout — check backend logs');
+      }
+    }, 2 * 60 * 60 * 1000);
+  }, [loadSellers, syncRunning]);
 
   // ── Single Seller Sync ──
   const handleSyncSeller = async (sellerId) => {

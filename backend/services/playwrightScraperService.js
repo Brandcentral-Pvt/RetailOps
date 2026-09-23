@@ -647,6 +647,142 @@ class PlaywrightScraperService {
         // Clean up circuit breaker entry for this ASIN
         this.asinFailureMap.delete(asin);
     }
+
+    /**
+     * Scrape all ASINs for a given seller.
+     * @param {string} sellerId - Seller ID
+     * @param {object} [opts] - Options: { maxAsins, delayMs, full }
+     * @returns {Promise<{scraped: number, failed: number, errors: string[]}>}
+     */
+    async scrapeAllSellerAsins(sellerId, opts = {}) {
+        const { sql, getPool } = require('../database/db');
+        const pool = await getPool();
+        
+        const maxAsins = opts.maxAsins || 500;
+        const delayMs = opts.delayMs || 2000;
+        const full = opts.full || false;
+
+        const result = await pool.request()
+            .input('sellerId', sql.VarChar, sellerId)
+            .query(`
+                SELECT TOP (@maxAsins) Id, AsinCode
+                FROM Asins 
+                WHERE SellerId = @sellerId 
+                AND Status IN ('Active', 'Error', 'Scraping')
+                AND AsinCode IS NOT NULL
+                AND AsinCode LIKE 'B0%'
+                ORDER BY 
+                    CASE WHEN LastScrapedAt IS NULL THEN 0 ELSE 1 END,
+                    LastScrapedAt ASC
+            `);
+
+        const asins = result.recordset;
+        const errors = [];
+        let scraped = 0;
+        let failed = 0;
+
+        logger.info(`[Scraper] Starting batch scrape for seller ${sellerId}: ${asins.length} ASINs`);
+
+        for (const asinRecord of asins) {
+            try {
+                const asinCode = asinRecord.AsinCode;
+                await this.scrapeAsin(asinCode, { full });
+                
+                // Update DB with scraped data
+                await pool.request()
+                    .input('asin', sql.NVarChar, asinCode)
+                    .input('scrapedAt', sql.DateTime, new Date())
+                    .query(`
+                        UPDATE Asins SET
+                            LastScrapedAt = @scrapedAt,
+                            ScrapeStatus = 'COMPLETED',
+                            Status = 'Active'
+                        WHERE AsinCode = @asin
+                    `);
+                scraped++;
+                
+                // Rate limiting between ASINs
+                if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
+            } catch (err) {
+                failed++;
+                const msg = `ASIN ${asinRecord.AsinCode}: ${err.message}`;
+                errors.push(msg);
+                logger.warn(`[Scraper] Failed ${asinRecord.AsinCode}: ${err.message}`);
+                
+                // Update DB with error
+                try {
+                    await pool.request()
+                        .input('asin', sql.NVarChar, asinRecord.AsinCode)
+                        .input('error', sql.NVarChar, err.message)
+                        .query(`
+                            UPDATE Asins SET
+                                ScrapeStatus = 'FAILED',
+                                LastScrapeError = @error,
+                                Status = 'Error'
+                            WHERE AsinCode = @asin
+                        `);
+                } catch (dbErr) {
+                    logger.error(`[Scraper] DB update failed for ${asinRecord.AsinCode}:`, dbErr.message);
+                }
+            }
+        }
+
+        logger.info(`[Scraper] Completed seller ${sellerId}: ${scraped} scraped, ${failed} failed`);
+        return { scraped, failed, errors };
+    }
+
+    /**
+     * Memory management: Check if browser should be restarted due to memory pressure
+     */
+    async checkMemoryPressure() {
+        const mem = process.memoryUsage();
+        const heapUsedMB = mem.heapUsed / 1024 / 1024;
+        const rssMB = mem.rss / 1024 / 1024;
+        
+        const heapThresholdMB = parseInt(process.env.SCRAPER_MAX_HEAP_MB || '1500', 10);
+        const rssThresholdMB = parseInt(process.env.SCRAPER_MAX_RSS_MB || '2000', 10);
+        
+        if (heapUsedMB > heapThresholdMB || rssMB > rssThresholdMB) {
+            logger.warn(`[Scraper] Memory pressure detected: heap=${heapUsedMB.toFixed(0)}MB, rss=${rssMB.toFixed(0)}MB — restarting browser`);
+            await this.close();
+            this.browser = null;
+            this._context = null;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Periodic browser restart to prevent memory leaks
+     */
+    async maybeRestartBrowser() {
+        const now = Date.now();
+        const restartIntervalMs = parseInt(process.env.SCRAPER_BROWSER_RESTART_MS || '1800000', 10); // 30 min default
+        
+        if (!this._lastBrowserRestart) {
+            this._lastBrowserRestart = now;
+        }
+        
+        if (now - this._lastBrowserRestart > restartIntervalMs) {
+            logger.info('[Scraper] Periodic browser restart');
+            await this.close();
+            this.browser = null;
+            this._context = null;
+            this._lastBrowserRestart = now;
+        }
+    }
+
+    /**
+     * Force cleanup of all resources
+     */
+    async forceCleanup() {
+        await this.close();
+        this.browser = null;
+        this._context = null;
+        this.activePages.clear();
+        this.busy = 0;
+        if (global.gc) global.gc();
+    }
 }
 
 module.exports = new PlaywrightScraperService();

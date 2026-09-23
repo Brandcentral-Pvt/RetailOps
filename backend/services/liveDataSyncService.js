@@ -32,6 +32,8 @@ class LiveDataSyncService extends EventEmitter {
         this._credThrottledUntil = new Map();  // credId -> timestamp when throttling ends
         this.activeSyncs = new Map();
         this._globalSyncRunning = false;
+        this._globalSyncProgress = null;       // progress tracking for global sync
+        this._globalSyncAborted = false;       // abort flag for global sync
         this._pendingScrapes = new Set();   // in-flight scraper enrichment / full-scrape promises
     }
 
@@ -283,7 +285,12 @@ class LiveDataSyncService extends EventEmitter {
     // GLOBAL: Sync All Sellers (parallel batching)
     // ============================================
     async syncAllSellers(options = {}) {
-        const { concurrency = this._config.maxConcurrency, sellerIds = null, maxRetries = 2 } = options;
+        const { 
+            concurrency = this._config.maxConcurrency, 
+            sellerIds = null, 
+            maxRetries = 2,
+            globalTimeoutMs = 2 * 60 * 60 * 1000 // 2 hours default
+        } = options;
         const startTime = Date.now();
 
         // Prevent duplicate global sync
@@ -291,6 +298,21 @@ class LiveDataSyncService extends EventEmitter {
             return { error: 'Global live sync already in progress', status: 'IN_PROGRESS' };
         }
         this._globalSyncRunning = true;
+
+        // Global progress tracking (for status endpoint)
+        this._globalSyncProgress = {
+            totalSellers: 0,
+            processedSellers: 0,
+            currentSeller: null,
+            startTime,
+            status: 'STARTING',
+        };
+
+        // Global timeout safety net
+        let globalTimeout = setTimeout(() => {
+            console.error('⚡ Global live sync TIMEOUT — aborting');
+            this._globalSyncAborted = true;
+        }, globalTimeoutMs);
 
         try {
             const pool = await getPool();
@@ -314,8 +336,11 @@ class LiveDataSyncService extends EventEmitter {
             const sellers = sellersResult.recordset;
 
             console.log(`⚡ Live sync all: ${sellers.length} sellers (${sellers.reduce((s, v) => s + v.AsinCount, 0)} ASINs)`);
-            console.log(`   Config: concurrency=${concurrency}, retries=${maxRetries}, delay=${this._config.sellerDelay}ms`);
+            console.log(`   Config: concurrency=${concurrency}, retries=${maxRetries}, delay=${this._config.sellerDelay}ms, timeout=${globalTimeoutMs}ms`);
             this.emit('liveSyncAll:started', { totalSellers: sellers.length });
+
+            this._globalSyncProgress.totalSellers = sellers.length;
+            this._globalSyncProgress.status = 'RUNNING';
 
             const results = [];
 
@@ -325,10 +350,13 @@ class LiveDataSyncService extends EventEmitter {
                 let lastError = null;
                 let attempt = 0;
 
+                this._globalSyncProgress.currentSeller = { name: seller.Name, id: seller.Id, asinCount: seller.AsinCount, attempt: 0 };
+
                 while (attempt <= maxRetries) {
                     try {
                         if (attempt > 0) {
                             console.log(`  ${progress} 🔄 ${seller.Name} — retry ${attempt}/${maxRetries}`);
+                            this._globalSyncProgress.currentSeller.attempt = attempt;
                             await this._delay(this._config.retryDelay);
                         }
                         const result = await this.syncSellerLiveData(seller.Id);
@@ -355,9 +383,14 @@ class LiveDataSyncService extends EventEmitter {
             let processed = 0;
 
             while (queue.length > 0 || running.size > 0) {
+                if (this._globalSyncAborted) {
+                    console.warn('⚡ Global sync aborted — stopping queue');
+                    break;
+                }
                 while (running.size < concurrency && queue.length > 0) {
                     const seller = queue.shift();
                     const idx = processed++;
+                    this._globalSyncProgress.processedSellers = processed;
                     const p = processOneSeller(seller, idx);
                     running.add(p);
                     p.finally(() => running.delete(p));
@@ -394,7 +427,15 @@ class LiveDataSyncService extends EventEmitter {
 
             return { success: true, summary, results };
         } finally {
+            clearTimeout(globalTimeout);
             this._globalSyncRunning = false;
+            this._globalSyncAborted = false;
+            this._globalSyncProgress = {
+                ...this._globalSyncProgress,
+                status: 'COMPLETED',
+                currentSeller: null,
+                completedAt: new Date().toISOString()
+            };
         }
     }
 
