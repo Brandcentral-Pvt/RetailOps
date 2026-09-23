@@ -116,7 +116,7 @@ export default function LiveSyncPage() {
   // ── Single Seller Sync ──
   const handleSyncSeller = async (sellerId) => {
     try {
-      const res = await fetch(`${API_BASE}/market-sync/sync-all-live/${sellerId}`, {
+      const res = await fetch(`${API_BASE}/market-sync/sync/live/${sellerId}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       }).then(r => r.json());
       if (res.success) message.success('Sync triggered for seller');
