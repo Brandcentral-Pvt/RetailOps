@@ -266,21 +266,112 @@ export const BrandLeaderboardPanel = ({ rows = [], status, onRetry, activeSeller
 
 // ── Marketplace mix ───────────────────────────────────────────────────
 
+const MP_ORDER = ['amazon', 'ajio', 'myntra'];
+const MP_COLORS = {
+    amazon: '#FF9900',
+    ajio: '#D32F2F',
+    myntra: '#FF3F6C',
+};
+const MP_LABELS = {
+    amazon: 'Amazon',
+    ajio: 'Ajio',
+    myntra: 'Myntra',
+};
+
 export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
     const [basis, setBasis] = useState('gms');
-    const gmsRows = (dashboardRaw?.gmsByMarketplace || [])
-        .map((m) => ({ label: m.name, value: Number(m.revenue) || 0, sub: `${m.sellers} seller${m.sellers === 1 ? '' : 's'}` }))
-        .filter((r) => r.value > 0);
-    const asinRows = (dashboardRaw?.category || [])
-        .map((c) => ({ label: c.name, value: (c.data || [0])[0] || 0 }))
-        .filter((r) => r.value > 0)
-        .sort((a, b) => b.value - a.value);
-    const hasGms = gmsRows.length > 0;
+    const [showDonut, setShowDonut] = useState(false);
+
+    const normKey = (k) => String(k).toLowerCase().replace(/\.| /g, '');
+    const mpKeyMap = { amazonin: 'amazon', ajio: 'ajio', myntra: 'myntra' };
+    const getMpKey = (raw) => mpKeyMap[normKey(raw)] || normKey(raw);
+
+    const gmsByMp = (dashboardRaw?.gmsByMarketplace || [])
+        .reduce((acc, m) => {
+            const key = getMpKey(m.name);
+            acc[key] = { revenue: Number(m.revenue) || 0, sellers: m.sellers || 0 };
+            return acc;
+        }, {});
+
+    const asinsByMp = (dashboardRaw?.category || [])
+        .reduce((acc, c) => {
+            const key = getMpKey(c.name);
+            acc[key] = (c.data || [0])[0] || 0;
+            return acc;
+        }, {});
+
+    const trendByMp = (dashboardRaw?.gmsTrendByMarketplace || [])
+        .reduce((acc, m) => {
+            const key = getMpKey(m.marketplace);
+            acc[key] = m.points || [];
+            return acc;
+        }, {});
+
+    const rows = MP_ORDER.map((key) => {
+        const gms = gmsByMp[key]?.revenue || 0;
+        const sellers = gmsByMp[key]?.sellers || 0;
+        const asins = asinsByMp[key] || 0;
+        const trend = trendByMp[key] || [];
+        return {
+            key,
+            label: MP_LABELS[key] || key,
+            color: MP_COLORS[key] || '#94a3b8',
+            gms,
+            sellers,
+            asins,
+            trend,
+        };
+    });
+
+    const hasGms = rows.some(r => r.gms > 0);
     const effective = basis === 'gms' && hasGms ? 'gms' : 'asins';
-    const rows = effective === 'gms' ? gmsRows : asinRows;
-    const total = rows.reduce((s, r) => s + r.value, 0);
-    const palette = [OPS_COLOR.accent, '#6172f3', '#84caff', '#b2ddff', '#94a3b8'];
+
+    const sortedRows = [...rows].sort((a, b) => {
+        const av = effective === 'gms' ? a.gms : a.asins;
+        const bv = effective === 'gms' ? b.gms : b.asins;
+        return bv - av;
+    });
+
+    const total = rows.reduce((s, r) => s + (effective === 'gms' ? r.gms : r.asins), 0);
     const fmt = effective === 'gms' ? fmtINR : fmtNum;
+
+    const renderTrend = (points, color) => {
+        if (!points?.length) return <span className="ops-muted">—</span>;
+        return <Sparkline data={points.map(p => p.revenue || p.value || 0)} width={80} height={18} color={color} />;
+    };
+
+    const renderDonut = () => {
+        if (total === 0) return null;
+        const circumference = 2 * Math.PI * 40; // r=40
+        let offset = 0;
+        return (
+            <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                {sortedRows
+                    .filter(r => (effective === 'gms' ? r.gms : r.asins) > 0)
+                    .map((r, i) => {
+                        const value = effective === 'gms' ? r.gms : r.asins;
+                        const pct = total > 0 ? value / total : 0;
+                        const strokeDash = `${pct * circumference} ${circumference}`;
+                        const strokeOffset = offset;
+                        offset += pct * circumference;
+                        return (
+                            <circle
+                                key={r.key}
+                                cx="50"
+                                cy="50"
+                                r="40"
+                                fill="none"
+                                stroke={r.color}
+                                strokeWidth="16"
+                                strokeDasharray={strokeDash}
+                                strokeDashoffset={strokeOffset}
+                                strokeLinecap="round"
+                            />
+                        );
+                    })}
+            </svg>
+        );
+    };
 
     return (
         <Panel
@@ -289,15 +380,25 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
             kicker="Marketplace mix"
             meta={total > 0 ? (effective === 'gms' ? `${fmtINR(total)} GMS` : `${fmtNum(total)} ASINs`) : undefined}
             actions={(
-                <Segmented
-                    ariaLabel="Mix basis"
-                    value={effective}
-                    onChange={setBasis}
-                    options={[
-                        { value: 'gms', label: 'GMS', title: hasGms ? 'Share of ordered revenue' : 'No GMS in period' },
-                        { value: 'asins', label: 'ASINs', title: 'Share of catalog count' },
-                    ]}
-                />
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Segmented
+                        ariaLabel="Mix basis"
+                        value={effective}
+                        onChange={setBasis}
+                        options={[
+                            { value: 'gms', label: 'GMS', title: hasGms ? 'Share of ordered revenue' : 'No GMS in period' },
+                            { value: 'asins', label: 'ASINs', title: 'Share of catalog count' },
+                        ]}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={showDonut}
+                            onChange={e => setShowDonut(e.target.checked)}
+                        />
+                        Donut
+                    </label>
+                </span>
             )}
         >
             {status === 'error' ? (
@@ -306,17 +407,35 @@ export const MixPanel = ({ dashboardRaw, status, onRetry }) => {
                 <MiniState tone="empty" title={effective === 'gms' ? 'No GMS by marketplace' : 'No ASINs'} note="No data for this selection." />
             ) : (
                 <div style={{ paddingTop: 2 }}>
-                    {rows.map((r, i) => (
-                        <div className="ops-hbar" key={r.label}>
-                            <div className="ops-hbar__top">
-                                <b>{r.label}{r.sub ? <span className="ops-muted"> · {r.sub}</span> : null}</b>
-                                <span className="ops-num">{fmt(r.value)} · {((r.value / total) * 100).toFixed(0)}%</span>
-                            </div>
-                            <div className="ops-hbar__track">
-                                <span className="ops-hbar__fill" style={{ width: `${(r.value / total) * 100}%`, background: palette[i % palette.length] }} />
-                            </div>
+                    {showDonut && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                            {renderDonut()}
                         </div>
-                    ))}
+                    )}
+                    <div style={{ paddingTop: 2 }}>
+                        {rows.map((r) => {
+                            const value = effective === 'gms' ? r.gms : r.asins;
+                            const pct = total > 0 ? (value / total) * 100 : 0;
+                            return (
+                                <div className="ops-hbar" key={r.key} style={{ marginBottom: 10 }}>
+                                    <div className="ops-hbar__top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
+                                            <b>{r.label}{r.sellers ? <span className="ops-muted"> · {r.sellers} seller{r.sellers === 1 ? '' : 's'}</span> : null}</b>
+                                        </div>
+                                        <span className="ops-num">{fmt(value)} · {pct.toFixed(0)}%</span>
+                                    </div>
+                                    <div className="ops-hbar__track" style={{ height: 8, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+                                        <span className="ops-hbar__fill" style={{ width: `${pct}%`, background: r.color, height: '100%', display: 'block', borderRadius: 4, transition: 'width 0.3s ease' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: 11 }}>
+                                        <span className="ops-muted">Trend:</span>
+                                        <span style={{ minWidth: 80 }}>{renderTrend(r.trend, r.color)}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
         </Panel>
