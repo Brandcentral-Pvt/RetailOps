@@ -680,6 +680,8 @@ class LiveDataSyncService extends EventEmitter {
                 request.partnerTag = credInfo.partnerTag;
                 request.itemIds = codes;
                 request.resources = this._getResources();
+                request.itemIdType = 'ASIN';
+                request.marketplace = credInfo.marketplace;
 
                 const response_and_data = await api.getItemsWithHttpInfo(credInfo.marketplace, request);
                 const data = response_and_data.data;
