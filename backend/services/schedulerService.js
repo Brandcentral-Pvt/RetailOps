@@ -72,7 +72,7 @@ class SchedulerService {
         
         // Live Data Sync defaults
         let liveSyncEnabled = false;
-        let liveSyncTime = '06:00';
+        let liveSyncTime = '00:05';
         let liveSyncConcurrency = 3;
 
         logger.info('[SCHEDULER CONFIG] Loading from database settings');
@@ -173,6 +173,46 @@ class SchedulerService {
             logger.info(`Live Data Sync scheduled at ${liveSyncTime} in ${automationTimezone}`);
         } else {
             logger.info('🛑 [Scheduler] Live Data Sync is DISABLED.');
+        }
+
+        // ── Playwright Scraper Sync (at same time as live sync: 00:05) ──
+        const scraperEnabled = process.env.SCRAPER_CRON_ENABLED !== 'false';
+        const scraperTime = process.env.SCRAPER_CRON_TIME || liveSyncTime || '00:05';
+        
+        logger.info(`Scraper Sync schedule: ${scraperTime} (enabled: ${scraperEnabled})`);
+        
+        if (scraperEnabled) {
+            let scraperCronExpr = '5 0 * * *';
+            if (scraperTime && scraperTime.includes(':')) {
+                const [hour, minute] = scraperTime.split(':');
+                scraperCronExpr = `${parseInt(minute, 10)} ${parseInt(hour, 10)} * * *`;
+            }
+            
+            this.jobs.playwrightScraperSync = cron.schedule(scraperCronExpr, async () => {
+                logger.info('Cron triggering Playwright Scraper Sync');
+                try {
+                    const playwrightScraperService = require('./playwrightScraperService');
+                    // Trigger scraper sync for all active sellers
+                    const pool = await getPool();
+                    const sellersResult = await pool.request()
+                        .query("SELECT Id FROM Sellers WHERE IsActive = 1 AND Marketplace = 'Amazon'");
+                    const sellerIds = sellersResult.recordset.map(s => s.Id);
+                    
+                    for (const sellerId of sellerIds) {
+                        try {
+                            await playwrightScraperService.scrapeAllSellerAsins(sellerId);
+                            logger.info(`Scraper sync completed for seller ${sellerId}`);
+                        } catch (err) {
+                            logger.error(`Scraper sync failed for seller ${sellerId}:`, err.message);
+                        }
+                    }
+                } catch (err) {
+                    logger.error('Playwright Scraper Sync cron failed:', err.message);
+                }
+            }, cronOptions);
+            logger.info(`Playwright Scraper Sync scheduled at ${scraperTime} in ${automationTimezone}`);
+        } else {
+            logger.info('🛑 [Scheduler] Playwright Scraper Sync is DISABLED.');
         }
 
         // 4. Database Integrity Repair (Every 6 hours)

@@ -1,22 +1,23 @@
+
 /**
  * Active Call Screen — in-call controls (mute, speaker, flip camera, end).
  */
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import {
   Avatar,
-  Button,
   Text,
   useTheme,
   IconButton,
 } from 'react-native-paper';
 import { RTCView } from 'react-native-webrtc';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+
 import { callService } from '../../services/callService';
 import { useCallStore } from '../../store/callStore';
 import { useAuthStore } from '../../store/authStore';
@@ -26,105 +27,241 @@ import type { CallsStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<CallsStackParamList, 'ActiveCall'>;
 
+type EndReason =
+  | 'ended'
+  | 'rejected'
+  | 'missed'
+  | 'failed'
+  | 'busy';
+
 export default function ActiveCallScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const route = useRoute<Props['route']>();
-  const { callId, otherParticipant, callType, isIncoming } = route.params;
 
-  const myId = useAuthStore((s) => s.user?.id ?? s.user?._id ?? '');
+  const {
+    callId,
+    otherParticipant,
+    callType,
+    isIncoming,
+  } = route.params;
+
+  const myId = useAuthStore(
+    (s) => s.user?.id ?? s.user?._id ?? '',
+  );
+
   const {
     currentCall,
     localStream,
     remoteStream,
-    setCurrentCall,
-    updateCallStatus,
     setLocalStream,
     setRemoteStream,
   } = useCallStore();
 
   const [muted, setMuted] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(callType === 'video');
+  const [videoEnabled, setVideoEnabled] = useState(
+    callType === 'video',
+  );
   const [frontCamera, setFrontCamera] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
 
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(Date.now());
+  const endingRef = useRef(false);
 
+  /**
+   * Start timer and initialise WebRTC connection.
+   */
   useEffect(() => {
-    // Start call timer
     startTimeRef.current = Date.now();
+    setCallDuration(0);
+
     durationRef.current = setInterval(() => {
-      setCallDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      setCallDuration(
+        Math.floor(
+          (Date.now() - startTimeRef.current) / 1000,
+        ),
+      );
     }, 1000);
 
-    // Ensure peer connection is set up
     const pc = callService.createPeerConnection(callId, {
       isInitiator: !isIncoming,
       callType,
       onLocalStream: setLocalStream,
       onRemoteStream: setRemoteStream,
-      onCallEnded: (reason) => handleEnd(reason),
+      onCallEnded: (reason: EndReason) => {
+        handleEnd(reason);
+      },
     });
 
     return () => {
-      clearInterval(durationRef.current!);
-    };
-  }, [callId, callType, isIncoming]);
+      if (durationRef.current) {
+        clearInterval(durationRef.current);
+        durationRef.current = null;
+      }
 
+      // Prevent an old peer connection from affecting a new call.
+      if (pc && typeof pc.close === 'function') {
+        try {
+          pc.close();
+        } catch {
+          // Ignore already-closed peer connection.
+        }
+      }
+    };
+  }, [
+    callId,
+    callType,
+    isIncoming,
+    setLocalStream,
+    setRemoteStream,
+  ]);
+
+  /**
+   * Format call duration as MM:SS.
+   */
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    return `${mins}:${secs
+      .toString()
+      .padStart(2, '0')}`;
   };
 
+  /**
+   * Mute / unmute microphone.
+   */
   const handleMuteToggle = () => {
     const newMuted = !muted;
+
     setMuted(newMuted);
     callService.setAudioEnabled(callId, !newMuted);
   };
 
+  /**
+   * Toggle speaker output.
+   */
   const handleSpeakerToggle = () => {
     const newSpeaker = !speakerOn;
+
     setSpeakerOn(newSpeaker);
     callService.setSpeaker(callId, newSpeaker);
   };
 
+  /**
+   * Enable / disable local video.
+   */
   const handleVideoToggle = () => {
     const newVideoEnabled = !videoEnabled;
+
     setVideoEnabled(newVideoEnabled);
-    callService.setVideoEnabled(callId, newVideoEnabled);
-  };
-
-  const handleFlipCamera = async () => {
-    const newFront = !frontCamera;
-    setFrontCamera(newFront);
-    await callService.switchCamera(callId);
-  };
-
-  const handleEnd = (reason: 'ended' | 'rejected' | 'missed' | 'failed' | 'busy' = 'ended') => {
-    clearInterval(durationRef.current!);
-    callService.endCall(callId, reason);
-    sendCallSignal('call:end', { callId, reason });
-
-    const me = { _id: myId, name: 'You', avatar: undefined };
-    recordCallInHistory({
+    callService.setVideoEnabled(
       callId,
-      conversationId: currentCall?.conversationId,
-      caller: isIncoming ? otherParticipant : me,
-      callee: isIncoming ? me : otherParticipant,
-      type: callType,
-      direction: isIncoming ? 'incoming' : 'outgoing',
-      startedAt: currentCall?.startedAt ?? new Date(startTimeRef.current).toISOString(),
-      duration: callDuration,
-      endReason: reason,
-    });
+      newVideoEnabled,
+    );
+  };
+
+  /**
+   * Switch front / rear camera.
+   */
+  const handleFlipCamera = async () => {
+    try {
+      await callService.switchCamera(callId);
+      setFrontCamera((current) => !current);
+    } catch (error) {
+      console.error(
+        '[ActiveCall] Failed to switch camera:',
+        error,
+      );
+    }
+  };
+
+  /**
+   * End the call and save it to call history.
+   */
+  const handleEnd = (
+    reason: EndReason = 'ended',
+  ) => {
+    // Prevent duplicate end events.
+    if (endingRef.current) {
+      return;
+    }
+
+    endingRef.current = true;
+
+    if (durationRef.current) {
+      clearInterval(durationRef.current);
+      durationRef.current = null;
+    }
+
+    try {
+      callService.endCall(callId, reason);
+    } catch (error) {
+      console.error(
+        '[ActiveCall] Failed to end call:',
+        error,
+      );
+    }
+
+    try {
+      sendCallSignal('call:end', {
+        callId,
+        reason,
+      });
+    } catch (error) {
+      console.error(
+        '[ActiveCall] Failed to send end signal:',
+        error,
+      );
+    }
+
+    /**
+     * Current user representation.
+     */
+    const me = {
+      _id: myId,
+      name: 'You',
+      avatar: undefined,
+    };
+
+    /**
+     * Record call history.
+     */
+    try {
+      recordCallInHistory({
+        callId,
+        conversationId: currentCall?.conversationId,
+        caller: isIncoming
+          ? otherParticipant
+          : me,
+        callee: isIncoming
+          ? me
+          : otherParticipant,
+        type: callType,
+        direction: isIncoming
+          ? 'incoming'
+          : 'outgoing',
+        startedAt:
+          currentCall?.startedAt ??
+          new Date(
+            startTimeRef.current,
+          ).toISOString(),
+        duration: callDuration,
+        endReason: reason,
+      });
+    } catch (error) {
+      console.error(
+        '[ActiveCall] Failed to record call history:',
+        error,
+      );
+    }
 
     navigation.goBack();
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: '#000' }]}>
+    <View style={styles.screen}>
       {/* Remote Video / Avatar */}
       <View style={styles.remoteContainer}>
         {callType === 'video' && remoteStream ? (
@@ -137,18 +274,34 @@ export default function ActiveCallScreen({ navigation }: Props) {
           <View style={styles.remotePlaceholder}>
             <Avatar.Image
               size={100}
-              source={otherParticipant.avatar ? { uri: otherParticipant.avatar } : undefined}
+              source={
+                otherParticipant.avatar
+                  ? { uri: otherParticipant.avatar }
+                  : undefined
+              }
+            />
+
+            {!otherParticipant.avatar && (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarFallbackText}>
+                  {otherParticipant.name
+                    .charAt(0)
+                    .toUpperCase()}
+                </Text>
+              </View>
+            )}
+
+            <Text
+              style={styles.remoteName}
+              variant="headlineMedium"
             >
-              {otherParticipant.name.charAt(0).toUpperCase()}
-            </Avatar.Image>
-            <Text style={styles.remoteName} variant="headlineMedium">
               {otherParticipant.name}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Local Preview (PiP) */}
+      {/* Local Video Preview */}
       {callType === 'video' && localStream && (
         <View style={styles.localPreview}>
           <RTCView
@@ -159,12 +312,21 @@ export default function ActiveCallScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* Call Info */}
+      {/* Call Information */}
       <View style={styles.infoOverlay}>
-        <Text style={styles.callStatus} variant="titleMedium">
-          {callType === 'video' ? '📹 Video' : '📞 Voice'}
+        <Text
+          style={styles.callStatus}
+          variant="titleMedium"
+        >
+          {callType === 'video'
+            ? '📹 Video'
+            : '📞 Voice'}
         </Text>
-        <Text style={styles.callDuration} variant="headlineLarge">
+
+        <Text
+          style={styles.callDuration}
+          variant="headlineLarge"
+        >
           {formatDuration(callDuration)}
         </Text>
       </View>
@@ -172,63 +334,80 @@ export default function ActiveCallScreen({ navigation }: Props) {
       {/* Controls */}
       <View style={styles.controlsContainer}>
         <View style={styles.controlRow}>
+          {/* Mute */}
           <IconButton
-            icon={muted ? 'microphone-off' : 'microphone'}
+            icon={
+              muted
+                ? 'microphone-off'
+                : 'microphone'
+            }
             size={28}
             onPress={handleMuteToggle}
-            iconColor={colors.onSurface}
+            iconColor="#FFFFFF"
             style={[
               styles.controlButton,
               muted && styles.controlButtonActive,
             ]}
-            rippleColor={colors.primary}
+            rippleColor="rgba(255,255,255,0.2)"
           />
 
+          {/* Speaker */}
           <IconButton
-            icon={speakerOn ? 'volume-high' : 'volume-off'}
+            icon={
+              speakerOn
+                ? 'volume-high'
+                : 'volume-off'
+            }
             size={28}
             onPress={handleSpeakerToggle}
-            iconColor={colors.onSurface}
+            iconColor="#FFFFFF"
             style={[
               styles.controlButton,
               speakerOn && styles.controlButtonActive,
             ]}
-            rippleColor={colors.primary}
+            rippleColor="rgba(255,255,255,0.2)"
           />
 
+          {/* Video */}
           {callType === 'video' && (
             <IconButton
-              icon={videoEnabled ? 'videocam' : 'videocam-off'}
+              icon={
+                videoEnabled
+                  ? 'video'
+                  : 'video-off'
+              }
               size={28}
               onPress={handleVideoToggle}
-              iconColor={colors.onSurface}
+              iconColor="#FFFFFF"
               style={[
                 styles.controlButton,
-                !videoEnabled && styles.controlButtonActive,
+                !videoEnabled &&
+                  styles.controlButtonActive,
               ]}
-              rippleColor={colors.primary}
+              rippleColor="rgba(255,255,255,0.2)"
             />
           )}
 
+          {/* Flip Camera */}
           {callType === 'video' && (
             <IconButton
               icon="camera-flip"
               size={28}
               onPress={handleFlipCamera}
-              iconColor={colors.onSurface}
+              iconColor="#FFFFFF"
               style={styles.controlButton}
-              rippleColor={colors.primary}
+              rippleColor="rgba(255,255,255,0.2)"
             />
           )}
 
+          {/* End Call */}
           <IconButton
             icon="phone-hangup"
             size={32}
             onPress={() => handleEnd('ended')}
             iconColor="#FFFFFF"
             style={styles.endButton}
-            color="#FFFFFF"
-            rippleColor="#FF3B30"
+            rippleColor="rgba(255,255,255,0.3)"
           />
         </View>
       </View>
@@ -239,27 +418,50 @@ export default function ActiveCallScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: '#000000',
   },
+
   remoteContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#000000',
   },
+
   remoteVideo: {
     flex: 1,
     width: '100%',
     height: '100%',
   },
+
   remotePlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1A1A1A',
   },
+
   remoteName: {
     color: '#FFFFFF',
     marginTop: 16,
     fontWeight: '500',
   },
+
+  avatarFallback: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+  },
+
+  avatarFallbackText: {
+    color: '#FFFFFF',
+    fontSize: 42,
+    fontWeight: '600',
+  },
+
   localPreview: {
     position: 'absolute',
     top: 60,
@@ -269,12 +471,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: '#333333',
+    backgroundColor: '#111111',
   },
+
   localVideo: {
     width: '100%',
     height: '100%',
   },
+
   infoOverlay: {
     position: 'absolute',
     bottom: 200,
@@ -282,38 +487,50 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
   },
+
   callStatus: {
     color: 'rgba(255,255,255,0.8)',
     marginBottom: 4,
   },
+
   callDuration: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 32,
   },
+
   controlsContainer: {
     paddingBottom: 40,
     paddingHorizontal: 24,
+    backgroundColor: '#000000',
   },
+
   controlRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 24,
+    gap: 16,
   },
+
   controlButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+
   controlButtonActive: {
     backgroundColor: '#2563EB',
   },
+
   endButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

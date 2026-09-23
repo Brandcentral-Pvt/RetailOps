@@ -1190,6 +1190,7 @@ exports.getGlobalLiveSyncStatus = async (req, res) => {
     try {
         const isRunning = liveDataSyncService._globalSyncRunning;
         const activeCount = liveDataSyncService.activeSyncs.size;
+        const globalProgress = liveDataSyncService._globalSyncProgress || null;
         
         res.json({
             success: true,
@@ -1200,7 +1201,8 @@ exports.getGlobalLiveSyncStatus = async (req, res) => {
                 status: s.status || 'RUNNING',
                 processed: s.successCount,
                 total: s.totalAsins
-            }))
+            })),
+            globalProgress
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
