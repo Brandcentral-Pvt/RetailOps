@@ -1,22 +1,22 @@
 import React, { useMemo } from 'react';
-import { BarChart } from '@visactor/react-vchart';
+import { LineChart } from '@visactor/react-vchart';
 import { fmtByUnit } from './charts';
 
 /**
- * Shared analytical trend chart, rendered with the VChart BarChart
- * (@visactor/react-vchart). Used by the Operations Command Center and the
- * Ads Intelligence page so both surfaces stay visually identical.
+ * Shared analytical trend chart, rendered with the VChart LineChart
+ * (@visactor/react-vchart). Used by the Operations Command Center.
  *
- * Props contract (shared with the AreaTrendChart it replaces):
+ * Data is folded into a single dataset where every row carries the series
+ * key ({ bucket, key, value }) and the series are split per line via
+ * `seriesField`. Unlike per-series datasets, this keeps each line on its
+ * own scale-safe coordinate so the series never overplot.
+ *
+ * Props contract (shared with the legacy TrendChart it replaces):
  *   labels[]            x bucket labels
- *   series [{ key, name, color, data, weight?, dashed?, axis? }]
+ *   series [{ key, name, color, data, weight?, dashed? }]
  *                       weight 1.4–2.4 — primary series are heavier so
  *                       overlapping lines stay distinguishable without extra
  *                       colours (focus +0.8, dim ×0.7)
- *                       axis 'right' | 'left' (default 'left') — series on
- *                       the right get their own scale so small-magnitude
- *                       (₹ K/L ads) bars stay visible next to large-magnitude
- *                       (₹ Cr GMS) ones.
  *   unit                'inr' | 'num' | 'pct'  (all series share one unit)
  *   hidden              array of hidden series keys
  *   onToggle(key)       legend click
@@ -26,7 +26,6 @@ import { fmtByUnit } from './charts';
  *   height
  */
 
-const toNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const numOrNull = (v) => (v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null);
 
 const fmtValue = (v, unit, { full = false } = {}) => (numOrNull(v) === null ? '—' : fmtByUnit(Number(v), unit, { full }));
@@ -36,83 +35,38 @@ export const AreaTrendChart = ({
     height = 235, granularity = 'day',
 }) => {
     const hiddenSet = useMemo(() => new Set(hidden), [hidden]);
-    const visible = useMemo(() => series.filter((s) => !hiddenSet.has(s.key)), [series, hiddenSet]);
-    /* Dual scale: series tagged axis 'right' plot against their own axis so
-       small-magnitude (₹ K/L ads) lines stay visible next to large-magnitude
-       (₹ Cr GMS) ones. When nothing is tagged, a single left axis is used. */
-    const rightIds = visible.filter((s) => s.axis === 'right').map((s) => `s-${s.key}`);
-    const leftIds = visible.filter((s) => s.axis !== 'right').map((s) => `s-${s.key}`);
-    const focused = focusKey && visible.some((s) => s.key === focusKey) ? focusKey : null;
+    const nameByKey = useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.name])), [series]);
+    const colorByKey = useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.color])), [series]);
+    const focused = focusKey && series.some((s) => s.key === focusKey && !hiddenSet.has(focusKey)) ? focusKey : null;
 
-    const data = useMemo(() => series.map((s) => ({
-        id: `trend-${s.key}`,
-        values: labels.map((bucket, i) => ({ bucket, value: numOrNull((s.data || [])[i]) })),
-    })), [labels, series]);
+    /* Fold every visible series into one dataset; hidden series simply carry
+       no rows, so VChart never creates a line for them. */
+    const data = useMemo(() => ({
+        id: 'trend',
+        values: series
+            .filter((s) => !hiddenSet.has(s.key))
+            .flatMap((s) => labels.map((bucket, i) => ({ bucket, key: s.key, value: numOrNull((s.data || [])[i]) }))),
+    }), [labels, series, hiddenSet]);
 
-    const specSeries = useMemo(() => series.map((s) => {
+    /* Per-series styling: VChart only applies seriesStyle when the chart is
+       configured with seriesField, matched by the series key above. */
+    const seriesStyle = useMemo(() => series.map((s) => {
         const off = hiddenSet.has(s.key);
         const isFocus = !off && focused === s.key;
         const dim = !off && focused && focused !== s.key;
-        const base = s.weight || (s.dashed ? 1.5 : 1.8);
+        const base = s.weight || (s.dashed ? 1.6 : 1.8);
         return {
-            type: 'bar',
-            id: `s-${s.key}`,
-            name: s.name,
-            dataKey: `trend-${s.key}`,
-            xField: 'bucket',
-            yField: 'value',
-            visible: !off,
-            stack: false,
-            tooltip: {
-                visible: !off,
-                dimension: {
-                    visible: true,
-                    content: [{
-                        key: s.name,
-                        shapeType: 'square',
-                        shapeColor: s.color,
-                        value: (d) => fmtValue(d?.value, unit, { full: true }),
-                    }],
-                },
-            },
-            bar: {
+            name: s.key,
+            line: {
                 style: {
-                    fill: s.color,
-                    cornerRadius: [4, 4, 0, 0],
+                    stroke: s.color,
+                    strokeWidth: isFocus ? base + 0.8 : dim ? base * 0.7 : base,
+                    strokeDasharray: s.dashed ? [4, 3] : undefined,
+                    opacity: dim ? 0.3 : 1,
                 },
             },
-            barMaxWidth: 22,
-            barMinWidth: 0.6,
-            point: { visible: false },
         };
-    }), [series, hiddenSet, focused, unit]);
-
-    const axes = [
-        {
-            orient: 'left',
-            seriesId: leftIds.length > 0 ? leftIds : undefined,
-            grid: { visible: true, style: { stroke: '#eef1f5', lineWidth: 1 } },
-            label: { visible: true, formatMethod: (v) => fmtByUnit(v, unit, { full: true }), style: { fill: '#8896ab', fontSize: 11 } },
-            tick: { visible: false },
-            domainLine: { visible: false },
-        },
-        ...(rightIds.length > 0
-            ? [{
-                orient: 'right',
-                seriesId: rightIds,
-                grid: { visible: false },
-                label: { visible: true, formatMethod: (v) => fmtByUnit(v, unit, { full: true }), style: { fill: '#8896ab', fontSize: 11 } },
-                tick: { visible: false },
-                domainLine: { visible: true, style: { stroke: '#e3e8ee', lineWidth: 1 } },
-            }]
-            : []),
-        {
-            orient: 'bottom',
-            label: { visible: true, style: { fill: '#8896ab', fontSize: 11 } },
-            tick: { visible: false },
-            domainLine: { visible: true, style: { stroke: '#e3e8ee', lineWidth: 1 } },
-        },
-    ];
+    }), [series, hiddenSet, focused]);
 
     const tooltip = {
         visible: true,
@@ -124,6 +78,12 @@ export const AreaTrendChart = ({
             title: {
                 value: (d) => `${d?.bucket ?? ''}${granularity === 'week' ? ' · week' : ''}`,
             },
+            content: [{
+                key: (d) => nameByKey[d?.key] || d?.key,
+                shapeType: 'circle',
+                shapeColor: (d) => colorByKey[d?.key],
+                value: (d) => fmtValue(d?.value, unit, { full: true }),
+            }],
         },
         mark: { visible: false },
     };
@@ -136,17 +96,36 @@ export const AreaTrendChart = ({
         yField: { visible: false },
     };
 
+    const axes = [
+        {
+            orient: 'left',
+            grid: { visible: true, style: { stroke: '#eef1f5', lineWidth: 1 } },
+            label: { visible: true, formatMethod: (v) => fmtByUnit(v, unit, { full: true }), style: { fill: '#8896ab', fontSize: 11 } },
+            tick: { visible: false },
+            domainLine: { visible: false },
+        },
+        {
+            orient: 'bottom',
+            label: { visible: true, style: { fill: '#8896ab', fontSize: 11 } },
+            tick: { visible: false },
+            domainLine: { visible: true, style: { stroke: '#e3e8ee', lineWidth: 1 } },
+        },
+    ];
+
     return (
         <div className="ops-chart">
-            <BarChart
+            <LineChart
                 data={data}
-                series={specSeries}
+                seriesField="key"
+                xField="bucket"
+                yField="value"
+                stack={false}
+                seriesStyle={seriesStyle}
+                line={{ style: { curveType: 'monotone' } }}
+                point={{ state: { dimension_hover: { size: 6 } } }}
                 axes={axes}
                 tooltip={tooltip}
                 crosshair={crosshair}
-                stack={false}
-                xField="bucket"
-                yField="value"
                 animation={false}
                 height={height}
             />
@@ -154,8 +133,8 @@ export const AreaTrendChart = ({
                 {series.map((s) => {
                     const off = hiddenSet.has(s.key);
                     const dim = focused && focused !== s.key;
+                    const total = (s.data || []).reduce((a, b) => a + (numOrNull(b) ?? 0), 0);
                     const summary = unit === 'pct' ? 'avg' : 'total';
-                    const total = (s.data || []).reduce((a, b) => a + toNum(b), 0);
                     return (
                         <button
                             key={s.key}
