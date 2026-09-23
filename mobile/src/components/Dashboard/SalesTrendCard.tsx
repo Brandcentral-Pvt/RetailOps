@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
 
   grid: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'space-between',
   },
 

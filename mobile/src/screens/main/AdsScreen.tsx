@@ -18,6 +18,7 @@ import {
 } from 'react-native-paper';
 
 import adsService from '../../services/adsService';
+import { onAdsUpdate } from '../../services/socketService';
 import { RADIUS, SPACING } from '../../theme/theme';
 
 type PeriodKey = '7d' | '30d' | '3m' | '1y';
@@ -947,9 +948,99 @@ export default function AdsScreen() {
     [period],
   );
 
+  // Real-time updates subscription
   useEffect(() => {
-    loadAds();
-  }, [loadAds]);
+    const unsubOverview = onAdsUpdate('overview', (data) => {
+      setData(prev => {
+        const overviewObject = data && typeof data === 'object' ? data as Record<string, any> : {};
+        return {
+          ...prev,
+          adSales: {
+            value: safeNumber(overviewObject.adSales ?? overviewObject.sales ?? overviewObject.AdSales ?? overviewObject.ad_sales ?? overviewObject.totalAdSales ?? prev.adSales.value),
+            changePct: safeNumber(overviewObject.adSalesChangePct ?? overviewObject.salesChangePct ?? overviewObject.AdSalesChangePct ?? overviewObject.adSalesChange ?? overviewObject.salesChange ?? prev.adSales.changePct),
+          },
+          adSpend: {
+            value: safeNumber(overviewObject.adSpend ?? overviewObject.spend ?? overviewObject.AdSpend ?? overviewObject.ad_spend ?? overviewObject.totalAdSpend ?? prev.adSpend.value),
+            changePct: safeNumber(overviewObject.adSpendChangePct ?? overviewObject.spendChangePct ?? overviewObject.AdSpendChangePct ?? overviewObject.adSpendChange ?? overviewObject.spendChange ?? prev.adSpend.changePct),
+          },
+          roas: {
+            value: safeNumber(overviewObject.roas ?? overviewObject.ROAS ?? overviewObject.returnOnAdSpend ?? prev.roas.value),
+            changePct: safeNumber(overviewObject.roasChangePct ?? overviewObject.ROASChangePct ?? overviewObject.roasChange ?? prev.roas.changePct),
+          },
+          acos: {
+            value: safeNumber(overviewObject.acos ?? overviewObject.ACoS ?? overviewObject.ACOS ?? overviewObject.acosPercentage ?? prev.acos.value),
+            changePct: safeNumber(overviewObject.acosChangePct ?? overviewObject.ACoSChangePct ?? overviewObject.ACOSChangePct ?? overviewObject.acosChange ?? prev.acos.changePct),
+          },
+        };
+      });
+    });
+
+    const unsubSeries = onAdsUpdate('series', (data) => {
+      const seriesArray = Array.isArray(data) ? data : (data && typeof data === 'object' && Array.isArray((data as any).data) ? (data as any).data : []);
+      if (seriesArray.length > 0) {
+        setData(prev => ({
+          ...prev,
+          series: seriesArray.map((item: any, index: number) => ({
+            date: String(item?.date ?? item?.Date ?? item?.day ?? item?.Day ?? item?.label ?? index),
+            sales: safeNumber(item?.sales ?? item?.adSales ?? item?.AdSales ?? item?.ad_sales ?? item?.revenue ?? 0),
+            spend: safeNumber(item?.spend ?? item?.adSpend ?? item?.AdSpend ?? item?.ad_spend ?? item?.cost ?? 0),
+          })),
+        }));
+      }
+    });
+
+    const unsubInsights = onAdsUpdate('insights', (data) => {
+      const insightsArray = Array.isArray(data) ? data : (data && typeof data === 'object' && Array.isArray((data as any).data) ? (data as any).data : []);
+      if (insightsArray.length > 0) {
+        setData(prev => ({
+          ...prev,
+          insights: insightsArray.map((item: any, index: number) => {
+            const rawType = String(item?.type ?? item?.Type ?? item?.severity ?? 'info').toLowerCase();
+            let type = 'info';
+            if (rawType === 'positive' || rawType === 'success') type = 'positive';
+            else if (rawType === 'warning' || rawType === 'critical' || rawType === 'negative') type = 'warning';
+            else if (rawType === 'opportunity') type = 'opportunity';
+            return {
+              id: String(item?.id ?? item?.Id ?? item?._id ?? index),
+              type,
+              title: String(item?.title ?? item?.Title ?? item?.name ?? item?.Name ?? 'Advertising insight'),
+              description: String(item?.description ?? item?.Description ?? item?.message ?? item?.Message ?? item?.reason ?? ''),
+            };
+          }),
+        }));
+      }
+    });
+
+    const unsubTable = onAdsUpdate('table', (data) => {
+      const tableArray = Array.isArray(data) ? data : (data && typeof data === 'object' && Array.isArray((data as any).rows) ? (data as any).rows : []);
+      if (tableArray.length > 0) {
+        setData(prev => ({
+          ...prev,
+          table: tableArray.map((item: any, index: number) => ({
+            id: String(item?.id ?? item?.Id ?? item?._id ?? index),
+            name: String(item?.name ?? item?.Name ?? item?.productName ?? item?.ProductName ?? item?.campaignName ?? item?.CampaignName ?? item?.asin ?? item?.Asin ?? item?.sku ?? item?.Sku ?? 'Advertising item'),
+            campaign: item?.campaign ?? item?.Campaign ?? item?.campaignName ?? item?.CampaignName,
+            sales: safeNumber(item?.sales ?? item?.adSales ?? item?.AdSales ?? item?.ad_sales ?? item?.revenue ?? 0),
+            spend: safeNumber(item?.spend ?? item?.adSpend ?? item?.AdSpend ?? item?.ad_spend ?? item?.cost ?? 0),
+            roas: safeNumber(item?.roas ?? item?.ROAS ?? item?.returnOnAdSpend ?? 0),
+            acos: safeNumber(item?.acos ?? item?.ACoS ?? item?.ACOS ?? item?.acosPercentage ?? 0),
+          })),
+        }));
+      }
+    });
+
+    const unsubUpdated = onAdsUpdate('updated', () => {
+      loadAds(true);
+    });
+
+    return () => {
+      unsubOverview();
+      unsubSeries();
+      unsubInsights();
+      unsubTable();
+      unsubUpdated();
+    };
+  }, [period, loadAds]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

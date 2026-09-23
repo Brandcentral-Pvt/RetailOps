@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChevronDown } from '../icons/fluent';
+import { ChevronDown } from 'lucide-react';
 
 const HeaderNavigation = ({ items = [] }) => {
     const [openDropdown, setOpenDropdown] = useState(null);

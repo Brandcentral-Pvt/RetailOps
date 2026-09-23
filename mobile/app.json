@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "in.brandcentral.retailops"
+      "bundleIdentifier": "in.brandcentral.retailops",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "in.brandcentral.retailops",
@@ -19,7 +22,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -27,7 +33,10 @@
     "extra": {
       "EXPO_PUBLIC_API_URL": "https://data.brandcentral.in/api",
       "EXPO_PUBLIC_SOCKET_URL": "https://data.brandcentral.in",
-      "EXPO_PUBLIC_API_TIMEOUT": "30000"
+      "EXPO_PUBLIC_API_TIMEOUT": "30000",
+      "eas": {
+        "projectId": "6fe2322c-d859-46a1-ae0a-201ac5b47377"
+      }
     },
     "plugins": [
       "expo-font",
@@ -36,7 +45,8 @@
         {
           "photosPermission": "RetailOps uses your photos to send image attachments in chats."
         }
-      ]
+      ],
+      "expo-sharing"
     ]
   }
 }

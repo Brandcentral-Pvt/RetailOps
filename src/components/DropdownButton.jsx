@@ -1,4 +1,4 @@
-import { ChevronDown, Container, HelpCircle, LayersTwo01, LogOut01, Settings01, User01 } from "../icons/fluent";
+import { ChevronDown, Container, HelpCircle, LayersTwo01, LogOut01, Settings01, User01 } from "@untitledui/icons";
 import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
 import { Button } from "@/components/base/buttons/button";
 import { Dropdown } from "@/components/base/dropdown/dropdown";

@@ -122,10 +122,7 @@ const TooltipBox = ({ hover, children, chartHeight }) => {
  * Interactive multi-series trend.
  * props:
  *   labels[]            x labels (bucket-aligned)
- *   series [{ key, name, color, data, dashed?, weight? }]
- *                       weight 1.4–2.4 — primary series are heavier so
- *                       overlapping lines stay distinguishable without
- *                       extra colours (focus +0.8, dim ×0.7)
+ *   series [{ key, name, color, data, dashed? }]
  *   unit                'inr' | 'num' | 'pct'  (all series in one chart share a unit)
  *   hidden              Set/array of hidden series keys
  *   onToggle(key)       legend click
@@ -186,21 +183,20 @@ export const TrendChart = ({
                     const line = toPolyline(pts);
                     const dim = focused && focused !== s.key;
                     const isFocus = focused === s.key;
-                    const weight = s.weight || (s.dashed ? 1.5 : 1.8);
                     return (
                         <g key={s.key || si} opacity={dim ? 0.28 : 1}>
                             {(si === 0 || isFocus) && pts.length > 1 && (
                                 <polygon
                                     points={`${padL},${H - padB} ${line} ${pts[pts.length - 1][0]},${H - padB}`}
                                     fill={s.color}
-                                    fillOpacity={isFocus ? 0.15 : weight >= 2.2 ? 0.1 : 0.06}
+                                    fillOpacity={isFocus ? 0.12 : 0.07}
                                 />
                             )}
                             <polyline
                                 points={line}
                                 fill="none"
                                 stroke={s.color}
-                                strokeWidth={isFocus ? weight + 0.8 : dim ? weight * 0.7 : weight}
+                                strokeWidth={isFocus ? 2.6 : 1.8}
                                 strokeDasharray={s.dashed ? '4 3' : undefined}
                                 strokeLinejoin="round"
                                 strokeLinecap="round"

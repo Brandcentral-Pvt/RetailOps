@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, RefreshCw } from '../../icons/fluent';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 /**
  * ErrorState - displayed when an error occurs
