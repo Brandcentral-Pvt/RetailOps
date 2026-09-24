@@ -1,9 +1,9 @@
 const CreatorsApiSdk = require('../lib/creatorsapi-sdk/index');
 const Credentials = require('./creatorsApiCredentials');
+const creatorsApiRateGate = require('./creatorsApiRateGate');
 
 class KeywordResearchService {
     constructor() {
-        this._lastRequestTime = 0;
         this._config = {
             requestDelay: Number(process.env.KEYWORD_REQUEST_DELAY_MS || 1100),
             maxRetries: 2,
@@ -88,33 +88,23 @@ class KeywordResearchService {
     /**
      * Reserve a rate-limit slot.
      *
-     * The upstream limit is one call per `requestDelay` (1.1 s) per API key.
+     * The upstream limit is one call per `requestDelay` (1.1 s) per account.
      * The old implementation awaited *after* reading `_lastRequestTime`, so two
      * concurrent callers computed the same wait and fired together — batch was
      * therefore written as a strictly sequential loop, and every keyword cost a
      * full round trip before the next one could start.
      *
-     * Here the reservation is serialised (the queue below) but the wait is not:
-     * a caller books its start time, releases the queue immediately, and only
-     * then sleeps. Starts stay exactly `requestDelay` apart, while the HTTP
-     * calls themselves overlap — so a batch of N keywords takes roughly
-     * N x requestDelay instead of N x (requestDelay + latency).
+     * Now handled by the shared creatorsApiRateGate: an atomic Redis token
+     * bucket coordinates TPS across ALL processes and all callers (live sync
+     * included), and the durable CreatorsApiQuota ledger counts every attempt
+     * toward the daily 8640 budget so it survives restarts.
+     *
+     * Returns true when a slot is granted (still within daily quota), false
+     * when the daily TPD budget is exhausted.
      */
     async _acquireSlot() {
-        if (!this._slotQueue) {
-            this._slotQueue = Promise.resolve();
-        }
-        const previous = this._slotQueue;
-        let release;
-        this._slotQueue = new Promise((resolve) => { release = resolve; });
-        await previous;
-
-        const now = Date.now();
-        const wait = Math.max(0, this._lastRequestTime + this._config.requestDelay - now);
-        this._lastRequestTime = now + wait;
-        release();
-
-        if (wait > 0) await this._delay(wait);
+        await creatorsApiRateGate.waitForTps('primary');
+        return creatorsApiRateGate.recordRequest('primary');
     }
 
     async _rateLimit() {
@@ -212,7 +202,10 @@ class KeywordResearchService {
 
         for (let attempt = 0; attempt <= this._config.maxRetries; attempt++) {
             try {
-                await this._acquireSlot();
+                const reserved = await this._acquireSlot();
+                if (!reserved) {
+                    throw Object.assign(new Error('Creators API daily TPD quota reached'), { status: 429 });
+                }
 
                 const raw = await api.searchItems(marketplace, {
                     searchItemsRequestContent: request,
@@ -252,7 +245,8 @@ class KeywordResearchService {
                 const body = err.body || err.response?.body;
                 console.error(`[KW Search] API ${status} for "${keywords}":`, body ? JSON.stringify(body).substring(0, 300) : err.message);
 
-                if (status === 429) {
+                const isDailyQuota = (err.message || '').includes('daily TPD quota reached');
+                if (status === 429 && !isDailyQuota) {
                     const retryAfter = parseInt((err.response?.headers || {})['retry-after'] || '5', 10);
                     console.warn(`[KW Search] 429 rate limited, waiting ${retryAfter}s...`);
                     await this._delay(retryAfter * 1000);
