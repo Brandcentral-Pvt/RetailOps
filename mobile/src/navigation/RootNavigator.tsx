@@ -45,6 +45,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import CallsNavigator from './CallsNavigator';
+import { navigationRef } from './navigationRef';
 import BrandLogo from '../components/BrandLogo';
 import { useAuthStore } from '../store/authStore';
 import { useCallStore } from '../store/callStore';
@@ -186,7 +187,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer theme={navigationTheme} ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

@@ -382,7 +382,7 @@ export default function ActiveCallScreen({ navigation }: Props) {
               style={[
                 styles.controlButton,
                 !videoEnabled &&
-                  styles.controlButtonActive,
+                styles.controlButtonActive,
               ]}
               rippleColor="rgba(255,255,255,0.2)"
             />
