@@ -191,17 +191,27 @@ class SchedulerService {
             this.jobs.playwrightScraperSync = cron.schedule(scraperCronExpr, async () => {
                 logger.info('Cron triggering Playwright Scraper Sync');
                 try {
-                    const playwrightScraperService = require('./playwrightScraperService');
-                    // Trigger scraper sync for all active sellers
+                    const scraperRunner = require('./playwrightScraperRunner');
+                    const maxAsinsPerSeller = parseInt(process.env.SCRAPER_CRON_MAX_ASINS_PER_SELLER || '500', 10);
                     const pool = await getPool();
                     const sellersResult = await pool.request()
-                        .query("SELECT Id FROM Sellers WHERE IsActive = 1 AND Marketplace = 'Amazon'");
+                        .query("SELECT Id FROM Sellers WHERE IsActive = 1 AND LOWER(Marketplace) = 'amazon.in'");
                     const sellerIds = sellersResult.recordset.map(s => s.Id);
-                    
+
                     for (const sellerId of sellerIds) {
                         try {
-                            await playwrightScraperService.scrapeAllSellerAsins(sellerId);
-                            logger.info(`Scraper sync completed for seller ${sellerId}`);
+                            const allAsins = await scraperRunner.getSellerAsins(sellerId);
+                            const asins = allAsins.slice(0, maxAsinsPerSeller);
+                            if (!asins.length) {
+                                logger.info(`Scraper sync: no ASINs to scrape for seller ${sellerId}`);
+                                continue;
+                            }
+                            const result = await scraperRunner.startJob({
+                                sellerId,
+                                asins,
+                                userId: null,
+                            });
+                            logger.info(`Scraper sync started for seller ${sellerId}: job ${result.jobId} (${asins.length}/${allAsins.length} ASINs)`);
                         } catch (err) {
                             logger.error(`Scraper sync failed for seller ${sellerId}:`, err.message);
                         }
