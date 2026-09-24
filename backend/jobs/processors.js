@@ -16,7 +16,10 @@ function registerProcessors() {
 
       if (type === 'live') {
         const LiveSyncService = require('../services/liveDataSyncService');
-        return LiveSyncService.syncSeller(sellerId);
+        if (sellerId === '*' || sellerId === 'all') {
+          return LiveSyncService.syncAllSellers(options || { concurrency: 1, maxRetries: 2 });
+        }
+        return LiveSyncService.syncSellerLiveData(sellerId, options || {});
       }
 
       throw new Error(`Unknown market sync type: ${type}`);
