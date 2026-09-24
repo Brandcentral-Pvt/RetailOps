@@ -268,6 +268,38 @@ export default function OutgoingCallScreen({ route, navigation }: Props) {
     clearRingTimeout,
   ]);
 
+  useEffect(() => {
+    const offAnswer = callService.onSignal('call:answer', (payload: unknown) => {
+      const p = payload as { callId: string; answer: RTCSessionDescriptionInit };
+      if (p.callId === callId) {
+        callService.handleAnswer(callId, p.answer).catch(() => {});
+      }
+    });
+
+    const offIce = callService.onSignal('call:ice', (payload: unknown) => {
+      const p = payload as { callId: string; candidate: RTCIceCandidateInit };
+      if (p.callId === callId) {
+        callService.addIceCandidate(callId, p.candidate);
+      }
+    });
+
+    const offEnd = callService.onSignal('call:end', (payload: unknown) => {
+      const p = payload as {
+        callId: string;
+        reason?: 'ended' | 'rejected' | 'missed' | 'failed' | 'busy';
+      };
+      if (p.callId === callId) {
+        handleEnd(p.reason ?? 'ended');
+      }
+    });
+
+    return () => {
+      offAnswer();
+      offIce();
+      offEnd();
+    };
+  }, [callId, handleEnd]);
+
   // ---------------- Handlers ----------------
   const toggleMute = () => {
     setIsMuted((prev) => {

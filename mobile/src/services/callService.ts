@@ -15,6 +15,7 @@ import {
 import { useCallStore } from '../store/callStore';
 import { chatApiService } from './chatApiService';
 import { setSpeakerphone } from '../native/CallAudio';
+import { sendCallSignal } from './socketService';
 import type { CallSession, CallType, CallDirection, CallSignalPayload } from '../types';
 
 // Register WebRTC globals for React Native
@@ -45,6 +46,8 @@ interface CallServiceInstance {
 
 class CallService {
   private instances: Map<string, CallServiceInstance> = new Map();
+  // Trickle-ICE candidates that arrive before the remote description is set.
+  private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map();
 
   /**
    * Create a new peer connection for a call.
@@ -145,6 +148,7 @@ class CallService {
     });
 
     await instance.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    await this.flushPendingCandidates(callId);
 
     const answer = await instance.peerConnection.createAnswer();
     await instance.peerConnection.setLocalDescription(answer);
@@ -160,14 +164,23 @@ class CallService {
     if (!instance?.peerConnection) throw new Error('Peer connection not found');
 
     await instance.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    await this.flushPendingCandidates(callId);
   }
 
   /**
-   * Add ICE candidate.
+   * Add ICE candidate (remote). Buffers candidates that arrive before the
+   * remote description is set (trickle-ICE ordering) and flushes them once
+   * the answer/offer has been applied.
    */
   async addIceCandidate(callId: string, candidate: RTCIceCandidateInit): Promise<void> {
     const instance = this.instances.get(callId);
     if (!instance?.peerConnection) return;
+
+    if (!instance.peerConnection.remoteDescription) {
+      const existing = this.pendingCandidates.get(callId) ?? [];
+      this.pendingCandidates.set(callId, [...existing, candidate]);
+      return;
+    }
 
     try {
       await instance.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -177,7 +190,27 @@ class CallService {
   }
 
   /**
-   * Send ICE candidate via signaling.
+   * Apply the locally-stored remote description, then flush any ICE
+   * candidates that were buffered while waiting for it.
+   */
+  private async flushPendingCandidates(callId: string): Promise<void> {
+    const buffered = this.pendingCandidates.get(callId) ?? [];
+    this.pendingCandidates.delete(callId);
+
+    const instance = this.instances.get(callId);
+    if (!instance?.peerConnection) return;
+
+    for (const candidate of buffered) {
+      try {
+        await instance.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.warn('ICE candidate error:', error);
+      }
+    }
+  }
+
+  /**
+   * Send ICE candidate to the remote peer via socket signaling.
    */
   private sendIceCandidate(callId: string, candidate: RTCIceCandidate): void {
     const payload: CallSignalPayload = {
@@ -188,8 +221,7 @@ class CallService {
         sdpMLineIndex: candidate.sdpMLineIndex,
       },
     };
-    // This will be called via socket service
-    this.emitSignal('call:ice', payload);
+    sendCallSignal('call:ice', payload);
   }
 
   /**
@@ -213,6 +245,7 @@ class CallService {
 
     instance.peerConnection?.close();
     this.instances.delete(callId);
+    this.pendingCandidates.delete(callId);
 
     useCallStore.getState().setLocalStream(null);
     useCallStore.getState().setRemoteStream(null);
@@ -297,6 +330,7 @@ class CallService {
     instance.peerConnection?.getSenders().forEach((sender) => sender.track?.stop());
     instance.peerConnection?.close();
     this.instances.delete(callId);
+    this.pendingCandidates.delete(callId);
   }
 
   /**

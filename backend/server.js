@@ -377,6 +377,8 @@ if (!io) logger.fatal('Socket.io failed to initialize');
 app.set('io', io);
 
 const onlineUsers = new Map();
+// Tracks mobile WebRTC calls for offer/answer/ICE relay: callId -> { callerId, receiverId }
+const callPeers = new Map();
 
 io.on('connection', async (socket) => {
   // Validate JWT token from handshake
@@ -702,10 +704,87 @@ io.on('connection', async (socket) => {
     }
   });
 
-  socket.on('disconnect', async () => {
-    logger.debug('Socket disconnected:', socket.id);
-    if (socket.userId) {
-      onlineUsers.delete(socket.userId);
+// --- Mobile call signaling relay (WebRTC offer/answer/ICE) ---
+  // The mobile app uses these event names; see src/services/socketService.ts.
+  socket.on('call:invite', async (data) => {
+    try {
+      const { callId, callerId, calleeId, callType, offer } = data || {};
+      if (!callId || !calleeId) return;
+
+      callPeers.set(callId, { callerId, receiverId: calleeId });
+
+      // Enrich the caller's public profile for the incoming-call screen.
+      const pool = await getPool();
+      const callerResult = await pool.request()
+        .input('id', sql.VarChar, callerId)
+        .query('SELECT Id, FirstName, LastName, Avatar FROM Users WHERE Id = @id');
+      const callerRow = callerResult.recordset[0];
+      const caller = {
+        _id: callerId,
+        name: callerRow ? `${callerRow.FirstName || ''} ${callerRow.LastName || ''}`.trim() || callerId : callerId,
+        avatar: callerRow?.Avatar || null,
+      };
+
+      if (!onlineUsers.has(calleeId)) {
+        io.to(callerId).emit('call:busy', { callId });
+        callPeers.delete(callId);
+        return;
+      }
+
+      io.to(calleeId).emit('call:incoming', { callId, caller, callType, offer });
+    } catch (err) {
+      logger.error('Socket call:invite relay error', { error: err.message });
+    }
+  });
+
+  socket.on('call:answer', (data) => {
+    const { callId, answer } = data || {};
+    const peer = callPeers.get(callId);
+    if (peer) {
+      io.to(peer.callerId).emit('call:answered', { callId, answer });
+    }
+  });
+
+  socket.on('call:ice', (data) => {
+    const { callId, candidate } = data || {};
+    const peer = callPeers.get(callId);
+    if (!peer) return;
+    const target = socket.userId === peer.callerId ? peer.receiverId : peer.callerId;
+    io.to(target).emit('call:ice', { callId, candidate });
+  });
+
+  socket.on('call:reject', (data) => {
+    const { callId } = data || {};
+    const peer = callPeers.get(callId);
+    if (peer) {
+      io.to(peer.callerId).emit('call:rejected', { callId });
+      callPeers.delete(callId);
+    }
+  });
+
+  socket.on('call:busy', (data) => {
+    const { callId } = data || {};
+    const peer = callPeers.get(callId);
+    if (peer) {
+      io.to(peer.callerId).emit('call:busy', { callId });
+      callPeers.delete(callId);
+    }
+  });
+
+  socket.on('call:end', (data) => {
+    const { callId } = data || {};
+    const peer = callPeers.get(callId);
+    if (peer) {
+      io.to(peer.callerId).emit('call:ended', { callId, reason: 'ended' });
+      io.to(peer.receiverId).emit('call:ended', { callId, reason: 'ended' });
+      callPeers.delete(callId);
+    }
+  });
+
+socket.on('disconnect', async () => {
+  logger.debug('Socket disconnected:', socket.id);
+  if (socket.userId) {
+    onlineUsers.delete(socket.userId);
       try {
         const pool = await getPool();
         await pool.request()
