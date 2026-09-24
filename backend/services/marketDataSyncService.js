@@ -899,6 +899,17 @@ class MarketDataSyncService {
                 console.warn(`⚠️ Status API Rate Limited (5 req/sec spec)`);
                 return taskIds.map(id => ({ taskId: id, error: 'RateLimit' }));
             }
+            const isPermissionDenied = error.response?.status === 403 && error.response?.data?.error?.code === 'PermissionDenied';
+            if (isPermissionDenied) {
+                if (!this._statusPermissionDeniedLoggedAt || Date.now() - this._statusPermissionDeniedLoggedAt > 15 * 60 * 1000) {
+                    this._statusPermissionDeniedLoggedAt = Date.now();
+                    console.warn('⚠️ Octoparse Cloud Extraction Status API denied (403 PermissionDenied). ' +
+                        'Status endpoints require a Professional/Enterprise plan; falling back without per-UUID resolution.');
+                }
+                // Return tombstone entries so getStatus returns quickly instead of
+                // triggering an expensive per-UUID task-group search for every seller.
+                return taskIds.map(id => ({ taskId: id, error: 'PermissionDenied' }));
+            }
             console.error('❌ Octoparse Statuses V2 Batch Error:', error.response?.data || error.message);
             throw error;
         }
@@ -918,6 +929,9 @@ class MarketDataSyncService {
 
         try {
             const results = await this.getStatuses([taskId]);
+            if (results.length > 0 && results[0].error) {
+                return null;
+            }
             return results.length > 0 ? results[0] : null;
         } catch (error) {
             // Fallback to legacy single-task status if Batch/V2 fails
@@ -969,7 +983,13 @@ class MarketDataSyncService {
                 });
                 if (response.data?.data && response.data.data.length > 0) return response.data.data;
             } catch (v2Err) {
-                console.warn('⚠️ Octoparse V2 Bulk Status failed:', v2Err.response?.data?.message || v2Err.message);
+                const denied = v2Err.response?.status === 403;
+                const shouldLog = !denied || !this._bulkStatusPermissionDeniedLoggedAt ||
+                    Date.now() - this._bulkStatusPermissionDeniedLoggedAt > 15 * 60 * 1000;
+                if (shouldLog) {
+                    if (denied) this._bulkStatusPermissionDeniedLoggedAt = Date.now();
+                    console.warn('⚠️ Octoparse V2 Bulk Status failed:', v2Err.response?.data?.message || v2Err.message);
+                }
             }
 
             console.warn('⚠️ Octoparse Bulk Status unavailable — returning empty status list.');
