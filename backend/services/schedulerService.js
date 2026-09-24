@@ -3,11 +3,10 @@ const { sql, getPool, generateId, executeWithRetry } = require('../database/db')
 const MarketSyncService = require('./marketDataSyncService');
 const { syncSellerFromKeepaInternal } = require('../controllers/sellerAsinTrackerController');
 const AutoTagService = require('./autoTagService');
-const SystemLogService = require('./SystemLogService');
+const logger = require('../utils/logger').service('scheduler');
 const WebhookService = require('./WebhookService');
 const queueService = require('./queueService');
 const { QUEUES } = require('../jobs/queueDefinitions');
-const logger = require('../utils/logger');
 
 /**
  * Scheduler Service
