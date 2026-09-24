@@ -1,5 +1,6 @@
 const { sql, getPool } = require('../database/db');
 const CreatorsApiSdk = require('../lib/creatorsapi-sdk/index');
+const creatorsApiRateGate = require('./creatorsApiRateGate');
 const SystemLogService = require('./SystemLogService');
 const notificationController = require('../controllers/notificationController');
 const listingQualityService = require('./listingQualityService');
@@ -26,9 +27,6 @@ class LiveDataSyncService extends EventEmitter {
         };
 
         this._sdkClients = new Map();          // credId -> DefaultApi instance (cached SDK client)
-        this._lastRequestTime = 0;             // Global last request timestamp (1 TPS per account)
-        this._tpdCounters = new Map();         // credId -> daily request count
-        this._tpdDate = null;                  // Today's date (YYYY-MM-DD) to reset counters
         this._credThrottledUntil = new Map();  // credId -> timestamp when throttling ends
         this.activeSyncs = new Map();
         this._globalSyncRunning = false;
@@ -37,34 +35,15 @@ class LiveDataSyncService extends EventEmitter {
         this._pendingScrapes = new Set();   // in-flight scraper enrichment / full-scrape promises
     }
 
-    // Rate limiter — strict 1 req/sec (API limit = 1 TPS per account)
+    // Rate limiter — 1 req/sec per account, coordinated across ALL processes
+    // and callers by the shared creatorsApiRateGate (Redis token bucket).
     async _rateLimit() {
-        const minInterval = 1100;
-        const now = Date.now();
-        const elapsed = now - this._lastRequestTime;
-        if (elapsed < minInterval) {
-            await this._delay(minInterval - elapsed);
-        }
-        this._lastRequestTime = Date.now();
+        await creatorsApiRateGate.waitForTps('primary');
     }
 
-    // Track TPD per credential and optionally adjust rate from API header
+    // Track TPD in the durable daily ledger and adapt TPS if API lowers it
     _updateRateFromHeader(headers, credId) {
-        const today = new Date().toISOString().split('T')[0];
-        if (this._tpdDate !== today) {
-            this._tpdDate = today;
-            this._tpdCounters.clear();
-        }
-        if (credId) {
-            this._tpdCounters.set(credId, (this._tpdCounters.get(credId) || 0) + 1);
-        }
-
-        const limit = parseFloat(headers['x-amzn-ratelimit-limit']);
-        if (limit && limit > 0 && limit < this._config.rateLimitPerSecond) {
-            this._config.rateLimitPerSecond = limit;
-            this._config.requestDelay = Math.ceil(1000 / limit) + 100;
-            console.log(`📊 Rate limit updated from API: ${limit} req/s (delay: ${this._config.requestDelay}ms)`);
-        }
+        creatorsApiRateGate.setPolicyFromHeader(headers);
     }
 
     // ============================================
@@ -462,7 +441,7 @@ class LiveDataSyncService extends EventEmitter {
             .filter(c => c.clientId && c.clientSecret && c.consecutiveErrors < 5);
         if (healthy.length === 0) return null;
 
-        // Prefer non-throttled credentials, then least TPD usage
+        // Prefer non-throttled credentials (TPD is account-wide, tracked by the rate gate)
         const now = Date.now();
         let best = null;
         let bestTpd = Infinity;
@@ -471,7 +450,8 @@ class LiveDataSyncService extends EventEmitter {
             if (this._credThrottledUntil.get(cred.id) === Infinity) continue; // TPD exhausted permanently
             if ((this._credThrottledUntil.get(cred.id) || 0) > now) continue; // Temporarily throttled
 
-            const tpd = this._tpdCounters.get(cred.id) || 0;
+            // Prefer least recently used healthy cred; TPD is shared account-wide.
+            const tpd = now - (cred.lastUsed || 0);
             if (tpd < bestTpd) {
                 bestTpd = tpd;
                 best = cred.id;
@@ -692,16 +672,11 @@ class LiveDataSyncService extends EventEmitter {
                     throw new Error(`Credential '${credId}' is throttled — waiting`);
                 }
 
-                // Check TPD limit before making request
-                const tpdCount = this._tpdCounters.get(credId) || 0;
-                if (tpdCount >= this._config.tpdLimit) {
-                    this._credThrottledUntil.set(credId, Infinity);
-                    console.warn(`⛔ Credential '${credId}' reached TPD limit (${tpdCount}/${this._config.tpdLimit})`);
-                    const fallbackCred = this._selectBestCred();
-                    if (fallbackCred && fallbackCred !== credId) {
-                        return this._processBatch(sellerId, batch, fallbackCred, stats);
-                    }
-                    throw new Error(`All credentials exhausted TPD limit`);
+                // Check TPD limit before making request (account-wide, durable ledger)
+                const tpdRemaining = await creatorsApiRateGate.getRemaining('primary');
+                if (tpdRemaining <= 0) {
+                    console.warn(`⛔ Creators API daily TPD quota reached (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
+                    throw new Error('Creators API daily TPD quota reached');
                 }
 
                 const credInfo = this._getCredInfo(credId);
@@ -713,8 +688,14 @@ class LiveDataSyncService extends EventEmitter {
                     scrapePromise = this._scrapeEnrichmentBatch(codes);
                 }
 
-                // Strict 1 req/s rate limit (per account)
+                // Strict 1 req/s rate limit (shared account-wide), then record
+                // this attempt against the durable daily quota.
                 await this._rateLimit();
+                const reserved = await creatorsApiRateGate.recordRequest('primary');
+                if (!reserved) {
+                    console.warn(`⛔ Creators API daily TPD quota reached (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
+                    throw new Error('Creators API daily TPD quota reached');
+                }
 
                 const { GetItemsRequestContent } = CreatorsApiSdk;
                 const request = new GetItemsRequestContent();

@@ -73,6 +73,9 @@ router.post('/repair', authenticate, requirePermission('scraping_manage'), marke
 router.post('/sync-all-live', authenticate, requirePermission('scraping_manage'), marketSyncController.syncAllLiveSync);
 router.get('/sync-all-live/status', authenticate, requirePermission('scraping_manage'), marketSyncController.getGlobalLiveSyncStatus);
 
+// Creators API rate gate status + live daily quota remaining
+router.get('/creators-rate/status', authenticate, requirePermission('scraping_view'), marketSyncController.getCreatorsRateStatus);
+
 // Restart all Octoparse tasks: stop → clear locks → re-inject → start fresh
 router.post('/restart-all', authenticate, requirePermission('scraping_manage'), marketSyncController.restartAllOctoparseTasks);
 
