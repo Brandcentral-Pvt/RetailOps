@@ -34,6 +34,11 @@ class SchedulerService {
             
             // Resume any interrupted active scheduled runs
             await this.resumeInterruptedRuns().catch(err => logger.error('Resume failed:', err.message));
+
+            // Resume any interrupted Playwright scraper jobs so their remaining
+            // ASINs continue after a restart instead of being abandoned.
+            const scraperRunner = require('./playwrightScraperRunner');
+            await scraperRunner.resumeInterruptedJobs().catch(err => logger.error('Scraper resume failed:', err.message));
         } catch (error) {
             logger.error('❌ Scheduler initialization error:', error.message);
         }
@@ -224,6 +229,19 @@ class SchedulerService {
         } else {
             logger.info('🛑 [Scheduler] Playwright Scraper Sync is DISABLED.');
         }
+
+        // 3b. Scraper job safety-net resume: reattach any job left QUEUED/RUNNING
+        // by a process that died mid-run, so it continues from remaining ASINs.
+        this.jobs.scraperResume = cron.schedule('15 * * * *', async () => {
+            try {
+                const scraperRunner = require('./playwrightScraperRunner');
+                const { resumed } = await scraperRunner.resumeInterruptedJobs();
+                if (resumed) logger.info(`[SCRAPER] Safety-net resume reattached ${resumed} job(s)`);
+            } catch (err) {
+                logger.error('[SCRAPER] Safety-net resume failed:', err.message);
+            }
+        }, cronOptions);
+        logger.info('🛡️ [Scheduler] Scraper job safety-net resume scheduled (hourly at :15).');
 
         // 4. Database Integrity Repair (Every 6 hours)
         this.jobs.integrityRepair = cron.schedule('0 */6 * * *', async () => {
