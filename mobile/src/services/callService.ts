@@ -15,8 +15,18 @@ import {
 import { useCallStore } from '../store/callStore';
 import { chatApiService } from './chatApiService';
 import { setSpeakerphone } from '../native/CallAudio';
-import { sendCallSignal } from './socketService';
 import type { CallSession, CallType, CallDirection, CallSignalPayload } from '../types';
+
+/**
+ * Signals out to the socket layer. Injected by socketService at startup to
+ * avoid a require cycle (callService <-> socketService).
+ */
+type CallSignalSender = (event: 'call:ice', payload: CallSignalPayload) => void;
+let callSignalSender: CallSignalSender | null = null;
+
+export function setCallSignalSender(sender: CallSignalSender): void {
+  callSignalSender = sender;
+}
 
 // Register WebRTC globals for React Native
 registerGlobals();
@@ -221,7 +231,7 @@ class CallService {
         sdpMLineIndex: candidate.sdpMLineIndex,
       },
     };
-    sendCallSignal('call:ice', payload);
+    callSignalSender?.('call:ice', payload);
   }
 
   /**

@@ -37,6 +37,10 @@ import {
 
 import { useNotificationStore } from './notificationStore';
 import { useChatStore } from './chatStore';
+import {
+  registerForPushNotifications,
+  setupPushResponseHandler,
+} from '../services/pushNotifications';
 
 import type {
   LoginResponse,
@@ -251,6 +255,9 @@ function startSessionServices(): void {
     .getState()
     .init()
     .catch(() => undefined);
+
+  setupPushResponseHandler();
+  registerForPushNotifications().catch(() => undefined);
 }
 
 function stopSessionServices(): void {

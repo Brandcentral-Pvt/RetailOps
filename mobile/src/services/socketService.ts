@@ -6,7 +6,14 @@
 import { io, type Socket } from 'socket.io-client';
 import { SOCKET_URL, STORAGE_KEYS } from '../config/env';
 import { getItem } from './storage';
-import { callService } from './callService';
+import {
+  callService,
+  setCallSignalSender,
+} from './callService';
+
+// Inject the outbound signal hook for callService (breaks the
+// callService <-> socketService require cycle).
+setCallSignalSender((event, payload) => sendCallSignal(event, payload));
 
 let socket: Socket | null = null;
 

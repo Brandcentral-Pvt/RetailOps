@@ -62,6 +62,7 @@ export default function OutgoingCallScreen({ route, navigation }: Props) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectedRef = useRef(false);
   const endingRef = useRef(false);
+  const startedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
 
   const [callStatus, setCallStatus] = useState<
@@ -186,6 +187,10 @@ export default function OutgoingCallScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     let mounted = true;
+
+    // This effect may re-run on re-render; the call itself is one-shot.
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     setCurrentCall({
       id: callId,

@@ -157,6 +157,7 @@ const teamRoutes = require('./routes/teamRoutes');
 const rulesetRoutes = require('./routes/rulesetRoutes');
 const objectiveRoutes = require('./routes/objectiveRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const pushRoutes = require('./routes/pushRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const messagingRoutes = require('./routes/messagingRoutes');
 const marketSyncRoutes = require('./routes/marketDataSyncRoutes');
@@ -211,6 +212,7 @@ app.use('/api/keys', apiKeyRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/objectives', objectiveRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/messaging', messagingRoutes);
 app.use('/api/market-sync', marketSyncRoutes);
@@ -732,6 +734,18 @@ io.on('connection', async (socket) => {
       }
 
       io.to(calleeId).emit('call:incoming', { callId, caller, callType, offer });
+
+      // Device push so the callee is notified even when the app is backgrounded.
+      try {
+        const pushService = require('./services/pushService');
+        await pushService.sendPush(calleeId, {
+          title: caller.name || 'Incoming call',
+          body: `${callType === 'video' ? 'Video call' : 'Audio call'} from ${caller.name || 'a team member'}`,
+          data: { type: 'call', callId, callerId },
+        });
+      } catch (pushErr) {
+        logger.warn('Call push failed', { error: pushErr.message });
+      }
     } catch (err) {
       logger.error('Socket call:invite relay error', { error: err.message });
     }

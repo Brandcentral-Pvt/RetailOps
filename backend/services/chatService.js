@@ -21,6 +21,7 @@ const { sql, getPool, generateId, withTransaction } = require('../database/db');
 const { isGlobalUserRole } = require('../utils/roleUtils');
 const { buildInClause } = require('../utils/sqlHelpers');
 const { createNotification } = require('../controllers/notificationController');
+const pushService = require('./pushService');
 const SocketService = require('../services/socketService');
 const logger = require('../utils/logger');
 
@@ -636,6 +637,17 @@ async function sendMessage(user, conversationId, { content, type, attachmentUrl,
             );
         } catch (notifErr) {
             logger.warn('Chat notification failed', { error: notifErr.message });
+        }
+
+        // Device push (Expo Push Service) for the recipient.
+        try {
+            await pushService.sendPush(row.UserId, {
+                title: senderName,
+                body: cleanContent.slice(0, 140) || (resolvedType === 'IMAGE' ? 'Image' : 'Attachment'),
+                data: { type: 'message', conversationId, messageId, senderId },
+            });
+        } catch (pushErr) {
+            logger.warn('Chat push failed', { error: pushErr.message });
         }
     }
 
