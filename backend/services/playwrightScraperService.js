@@ -12,6 +12,15 @@ class PlaywrightScraperService {
         this.requestTimeout = parseInt(process.env.SCRAPER_REQUEST_TIMEOUT || '30000', 10);
         this.navigationTimeout = parseInt(process.env.SCRAPER_NAVIGATION_TIMEOUT || '45000', 10);
         this.concurrentPages = parseInt(process.env.SCRAPER_CONCURRENT_PAGES || '2', 10);
+        // Global page cap — bound in the constructor so the adaptive semaphore
+        // actually throttles (previously this was read but never assigned, so
+        // concurrency was NaN and open pages were effectively unlimited).
+        // Default CPU-aware: 1 page per core (this box also runs the Octoparse
+        // pipeline + live sync), overridable but hard-capped to keep it stable.
+        const cpuCount = require('os').cpus().length;
+        const defaultCap = Math.max(2, cpuCount);
+        const rawCap = parseInt(process.env.SCRAPER_BASE_CONCURRENT_PAGES || process.env.SCRAPER_CONCURRENT_PAGES || String(defaultCap), 10);
+        this.baseConcurrentPages = Math.min(Math.max(1, rawCap), parseInt(process.env.SCRAPER_MAX_CONCURRENT_PAGES || String(Math.max(2, cpuCount * 2)), 10));
         this.proxyUrl = process.env.PROXY_URL || null;
 
         this.browser = null;
@@ -106,6 +115,17 @@ class PlaywrightScraperService {
      * Returns a promise that resolves when a page slot is available.
      */
     async acquire() {
+        // Periodic resource check: restart the browser if idle and either the
+        // restart interval elapsed or memory exceeds thresholds. Guarded by
+        // activePages so we never tear down in-flight navigations.
+        if (this.activePages.size === 0) {
+            await this.maybeRestartBrowser();
+            if (await this.checkMemoryPressure()) {
+                this.busy = 0;
+                this.activePages.clear();
+            }
+        }
+
         // Calculate adaptive concurrency based on recent performance
         const adaptiveConcurrent = this._calculateAdaptiveConcurrency();
 

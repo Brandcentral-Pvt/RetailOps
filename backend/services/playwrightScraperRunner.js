@@ -1,4 +1,5 @@
 const { sql, getPool, generateId } = require('../database/db');
+const logger = require('../utils/logger');
 const playwrightScraperService = require('./playwrightScraperService');
 const socketService = require('./socketService');
 
@@ -12,11 +13,14 @@ const socketService = require('./socketService');
 class PlaywrightScraperRunner {
     constructor() {
         this.activeJobs = new Map(); // jobId -> live job state
+        this.resuming = new Set();   // jobIds currently being reattached
         this.concurrency = parseInt(process.env.SCRAPER_MAX_CONCURRENT_ASINS || '5', 10);
         this.batchSize = parseInt(process.env.SCRAPER_BATCH_SIZE || '30', 10);
         this.batchDelay = parseInt(process.env.SCRAPER_BATCH_DELAY || '3000', 10);
         this.interBatchDelay = parseInt(process.env.SCRAPER_INTER_BATCH_DELAY || '8000', 10);
         this.interChunkDelay = parseInt(process.env.SCRAPER_INTER_CHUNK_DELAY || '2000', 10);
+        this.maxConcurrentJobs = parseInt(process.env.SCRAPER_MAX_CONCURRENT_JOBS || '2', 10);
+        this._runningJobs = 0;
     }
 
     /**
@@ -60,10 +64,9 @@ class PlaywrightScraperRunner {
             const existing = running.recordset[0].Id;
             const inMemory = this.activeJobs.get(existing);
             if (inMemory) return { jobId: existing, resumed: true };
-            const fresh = await pool.request()
-                .input('id', sql.VarChar, existing)
-                .query(`SELECT * FROM ScrapeJobHistory WHERE Id = @id`);
-            return { jobId: existing, resumed: true, status: fresh.recordset[0]?.Status || 'ACTIVE' };
+            // Job exists in DB (e.g. after a process restart) but is not in
+            // memory — continue it from its remaining ASINs.
+            return this._resumeJob(existing);
         }
 
         const jobId = generateId();
@@ -119,6 +122,7 @@ class PlaywrightScraperRunner {
             await this._persistJobState(jobState);
             this._emitFinished(jobState);
             this.activeJobs.delete(jobId);
+            this._runningJobs = Math.max(0, this._runningJobs - 1);
         });
 
         return { jobId, total: asins.length };
@@ -153,6 +157,113 @@ class PlaywrightScraperRunner {
             jobType: 'RETRY',
             targetType: job.recordset[0].TargetType,
         });
+    }
+
+    /**
+     * Resume a single interrupted job from its remaining (PENDING or FAILED)
+     * detail rows. Used across process restarts so an in-flight job continues
+     * from where it stopped instead of being abandoned.
+     */
+    async _resumeJob(jobId) {
+        if (this.activeJobs.has(jobId) || this.resuming.has(jobId)) return { jobId, resumed: true };
+        this.resuming.add(jobId);
+        try {
+            const pool = await getPool();
+
+            const hist = await pool.request()
+                .input('id', sql.VarChar, jobId)
+                .query(`SELECT * FROM ScrapeJobHistory WHERE Id = @id AND Status IN ('QUEUED', 'RUNNING')`);
+            if (!hist.recordset.length) return { jobId, resumed: false };
+
+            const rec = hist.recordset[0];
+
+            const details = await pool.request()
+                .input('jobId', sql.VarChar, jobId)
+                .query(`
+                    SELECT d.AsinId, d.AsinCode
+                    FROM ScrapeJobDetails d
+                    WHERE d.JobId = @jobId AND d.Status IN ('PENDING', 'FAILED')
+                    ORDER BY d.CreatedAt
+                `);
+
+            const remaining = details.recordset;
+            if (!remaining.length) {
+                // Nothing left to scrape — finalize the stuck row as COMPLETED.
+                await pool.request()
+                    .input('id', sql.VarChar, jobId)
+                    .query(`
+                        UPDATE ScrapeJobHistory SET
+                            Status = 'COMPLETED',
+                            FinishedAt = dbo.GetEnvDate(),
+                            UpdatedAt = dbo.GetEnvDate()
+                        WHERE Id = @id
+                    `);
+                return { jobId, resumed: false, status: 'COMPLETED' };
+            }
+
+            const jobState = {
+                jobId,
+                jobType: rec.JobType,
+                targetType: rec.TargetType,
+                targetId: rec.TargetId,
+                userId: rec.InitiatedBy,
+                total: rec.TotalAsins,
+                queued: remaining.length,
+                completed: rec.CompletedAsins,
+                failed: rec.FailedAsins,
+                skipped: 0,
+                status: 'QUEUED',
+                startedAt: rec.StartedAt,
+                finishedAt: null,
+                error: null,
+                cancelRequested: false,
+            };
+
+            this.activeJobs.set(jobId, jobState);
+
+            this._run(jobState, remaining).catch(async (err) => {
+                jobState.status = 'FAILED';
+                jobState.error = err.message;
+                await this._persistJobState(jobState);
+                this._emitFinished(jobState);
+                this.activeJobs.delete(jobId);
+                this._runningJobs = Math.max(0, this._runningJobs - 1);
+            });
+
+            logger.info(`[SCRAPER] Resumed job ${jobId} with ${remaining.length} remaining ASINs (total ${rec.TotalAsins})`);
+            return { jobId, resumed: true, remaining: remaining.length };
+        } finally {
+            this.resuming.delete(jobId);
+        }
+    }
+
+    /**
+     * On startup (or hourly safety net), reattach any jobs left QUEUED/RUNNING
+     * in the database by a previous process so they continue from their
+     * remaining ASINs rather than being lost.
+     */
+    async resumeInterruptedJobs({ limit = 100 } = {}) {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('limit', sql.Int, limit)
+            .query(`
+                SELECT TOP (@limit) Id FROM ScrapeJobHistory
+                WHERE Status IN ('QUEUED', 'RUNNING')
+                  AND CreatedAt > DATEADD(hour, -48, dbo.GetEnvDate())
+                ORDER BY CreatedAt
+            `);
+
+        let resumed = 0;
+        for (const row of result.recordset) {
+            try {
+                const out = await this._resumeJob(row.Id);
+                if (out.resumed) resumed++;
+            } catch (err) {
+                logger.error(`[SCRAPER] Resume failed for job ${row.Id}:`, err.message);
+            }
+        }
+        if (resumed) logger.info(`[SCRAPER] Resumed ${resumed} interrupted scraper job(s)`);
+        return { resumed, found: result.recordset.length };
     }
 
     async cancelJob(jobId) {
@@ -258,6 +369,13 @@ class PlaywrightScraperRunner {
      * Main execution loop: batch → concurrent within batch → persist → progress.
      */
     async _run(job, asins) {
+        // Global job gate: only run a bounded number of scrape jobs at once so
+        // a cron burst (198 sellers) doesn't spike CPU/RAM and crash the box.
+        while (this._runningJobs >= this.maxConcurrentJobs) {
+            await new Promise(r => setTimeout(r, 2000));
+        }
+        this._runningJobs++;
+
         const pool = await getPool();
         job.status = 'RUNNING';
         job.startedAt = new Date();
@@ -290,6 +408,7 @@ class PlaywrightScraperRunner {
         await this._persistJobState(job);
         this._emitFinished(job);
         this.activeJobs.delete(job.jobId);
+        this._runningJobs = Math.max(0, this._runningJobs - 1);
 
         // Friendly process teardown of the browser when idle
         if (this.activeJobs.size === 0) {
