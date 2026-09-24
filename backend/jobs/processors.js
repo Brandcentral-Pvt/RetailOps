@@ -9,9 +9,10 @@ function registerProcessors() {
       const { sellerId, type, options } = job.data;
       logger.info(`Processing market sync for seller ${sellerId}`, { type });
 
+      // DISABLED: Octoparse replaced by Playwright scraper
       if (type === 'octoparse') {
-        const MarketSyncService = require('../services/marketDataSyncService');
-        return MarketSyncService.syncSellerAsinsToOctoparse(sellerId, options || {});
+        logger.warn('Octoparse sync type is disabled');
+        return { success: false, disabled: true };
       }
 
       if (type === 'live') {
