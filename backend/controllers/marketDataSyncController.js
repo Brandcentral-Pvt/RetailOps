@@ -1210,6 +1210,24 @@ exports.getGlobalLiveSyncStatus = async (req, res) => {
 };
 
 /**
+ * Creators API rate gate status + durable daily quota remaining.
+ */
+exports.getCreatorsRateStatus = async (req, res) => {
+    try {
+        const creatorsApiRateGate = require('../services/creatorsApiRateGate');
+        const remaining = await creatorsApiRateGate.getRemaining('primary');
+        res.json({
+            success: true,
+            remainingToday: remaining,
+            dailyLimit: creatorsApiRateGate.getEffectiveTpdLimit(),
+            gate: creatorsApiRateGate.getStatus(),
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
  * Restart all Octoparse tasks: stop all running → clear locks → re-inject → start fresh
  */
 exports.restartAllOctoparseTasks = async (req, res) => {
