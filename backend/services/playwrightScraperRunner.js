@@ -17,6 +17,8 @@ class PlaywrightScraperRunner {
         this.batchDelay = parseInt(process.env.SCRAPER_BATCH_DELAY || '3000', 10);
         this.interBatchDelay = parseInt(process.env.SCRAPER_INTER_BATCH_DELAY || '8000', 10);
         this.interChunkDelay = parseInt(process.env.SCRAPER_INTER_CHUNK_DELAY || '2000', 10);
+        this.maxConcurrentJobs = parseInt(process.env.SCRAPER_MAX_CONCURRENT_JOBS || '2', 10);
+        this._runningJobs = 0;
     }
 
     /**
@@ -119,6 +121,7 @@ class PlaywrightScraperRunner {
             await this._persistJobState(jobState);
             this._emitFinished(jobState);
             this.activeJobs.delete(jobId);
+            this._runningJobs = Math.max(0, this._runningJobs - 1);
         });
 
         return { jobId, total: asins.length };
@@ -258,6 +261,13 @@ class PlaywrightScraperRunner {
      * Main execution loop: batch → concurrent within batch → persist → progress.
      */
     async _run(job, asins) {
+        // Global job gate: only run a bounded number of scrape jobs at once so
+        // a cron burst (198 sellers) doesn't spike CPU/RAM and crash the box.
+        while (this._runningJobs >= this.maxConcurrentJobs) {
+            await new Promise(r => setTimeout(r, 2000));
+        }
+        this._runningJobs++;
+
         const pool = await getPool();
         job.status = 'RUNNING';
         job.startedAt = new Date();
@@ -290,6 +300,7 @@ class PlaywrightScraperRunner {
         await this._persistJobState(job);
         this._emitFinished(job);
         this.activeJobs.delete(job.jobId);
+        this._runningJobs = Math.max(0, this._runningJobs - 1);
 
         // Friendly process teardown of the browser when idle
         if (this.activeJobs.size === 0) {
