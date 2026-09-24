@@ -38,17 +38,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import CallsNavigator from './CallsNavigator';
 import BrandLogo from '../components/BrandLogo';
 import { useAuthStore } from '../store/authStore';
+import { useCallStore } from '../store/callStore';
+import { callService } from '../services/callService';
+import { sendCallSignal } from '../services/socketService';
+import type { CallsStackParamList, IncomingCallData } from '../types';
 
 type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
-  Calls: undefined;
+  Calls: NavigatorScreenParams<CallsStackParamList>;
 };
 
 const Stack =
@@ -215,8 +222,57 @@ export default function RootNavigator() {
           }}
         />
       </Stack.Navigator>
+
+      <IncomingCallListener />
     </NavigationContainer>
   );
+}
+
+/*
+ * Routes incoming call invitations to the IncomingCall screen.
+ *
+ * Lives inside NavigationContainer so it can navigate, and subscribes to
+ * callService signaling (wired from the socket's `call:incoming` event).
+ */
+function IncomingCallListener() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  useEffect(() => {
+    const unsubscribe = callService.onSignal(
+      'call:incoming',
+      (payload: unknown) => {
+        const data = payload as IncomingCallData;
+        if (!data?.callId) return;
+
+        const { currentCall, pendingIncomingCall } = useCallStore.getState();
+
+        // Already on a call (active, ringing, or another pending invite) —
+        // reject this invitation before it overlays a call screen.
+        if (currentCall || pendingIncomingCall) {
+          sendCallSignal('call:busy', { callId: data.callId });
+          return;
+        }
+
+        useCallStore.getState().setPendingIncomingCall(data);
+
+        navigation.navigate('Calls', {
+          screen: 'IncomingCall',
+          params: {
+            callId: data.callId,
+            caller: data.caller,
+            callType: data.callType,
+            offer: data.offer,
+            conversationId: data.conversationId,
+          },
+        });
+      },
+    );
+
+    return unsubscribe;
+  }, [navigation]);
+
+  return null;
 }
 
 const styles = StyleSheet.create({

@@ -31,7 +31,7 @@ const RING_DURATION = 30000; // 30 seconds
 export default function IncomingCallScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const route = useRoute<Props['route']>();
-  const { callId, caller, callType, offer } = route.params;
+  const { callId, caller, callType, offer, conversationId } = route.params;
 
   const myId = useAuthStore((s) => s.user?.id ?? s.user?._id ?? '');
   const { setCurrentCall, updateCallStatus, setRemoteStream, clearPendingIncomingCall } = useCallStore();
@@ -57,7 +57,7 @@ export default function IncomingCallScreen({ navigation }: Props) {
     // Set up call in store
     const callSession = {
       id: callId,
-      conversationId: undefined,
+      conversationId,
       caller,
       callee: { _id: myId, name: 'You', avatar: undefined },
       type: callType,
@@ -125,6 +125,7 @@ export default function IncomingCallScreen({ navigation }: Props) {
 
     recordCallInHistory({
       callId,
+      conversationId,
       caller,
       callee: { _id: myId, name: 'You', avatar: undefined },
       type: callType,
@@ -136,6 +137,30 @@ export default function IncomingCallScreen({ navigation }: Props) {
 
     navigation.goBack();
   };
+
+  useEffect(() => {
+    const offIce = callService.onSignal('call:ice', (payload: unknown) => {
+      const p = payload as { callId: string; candidate: RTCIceCandidateInit };
+      if (p.callId === callId) {
+        callService.addIceCandidate(callId, p.candidate);
+      }
+    });
+
+    const offEnd = callService.onSignal('call:end', (payload: unknown) => {
+      const p = payload as {
+        callId: string;
+        reason?: 'ended' | 'rejected' | 'missed' | 'failed' | 'busy';
+      };
+      if (p.callId === callId) {
+        handleDecline(p.reason ?? 'ended');
+      }
+    });
+
+    return () => {
+      offIce();
+      offEnd();
+    };
+  }, [callId, caller, callType, conversationId, myId]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
