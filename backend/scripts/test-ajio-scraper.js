@@ -1,6 +1,8 @@
 // Quick test script for Ajio scraper
 // Run: node backend/scripts/test-ajio-scraper.js <productId>
 
+process.env.AJIO_SCRAPER_DEBUG = "true";
+
 const ajioScraperService = require('../services/ajioScraperService');
 const fs = require('fs');
 const path = require('path');

@@ -3,6 +3,8 @@ const logger = require("../utils/logger").service("ajio-scraper");
 const fs = require("fs");
 const path = require("path");
 
+const AJIO_SCRAPER_DEBUG = process.env.AJIO_SCRAPER_DEBUG === "true";
+
 /**
  * Playwright Scraper Service — Ajio (ajio.com) product-page scraper.
  * Extracts product data from Ajio product pages since there's no public API.
@@ -42,6 +44,9 @@ class AjioScraperService {
     this._context = null;
     this.busy = 0;
     this.waiters = [];
+
+    // Session is established once per context; the cookie survives across pages.
+    this._sessionReady = false;
 
     // Dynamic concurrency tracking
     this.successCount = 0;
@@ -296,12 +301,12 @@ class AjioScraperService {
    */
   async _navigateToProduct(page, url) {
     const GOTO = 30000;
-    const PICK = 10000;
 
-    // First establish session if this is a new page
-    if (!page._sessionEstablished) {
+    // Establish the session once per process, not per product — the cookies
+    // live on the shared context and survive across pages.
+    if (!this._sessionReady) {
       await this._establishSession(page);
-      page._sessionEstablished = true;
+      this._sessionReady = true;
     }
 
     let response = await page.goto(url, {
@@ -312,7 +317,8 @@ class AjioScraperService {
     if (!response || response.status() >= 400) {
       const code = response ? response.status() : "NO_RESPONSE";
       if (code === 403) {
-        // Try with a referrer header
+        // Try with a referrer header (session may have expired)
+        this._sessionReady = false;
         logger.warn("[AjioScraper] 403 received, retrying with referrer...");
         response = await page.goto(url, {
           waitUntil: "domcontentloaded",
@@ -321,23 +327,21 @@ class AjioScraperService {
         });
       }
       if (!response || response.status() >= 400) {
-        const code = response ? response.status() : "NO_RESPONSE";
-        throw new Error(`HTTP ${code}`);
+        const statusCode = response ? response.status() : "NO_RESPONSE";
+        if (statusCode !== 404) this._sessionReady = false;
+        throw new Error(`HTTP ${statusCode}`);
       }
     }
 
-    // Wait for key product elements
-    try {
-      await Promise.race([
-        page.waitForSelector(
-          ".dp-shm-pdp-title, .dp-shm-pdp-brand, .dp-shm-pdp-price",
-          { timeout: 15000 },
-        ),
-      ]).catch(() => {});
-    } catch {}
-
-    // Wait a bit for dynamic content
-    await page.waitForTimeout(3000).catch(() => {});
+    // Wait for key product elements (SSR content is available immediately;
+    // the short settle lets React hydrate the gallery/price).
+    await page
+      .waitForSelector(
+        ".dp-shm-pdp-title, .dp-shm-pdp-brand, .dp-shm-pdp-price",
+        { timeout: 8000 },
+      )
+      .catch(() => {});
+    await page.waitForTimeout(1200).catch(() => {});
 
     return true;
   }
@@ -446,14 +450,10 @@ class AjioScraperService {
     const schemaData = await this._extractFromSchema(page);
 
     // Also extract from __PRELOADED_STATE__ for rating, reviews, colors, etc.
-    const preloadData = await this._extractFromPreloadedState(page);
+    const preloadData = await this._extractFromPreloadedState(page, productId);
 
     if (schemaData && (schemaData.title || schemaData.brand)) {
-      // Merge with DOM fallback and preloaded state for missing fields
-      const domData = await this._extractFromDOM(page);
-      // Priority: schema > preload > DOM (schema last wins)
-      const merged = {
-        ...domData,
+      let merged = {
         ...(preloadData || {}),
         ...(schemaData || {}),
       }; // schema takes precedence (last wins)
@@ -477,10 +477,57 @@ class AjioScraperService {
           merged.description = preloadData.description;
         if (!merged.category && preloadData.category)
           merged.category = preloadData.category;
+        // Prefer preloaded price for the default/selected size over schema's first offer
+        if (preloadData.currentPrice)
+          merged.currentPrice = preloadData.currentPrice;
+        if (preloadData.mrp) merged.mrp = preloadData.mrp;
+        if (preloadData.discountPercentage > 0)
+          merged.discountPercentage = preloadData.discountPercentage;
+        // Preload exposes the full image gallery (schema/JSON-LD only has the main image)
+        if (
+          Array.isArray(preloadData.images) &&
+          preloadData.images.length >
+            (Array.isArray(merged.images) ? merged.images.length : 0)
+        )
+          merged.images = preloadData.images;
+      }
+
+      // Only run the (expensive) full DOM scan when core fields are still missing.
+      let domData = null;
+      const coreMissing =
+        !merged.title ||
+        !merged.brand ||
+        !(merged.mrp > 0) ||
+        !(merged.currentPrice > 0) ||
+        merged.addToCartStatus === "unknown";
+      if (coreMissing) {
+        domData = await this._extractFromDOM(page);
+        if (domData) {
+          for (const k of Object.keys(domData)) {
+            if (
+              merged[k] == null ||
+              merged[k] === "" ||
+              merged[k] === 0 ||
+              merged[k] === "unknown"
+            ) {
+              merged[k] = domData[k];
+            }
+          }
+        }
+      }
+
+      // The JSON-LD image array usually only carries the main image; grab the
+      // gallery thumbnails from the DOM for an accurate image count.
+      if (!Array.isArray(merged.images) || merged.images.length < 3) {
+        const gallery = await this._extractGalleryImages(page);
+        if (gallery.length > 0) {
+          merged.images = gallery;
+          merged.imagesCount = gallery.length;
+        }
       }
 
       // Debug: log what each source provides
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] Schema data:",
         JSON.stringify(
           {
@@ -498,7 +545,7 @@ class AjioScraperService {
           2,
         ),
       );
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] Preload data:",
         JSON.stringify(
           {
@@ -516,25 +563,25 @@ class AjioScraperService {
           2,
         ),
       );
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] DOM data:",
         JSON.stringify(
           {
-            title: domData.title,
-            brand: domData.brand,
-            mrp: domData.mrp,
-            price: domData.currentPrice,
-            rating: domData.rating,
-            reviewCount: domData.reviewCount,
-            addToCartStatus: domData.addToCartStatus,
-            sizes: domData.sizes,
-            colors: domData.colors,
+            title: domData?.title,
+            brand: domData?.brand,
+            mrp: domData?.mrp,
+            price: domData?.currentPrice,
+            rating: domData?.rating,
+            reviewCount: domData?.reviewCount,
+            addToCartStatus: domData?.addToCartStatus,
+            sizes: domData?.sizes,
+            colors: domData?.colors,
           },
           null,
           2,
         ),
       );
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] Merged:",
         JSON.stringify(
           {
@@ -559,7 +606,53 @@ class AjioScraperService {
     // Fallback to DOM-only extraction when schema is empty/invalid
     const domData = await this._extractFromDOM(page);
     if (!domData) return null;
-    return { ...(preloadData || {}), ...domData };
+    const merged = { ...(preloadData || {}), ...domData };
+    if (
+      Array.isArray(preloadData?.images) &&
+      preloadData.images.length >
+        (Array.isArray(domData.images) ? domData.images.length : 0)
+    ) {
+      merged.images = preloadData.images;
+    }
+    if (!Array.isArray(merged.images) || merged.images.length < 3) {
+      const gallery = await this._extractGalleryImages(page);
+      if (gallery.length > 0) {
+        merged.images = gallery;
+        merged.imagesCount = gallery.length;
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * Cheap gallery-image scan used in the basic extraction path. Ajio's JSON-LD
+   * image array usually contains only the main image, so the real count must
+   * come from the DOM thumbnails. Returns full http(s) image URLs.
+   */
+  async _extractGalleryImages(page) {
+    let images = [];
+    try {
+      const imgSelectors = [
+        '[data-testid="product-image"] img, .product-image img, .prod-img img',
+        ".image-gallery img, .main-image img, .product-gallery img",
+        'img[itemprop="image"]',
+        ".gallery img, .thumbnails img",
+      ];
+      for (const sel of imgSelectors) {
+        const imgEls = page.locator(sel);
+        const imgCount = await imgEls.count().catch(() => 0);
+        for (let i = 0; i < imgCount; i++) {
+          const src = await imgEls
+            .nth(i)
+            .getAttribute("src", { timeout: 3000 })
+            .catch(() => "");
+          if (src && src.startsWith("http") && !images.includes(src))
+            images.push(src);
+        }
+        if (images.length > 0) break;
+      }
+    } catch {}
+    return images;
   }
 
   /**
@@ -742,10 +835,138 @@ class AjioScraperService {
    * Extract product data from window.__PRELOADED_STATE__ (Ajio's global state).
    * This contains all product data including rating, reviews, colors, etc.
    */
-  async _extractFromPreloadedState(page) {
+  async _extractFromPreloadedState(page, productId) {
     try {
-      const state = await page.evaluate(() => window.__PRELOADED_STATE__);
-      console.log(
+      // COST NOTE: window.__PRELOADED_STATE__ is huge (every variant carries
+      // full-res image/style payloads). Slicing the parts we need INSIDE the
+      // browser keeps the CDP serialization cheap (seconds -> milliseconds).
+      const state = await page.evaluate((pid) => {
+        const s = window.__PRELOADED_STATE__;
+        if (!s || !s.product) return null;
+        const product = s.product;
+const pd = product.productDetails || product;
+
+        // Ajio's preloaded state exposes ALL product images (imageType +
+        // format variants) in pd.images. Group by galleryIndex and keep the
+        // highest-resolution URL per unique image.
+        let imagesUrls = [];
+        try {
+          if (Array.isArray(pd.images)) {
+            const byIndex = new Map();
+            for (const im of pd.images) {
+              const gi = im.galleryIndex != null ? im.galleryIndex : 0;
+              if (!byIndex.has(gi)) byIndex.set(gi, []);
+              byIndex.get(gi).push(im);
+            }
+            for (const group of byIndex.values()) {
+              let best = group[0];
+              const res = (m) => {
+                const mm = /(\d{2,4})[xX](\d{2,4})/.exec(m || "");
+                return mm ? parseInt(mm[1], 10) * parseInt(mm[2], 10) : 0;
+              };
+              for (const g of group) {
+                if (res(g.url) > res(best.url)) best = g;
+              }
+              if (best && best.url) imagesUrls.push(best.url);
+            }
+          }
+        } catch {}
+
+        const slimNamed = (items) =>
+          (Array.isArray(items) ? items : []).map((c) => ({
+            colorName: c.colorName,
+            color: c.color,
+            name: c.name,
+            value: c.value,
+            size: c.size,
+            sizeName: c.sizeName,
+          }));
+
+        const slimVariant = (v) => ({
+          code: v.code,
+          size: v.size,
+          sizeName: v.sizeName,
+          variantOptionQualifiers: Array.isArray(v.variantOptionQualifiers)
+            ? v.variantOptionQualifiers.slice(0, 8)
+            : undefined,
+          stock: v.stock,
+          priceData: v.priceData
+            ? {
+                value: v.priceData.value,
+                wasPrice: v.priceData.wasPrice,
+                discountPercent: v.priceData.discountPercent,
+              }
+            : undefined,
+          price: v.price,
+          sellingPrice: v.sellingPrice,
+          wasPriceData: v.wasPriceData,
+          mrp: v.mrp,
+        });
+
+        const rr = pd.ratingsResponse;
+        const slimRatings = rr
+          ? {
+              rating: rr.rating,
+              averageRating: rr.averageRating,
+              average: rr.average,
+              value: rr.value,
+              total: rr.total,
+              totalReviews: rr.totalReviews,
+              count: rr.count,
+              ratingData: rr.ratingData
+                ? { average: rr.ratingData.average }
+                : undefined,
+              data: rr.data ? { average: rr.data.average } : undefined,
+              aggregateRating: rr.aggregateRating
+                ? {
+                    averageRating: rr.aggregateRating.averageRating,
+                    numUserRatings: rr.aggregateRating.numUserRatings,
+                  }
+                : undefined,
+            }
+          : undefined;
+
+        return {
+          product: {
+            selectedSizeStockLevel: product.selectedSizeStockLevel,
+            productDetails: {
+              ratingsResponse: slimRatings,
+              numberOfReviews: pd.numberOfReviews,
+              fnlColorVariantData: slimNamed(pd.fnlColorVariantData),
+              verticalColor: slimNamed(pd.verticalColor),
+              variants: slimNamed(pd.variants),
+              variantOptions: Array.isArray(pd.variantOptions)
+                ? pd.variantOptions.map(slimVariant)
+                : undefined,
+              stock: pd.stock,
+              availability: pd.availability,
+              addToCartStatus: pd.addToCartStatus,
+              priceData: pd.priceData
+                ? {
+                    value: pd.priceData.value,
+                    wasPrice: pd.priceData.wasPrice,
+                    discountPercent: pd.priceData.discountPercent,
+                  }
+                : undefined,
+              price: pd.price,
+              sellingPrice: pd.sellingPrice,
+              wasPriceData: pd.wasPriceData,
+              mrp: pd.mrp,
+              description: pd.description,
+              summary: pd.summary,
+              categories: pd.categories,
+              categoryPath: pd.categoryPath,
+              brickCategory: pd.brickCategory,
+              brandName: pd.brandName,
+              brand: pd.brand,
+              name: pd.name,
+              title: pd.title,
+              imagesUrls: imagesUrls.length ? imagesUrls : undefined,
+            },
+          },
+        };
+      }, productId);
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] __PRELOADED_STATE__ keys:",
         state ? Object.keys(state) : "null",
       );
@@ -755,24 +976,24 @@ class AjioScraperService {
       // Structure: state.product
       const product = state.product;
       if (!product) {
-        console.log(
+        AJIO_SCRAPER_DEBUG && console.log(
           "[DEBUG] Preloaded state product not found. State keys:",
           Object.keys(state),
         );
         return null;
       }
 
-      console.log("[DEBUG] Preloaded product keys:", Object.keys(product));
+      AJIO_SCRAPER_DEBUG && console.log("[DEBUG] Preloaded product keys:", Object.keys(product));
       // state.product is a container; the actual product lives in productDetails
       const pd = product.productDetails || product;
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] productDetails keys:",
         product.productDetails ? Object.keys(product.productDetails) : "n/a",
       );
 
       // Extract rating from ratingsResponse
       let rating = null;
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] ratingsResponse:",
         JSON.stringify(pd.ratingsResponse, null, 2),
       );
@@ -793,7 +1014,7 @@ class AjioScraperService {
 
       // Extract review count from numberOfReviews or ratingsResponse
       let reviewCount = null;
-      console.log("[DEBUG] numberOfReviews:", pd.numberOfReviews);
+      AJIO_SCRAPER_DEBUG && console.log("[DEBUG] numberOfReviews:", pd.numberOfReviews);
       if (pd.numberOfReviews) {
         reviewCount = parseInt(pd.numberOfReviews, 10);
       } else if (pd.ratingsResponse?.totalReviews) {
@@ -815,7 +1036,7 @@ class AjioScraperService {
 
       // Extract colors from fnlColorVariantData
       let colors = [];
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] fnlColorVariantData:",
         JSON.stringify(pd.fnlColorVariantData, null, 2),
       );
@@ -860,7 +1081,7 @@ class AjioScraperService {
 
       // Extract sizes from variantOptions
       let sizes = [];
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] variantOptions:",
         JSON.stringify(pd.variantOptions, null, 2),
       );
@@ -952,7 +1173,56 @@ class AjioScraperService {
         addToCartStatus = pd.addToCartStatus;
       }
 
-      console.log("[DEBUG] Preloaded extracted:", {
+      // Price data — pick the variant matching this product ID (default size),
+      // since Ajio prices vary per size. Fall back to the first in-stock variant.
+      let currentPrice = 0;
+      let mrp = 0;
+      const priceVariants = Array.isArray(pd.variantOptions)
+        ? pd.variantOptions
+        : [];
+      let priceVariant = null;
+      if (productId) {
+        priceVariant =
+          priceVariants.find(
+            (v) =>
+              String(v.code || "").toUpperCase() ===
+              String(productId).toUpperCase(),
+          ) || null;
+      }
+      if (!priceVariant) {
+        priceVariant =
+          priceVariants.find(
+            (v) => v.stock && parseInt(v.stock.stockLevel, 10) > 0,
+          ) || priceVariants[0] || null;
+      }
+      if (priceVariant) {
+        currentPrice = this._parsePrice(
+          priceVariant.priceData?.value ||
+            priceVariant.price ||
+            priceVariant.sellingPrice,
+        );
+        mrp = this._parsePrice(
+          priceVariant.wasPriceData?.value ||
+            priceVariant.mrp ||
+            priceVariant.priceData?.wasPrice,
+        );
+      } else {
+        currentPrice = this._parsePrice(
+          pd.priceData?.value || pd.price || pd.sellingPrice,
+        );
+        mrp = this._parsePrice(pd.wasPriceData?.value || pd.mrp);
+      }
+      let discountPercentage = 0;
+      if (mrp > 0 && currentPrice > 0) {
+        discountPercentage = Math.round(((mrp - currentPrice) / mrp) * 100);
+      }
+      if (!discountPercentage && priceVariant?.priceData?.discountPercent) {
+        discountPercentage = this._parsePrice(
+          priceVariant.priceData.discountPercent,
+        );
+      }
+
+      AJIO_SCRAPER_DEBUG && console.log("[DEBUG] Preloaded extracted:", {
         rating,
         reviewCount,
         colors,
@@ -968,6 +1238,10 @@ class AjioScraperService {
         colors: colors.length > 0 ? colors : null,
         sizes: sizes.length > 0 ? sizes : null,
         addToCartStatus,
+        currentPrice,
+        mrp,
+        discountPercentage,
+        images: Array.isArray(pd.imagesUrls) ? pd.imagesUrls : null,
         description: pd.description || pd.summary || "",
         category:
           pd.categories?.join(" > ") ||
@@ -978,7 +1252,7 @@ class AjioScraperService {
         title: pd.name || pd.title || "",
       };
     } catch (e) {
-      console.log(
+      AJIO_SCRAPER_DEBUG && console.log(
         "[DEBUG] Preloaded state extraction failed:",
         e.message,
         e.stack,
@@ -1606,17 +1880,18 @@ class AjioScraperService {
     const pool = await getPool();
 
     const maxProducts = opts.maxProducts || 500;
-    const delayMs = opts.delayMs || 2000;
+    const delayMs = opts.delayMs == null ? 600 : opts.delayMs;
     const full = opts.full || false;
 
     const result = await pool.request().input("sellerId", sql.VarChar, sellerId)
+      .input("maxProducts", sql.Int, maxProducts)
       .query(`
                 SELECT TOP (@maxProducts) Id, AsinCode
                 FROM Asins 
                 WHERE SellerId = @sellerId 
-                AND Marketplace = 'Ajio'
+                AND LOWER(Marketplace) = 'ajio'
                 AND Status IN ('Active', 'Error', 'Scraping', 'Pending')
-                AND AsinCode IS NOT NULL
+                AND AsinCode LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
                 ORDER BY 
                     CASE WHEN LastScrapedAt IS NULL THEN 0 ELSE 1 END,
                     LastScrapedAt ASC
@@ -1631,21 +1906,124 @@ class AjioScraperService {
       `[AjioScraper] Starting batch scrape for seller ${sellerId}: ${products.length} products`,
     );
 
-    for (const productRecord of products) {
+    // Bounded worker pool — the internal semaphore (acquire/release) caps the
+    // number of live pages at baseConcurrentPages, so we can safely run more
+    // queued workers than that.
+    const workersCount = Math.max(
+      1,
+      parseInt(opts.concurrency, 10) || this.baseConcurrentPages,
+    );
+
+    const processProduct = async (productRecord) => {
       try {
         const productId = productRecord.AsinCode;
-        await this.scrapeProduct(productId, { full });
+        const extracted = await this.scrapeProduct(productId, { full });
 
-        await pool
+        // Persist scraped product data directly to the Asins table so the
+        // app / DB reflects live Ajio data (only real values, never zero out).
+        const updates = {
+          ...(extracted.title ? { Title: extracted.title } : {}),
+          ...(extracted.brand ? { Brand: extracted.brand } : {}),
+          ...(extracted.mrp > 0 ? { Mrp: extracted.mrp } : {}),
+          ...(extracted.currentPrice > 0
+            ? { CurrentPrice: extracted.currentPrice }
+            : {}),
+          ...(extracted.discountPercentage > 0
+            ? { DiscountPercentage: extracted.discountPercentage }
+            : {}),
+          ...(extracted.rating != null ? { Rating: extracted.rating } : {}),
+          ...(extracted.reviewCount != null
+            ? { ReviewCount: extracted.reviewCount }
+            : {}),
+          ...(extracted.category ? { Category: extracted.category } : {}),
+          ...(extracted.description
+            ? { ProductDescription: extracted.description }
+            : {}),
+          ...(Array.isArray(extracted.images) && extracted.images.length > 0
+            ? {
+                ImageUrl: extracted.images[0],
+                Images: JSON.stringify(extracted.images),
+                ImagesCount: extracted.images.length,
+              }
+            : {}),
+        };
+        const availability =
+          extracted.addToCartStatus === "available"
+            ? "InStock"
+            : extracted.addToCartStatus === "out_of_stock"
+              ? "OutOfStock"
+              : null;
+        if (availability) {
+          updates.Availability = availability;
+          updates.AvailabilityStatus = availability;
+        }
+
+        const setClause = Object.keys(updates)
+          .map((k, i) => `${k} = @u${i}`)
+          .concat([
+            "LastScrapedAt = @scrapedAt",
+            "ScrapeStatus = 'COMPLETED'",
+            "Status = 'Active'",
+            "LastScrapeStatus = 'COMPLETED'",
+            "LastScrapeError = NULL",
+            "UpdatedAt = @scrapedAt",
+          ])
+          .join(", ");
+        const dbUpdate = pool
           .request()
           .input("productId", sql.NVarChar, productId)
-          .input("scrapedAt", sql.DateTime, new Date()).query(`
-                        UPDATE Asins SET
-                            LastScrapedAt = @scrapedAt,
-                            ScrapeStatus = 'COMPLETED',
-                            Status = 'Active'
-                        WHERE AsinCode = @productId
-                    `);
+          .input("scrapedAt", sql.DateTime, new Date());
+        Object.keys(updates).forEach((k, i) =>
+          dbUpdate.input(`u${i}`, updates[k]),
+        );
+        await dbUpdate.query(
+          `UPDATE Asins SET ${setClause} WHERE AsinCode = @productId`,
+        );
+
+        // Record today's snapshot so the 7-day price trend chart fills in (same
+        // AsinHistory table + pattern Amazon's live sync uses).
+        try {
+          await pool
+            .request()
+            .input("asinId", sql.NVarChar, productRecord.Id)
+            .input("price", sql.Decimal(18, 2), extracted.currentPrice > 0 ? extracted.currentPrice : null)
+            .input("mrp", sql.Decimal(18, 2), extracted.mrp > 0 ? extracted.mrp : null)
+            .input("rating", sql.Decimal(3, 2), extracted.rating || null)
+            .input("reviewCount", sql.Int, extracted.reviewCount || null)
+            .input("source", sql.NVarChar, "AJIO_SCRAPER").query(`
+                MERGE AsinHistory AS target
+                USING (SELECT @asinId AS AsinId, CAST(dbo.GetEnvDate() AS DATE) AS [Date]) AS src
+                ON target.AsinId = src.AsinId AND target.[Date] = src.[Date]
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        Price = ISNULL(@price, target.Price),
+                        Mrp = ISNULL(@mrp, target.Mrp),
+                        Rating = ISNULL(@rating, target.Rating),
+                        ReviewCount = ISNULL(@reviewCount, target.ReviewCount),
+                        Source = @source
+                WHEN NOT MATCHED THEN
+                    INSERT (AsinId, [Date], Price, Mrp, Rating, ReviewCount, Source)
+                    VALUES (src.AsinId, src.[Date], @price, @mrp, @rating, @reviewCount, @source);
+            `);
+        } catch (histErr) {
+          logger.warn(
+            `[AjioScraper] History snapshot failed for ${productId}:`,
+            histErr.message,
+          );
+        }
+
+        try {
+          const SocketService = require("./socketService");
+          const io = SocketService.getIo();
+          if (io && productRecord.Id) {
+            io.emit("scrape_data_ingested", {
+              asinId: productRecord.Id,
+              asinCode: productId,
+              sellerId,
+              timestamp: new Date(),
+            });
+          }
+        } catch {}
         scraped++;
 
         if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
@@ -1664,8 +2042,10 @@ class AjioScraperService {
             .input("error", sql.NVarChar, err.message).query(`
                             UPDATE Asins SET
                                 ScrapeStatus = 'FAILED',
+                                LastScrapeStatus = 'FAILED',
                                 LastScrapeError = @error,
-                                Status = 'Error'
+                                Status = 'Error',
+                                UpdatedAt = dbo.GetEnvDate()
                             WHERE AsinCode = @productId
                         `);
         } catch (dbErr) {
@@ -1675,7 +2055,23 @@ class AjioScraperService {
           );
         }
       }
-    }
+    };
+
+    let nextIndex = 0;
+    const runWorker = async () => {
+      while (true) {
+        const i = nextIndex++;
+        if (i >= products.length) return;
+        await processProduct(products[i]);
+      }
+    };
+
+    await Promise.all(
+      Array.from(
+        { length: Math.min(workersCount, products.length) },
+        () => runWorker(),
+      ),
+    );
 
     logger.info(
       `[AjioScraper] Completed seller ${sellerId}: ${scraped} scraped, ${failed} failed`,
