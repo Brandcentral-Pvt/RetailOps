@@ -246,7 +246,7 @@ class SchedulerService {
                 logger.info('Cron triggering Ajio Playwright Scraper Sync');
                 try {
                     const ajioScraperService = require('./ajioScraperService');
-                    const maxProductsPerSeller = parseInt(process.env.AJIO_SCRAPER_CRON_MAX_PRODUCTS_PER_SELLER || '500', 10);
+                    const maxProductsPerSeller = parseInt(process.env.AJIO_SCRAPER_CRON_MAX_PRODUCTS_PER_SELLER || '10000', 10);
                     const pool = await getPool();
                     const sellersResult = await pool.request()
                         .query("SELECT Id FROM Sellers WHERE IsActive = 1 AND LOWER(Marketplace) = 'ajio'");
@@ -256,7 +256,7 @@ class SchedulerService {
                         try {
                             const result = await ajioScraperService.scrapeAllSellerProducts(sellerId, {
                                 maxProducts: maxProductsPerSeller,
-                                delayMs: parseInt(process.env.AJIO_SCRAPER_CRON_DELAY_MS || '2000', 10),
+                                delayMs: parseInt(process.env.AJIO_SCRAPER_CRON_DELAY_MS || '600', 10),
                                 full: false
                             });
                             logger.info(`Ajio Scraper Sync completed for seller ${sellerId}: ${result.scraped} scraped, ${result.failed} failed`);

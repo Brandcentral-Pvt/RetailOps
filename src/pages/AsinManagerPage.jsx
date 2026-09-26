@@ -197,8 +197,9 @@ const AsinManagerPage = (props) => {
   const isVisible = useCallback((key) => {
     // Removed restriction for marketplaceFilter === 'ajio' to ensure parity with Amazon datatable.
 
-    // For Amazon/General datatables: Show Deal Badge, but hide Discount Percentage as requested
-    if (key === 'discountPercentage') return false;
+    // For Amazon/General datatables: Show Deal Badge, but hide Discount Percentage as requested.
+    // For Ajio: show the Discount % column since scraped discounts are core data there.
+    if (key === 'discountPercentage') return marketplaceFilter === 'ajio';
     if (key === 'dealBadge') return true;
 
     return baseIsVisible(key);
@@ -2670,7 +2671,7 @@ const AsinManagerPage = (props) => {
                   )}
                   {isVisible('price') && (
                     <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
-                      {renderSortableHeader('CHANNEL PRICE', 'uploadedPrice', 'right')}
+                      {renderSortableHeader(marketplaceFilter === 'ajio' ? 'PRICE' : 'CHANNEL PRICE', 'uploadedPrice', 'right')}
                     </th>
                   )}
                   {isVisible('discountPercentage') && (
@@ -3451,7 +3452,7 @@ const AsinManagerPage = (props) => {
                               const buyBoxes = asin.buyBoxes || [];
                               const winner = buyBoxes.find(b => b.isBuyBoxWinner) || buyBoxes[0];
                               const seller = winner?.seller || asin.soldBy || null;
-                              const price = winner?.priceAmount || asin.currentPrice || 0;
+                              const price = winner?.priceAmount || 0;
                               const mrp = winner?.mrpAmount || 0;
                               const savings = winner?.savingsAmount || 0;
                               const savingsPct = winner?.savingsPercentage || 0;
@@ -3502,10 +3503,16 @@ const AsinManagerPage = (props) => {
                             <div className="d-flex flex-column align-items-end">
                               {(() => {
                                 const isDisputed = computeDynamicDispute(asin);
+                                // Price column: uploaded channel price when present, else the
+                                // scraped discounted price (Ajio), else MRP as a last resort.
+                                const uploadedPrice = asin.uploadedPrice || 0;
+                                const displayedPrice = uploadedPrice > 0
+                                  ? uploadedPrice
+                                  : (asin.currentPrice > 0 ? asin.currentPrice : (asin.mrp || 0));
                                 return (
                                   <>
                                     <span style={{ color: isDisputed ? 'var(--text-danger)' : 'var(--text-success)' }}>
-                                      ₹{(asin.uploadedPrice || 0).toLocaleString()}
+                                      ₹{displayedPrice.toLocaleString()}
                                     </span>
                                     {isDisputed && (
                                       <span className="badge mt-1 shadow-sm" style={{
