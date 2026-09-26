@@ -229,6 +229,50 @@ class SchedulerService {
             logger.info('🛑 [Scheduler] Playwright Scraper Sync is DISABLED.');
         }
 
+        // ── Ajio Playwright Scraper Sync (at same time) ──
+        const ajioScraperEnabled = process.env.AJIO_SCRAPER_CRON_ENABLED !== 'false';
+        const ajioScraperTime = process.env.AJIO_SCRAPER_CRON_TIME || scraperTime || '00:05';
+        
+        logger.info(`Ajio Scraper Sync schedule: ${ajioScraperTime} (enabled: ${ajioScraperEnabled})`);
+        
+        if (ajioScraperEnabled) {
+            let ajioScraperCronExpr = '5 0 * * *';
+            if (ajioScraperTime && ajioScraperTime.includes(':')) {
+                const [hour, minute] = ajioScraperTime.split(':');
+                ajioScraperCronExpr = `${parseInt(minute, 10)} ${parseInt(hour, 10)} * * *`;
+            }
+            
+            this.jobs.ajioScraperSync = cron.schedule(ajioScraperCronExpr, async () => {
+                logger.info('Cron triggering Ajio Playwright Scraper Sync');
+                try {
+                    const ajioScraperService = require('./ajioScraperService');
+                    const maxProductsPerSeller = parseInt(process.env.AJIO_SCRAPER_CRON_MAX_PRODUCTS_PER_SELLER || '500', 10);
+                    const pool = await getPool();
+                    const sellersResult = await pool.request()
+                        .query("SELECT Id FROM Sellers WHERE IsActive = 1 AND LOWER(Marketplace) = 'ajio'");
+                    const sellerIds = sellersResult.recordset.map(s => s.Id);
+                    
+                    for (const sellerId of sellerIds) {
+                        try {
+                            const result = await ajioScraperService.scrapeAllSellerProducts(sellerId, {
+                                maxProducts: maxProductsPerSeller,
+                                delayMs: parseInt(process.env.AJIO_SCRAPER_CRON_DELAY_MS || '2000', 10),
+                                full: false
+                            });
+                            logger.info(`Ajio Scraper Sync completed for seller ${sellerId}: ${result.scraped} scraped, ${result.failed} failed`);
+                        } catch (err) {
+                            logger.error(`Ajio Scraper Sync failed for seller ${sellerId}:`, err.message);
+                        }
+                    }
+                } catch (err) {
+                    logger.error('Ajio Playwright Scraper Sync cron failed:', err.message);
+                }
+            }, cronOptions);
+            logger.info(`Ajio Playwright Scraper Sync scheduled at ${ajioScraperTime} in ${automationTimezone}`);
+        } else {
+            logger.info('🛑 [Scheduler] Ajio Playwright Scraper Sync is DISABLED.');
+        }
+
         // 3b. Scraper job safety-net resume: reattach any job left QUEUED/RUNNING
         // by a process that died mid-run, so it continues from remaining ASINs.
         this.jobs.scraperResume = cron.schedule('15 * * * *', async () => {
