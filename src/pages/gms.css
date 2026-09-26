@@ -1,0 +1,82 @@
+/* GMS Tracker page — designed on the OpsCenter / Ads Manager system */
+
+.gms-page {
+  --gms-head-pad: 2px;
+}
+
+.gms-page .ops-head {
+  margin-bottom: 14px;
+}
+
+/* Matrix table — scoped antd overrides to sit inside an ops-panel */
+
+.gms-matrix-panel .ops-panel__head {
+  padding-bottom: 10px;
+}
+
+.gms-matrix {
+  margin: 0 -16px -8px;
+  border-top: 1px solid var(--ops-line, #e3e8ee);
+}
+
+.gms-matrix .ant-table {
+  font-size: 12px;
+  color: var(--ops-ink, #0f172a);
+}
+
+.gms-matrix .ant-table-thead > tr > th {
+  background: #fafbfd;
+  color: var(--ops-ink2, #51607a);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--ops-line, #e3e8ee);
+  white-space: nowrap;
+}
+
+.gms-matrix .ant-table-thead > tr > th::before,
+.gms-matrix
+  .ant-table-thead
+  > tr
+  > th.ant-table-column-has-sorters:hover::before {
+  background-color: var(--ops-line, #e3e8ee) !important;
+}
+
+.gms-matrix .ant-table-tbody > tr > td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ops-line-soft, #eef1f5);
+  white-space: nowrap;
+}
+
+.gms-matrix .ant-table-tbody > tr:hover > td {
+  background: #f4f7fc !important;
+}
+
+.gms-matrix
+  .ant-table-bordered
+  > .ant-table-container
+  > .ant-table-content
+  > table
+  > thead
+  > tr
+  > th,
+.gms-matrix
+  .ant-table-bordered
+  > .ant-table-container
+  > .ant-table-content
+  > table
+  > tbody
+  > tr
+  > td {
+  border-right: 1px solid var(--ops-line-soft, #eef1f5);
+}
+
+.gms-matrix .ant-table-pagination.ant-pagination {
+  margin: 10px 12px;
+}
+
+.gms-matrix .ant-empty {
+  margin-block: 0;
+}
