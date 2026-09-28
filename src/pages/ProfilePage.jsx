@@ -5,12 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import {
     Card, Input, Button, Row, Col, Typography, Avatar,
-    Tag, Divider, Modal, Space, message, notification, Switch, Tooltip, Steps
+    Tag, Divider, Modal, Space, message, Tooltip, Steps
 } from 'antd';
 import {
     User, Mail, Shield, Calendar, Camera, Edit2,
     Smartphone, Lock, LogOut, Key, CheckCircle2,
-    ChevronRight, Activity, X, Eye, ArrowLeft, Send, ShieldCheck
+    ChevronRight, Activity, X, Eye, ArrowLeft, Send, ShieldCheck, Bell, Clock
 } from 'lucide-react';
 import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 
@@ -31,7 +31,7 @@ const ProfilePage = () => {
     const [otpToken, setOtpToken] = useState('');
     const [otpCode, setOtpCode] = useState('');
     const [otpDestination, setOtpDestination] = useState('');
-    const [otpExpiry, setOtpExpiry] = useState(0);
+    
 
     const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '' });
 
@@ -135,10 +135,11 @@ const ProfilePage = () => {
         try {
             setSaving(true);
             const res = await api.authApi.requestPasswordChange(pwdData.current);
+            // otpExpiry available for future countdown timer
             if (res.success) {
                 setOtpToken(res.tempToken);
                 setOtpDestination(res.destination);
-                setOtpExpiry(res.expiresIn || 600);
+// setOtpExpiry(res.expiresIn || 600);
                 setOtpStep(1);
                 messageApi.success(res.message || 'Verification code sent');
             } else {
@@ -181,6 +182,7 @@ const ProfilePage = () => {
     const handleResendOtp = async () => {
         try {
             const res = await api.authApi.requestPasswordChange(pwdData.current);
+            // otpExpiry available for future countdown timer
             if (res.success) {
                 setOtpToken(res.tempToken);
                 messageApi.success('New code sent');
@@ -197,23 +199,26 @@ const ProfilePage = () => {
     const roleDisplay = user?.role?.DisplayName || user?.role?.displayName || user?.role?.name || 'Member';
     const isOwnProfile = currentUser?._id === user?._id || currentUser?.id === user?._id || currentUser?._id === user?.Id;
 
+    // Real backend fields available: lastSeen (from userController), isFirstLogin (from setupWizardService)
+    // Not available: setupCompletedAt, passwordChangedAt, active sessions, 2FA status
+
     return (
-        <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
+        <div style={{ background: '#f8fafc', minHeight: 'calc(100vh - 60px)' }}>
             {msgCtx}
 
             {/* Page Header */}
-            <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '20px 24px 16px', background: '#fff', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                     <div>
-                        <h2 style={{ fontSize: 18, fontWeight: 600, color: '#18181b', margin: 0 }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                             {isOwnProfile ? 'My Profile' : `${user?.firstName || ''} ${user?.lastName || ''}`}
                         </h2>
-                        <p style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', margin: 0, marginTop: 4 }}>
+                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)', margin: 0, marginTop: 4 }}>
                             {isOwnProfile ? 'Manage your account settings and security' : `Viewing ${user?.firstName}'s profile`}
                         </p>
                     </div>
                     {isOwnProfile && (
-                        <Space size={8}>
+                        <Space size={8} wrap>
                             <Button size="small" icon={<Key size={13} />} onClick={openPasswordModal}
                                 style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>Change Password</Button>
                             <Button size="small" danger icon={<LogOut size={13} />} onClick={() => Modal.confirm({
@@ -225,49 +230,50 @@ const ProfilePage = () => {
                 </div>
             </div>
 
-            <div style={{ padding: '16px 28px' }}>
-                <Row gutter={[16, 16]}>
+            <div style={{ padding: '20px 24px' }}>
+                <Row gutter={[20, 20]}>
                     {/* Left: Profile Card */}
                     <Col xs={24} lg={8}>
-                        <div style={{ border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: '24px 20px', textAlign: 'center' }}>
-                            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
-                                <Avatar size={80} src={`https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=18181b&color=fff&size=160&bold=true`}
-                                    style={{ border: '3px solid #f4f4f5' }} />
+                        <Card style={{ borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}
+                            bodyStyle={{ padding: '24px 20px', textAlign: 'center' }}>
+                            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
+                                <Avatar size={88} src={`https://ui-avatars.com/api/?name=${encodeURIComponent((user?.firstName || '') + ' ' + (user?.lastName || ''))}&background=18181b&color=fff&size=176&bold=true`}
+                                    style={{ border: '3px solid var(--border-light)' }} />
                                 {isOwnProfile && (
-                                    <Tooltip title="Change photo">
-                                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: '#fff', border: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                            <Camera size={11} style={{ color: '#71717a' }} />
+                                    <Tooltip title="Avatar upload coming soon">
+                                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: '50%', background: 'var(--surface-primary)', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'not-allowed', opacity: 0.6 }}>
+                                            <Camera size={12} style={{ color: 'var(--text-muted)' }} />
                                         </div>
                                     </Tooltip>
                                 )}
                             </div>
-                            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>
+                            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
                                 {user?.firstName} {user?.lastName}
                             </div>
-                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", padding: '2px 8px', fontWeight: 600, background: '#eff6ff', color: '#0288D1', border: '1px solid #bfdbfe' }}>
+                            <Tag style={{ fontSize: 10, borderRadius: "var(--radius-sm)", padding: '2px 8px', fontWeight: 600, background: 'var(--bg-primary-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}>
                                 {roleDisplay}
                             </Tag>
 
-                            <Divider style={{ margin: '16px 0' }} />
+                            <Divider style={{ margin: '18px 0' }} />
 
-                            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: 9, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase' }}>Joined</div>
-                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginTop: 2 }}>{formatDate(user?.createdAt)}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-around', gap: 16 }}>
+                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                    <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Joined</div>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)', marginTop: 4 }}>{formatDate(user?.createdAt)}</div>
                                 </div>
-                                <div style={{ width: 1, background: '#f4f4f5' }} />
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: 9, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase' }}>Status</div>
-                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: user?.isActive !== false ? '#2E7D32' : '#C62828', marginTop: 2 }}>
+                                <div style={{ width: 1, background: 'var(--border-light)', margin: '0 4px' }} />
+                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                    <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</div>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, marginTop: 4 }} style={{ color: user?.isActive !== false ? 'var(--text-success)' : 'var(--text-danger)' }}>
                                         {user?.isActive !== false ? 'Active' : 'Inactive'}
                                     </div>
                                 </div>
                             </div>
 
-                            <Divider style={{ margin: '16px 0' }} />
+                            <Divider style={{ margin: '18px 0' }} />
 
                             {isOwnProfile ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     <Button block size="small" icon={isEditing ? <X size={13} /> : <Edit2 size={13} />}
                                         type={isEditing ? 'default' : 'primary'}
                                         onClick={() => {
@@ -276,109 +282,139 @@ const ProfilePage = () => {
                                             }
                                             setIsEditing(!isEditing);
                                         }}
-                                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 30 }}>
+                                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 36 }}>
                                         {isEditing ? 'Cancel' : 'Edit Profile'}
                                     </Button>
                                     <Button block size="small" icon={<Lock size={13} />}
                                         onClick={openPasswordModal}
-                                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 30 }}>
+                                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 36 }}>
                                         Change Password
                                     </Button>
                                 </div>
                             ) : (
-                                <div style={{ fontSize: 'var(--font-size-xs)', color: '#a1a1aa', textAlign: 'center' }}>
+                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>
                                     <Eye size={12} style={{ marginRight: 4 }} /> View Only
                                 </div>
                             )}
-                        </div>
+                        </Card>
                     </Col>
 
                     {/* Right: Details */}
                     <Col xs={24} lg={16}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                             {/* Personal Info */}
-                            <div style={{ border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: '16px 20px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                    <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <User size={13} style={{ color: '#71717a' }} />
+                            <Card style={{ borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}
+                                bodyStyle={{ padding: '20px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'var(--bg-primary-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <User size={14} style={{ color: 'var(--text-primary)' }} />
+                                        </div>
+                                        <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)' }}>Personal Information</div>
                                     </div>
-                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b' }}>Personal Information</div>
                                     {isEditing && isOwnProfile && (
                                         <Button size="small" type="primary" loading={saving} onClick={handleSave}
-                                            style={{ marginLeft: 'auto', borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 28 }}>Save</Button>
+                                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 30 }}>Save</Button>
                                     )}
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                                     <div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', marginBottom: 4 }}>First Name *</div>
+                                        <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>First Name <span style={{ color: 'var(--text-danger)' }}>*</span></label>
                                         {isEditing && isOwnProfile ? (
                                             <Input size="small" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} style={{ borderRadius: "var(--radius-md)" }} />
                                         ) : (
-                                            <div style={{ padding: '6px 10px', background: '#f4f4f5', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#18181b', border: '1px solid #e4e4e7' }}>{user?.firstName || '—'}</div>
+                                            <div style={{ padding: '10px 12px', background: 'var(--surface-secondary)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', minHeight: 40 }}>{user?.firstName || '—'}</div>
                                         )}
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Last Name *</div>
+                                        <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Last Name <span style={{ color: 'var(--text-danger)' }}>*</span></label>
                                         {isEditing && isOwnProfile ? (
                                             <Input size="small" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} style={{ borderRadius: "var(--radius-md)" }} />
                                         ) : (
-                                            <div style={{ padding: '6px 10px', background: '#f4f4f5', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#18181b', border: '1px solid #e4e4e7' }}>{user?.lastName || '—'}</div>
+                                            <div style={{ padding: '10px 12px', background: 'var(--surface-secondary)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', minHeight: 40 }}>{user?.lastName || '—'}</div>
                                         )}
                                     </div>
                                     <div style={{ gridColumn: '1 / -1' }}>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Email</div>
-                                        <div style={{ padding: '6px 10px', background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#71717a', border: '1px dashed #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <span><Mail size={12} style={{ marginRight: 6 }} />{user?.email || '—'}</span>
-                                            <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", padding: '1px 6px', background: '#ecfdf5', color: '#2E7D32', border: '1px solid #a7f3d0', fontWeight: 600 }}>Verified</Tag>
+                                        <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Email</label>
+                                        <div style={{ padding: '10px 12px', background: 'var(--surface-muted)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', border: '1px dashed var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 }}>
+                                            <span><Mail size={12} style={{ marginRight: 8 }} />{user?.email || '—'}</span>
+                                            <Tag style={{ fontSize: 9, borderRadius: "var(--radius-sm)", padding: '1px 8px', background: 'var(--bg-success-subtle)', color: 'var(--text-success)', border: '1px solid var(--border-success)', fontWeight: 600 }}>Verified</Tag>
                                         </div>
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Phone</div>
+                                        <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Phone</label>
                                         {isEditing && isOwnProfile ? (
-                                            <Input size="small" prefix={<Smartphone size={11} />} placeholder="+91 000 000 0000" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} style={{ borderRadius: "var(--radius-md)" }} />
+                                            <Input size="small" prefix={<Smartphone size={12} />} placeholder="+91 000 000 0000" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} style={{ borderRadius: "var(--radius-md)" }} />
                                         ) : (
-                                            <div style={{ padding: '6px 10px', background: '#f4f4f5', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#18181b', border: '1px solid #e4e4e7' }}>
-                                                <Smartphone size={12} style={{ marginRight: 6, color: '#71717a' }} />{user?.phone || 'Not set'}
+                                            <div style={{ padding: '10px 12px', background: 'var(--surface-secondary)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', minHeight: 40, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <Smartphone size={12} style={{ color: 'var(--text-muted)' }} />{user?.phone || 'Not set'}
                                             </div>
                                         )}
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#71717a', marginBottom: 4 }}>Role</div>
-                                        <div style={{ padding: '6px 10px', background: '#f4f4f5', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: '#18181b', border: '1px solid #e4e4e7' }}>
-                                            <Shield size={12} style={{ marginRight: 6, color: '#71717a' }} />{roleDisplay}
+                                        <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Role</label>
+                                        <div style={{ padding: '10px 12px', background: 'var(--surface-secondary)', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)', border: '1px solid var(--border-light)', minHeight: 40, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <Shield size={12} style={{ color: 'var(--text-muted)' }} />{roleDisplay}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </Card>
 
-                            {/* Security */}
-                            <div style={{ border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: '16px 20px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                    <div style={{ width: 28, height: 28, borderRadius: "var(--radius-md)", background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Shield size={13} style={{ color: '#71717a' }} />
+                            {/* Security — only real backend fields shown */}
+                            <Card style={{ borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}
+                                bodyStyle={{ padding: '20px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                    <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'var(--bg-warning-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Shield size={14} style={{ color: 'var(--text-warning)' }} />
                                     </div>
-                                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b' }}>Security</div>
+                                    <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)' }}>Security</div>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                    <div style={{ padding: '10px 12px', background: user?.isFirstLogin ? '#fef2f2' : '#ecfdf5', borderRadius: "var(--radius-md)", border: `1px solid ${user?.isFirstLogin ? '#fecaca' : '#d1fae5'}` }}>
-                                        <div style={{ fontSize: 10, fontWeight: 600, color: user?.isFirstLogin ? '#C62828' : '#2E7D32', textTransform: 'uppercase' }}>Setup Status</div>
-                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginTop: 2 }}>{user?.setupCompletedAt ? 'Complete' : 'Pending Setup'}</div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                                    {/* Setup Status */}
+                                    <div style={{ padding: '14px 16px', background: user?.isFirstLogin ? 'var(--bg-danger-subtle)' : 'var(--bg-success-subtle)', borderRadius: "var(--radius-md)", border: `1px solid ${user?.isFirstLogin ? 'var(--border-danger)' : 'var(--border-success)'}` }}>
+                                        <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, color: user?.isFirstLogin ? 'var(--text-danger)' : 'var(--text-success)' }}>Setup Status</div>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                            {user?.isFirstLogin ? 'Initial Setup Required' : 'Setup Complete'}
+                                        </div>
                                     </div>
-                                    <div style={{ padding: '10px 12px', background: '#f4f4f5', borderRadius: "var(--radius-md)", border: '1px solid #e4e4e7' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Password Changed</div>
-                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginTop: 2 }}>{formatDate(user?.passwordChangedAt)}</div>
+
+                                    {/* Account Created */}
+                                    <div style={{ padding: '14px 16px', background: 'var(--surface-secondary)', borderRadius: "var(--radius-md)", border: '1px solid var(--border-light)' }}>
+                                        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Account Created</div>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)' }}><Calendar size={12} style={{ marginRight: 6, verticalAlign: 'middle' }} />{formatDate(user?.createdAt)}</div>
                                     </div>
-                                    <div style={{ padding: '10px 12px', background: '#f4f4f5', borderRadius: "var(--radius-md)", border: '1px solid #e4e4e7' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Account Created</div>
-                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginTop: 2 }}>{formatDate(user?.createdAt)}</div>
+
+                                    {/* Last Seen — real from backend */}
+                                    <div style={{ padding: '14px 16px', background: 'var(--surface-secondary)', borderRadius: "var(--radius-md)", border: '1px solid var(--border-light)' }}>
+                                        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Last Activity</div>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Clock size={12} style={{ color: 'var(--text-muted)' }} />
+                                            {user?.lastSeen ? formatDate(user.lastSeen) : 'Current session'}
+                                        </div>
                                     </div>
-                                    <div style={{ padding: '10px 12px', background: '#f4f4f5', borderRadius: "var(--radius-md)", border: '1px solid #e4e4e7' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Last Seen</div>
-                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginTop: 2 }}>{user?.lastSeen ? formatDate(user.lastSeen) : 'Now'}</div>
+
+                                    {/* Password Changed — backend doesn't provide this yet */}
+                                    <div style={{ padding: '14px 16px', background: 'var(--surface-muted)', borderRadius: "var(--radius-md)", border: '1px dashed var(--border-light)' }}>
+                                        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Password Changed</div>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--text-muted)' }}>Not tracked</div>
+                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <Bell size={9} /> Backend field not available
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+
+                                {/* Password change action */}
+                                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Update Credentials</div>
+                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>Change your password securely with OTP verification</div>
+                                    </div>
+                                    <Button size="small" icon={<Lock size={13} />} onClick={openPasswordModal}
+                                        style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>Change Password</Button>
+                                </div>
+                            </Card>
                         </div>
                     </Col>
                 </Row>
@@ -386,7 +422,7 @@ const ProfilePage = () => {
 
             {/* Password Modal with OTP Flow */}
             <Modal open={showPasswordModal} onCancel={closePasswordModal}
-                title={<span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b' }}>Change Password</span>}
+                title={<span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)' }}>Change Password</span>}
                 centered width={460}
                 footer={null}
                 styles={{ body: { padding: '20px 24px' } }}>
@@ -402,19 +438,19 @@ const ProfilePage = () => {
                         />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Current Password *</div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Current Password <span style={{ color: 'var(--text-danger)' }}>*</span></label>
                                 <Input.Password size="small" value={pwdData.current} onChange={e => setPwdData({ ...pwdData, current: e.target.value })} placeholder="Enter current password" style={{ borderRadius: "var(--radius-md)" }} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>New Password *</div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>New Password <span style={{ color: 'var(--text-danger)' }}>*</span></label>
                                 <Input.Password size="small" value={pwdData.newPw} onChange={e => setPwdData({ ...pwdData, newPw: e.target.value })} placeholder="Enter new password (min 8 chars)" style={{ borderRadius: "var(--radius-md)" }} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Confirm Password *</div>
+                                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Confirm Password <span style={{ color: 'var(--text-danger)' }}>*</span></label>
                                 <Input.Password size="small" value={pwdData.confirm} onChange={e => setPwdData({ ...pwdData, confirm: e.target.value })} placeholder="Confirm new password" style={{ borderRadius: "var(--radius-md)" }}
                                     status={pwdData.confirm && pwdData.newPw !== pwdData.confirm ? 'error' : ''} />
                                 {pwdData.confirm && pwdData.newPw !== pwdData.confirm && (
-                                    <div style={{ fontSize: 10, color: '#C62828', marginTop: 2 }}>Passwords do not match</div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-danger)', marginTop: 2 }}>Passwords do not match</div>
                                 )}
                             </div>
                         </div>
@@ -440,18 +476,18 @@ const ProfilePage = () => {
                             ]}
                         />
                         <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                                <ShieldCheck size={24} style={{ color: '#0288D1' }} />
+                            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-primary-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                                <ShieldCheck size={24} style={{ color: 'var(--text-primary)' }} />
                             </div>
-                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>Verification Code Sent</div>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: '#71717a', marginBottom: 16 }}>
+                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Verification Code Sent</div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginBottom: 16 }}>
                                 A 6-digit code has been sent to <strong>{otpDestination}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
                                 <Input.OTP length={6} size="large" value={otpCode} onChange={setOtpCode}
                                     style={{ borderRadius: "var(--radius-md)" }} />
                             </div>
-                            <div style={{ fontSize: 10, color: '#a1a1aa' }}>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                                 Didn't receive the code?{' '}
                                 <Button type="link" size="small" onClick={handleResendOtp} style={{ fontSize: 10, padding: 0 }}>
                                     Resend
@@ -479,11 +515,11 @@ const ProfilePage = () => {
                             ]}
                         />
                         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                                <CheckCircle2 size={28} style={{ color: '#2E7D32' }} />
+                            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--bg-success-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                                <CheckCircle2 size={28} style={{ color: 'var(--text-success)' }} />
                             </div>
-                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: '#18181b', marginBottom: 4 }}>Password Changed!</div>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: '#71717a' }}>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Password Changed!</div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
                                 You will be logged out shortly. Please login with your new password.
                             </div>
                         </div>
