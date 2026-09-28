@@ -9,7 +9,6 @@ import './styles/global-overrides.css'
 import App from './App.jsx'
 import UnderMaintenance from './pages/UnderMaintenance';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CometChatProvider } from './CometChat/context/CometChatContext';
 
 /**
  * Exponential-backoff retry delay function.
@@ -95,9 +94,7 @@ if (MAINTENANCE_MODE) {
     createRoot(document.getElementById('root')).render(
         <BrowserRouter>
             <QueryClientProvider client={queryClient}>
-                <CometChatProvider>
-                    <App />
-                </CometChatProvider>
+                <App />
             </QueryClientProvider>
         </BrowserRouter>,
     );

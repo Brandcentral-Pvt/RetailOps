@@ -34,7 +34,6 @@ const routeMeta = {
 
   '/webhooks': { title: 'Webhook & Notifications', breadcrumbs: [{ label: 'Workspace' }, { label: 'Webhooks' }] },
   '/profile': { title: 'Profile', breadcrumbs: [{ label: 'Workspace' }, { label: 'Profile' }] },
-  '/chat': { title: 'Chat', breadcrumbs: [{ label: 'Workspace' }, { label: 'Chat' }] },
   '/target-achievement': { title: 'Revenue Targets', breadcrumbs: [{ label: 'Workspace' }, { label: 'Targets' }] },
 };
 

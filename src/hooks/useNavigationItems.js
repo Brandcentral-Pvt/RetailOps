@@ -7,7 +7,7 @@ import {
     Target, TrendingUp, Calendar, PieChart,
     Settings, Activity, FileText, Layers,
     ShoppingBag, Zap, Bell, FolderOpen,
-    MessageSquare, ChevronRight, Store, KeyRound, Database, Map, ListTodo, GitBranch, LayoutTemplate, Clock, BarChart2, ScanSearch, Warehouse, Webhook, ClipboardList, CheckSquare, UserCheck, LineChart, RefreshCcw, Search
+    ChevronRight, Store, KeyRound, Database, Map, ListTodo, GitBranch, LayoutTemplate, Clock, BarChart2, ScanSearch, Warehouse, Webhook, ClipboardList, CheckSquare, UserCheck, LineChart, RefreshCcw, Search
 } from '../icons/fluent';
 
 export function useNavigationItems() {
@@ -410,16 +410,6 @@ export function useNavigationItems() {
                     label: 'Webhooks',
                     path: '/webhooks',
                     icon: Webhook,
-                    section: 'system',
-                }
-            ),
-            guard(
-                isAdmin || isGlobalUser || hasPermission('chat_view'),
-                {
-                    key: 'messaging',
-                    label: 'Messaging',
-                    path: '/chat',
-                    icon: MessageSquare,
                     section: 'system',
                 }
             ),

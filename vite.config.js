@@ -37,9 +37,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        'CometChat': path.resolve(__dirname, './src/CometChat'),
-        // Fix @cometchat/chat-uikit-react css-variables.css export issue
-        '@cometchat/chat-uikit-react/css-variables.css': path.resolve(__dirname, './node_modules/@cometchat/chat-uikit-react/dist/styles/css-variables.css'),
       },
     },
     build: {
@@ -72,10 +69,6 @@ export default defineConfig(({ mode }) => {
                 id.includes('recharts')   || id.includes('@mui/x-charts')
               ) {
                 return 'vendor_charts';
-              }
-              // ── CometChat (very large, keep isolated) ────────────────────────
-              if (id.includes('cometchat')) {
-                return 'vendor_chat';
               }
               // ── Real-time + date + icons + HTTP ─────────────────────────────
               if (
