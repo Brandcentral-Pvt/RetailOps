@@ -37,6 +37,7 @@ import { sellerApi, gmsApi, exportApi } from "../services/api";
 import { userApi } from "../services/api";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
 import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
@@ -147,6 +148,7 @@ const getTrend = (record, period, key) => {
 // ═══════════════════════════════════════════════════════════════
 export default function GmsTrackerPage() {
   const { isAdmin, isGlobalUser, hasPermission } = useAuth();
+  const { setPageMeta } = useHeader();
   const [gmsData, setGmsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -253,6 +255,14 @@ export default function GmsTrackerPage() {
       loadMountedRef.current = false;
     };
   }, [loadAllData]);
+
+  useEffect(() => {
+    setPageMeta({
+      title: 'GMS Tracker',
+      subtitle: 'Spreadsheet matrix of Ordered Revenue across ASINs and Sellers',
+      breadcrumbs: [{ label: 'Workspace' }, { label: 'GMS Tracker' }],
+    });
+  }, [setPageMeta]);
 
   const clearAllData = useCallback(() => {
     Modal.confirm({
@@ -1324,13 +1334,6 @@ export default function GmsTrackerPage() {
     };
   }, [filteredData]);
 
-  const btnStyle = {
-    borderRadius: "var(--radius-md)",
-    fontWeight: 600,
-    fontSize: "var(--font-size-xs)",
-    height: 32,
-  };
-
   const windowMeta = useMemo(() => {
     if (filteredData.length === 0) return null;
     const asins = new Set(filteredData.map((d) => d.asin).filter(Boolean));
@@ -1371,11 +1374,9 @@ export default function GmsTrackerPage() {
       )}
       {error && !loading && <LoadError message={error} onRetry={loadAllData} />}
 
-      {/* HEADER */}
+      {/* HEADER — breadcrumb & title come from global header via setPageMeta */}
       <div className="ops-head ads-head">
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="ads-crumb">Workspace / GMS Tracker</div>
-          <div className="ops-head__title">GMS Tracker</div>
           <div className="ads-head__sub">
             Spreadsheet matrix of Ordered Revenue across{" "}
             {viewLevel === "seller" ? "Sellers" : "ASINs"} — month, week and day
@@ -1398,7 +1399,13 @@ export default function GmsTrackerPage() {
             <Button
               icon={<DownloadOutlined />}
               size="small"
-              style={btnStyle}
+              style={{
+                borderRadius: "var(--bc-radius-md)",
+                fontWeight: 600,
+                fontSize: "var(--bc-text-xs)",
+                height: 32,
+                paddingInline: "var(--bc-space-3)",
+              }}
               onClick={() => {
                 setExportLevel(viewLevel);
                 setIsExportOpen(true);
@@ -1412,7 +1419,13 @@ export default function GmsTrackerPage() {
               type="primary"
               icon={<UploadOutlined />}
               size="small"
-              style={btnStyle}
+              style={{
+                borderRadius: "var(--bc-radius-md)",
+                fontWeight: 600,
+                fontSize: "var(--bc-text-xs)",
+                height: 32,
+                paddingInline: "var(--bc-space-3)",
+              }}
               onClick={() => setIsUploadOpen(true)}
             >
               Upload Data
@@ -1423,7 +1436,13 @@ export default function GmsTrackerPage() {
               danger
               icon={<DeleteOutlined />}
               size="small"
-              style={btnStyle}
+              style={{
+                borderRadius: "var(--bc-radius-md)",
+                fontWeight: 600,
+                fontSize: "var(--bc-text-xs)",
+                height: 32,
+                paddingInline: "var(--bc-space-3)",
+              }}
               onClick={clearAllData}
             >
               Clear Data
