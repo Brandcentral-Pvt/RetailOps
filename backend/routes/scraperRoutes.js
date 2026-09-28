@@ -3,7 +3,33 @@ const router = express.Router();
 const { sql, getPool } = require('../database/db');
 const playwrightScraperService = require('../services/playwrightScraperService');
 const scraperRunner = require('../services/playwrightScraperRunner');
+const ajioScraperService = require('../services/ajioScraperService');
 const { authenticate, requirePermission, checkSellerAccess } = require('../middleware/auth');
+
+/**
+ * Resolve a seller row (mainly for its marketplace) so the scraper routes can
+ * dispatch to the right engine: Ajio → AjioScraperService, Amazon → Playwright.
+ */
+async function getSellerById(sellerId) {
+    const pool = await getPool();
+    const r = await pool.request()
+        .input('id', sql.VarChar, sellerId)
+        .query('SELECT Id, Name, Marketplace FROM Sellers WHERE Id = @id');
+    return r.recordset[0] || null;
+}
+
+/** Start an Ajio batch scrape in the background (progress via Socket.IO). */
+function startAjioScrape(seller, res) {
+    ajioScraperService.scrapeAllSellerProducts(seller.Id, {
+        maxProducts: parseInt(process.env.AJIO_SCRAPER_CRON_MAX_PRODUCTS_PER_SELLER || '10000', 10),
+        delayMs: parseInt(process.env.AJIO_SCRAPER_CRON_DELAY_MS || '600', 10),
+        concurrency: parseInt(process.env.AJIO_SCRAPER_CONCURRENT_PAGES || '2', 10),
+        full: false,
+    })
+        .then(r => console.log(`[scraper] Ajio scrape done for ${seller.Name}: ${r.scraped} ok, ${r.failed} failed`))
+        .catch(e => console.error(`[scraper] Ajio scrape failed for seller ${seller.Id}:`, e.message));
+    return res.json({ success: true, message: `Ajio scrape started for ${seller.Name}. Progress streams via Socket.IO.` });
+}
 
 /**
  * In-house Playwright scraper endpoints (replaces Octoparse).
@@ -44,6 +70,11 @@ router.post('/scrape/start', authenticate, requirePermission('scraping_manage'),
     try {
         const { sellerId, asinIds = [], onlyMissing = false } = req.body;
         if (!sellerId) return res.status(400).json({ success: false, error: 'sellerId is required' });
+
+        const seller = await getSellerById(sellerId);
+        if (seller && (seller.Marketplace || '').toLowerCase() === 'ajio') {
+            return startAjioScrape(seller, res);
+        }
 
         let asins = [];
         if (asinIds && asinIds.length) {
@@ -185,6 +216,12 @@ router.get('/sellers/summary', authenticate, requirePermission('scraping_view'),
 router.post('/sync-seller/:sellerId', authenticate, requirePermission('scraping_manage'), checkSellerAccess, async (req, res) => {
     try {
         const { asinIds = [], onlyMissing = false } = req.body || {};
+
+        const seller = await getSellerById(req.params.sellerId);
+        if (seller && (seller.Marketplace || '').toLowerCase() === 'ajio') {
+            return startAjioScrape(seller, res);
+        }
+
         let asins = [];
         if (asinIds && asinIds.length) {
             const pool = await getPool();
