@@ -9,12 +9,10 @@ import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
 import { LoadError } from '../components/LoadError';
 import { AsinManagerSkeleton } from '../components/ui/PageSkeletons';
-import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi, sellerApi, taskApi, rulesetApi } from '../services/api';
 import InfiniteScrollSelect from '../components/common/InfiniteScrollSelect';
 import { useSocket } from '../contexts/SocketContext';
-import { calculateLQS } from '../utils/lqs';
 import {
   Package,
   Activity,
@@ -35,17 +33,16 @@ import {
   Scan,
   IndianRupee,
   ChevronRight,
+  ChevronsUp,
   ChevronLeft,
   TrendingDown,
   Trash2,
   Sparkles,
   Image,
   Eye,
-  Store,
   ListChecks,
   FileUp,
   LayoutGrid,
-  X,
   AlertCircle,
   Clock,
   ExternalLink,
@@ -77,12 +74,13 @@ const BulkImportModal = lazy(() => import('../components/asins/BulkImportModal')
 import TagsCell from '../components/asins/TagsCell';
 import BulkTagsModal from '../components/asins/BulkTagsModal';
 import TrendBadge from '../components/asins/TrendBadge';
-import { useColumnVisibility, ALL_COLUMNS, COLUMN_CATEGORIES } from '../hooks/useColumnVisibility';
+import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
+import AppliedFilterBadges from '../components/asins/AppliedFilterBadges';
+import { useAsinData } from '../hooks/useAsinData';
+import { useParentChildren } from '../hooks/useParentChildren';
 import {
-  generateHistoryStructure,
   generateHistoryStructureFromDates,
-  getWeekNumber,
   normalizeDateStr,
   getWeekHistoryBadge,
   getReviewTrendStatus
@@ -90,27 +88,32 @@ import {
 
 import Popover from '../components/common/Popover';
 
-const AsinManagerPage = (props) => {
-  const { isAdmin, isGlobalUser, hasPermission } = useAuth();
-  const [asins, setAsins] = useState([]);
-  const [globalHistoryDates, setGlobalHistoryDates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showDashboard, setShowDashboard] = useState(true);
-  const [showTable, setShowTable] = useState(true);
-  const [newAsin, setNewAsin] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showManualTaskModal, setShowManualTaskModal] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [taskPriority, setTaskPriority] = useState('MEDIUM');
-  const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
-  const [scrapingIds, setScrapingIds] = useState(new Set());
-  const [stats, setStats] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
-  const [sortBy, setSortBy] = useState('lastLiveSyncAt');
+const UNAVAILABLE_MARKERS = [
+  'unavailable',
+  'out of stock',
+  'out_of_stock',
+  'currently unavailable'
+];
+
+function isUnavailableStatus(asin) {
+  const status = (asin?.availabilityStatus || '').toLowerCase();
+  return UNAVAILABLE_MARKERS.some(marker => status.includes(marker));
+}
+
+const AsinManagerPage = () => {
+    const { isAdmin, hasPermission } = useAuth();
+    const [showDashboard, setShowDashboard] = useState(true);
+    const [newAsin, setNewAsin] = useState('');
+    const [syncing, setSyncing] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showManualTaskModal, setShowManualTaskModal] = useState(false);
+    const [taskTitle, setTaskTitle] = useState('');
+    const [taskDescription, setTaskDescription] = useState('');
+    const [taskPriority, setTaskPriority] = useState('MEDIUM');
+    const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
+const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [_scrapingIds, setScrapingIds] = useState(new Set());
   const { setPageMeta } = useHeader();
 
   useEffect(() => {
@@ -125,8 +128,6 @@ const AsinManagerPage = (props) => {
   const [selectedAsin, setSelectedAsin] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTrendsModal, setShowTrendsModal] = useState(false);
-  const [trendsMetric, setTrendsMetric] = useState('price');
-  const [sellers, setSellers] = useState([]);
   const [selectedSellerId, setSelectedSellerId] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -138,7 +139,6 @@ const AsinManagerPage = (props) => {
   const [showAllPriceHistory, setShowAllPriceHistory] = useState(false);
   const [showAllBsrHistory, setShowAllBsrHistory] = useState(false);
   const [showAllRatingHistory, setShowAllRatingHistory] = useState(false);
-  const [allAsins, setAllAsins] = useState([]);
   const [selectedSeller, setSelectedSeller] = useState(() => localStorage.getItem('selectedSeller') || '');
   // Persist seller selection
   useEffect(() => {
@@ -168,30 +168,17 @@ const AsinManagerPage = (props) => {
     }
   }, [canAccessAmazon, canAccessAjio, canAccessMyntra, marketplaceFilter]);
 
-  const [repairStatus, setRepairStatus] = useState(null);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [activeEditAsin, setActiveEditAsin] = useState(null);
-  const [importingTags, setImportingTags] = useState(false);
-  const tagsImportRef = useRef(null);
-  const initialLoadCompleteRef = useRef(false);
-  const loadTokenRef = useRef(0);
-  const lastStatsScopeRef = useRef(null);
-  const lastStatsRef = useRef(null);
-  const isFirstRenderRef = useRef(true);
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+const [repairStatus, setRepairStatus] = useState(null);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [activeEditAsin, setActiveEditAsin] = useState(null);
+    const isFirstRenderRef = useRef(true);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const {
     visibleColumns,
     isVisible: baseIsVisible,
-    toggleColumn,
-    toggleCategory,
-    resetToDefaults,
-    selectAll,
     updateVisibleColumns,
-    visibleCount,
-    totalCount,
     allColumns,
-    columnCategories,
-    isCatalogManager
+    columnCategories
   } = useColumnVisibility();
 
   const isVisible = useCallback((key) => {
@@ -205,11 +192,67 @@ const AsinManagerPage = (props) => {
     return baseIsVisible(key);
   }, [baseIsVisible, marketplaceFilter]);
 
-  const [showColumnPanel, setShowColumnPanel] = useState(false);
-  const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
-  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
-  const actionsRef = useRef(null);
+const [showColumnPanel, setShowColumnPanel] = useState(false);
+    const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
 
+    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: '',
+    category: '',
+    brand: '',
+    scrapeStatus: '',
+    parentAsin: '',
+    tag: '',
+    sku: '',
+    minPrice: '',
+    maxPrice: '',
+    minBSR: '',
+    maxBSR: '',
+    minRating: '',
+    maxRating: '',
+    minReviewCount: '',
+    maxReviewCount: '',
+    minImagesCount: '',
+    maxImagesCount: '',
+    minBulletPoints: '',
+    maxBulletPoints: '',
+    subBsrCategory: '',
+    buyBoxWin: '',
+    hasAplus: '',
+    hasVideo: '',
+    hasDeal: '',
+    ageFilter: '',
+    selectedTags: [],
+    minReleaseDate: '',
+    maxReleaseDate: '',
+    priceDispute: '',
+    bsrTrend: '',
+    ratingTrend: '',
+    historyDays: '',
+    ads: '',
+    availabilityStatus: '',
+    manufacturer: '',
+    dealAccessType: ''
+  });
+  const {
+    asins, setAsins,
+    globalHistoryDates,
+    availableMonths, setAvailableMonths,
+    loading, setLoading,
+    error,
+    stats,
+    pagination, setPagination,
+    initialLoadComplete,
+    loadData, retry
+  } = useAsinData({
+    selectedSeller,
+    marketplaceFilter,
+    appliedSearchQuery,
+    appliedFilters,
+    sortBy,
+    sortOrder,
+    limit: 25
+  });
   const historyStructure = useMemo(() => {
     if (globalHistoryDates && globalHistoryDates.length > 0) {
       // Lexical sort on YYYY-MM-DD gives chronological order (Oldest -> Newest)
@@ -220,26 +263,11 @@ const AsinManagerPage = (props) => {
     return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
   }, [globalHistoryDates]);
 
-  const totalHistoryCols = useMemo(() => {
-    if (!historyStructure) return 0;
-    return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
-  }, [historyStructure]);
-
   const visibleHistoryCols = useMemo(() => {
     if (!historyStructure) return 0;
     // Since we now always show exactly the entries in historyStructure (7 days)
     return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
   }, [historyStructure]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (actionsRef.current && !actionsRef.current.contains(event.target)) {
-        setShowActionsDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const [priceTrendExpanded, setPriceTrendExpanded] = useState(false);
   const [bsrTrendExpanded, setBsrTrendExpanded] = useState(false);
@@ -247,8 +275,7 @@ const AsinManagerPage = (props) => {
   const [reviewTrendExpanded, setReviewTrendExpanded] = useState(false);
   const [imageTrendExpanded, setImageTrendExpanded] = useState(false);
   const [ordersExpanded, setOrdersExpanded] = useState(false);
-  const [gmsRevenueExpanded, setGmsRevenueExpanded] = useState(false);
-  const [availableMonths, setAvailableMonths] = useState([]);
+  const [gmsRevenueExpanded, _setGmsRevenueExpanded] = useState(false);
 
   const formatMonthHeader = (dateStr) => {
     if (!dateStr) return '';
@@ -261,11 +288,6 @@ const AsinManagerPage = (props) => {
     return ordersExpanded ? availableMonths.length + 1 : 1;
   }, [isVisible, ordersExpanded, availableMonths]);
 
-  const hasSecondHeaderRow = useMemo(() => {
-    if (ordersExpanded && isVisible('totalOrders')) return true;
-    if (isVisible('priceTrend') || isVisible('bsrTrend') || isVisible('ratingTrend') || isVisible('reviewTrend') || isVisible('imageTrend')) return true;
-    return false;
-  }, [ordersExpanded, isVisible]);
   const visiblePriceTrendCount = useMemo(() => {
     if (!isVisible('priceTrend')) return 0;
     return visibleHistoryCols;
@@ -315,9 +337,14 @@ const AsinManagerPage = (props) => {
   const [viewMode, setViewMode] = useState('asin'); // 'asin' | 'parent'
   const [parentData, setParentData] = useState([]);
   const [parentPagination, setParentPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
-  const [expandedParents, setExpandedParents] = useState(new Set());
-  const [parentChildren, setParentChildren] = useState({});
-  const [loadingParent, setLoadingParent] = useState(false);
+  const {
+    expandedParents,
+    expandedCount,
+    loadingParents,
+    toggleParentExpand,
+    collapseAll,
+    withExpandedChildren
+  } = useParentChildren();
   const [filters, setFilters] = useState({
     category: '',
     brand: '',
@@ -356,45 +383,6 @@ const AsinManagerPage = (props) => {
     dealAccessType: ''
   });
 
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({
-    status: '',
-    category: '',
-    brand: '',
-    scrapeStatus: '',
-    parentAsin: '',
-    tag: '',
-    sku: '',
-    minPrice: '',
-    maxPrice: '',
-    minBSR: '',
-    maxBSR: '',
-    minRating: '',
-    maxRating: '',
-    minReviewCount: '',
-    maxReviewCount: '',
-    minImagesCount: '',
-    maxImagesCount: '',
-    minBulletPoints: '',
-    maxBulletPoints: '',
-    subBsrCategory: '',
-    buyBoxWin: '',
-    hasAplus: '',
-    hasVideo: '',
-    hasDeal: '',
-    ageFilter: '',
-    selectedTags: [],
-    minReleaseDate: '',
-    maxReleaseDate: '',
-    priceDispute: '',
-    bsrTrend: '',
-    ratingTrend: '',
-    historyDays: '',
-    ads: '',
-    availabilityStatus: '',
-    manufacturer: '',
-    dealAccessType: ''
-  });
   const [filterOptions, setFilterOptions] = useState({
     categories: [],
     brands: [],
@@ -474,129 +462,11 @@ const AsinManagerPage = (props) => {
     setFilterTrigger(t => t + 1);
   }, []);
 
-  const getAppliedFiltersBadges = useCallback(() => {
-    const badges = [];
-    const mapping = {
-      sku: 'SKU',
-      parentAsin: 'Parent ASIN',
-      scrapeStatus: 'Scrape Status',
-      brand: 'Brand',
-      category: 'Category',
-      subBsrCategory: 'Sub BSR',
-      buyBoxWin: 'BuyBox Winner',
-      hasAplus: 'A+ Content',
-      hasVideo: 'Video',
-      hasDeal: 'Deal',
-      minPrice: 'Min Price',
-      maxPrice: 'Max Price',
-      minBSR: 'Min BSR',
-      maxBSR: 'Max BSR',
-      minRating: 'Min Rating',
-      maxRating: 'Max Rating',
-      ageFilter: 'Age',
-      minReleaseDate: 'From',
-      maxReleaseDate: 'To',
-      priceDispute: 'Price Dispute',
-      bsrTrend: 'BSR Trend',
-      ratingTrend: 'Rating Trend',
-      historyDays: 'History Range',
-      ads: 'Ads',
-      availabilityStatus: 'Availability',
-      manufacturer: 'Manufacturer',
-      dealAccessType: 'Deal Type'
-    };
 
-    Object.entries(appliedFilters).forEach(([key, value]) => {
-      if (value && mapping[key]) {
-        let label = value;
-        if (value === 'true') label = 'Yes';
-        if (value === 'false') label = 'No';
-
-        badges.push(
-          <div key={key} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-active)', color: '#3f3f46', borderColor: 'var(--border-light)', borderRadius: '6px' }}>
-            <span className="fw-bold opacity-70 text-uppercase" style={{ fontSize: '8px', letterSpacing: '0.02em' }}>{mapping[key]}:</span>
-            <span className="fw-bold">{label}</span>
-            <button
-              type="button"
-              className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-              style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '2px' }}
-              onClick={() => removeAppliedFilter(key)}
-            >
-              <X size={11} strokeWidth={2.5} />
-            </button>
-          </div>
-        );
-      }
-    });
-
-    if (appliedFilters.selectedTags?.length > 0) {
-      appliedFilters.selectedTags.forEach(tag => {
-        badges.push(
-          <div key={`tag-${tag}`} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: '#eef2ff', color: '#4338ca', borderColor: '#c7d2fe', borderRadius: '6px' }}>
-            <TagIcon size={10} className="opacity-80" />
-            <span className="fw-bold">{tag}</span>
-            <button
-              type="button"
-              className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-              style={{ color: 'var(--color-info)', cursor: 'pointer', marginLeft: '2px' }}
-              onClick={() => removeAppliedFilter('selectedTags', tag)}
-            >
-              <X size={11} strokeWidth={2.5} />
-            </button>
-          </div>
-        );
-      });
-    }
-
-    if (selectedSeller) {
-      const seller = sellers.find(s => s._id === selectedSeller);
-      badges.unshift(
-        <div key="seller" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--text-primary)', color: '#ffffff', borderColor: 'var(--text-primary)', borderRadius: '6px' }}>
-          <Store size={10} className="opacity-80" />
-          <span className="fw-bold">{seller?.name || 'Selected Seller'}</span>
-          <button
-            type="button"
-            className="p-0 border-0 bg-transparent d-flex align-items-center text-zinc-400 hover-text-white transition-colors"
-            style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '2px' }}
-            onClick={() => setSelectedSeller('')}
-          >
-            <X size={11} strokeWidth={2.5} />
-          </button>
-        </div>
-      );
-    }
-
-    if (appliedSearchQuery) {
-      badges.unshift(
-        <div key="search" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-warning-subtle)', color: '#b45309', borderColor: '#fcd34d', borderRadius: '6px' }}>
-          <Search size={10} className="opacity-80" />
-          <span className="fw-bold italic">"{appliedSearchQuery}"</span>
-          <button
-            type="button"
-            className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-            style={{ color: 'var(--text-warning)', cursor: 'pointer', marginLeft: '2px' }}
-            onClick={() => { setAppliedSearchQuery(''); setSearchQuery(''); }}
-          >
-            <X size={11} strokeWidth={2.5} />
-          </button>
-        </div>
-      );
-    }
-
-    return badges;
-  }, [appliedFilters, appliedSearchQuery, removeAppliedFilter, selectedSeller, sellers]);
-
-  const filtersRef = useRef(filters);
-  filtersRef.current = appliedFilters;
-
-  const handleApplyFilters = () => {
-    setSelectedIds(new Set());
+  const handleApplyFilters = () => {    setSelectedIds(new Set());
     setAppliedFilters(filters);
     setFilterPanelOpen(false);
   };
-
-  // Removed client-side filteredAsins useMemo as we now use server-side search
-  const filteredAsins = viewMode === 'parent' ? parentData : asins;
 
   // Fetch filter options when seller changes
   useEffect(() => {
@@ -662,22 +532,13 @@ const AsinManagerPage = (props) => {
     });
   }, []);
 
-  const handleToggleSelectAll = useCallback(() => {
-    setSelectedIds(prev => {
-      if (prev.size === filteredAsins.length && filteredAsins.length > 0) {
-        return new Set();
-      }
-      return new Set(filteredAsins.map(a => a._id));
-    });
-  }, [filteredAsins]);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
 
-  const handleViewTrends = (asin, metric = 'price') => {
+  const handleViewTrends = (asin) => {
     setSelectedAsin(asin);
-    setTrendsMetric(metric);
     setShowTrendsModal(true);
   };
 
@@ -819,69 +680,34 @@ const AsinManagerPage = (props) => {
     }
   };
 
-  const loadData = useCallback(async (page = 1, limit = pagination.limit, seller = selectedSeller, marketplace = marketplaceFilter) => {
-    try {
-      const token = ++loadTokenRef.current;
-      setLoading(true);
+  // Removed client-side filteredAsins useMemo as we now use server-side search
+  // Parent view interleaves lazily-loaded children beneath their parent row;
+  // ASIN view has no parent markers so this is a pass-through.
+  const filteredAsins = useMemo(
+    () => withExpandedChildren(viewMode === 'parent' ? parentData : asins),
+    [withExpandedChildren, viewMode, parentData, asins]
+  );
 
-      // Stats are aggregate (per seller/marketplace scope) and cached server-side.
-      // Only fetch again when the scope changes, not on paging/search/sort.
-      const statsScope = `${seller || ''}|${marketplace && marketplace !== 'all' ? marketplace : ''}`;
-      const needsStats = lastStatsScopeRef.current !== statsScope || !lastStatsRef.current;
-      const statsPromise = needsStats
-        ? asinApi.getStats({
-            seller,
-            marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined
-          }).catch(err => {
-            console.warn('Stats fetch failed:', err);
-            return null;
-          })
-        : Promise.resolve(lastStatsRef.current);
+  // Parent rows stay selectable (their _id is a real Asins row); only the
+  // interleaved child and loading placeholders are excluded.
+  const selectableRows = useMemo(
+    () => filteredAsins.filter(a => a._id && !a._isChild && !a._isChildLoading),
+    [filteredAsins]
+  );
 
-      // Fire the list + stats requests concurrently
-      const [asinRes, statsRes] = await Promise.all([
-        asinApi.getAll({
-          page,
-          limit,
-          seller,
-          marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined,
-          search: appliedSearchQuery,
-          ...appliedFilters,
-          historyDays: appliedFilters.historyDays,
-          sortBy,
-          sortOrder
-        }),
-        statsPromise
-      ]);
-
-      // Ignore stale responses from superseded requests (rapid page/sort/filter changes)
-      if (token !== loadTokenRef.current) return;
-
-      initialLoadCompleteRef.current = true;
-      setAsins(asinRes?.asins || []);
-      setGlobalHistoryDates(asinRes?.globalHistoryDates || []);
-      setAvailableMonths(asinRes?.months || []);
-      setPagination(asinRes?.pagination || { page: 1, limit: limit, total: 0, totalPages: 0 });
-      lastStatsScopeRef.current = statsScope;
-      lastStatsRef.current = statsRes;
-      setStats(statsRes);
-      setError(null);
-    } catch (err) {
-      if (token === loadTokenRef.current) {
-        console.error('Error fetching ASINs:', err);
-        setError(err.message);
-        setAsins([]);
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === selectableRows.length && selectableRows.length > 0) {
+        return new Set();
       }
-    } finally {
-      if (token === loadTokenRef.current) setLoading(false);
-    }
-  }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder]);
+      return new Set(selectableRows.map(a => a._id));
+    });
+  }, [selectableRows]);
 
   // Parent View data loading — transforms parent data into ASIN-shaped rows
   // so the SAME table rendering code works for both views
   const loadParentData = useCallback(async (page = 1, limit = 50) => {
     try {
-      setLoadingParent(true);
       const res = await asinApi.getParentView({
         sellerId: selectedSeller,
         search: appliedSearchQuery,
@@ -971,35 +797,10 @@ const AsinManagerPage = (props) => {
       console.error('Error fetching parent view:', err);
       setParentData([]);
     } finally {
-      setLoadingParent(false);
+      // noop
     }
-  }, [selectedSeller, appliedSearchQuery, sortBy, sortOrder]);
+  }, [selectedSeller, appliedSearchQuery, sortBy, sortOrder, setAvailableMonths]);
 
-  // Toggle parent expand and lazy-load children
-  const toggleParentExpand = useCallback(async (parentAsin) => {
-    const key = parentAsin; // _id === parentAsin for parent rows
-    setExpandedParents(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-        return next;
-      }
-      next.add(key);
-      return next;
-    });
-
-    // Load children if not already loaded
-    if (!parentChildren[key]) {
-      try {
-        const res = await asinApi.getParentChildren(key);
-        if (res.success) {
-          setParentChildren(prev => ({ ...prev, [key]: res.data || [] }));
-        }
-      } catch (err) {
-        console.error('Error fetching parent children:', err);
-      }
-    }
-  }, [parentChildren]);
 
   // Switch view mode and load appropriate data.
   // On first render skip the list branch — the [loadData, refreshCount] effect
@@ -1024,36 +825,20 @@ const AsinManagerPage = (props) => {
     const active = sortBy === field;
     const justify = align === 'right' ? 'justify-content-end' : align === 'center' ? 'justify-content-center' : 'justify-content-between';
     return (
-      <div className={`d-flex align-items-center ${justify} cursor-pointer`} onClick={() => handleSort(field)} style={{ userSelect: 'none' }}>
+      <button
+        type="button"
+        className={`asin-grid__sort d-flex align-items-center ${justify}`}
+        onClick={() => handleSort(field)}
+        aria-label={`Sort by ${label}`}
+        aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
         <span className={justify === 'justify-content-end' ? 'me-1' : ''}>{label}</span>
-        <div className="d-flex flex-column ms-1" style={{ fontSize: '7px', gap: '-3px', opacity: active ? 1 : 0.4, minWidth: '10px' }}>
-          <ChevronUp size={8} strokeWidth={4} style={{ color: active && sortOrder === 'asc' ? 'var(--text-brand)' : '#8c8c8c', marginBottom: '-2px' }} />
-          <ChevronDown size={8} strokeWidth={4} style={{ color: active && sortOrder === 'desc' ? 'var(--text-brand)' : '#8c8c8c' }} />
-        </div>
-      </div>
+        <span className={`asin-grid__sort-icon${active ? ' asin-grid__sort-icon--active' : ''}`} style={{ fontSize: '7px', gap: '-3px', minWidth: '10px' }}>
+          <ChevronUp size={8} strokeWidth={4} style={{ color: active && sortOrder === 'asc' ? 'var(--text-brand)' : 'var(--bc-text-muted)', marginBottom: '-2px' }} />
+          <ChevronDown size={8} strokeWidth={4} style={{ color: active && sortOrder === 'desc' ? 'var(--text-brand)' : 'var(--bc-text-muted)' }} />
+        </span>
+      </button>
     );
-  };
-
-  const handleImportTags = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImportingTags(true);
-    try {
-      const response = await asinApi.bulkUploadTags(file, selectedSeller);
-      if (response.success) {
-        message.success(`Successfully updated tags for ${response.updated} ASINs`);
-        loadData(pagination.page, pagination.limit); // Refresh
-      } else {
-        message.error('Failed to import tags: ' + (response.error || 'Unknown error'));
-      }
-    } catch (err) {
-      console.error('Tags import error:', err);
-      message.error('Error importing tags');
-    } finally {
-      setImportingTags(false);
-      if (e.target) e.target.value = ''; // reset
-    }
   };
 
   const handleRecalculateLQS = async () => {
@@ -1081,10 +866,6 @@ const AsinManagerPage = (props) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDownloadTagsTemplate = () => {
-    asinApi.downloadTagsTemplate(selectedSeller);
   };
 
   const handleChangePage = (event, newPage) => {
@@ -1235,7 +1016,6 @@ const AsinManagerPage = (props) => {
       const uniqueParents = Number(stats.uniqueParents) || 1;
       const totalReviews = Number(stats.totalReviews) || 0;
       const avgReviewsPerParent = uniqueParents > 0 ? Math.round(totalReviews / uniqueParents) : 0;
-      const standaloneCount = totalNum - activeNum;
       const avgPriceNum = parseFloat(stats.avgPrice) || 0;
       const avgLqsNum = parseFloat(stats.avgLQS) || 0;
 
@@ -1350,23 +1130,6 @@ const AsinManagerPage = (props) => {
     }
   }, [newAsin, loadData, selectedSellerId]);
 
-  const handleRepairData = async () => {
-    const sellerToRepair = selectedSeller || selectedSellerId;
-    if (!sellerToRepair) { message.warning('Please select a seller first.'); return; }
-
-    try {
-      setSyncing(true);
-      const res = await asinApi.repairIncomplete(sellerToRepair);
-      setRepairStatus({ running: true, total: res.total, processed: 0, failed: 0, percentage: 0 });
-      message.info(`🛠️ Repair job started for ${res.total} incomplete ASINs.`);
-    } catch (err) {
-      message.error('❌ Repair failed: ' + err.message);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-
   const handleIndividualScrape = async (asinId) => {
     try {
       setScrapingIds(prev => new Set(prev).add(asinId));
@@ -1412,55 +1175,6 @@ const AsinManagerPage = (props) => {
     } catch (error) {
       console.error('Failed to toggle ASIN status:', error);
       message.error('Failed to toggle status: ' + error.message);
-    }
-  };
-
-  const handleCreateTasks = async (asinId, asinCode) => {
-    try {
-      const confirmed = await new Promise(resolve => {
-        Modal.confirm({ title: 'Confirm', content: `Auto-generate optimization tasks for ASIN ${asinCode}?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
-      });
-      if (!confirmed) return;
-      const res = await db.createActionsFromAnalysis(asinId);
-      if (res && res.count > 0) {
-        message.success(`✅ Successfully created ${res.count} optimization task(s) for ${asinCode}!`);
-      } else if (res && res.success === false) {
-        message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
-      } else {
-        message.info(`Analysis complete for ${asinCode}. No critical tasks needed at this time.`);
-      }
-    } catch (err) {
-      console.error('Task creation failed:', err);
-      message.error('Failed to create tasks: ' + err.message);
-    }
-  };
-
-  const handleGenerateAiImages = async (asinId, asinCode) => {
-    try {
-      const confirmed = await new Promise(resolve => {
-        Modal.confirm({ title: 'Confirm', content: `Generate AI lifestyle images for ASIN ${asinCode}? This uses Nvidia NIM (SD3 Medium).`, onOk: () => resolve(true), onCancel: () => resolve(false) });
-      });
-      if (!confirmed) return;
-
-      setScrapingIds(prev => new Set(prev).add(asinId));
-      const res = await asinApi.generateImages(asinId);
-
-      if (res.success) {
-        message.success(`✅ AI Image Generated!\nView it at: ${res.imageUrl}`);
-        // Refresh ASIN data to show updated action status if needed
-        loadData();
-      } else {
-        message.error(`❌ Generation failed: ${res.error || 'Unknown error'}`);
-      }
-    } catch (err) {
-      console.error('AI Image generation failed:', err);
-      message.error('AI Generation Error: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setScrapingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(asinId);
-        return newSet;
-      });
     }
   };
 
@@ -1628,99 +1342,6 @@ const AsinManagerPage = (props) => {
     }
   };
 
-  const getLqsBadge = (lqs) => {
-    let bgColor = 'var(--text-success)';
-    let textColor = '#fff';
-    if (lqs < 60) { bgColor = 'var(--text-danger)'; }
-    else if (lqs < 80) { bgColor = 'var(--text-warning)'; }
-    return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: textColor, fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {lqs}
-      </span>
-    );
-  };
-
-  const getBuyBoxBadge = (asin) => {
-    const { buyBoxWin, status, soldBy, secondAsp, currentPrice } = asin;
-    if (status === 'Scraping') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-
-    const formatRupee = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
-
-    if (buyBoxWin) {
-      const diff = secondAsp > 0 ? (secondAsp - currentPrice) : null;
-      let alertMsg = null;
-      if (diff !== null && diff <= 5 && diff >= -50) {
-        alertMsg = "Close competition. May lose Buy Box.";
-      }
-      return (
-        <div className="d-flex flex-column align-items-center">
-          <div className="d-flex align-items-center gap-1">
-            <span
-              className="badge mb-1"
-              style={{ backgroundColor: 'var(--text-success)', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-            >
-              Won
-            </span>
-            {alertMsg && <AlertTriangle size={14} className="text-danger mb-1" title={alertMsg} />}
-          </div>
-          {diff !== null && (
-            <div className={`smallest fw-bold ${alertMsg ? 'text-danger' : 'text-zinc-500'}`} style={{ fontSize: '9px' }} title="Competitor vs Our ASP Diff">
-              Diff: {diff > 0 ? '+' : ''}{formatRupee(diff)}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    const diff = secondAsp > 0 ? (secondAsp - currentPrice) : null;
-    return (
-      <div className="d-flex flex-column align-items-center">
-        <span
-          className="badge mb-1"
-          style={{ backgroundColor: 'var(--text-danger)', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-        >
-          Lost
-        </span>
-        <span className="smallest text-zinc-500 fw-bold text-center" style={{ fontSize: '9px', lineHeight: 1.2, maxWidth: '100px', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis' }} title={soldBy}>
-          {soldBy || 'N/A'}
-        </span>
-        {diff !== null && (
-          <div className="smallest mt-1 text-danger fw-bold d-flex gap-1 align-items-center" style={{ fontSize: '9px' }} title="Our loss vs Winner ASP Diff">
-            Diff: {formatRupee(diff)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const getAplusBadge = (hasAplus, status) => {
-    if (status === 'Scraping') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-    const bgColor = hasAplus ? 'var(--text-success)' : '#6b7280';
-    return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {hasAplus ? 'Yes' : 'No'}
-      </span>
-    );
-  };
-
-  const getStatusBadge = (status) => {
-    const bgColor = status === 'Active' ? 'var(--text-success)' : 'var(--text-warning)';
-    return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {status}
-      </span>
-    );
-  };
-
   const renderRatingBreakdown = (breakdown) => {
     if (!breakdown || (!breakdown.fiveStar && !breakdown.fourStar && !breakdown.threeStar && !breakdown.twoStar && !breakdown.oneStar)) {
       return <span style={{ color: 'var(--text-muted)' }}>-</span>;
@@ -1786,39 +1407,37 @@ const AsinManagerPage = (props) => {
     </div>
   );
 
-  if (!initialLoadCompleteRef.current && loading && asins.length === 0) {
+  if (!initialLoadComplete && loading && asins.length === 0) {
     return <Spinner />;
   }
 
   if (error && !loading && asins.length === 0) {
-    return <LoadError message={error} onRetry={() => { setError(null); setLoading(true); loadData(); }} />;
+    return <LoadError message={error} onRetry={retry} />;
   }
 
   const thStyle = {
-    fontSize: '10px',
+    fontSize: 'var(--bc-text-2xs)',
     fontWeight: 800,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: 'var(--text-secondary)', // cool gray 600
-    padding: '10px 12px',
-    background: 'var(--bg-secondary)',
+    letterSpacing: '0.03em',
+    color: 'var(--bc-text-secondary)',
+    padding: 'var(--bc-space-2) var(--bc-space-2.5)',
+    background: 'var(--bc-surface-elevated)',
     position: 'sticky',
     top: 0,
-    borderBottom: '1px solid var(--border-light)',
+    borderBottom: '1px solid var(--bc-border-default)',
     whiteSpace: 'nowrap',
-    border: '0.5px solid #f1f1f1',
+    borderRight: '1px solid var(--bc-border-subtle)',
     zIndex: 10
   };
 
   const tdStyle = {
-    padding: '3px 8px',
-    fontSize: '0.68rem',
-    borderBottom: '0.5px solid var(--bg-secondary)',
+    padding: 'var(--bc-space-1.5) var(--bc-space-2.5)',
+    fontSize: 'var(--bc-text-sm)',
+    borderBottom: '1px solid var(--bc-border-subtle)',
     verticalAlign: 'middle',
-    color: 'var(--text-primary)', // zinc-800
-    height: '34px',
-    borderLeft: '0.5px solid var(--bg-secondary)',
-    borderRight: '0.5px solid var(--bg-secondary)',
+    color: 'var(--bc-text-body)',
+    borderRight: '1px solid var(--bc-border-subtle)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
@@ -2480,6 +2099,31 @@ const AsinManagerPage = (props) => {
                   </Tooltip>
                 )}
 
+                {viewMode === 'parent' && expandedCount > 0 && (
+                  <Tooltip title="Collapse all parents">
+                    <Button
+                      onClick={collapseAll}
+                      aria-label="Collapse all parent ASINs"
+                      icon={<ChevronsUp size={14} className="text-zinc-500" />}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
+                      className="d-flex align-items-center justify-content-center shadow-sm"
+                    />
+                  </Tooltip>
+                )}
+
+                {hasPermission('asinmanager_manage') && (
+                  <Tooltip title="Recalculate LQS">
+                    <Button
+                      onClick={handleRecalculateLQS}
+                      disabled={loading}
+                      aria-label="Recalculate LQS"
+                      icon={<RefreshCw size={14} className={loading ? 'text-zinc-400' : 'text-sky-600'} />}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
+                      className="d-flex align-items-center justify-content-center shadow-sm"
+                    />
+                  </Tooltip>
+                )}
+
                 {hasPermission('asinmanager_import') && (
                   <Tooltip title="Import">
                     <Button
@@ -2562,9 +2206,16 @@ const AsinManagerPage = (props) => {
               <span className="text-secondary fw-bold text-uppercase tracking-wider" style={{ fontSize: '9px' }}>
                 Active Filters
               </span>
-              <div className="d-flex flex-wrap gap-2">
-                {getAppliedFiltersBadges()}
-              </div>
+              <AppliedFilterBadges
+                appliedFilters={appliedFilters}
+                appliedSearchQuery={appliedSearchQuery}
+                selectedSeller={selectedSeller}
+                sellerName={sellers.find(s => s._id === selectedSeller)?.name}
+                onClearFilter={key => removeAppliedFilter(key)}
+                onClearTag={tag => removeAppliedFilter('selectedTags', tag)}
+                onClearSearch={() => { setAppliedSearchQuery(''); setSearchQuery(''); }}
+                onClearSeller={() => setSelectedSeller('')}
+              />
               <button
                 className="btn btn-link text-danger text-decoration-none ms-auto fw-bold p-0"
                 style={{ fontSize: 'var(--font-size-xs)' }}
@@ -2577,16 +2228,17 @@ const AsinManagerPage = (props) => {
 
 
           {/* Scrollable Table Container */}
-          <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-            <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
+          <div className="asin-grid-scroll">
+            <table className="asin-grid" style={{ width: 'max-content', minWidth: '100%', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
                   {isVisible('checkbox') && (
                     <th rowSpan={2} style={{ ...thStyle, width: '40px', left: 0, zIndex: 22, background: 'var(--bg-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-light)' }}>
                       <input
                         type="checkbox"
-                        checked={selectedIds.size === filteredAsins.length && filteredAsins.length > 0}
+                        checked={selectableRows.length > 0 && selectableRows.every(a => selectedIds.has(a._id))}
                         onChange={handleToggleSelectAll}
+                        aria-label="Select all ASINs on this page"
                         style={{ cursor: 'pointer', width: '14px', height: '14px' }}
                       />
                     </th>
@@ -3039,60 +2691,121 @@ const AsinManagerPage = (props) => {
                     const subBsrHistoryMap = {};
                     asin.subBsrHistory?.forEach(h => subBsrHistoryMap[normalizeDateStr(h.date)] = h);
 
+                    const rowClass = [
+                      'asin-grid__row',
+                      isUnavailableStatus(asin) ? 'asin-grid__row--unavailable' : '',
+                      asin._isChild ? 'asin-row--child' : '',
+                      selectedIds.has(asin._id) ? 'is-selected' : ''
+                    ].filter(Boolean).join(' ');
+
                     return (
-                      <tr key={asin._id || idx} className="table-row-hover" style={{
-                        background: (() => {
-                          const s = (asin.availabilityStatus || '').toLowerCase();
-                          const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                          if (isUnavailable) return 'var(--bg-danger-subtle)';
-                          return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                        })()
-                      }}>
+                      <tr key={asin._id || idx} className={rowClass}>
                         {isVisible('checkbox') && (
-                          <td style={{
+                          <td className="asin-grid__sticky asin-grid__sticky--select" style={{
                             ...tdStyle,
                             width: '40px',
                             position: 'sticky',
                             left: 0,
-                            background: (() => {
-                              const s = (asin.availabilityStatus || '').toLowerCase();
-                              const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                              if (isUnavail) return 'var(--bg-danger-subtle)';
-                              return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                            })(),
                             zIndex: 6,
                             textAlign: 'center',
                             padding: 0
                           }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(asin._id)}
-                              onChange={() => handleToggleSelectRow(asin._id)}
-                              style={{ cursor: 'pointer', verticalAlign: 'middle', width: '13px', height: '13px' }}
-                            />
+                            {asin._isChildLoading ? (
+                              <span className="asin-inline-spinner" aria-hidden="true" />
+                            ) : asin._isChild ? null : (
+                              <>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(asin._id)}
+                                  onChange={() => handleToggleSelectRow(asin._id)}
+                                  aria-label={`Select ASIN ${asin.asinCode}`}
+                                  style={{ cursor: 'pointer', verticalAlign: 'middle', width: '13px', height: '13px' }}
+                                />
+                                {asin._isParent && (
+                                  <span
+                                    aria-hidden="true"
+                                    title={`${asin.childCount || 0} child ASINs`}
+                                    style={{
+                                      display: 'inline-block',
+                                      marginTop: 1,
+                                      fontSize: '8px',
+                                      lineHeight: 1.2,
+                                      color: 'var(--text-muted)'
+                                    }}
+                                  >
+                                    {asin.childCount || 0}
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </td>
                         )}
                         {isVisible('asinCode') && (
-                          <td style={{
-                            ...tdStyle,
-                            fontWeight: 600,
-                            color: 'var(--text-brand)',
-                            cursor: 'pointer',
-                            position: 'sticky',
-                            width: '110px',
-                            left: isVisible('checkbox') ? '40px' : '0px',
-                            background: (() => {
-                              const s = (asin.availabilityStatus || '').toLowerCase();
-                              const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                              if (isUnavail) return 'var(--bg-danger-subtle)';
-                              return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                            })(),
-                            zIndex: 5,
-                            borderRight: '2px solid var(--border-light)'
-                          }}
-                            onClick={() => handleViewAsin(asin)}>
+                          <td
+                            className={`asin-grid__sticky ${isVisible('checkbox') ? 'asin-grid__sticky--asin' : 'asin-grid__sticky--select-only'}`}
+                            style={{
+                              ...tdStyle,
+                              fontWeight: 600,
+                              color: 'var(--text-brand)',
+                              position: 'sticky',
+                              width: '110px',
+                              left: isVisible('checkbox') ? '40px' : '0px',
+                              zIndex: 5,
+                              borderRight: '2px solid var(--border-light)',
+                              paddingLeft: asin._isChild ? '18px' : undefined
+                            }}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                              <span>{asin.asinCode}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+                                {asin._isParent && (
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); toggleParentExpand(asin.asinCode); }}
+                                    aria-expanded={expandedParents.has(asin.asinCode)}
+                                    aria-label={`${expandedParents.has(asin.asinCode) ? 'Collapse' : 'Expand'} children of ${asin.asinCode}`}
+                                    title={`${asin.childCount || 0} child ASINs`}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flex: 'none',
+                                      width: 16,
+                                      height: 16,
+                                      padding: 0,
+                                      border: '1px solid var(--border-light)',
+                                      borderRadius: '3px',
+                                      background: 'var(--bg-secondary)',
+                                      color: 'var(--text-secondary)',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {loadingParents.has(asin.asinCode)
+                                      ? <span className="asin-inline-spinner" aria-hidden="true" />
+                                      : expandedParents.has(asin.asinCode)
+                                        ? <ChevronDown size={11} strokeWidth={3} />
+                                        : <ChevronRight size={11} strokeWidth={3} />}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewAsin(asin)}
+                                  title="View ASIN detail"
+                                  style={{
+                                    border: 0,
+                                    background: 'transparent',
+                                    padding: 0,
+                                    font: 'inherit',
+                                    fontWeight: 600,
+                                    color: 'inherit',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {asin.asinCode}
+                                </button>
+                              </span>
                               <a
                                 href={(asin.marketplace === 'ajio' || marketplaceFilter === 'ajio') ? (asin.pageUrl || `https://www.ajio.com/p/${asin.asinCode}`) : (asin.marketplace === 'myntra' || marketplaceFilter === 'myntra') ? (asin.pageUrl || 'https://www.myntra.com') : `https://www.amazon.in/dp/${asin.asinCode}`}
                                 target="_blank"
@@ -3239,7 +2952,7 @@ const AsinManagerPage = (props) => {
                                 const isInStock = s.includes('in stock') || s.includes('add to bag') || s.includes('add to cart') || s === 'available';
                                 const bgColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bg-success-subtle)' : 'var(--bg-secondary)';
                                 const textColor = isUnavailable ? 'var(--text-danger)' : isInStock ? 'var(--text-success)' : 'var(--text-secondary)';
-                                const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? '#a7f3d0' : 'var(--border-light)';
+                                const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bc-border-success)' : 'var(--border-light)';
                                 return (
                                   <Tooltip title={asin.availabilityStatus} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                     <span className="badge" style={{
@@ -3862,13 +3575,12 @@ const AsinManagerPage = (props) => {
                           </td>
                         )}
                         {/* ===== ROW ACTIONS ===== */}
-                        <td style={{
+                        <td className="asin-grid__sticky asin-grid__sticky--actions" style={{
                           ...tdStyle,
                           width: '60px',
                           textAlign: 'center',
                           position: 'sticky',
                           right: 0,
-                          background: idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)',
                           zIndex: 6,
                           borderLeft: '1px solid var(--border-light)',
                           padding: '4px'
