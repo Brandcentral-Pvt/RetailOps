@@ -189,6 +189,43 @@
 .asin-grid__sticky--asin   { left: 36px; min-width: 104px; }
 .asin-grid__sticky--title  { left: 140px; min-width: 260px; }
 
+/* ------------------------------------------------------- Parent drill -- */
+
+/* Children sit indented beneath their parent row so the hierarchy reads
+   even when the expand caret is scrolled out of view. */
+.asin-row--child td:first-child {
+  box-shadow: inset 2px 0 0 0 var(--bc-border-strong);
+}
+
+.asin-row--child td {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+}
+
+.asin-row--child:hover td {
+  background: var(--bc-surface-hover);
+}
+
+.asin-inline-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--bc-border-strong);
+  border-top-color: var(--bc-text-brand);
+  border-radius: var(--bc-radius-full);
+  animation: asin-spin 640ms linear infinite;
+}
+
+@keyframes asin-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asin-inline-spinner {
+    animation-duration: 2400ms;
+  }
+}
+
 /* --------------------------------------------------------- Interactions -- */
 
 .asin-grid__sort {
