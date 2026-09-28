@@ -2,6 +2,9 @@
 
 .gms-page {
   --gms-head-pad: 2px;
+  /* Recessed surface for the control bar. Derived from --ops-panel so it
+     tracks any future surface change instead of hard-coding a grey. */
+  --ops-surface-2: color-mix(in srgb, var(--ops-ink, #0f172a) 3%, var(--ops-panel, #fff));
 }
 
 .gms-page .ops-head {
@@ -79,4 +82,373 @@
 
 .gms-matrix .ant-empty {
   margin-block: 0;
+}
+
+/* ── GMS KPI strip upgrades ─────────────────────────────────────── */
+
+/* Profit is the headline number — give it visual weight */
+.ads-page .ads-kpi--emph {
+  border-color: var(--ops-accent);
+  background: var(--ops-accent-soft);
+}
+
+.ads-page .ads-kpi--emph .ads-kpi__label {
+  color: var(--ops-accent);
+}
+
+.ads-page .ads-kpi--emph .ads-kpi__value {
+  font-size: 26px;
+}
+
+/* Negative profit must read as negative even against the accent tint */
+.ads-page .ads-kpi--emph .ads-kpi__value.is-neg {
+  color: var(--ops-neg);
+}
+
+/* Comparison-window caption above the strip */
+.ads-page .gms-kpi-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  grid-column: span 12;
+  margin: -4px 0 8px;
+  font-size: 11px;
+  color: var(--ops-ink-3);
+}
+
+.ads-page .gms-kpi-note em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ops-ink-2);
+}
+
+/* Values are compact now, so keep them from wrapping awkwardly */
+.ads-page .ads-kpi__value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Delta chips need to align when one card shows "n/a" instead of a chip */
+.ads-page .ads-kpi__head {
+  min-height: 18px;
+}
+
+@media (max-width: 720px) {
+  .ads-page .ads-kpi--emph .ads-kpi__value { font-size: 24px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GMS COMMAND HEADER
+   One cohesive control surface: identity/actions → filters → metadata.
+   Built from existing --ops-* tokens; no new palette.
+   ═══════════════════════════════════════════════════════════════ */
+
+.ads-page .gms-cmd {
+  background: var(--ops-panel);
+  border: 1px solid var(--ops-line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  /* The page root (.ops) lays its children out as a flex column, which
+     lets an overflow:hidden box collapse to its border. Pin the height to
+     the content and opt out of shrinking. */
+  flex: 0 0 auto;
+  align-self: stretch;
+  height: auto;
+}
+
+/* ── Row 1: identity + actions ──────────────────────────────────── */
+
+.ads-page .gms-cmd__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px 11px;
+}
+
+.ads-page .gms-cmd__id {
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.ads-page .gms-cmd__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--ops-ink);
+}
+
+.ads-page .gms-cmd__sub {
+  margin: 3px 0 0;
+  max-width: 700px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ops-ink-2);
+}
+
+.ads-page .gms-cmd__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.ads-page .gms-cmd__spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* View switcher — sized up from the 10.5px shared .ops-seg default,
+   which is tuned for inline table controls, not a page toolbar */
+.ads-page .gms-cmd__top .ops-seg {
+  border-radius: var(--bc-radius-md);
+  background: var(--ops-surface-2);
+  flex-shrink: 0;
+}
+
+.ads-page .gms-cmd__top .ops-seg__btn {
+  height: 28px;
+  padding: 0 13px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.ads-page .gms-cmd__top .ops-seg__btn:last-child {
+  border-right: none;
+}
+
+.ads-page .gms-cmd__top .ops-seg__btn--on {
+  background: var(--ops-panel);
+  color: var(--ops-accent);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.ads-page .gms-cmd__top .ops-seg__btn:focus-visible {
+  outline: 2px solid var(--ops-accent);
+  outline-offset: -2px;
+}
+
+/* Action buttons share one geometry; only tone differs */
+.ads-page .gms-cmd__btn {
+  height: 30px;
+  border-radius: var(--bc-radius-md);
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  padding-inline: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ads-page .gms-cmd__btn .anticon {
+  font-size: 13px;
+}
+
+/* Destructive sits apart so it can't be hit by accident */
+.ads-page .gms-cmd__btn--danger {
+  margin-left: 4px;
+  opacity: 0.9;
+}
+
+.ads-page .gms-cmd__btn--danger:hover { opacity: 1; }
+
+/* ── Row 2: filter controls + sync ──────────────────────────────── */
+
+.ads-page .gms-cmd__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  border-top: 1px solid var(--ops-line-soft);
+  background: var(--ops-surface-2);
+}
+
+.ads-page .gms-cmd__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ops-ink-3);
+  flex-shrink: 0;
+}
+
+.ads-page .gms-cmd__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ads-page .gms-cmd__select .ant-select-selector {
+  border-radius: var(--bc-radius-md) !important;
+  min-height: 28px !important;
+  height: auto;
+}
+
+.ads-page .gms-cmd__search {
+  flex: 1 1 240px;
+  min-width: 190px;
+  max-width: 420px;
+  height: 28px;
+  border-radius: var(--bc-radius-md);
+}
+
+.ads-page .gms-cmd__search input {
+  font-size: 12px;
+}
+
+.ads-page .gms-cmd__refresh {
+  height: 28px;
+  width: 28px;
+  padding: 0;
+  border-radius: var(--bc-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ads-page .gms-cmd__refresh .anticon { font-size: 13px; }
+
+/* Sync state is part of the control surface, not a floating element */
+.ads-page .gms-cmd__sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ads-page .gms-cmd__fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ops-ink-3);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.ads-page .gms-cmd__freshdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ops-pos);
+  flex-shrink: 0;
+}
+
+.ads-page .gms-cmd__fresh--stale .gms-cmd__freshdot {
+  background: var(--ops-warn);
+}
+
+/* ── Row 3: dataset metadata (inline, not cards) ────────────────── */
+
+.ads-page .gms-cmd__meta {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 8px 14px 9px;
+  border-top: 1px solid var(--ops-line-soft);
+  font-size: 12px;
+  color: var(--ops-ink-3);
+}
+
+.ads-page .gms-cmd__window {
+  font-weight: 600;
+  color: var(--ops-ink-2);
+  padding-right: 14px;
+  margin-right: 14px;
+  border-right: 1px solid var(--ops-line);
+}
+
+.ads-page .gms-cmd__mstat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding-right: 14px;
+  margin-right: 14px;
+  border-right: 1px solid var(--ops-line-soft);
+  white-space: nowrap;
+}
+
+.ads-page .gms-cmd__mstat:last-child {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
+}
+
+.ads-page .gms-cmd__mstat .ops-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ops-ink);
+}
+
+.ads-page .gms-cmd__mlabel {
+  font-size: 11px;
+  color: var(--ops-ink-3);
+}
+
+.ads-page .gms-cmd__mstat--filter .ops-num { color: var(--ops-accent); }
+.ads-page .gms-cmd__mstat--filter .gms-cmd__mlabel { color: var(--ops-ink-3); }
+
+/* ── KPI boundary: clear transition into the analytics content ──── */
+
+.ads-page .gms-cmd + .ops-grid .gms-kpi-note {
+  margin-top: 0;
+}
+
+.ads-page .gms-cmd + .ops-grid {
+  border-top: none;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+
+@media (max-width: 1439px) {
+  .ads-page .gms-cmd__search { max-width: 300px; }
+}
+
+@media (max-width: 1180px) {
+  .ads-page .gms-cmd__top { align-items: stretch; }
+  .ads-page .gms-cmd__actions { width: 100%; }
+  .ads-page .gms-cmd__search { max-width: none; }
+}
+
+@media (max-width: 900px) {
+  .ads-page .gms-cmd__sync {
+    width: 100%;
+    padding-top: 8px;
+    margin-top: 2px;
+    border-top: 1px solid var(--ops-line-soft);
+  }
+  .ads-page .gms-cmd__spacer { display: none; }
+  .ads-page .gms-cmd__window {
+    width: 100%;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-right: none;
+    border-bottom: 1px solid var(--ops-line-soft);
+  }
+  .ads-page .gms-cmd__mstat { padding-right: 10px; margin-right: 10px; }
+}
+
+@media (max-width: 720px) {
+  .ads-page .gms-cmd__title { font-size: 18px; }
+  .ads-page .gms-cmd__select { max-width: 100% !important; width: 100%; }
+  .ads-page .gms-cmd__controls { width: 100%; }
+  .ads-page .gms-cmd__btn span:not(.anticon) { display: none; }
+  .ads-page .gms-cmd__btn { padding-inline: 9px; }
 }
