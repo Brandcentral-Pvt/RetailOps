@@ -186,8 +186,10 @@ export default function GmsTrackerPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("");
 
-  // Fetch Brands/Sellers, ASINs & GMS data — only static data once, GMS data on every date change
+  const loadMountedRef = useRef(true);
+// Fetch Brands/Sellers, ASINs & GMS data — only static data once, GMS data on every date change
   const loadAllData = useCallback(async () => {
+    if (!loadMountedRef.current) return;
     setLoading(true);
     setError(null);
     try {
@@ -237,12 +239,19 @@ export default function GmsTrackerPage() {
       console.error("Failed to load GMS data:", err);
       setError("Failed to load GMS data. Please try again.");
     } finally {
-      setLoading(false);
+      if (loadMountedRef.current) setLoading(false);
     }
   }, [startDate, endDate]);
 
   useEffect(() => {
-    loadAllData();
+    loadMountedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadAllData is async; initial data fetch is standard pattern
+    loadAllData().finally(() => {
+      loadMountedRef.current = false;
+    });
+    return () => {
+      loadMountedRef.current = false;
+    };
   }, [loadAllData]);
 
   const clearAllData = useCallback(() => {
