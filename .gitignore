@@ -58,3 +58,6 @@ backend/data/
 
 # Backup files
 *.bak
+
+# Graphify knowledge-graph artifacts (generated, large)
+graphify-out/

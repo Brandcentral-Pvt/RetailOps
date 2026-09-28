@@ -77,7 +77,7 @@ const BulkImportModal = lazy(() => import('../components/asins/BulkImportModal')
 import TagsCell from '../components/asins/TagsCell';
 import BulkTagsModal from '../components/asins/BulkTagsModal';
 import TrendBadge from '../components/asins/TrendBadge';
-import { useColumnVisibility, ALL_COLUMNS, COLUMN_CATEGORIES } from '../hooks/useColumnVisibility';
+import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
 import {
   generateHistoryStructure,
