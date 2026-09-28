@@ -339,6 +339,12 @@ require('./jobs/otpCleanup');
 // --- Socket.io Integration ---
 const { Server } = require('socket.io');
 const io = new Server(server, {
+  // Websocket-only transport. All first-party clients already connect with
+  // transports: ['websocket'] (web realtimeService + mobile socketService), and
+  // HTTP long-polling does NOT survive round-robin across PM2 cluster workers
+  // without sticky sessions — accepting it would break sockets silently.
+  transports: ['websocket'],
+  allowUpgrades: false,
   cors: {
     origin: [
       'http://localhost:5173',
