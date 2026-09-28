@@ -23,7 +23,6 @@ import { OnboardingProvider, useOnboarding } from './contexts/OnboardingContext'
 import { RefreshProvider } from './contexts/RefreshContext';
 const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard'));
 const GlobalNotificationListener = lazy(() => import('./components/GlobalNotificationListener'));
-const CometChatInitializer = lazy(() => import('./components/chat/CometChatInitializer'));
 import './App.css';
 
 // Lazy load pages for better performance
@@ -69,7 +68,6 @@ const LiveSyncTrackerPage = lazy(() => import('./pages/LiveSyncTrackerPage'));
 const LiveDataInspectorPage = lazy(() => import('./pages/LiveDataInspectorPage'));
 const LiveSyncPage = lazy(() => import('./pages/LiveSyncPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const ChatContainer = lazy(() => import('./components/chat/ChatContainer'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 const RolesPage = lazy(() => import('./pages/RolesPage'));
 const ApiKeysPage = lazy(() => import('./pages/ApiKeysPage'));
@@ -181,7 +179,6 @@ function AppRoutes() {
 
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/profile/:id" element={<ProfilePage />} />
-                  <Route path="/chat" element={<ProtectedRoute permission="chat_view"><ChatContainer /></ProtectedRoute>} />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                 </Routes>
                 </ModuleFallback>
@@ -199,11 +196,6 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      {/* CometChat (very large) initializes asynchronously post-paint; it never
-          gates rendering of the app itself. */}
-      <Suspense fallback={null}>
-        <CometChatInitializer />
-      </Suspense>
       <RefreshProvider>
           <AuthProvider>
             <OnboardingProvider>
