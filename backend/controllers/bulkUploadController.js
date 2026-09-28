@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const AutoTagService = require('../services/autoTagService');
 const SystemLogService = require('../services/SystemLogService');
+const { normalizeAsin } = require('../utils/asinUtils');
 
 const clearCaches = () => {
     try {
@@ -208,6 +209,8 @@ exports.catalogSync = async (req, res) => {
         try {
             for (const row of data) {
                 let childAsin = getValue(row, ['ASIN', 'Jio Code', 'JioCode', 'Jio_Code', 'Article Code Number', 'Article Code', 'ArticleCode', 'Product ID', 'Article_Code_Number', 'Article_Code', 'Product_ID', 'asin', 'Asin', 'Item Code', 'Style Code', 'Model No', 'Ref No', 'Article No', 'Product No', 'Article', 'Model', 'Ref', 'Product Code', 'Part Number', 'ItemCode', 'ProductCode', 'Style', 'Code', 'SKU', 'Seller SKU', 'SKU Number', 'SkuNumber', 'sku']).toString().trim().toUpperCase();
+// Normalize ASIN (expand scientific notation like 7.02793E+11, validate format)
+childAsin = normalizeAsin(childAsin) || childAsin;
                 const parentAsin = getValue(row, ['Parent ASIN', 'ParentAsin', 'parent_asin', 'Group ID', 'GroupID', 'Parent_Code', 'ParentCode']).toString().trim().toUpperCase();
                 const sku = getValue(row, ['SKU', 'Sku', 'sku', 'SKU Number', 'SKU_Number', 'Seller SKU', 'Seller_SKU', 'SkuNumber', 'Jio Code', 'Article Code Number', 'Article Code', 'Item Code', 'Code']).toString().trim();
                 
