@@ -116,16 +116,12 @@ const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [_scrapingIds, setScrapingIds] = useState(new Set());
   const { setPageMeta } = useHeader();
 
-  useEffect(() => {
-    setPageMeta({
-      title: 'ASIN Manager',
-      subtitle: `Managing ${pagination.total} ASINs`,
-      breadcrumbs: [{ label: 'Workspace' }, { label: 'ASIN Manager' }],
-    });
-  }, [setPageMeta, pagination.total]);
   const [scrapeProgress, setScrapeProgress] = useState(null);
   const socket = useSocket();
   const [selectedAsin, setSelectedAsin] = useState(null);
+  const [sellers, setSellers] = useState([]);
+  const [, setFilterTrigger] = useState(0);
+  const [, setShowActionsDropdown] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTrendsModal, setShowTrendsModal] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState('');
@@ -253,6 +249,15 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
     sortOrder,
     limit: 25
   });
+
+  useEffect(() => {
+    setPageMeta({
+      title: 'ASIN Manager',
+      subtitle: `Managing ${pagination.total} ASINs`,
+      breadcrumbs: [{ label: 'Workspace' }, { label: 'ASIN Manager' }],
+    });
+  }, [setPageMeta, pagination.total]);
+
   const historyStructure = useMemo(() => {
     if (globalHistoryDates && globalHistoryDates.length > 0) {
       // Lexical sort on YYYY-MM-DD gives chronological order (Oldest -> Newest)
