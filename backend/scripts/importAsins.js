@@ -9,6 +9,7 @@ const readline = require('readline');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { sql, getPool } = require('../database/db');
+const { normalizeAsin } = require('../utils/asinUtils');
 
 const CHUNK = 20000;
 
@@ -32,7 +33,7 @@ async function main() {
     const p = line.split(',');
     const id = (p[0] || '').trim();
     const sid = (p[1] || '').trim();
-    const asin = (p[2] || '').trim();
+    const asin = normalizeAsin((p[2] || '').trim());
     if (!id || !sid || !asin) continue;
     read++;
 
