@@ -5,6 +5,7 @@ const path = require('path');
 const asinController = require('../controllers/asinController');
 const tagController = require('../controllers/tagController');
 const { authenticate: protect, requirePermission, checkSellerAccess } = require('../middleware/auth');
+const { cacheRoute, invalidateCache } = require('../middleware/cache');
 const { getTagsHistory, getTagsSummary } = require('../controllers/tagsHistoryController');
 
 // Configure multer for CSV uploads
@@ -40,9 +41,9 @@ router.post('/:id/generate-images', protect, requirePermission('asinmanager_mana
 
 // Search and stats
 router.get('/search', protect, requirePermission('asinmanager_view'), asinController.searchAsins);
-router.get('/stats', protect, requirePermission('asinmanager_view'), asinController.getAsinStats);
-router.get('/filters', protect, requirePermission('asinmanager_view'), asinController.getAsinFilterOptions);
-router.get('/brands', protect, requirePermission('asinmanager_view'), asinController.getAsinBrands);
+router.get('/stats', protect, requirePermission('asinmanager_view'), cacheRoute('asin:meta', 60), asinController.getAsinStats);
+router.get('/filters', protect, requirePermission('asinmanager_view'), cacheRoute('asin:meta', 300), asinController.getAsinFilterOptions);
+router.get('/brands', protect, requirePermission('asinmanager_view'), cacheRoute('asin:meta', 300), asinController.getAsinBrands);
 router.get('/lqs-top', protect, requirePermission('asinmanager_view'), asinController.getAsinsByLQS);
 
 // Parent view & auto-tags — must be before /:id to avoid conflict
@@ -63,13 +64,13 @@ router.get('/:id/trends', protect, requirePermission('asinmanager_view'), asinCo
 router.get('/:id/subbsr-trend', protect, requirePermission('asinmanager_view'), asinController.getSubBsrTrend);
 router.put('/:id/week-history', protect, requirePermission('asinmanager_manage'), asinController.updateWeekHistory);
 
-// CRUD operations
-router.post('/', protect, requirePermission('asinmanager_manage'), checkSellerAccess, asinController.createAsin);
-router.post('/match', protect, requirePermission('asinmanager_view'), asinController.matchAsins);
+// CRUD operations — writes invalidate the asin:meta cache (/stats, /filters, /brands)
+router.post('/', protect, requirePermission('asinmanager_manage'), checkSellerAccess, invalidateCache('asin:meta'), asinController.createAsin);
+router.post('/match', protect, requirePermission('asinmanager_view'), invalidateCache('asin:meta'), asinController.matchAsins);
 
-router.post('/bulk', protect, requirePermission('asinmanager_manage'), checkSellerAccess, asinController.createAsins);
-router.post('/bulk-delete', protect, requirePermission('asinmanager_manage'), asinController.bulkDeleteAsins);
-router.post('/bulk-update', protect, requirePermission('asinmanager_manage'), asinController.bulkUpdateAsins);
+router.post('/bulk', protect, requirePermission('asinmanager_manage'), checkSellerAccess, invalidateCache('asin:meta'), asinController.createAsins);
+router.post('/bulk-delete', protect, requirePermission('asinmanager_manage'), invalidateCache('asin:meta'), asinController.bulkDeleteAsins);
+router.post('/bulk-update', protect, requirePermission('asinmanager_manage'), invalidateCache('asin:meta'), asinController.bulkUpdateAsins);
 router.post('/bulk-week-history', protect, requirePermission('asinmanager_manage'), asinController.bulkUpdateWeekHistory);
 router.post('/import-csv', protect, requirePermission('asinmanager_import'), upload.single('file'), asinController.importFromCsv);
 router.post('/bulk-upload-all-sellers', protect, requirePermission('asinmanager_import'), upload.single('file'), asinController.bulkUploadAllSellers);
@@ -94,7 +95,7 @@ router.put('/predefined-tags/:id', protect, requirePermission('asinmanager_manag
 router.delete('/predefined-tags/:id', protect, requirePermission('asinmanager_manage'), tagController.deletePredefinedTag);
 
 router.get('/:id', protect, requirePermission('asinmanager_view'), asinController.getAsin);
-router.put('/:id', protect, requirePermission('asinmanager_manage'), asinController.updateAsin);
-router.delete('/:id', protect, requirePermission('asinmanager_manage'), asinController.deleteAsin);
+router.put('/:id', protect, requirePermission('asinmanager_manage'), invalidateCache('asin:meta'), asinController.updateAsin);
+router.delete('/:id', protect, requirePermission('asinmanager_manage'), invalidateCache('asin:meta'), asinController.deleteAsin);
 
 module.exports = router;
