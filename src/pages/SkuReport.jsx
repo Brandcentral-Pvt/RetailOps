@@ -1,7 +1,7 @@
 import { Spinner } from "@/components/Spinner";
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import {
-  IndianRupee, Package, Percent, Activity, TrendingUp,
+  IndianRupee, Package, Percent, Activity, TrendingUp, TrendingDown,
   Filter, BarChart3, Download, Search, RefreshCw, Layers, Target, Coins,
   ArrowUpRight, ArrowDownRight, Database, Hash
 } from 'lucide-react';
@@ -69,6 +69,7 @@ const SkuReport = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [kpiSummary, setKpiSummary] = useState({ total_revenue: 0, units_sold: 0, ad_sales: 0, ad_spend: 0, clicks: 0, impressions: 0, sessions: 0 });
+  const [prevKpiSummary, setPrevKpiSummary] = useState(null);
   const [categoryMix, setCategoryMix] = useState([]);
 
   useEffect(() => {
@@ -112,6 +113,35 @@ const SkuReport = () => {
       setTotalCount(res.pagination?.total || rawData.length);
       if (res.kpis) setKpiSummary(res.kpis);
       if (res.categories) setCategoryMix(res.categories);
+
+      // Prior equal-length window, used for real period-over-period deltas.
+      // The endpoint aggregates `kpis` server-side across the whole filtered
+      // set, so limit=1 gets the baseline without pulling a page of rows we
+      // never render. Search/category are repeated so both windows describe
+      // the same population. A failure here must not break the main view.
+      try {
+        const start = startDate ? dayjs(startDate) : null;
+        const end = endDate ? dayjs(endDate) : null;
+        if (start && end) {
+          const days = Math.max(1, end.diff(start, 'day') + 1);
+          const prevEnd = start.subtract(1, 'day');
+          const prevStart = prevEnd.subtract(days - 1, 'day');
+          const prevQuery = new URLSearchParams({
+            startDate: prevStart.format('YYYY-MM-DD'),
+            endDate: prevEnd.format('YYYY-MM-DD'),
+            ...(debouncedSearch ? { search: debouncedSearch } : {}),
+            ...(category !== 'all' ? { category } : {}),
+            page: '1', limit: '1',
+          }).toString();
+          const prevRes = await api.get(`/data/sku-report?${prevQuery}`);
+          setPrevKpiSummary(prevRes?.success !== false ? prevRes?.kpis || null : null);
+        } else {
+          setPrevKpiSummary(null);
+        }
+      } catch (e) {
+        console.warn('Prior-period comparison unavailable:', e.message);
+        setPrevKpiSummary(null);
+      }
     } catch (error) {
       console.error('Failed to load SKU data:', error);
     }
@@ -120,19 +150,52 @@ const SkuReport = () => {
 
   useEffect(() => { loadSkuData(); }, [loadSkuData]);
 
+  // Real period-over-period deltas. Null when there is no comparable prior
+  // window or the baseline is zero, so the UI can say "n/a" instead of
+  // inventing a 0%.
+  const pct = useCallback((cur, prior) => {
+    const c = Number(cur) || 0;
+    const p = Number(prior);
+    if (!p || !Number.isFinite(p)) return null;
+    return ((c - p) / Math.abs(p)) * 100;
+  }, []);
+
+  const kpiDeltas = useMemo(() => {
+    if (!prevKpiSummary) return null;
+    const adSalesCur = kpiSummary.ad_sales || 0;
+    const adSpendCur = kpiSummary.ad_spend || 0;
+    const adSalesPrev = prevKpiSummary.ad_sales || 0;
+    const adSpendPrev = prevKpiSummary.ad_spend || 0;
+    const acosCur = adSalesCur > 0 ? (adSpendCur / adSalesCur) * 100 : null;
+    const acosPrev = adSalesPrev > 0 ? (adSpendPrev / adSalesPrev) * 100 : null;
+    return {
+      total_revenue: pct(kpiSummary.total_revenue, prevKpiSummary.total_revenue),
+      units_sold: pct(kpiSummary.units_sold, prevKpiSummary.units_sold),
+      ad_spend: pct(kpiSummary.ad_spend, prevKpiSummary.ad_spend),
+      acos: pct(acosCur, acosPrev),
+      sessions: pct(kpiSummary.sessions, prevKpiSummary.sessions),
+      clicks: pct(kpiSummary.clicks, prevKpiSummary.clicks),
+    };
+  }, [kpiSummary, prevKpiSummary, pct]);
+
+  const prevWindowDays = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    return Math.max(1, dayjs(endDate).diff(dayjs(startDate), 'day') + 1);
+  }, [startDate, endDate]);
+
   const kpis = useMemo(() => {
     const adSales = kpiSummary.ad_sales || 0;
     const adSpend = kpiSummary.ad_spend || 0;
-    const acos = adSales > 0 ? ((adSpend / adSales) * 100).toFixed(1) : '0.0';
+    const acos = adSales > 0 ? ((adSpend / adSales) * 100).toFixed(1) : '—';
     return [
-      { label: 'REVENUE', value: fmtCur(kpiSummary.total_revenue), trend: '+8.2%', color: '#1e293b', inv: false },
-      { label: 'UNITS SOLD', value: (kpiSummary.units_sold || 0).toLocaleString('en-IN'), trend: '+5.1%', color: '#0288D1', inv: false },
-      { label: 'AD SPEND', value: fmtCur(adSpend), trend: '+3.1%', color: '#f43f5e', inv: false },
-      { label: 'ACOS', value: `${acos}%`, trend: '-1.2%', color: '#ED6C02', inv: true },
-      { label: 'SESSIONS', value: (kpiSummary.sessions || 0).toLocaleString('en-IN'), trend: '+2.4%', color: '#2E7D32', inv: false },
-      { label: 'CLICKS', value: (kpiSummary.clicks || 0).toLocaleString('en-IN'), trend: '+4.0%', color: '#9C27B0', inv: false },
+      { label: 'REVENUE', value: fmtCur(kpiSummary.total_revenue), delta: kpiDeltas?.total_revenue, color: '#1e293b', inv: false },
+      { label: 'UNITS SOLD', value: (kpiSummary.units_sold || 0).toLocaleString('en-IN'), delta: kpiDeltas?.units_sold, color: '#0288D1', inv: false },
+      { label: 'AD SPEND', value: fmtCur(adSpend), delta: kpiDeltas?.ad_spend, color: '#f43f5e', inv: false },
+      { label: 'ACOS', value: `${acos}${acos === '—' ? '' : '%'}`, delta: kpiDeltas?.acos, color: '#ED6C02', inv: true },
+      { label: 'SESSIONS', value: (kpiSummary.sessions || 0).toLocaleString('en-IN'), delta: kpiDeltas?.sessions, color: '#2E7D32', inv: false },
+      { label: 'CLICKS', value: (kpiSummary.clicks || 0).toLocaleString('en-IN'), delta: kpiDeltas?.clicks, color: '#9C27B0', inv: false },
     ];
-  }, [kpiSummary]);
+  }, [kpiSummary, kpiDeltas]);
 
   const handleExport = useCallback(() => {
     const headers = ['SKU', 'ASIN', 'Product', 'Category', 'Revenue', 'Units', 'AOV', 'ACOS', 'Conversion'];
@@ -225,8 +288,16 @@ const SkuReport = () => {
       {/* KPI STRIP */}
       <div style={{ display: 'flex', gap: 10, padding: '10px 20px', flexShrink: 0, overflowX: 'auto', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
         {kpis.map((k, i) => {
-          const pos = k.trend.startsWith('+') || parseFloat(k.trend) > 0;
+          const hasDelta = k.delta !== null && k.delta !== undefined;
+          const pos = hasDelta && k.delta > 0;
+          const flat = hasDelta && Math.abs(k.delta) < 0.05;
           const good = k.inv ? !pos : pos;
+          // Flat deltas read as "0.0%", never "-0.0%".
+          const deltaLabel = !hasDelta
+            ? null
+            : flat
+              ? '0.0%'
+              : `${pos ? '+' : ''}${k.delta.toFixed(1)}%`;
           return (
             <div key={i} style={{ minWidth: 140, flexShrink: 0, padding: '10px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: "var(--radius-md)", transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
@@ -237,10 +308,18 @@ const SkuReport = () => {
               </div>
               <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</div>
               <div style={{ marginTop: 6 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: good ? '#2E7D32' : '#C62828', background: good ? '#ecfdf5' : '#fef2f2' }}>
-                  {good ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {k.trend} <span style={{ color: '#8c8e8f', fontWeight: 500 }}>vs prev</span>
-                </span>
+                {hasDelta ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: flat ? '#8c8e8f' : good ? '#2E7D32' : '#C62828', background: flat ? '#f1f5f9' : good ? '#ecfdf5' : '#fef2f2' }}
+                    title={`Compared with the preceding ${prevWindowDays ? prevWindowDays : ''} day period`}>
+                    {!flat && (good ? <TrendingUp size={10} /> : <TrendingDown size={10} />)}
+                    <span aria-hidden="true">{deltaLabel}</span>
+                    <span className="sr-only">{flat ? 'unchanged' : pos ? 'up' : 'down'} versus prior period</span>{' '}
+                    <span style={{ color: '#8c8e8f', fontWeight: 500 }}>vs prev</span>
+                  </span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: '#8c8e8f', background: '#f1f5f9' }}
+                    title="No comparable prior period for this window">n/a</span>
+                )}
               </div>
             </div>
           );
