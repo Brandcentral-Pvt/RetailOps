@@ -1943,6 +1943,9 @@ const pd = product.productDetails || product;
         const updates = {
           ...(extracted.title ? { Title: extracted.title } : {}),
           ...(extracted.brand ? { Brand: extracted.brand } : {}),
+          // Ajio products don't carry a real manufacturer; surface the brand in
+          // the Manufacturer column so it flows to the table, export and filters.
+          ...(extracted.brand ? { Manufacturer: extracted.brand } : {}),
           ...(extracted.mrp > 0 ? { Mrp: extracted.mrp } : {}),
           ...(extracted.currentPrice > 0
             ? { CurrentPrice: extracted.currentPrice }
