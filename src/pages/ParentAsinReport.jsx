@@ -10,8 +10,7 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area,
-  ComposedChart, Line
+  ResponsiveContainer, PieChart, Pie, Cell, ComposedChart
 } from 'recharts';
 import api, { sellerApi, asinApi } from '../services/api';
 import { useDateRange } from '../contexts/DateRangeContext';
@@ -28,12 +27,6 @@ const fmtCur = (v) => {
   if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
   return `₹${n.toLocaleString('en-IN')}`;
 };
-
-const genTrend = (base, days, variance) =>
-  Array.from({ length: days }, (_, i) => ({
-    date: dayjs().subtract(days - 1 - i, 'day').format('DD MMM'),
-    value: Math.round(base + (Math.sin(i * 0.3) + (Math.random() - 0.5)) * variance),
-  }));
 
 const TooltipBox = ({ active, payload, label, formatter }) => {
   if (!active || !payload?.length) return null;
@@ -66,6 +59,8 @@ const ParentAsinReport = () => {
   const [selectedParent, setSelectedParent] = useState(null);
   const [childAsins, setChildAsins] = useState([]);
   const [childLoading, setChildLoading] = useState(false);
+  // Prior equal-length window, used for real period-over-period deltas
+  const [prevData, setPrevData] = useState(null);
 
   const startStr = useMemo(() => startDate ? dayjs(startDate).format('YYYY-MM-DD') : null, [startDate]);
   const endStr = useMemo(() => endDate ? dayjs(endDate).format('YYYY-MM-DD') : null, [endDate]);
@@ -77,35 +72,63 @@ const ParentAsinReport = () => {
     })();
   }, []);
 
+  // Normalises an API row into the shape the page works with. Shared by the
+  // current and prior windows so the two are guaranteed comparable.
+  const normalizeRow = (item, idx) => ({
+    id: idx + 1, parentAsin: item.parent_asin || 'N/A', title: item.title || '',
+    brand: item.brand || 'General', seller: item.seller || item.brand || '',
+    sellerId: item.sellerId || '', childCount: item.childCount || 0,
+    totalRevenue: item.total_revenue || 0, adSpend: item.ad_spend || 0,
+    adSales: item.ad_sales || 0, organicSales: item.organic_sales || 0,
+    impressions: item.impressions || 0, clicks: item.clicks || 0,
+    orders: item.orders || 0, acos: parseFloat((item.acos || 0).toFixed(1)),
+    roas: parseFloat((item.roas || 0).toFixed(2)),
+    orderedRevenue: item.ordered_revenue || 0, orderedUnits: item.ordered_units || 0,
+    avgRating: parseFloat((item.avg_rating || 0).toFixed(1)),
+    totalReviews: item.total_reviews || 0, avgLqs: item.avg_lqs || 0,
+    buyBoxWins: item.buybox_wins || 0, avgPrice: item.avg_price || 0,
+    growth: parseFloat(((item.ad_sales || 0) > 0 ? ((item.total_revenue || 0) / Math.max(item.ad_sales, 1)) * 10 - 10 : 0).toFixed(1)),
+  });
+
   const loadData = useCallback(async () => {
     if (!startStr || !endStr) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ startDate: startStr, endDate: endStr });
       const res = await api.get(`/data/parent-asin-report?${params}`);
-      setData((res.data || []).map((item, idx) => ({
-        id: idx + 1, parentAsin: item.parent_asin || 'N/A', title: item.title || '',
-        brand: item.brand || 'General', seller: item.seller || item.brand || '',
-        sellerId: item.sellerId || '', childCount: item.childCount || 0,
-        totalRevenue: item.total_revenue || 0, adSpend: item.ad_spend || 0,
-        adSales: item.ad_sales || 0, organicSales: item.organic_sales || 0,
-        impressions: item.impressions || 0, clicks: item.clicks || 0,
-        orders: item.orders || 0, acos: parseFloat((item.acos || 0).toFixed(1)),
-        roas: parseFloat((item.roas || 0).toFixed(2)),
-        orderedRevenue: item.ordered_revenue || 0, orderedUnits: item.ordered_units || 0,
-        avgRating: parseFloat((item.avg_rating || 0).toFixed(1)),
-        totalReviews: item.total_reviews || 0, avgLqs: item.avg_lqs || 0,
-        buyBoxWins: item.buybox_wins || 0, avgPrice: item.avg_price || 0,
-        growth: parseFloat(((item.ad_sales || 0) > 0 ? ((item.total_revenue || 0) / Math.max(item.ad_sales, 1)) * 10 - 10 : 0).toFixed(1)),
-      })));
+      setData((res.data || []).map(normalizeRow));
+
+      // Prior window: the same number of days, ending the day before the
+      // current window starts. Failure here must not break the main view,
+      // so deltas fall back to "no prior period".
+      try {
+        const days = Math.max(
+          1,
+          dayjs(endStr).diff(dayjs(startStr), 'day') + 1,
+        );
+        const prevEnd = dayjs(startStr).subtract(1, 'day').format('YYYY-MM-DD');
+        const prevStart = dayjs(prevEnd).subtract(days - 1, 'day').format('YYYY-MM-DD');
+        const prevParams = new URLSearchParams({
+          startDate: prevStart,
+          endDate: prevEnd,
+        });
+        const prevRes = await api.get(`/data/parent-asin-report?${prevParams}`);
+        setPrevData(prevRes?.success !== false ? (prevRes?.data || []).map(normalizeRow) : []);
+      } catch (e) {
+        console.warn('Prior-period comparison unavailable:', e.message);
+        setPrevData(null);
+      }
     } catch (e) { console.error(e); message.error('Failed to load report data'); }
     finally { setLoading(false); }
   }, [startStr, endStr]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filteredData = useMemo(() => {
-    let result = data;
+  // Applies the active seller/manager/search scope. Shared so the prior-period
+  // baseline is filtered identically to the current window — otherwise the
+  // deltas would compare different populations.
+  const applyScope = useCallback((rows) => {
+    let result = rows || [];
 
     if (selectedSeller) {
       result = result.filter(item => item.sellerId === selectedSeller);
@@ -131,22 +154,84 @@ const ParentAsinReport = () => {
     }
 
     return result;
-  }, [data, selectedSeller, selectedManager, managers, searchTerm]);
+  }, [selectedSeller, selectedManager, managers, searchTerm]);
 
-  const kpis = useMemo(() => {
-    const d = filteredData;
+  const filteredData = useMemo(
+    () => applyScope(data),
+    [applyScope, data],
+  );
+
+  const previousFilteredData = useMemo(
+    () => (prevData === null ? null : applyScope(prevData)),
+    [applyScope, prevData],
+  );
+
+  // Aggregates the same metrics for any row set, so the current and prior
+  // windows are guaranteed to be summed the same way.
+  const aggregate = useCallback((d) => {
     const totalRevenue = d.reduce((s, x) => s + x.totalRevenue, 0);
     const totalAdSpend = d.reduce((s, x) => s + x.adSpend, 0);
     const totalAdSales = d.reduce((s, x) => s + x.adSales, 0);
     const totalOrders = d.reduce((s, x) => s + x.orders, 0);
     const totalChildren = d.reduce((s, x) => s + x.childCount, 0);
-    const avgAcos = totalAdSales > 0 ? ((totalAdSpend / totalAdSales) * 100).toFixed(1) : '0.0';
-    const avgRoas = totalAdSpend > 0 ? (totalAdSales / totalAdSpend).toFixed(2) : '0.00';
     return {
       totalRevenue, totalAdSpend, totalAdSales, totalOrders, totalChildren,
-      totalCollections: d.length, avgAcos, avgRoas
+      totalCollections: d.length,
+      avgAcos: totalAdSales > 0 ? (totalAdSpend / totalAdSales) * 100 : null,
+      avgRoas: totalAdSpend > 0 ? totalAdSales / totalAdSpend : null,
     };
-  }, [filteredData]);
+  }, []);
+
+  const kpis = useMemo(() => aggregate(filteredData), [aggregate, filteredData]);
+
+  // Real period-over-period deltas. Null when there is no comparable prior
+  // window or the baseline is zero, so the UI can say "no prior period"
+  // instead of inventing a 0%.
+  const kpiDeltas = useMemo(() => {
+    if (previousFilteredData === null) return null;
+    const prev = aggregate(previousFilteredData);
+
+    const pct = (cur, prior) =>
+      prior === 0 || prior === null || cur === null
+        ? null
+        : ((cur - prior) / Math.abs(prior)) * 100;
+
+    return {
+      totalRevenue: pct(kpis.totalRevenue, prev.totalRevenue),
+      totalAdSpend: pct(kpis.totalAdSpend, prev.totalAdSpend),
+      totalAdSales: pct(kpis.totalAdSales, prev.totalAdSales),
+      totalOrders: pct(kpis.totalOrders, prev.totalOrders),
+      totalChildren: pct(kpis.totalChildren, prev.totalChildren),
+      totalCollections: pct(kpis.totalCollections, prev.totalCollections),
+      // ACOS moving down is good, so compare the ratio's relative change and
+      // let the chip invert its colour. ROAS is a ratio, not a currency sum.
+      avgAcos: pct(kpis.avgAcos, prev.avgAcos),
+      avgRoas: pct(kpis.avgRoas, prev.avgRoas),
+    };
+  }, [aggregate, kpis, previousFilteredData]);
+
+  // Revenue for the top brands in the current window, paired with the same
+  // brand's revenue in the prior window. Returns null when no prior data is
+  // available, so the chart can be withheld rather than drawn empty.
+  const brandCompare = useCallback((rows, current) => {
+    if (!rows) return null;
+    const priorByBrand = {};
+    rows.forEach(d => {
+      priorByBrand[d.brand] = (priorByBrand[d.brand] || 0) + d.totalRevenue;
+    });
+    const currentByBrand = {};
+    current.forEach(d => {
+      currentByBrand[d.brand] = (currentByBrand[d.brand] || 0) + d.totalRevenue;
+    });
+    return Object.entries(currentByBrand)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([brand, revenue]) => ({
+        name: brand.length > 12 ? `${brand.substring(0, 12)}…` : brand,
+        current: Math.round(revenue),
+        prior: Math.round(priorByBrand[brand] || 0),
+      }));
+  }, []);
 
   const charts = useMemo(() => {
     const top10 = [...filteredData].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 10);
@@ -164,14 +249,13 @@ const ParentAsinReport = () => {
       adsCompare: top6Ads.map(d => ({ name: d.brand.length > 12 ? d.brand.substring(0, 12) + '...' : d.brand, adSpend: Math.round(d.adSpend), adSales: Math.round(d.adSales) })),
       acosPie: [acosDist.optimal, acosDist.healthy, acosDist.atRisk, acosDist.critical],
       sellerPie: topSellers,
-      acosTrend: genTrend(14, 30, 4),
-      ordersRevTrend: Array.from({ length: 14 }, (_, i) => ({
-        date: dayjs().subtract(13 - i, 'day').format('DD MMM'),
-        orders: Math.round(450 + Math.sin(i * 0.4) * 120 + (Math.random() - 0.5) * 80),
-        revenue: Math.round(120000 + Math.sin(i * 0.35) * 40000 + (Math.random() - 0.5) * 20000),
-      })),
+      // Real period comparison for the top brands. The report endpoint returns
+      // one aggregated row per parent ASIN with no date dimension, so a daily
+      // series cannot be derived from it — the honest comparison available is
+      // current window vs the preceding equal-length window.
+      brandCurrentVsPrior: brandCompare(previousFilteredData, filteredData),
     };
-  }, [filteredData]);
+  }, [filteredData, previousFilteredData, brandCompare]);
 
   const loadChildAsins = async (pa) => {
     setSelectedParent(pa);
@@ -180,15 +264,20 @@ const ParentAsinReport = () => {
     catch { setChildAsins([]); } finally { setChildLoading(false); }
   };
 
+  const prevWindowDays = useMemo(() => {
+    if (!startStr || !endStr) return null;
+    return Math.max(1, dayjs(endStr).diff(dayjs(startStr), 'day') + 1);
+  }, [startStr, endStr]);
+
   const kpiConfig = [
-    { label: 'REVENUE', value: fmtCur(kpis.totalRevenue), trend: '+8.2%', color: '#1976D2', inv: false },
-    { label: 'AD SPEND', value: fmtCur(kpis.totalAdSpend), trend: '+3.1%', color: '#f43f5e', inv: false },
-    { label: 'AD SALES', value: fmtCur(kpis.totalAdSales), trend: '+12.4%', color: '#2E7D32', inv: false },
-    { label: 'ACOS', value: `${kpis.avgAcos}%`, trend: '-1.2%', color: '#ED6C02', inv: true },
-    { label: 'ROAS', value: `${kpis.avgRoas}x`, trend: '+0.4x', color: '#9C27B0', inv: false },
-    { label: 'ORDERS', value: kpis.totalOrders.toLocaleString('en-IN'), trend: '+5.6%', color: '#0ea5e9', inv: false },
-    { label: 'COLLECTIONS', value: kpis.totalCollections.toLocaleString('en-IN'), trend: '+2.1%', color: '#64748b', inv: false },
-    { label: 'CHILD ASINs', value: kpis.totalChildren.toLocaleString('en-IN'), trend: '+0.8%', color: '#14b8a6', inv: false },
+    { label: 'REVENUE', value: fmtCur(kpis.totalRevenue), delta: kpiDeltas?.totalRevenue, color: '#1976D2', inv: false },
+    { label: 'AD SPEND', value: fmtCur(kpis.totalAdSpend), delta: kpiDeltas?.totalAdSpend, color: '#f43f5e', inv: false },
+    { label: 'AD SALES', value: fmtCur(kpis.totalAdSales), delta: kpiDeltas?.totalAdSales, color: '#2E7D32', inv: false },
+    { label: 'ACOS', value: kpis.avgAcos === null ? '—' : `${kpis.avgAcos.toFixed(1)}%`, delta: kpiDeltas?.avgAcos, color: '#ED6C02', inv: true },
+    { label: 'ROAS', value: kpis.avgRoas === null ? '—' : `${kpis.avgRoas.toFixed(2)}x`, delta: kpiDeltas?.avgRoas, color: '#9C27B0', inv: false },
+    { label: 'ORDERS', value: kpis.totalOrders.toLocaleString('en-IN'), delta: kpiDeltas?.totalOrders, color: '#0ea5e9', inv: false },
+    { label: 'COLLECTIONS', value: kpis.totalCollections.toLocaleString('en-IN'), delta: kpiDeltas?.totalCollections, color: '#64748b', inv: false },
+    { label: 'CHILD ASINs', value: kpis.totalChildren.toLocaleString('en-IN'), delta: kpiDeltas?.totalChildren, color: '#14b8a6', inv: false },
   ];
 
   const columns = [
@@ -307,8 +396,16 @@ const ParentAsinReport = () => {
       {/* KPI STRIP */}
       <div style={{ display: 'flex', gap: 10, padding: '10px 20px', flexShrink: 0, overflowX: 'auto', background: '#fff', borderBottom: '1px solid var(--border-light)' }}>
         {kpiConfig.map((k, i) => {
-          const pos = k.trend.startsWith('+') || parseFloat(k.trend) > 0;
+          const hasDelta = k.delta !== null && k.delta !== undefined;
+          const pos = hasDelta && k.delta > 0;
+          const flat = hasDelta && Math.abs(k.delta) < 0.05;
           const good = k.inv ? !pos : pos;
+          // Flat deltas read as "0.0%", never "-0.0%".
+          const deltaLabel = !hasDelta
+            ? null
+            : flat
+              ? '0.0%'
+              : `${pos ? '+' : ''}${k.delta.toFixed(1)}%`;
           return (
             <div key={i} style={{ minWidth: 150, flexShrink: 0, padding: '10px 14px', background: '#fff', border: '1px solid var(--border-light)', borderRadius: "var(--radius-md)", transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'var(--border-medium)'; }}
@@ -319,10 +416,26 @@ const ParentAsinReport = () => {
               </div>
               <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{k.value}</div>
               <div style={{ marginTop: 6 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: good ? 'var(--text-success)' : 'var(--text-danger)', background: good ? 'var(--bg-success-subtle)' : 'var(--bg-danger-subtle)' }}>
-                  {good ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {k.trend} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>vs prev</span>
-                </span>
+                {hasDelta ? (
+                  <span
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: flat ? 'var(--text-muted)' : good ? 'var(--text-success)' : 'var(--text-danger)', background: flat ? 'var(--bg-muted-subtle, #f1f5f9)' : good ? 'var(--bg-success-subtle)' : 'var(--bg-danger-subtle)' }}
+                    title={`Compared with the preceding ${prevWindowDays ? prevWindowDays : ''} day period`}
+                  >
+                    {!flat && (good ? <TrendingUp size={10} /> : <TrendingDown size={10} />)}
+                    <span aria-hidden="true">{deltaLabel}</span>
+                    <span className="sr-only">
+                      {flat ? 'unchanged' : pos ? 'up' : 'down'} versus prior period
+                    </span>{' '}
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>vs prev</span>
+                  </span>
+                ) : (
+                  <span
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 20, color: 'var(--text-muted)', background: 'var(--bg-muted-subtle, #f1f5f9)' }}
+                    title="No comparable prior period for this window"
+                  >
+                    n/a
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -380,41 +493,32 @@ const ParentAsinReport = () => {
               </Card>
             </Col>
           </Row>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} lg={12}>
-              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>ACOS Trend</Text>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2, marginBottom: 8 }}>Daily average over period</div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={charts.acosTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <defs><linearGradient id="acosG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ED6C02" stopOpacity={0.2} /><stop offset="100%" stopColor="#ED6C02" stopOpacity={0.02} /></linearGradient></defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 25]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <RTooltip content={<TooltipBox formatter={(v) => `${v}%`} />} />
-                    <Area type="monotone" dataKey="value" stroke="#ED6C02" strokeWidth={2} fill="url(#acosG)" dot={false} name="ACOS" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Card>
-            </Col>
-            <Col xs={24} lg={12}>
-              <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>Orders & Revenue</Text>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2, marginBottom: 8 }}>14-day daily breakdown</div>
-                <ResponsiveContainer width="100%" height={180}>
-                  <ComposedChart data={charts.ordersRevTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="l" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="r" orientation="right" tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <RTooltip content={<TooltipBox />} />
-                    <Bar yAxisId="l" dataKey="orders" fill="#1976D2" opacity={0.7} radius={[3, 3, 0, 0]} barSize={20} />
-                    <Line yAxisId="r" type="monotone" dataKey="revenue" stroke="#2E7D32" strokeWidth={2} dot={false} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </Card>
-            </Col>
-          </Row>
+          {charts.brandCurrentVsPrior && charts.brandCurrentVsPrior.length > 0 && (
+            <Row gutter={[16, 16]}>
+              <Col xs={24}>
+                <Card style={{ borderRadius: 10, border: '1px solid var(--border-light)' }} styles={{ body: { padding: '14px 16px' } }}>
+                  <Text strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>Revenue vs Prior Period</Text>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2, marginBottom: 8 }}>
+                    Top brands, current {prevWindowDays}-day window against the preceding {prevWindowDays} days
+                  </div>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <ComposedChart data={charts.brandCurrentVsPrior} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={(v) => fmtCur(v)} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <RTooltip content={<TooltipBox />} />
+                      <Bar dataKey="current" fill="#1976D2" opacity={0.85} radius={[3, 3, 0, 0]} barSize={18} name="Current" />
+                      <Bar dataKey="prior" fill="#94a3b8" opacity={0.65} radius={[3, 3, 0, 0]} barSize={18} name="Prior" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 8 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#1976D2', display: 'inline-block' }} />Current</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#94a3b8', display: 'inline-block' }} />Prior</span>
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+          )}
         </div>
       )}
 

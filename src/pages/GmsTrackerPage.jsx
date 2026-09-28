@@ -30,6 +30,7 @@ import {
   InfoCircleOutlined,
   DownloadOutlined,
   DeleteOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 
 import Chart from "react-apexcharts";
@@ -41,7 +42,7 @@ import { useHeader } from "../contexts/HeaderContext";
 
 import { LoadError } from "@/components/LoadError";
 import { GmsTrackerSkeleton } from "@/components/ui/PageSkeletons";
-import { Panel, MiniState } from "./opsCenter/primitives";
+import { Panel, MiniState, timeAgo, useNow } from "./opsCenter/primitives";
 import "./opsCenter/ops.css";
 import "./ads/ads.css";
 import "./gms.css";
@@ -143,6 +144,35 @@ const getTrend = (record, period, key) => {
   return trendMap?.[key] ?? null;
 };
 
+// Compact INR for tight KPI tiles: ₹4.2Cr / ₹38.5L / ₹9,400 / ₹0
+const formatCompactINR = (value) => {
+  const n = Number(value) || 0;
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 1e7) return `${sign}₹${(abs / 1e7).toFixed(2)}Cr`;
+  if (abs >= 1e6) return `${sign}₹${(abs / 1e6).toFixed(2)}M`;
+  if (abs >= 1e5) return `${sign}₹${(abs / 1e5).toFixed(1)}L`;
+  if (abs >= 1e3) return `${sign}₹${(abs / 1e3).toFixed(1)}k`;
+  return `${sign}₹${Math.round(abs).toLocaleString("en-IN")}`;
+};
+
+const formatCompactCount = (value) => {
+  const n = Number(value) || 0;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)}M`;
+  if (abs >= 1e5) return `${sign}${(abs / 1e5).toFixed(1)}L`;
+  if (abs >= 1e4) return `${sign}${(abs / 1e3).toFixed(1)}k`;
+  return `${sign}${Math.round(abs).toLocaleString("en-IN")}`;
+};
+
+// Short, human label for the comparison window (e.g. "vs prior 15d")
+const describeWindow = (from, to) => {
+  if (!from || !to) return null;
+  const days = Math.round((dayjs(to).diff(dayjs(from), "day") || 0) + 1);
+  return { text: `vs prior ${days}d`, title: `Compared against the ${days} days immediately before` };
+};
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -157,6 +187,7 @@ export default function GmsTrackerPage() {
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]);
   const { startDate, endDate } = useDateRange();
+  const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedMonths, setExpandedMonths] = useState({});
   const [expandedWeeks, setExpandedWeeks] = useState({});
@@ -237,6 +268,7 @@ export default function GmsTrackerPage() {
         const resolved = resolveDbBrands(gmsRes.data, asins, sellers);
         setGmsData(resolved);
       }
+      setLastLoadedAt(Date.now());
     } catch (err) {
       console.error("Failed to load GMS data:", err);
       setError("Failed to load GMS data. Please try again.");
@@ -510,6 +542,7 @@ export default function GmsTrackerPage() {
     });
 
     const profit = shippedRevenue - shippedCOGS;
+    const marginPct = shippedRevenue > 0 ? (profit / shippedRevenue) * 100 : 0;
     const returnRatio =
       orderedUnits > 0 ? (customerReturns / orderedUnits) * 100 : 0;
 
@@ -521,69 +554,93 @@ export default function GmsTrackerPage() {
       shippedUnits,
       customerReturns,
       profit,
+      marginPct,
       returnRatio,
     };
   }, [filteredData]);
 
-  // Compute period-over-period percentage change for each metric
+  // Compute period-over-period change: the most recent half of the date
+  // range vs the equally-sized window immediately preceding it.
+  // Returns null for a metric when there is no prior period to compare against,
+  // so the UI can render "no prior period" instead of a misleading 0%.
   const percentageChanges = useMemo(() => {
     const sortedDates = [...new Set(filteredData.map((d) => d.date))].sort(
       (a, b) => String(a).localeCompare(String(b)),
     );
+
     if (sortedDates.length < 2) {
-      return {
-        orderedRevenue: 0,
-        orderedUnits: 0,
-        shippedRevenue: 0,
-        shippedUnits: 0,
-        customerReturns: 0,
-        returnRatio: 0,
-        profit: 0,
-      };
+      return { changes: null, window: null };
     }
 
-    const mid = Math.floor(sortedDates.length / 2);
-    const firstSet = new Set(sortedDates.slice(0, mid));
-    const secondSet = new Set(sortedDates.slice(mid));
+    const periodLen = Math.ceil(sortedDates.length / 2);
+    const currentDates = new Set(sortedDates.slice(-periodLen));
+    const priorDates = new Set(
+      sortedDates.slice(-periodLen * 2, -periodLen),
+    );
 
-    const calcChange = (field, isProfit = false) => {
-      let firstSum = 0,
-        secondSum = 0;
-      filteredData.forEach((d) => {
-        const val = isProfit ? d.shippedRevenue - d.shippedCOGS : d[field];
-        if (firstSet.has(d.date)) firstSum += val || 0;
-        else if (secondSet.has(d.date)) secondSum += val || 0;
-      });
-      return firstSum === 0 ? 0 : ((secondSum - firstSum) / firstSum) * 100;
+    if (priorDates.size === 0) {
+      return { changes: null, window: null };
+    }
+
+    const window = describeWindow(
+      [...priorDates].sort()[0],
+      [...currentDates].sort().slice(-1)[0],
+    );
+
+    // Sum a numeric field across both windows
+    const sumIn = (dates, field) =>
+      filteredData.reduce(
+        (acc, d) => (dates.has(d.date) ? acc + (d[field] || 0) : acc),
+        0,
+      );
+
+    // Percent change; null when the baseline is zero (don't fake a 0%)
+    const pctChange = (current, prior) =>
+      prior === 0 ? null : ((current - prior) / Math.abs(prior)) * 100;
+
+    const profitIn = (dates) =>
+      sumIn(dates, "shippedRevenue") - sumIn(dates, "shippedCOGS");
+
+    const ratioIn = (dates) => {
+      const units = sumIn(dates, "orderedUnits");
+      return units > 0 ? (sumIn(dates, "customerReturns") / units) * 100 : 0;
     };
 
-    let firstReturns = 0,
-      firstOrdered = 0,
-      secondReturns = 0,
-      secondOrdered = 0;
-    filteredData.forEach((d) => {
-      if (firstSet.has(d.date)) {
-        firstReturns += d.customerReturns || 0;
-        firstOrdered += d.orderedUnits || 0;
-      } else {
-        secondReturns += d.customerReturns || 0;
-        secondOrdered += d.orderedUnits || 0;
-      }
-    });
-    const firstRatio =
-      firstOrdered > 0 ? (firstReturns / firstOrdered) * 100 : 0;
-    const secondRatio =
-      secondOrdered > 0 ? (secondReturns / secondOrdered) * 100 : 0;
+    const currentProfit = profitIn(currentDates);
+    const priorProfit = profitIn(priorDates);
+    const currentRatio = ratioIn(currentDates);
+    const priorRatio = ratioIn(priorDates);
 
     return {
-      orderedRevenue: calcChange("orderedRevenue"),
-      orderedUnits: calcChange("orderedUnits"),
-      shippedRevenue: calcChange("shippedRevenue"),
-      shippedUnits: calcChange("shippedUnits"),
-      customerReturns: calcChange("customerReturns"),
-      returnRatio:
-        firstRatio === 0 ? 0 : ((secondRatio - firstRatio) / firstRatio) * 100,
-      profit: calcChange("profit", true),
+      window,
+      changes: {
+        orderedRevenue: pctChange(
+          sumIn(currentDates, "orderedRevenue"),
+          sumIn(priorDates, "orderedRevenue"),
+        ),
+        orderedUnits: pctChange(
+          sumIn(currentDates, "orderedUnits"),
+          sumIn(priorDates, "orderedUnits"),
+        ),
+        shippedRevenue: pctChange(
+          sumIn(currentDates, "shippedRevenue"),
+          sumIn(priorDates, "shippedRevenue"),
+        ),
+        shippedCOGS: pctChange(
+          sumIn(currentDates, "shippedCOGS"),
+          sumIn(priorDates, "shippedCOGS"),
+        ),
+        shippedUnits: pctChange(
+          sumIn(currentDates, "shippedUnits"),
+          sumIn(priorDates, "shippedUnits"),
+        ),
+        customerReturns: pctChange(
+          sumIn(currentDates, "customerReturns"),
+          sumIn(priorDates, "customerReturns"),
+        ),
+        profit: pctChange(currentProfit, priorProfit),
+        returnRatio: pctChange(currentRatio, priorRatio),
+      },
     };
   }, [filteredData]);
 
@@ -1352,6 +1409,16 @@ export default function GmsTrackerPage() {
     };
   }, [filteredData]);
 
+  // Count of active filter dimensions for the "N active" summary
+  const activeFilterCount =
+    selectedBrands.length +
+    selectedManagers.length +
+    (searchQuery.trim() ? 1 : 0);
+
+  // Ticks every 30s so the "Synced 4m ago" label doesn't go stale
+  const now = useNow(30000);
+  const isStale = lastLoadedAt ? now - lastLoadedAt > 5 * 60 * 1000 : false;
+
   if (loading && gmsData.length === 0) {
     return <Spinner />;
   }
@@ -1374,208 +1441,274 @@ export default function GmsTrackerPage() {
       )}
       {error && !loading && <LoadError message={error} onRetry={loadAllData} />}
 
-      {/* HEADER — breadcrumb & title come from global header via setPageMeta */}
-      <div className="ops-head ads-head">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="ads-head__sub">
-            Spreadsheet matrix of Ordered Revenue across{" "}
-            {viewLevel === "seller" ? "Sellers" : "ASINs"} — month, week and day
-            columns with period-over-period trends.
+      {/* ══ GMS COMMAND HEADER ══════════════════════════════════════
+          One cohesive surface: title/actions → filters → dataset strip.
+          Breadcrumb + title stay in the app shell (setPageMeta) to avoid
+          duplicating them, matching AdsManagerPage's approach. */}
+      <section className="gms-cmd" aria-label="GMS Tracker controls">
+        {/* ── Row 1: title + live/date context, then view switcher + actions ── */}
+        <div className="gms-cmd__top">
+          <div className="gms-cmd__id">
+            <h1 className="gms-cmd__title">GMS Tracker</h1>
+            <p className="gms-cmd__sub">
+              Spreadsheet matrix of ordered revenue across{" "}
+              {viewLevel === "seller" ? "sellers" : "ASINs"} with month, week
+              and day analysis.
+            </p>
+          </div>
+
+          <div className="gms-cmd__actions">
+            <div className="ops-seg" role="tablist" aria-label="Row grouping">
+              {[
+                { label: "ASIN View", value: "asin" },
+                { label: "Seller View", value: "seller" },
+              ].map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={viewLevel === o.value}
+                  className={`ops-seg__btn ${
+                    viewLevel === o.value ? "ops-seg__btn--on" : ""
+                  }`}
+                  onClick={() =>
+                    startFilterTransition(() => setViewLevel(o.value))
+                  }
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
+            <span className="gms-cmd__spacer" />
+
+            {(isAdmin ||
+              isGlobalUser ||
+              hasPermission("gms_tracker_export")) && (
+              <Tooltip title="Export this dataset">
+                <Button
+                  icon={<DownloadOutlined />}
+                  size="small"
+                  className="gms-cmd__btn"
+                  onClick={() => {
+                    setExportLevel(viewLevel);
+                    setIsExportOpen(true);
+                  }}
+                >
+                  Export
+                </Button>
+              </Tooltip>
+            )}
+
+            {(isAdmin ||
+              isGlobalUser ||
+              hasPermission("gms_tracker_import")) && (
+              <Button
+                type="primary"
+                icon={<UploadOutlined />}
+                size="small"
+                className="gms-cmd__btn gms-cmd__btn--primary"
+                onClick={() => setIsUploadOpen(true)}
+              >
+                Upload Data
+              </Button>
+            )}
+
+            {(isAdmin ||
+              isGlobalUser ||
+              hasPermission("gms_tracker_export")) && (
+              <Tooltip title="Permanently delete all uploaded GMS records">
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  size="small"
+                  className="gms-cmd__btn gms-cmd__btn--danger"
+                  onClick={clearAllData}
+                >
+                  Clear Data
+                </Button>
+              </Tooltip>
+            )}
           </div>
         </div>
-        <div className="ops-head__controls">
-          <Segmented
-            value={viewLevel}
-            onChange={(value) =>
-              startFilterTransition(() => setViewLevel(value))
-            }
-            options={[
-              { label: "ASIN View", value: "asin" },
-              { label: "Seller View", value: "seller" },
-            ]}
-            size="small"
-          />
-          {(isAdmin || isGlobalUser || hasPermission("gms_tracker_export")) && (
-            <Button
-              icon={<DownloadOutlined />}
-              size="small"
-              style={{
-                borderRadius: "var(--bc-radius-md)",
-                fontWeight: 600,
-                fontSize: "var(--bc-text-xs)",
-                height: 32,
-                paddingInline: "var(--bc-space-3)",
-              }}
-              onClick={() => {
-                setExportLevel(viewLevel);
-                setIsExportOpen(true);
-              }}
-            >
-              Export
-            </Button>
-          )}
-          {(isAdmin || isGlobalUser || hasPermission("gms_tracker_import")) && (
-            <Button
-              type="primary"
-              icon={<UploadOutlined />}
-              size="small"
-              style={{
-                borderRadius: "var(--bc-radius-md)",
-                fontWeight: 600,
-                fontSize: "var(--bc-text-xs)",
-                height: 32,
-                paddingInline: "var(--bc-space-3)",
-              }}
-              onClick={() => setIsUploadOpen(true)}
-            >
-              Upload Data
-            </Button>
-          )}
-          {(isAdmin || isGlobalUser || hasPermission("gms_tracker_export")) && (
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
-              style={{
-                borderRadius: "var(--bc-radius-md)",
-                fontWeight: 600,
-                fontSize: "var(--bc-text-xs)",
-                height: 32,
-                paddingInline: "var(--bc-space-3)",
-              }}
-              onClick={clearAllData}
-            >
-              Clear Data
-            </Button>
-          )}
-        </div>
-      </div>
 
-      {/* CONTEXT LINE */}
-      {windowMeta && (
-        <div className="ads-ctx" role="note" aria-label="Data context">
-          <span className="ops-pill ops-pill--live">
-            <span className="ops-pill__dot" />
-            {viewLevel === "seller" ? "Seller rows" : "ASIN rows"}
-          </span>
-          <span className="ops-num">
-            {startDate ? dayjs(startDate).format("DD MMM YYYY") : "Earliest"} –{" "}
-            {endDate ? dayjs(endDate).format("DD MMM YYYY") : "Latest"}
-          </span>
-          {startDate && endDate && (
-            <span className="ops-muted">filtered window</span>
-          )}
-          <span className="ads-ctx__sep">·</span>
-          <span>{windowMeta.records} records</span>
-          <span className="ads-ctx__sep">·</span>
-          <span>{windowMeta.asins} ASINs</span>
-          <span className="ads-ctx__sep">·</span>
-          <span>{windowMeta.sellers} sellers</span>
-          {windowMeta.last && (
-            <>
-              <span className="ads-ctx__sep">·</span>
-              <span>
-                Last row <span className="ops-num">{windowMeta.last}</span>
-              </span>
-            </>
-          )}
-        </div>
-      )}
+        {/* ── Row 2: filter controls + sync ── */}
+        <div className="gms-cmd__bar">
+          <span className="gms-cmd__label">Filters</span>
 
-      {/* FILTERS */}
-      <div className="ads-filters">
-        <span className="ads-filters__group">
-          <Select
-            mode="multiple"
-            placeholder="All Sellers"
-            size="small"
-            allowClear
-            maxTagCount="responsive"
-            loading={loading}
-            value={selectedBrands}
-            onChange={(val) =>
-              startFilterTransition(() => setSelectedBrands(val))
-            }
-            options={dbSellers.map((s) => ({
-              label: s.name,
-              value: s._id || s.id,
-            }))}
-            className="ops-select"
-            style={{ minWidth: 190, maxWidth: 300 }}
-            showSearch
-            filterOption={(input, opt) =>
-              (opt?.label ?? "").toLowerCase().includes(input.toLowerCase())
-            }
-          />
-          <Select
-            mode="multiple"
-            placeholder="All Managers"
-            size="small"
-            allowClear
-            maxTagCount="responsive"
-            loading={loading}
-            value={selectedManagers}
-            onChange={(val) =>
-              startFilterTransition(() => setSelectedManagers(val))
-            }
-            options={dbManagers.map((m) => ({
-              label:
-                [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
-                m.email,
-              value: m._id || m.id,
-            }))}
-            className="ops-select"
-            style={{ minWidth: 190, maxWidth: 300 }}
-            showSearch
-            filterOption={(input, opt) =>
-              (opt?.label ?? "").toLowerCase().includes(input.toLowerCase())
-            }
-          />
-          <Input.Search
-            placeholder="Search ASIN, SKU, Parent, Title, Brand..."
-            size="small"
-            allowClear
-            style={{ width: 250, borderRadius: 6 }}
-            prefix={
-              <SearchOutlined
-                style={{ color: "#8896ab", fontSize: "var(--font-size-sm)" }}
-              />
-            }
-            value={searchQuery}
-            onChange={(e) =>
-              startFilterTransition(() => setSearchQuery(e.target.value))
-            }
-          />
-        </span>
-        <span className="ads-filters__spacer" />
-        <span className="ads-filters__group">
-          {(selectedBrands.length > 0 ||
-            selectedManagers.length > 0 ||
-            searchQuery) && (
-            <Button
+          <div className="gms-cmd__controls">
+            <Select
+              mode="multiple"
+              placeholder="All Sellers"
               size="small"
-              onClick={() =>
-                startFilterTransition(() => {
-                  setSelectedBrands([]);
-                  setSelectedManagers([]);
-                  setSearchQuery("");
-                })
+              allowClear
+              maxTagCount="responsive"
+              loading={loading}
+              value={selectedBrands}
+              onChange={(val) =>
+                startFilterTransition(() => setSelectedBrands(val))
+              }
+              options={dbSellers.map((s) => ({
+                label: s.name,
+                value: s._id || s.id,
+              }))}
+              className="ops-select gms-cmd__select"
+              style={{ minWidth: 150, maxWidth: 230 }}
+              showSearch
+              filterOption={(input, opt) =>
+                (opt?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              }
+            />
+
+            <Select
+              mode="multiple"
+              placeholder="All Managers"
+              size="small"
+              allowClear
+              maxTagCount="responsive"
+              loading={loading}
+              value={selectedManagers}
+              onChange={(val) =>
+                startFilterTransition(() => setSelectedManagers(val))
+              }
+              options={dbManagers.map((m) => ({
+                label:
+                  [m.firstName, m.lastName].filter(Boolean).join(" ").trim() ||
+                  m.email,
+                value: m._id || m.id,
+              }))}
+              className="ops-select gms-cmd__select"
+              style={{ minWidth: 150, maxWidth: 230 }}
+              showSearch
+              filterOption={(input, opt) =>
+                (opt?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              }
+            />
+
+            <Input.Search
+              placeholder="Search ASIN, SKU, Parent, Title, Brand..."
+              size="small"
+              allowClear
+              className="gms-cmd__search"
+              prefix={
+                <SearchOutlined
+                  style={{ color: "var(--ops-ink-3)", fontSize: 13 }}
+                />
+              }
+              value={searchQuery}
+              onChange={(e) =>
+                startFilterTransition(() => setSearchQuery(e.target.value))
+              }
+            />
+
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                className="ops-filterchip"
+                onClick={() =>
+                  startFilterTransition(() => {
+                    setSelectedBrands([]);
+                    setSelectedManagers([]);
+                    setSearchQuery("");
+                  })
+                }
+                title="Clear all filters"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          <span className="gms-cmd__spacer" />
+
+          {/* Sync state lives in the control surface, not floating */}
+          <div className="gms-cmd__sync">
+            <span className="ops-pill ops-pill--live">
+              <span className="ops-pill__dot" />
+              {viewLevel === "seller" ? "Seller rows" : "ASIN rows"}
+            </span>
+            <span
+              className={`gms-cmd__fresh${isStale ? " gms-cmd__fresh--stale" : ""}`}
+              title={
+                lastLoadedAt
+                  ? `Last synced ${dayjs(lastLoadedAt).format("DD MMM YYYY, HH:mm")}`
+                  : undefined
               }
             >
-              Clear filters
-            </Button>
-          )}
-          <Button size="small" loading={loading} onClick={loadAllData}>
-            Refresh
-          </Button>
-        </span>
-      </div>
+              <span className="gms-cmd__freshdot" />
+              {lastLoadedAt ? `Synced ${timeAgo(lastLoadedAt)}` : "Syncing…"}
+            </span>
+            <Tooltip title="Refresh data">
+              <Button
+                size="small"
+                loading={loading}
+                onClick={loadAllData}
+                aria-label="Refresh data"
+                icon={<ReloadOutlined />}
+                className="gms-cmd__refresh"
+              />
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* ── Row 3: dataset metadata strip (not KPI cards) ── */}
+        {windowMeta && (
+          <div className="gms-cmd__meta" role="note" aria-label="Dataset summary">
+            <span className="gms-cmd__window ops-num">
+              {startDate ? dayjs(startDate).format("DD MMM YYYY") : "Earliest"}
+              {" – "}
+              {endDate ? dayjs(endDate).format("DD MMM YYYY") : "Latest"}
+            </span>
+            <span className="gms-cmd__mstat">
+              <span className="ops-num">
+                {windowMeta.records.toLocaleString("en-IN")}
+              </span>
+              <span className="gms-cmd__mlabel">Records</span>
+            </span>
+            <span className="gms-cmd__mstat">
+              <span className="ops-num">
+                {windowMeta.asins.toLocaleString("en-IN")}
+              </span>
+              <span className="gms-cmd__mlabel">ASINs</span>
+            </span>
+            <span className="gms-cmd__mstat">
+              <span className="ops-num">
+                {windowMeta.sellers.toLocaleString("en-IN")}
+              </span>
+              <span className="gms-cmd__mlabel">Sellers</span>
+            </span>
+            {windowMeta.last && (
+              <span className="gms-cmd__mstat">
+                <span className="ops-num">{windowMeta.last}</span>
+                <span className="gms-cmd__mlabel">Last data</span>
+              </span>
+            )}
+            {activeFilterCount > 0 && (
+              <span className="gms-cmd__mstat gms-cmd__mstat--filter">
+                <span className="ops-num">
+                  {windowMeta.records.toLocaleString("en-IN")}
+                </span>
+                <span className="gms-cmd__mlabel">
+                  of {gmsData.length.toLocaleString("en-IN")} shown
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+      </section>
+
 
       {/* KPI STRIP + TREND + MATRIX */}
       <div className="ops-grid">
+        {!loading && percentageChanges.window && (
+          <div className="gms-kpi-note">
+            Deltas compare the most recent {percentageChanges.window.text.replace("vs prior ", "")} against the{" "}
+            <em>equally-sized preceding window</em>
+          </div>
+        )}
         {loading ? (
           <div className="ads-kpis">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="ops-panel ads-kpi">
                 <div
                   className="ops-skel"
@@ -1593,49 +1726,110 @@ export default function GmsTrackerPage() {
             {[
               {
                 label: "Ordered Revenue",
-                value: `₹${kpiMetrics.orderedRevenue.toLocaleString("en-IN")}`,
-                change: percentageChanges.orderedRevenue,
+                value: formatCompactINR(kpiMetrics.orderedRevenue),
+                change: percentageChanges.changes?.orderedRevenue,
               },
               {
                 label: "Ordered Units",
-                value: kpiMetrics.orderedUnits.toLocaleString(),
-                change: percentageChanges.orderedUnits,
+                value: formatCompactCount(kpiMetrics.orderedUnits),
+                change: percentageChanges.changes?.orderedUnits,
+              },
+              {
+                label: "Shipped Revenue",
+                value: formatCompactINR(kpiMetrics.shippedRevenue),
+                change: percentageChanges.changes?.shippedRevenue,
               },
               {
                 label: "Shipped Units",
-                value: kpiMetrics.shippedUnits.toLocaleString(),
-                change: percentageChanges.shippedUnits,
+                value: formatCompactCount(kpiMetrics.shippedUnits),
+                change: percentageChanges.changes?.shippedUnits,
+              },
+              {
+                label: "Shipped COGS",
+                value: formatCompactINR(kpiMetrics.shippedCOGS),
+                change: percentageChanges.changes?.shippedCOGS,
+                invert: true,
+              },
+              {
+                label: "Profit",
+                value: formatCompactINR(kpiMetrics.profit),
+                change: percentageChanges.changes?.profit,
+                sub: `${(kpiMetrics.marginPct || 0).toFixed(1)}% margin`,
+                emphasis: true,
               },
               {
                 label: "Customer Returns",
-                value: kpiMetrics.customerReturns.toLocaleString(),
-                change: percentageChanges.customerReturns,
+                value: formatCompactCount(kpiMetrics.customerReturns),
+                change: percentageChanges.changes?.customerReturns,
                 invert: true,
               },
               {
                 label: "Return Ratio",
                 value: `${(kpiMetrics.returnRatio || 0).toFixed(2)}%`,
-                change: percentageChanges.returnRatio,
+                change: percentageChanges.changes?.returnRatio,
                 invert: true,
               },
             ].map((kpi, idx) => {
+              const hasChange = kpi.change !== null && kpi.change !== undefined;
               const good = kpi.invert ? kpi.change <= 0 : kpi.change >= 0;
-              const flat = Math.abs(kpi.change) < 0.05;
-              const deltaCls = flat
-                ? "ops-delta--flat"
-                : good
-                  ? "ops-delta--pos"
-                  : "ops-delta--neg";
-              const arrow = flat ? "■" : kpi.change > 0 ? "▲" : "▼";
+              const flat = hasChange && Math.abs(kpi.change) < 0.05;
+              const deltaCls = !hasChange
+                ? "ops-delta--none"
+                : flat
+                  ? "ops-delta--flat"
+                  : good
+                    ? "ops-delta--pos"
+                    : "ops-delta--neg";
+              const arrow = !hasChange || flat ? "■" : kpi.change > 0 ? "▲" : "▼";
+              const direction = hasChange
+                ? kpi.change > 0
+                  ? "up"
+                  : kpi.change < 0
+                    ? "down"
+                    : "flat"
+                : "unknown";
               return (
-                <div key={idx} className="ops-panel ads-kpi">
+                <div
+                  key={idx}
+                  className={`ops-panel ads-kpi${kpi.emphasis ? " ads-kpi--emph" : ""}`}
+                >
                   <div className="ads-kpi__head">
                     <span className="ads-kpi__label">{kpi.label}</span>
-                    <span className={`ops-delta ${deltaCls} ops-num`}>
-                      {arrow} {Math.abs(kpi.change).toFixed(1)}%
-                    </span>
+                    {hasChange ? (
+                      <span
+                        className={`ops-delta ${deltaCls} ops-num`}
+                        title={
+                          percentageChanges.window
+                            ? `${percentageChanges.window.title} (${percentageChanges.window.text})`
+                            : undefined
+                        }
+                      >
+                        <span aria-hidden="true">{arrow}</span>{" "}
+                        {Math.abs(kpi.change).toFixed(1)}%
+                        <span className="sr-only">
+                          {" "}
+                          {direction} versus prior period
+                        </span>
+                      </span>
+                    ) : (
+                      <span
+                        className="ads-kpi__noprior"
+                        title="No prior period to compare against"
+                      >
+                        n/a
+                      </span>
+                    )}
                   </div>
-                  <div className="ads-kpi__value ops-num">{kpi.value}</div>
+                  <div
+                    className={`ads-kpi__value ops-num${
+                      kpi.emphasis && kpiMetrics.profit < 0 ? " is-neg" : ""
+                    }`}
+                  >
+                    {kpi.value}
+                  </div>
+                  {kpi.sub && (
+                    <div className="ads-kpi__sub">{kpi.sub}</div>
+                  )}
                 </div>
               );
             })}
