@@ -14,17 +14,18 @@ const router = express.Router();
 const controller = require('../controllers/adsController');
 const { authenticate, requirePermission } = require('../middleware/auth');
 const { createLimiter } = require('../middleware/rateLimiter');
+const { cacheRoute } = require('../middleware/cache');
 
 const canViewAds = requirePermission('adsreport_view');
 const aiLimiter = createLimiter('STRICT');
 
-router.get('/meta', authenticate, controller.getMeta);
+router.get('/meta', authenticate, cacheRoute('ads:meta', 300), controller.getMeta);
 
 router.get('/overview', authenticate, canViewAds, controller.getOverview);
 router.get('/series', authenticate, canViewAds, controller.getSeries);
 router.get('/table', authenticate, canViewAds, controller.getTable);
 router.get('/history', authenticate, canViewAds, controller.getHistory);
-router.get('/filter-options', authenticate, canViewAds, controller.getFilterOptions);
+router.get('/filter-options', authenticate, canViewAds, cacheRoute('ads:meta', 120), controller.getFilterOptions);
 router.get('/insights', authenticate, canViewAds, controller.getInsights);
 router.get('/report', authenticate, canViewAds, controller.getReport);
 

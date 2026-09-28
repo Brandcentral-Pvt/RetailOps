@@ -137,8 +137,20 @@ async function invalidateNamespace(namespace) {
   await delPattern(`route:${namespace}:*`);
 }
 
-function isEnabled() {
+async function isEnabled() {
   return enabled && client !== null;
+}
+
+/** PING reusing the shared client — health checks must not open a connection per call. */
+async function ping() {
+  try {
+    if (!client) await connect();
+    if (!client) return false;
+    return (await client.ping()) === 'PONG';
+  } catch (err) {
+    logger.warn('Redis ping failed', { error: err.message });
+    return false;
+  }
 }
 
 async function disconnect() {
