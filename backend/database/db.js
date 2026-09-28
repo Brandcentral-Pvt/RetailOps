@@ -33,8 +33,8 @@ const config = {
     connectionTimeout: 60000,
     cancelTimeout: 10000,
     pool: {
-        max: 200,
-        min: 10,
+        max: parseInt(process.env.DB_POOL_MAX || '200'),
+        min: parseInt(process.env.DB_POOL_MIN || '10'),
         idleTimeoutMillis: 10000
     }
 };

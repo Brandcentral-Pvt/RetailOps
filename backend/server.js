@@ -78,6 +78,11 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 const { createLimiter, TIERS } = require('./middleware/rateLimiter');
+// Cheap per-request JWT identification (no DB) so the global limiter can key
+// per user instead of per office IP. Route-level authenticate() still runs
+// on every protected route and replaces req.user with the full user.
+const identifyUser = require('./middleware/identifyUser');
+app.use(identifyUser);
 const globalLimiter = createLimiter('READ');
 app.use(globalLimiter);
 
@@ -257,15 +262,11 @@ app.get('/api/health', async (req, res) => {
     checks.database = { status: 'disconnected', error: err.message };
   }
 
-  // Redis check
+  // Redis check — reuse the shared cacheService client instead of opening one per call
   try {
-    const { createClient } = require('redis');
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    const client = createClient({ url: redisUrl });
-    await client.connect();
-    await client.ping();
-    checks.redis = { status: 'connected' };
-    await client.quit();
+    const cacheService = require('./services/cacheService');
+    const pong = await cacheService.ping();
+    checks.redis = { status: pong ? 'connected' : 'disconnected' };
   } catch (err) {
     checks.redis = { status: 'disconnected', error: err.message };
   }
@@ -413,13 +414,12 @@ io.on('connection', async (socket) => {
   socket.userId = userId;
   onlineUsers.set(userId, socket.id);
 
-  // Update user status in DB using SQL
-  const pool = await getPool();
-  await pool.request()
-    .input('id', sql.VarChar, userId)
-    .query("UPDATE Users SET IsOnline = 1, LastSeen = dbo.GetEnvDate() WHERE Id = @id");
+  // Fire-and-forget presence write — the connect path must not stall on SQL;
+  // the disconnect handler restores IsOnline = 0 (best-effort either way).
+  updatePresence(userId, true);
 
   // Get user's assigned sellers to join rooms
+  const pool = await getPool();
   const sellersResult = await pool.request()
     .input('userId', sql.VarChar, userId)
     .query("SELECT SellerId FROM UserSellers WHERE UserId = @userId");
@@ -799,12 +799,7 @@ socket.on('disconnect', async () => {
   logger.debug('Socket disconnected:', socket.id);
   if (socket.userId) {
     onlineUsers.delete(socket.userId);
-      try {
-        const pool = await getPool();
-        await pool.request()
-          .input('id', sql.VarChar, socket.userId)
-          .query("UPDATE Users SET IsOnline = 0, LastSeen = dbo.GetEnvDate() WHERE Id = @id");
-      } catch (e) { }
+      updatePresence(socket.userId, false);
       io.emit('user_status_change', { userId: socket.userId, status: 'offline' });
     }
   });
@@ -855,6 +850,15 @@ server.listen(PORT, '0.0.0.0', () => {
 // Make getPool available globally for socket handlers
 global.getPool = getPool;
 global.sql = sql;
+
+// Async, best-effort presence update (fire-and-forget on connect/disconnect)
+function updatePresence(userId, online) {
+  return getPool()
+    .then(pool => pool.request()
+      .input('id', sql.VarChar, userId)
+      .query(`UPDATE Users SET IsOnline = ${online ? 1 : 0}, LastSeen = dbo.GetEnvDate() WHERE Id = @id`))
+    .catch((e) => logger.debug('Presence update failed', { error: e.message }));
+}
 
 // Helper to get conversation ID from message ID
 async function conversationIdFromMessage(messageId) {

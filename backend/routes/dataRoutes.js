@@ -4,6 +4,7 @@ const controller = require('../controllers/dataController');
 const dashboardController = require('../controllers/dashboardController');
 
 const { authenticate, requirePermission, requireAnyPermission } = require('../middleware/auth');
+const { cacheRoute } = require('../middleware/cache');
 
 router.get('/master-revenue', authenticate, requirePermission('skureport_view'), controller.getMasterWithRevenue);
 router.get('/chart-data', authenticate, requirePermission('dashboard_view'), controller.getChartData); // Monthly trend
@@ -14,11 +15,11 @@ router.get('/data/ads-manager', authenticate, requirePermission('adsreport_view'
 router.get('/data/sku-report', authenticate, requirePermission('skureport_view'), controller.getSkuReport);
 router.get('/data/parent-asin-report', authenticate, requirePermission('parentreport_view'), controller.getParentAsinReport);
 router.get('/data/month-wise-report', authenticate, requirePermission('monthlyreport_view'), controller.getMonthWiseReport);
-router.get('/categories', authenticate, controller.getCategories); // Category options
+router.get('/categories', authenticate, cacheRoute('data:meta', 300), controller.getCategories); // Category options
 router.get('/search', authenticate, controller.globalSearch);
 // ✅ Permission alignment: brand managers reach the dashboard via the
 // targets_view permission (frontend ProtectedRoute allows this), so the
 // backend must accept either permission — otherwise they get a 403 here.
-router.get('/dashboard', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), dashboardController.getDashboardData);
+router.get('/dashboard', authenticate, requireAnyPermission(['dashboard_view', 'targets_view']), cacheRoute('data:dashboard', 30), dashboardController.getDashboardData);
 
 module.exports = router;
