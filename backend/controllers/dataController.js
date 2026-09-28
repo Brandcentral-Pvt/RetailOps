@@ -657,8 +657,11 @@ exports.getMonthWiseReport = async (req, res) => {
         const query = `
             SELECT 
                 FORMAT(p.Date, 'MMM yyyy') as month,
+                MONTH(p.Date) as month_num,
                 SUM(ISNULL(p.AdSales, 0) + ISNULL(p.OrganicSales, 0)) as revenue,
+                SUM(ISNULL(p.AdSales, 0)) as ad_sales,
                 SUM(ISNULL(p.AdSpend, 0)) as ad_spend,
+                SUM(ISNULL(p.Orders, 0) + ISNULL(p.OrganicOrders, 0)) as units,
                 COUNT(DISTINCT p.Asin) as active_asins
             FROM AdsPerformance p
             JOIN Asins a ON p.Asin = a.AsinCode
@@ -668,7 +671,7 @@ exports.getMonthWiseReport = async (req, res) => {
         `;
 
         const result = await request.query(query);
-        res.json({ success: true, data: result.recordset });
+        res.json({ success: true, data: result.recordset, year: targetYear });
     } catch (error) {
         console.error('getMonthWiseReport error:', error);
         res.status(500).json({ success: false, message: error.message });
