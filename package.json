@@ -48,7 +48,7 @@
     "express": "^5.2.1",
     "framer-motion": "^13.4.3",
     "iconify": "^1.4.0",
-    "lucide-react": "^1.47.0",
+    "lucide-react": "^1.48.0",
     "motion": "^13.4.4",
     "multer": "^2.1.1",
     "mysql2": "^3.22.3",
