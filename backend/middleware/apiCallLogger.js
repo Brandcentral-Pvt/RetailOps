@@ -167,6 +167,14 @@ module.exports = async (req, res, next) => {
 
     try {
       const { type, entityType, entityTitle, description, entityId } = parseRequest(req);
+
+      // Reads already hit the winston access log (server.js); skipping the
+      // SystemLogs INSERT + user lookup + socket broadcast for them avoids a
+      // DB write on every GET — the main request-path cost at scale.
+      if (type === 'READ') {
+        return;
+      }
+
       const duration = Date.now() - start;
 
       const metadata = {
