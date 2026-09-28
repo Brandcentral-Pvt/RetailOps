@@ -1,0 +1,253 @@
+/* ==========================================================================
+   ASIN Manager — scoped component layer
+   Tokens only; no raw hex. Density + focus rings live here so the grid stops
+   relying on per-cell inline styles.
+   ========================================================================== */
+
+.asin-manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bc-space-3);
+  min-height: 0;
+}
+
+/* --------------------------------------------------------------- Badges -- */
+
+.asin-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bc-space-1.5);
+}
+
+.asin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bc-space-1.5);
+  height: 26px;
+  padding-inline: var(--bc-space-2);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-md);
+  background: var(--bc-surface-muted);
+  color: var(--bc-text-body);
+  font-size: var(--bc-text-2xs);
+  box-shadow: var(--bc-shadow-xs);
+}
+
+.asin-badge__icon {
+  flex: none;
+  opacity: 0.8;
+}
+
+.asin-badge__label {
+  font-weight: 600;
+  font-size: var(--bc-text-2xs);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.asin-badge__value {
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asin-badge__value--query {
+  font-style: italic;
+}
+
+.asin-badge--seller {
+  background: var(--bc-text-heading);
+  border-color: var(--bc-text-heading);
+  color: var(--bc-text-inverse);
+}
+
+.asin-badge--search {
+  background: var(--bc-status-warning-bg);
+  border-color: var(--bc-status-warning);
+  color: var(--bc-status-warning-text);
+}
+
+.asin-badge--tag {
+  background: var(--bc-status-info-bg);
+  border-color: var(--bc-status-info);
+  color: var(--bc-status-info-text);
+}
+
+.asin-badge__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-left: var(--bc-space-0.5);
+  padding: 0;
+  border: 0;
+  border-radius: var(--bc-radius-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.asin-badge__clear:hover {
+  opacity: 1;
+  color: var(--bc-status-danger);
+}
+
+.asin-badge__clear--onDark:hover {
+  color: var(--bc-text-inverse);
+}
+
+.asin-badge__clear:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+/* ----------------------------------------------------------------- Grid -- */
+
+.asin-grid-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-lg);
+  background: var(--bc-surface-card);
+}
+
+.asin-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--bc-text-sm);
+}
+
+.asin-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bc-surface-elevated);
+  color: var(--bc-text-secondary);
+  font-size: var(--bc-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  padding: var(--bc-space-2) var(--bc-space-2.5);
+  border-bottom: 1px solid var(--bc-border-default);
+  border-right: 1px solid var(--bc-border-subtle);
+}
+
+.asin-grid thead tr:nth-child(2) th {
+  top: 33px;
+  z-index: 3;
+}
+
+.asin-grid tbody td {
+  padding: var(--bc-space-1.5) var(--bc-space-2.5);
+  border-bottom: 1px solid var(--bc-border-subtle);
+  border-right: 1px solid var(--bc-border-subtle);
+  color: var(--bc-text-body);
+  vertical-align: middle;
+}
+
+.asin-grid tbody tr:hover td {
+  background: var(--bc-surface-hover);
+}
+
+.asin-grid tbody tr.is-selected td {
+  background: var(--bc-status-info-bg);
+}
+
+/* Identity columns stay put while the metric axes scroll horizontally. */
+.asin-grid .asin-grid__sticky {
+  position: sticky;
+  z-index: 2;
+  background: var(--bc-surface-card);
+}
+
+.asin-grid thead .asin-grid__sticky {
+  z-index: 4;
+  background: var(--bc-surface-elevated);
+}
+
+.asin-grid tbody tr:hover .asin-grid__sticky {
+  background: var(--bc-surface-hover);
+}
+
+.asin-grid tbody tr.is-selected .asin-grid__sticky {
+  background: var(--bc-status-info-bg);
+}
+
+.asin-grid__sticky--select { left: 0; min-width: 36px; }
+.asin-grid__sticky--asin   { left: 36px; min-width: 104px; }
+.asin-grid__sticky--title  { left: 140px; min-width: 260px; }
+
+/* --------------------------------------------------------- Interactions -- */
+
+.asin-grid__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bc-space-1);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.asin-grid__sort:hover {
+  color: var(--bc-text-heading);
+}
+
+.asin-grid__sort:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--bc-radius-sm);
+}
+
+.asin-grid__sort-icon {
+  flex: none;
+  opacity: 0.4;
+}
+
+.asin-grid__sort-icon--active {
+  opacity: 1;
+  color: var(--bc-text-brand);
+}
+
+.asin-grid__cell-action {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--bc-text-brand);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.asin-grid__cell-action:hover {
+  text-decoration: underline;
+}
+
+.asin-grid__cell-action:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--bc-radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asin-badge__clear {
+    transition: none;
+  }
+}

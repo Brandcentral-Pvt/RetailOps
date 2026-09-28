@@ -41,11 +41,9 @@ import {
   Sparkles,
   Image,
   Eye,
-  Store,
   ListChecks,
   FileUp,
   LayoutGrid,
-  X,
   AlertCircle,
   Clock,
   ExternalLink,
@@ -79,6 +77,7 @@ import BulkTagsModal from '../components/asins/BulkTagsModal';
 import TrendBadge from '../components/asins/TrendBadge';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
+import AppliedFilterBadges from '../components/asins/AppliedFilterBadges';
 import {
   generateHistoryStructure,
   generateHistoryStructureFromDates,
@@ -138,7 +137,6 @@ const AsinManagerPage = (props) => {
   const [showAllPriceHistory, setShowAllPriceHistory] = useState(false);
   const [showAllBsrHistory, setShowAllBsrHistory] = useState(false);
   const [showAllRatingHistory, setShowAllRatingHistory] = useState(false);
-  const [allAsins, setAllAsins] = useState([]);
   const [selectedSeller, setSelectedSeller] = useState(() => localStorage.getItem('selectedSeller') || '');
   // Persist seller selection
   useEffect(() => {
@@ -474,123 +472,8 @@ const AsinManagerPage = (props) => {
     setFilterTrigger(t => t + 1);
   }, []);
 
-  const getAppliedFiltersBadges = useCallback(() => {
-    const badges = [];
-    const mapping = {
-      sku: 'SKU',
-      parentAsin: 'Parent ASIN',
-      scrapeStatus: 'Scrape Status',
-      brand: 'Brand',
-      category: 'Category',
-      subBsrCategory: 'Sub BSR',
-      buyBoxWin: 'BuyBox Winner',
-      hasAplus: 'A+ Content',
-      hasVideo: 'Video',
-      hasDeal: 'Deal',
-      minPrice: 'Min Price',
-      maxPrice: 'Max Price',
-      minBSR: 'Min BSR',
-      maxBSR: 'Max BSR',
-      minRating: 'Min Rating',
-      maxRating: 'Max Rating',
-      ageFilter: 'Age',
-      minReleaseDate: 'From',
-      maxReleaseDate: 'To',
-      priceDispute: 'Price Dispute',
-      bsrTrend: 'BSR Trend',
-      ratingTrend: 'Rating Trend',
-      historyDays: 'History Range',
-      ads: 'Ads',
-      availabilityStatus: 'Availability',
-      manufacturer: 'Manufacturer',
-      dealAccessType: 'Deal Type'
-    };
 
-    Object.entries(appliedFilters).forEach(([key, value]) => {
-      if (value && mapping[key]) {
-        let label = value;
-        if (value === 'true') label = 'Yes';
-        if (value === 'false') label = 'No';
-
-        badges.push(
-          <div key={key} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-active)', color: '#3f3f46', borderColor: 'var(--border-light)', borderRadius: '6px' }}>
-            <span className="fw-bold opacity-70 text-uppercase" style={{ fontSize: '8px', letterSpacing: '0.02em' }}>{mapping[key]}:</span>
-            <span className="fw-bold">{label}</span>
-            <button
-              type="button"
-              className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-              style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '2px' }}
-              onClick={() => removeAppliedFilter(key)}
-            >
-              <X size={11} strokeWidth={2.5} />
-            </button>
-          </div>
-        );
-      }
-    });
-
-    if (appliedFilters.selectedTags?.length > 0) {
-      appliedFilters.selectedTags.forEach(tag => {
-        badges.push(
-          <div key={`tag-${tag}`} className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: '#eef2ff', color: '#4338ca', borderColor: '#c7d2fe', borderRadius: '6px' }}>
-            <TagIcon size={10} className="opacity-80" />
-            <span className="fw-bold">{tag}</span>
-            <button
-              type="button"
-              className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-              style={{ color: 'var(--color-info)', cursor: 'pointer', marginLeft: '2px' }}
-              onClick={() => removeAppliedFilter('selectedTags', tag)}
-            >
-              <X size={11} strokeWidth={2.5} />
-            </button>
-          </div>
-        );
-      });
-    }
-
-    if (selectedSeller) {
-      const seller = sellers.find(s => s._id === selectedSeller);
-      badges.unshift(
-        <div key="seller" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--text-primary)', color: '#ffffff', borderColor: 'var(--text-primary)', borderRadius: '6px' }}>
-          <Store size={10} className="opacity-80" />
-          <span className="fw-bold">{seller?.name || 'Selected Seller'}</span>
-          <button
-            type="button"
-            className="p-0 border-0 bg-transparent d-flex align-items-center text-zinc-400 hover-text-white transition-colors"
-            style={{ color: 'var(--text-muted)', cursor: 'pointer', marginLeft: '2px' }}
-            onClick={() => setSelectedSeller('')}
-          >
-            <X size={11} strokeWidth={2.5} />
-          </button>
-        </div>
-      );
-    }
-
-    if (appliedSearchQuery) {
-      badges.unshift(
-        <div key="search" className="d-flex align-items-center gap-1.5 px-2 border shadow-sm" style={{ height: '26px', fontSize: '10px', backgroundColor: 'var(--bg-warning-subtle)', color: '#b45309', borderColor: '#fcd34d', borderRadius: '6px' }}>
-          <Search size={10} className="opacity-80" />
-          <span className="fw-bold italic">"{appliedSearchQuery}"</span>
-          <button
-            type="button"
-            className="p-0 border-0 bg-transparent d-flex align-items-center hover-text-danger transition-colors"
-            style={{ color: 'var(--text-warning)', cursor: 'pointer', marginLeft: '2px' }}
-            onClick={() => { setAppliedSearchQuery(''); setSearchQuery(''); }}
-          >
-            <X size={11} strokeWidth={2.5} />
-          </button>
-        </div>
-      );
-    }
-
-    return badges;
-  }, [appliedFilters, appliedSearchQuery, removeAppliedFilter, selectedSeller, sellers]);
-
-  const filtersRef = useRef(filters);
-  filtersRef.current = appliedFilters;
-
-  const handleApplyFilters = () => {
-    setSelectedIds(new Set());
+  const handleApplyFilters = () => {    setSelectedIds(new Set());
     setAppliedFilters(filters);
     setFilterPanelOpen(false);
   };
@@ -2562,9 +2445,16 @@ const AsinManagerPage = (props) => {
               <span className="text-secondary fw-bold text-uppercase tracking-wider" style={{ fontSize: '9px' }}>
                 Active Filters
               </span>
-              <div className="d-flex flex-wrap gap-2">
-                {getAppliedFiltersBadges()}
-              </div>
+              <AppliedFilterBadges
+                appliedFilters={appliedFilters}
+                appliedSearchQuery={appliedSearchQuery}
+                selectedSeller={selectedSeller}
+                sellerName={sellers.find(s => s._id === selectedSeller)?.name}
+                onClearFilter={key => removeAppliedFilter(key)}
+                onClearTag={tag => removeAppliedFilter('selectedTags', tag)}
+                onClearSearch={() => { setAppliedSearchQuery(''); setSearchQuery(''); }}
+                onClearSeller={() => setSelectedSeller('')}
+              />
               <button
                 className="btn btn-link text-danger text-decoration-none ms-auto fw-bold p-0"
                 style={{ fontSize: 'var(--font-size-xs)' }}
