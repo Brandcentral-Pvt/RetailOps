@@ -4,6 +4,7 @@
 @plugin "@iconify/tailwind4";
 @import './styles/tokens.css';
 @import './styles/antd-overrides.css';
+@import './styles/asin-manager.css';
 
 /* ==========================================================================
    Iconify eclipse spinner (svg-spinners) — used everywhere as THE loader.
