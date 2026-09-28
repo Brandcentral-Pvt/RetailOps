@@ -131,8 +131,9 @@
   --bc-border-subtle:   var(--bc-slate-200);
   --bc-border-default:  var(--bc-slate-200);
   --bc-border-strong:   var(--bc-slate-300);
-  --bc-border-brand:    var(--bc-primary-200);
-  --bc-border-focus:    var(--bc-primary-500);
+--bc-border-brand:    var(--bc-primary-200);
+--bc-border-focus:    var(--bc-primary-500);
+--bc-border-success:  var(--bc-green-200);
 
   /* Status */
   --bc-status-success:      var(--bc-green-500);
@@ -608,9 +609,10 @@ body.bc-dark {
   --bc-text-secondary: #94a3b8;
   --bc-text-muted:     #64748b;
 
-  --bc-border-subtle:   #334155;
-  --bc-border-default:  #334155;
-  --bc-border-strong:   #475569;
+--bc-border-subtle:   #334155;
+--bc-border-default:  #334155;
+--bc-border-strong:   #475569;
+--bc-border-success:  #14532d;
 
   --bc-shadow-xs:   0 1px 2px 0 rgba(0, 0, 0, 0.2);
   --bc-shadow-sm:   0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
