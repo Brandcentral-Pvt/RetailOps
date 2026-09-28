@@ -78,6 +78,7 @@ import TrendBadge from '../components/asins/TrendBadge';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
 import AppliedFilterBadges from '../components/asins/AppliedFilterBadges';
+import { useAsinData } from '../hooks/useAsinData';
 import {
   generateHistoryStructure,
   generateHistoryStructureFromDates,
@@ -91,10 +92,6 @@ import Popover from '../components/common/Popover';
 
 const AsinManagerPage = (props) => {
   const { isAdmin, isGlobalUser, hasPermission } = useAuth();
-  const [asins, setAsins] = useState([]);
-  const [globalHistoryDates, setGlobalHistoryDates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showDashboard, setShowDashboard] = useState(true);
   const [showTable, setShowTable] = useState(true);
   const [newAsin, setNewAsin] = useState('');
@@ -106,8 +103,6 @@ const AsinManagerPage = (props) => {
   const [taskPriority, setTaskPriority] = useState('MEDIUM');
   const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
   const [scrapingIds, setScrapingIds] = useState(new Set());
-  const [stats, setStats] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 0 });
   const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const { setPageMeta } = useHeader();
@@ -171,10 +166,6 @@ const AsinManagerPage = (props) => {
   const [activeEditAsin, setActiveEditAsin] = useState(null);
   const [importingTags, setImportingTags] = useState(false);
   const tagsImportRef = useRef(null);
-  const initialLoadCompleteRef = useRef(false);
-  const loadTokenRef = useRef(0);
-  const lastStatsScopeRef = useRef(null);
-  const lastStatsRef = useRef(null);
   const isFirstRenderRef = useRef(true);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const {
@@ -246,7 +237,6 @@ const AsinManagerPage = (props) => {
   const [imageTrendExpanded, setImageTrendExpanded] = useState(false);
   const [ordersExpanded, setOrdersExpanded] = useState(false);
   const [gmsRevenueExpanded, setGmsRevenueExpanded] = useState(false);
-  const [availableMonths, setAvailableMonths] = useState([]);
 
   const formatMonthHeader = (dateStr) => {
     if (!dateStr) return '';
@@ -702,63 +692,25 @@ const AsinManagerPage = (props) => {
     }
   };
 
-  const loadData = useCallback(async (page = 1, limit = pagination.limit, seller = selectedSeller, marketplace = marketplaceFilter) => {
-    try {
-      const token = ++loadTokenRef.current;
-      setLoading(true);
-
-      // Stats are aggregate (per seller/marketplace scope) and cached server-side.
-      // Only fetch again when the scope changes, not on paging/search/sort.
-      const statsScope = `${seller || ''}|${marketplace && marketplace !== 'all' ? marketplace : ''}`;
-      const needsStats = lastStatsScopeRef.current !== statsScope || !lastStatsRef.current;
-      const statsPromise = needsStats
-        ? asinApi.getStats({
-            seller,
-            marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined
-          }).catch(err => {
-            console.warn('Stats fetch failed:', err);
-            return null;
-          })
-        : Promise.resolve(lastStatsRef.current);
-
-      // Fire the list + stats requests concurrently
-      const [asinRes, statsRes] = await Promise.all([
-        asinApi.getAll({
-          page,
-          limit,
-          seller,
-          marketplace: marketplace && marketplace !== 'all' ? marketplace : undefined,
-          search: appliedSearchQuery,
-          ...appliedFilters,
-          historyDays: appliedFilters.historyDays,
-          sortBy,
-          sortOrder
-        }),
-        statsPromise
-      ]);
-
-      // Ignore stale responses from superseded requests (rapid page/sort/filter changes)
-      if (token !== loadTokenRef.current) return;
-
-      initialLoadCompleteRef.current = true;
-      setAsins(asinRes?.asins || []);
-      setGlobalHistoryDates(asinRes?.globalHistoryDates || []);
-      setAvailableMonths(asinRes?.months || []);
-      setPagination(asinRes?.pagination || { page: 1, limit: limit, total: 0, totalPages: 0 });
-      lastStatsScopeRef.current = statsScope;
-      lastStatsRef.current = statsRes;
-      setStats(statsRes);
-      setError(null);
-    } catch (err) {
-      if (token === loadTokenRef.current) {
-        console.error('Error fetching ASINs:', err);
-        setError(err.message);
-        setAsins([]);
-      }
-    } finally {
-      if (token === loadTokenRef.current) setLoading(false);
-    }
-  }, [pagination.limit, selectedSeller, appliedSearchQuery, appliedFilters, marketplaceFilter, sortBy, sortOrder]);
+  const {
+    asins, setAsins,
+    globalHistoryDates,
+    availableMonths, setAvailableMonths,
+    loading, setLoading,
+    error,
+    stats,
+    pagination, setPagination,
+    initialLoadComplete,
+    loadData, retry
+  } = useAsinData({
+    selectedSeller,
+    marketplaceFilter,
+    appliedSearchQuery,
+    appliedFilters,
+    sortBy,
+    sortOrder,
+    limit: 25
+  });
 
   // Parent View data loading — transforms parent data into ASIN-shaped rows
   // so the SAME table rendering code works for both views
@@ -856,7 +808,7 @@ const AsinManagerPage = (props) => {
     } finally {
       setLoadingParent(false);
     }
-  }, [selectedSeller, appliedSearchQuery, sortBy, sortOrder]);
+  }, [selectedSeller, appliedSearchQuery, sortBy, sortOrder, setAvailableMonths]);
 
   // Toggle parent expand and lazy-load children
   const toggleParentExpand = useCallback(async (parentAsin) => {
@@ -1669,12 +1621,12 @@ const AsinManagerPage = (props) => {
     </div>
   );
 
-  if (!initialLoadCompleteRef.current && loading && asins.length === 0) {
+  if (!initialLoadComplete && loading && asins.length === 0) {
     return <Spinner />;
   }
 
   if (error && !loading && asins.length === 0) {
-    return <LoadError message={error} onRetry={() => { setError(null); setLoading(true); loadData(); }} />;
+    return <LoadError message={error} onRetry={retry} />;
   }
 
   const thStyle = {
