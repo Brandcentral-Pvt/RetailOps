@@ -23,7 +23,7 @@
     "cors": "^2.8.6",
     "cron-parser": "^4.9.0",
     "date-fns": "^4.4.0",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.3",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
@@ -40,10 +40,10 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^10.0.10",
     "openai": "^6.38.0",
-    "p-limit": "^7.3.2",
+    "p-limit": "^7.3.3",
     "playwright": "^1.63.0",
     "pm2": "^7.0.4",
-    "puppeteer": "^25.11.0",
+    "puppeteer": "^25.12.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "redis": "^6.2.1",
@@ -63,9 +63,9 @@
   "license": "ISC",
   "description": "GMS Report Dashboard Backend Service",
   "devDependencies": {
-    "jest": "^30.5.1",
+    "jest": "^30.5.2",
     "nodemon": "^3.1.14",
-    "supertest": "^7.2.2"
+    "supertest": "^7.3.0"
   },
   "allowScripts": {
     "puppeteer@25.11.0": true

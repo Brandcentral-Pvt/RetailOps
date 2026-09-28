@@ -1854,7 +1854,7 @@ exports.importFromCsv = async (req, res) => {
     try {
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        const identifier = (getValue(row, idAliases) || '').toString().trim().toUpperCase();
+        const identifier = normalizeAsin((getValue(row, idAliases) || '').toString().trim()) || (getValue(row, idAliases) || '').toString().trim().toUpperCase();
         const sku = (getValue(row, skuAliases) || '').toString().trim();
         const mrpRaw = getValue(row, priceAliases);
         const mrp = parseFloat(mrpRaw) || 0;
