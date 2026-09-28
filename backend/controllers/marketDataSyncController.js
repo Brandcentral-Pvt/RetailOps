@@ -5,6 +5,49 @@ const liveDataSyncService = require('../services/liveDataSyncService');
 const { updateSellerAsinCount } = require('./asinController');
 
 /**
+ * Delegate an on-demand seller scrape to the in-house scrapers.
+ * Ajio → AjioScraperService, Amazon → Playwright job runner.
+ * Fire-and-forget; progress is streamed over Socket.IO.
+ */
+function startInHouseScrape(seller, userId) {
+    const marketplace = (seller.Marketplace || '').toLowerCase();
+    return (async () => {
+        if (marketplace === 'ajio') {
+            const ajioScraperService = require('../services/ajioScraperService');
+            const result = await ajioScraperService.scrapeAllSellerProducts(seller.Id, {
+                maxProducts: parseInt(process.env.AJIO_SCRAPER_CRON_MAX_PRODUCTS_PER_SELLER || '10000', 10),
+                delayMs: parseInt(process.env.AJIO_SCRAPER_CRON_DELAY_MS || '600', 10),
+                concurrency: parseInt(process.env.AJIO_SCRAPER_CONCURRENT_PAGES || '2', 10),
+                full: false,
+            });
+            if (result.skipped) {
+                console.log(`[mkt-sync] Ajio scrape already running for seller ${seller.Id} — skipped duplicate`);
+            } else {
+                console.log(`[mkt-sync] Ajio scrape done for ${seller.Name}: ${result.scraped} ok, ${result.failed} failed`);
+            }
+            return;
+        }
+
+        const playwrightScraperRunner = require('../services/playwrightScraperRunner');
+        const asins = await playwrightScraperRunner.getSellerAsins(seller.Id);
+        if (!asins.length) {
+            console.log(`[mkt-sync] No ASINs to scrape for ${seller.Name}`);
+            return;
+        }
+        const result = await playwrightScraperRunner.startJob({
+            sellerId: seller.Id,
+            asins,
+            userId: userId || null,
+            jobType: 'SCRAPE',
+            targetType: 'SELLER',
+        });
+        console.log(`[mkt-sync] Playwright scrape started for ${seller.Name} (job ${result.jobId})`);
+    })().catch(err => {
+        console.error(`[mkt-sync] In-house scrape failed for seller ${seller.Id}:`, err.message);
+    });
+}
+
+/**
  * Helper to validate identifiers and generate correct marketplace URLs,
  * filtering out mismatched cross-market patterns to protect tracker pipelines.
  */
@@ -238,21 +281,26 @@ exports.syncSellerAsins = async (req, res) => {
                 });
             }
         } else {
-            // No Octoparse — provide actionable guidance
-            const marketplace = seller.Marketplace?.toLowerCase();
-            let hint = 'Use Bulk Import to upload catalog data manually.';
-            if (marketplace === 'amazon.in' && seller.LiveSyncClientId && seller.LiveSyncClientSecret) {
-                hint = 'Use the Live Sync button for real-time Amazon data via PA-API.';
-            } else if (marketplace === 'amazon.in') {
-                hint = 'Configure Live Sync Client ID and Secret in seller settings, then use Live Sync.';
-            } else {
-                hint = 'Configure Octoparse (MARKET_SYNC_USERNAME/PASSWORD + AUTOMATION_ENABLED=true in .env).';
+            // No Octoparse — run the in-house scrapers on-demand (marketplace-aware).
+            const marketplace = (seller.Marketplace || '').toLowerCase();
+            if (marketplace !== 'ajio' && marketplace !== 'amazon' && marketplace !== 'amazon.in') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Scraping not configured for this seller.',
+                    hint: `Marketplace '${seller.Marketplace || 'unknown'}' is not supported by the in-house scrapers. ` +
+                          'Set it to Ajio or Amazon, or configure Octoparse in .env.'
+                });
             }
 
-            return res.status(400).json({
-                success: false,
-                error: 'Scraping not configured for this seller.',
-                hint
+            await pool.request()
+                .input('sellerId', sql.VarChar, sellerId)
+                .query("UPDATE Asins SET ScrapeStatus = 'SCRAPING', Status = 'Scraping', UpdatedAt = dbo.GetEnvDate() WHERE SellerId = @sellerId AND (Status IS NULL OR Status != 'Inactive')");
+
+            startInHouseScrape(seller, req.user?.Id || req.user?._id);
+
+            return res.json({
+                success: true,
+                message: `Scrape started for ${seller.Name} via in-house ${marketplace === 'ajio' ? 'Ajio' : 'Playwright'} scraper. Progress is streamed live.`,
             });
         }
 
@@ -304,10 +352,12 @@ exports.syncAllAsins = async (req, res) => {
         const syncableSellerIds = sellerIds.filter(id => {
             const s = sellerMap[id];
             if (!s) return false;
-            const isAmazon = s.Marketplace?.toLowerCase() === 'amazon.in';
+            const marketplace = (s.Marketplace || '').toLowerCase();
+            const isAmazon = marketplace === 'amazon.in' || marketplace === 'amazon';
+            const isAjio = marketplace === 'ajio';
             const hasLiveSync = s.LiveSyncClientId && s.LiveSyncClientSecret;
             const hasOctoparse = s.OctoparseId && marketDataSyncService.isConfigured();
-            return isAmazon || hasOctoparse;
+            return isAmazon || isAjio || hasLiveSync || hasOctoparse;
         });
 
         // Only update status for ASINs belonging to syncable sellers
@@ -331,12 +381,20 @@ exports.syncAllAsins = async (req, res) => {
             console.log(`🚀 Starting ${syncableSellerIds.length} sync tasks simultaneously...`);
             
             const triggerPromises = syncableSellerIds.map(async (sellerId) => {
+                const seller = sellerMap[sellerId];
+                const automationEnabled = process.env.AUTOMATION_ENABLED === 'true';
+                const useOctoparse = !!(seller && seller.OctoparseId && marketDataSyncService.isConfigured() && automationEnabled);
                 try {
-                    await marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { 
-                        fullSync: true,
-                        forceReRun: true,
-                        triggerScrape: true
-                    });
+                    if (!useOctoparse) {
+                        // In-house scrapers (Ajio + Amazon) replace Octoparse when it isn't ready.
+                        startInHouseScrape(seller, req.user?.Id || req.user?._id);
+                    } else {
+                        await marketDataSyncService.syncSellerAsinsToOctoparse(sellerId, { 
+                            fullSync: true,
+                            forceReRun: true,
+                            triggerScrape: true
+                        });
+                    }
                     console.log(`✅ Task triggered for seller ${sellerId}`);
                     return { sellerId, success: true };
                 } catch (err) {
