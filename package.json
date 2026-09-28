@@ -67,7 +67,7 @@
     "recharts": "^3.10.1",
     "rsuite": "^6.2.4",
     "sass": "^1.99.0",
-    "socket.io-client": "^4.8.3",
+    "socket.io-client": "^4.8.4",
     "superagent": "^10.3.0",
     "tailwind-merge": "^3.7.0",
     "xlsx": "^0.18.5",
