@@ -48,6 +48,10 @@ class AjioScraperService {
     // Session is established once per context; the cookie survives across pages.
     this._sessionReady = false;
 
+    // Tracks seller IDs with an in-flight batch run so on-demand triggers
+    // (Sellers page, /scraper routes) can't stack duplicate runs.
+    this._runningSellers = new Set();
+
     // Dynamic concurrency tracking
     this.successCount = 0;
     this.failureCount = 0;
@@ -1876,6 +1880,21 @@ const pd = product.productDetails || product;
    * @returns {Promise<{scraped: number, failed: number, errors: string[]}>}
    */
   async scrapeAllSellerProducts(sellerId, opts = {}) {
+    if (this._runningSellers.has(sellerId)) {
+      logger.warn(
+        `[AjioScraper] Batch scrape already running for seller ${sellerId} — skipping redundant run`,
+      );
+      return { scraped: 0, failed: 0, skipped: true, errors: [] };
+    }
+    this._runningSellers.add(sellerId);
+    try {
+      return await this._runSellerBatch(sellerId, opts);
+    } finally {
+      this._runningSellers.delete(sellerId);
+    }
+  }
+
+  async _runSellerBatch(sellerId, opts = {}) {
     const { sql, getPool } = require("../database/db");
     const pool = await getPool();
 
