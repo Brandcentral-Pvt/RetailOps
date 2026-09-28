@@ -31,11 +31,12 @@ import { useDateRange } from '../contexts/DateRangeContext';
 import { format } from 'date-fns';
 
 const MonthWiseReport = () => {
-  const { startDate, endDate, rangeType } = useDateRange();
+  const { startDate, endDate } = useDateRange();
   const [filters, setFilters] = useState({
     searchTerm: ''
   });
   const [data, setData] = useState([]);
+  const [prevData, setPrevData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const startStr = useMemo(() => startDate ? format(startDate, 'yyyy-MM-dd') : null, [startDate]);
@@ -45,11 +46,11 @@ const MonthWiseReport = () => {
     if (!startStr || !endStr) return;
     setLoading(true);
     try {
-      const params = {
-        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : null,
-        endDate: endDate ? format(endDate, 'yyyy-MM-dd') : null,
-        rangeType
-      };
+      // The endpoint aggregates by calendar year and ignores startDate/
+      // endDate, so the year is derived from the range instead of being
+      // left to the server default.
+      const year = Number(format(endDate, 'yyyy'));
+      const params = { year: String(year) };
 
       // Clean params: remove null/undefined/string "null"
       const cleanParams = Object.fromEntries(
@@ -58,47 +59,103 @@ const MonthWiseReport = () => {
 
       const query = new URLSearchParams(cleanParams).toString();
       const response = await api.get(`/data/month-wise-report?${query}`);
-      const monthData = (response.data || []).map((item, idx) => ({
+      const rows = response.data || [];
+      const monthData = rows.map((item, idx) => ({
         id: idx + 1,
-        month: item._id,
-        revenue: item.total_revenue || 0,
-        units: item.total_units_sold || 0,
-        aov: item.total_units_sold > 0 ? (item.total_revenue / item.total_units_sold).toFixed(2) : '0.00',
-        acos: '0.0', // Ads data is separate, but we could link it if needed
-        roas: '0.00',
+        month: item._id || item.month,
+        monthNum: item.month_num,
+        revenue: item.revenue || 0,
+        units: item.units || 0,
+        adSpend: item.ad_spend || 0,
+        adSales: item.ad_sales || 0,
+        aov: item.units > 0 ? (item.revenue / item.units).toFixed(2) : '0.00',
+        acos: item.ad_sales > 0 ? ((item.ad_spend / item.ad_sales) * 100).toFixed(1) : '—',
+        roas: item.ad_spend > 0 ? (item.ad_sales / item.ad_spend).toFixed(2) : '—',
         sessions: 0,
-        conversion: '0.0',
+        conversion: '—',
         growth: '0.0'
       }));
 
       setData(monthData);
+
+      // Year-over-year baseline. The current year is usually incomplete, so
+      // the prior year is restricted to the same elapsed months; comparing a
+      // 9-month 2026 against a full 2025 would overstate every delta.
+      try {
+        // Only numeric month numbers are usable for truncation. A missing or
+        // non-numeric value would make Math.max() NaN and silently empty the
+        // baseline, so it falls back to a full-year comparison instead.
+        const monthsElapsed = rows.map(r => Number(r.month_num)).filter(n => Number.isFinite(n) && n >= 1 && n <= 12);
+        const maxMonth = monthsElapsed.length ? Math.max(...monthsElapsed) : 12;
+        const prevRes = await api.get(`/data/month-wise-report?year=${year - 1}`);
+        const prevAll = prevRes?.data || [];
+        const prevRows = prevAll.filter((r) => {
+          const m = Number(r.month_num);
+          if (!Number.isFinite(m)) return true;   // no month number -> keep
+          return m <= maxMonth;
+        });
+        setPrevData(prevRows.map((item, idx) => ({
+          id: idx + 1,
+          month: item._id || item.month,
+          monthNum: item.month_num,
+          revenue: item.revenue || 0,
+          units: item.units || 0,
+          adSpend: item.ad_spend || 0,
+          adSales: item.ad_sales || 0,
+        })));
+      } catch (e) {
+        console.warn('Year-over-year comparison unavailable:', e.message);
+        setPrevData(null);
+      }
     } catch (error) {
       console.error('Failed to load monthly data:', error);
     }
     setLoading(false);
-  }, [startStr, endStr, rangeType]);
+  }, [startStr, endStr, endDate]);
 
   useEffect(() => {
     loadMonthlyData();
   }, [loadMonthlyData]);
 
+  // Real year-over-year deltas. Null when there is no comparable prior year
+  // or the baseline is zero, so the UI can say "n/a" instead of inventing 0%.
+  const pct = useCallback((cur, prior) => {
+    const p = Number(prior);
+    if (!p || !Number.isFinite(p)) return null;
+    return ((Number(cur) - p) / Math.abs(p)) * 100;
+  }, []);
+
   const kpis = useMemo(() => {
     const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
     const totalUnits = data.reduce((sum, item) => sum + item.units, 0);
-    const avgAcos = data.length > 0
-      ? (data.reduce((sum, item) => sum + parseFloat(item.acos), 0) / data.length).toFixed(1)
-      : '0.0';
-    const avgRoas = data.length > 0
-      ? (data.reduce((sum, item) => sum + parseFloat(item.roas), 0) / data.length).toFixed(1)
-      : '0.0';
+    const adSpend = data.reduce((sum, item) => sum + item.adSpend, 0);
+    const adSales = data.reduce((sum, item) => sum + item.adSales, 0);
+    const acos = adSales > 0 ? ((adSpend / adSales) * 100).toFixed(1) : null;
+    const roas = adSpend > 0 ? (adSales / adSpend).toFixed(2) : null;
+
+    let deltas = null;
+    if (prevData) {
+      const pRevenue = prevData.reduce((s, i) => s + i.revenue, 0);
+      const pUnits = prevData.reduce((s, i) => s + i.units, 0);
+      const pAdSpend = prevData.reduce((s, i) => s + i.adSpend, 0);
+      const pAdSales = prevData.reduce((s, i) => s + i.adSales, 0);
+      const pAcos = pAdSales > 0 ? (pAdSpend / pAdSales) * 100 : null;
+      const pRoas = pAdSpend > 0 ? pAdSales / pAdSpend : null;
+      deltas = {
+        revenue: pct(totalRevenue, pRevenue),
+        units: pct(totalUnits, pUnits),
+        acos: pct(acos, pAcos),
+        roas: pct(roas, pRoas),
+      };
+    }
 
     return [
-      { title: 'Annual Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', trend: '+22.4%' },
-      { title: 'Portfolio Units', value: totalUnits.toLocaleString(), icon: Package, color: '#8B5CF6', trend: '+14.2%' },
-      { title: 'Mean ACoS', value: `${avgAcos}%`, icon: Target, color: '#EC4899', trend: '-2.1%' },
-      { title: 'Portfolio ROAS', value: `${avgRoas}x`, icon: Trophy, color: '#10B981', trend: '+0.4x' },
+      { title: 'Annual Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: IndianRupee, color: '#4F46E5', delta: deltas?.revenue, inv: false },
+      { title: 'Portfolio Units', value: totalUnits.toLocaleString(), icon: Package, color: '#8B5CF6', delta: deltas?.units, inv: false },
+      { title: 'Mean ACoS', value: acos === null ? '—' : `${acos}%`, icon: Target, color: '#EC4899', delta: deltas?.acos, inv: true },
+      { title: 'Portfolio ROAS', value: roas === null ? '—' : `${roas}x`, icon: Trophy, color: '#10B981', delta: deltas?.roas, inv: false },
     ];
-  }, [data]);
+  }, [data, prevData, pct]);
 
   const filteredData = useMemo(() => {
     return data.filter(item =>
@@ -137,17 +194,46 @@ const MonthWiseReport = () => {
     grid: { show: true, borderColor: '#f1f5f9', strokeDashArray: 4 }
   };
 
-  const MetricPill = ({ title, value, icon: Icon, color, trend }) => (
-    <div className="stat-pill">
-      <div className="stat-pill-icon" style={{ backgroundColor: `${color}15`, color: color }}>
-        <Icon size={14} />
+  const MetricPill = ({ title, value, icon: Icon, color, delta, inv }) => {
+    const hasDelta = delta !== null && delta !== undefined;
+    const pos = hasDelta && delta > 0;
+    const flat = hasDelta && Math.abs(delta) < 0.05;
+    const good = inv ? !pos : pos;
+    // Flat deltas read as "0.0%", never "-0.0%".
+    const label = !hasDelta
+      ? null
+      : flat
+        ? '0.0%'
+        : `${pos ? '+' : ''}${delta.toFixed(1)}%`;
+    const color_ = !hasDelta || flat ? '#8c8e8f' : good ? '#2E7D32' : '#D32F2F';
+    return (
+      <div className="stat-pill">
+        <div className="stat-pill-icon" style={{ backgroundColor: `${color}15`, color: color }}>
+          <Icon size={14} />
+        </div>
+        <div>
+          <div className="stat-pill-label">
+            {title}{' '}
+            <span
+              className="ms-1"
+              style={{ fontSize: '9px', color: color_ }}
+              title={hasDelta ? 'Compared with the same elapsed months last year' : 'No comparable prior year'}
+            >
+              {hasDelta ? (
+                <>
+                  <span aria-hidden="true">{label}</span>
+                  <span className="sr-only">{flat ? 'unchanged' : pos ? 'up' : 'down'} versus same period last year</span>
+                </>
+              ) : (
+                <span>n/a</span>
+              )}
+            </span>
+          </div>
+          <div className="stat-pill-value">{value}</div>
+        </div>
       </div>
-      <div>
-        <div className="stat-pill-label">{title} <span className="ms-1" style={{ fontSize: '9px', color: (trend.startsWith('+') || trend.startsWith('↑') || trend.includes('-')) ? (trend.includes('-') && title.includes('ACoS') ? '#2E7D32' : (trend.includes('-') ? '#D32F2F' : '#2E7D32')) : '#D32F2F' }}>{trend}</span></div>
-        <div className="stat-pill-value">{value}</div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const DashboardCard = ({ title, icon: Icon, children, extra }) => (
     <div className="glass-card h-100" style={{ borderRadius: '20px', padding: '1.25rem' }}>
