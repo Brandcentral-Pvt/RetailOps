@@ -9,12 +9,10 @@ import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
 import { LoadError } from '../components/LoadError';
 import { AsinManagerSkeleton } from '../components/ui/PageSkeletons';
-import octoparseService from '../services/octoparseService';
 import { db } from '../services/db';
 import { asinApi, marketSyncApi, sellerApi, taskApi, rulesetApi } from '../services/api';
 import InfiniteScrollSelect from '../components/common/InfiniteScrollSelect';
 import { useSocket } from '../contexts/SocketContext';
-import { calculateLQS } from '../utils/lqs';
 import {
   Package,
   Activity,
@@ -82,9 +80,7 @@ import AppliedFilterBadges from '../components/asins/AppliedFilterBadges';
 import { useAsinData } from '../hooks/useAsinData';
 import { useParentChildren } from '../hooks/useParentChildren';
 import {
-  generateHistoryStructure,
   generateHistoryStructureFromDates,
-  getWeekNumber,
   normalizeDateStr,
   getWeekHistoryBadge,
   getReviewTrendStatus
@@ -104,21 +100,20 @@ function isUnavailableStatus(asin) {
   return UNAVAILABLE_MARKERS.some(marker => status.includes(marker));
 }
 
-const AsinManagerPage = (props) => {
-  const { isAdmin, isGlobalUser, hasPermission } = useAuth();
-  const [showDashboard, setShowDashboard] = useState(true);
-  const [showTable, setShowTable] = useState(true);
-  const [newAsin, setNewAsin] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showManualTaskModal, setShowManualTaskModal] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [taskPriority, setTaskPriority] = useState('MEDIUM');
-  const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
-  const [scrapingIds, setScrapingIds] = useState(new Set());
-  const [sortBy, setSortBy] = useState('lastLiveSyncAt');
+const AsinManagerPage = () => {
+    const { isAdmin, hasPermission } = useAuth();
+    const [showDashboard, setShowDashboard] = useState(true);
+    const [newAsin, setNewAsin] = useState('');
+    const [syncing, setSyncing] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showManualTaskModal, setShowManualTaskModal] = useState(false);
+    const [taskTitle, setTaskTitle] = useState('');
+    const [taskDescription, setTaskDescription] = useState('');
+    const [taskPriority, setTaskPriority] = useState('MEDIUM');
+    const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
+const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [_scrapingIds, setScrapingIds] = useState(new Set());
   const { setPageMeta } = useHeader();
 
   useEffect(() => {
@@ -133,8 +128,6 @@ const AsinManagerPage = (props) => {
   const [selectedAsin, setSelectedAsin] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTrendsModal, setShowTrendsModal] = useState(false);
-  const [trendsMetric, setTrendsMetric] = useState('price');
-  const [sellers, setSellers] = useState([]);
   const [selectedSellerId, setSelectedSellerId] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -175,26 +168,17 @@ const AsinManagerPage = (props) => {
     }
   }, [canAccessAmazon, canAccessAjio, canAccessMyntra, marketplaceFilter]);
 
-  const [repairStatus, setRepairStatus] = useState(null);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [activeEditAsin, setActiveEditAsin] = useState(null);
-  const [importingTags, setImportingTags] = useState(false);
-  const tagsImportRef = useRef(null);
-  const isFirstRenderRef = useRef(true);
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+const [repairStatus, setRepairStatus] = useState(null);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [activeEditAsin, setActiveEditAsin] = useState(null);
+    const isFirstRenderRef = useRef(true);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const {
     visibleColumns,
     isVisible: baseIsVisible,
-    toggleColumn,
-    toggleCategory,
-    resetToDefaults,
-    selectAll,
     updateVisibleColumns,
-    visibleCount,
-    totalCount,
     allColumns,
-    columnCategories,
-    isCatalogManager
+    columnCategories
   } = useColumnVisibility();
 
   const isVisible = useCallback((key) => {
@@ -208,12 +192,10 @@ const AsinManagerPage = (props) => {
     return baseIsVisible(key);
   }, [baseIsVisible, marketplaceFilter]);
 
-  const [showColumnPanel, setShowColumnPanel] = useState(false);
-  const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
-  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
-  const actionsRef = useRef(null);
+const [showColumnPanel, setShowColumnPanel] = useState(false);
+    const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
 
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({
     status: '',
     category: '',
@@ -281,26 +263,11 @@ const AsinManagerPage = (props) => {
     return [{ label: 'W1', dates: [{ label: 'N/A' }] }];
   }, [globalHistoryDates]);
 
-  const totalHistoryCols = useMemo(() => {
-    if (!historyStructure) return 0;
-    return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
-  }, [historyStructure]);
-
   const visibleHistoryCols = useMemo(() => {
     if (!historyStructure) return 0;
     // Since we now always show exactly the entries in historyStructure (7 days)
     return historyStructure.reduce((sum, w) => sum + w.dates.length, 0);
   }, [historyStructure]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (actionsRef.current && !actionsRef.current.contains(event.target)) {
-        setShowActionsDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const [priceTrendExpanded, setPriceTrendExpanded] = useState(false);
   const [bsrTrendExpanded, setBsrTrendExpanded] = useState(false);
@@ -308,7 +275,7 @@ const AsinManagerPage = (props) => {
   const [reviewTrendExpanded, setReviewTrendExpanded] = useState(false);
   const [imageTrendExpanded, setImageTrendExpanded] = useState(false);
   const [ordersExpanded, setOrdersExpanded] = useState(false);
-  const [gmsRevenueExpanded, setGmsRevenueExpanded] = useState(false);
+  const [gmsRevenueExpanded, _setGmsRevenueExpanded] = useState(false);
 
   const formatMonthHeader = (dateStr) => {
     if (!dateStr) return '';
@@ -321,11 +288,6 @@ const AsinManagerPage = (props) => {
     return ordersExpanded ? availableMonths.length + 1 : 1;
   }, [isVisible, ordersExpanded, availableMonths]);
 
-  const hasSecondHeaderRow = useMemo(() => {
-    if (ordersExpanded && isVisible('totalOrders')) return true;
-    if (isVisible('priceTrend') || isVisible('bsrTrend') || isVisible('ratingTrend') || isVisible('reviewTrend') || isVisible('imageTrend')) return true;
-    return false;
-  }, [ordersExpanded, isVisible]);
   const visiblePriceTrendCount = useMemo(() => {
     if (!isVisible('priceTrend')) return 0;
     return visibleHistoryCols;
@@ -375,7 +337,6 @@ const AsinManagerPage = (props) => {
   const [viewMode, setViewMode] = useState('asin'); // 'asin' | 'parent'
   const [parentData, setParentData] = useState([]);
   const [parentPagination, setParentPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
-  const [loadingParent, setLoadingParent] = useState(false);
   const {
     expandedParents,
     expandedCount,
@@ -576,9 +537,8 @@ const AsinManagerPage = (props) => {
     setSelectedIds(new Set());
   }, []);
 
-  const handleViewTrends = (asin, metric = 'price') => {
+  const handleViewTrends = (asin) => {
     setSelectedAsin(asin);
-    setTrendsMetric(metric);
     setShowTrendsModal(true);
   };
 
@@ -748,7 +708,6 @@ const AsinManagerPage = (props) => {
   // so the SAME table rendering code works for both views
   const loadParentData = useCallback(async (page = 1, limit = 50) => {
     try {
-      setLoadingParent(true);
       const res = await asinApi.getParentView({
         sellerId: selectedSeller,
         search: appliedSearchQuery,
@@ -838,7 +797,7 @@ const AsinManagerPage = (props) => {
       console.error('Error fetching parent view:', err);
       setParentData([]);
     } finally {
-      setLoadingParent(false);
+      // noop
     }
   }, [selectedSeller, appliedSearchQuery, sortBy, sortOrder, setAvailableMonths]);
 
@@ -882,28 +841,6 @@ const AsinManagerPage = (props) => {
     );
   };
 
-  const handleImportTags = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImportingTags(true);
-    try {
-      const response = await asinApi.bulkUploadTags(file, selectedSeller);
-      if (response.success) {
-        message.success(`Successfully updated tags for ${response.updated} ASINs`);
-        loadData(pagination.page, pagination.limit); // Refresh
-      } else {
-        message.error('Failed to import tags: ' + (response.error || 'Unknown error'));
-      }
-    } catch (err) {
-      console.error('Tags import error:', err);
-      message.error('Error importing tags');
-    } finally {
-      setImportingTags(false);
-      if (e.target) e.target.value = ''; // reset
-    }
-  };
-
   const handleRecalculateLQS = async () => {
     const selectedArray = Array.from(selectedIds);
     const msg = selectedArray.length > 0
@@ -929,10 +866,6 @@ const AsinManagerPage = (props) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDownloadTagsTemplate = () => {
-    asinApi.downloadTagsTemplate(selectedSeller);
   };
 
   const handleChangePage = (event, newPage) => {
@@ -1083,7 +1016,6 @@ const AsinManagerPage = (props) => {
       const uniqueParents = Number(stats.uniqueParents) || 1;
       const totalReviews = Number(stats.totalReviews) || 0;
       const avgReviewsPerParent = uniqueParents > 0 ? Math.round(totalReviews / uniqueParents) : 0;
-      const standaloneCount = totalNum - activeNum;
       const avgPriceNum = parseFloat(stats.avgPrice) || 0;
       const avgLqsNum = parseFloat(stats.avgLQS) || 0;
 
@@ -1198,23 +1130,6 @@ const AsinManagerPage = (props) => {
     }
   }, [newAsin, loadData, selectedSellerId]);
 
-  const handleRepairData = async () => {
-    const sellerToRepair = selectedSeller || selectedSellerId;
-    if (!sellerToRepair) { message.warning('Please select a seller first.'); return; }
-
-    try {
-      setSyncing(true);
-      const res = await asinApi.repairIncomplete(sellerToRepair);
-      setRepairStatus({ running: true, total: res.total, processed: 0, failed: 0, percentage: 0 });
-      message.info(`🛠️ Repair job started for ${res.total} incomplete ASINs.`);
-    } catch (err) {
-      message.error('❌ Repair failed: ' + err.message);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-
   const handleIndividualScrape = async (asinId) => {
     try {
       setScrapingIds(prev => new Set(prev).add(asinId));
@@ -1260,55 +1175,6 @@ const AsinManagerPage = (props) => {
     } catch (error) {
       console.error('Failed to toggle ASIN status:', error);
       message.error('Failed to toggle status: ' + error.message);
-    }
-  };
-
-  const handleCreateTasks = async (asinId, asinCode) => {
-    try {
-      const confirmed = await new Promise(resolve => {
-        Modal.confirm({ title: 'Confirm', content: `Auto-generate optimization tasks for ASIN ${asinCode}?`, onOk: () => resolve(true), onCancel: () => resolve(false) });
-      });
-      if (!confirmed) return;
-      const res = await db.createActionsFromAnalysis(asinId);
-      if (res && res.count > 0) {
-        message.success(`✅ Successfully created ${res.count} optimization task(s) for ${asinCode}!`);
-      } else if (res && res.success === false) {
-        message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
-      } else {
-        message.info(`Analysis complete for ${asinCode}. No critical tasks needed at this time.`);
-      }
-    } catch (err) {
-      console.error('Task creation failed:', err);
-      message.error('Failed to create tasks: ' + err.message);
-    }
-  };
-
-  const handleGenerateAiImages = async (asinId, asinCode) => {
-    try {
-      const confirmed = await new Promise(resolve => {
-        Modal.confirm({ title: 'Confirm', content: `Generate AI lifestyle images for ASIN ${asinCode}? This uses Nvidia NIM (SD3 Medium).`, onOk: () => resolve(true), onCancel: () => resolve(false) });
-      });
-      if (!confirmed) return;
-
-      setScrapingIds(prev => new Set(prev).add(asinId));
-      const res = await asinApi.generateImages(asinId);
-
-      if (res.success) {
-        message.success(`✅ AI Image Generated!\nView it at: ${res.imageUrl}`);
-        // Refresh ASIN data to show updated action status if needed
-        loadData();
-      } else {
-        message.error(`❌ Generation failed: ${res.error || 'Unknown error'}`);
-      }
-    } catch (err) {
-      console.error('AI Image generation failed:', err);
-      message.error('AI Generation Error: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setScrapingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(asinId);
-        return newSet;
-      });
     }
   };
 
@@ -1474,99 +1340,6 @@ const AsinManagerPage = (props) => {
       setSyncing(false);
       setScrapingIds(new Set());
     }
-  };
-
-  const getLqsBadge = (lqs) => {
-    let bgColor = 'var(--text-success)';
-    let textColor = '#fff';
-    if (lqs < 60) { bgColor = 'var(--text-danger)'; }
-    else if (lqs < 80) { bgColor = 'var(--text-warning)'; }
-    return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: textColor, fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {lqs}
-      </span>
-    );
-  };
-
-  const getBuyBoxBadge = (asin) => {
-    const { buyBoxWin, status, soldBy, secondAsp, currentPrice } = asin;
-    if (status === 'Scraping') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-
-    const formatRupee = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
-
-    if (buyBoxWin) {
-      const diff = secondAsp > 0 ? (secondAsp - currentPrice) : null;
-      let alertMsg = null;
-      if (diff !== null && diff <= 5 && diff >= -50) {
-        alertMsg = "Close competition. May lose Buy Box.";
-      }
-      return (
-        <div className="d-flex flex-column align-items-center">
-          <div className="d-flex align-items-center gap-1">
-            <span
-              className="badge mb-1"
-              style={{ backgroundColor: 'var(--text-success)', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-            >
-              Won
-            </span>
-            {alertMsg && <AlertTriangle size={14} className="text-danger mb-1" title={alertMsg} />}
-          </div>
-          {diff !== null && (
-            <div className={`smallest fw-bold ${alertMsg ? 'text-danger' : 'text-zinc-500'}`} style={{ fontSize: '9px' }} title="Competitor vs Our ASP Diff">
-              Diff: {diff > 0 ? '+' : ''}{formatRupee(diff)}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    const diff = secondAsp > 0 ? (secondAsp - currentPrice) : null;
-    return (
-      <div className="d-flex flex-column align-items-center">
-        <span
-          className="badge mb-1"
-          style={{ backgroundColor: 'var(--text-danger)', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-        >
-          Lost
-        </span>
-        <span className="smallest text-zinc-500 fw-bold text-center" style={{ fontSize: '9px', lineHeight: 1.2, maxWidth: '100px', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis' }} title={soldBy}>
-          {soldBy || 'N/A'}
-        </span>
-        {diff !== null && (
-          <div className="smallest mt-1 text-danger fw-bold d-flex gap-1 align-items-center" style={{ fontSize: '9px' }} title="Our loss vs Winner ASP Diff">
-            Diff: {formatRupee(diff)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const getAplusBadge = (hasAplus, status) => {
-    if (status === 'Scraping') return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-    const bgColor = hasAplus ? 'var(--text-success)' : '#6b7280';
-    return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {hasAplus ? 'Yes' : 'No'}
-      </span>
-    );
-  };
-
-  const getStatusBadge = (status) => {
-    const bgColor = status === 'Active' ? 'var(--text-success)' : 'var(--text-warning)';
-    return (
-      <span
-        className="badge"
-        style={{ backgroundColor: bgColor, color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
-      >
-        {status}
-      </span>
-    );
   };
 
   const renderRatingBreakdown = (breakdown) => {
