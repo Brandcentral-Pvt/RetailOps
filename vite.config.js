@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
         'CometChat': path.resolve(__dirname, './src/CometChat'),
+        // Fix @cometchat/chat-uikit-react css-variables.css export issue
+        '@cometchat/chat-uikit-react/css-variables.css': path.resolve(__dirname, './node_modules/@cometchat/chat-uikit-react/dist/styles/css-variables.css'),
       },
     },
     build: {
