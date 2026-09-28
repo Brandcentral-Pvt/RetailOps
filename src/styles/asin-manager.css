@@ -165,6 +165,17 @@
   background: var(--bc-status-info-bg);
 }
 
+/* Out-of-stock rows stay legible but recede; selection and hover still win
+   so an unavailable row can be acted on. */
+.asin-grid tbody tr.asin-grid__row--unavailable td {
+  background: var(--bc-status-danger-bg);
+}
+
+.asin-grid tbody tr.asin-grid__row--unavailable:hover td,
+.asin-grid tbody tr.asin-grid__row--unavailable.is-selected td {
+  background: var(--bc-status-danger-bg);
+}
+
 /* Identity columns stay put while the metric axes scroll horizontally. */
 .asin-grid .asin-grid__sticky {
   position: sticky;
@@ -185,9 +196,14 @@
   background: var(--bc-status-info-bg);
 }
 
+/* Offsets assume the select column is present. The --sticky--select-only
+   modifier is applied when it is hidden, so a visible column never lands
+   under a pinned one. */
 .asin-grid__sticky--select { left: 0; min-width: 36px; }
 .asin-grid__sticky--asin   { left: 36px; min-width: 104px; }
 .asin-grid__sticky--title  { left: 140px; min-width: 260px; }
+.asin-grid__sticky--select-only { left: 0; min-width: 104px; }
+.asin-grid__sticky--actions { right: 0; min-width: 56px; }
 
 /* ------------------------------------------------------- Parent drill -- */
 
@@ -254,7 +270,10 @@
 }
 
 .asin-grid__sort-icon {
+  display: inline-flex;
+  flex-direction: column;
   flex: none;
+  margin-left: var(--bc-space-1);
   opacity: 0.4;
 }
 

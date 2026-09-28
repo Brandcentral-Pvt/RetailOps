@@ -92,6 +92,18 @@ import {
 
 import Popover from '../components/common/Popover';
 
+const UNAVAILABLE_MARKERS = [
+  'unavailable',
+  'out of stock',
+  'out_of_stock',
+  'currently unavailable'
+];
+
+function isUnavailableStatus(asin) {
+  const status = (asin?.availabilityStatus || '').toLowerCase();
+  return UNAVAILABLE_MARKERS.some(marker => status.includes(marker));
+}
+
 const AsinManagerPage = (props) => {
   const { isAdmin, isGlobalUser, hasPermission } = useAuth();
   const [showDashboard, setShowDashboard] = useState(true);
@@ -854,13 +866,19 @@ const AsinManagerPage = (props) => {
     const active = sortBy === field;
     const justify = align === 'right' ? 'justify-content-end' : align === 'center' ? 'justify-content-center' : 'justify-content-between';
     return (
-      <div className={`d-flex align-items-center ${justify} cursor-pointer`} onClick={() => handleSort(field)} style={{ userSelect: 'none' }}>
+      <button
+        type="button"
+        className={`asin-grid__sort d-flex align-items-center ${justify}`}
+        onClick={() => handleSort(field)}
+        aria-label={`Sort by ${label}`}
+        aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
         <span className={justify === 'justify-content-end' ? 'me-1' : ''}>{label}</span>
-        <div className="d-flex flex-column ms-1" style={{ fontSize: '7px', gap: '-3px', opacity: active ? 1 : 0.4, minWidth: '10px' }}>
-          <ChevronUp size={8} strokeWidth={4} style={{ color: active && sortOrder === 'asc' ? 'var(--text-brand)' : '#8c8c8c', marginBottom: '-2px' }} />
-          <ChevronDown size={8} strokeWidth={4} style={{ color: active && sortOrder === 'desc' ? 'var(--text-brand)' : '#8c8c8c' }} />
-        </div>
-      </div>
+        <span className={`asin-grid__sort-icon${active ? ' asin-grid__sort-icon--active' : ''}`} style={{ fontSize: '7px', gap: '-3px', minWidth: '10px' }}>
+          <ChevronUp size={8} strokeWidth={4} style={{ color: active && sortOrder === 'asc' ? 'var(--text-brand)' : 'var(--bc-text-muted)', marginBottom: '-2px' }} />
+          <ChevronDown size={8} strokeWidth={4} style={{ color: active && sortOrder === 'desc' ? 'var(--text-brand)' : 'var(--bc-text-muted)' }} />
+        </span>
+      </button>
     );
   };
 
@@ -1625,30 +1643,28 @@ const AsinManagerPage = (props) => {
   }
 
   const thStyle = {
-    fontSize: '10px',
+    fontSize: 'var(--bc-text-2xs)',
     fontWeight: 800,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: 'var(--text-secondary)', // cool gray 600
-    padding: '10px 12px',
-    background: 'var(--bg-secondary)',
+    letterSpacing: '0.03em',
+    color: 'var(--bc-text-secondary)',
+    padding: 'var(--bc-space-2) var(--bc-space-2.5)',
+    background: 'var(--bc-surface-elevated)',
     position: 'sticky',
     top: 0,
-    borderBottom: '1px solid var(--border-light)',
+    borderBottom: '1px solid var(--bc-border-default)',
     whiteSpace: 'nowrap',
-    border: '0.5px solid #f1f1f1',
+    borderRight: '1px solid var(--bc-border-subtle)',
     zIndex: 10
   };
 
   const tdStyle = {
-    padding: '3px 8px',
-    fontSize: '0.68rem',
-    borderBottom: '0.5px solid var(--bg-secondary)',
+    padding: 'var(--bc-space-1.5) var(--bc-space-2.5)',
+    fontSize: 'var(--bc-text-sm)',
+    borderBottom: '1px solid var(--bc-border-subtle)',
     verticalAlign: 'middle',
-    color: 'var(--text-primary)', // zinc-800
-    height: '34px',
-    borderLeft: '0.5px solid var(--bg-secondary)',
-    borderRight: '0.5px solid var(--bg-secondary)',
+    color: 'var(--bc-text-body)',
+    borderRight: '1px solid var(--bc-border-subtle)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
@@ -2439,8 +2455,8 @@ const AsinManagerPage = (props) => {
 
 
           {/* Scrollable Table Container */}
-          <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-            <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
+          <div className="asin-grid-scroll">
+            <table className="asin-grid" style={{ width: 'max-content', minWidth: '100%', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
                   {isVisible('checkbox') && (
@@ -2902,33 +2918,21 @@ const AsinManagerPage = (props) => {
                     const subBsrHistoryMap = {};
                     asin.subBsrHistory?.forEach(h => subBsrHistoryMap[normalizeDateStr(h.date)] = h);
 
+                    const rowClass = [
+                      'asin-grid__row',
+                      isUnavailableStatus(asin) ? 'asin-grid__row--unavailable' : '',
+                      asin._isChild ? 'asin-row--child' : '',
+                      selectedIds.has(asin._id) ? 'is-selected' : ''
+                    ].filter(Boolean).join(' ');
+
                     return (
-                      <tr
-                        key={asin._id || idx}
-                        className={`table-row-hover${asin._isChild ? ' asin-row--child' : ''}${selectedIds.has(asin._id) ? ' is-selected' : ''}`}
-                        style={{
-                          background: (() => {
-                            if (asin._isChild) return 'var(--bg-secondary)';
-                            const s = (asin.availabilityStatus || '').toLowerCase();
-                            const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                            if (isUnavailable) return 'var(--bg-danger-subtle)';
-                            return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                          })()
-                        }}
-                      >
+                      <tr key={asin._id || idx} className={rowClass}>
                         {isVisible('checkbox') && (
-                          <td style={{
+                          <td className="asin-grid__sticky asin-grid__sticky--select" style={{
                             ...tdStyle,
                             width: '40px',
                             position: 'sticky',
                             left: 0,
-                            background: (() => {
-                              if (asin._isChild) return 'var(--bg-secondary)';
-                              const s = (asin.availabilityStatus || '').toLowerCase();
-                              const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                              if (isUnavail) return 'var(--bg-danger-subtle)';
-                              return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                            })(),
                             zIndex: 6,
                             textAlign: 'center',
                             padding: 0
@@ -2964,23 +2968,20 @@ const AsinManagerPage = (props) => {
                           </td>
                         )}
                         {isVisible('asinCode') && (
-                          <td style={{
-                            ...tdStyle,
-                            fontWeight: 600,
-                            color: 'var(--text-brand)',
-                            position: 'sticky',
-                            width: '110px',
-                            left: isVisible('checkbox') ? '40px' : '0px',
-                            background: (() => {
-                              const s = (asin.availabilityStatus || '').toLowerCase();
-                              const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                              if (isUnavail) return 'var(--bg-danger-subtle)';
-                              return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                            })(),
-                            zIndex: 5,
-                            borderRight: '2px solid var(--border-light)',
-                            paddingLeft: asin._isChild ? '18px' : undefined
-                          }}>
+                          <td
+                            className={`asin-grid__sticky ${isVisible('checkbox') ? 'asin-grid__sticky--asin' : 'asin-grid__sticky--select-only'}`}
+                            style={{
+                              ...tdStyle,
+                              fontWeight: 600,
+                              color: 'var(--text-brand)',
+                              position: 'sticky',
+                              width: '110px',
+                              left: isVisible('checkbox') ? '40px' : '0px',
+                              zIndex: 5,
+                              borderRight: '2px solid var(--border-light)',
+                              paddingLeft: asin._isChild ? '18px' : undefined
+                            }}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
                                 {asin._isParent && (
@@ -3178,7 +3179,7 @@ const AsinManagerPage = (props) => {
                                 const isInStock = s.includes('in stock') || s.includes('add to bag') || s.includes('add to cart') || s === 'available';
                                 const bgColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bg-success-subtle)' : 'var(--bg-secondary)';
                                 const textColor = isUnavailable ? 'var(--text-danger)' : isInStock ? 'var(--text-success)' : 'var(--text-secondary)';
-                                const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? '#a7f3d0' : 'var(--border-light)';
+                                const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bc-border-success)' : 'var(--border-light)';
                                 return (
                                   <Tooltip title={asin.availabilityStatus} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
                                     <span className="badge" style={{
@@ -3801,13 +3802,12 @@ const AsinManagerPage = (props) => {
                           </td>
                         )}
                         {/* ===== ROW ACTIONS ===== */}
-                        <td style={{
+                        <td className="asin-grid__sticky asin-grid__sticky--actions" style={{
                           ...tdStyle,
                           width: '60px',
                           textAlign: 'center',
                           position: 'sticky',
                           right: 0,
-                          background: idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)',
                           zIndex: 6,
                           borderLeft: '1px solid var(--border-light)',
                           padding: '4px'
