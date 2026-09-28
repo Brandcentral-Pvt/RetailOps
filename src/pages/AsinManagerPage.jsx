@@ -35,6 +35,7 @@ import {
   Scan,
   IndianRupee,
   ChevronRight,
+  ChevronsUp,
   ChevronLeft,
   TrendingDown,
   Trash2,
@@ -79,6 +80,7 @@ import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
 import AppliedFilterBadges from '../components/asins/AppliedFilterBadges';
 import { useAsinData } from '../hooks/useAsinData';
+import { useParentChildren } from '../hooks/useParentChildren';
 import {
   generateHistoryStructure,
   generateHistoryStructureFromDates,
@@ -199,6 +201,64 @@ const AsinManagerPage = (props) => {
   const [showActionsDropdown, setShowActionsDropdown] = useState(false);
   const actionsRef = useRef(null);
 
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: '',
+    category: '',
+    brand: '',
+    scrapeStatus: '',
+    parentAsin: '',
+    tag: '',
+    sku: '',
+    minPrice: '',
+    maxPrice: '',
+    minBSR: '',
+    maxBSR: '',
+    minRating: '',
+    maxRating: '',
+    minReviewCount: '',
+    maxReviewCount: '',
+    minImagesCount: '',
+    maxImagesCount: '',
+    minBulletPoints: '',
+    maxBulletPoints: '',
+    subBsrCategory: '',
+    buyBoxWin: '',
+    hasAplus: '',
+    hasVideo: '',
+    hasDeal: '',
+    ageFilter: '',
+    selectedTags: [],
+    minReleaseDate: '',
+    maxReleaseDate: '',
+    priceDispute: '',
+    bsrTrend: '',
+    ratingTrend: '',
+    historyDays: '',
+    ads: '',
+    availabilityStatus: '',
+    manufacturer: '',
+    dealAccessType: ''
+  });
+  const {
+    asins, setAsins,
+    globalHistoryDates,
+    availableMonths, setAvailableMonths,
+    loading, setLoading,
+    error,
+    stats,
+    pagination, setPagination,
+    initialLoadComplete,
+    loadData, retry
+  } = useAsinData({
+    selectedSeller,
+    marketplaceFilter,
+    appliedSearchQuery,
+    appliedFilters,
+    sortBy,
+    sortOrder,
+    limit: 25
+  });
   const historyStructure = useMemo(() => {
     if (globalHistoryDates && globalHistoryDates.length > 0) {
       // Lexical sort on YYYY-MM-DD gives chronological order (Oldest -> Newest)
@@ -303,9 +363,15 @@ const AsinManagerPage = (props) => {
   const [viewMode, setViewMode] = useState('asin'); // 'asin' | 'parent'
   const [parentData, setParentData] = useState([]);
   const [parentPagination, setParentPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
-  const [expandedParents, setExpandedParents] = useState(new Set());
-  const [parentChildren, setParentChildren] = useState({});
   const [loadingParent, setLoadingParent] = useState(false);
+  const {
+    expandedParents,
+    expandedCount,
+    loadingParents,
+    toggleParentExpand,
+    collapseAll,
+    withExpandedChildren
+  } = useParentChildren();
   const [filters, setFilters] = useState({
     category: '',
     brand: '',
@@ -344,45 +410,6 @@ const AsinManagerPage = (props) => {
     dealAccessType: ''
   });
 
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({
-    status: '',
-    category: '',
-    brand: '',
-    scrapeStatus: '',
-    parentAsin: '',
-    tag: '',
-    sku: '',
-    minPrice: '',
-    maxPrice: '',
-    minBSR: '',
-    maxBSR: '',
-    minRating: '',
-    maxRating: '',
-    minReviewCount: '',
-    maxReviewCount: '',
-    minImagesCount: '',
-    maxImagesCount: '',
-    minBulletPoints: '',
-    maxBulletPoints: '',
-    subBsrCategory: '',
-    buyBoxWin: '',
-    hasAplus: '',
-    hasVideo: '',
-    hasDeal: '',
-    ageFilter: '',
-    selectedTags: [],
-    minReleaseDate: '',
-    maxReleaseDate: '',
-    priceDispute: '',
-    bsrTrend: '',
-    ratingTrend: '',
-    historyDays: '',
-    ads: '',
-    availabilityStatus: '',
-    manufacturer: '',
-    dealAccessType: ''
-  });
   const [filterOptions, setFilterOptions] = useState({
     categories: [],
     brands: [],
@@ -468,9 +495,6 @@ const AsinManagerPage = (props) => {
     setFilterPanelOpen(false);
   };
 
-  // Removed client-side filteredAsins useMemo as we now use server-side search
-  const filteredAsins = viewMode === 'parent' ? parentData : asins;
-
   // Fetch filter options when seller changes
   useEffect(() => {
     const fetchFilters = async () => {
@@ -535,14 +559,6 @@ const AsinManagerPage = (props) => {
     });
   }, []);
 
-  const handleToggleSelectAll = useCallback(() => {
-    setSelectedIds(prev => {
-      if (prev.size === filteredAsins.length && filteredAsins.length > 0) {
-        return new Set();
-      }
-      return new Set(filteredAsins.map(a => a._id));
-    });
-  }, [filteredAsins]);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -692,25 +708,29 @@ const AsinManagerPage = (props) => {
     }
   };
 
-  const {
-    asins, setAsins,
-    globalHistoryDates,
-    availableMonths, setAvailableMonths,
-    loading, setLoading,
-    error,
-    stats,
-    pagination, setPagination,
-    initialLoadComplete,
-    loadData, retry
-  } = useAsinData({
-    selectedSeller,
-    marketplaceFilter,
-    appliedSearchQuery,
-    appliedFilters,
-    sortBy,
-    sortOrder,
-    limit: 25
-  });
+  // Removed client-side filteredAsins useMemo as we now use server-side search
+  // Parent view interleaves lazily-loaded children beneath their parent row;
+  // ASIN view has no parent markers so this is a pass-through.
+  const filteredAsins = useMemo(
+    () => withExpandedChildren(viewMode === 'parent' ? parentData : asins),
+    [withExpandedChildren, viewMode, parentData, asins]
+  );
+
+  // Parent rows stay selectable (their _id is a real Asins row); only the
+  // interleaved child and loading placeholders are excluded.
+  const selectableRows = useMemo(
+    () => filteredAsins.filter(a => a._id && !a._isChild && !a._isChildLoading),
+    [filteredAsins]
+  );
+
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === selectableRows.length && selectableRows.length > 0) {
+        return new Set();
+      }
+      return new Set(selectableRows.map(a => a._id));
+    });
+  }, [selectableRows]);
 
   // Parent View data loading — transforms parent data into ASIN-shaped rows
   // so the SAME table rendering code works for both views
@@ -810,31 +830,6 @@ const AsinManagerPage = (props) => {
     }
   }, [selectedSeller, appliedSearchQuery, sortBy, sortOrder, setAvailableMonths]);
 
-  // Toggle parent expand and lazy-load children
-  const toggleParentExpand = useCallback(async (parentAsin) => {
-    const key = parentAsin; // _id === parentAsin for parent rows
-    setExpandedParents(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-        return next;
-      }
-      next.add(key);
-      return next;
-    });
-
-    // Load children if not already loaded
-    if (!parentChildren[key]) {
-      try {
-        const res = await asinApi.getParentChildren(key);
-        if (res.success) {
-          setParentChildren(prev => ({ ...prev, [key]: res.data || [] }));
-        }
-      } catch (err) {
-        console.error('Error fetching parent children:', err);
-      }
-    }
-  }, [parentChildren]);
 
   // Switch view mode and load appropriate data.
   // On first render skip the list branch — the [loadData, refreshCount] effect
@@ -2315,6 +2310,31 @@ const AsinManagerPage = (props) => {
                   </Tooltip>
                 )}
 
+                {viewMode === 'parent' && expandedCount > 0 && (
+                  <Tooltip title="Collapse all parents">
+                    <Button
+                      onClick={collapseAll}
+                      aria-label="Collapse all parent ASINs"
+                      icon={<ChevronsUp size={14} className="text-zinc-500" />}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
+                      className="d-flex align-items-center justify-content-center shadow-sm"
+                    />
+                  </Tooltip>
+                )}
+
+                {hasPermission('asinmanager_manage') && (
+                  <Tooltip title="Recalculate LQS">
+                    <Button
+                      onClick={handleRecalculateLQS}
+                      disabled={loading}
+                      aria-label="Recalculate LQS"
+                      icon={<RefreshCw size={14} className={loading ? 'text-zinc-400' : 'text-sky-600'} />}
+                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
+                      className="d-flex align-items-center justify-content-center shadow-sm"
+                    />
+                  </Tooltip>
+                )}
+
                 {hasPermission('asinmanager_import') && (
                   <Tooltip title="Import">
                     <Button
@@ -2427,8 +2447,9 @@ const AsinManagerPage = (props) => {
                     <th rowSpan={2} style={{ ...thStyle, width: '40px', left: 0, zIndex: 22, background: 'var(--bg-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-light)' }}>
                       <input
                         type="checkbox"
-                        checked={selectedIds.size === filteredAsins.length && filteredAsins.length > 0}
+                        checked={selectableRows.length > 0 && selectableRows.every(a => selectedIds.has(a._id))}
                         onChange={handleToggleSelectAll}
+                        aria-label="Select all ASINs on this page"
                         style={{ cursor: 'pointer', width: '14px', height: '14px' }}
                       />
                     </th>
@@ -2882,14 +2903,19 @@ const AsinManagerPage = (props) => {
                     asin.subBsrHistory?.forEach(h => subBsrHistoryMap[normalizeDateStr(h.date)] = h);
 
                     return (
-                      <tr key={asin._id || idx} className="table-row-hover" style={{
-                        background: (() => {
-                          const s = (asin.availabilityStatus || '').toLowerCase();
-                          const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                          if (isUnavailable) return 'var(--bg-danger-subtle)';
-                          return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
-                        })()
-                      }}>
+                      <tr
+                        key={asin._id || idx}
+                        className={`table-row-hover${asin._isChild ? ' asin-row--child' : ''}${selectedIds.has(asin._id) ? ' is-selected' : ''}`}
+                        style={{
+                          background: (() => {
+                            if (asin._isChild) return 'var(--bg-secondary)';
+                            const s = (asin.availabilityStatus || '').toLowerCase();
+                            const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
+                            if (isUnavailable) return 'var(--bg-danger-subtle)';
+                            return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
+                          })()
+                        }}
+                      >
                         {isVisible('checkbox') && (
                           <td style={{
                             ...tdStyle,
@@ -2897,6 +2923,7 @@ const AsinManagerPage = (props) => {
                             position: 'sticky',
                             left: 0,
                             background: (() => {
+                              if (asin._isChild) return 'var(--bg-secondary)';
                               const s = (asin.availabilityStatus || '').toLowerCase();
                               const isUnavail = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
                               if (isUnavail) return 'var(--bg-danger-subtle)';
@@ -2906,12 +2933,34 @@ const AsinManagerPage = (props) => {
                             textAlign: 'center',
                             padding: 0
                           }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(asin._id)}
-                              onChange={() => handleToggleSelectRow(asin._id)}
-                              style={{ cursor: 'pointer', verticalAlign: 'middle', width: '13px', height: '13px' }}
-                            />
+                            {asin._isChildLoading ? (
+                              <span className="asin-inline-spinner" aria-hidden="true" />
+                            ) : asin._isChild ? null : (
+                              <>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(asin._id)}
+                                  onChange={() => handleToggleSelectRow(asin._id)}
+                                  aria-label={`Select ASIN ${asin.asinCode}`}
+                                  style={{ cursor: 'pointer', verticalAlign: 'middle', width: '13px', height: '13px' }}
+                                />
+                                {asin._isParent && (
+                                  <span
+                                    aria-hidden="true"
+                                    title={`${asin.childCount || 0} child ASINs`}
+                                    style={{
+                                      display: 'inline-block',
+                                      marginTop: 1,
+                                      fontSize: '8px',
+                                      lineHeight: 1.2,
+                                      color: 'var(--text-muted)'
+                                    }}
+                                  >
+                                    {asin.childCount || 0}
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </td>
                         )}
                         {isVisible('asinCode') && (
@@ -2919,7 +2968,6 @@ const AsinManagerPage = (props) => {
                             ...tdStyle,
                             fontWeight: 600,
                             color: 'var(--text-brand)',
-                            cursor: 'pointer',
                             position: 'sticky',
                             width: '110px',
                             left: isVisible('checkbox') ? '40px' : '0px',
@@ -2930,11 +2978,60 @@ const AsinManagerPage = (props) => {
                               return idx % 2 === 0 ? '#fff' : 'var(--bg-secondary)';
                             })(),
                             zIndex: 5,
-                            borderRight: '2px solid var(--border-light)'
-                          }}
-                            onClick={() => handleViewAsin(asin)}>
+                            borderRight: '2px solid var(--border-light)',
+                            paddingLeft: asin._isChild ? '18px' : undefined
+                          }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                              <span>{asin.asinCode}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+                                {asin._isParent && (
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); toggleParentExpand(asin.asinCode); }}
+                                    aria-expanded={expandedParents.has(asin.asinCode)}
+                                    aria-label={`${expandedParents.has(asin.asinCode) ? 'Collapse' : 'Expand'} children of ${asin.asinCode}`}
+                                    title={`${asin.childCount || 0} child ASINs`}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flex: 'none',
+                                      width: 16,
+                                      height: 16,
+                                      padding: 0,
+                                      border: '1px solid var(--border-light)',
+                                      borderRadius: '3px',
+                                      background: 'var(--bg-secondary)',
+                                      color: 'var(--text-secondary)',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {loadingParents.has(asin.asinCode)
+                                      ? <span className="asin-inline-spinner" aria-hidden="true" />
+                                      : expandedParents.has(asin.asinCode)
+                                        ? <ChevronDown size={11} strokeWidth={3} />
+                                        : <ChevronRight size={11} strokeWidth={3} />}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewAsin(asin)}
+                                  title="View ASIN detail"
+                                  style={{
+                                    border: 0,
+                                    background: 'transparent',
+                                    padding: 0,
+                                    font: 'inherit',
+                                    fontWeight: 600,
+                                    color: 'inherit',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {asin.asinCode}
+                                </button>
+                              </span>
                               <a
                                 href={(asin.marketplace === 'ajio' || marketplaceFilter === 'ajio') ? (asin.pageUrl || `https://www.ajio.com/p/${asin.asinCode}`) : (asin.marketplace === 'myntra' || marketplaceFilter === 'myntra') ? (asin.pageUrl || 'https://www.myntra.com') : `https://www.amazon.in/dp/${asin.asinCode}`}
                                 target="_blank"
