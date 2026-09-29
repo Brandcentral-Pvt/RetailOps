@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { WORKFLOW_STATUSES, VALID_TRANSITIONS, PRIORITIES, CATEGORY_METRIC_CONFIG } from '../constants';
 import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 
 const { Text } = Typography;
 
@@ -168,7 +168,7 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
     if (!checkGate(toStatus)) return;
     setTransitioning(toStatus);
     try {
-      await pemsApi.transitionStatus(task.Id, toStatus, remarks);
+      await tasksApi.transitionStatus(task.Id, toStatus, remarks);
       message.success(`${WORKFLOW_STATUSES[toStatus]?.label} — done`);
       setSubmitModal(null);
       setSubmitRemarks('');
@@ -203,7 +203,7 @@ export default function PremiumTaskRow({ task, index, selected, onSelect, onView
   return (
     <>
       <div
-        className={`pems-task-row${selected ? ' selected' : ''}`}
+        className={`tasks-task-row${selected ? ' selected' : ''}`}
         style={{
           display: 'grid',
           gridTemplateColumns: '36px minmax(0,2fr) 140px 70px 70px 80px 80px 70px minmax(130px, auto)',

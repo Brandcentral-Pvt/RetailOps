@@ -174,13 +174,13 @@ export function useDashboardData(filters: DashboardFilters) {
         return () => { cancelled = true; };
     }, [orch.targets]);
 
-    // Load tasks from the PEMS workspace (/pems/tasks) — the single task
+    // Load tasks from the task workspace (/tasks/tasks) — the single task
     // source the task workspace itself uses, so the dashboard's task counts
     // always match what users see when they click through.
     // ✅ Source-consistency fix: the dashboard previously read the `Tasks`
-    // table while the workspace renders PemsTaskInstances.
+    // table while the workspace renders TaskInstances.
     const tasksQuery = useQuery({
-        queryKey: ['tasks', 'pems-instances', filters.sellerId],
+        queryKey: ['tasks', 'task-instances', filters.sellerId],
         queryFn: async () => {
             const params: any = { limit: 200 };
             if (filters.sellerId && filters.sellerId !== 'all') {
@@ -191,7 +191,7 @@ export function useDashboardData(filters: DashboardFilters) {
             const list = body?.data?.instances ?? body?.instances ?? body?.data ?? [];
             if (!Array.isArray(list)) return [];
 
-            // Normalize the PEMS instance contract (PascalCase + workflow
+            // Normalize the task instance contract (PascalCase + workflow
             // statuses) to the dashboard's task shape. Status mapping keeps
             // the card labels truthful: ASSIGNED (not yet started) -> PENDING,
             // DRAFT -> TODO, REVIEW -> IN_REVIEW, APPROVED -> COMPLETED.
@@ -224,7 +224,7 @@ export function useDashboardData(filters: DashboardFilters) {
                     dueDate: inst.DueDate || inst.dueDate || null,
                     createdAt: inst.CreatedAt || inst.createdAt,
                     slaStatus: inst.SLAStatus || null,
-                    source: 'pems',
+                    source: 'tasks',
                 };
             });
         },
@@ -368,7 +368,7 @@ export function useDashboardData(filters: DashboardFilters) {
         if (filters.managerId && filters.managerId !== 'all') {
             tasks = tasks.filter((t: any) => managerSellers.has(t.sellerId));
         }
-        // Statuses arrive normalized from the PEMS instances mapping above.
+        // Statuses arrive normalized from the task instances mapping above.
         const isStatus = (t: any, ...names: string[]) => names.includes(String(t.status || '').toUpperCase());
         const taskCompleted = tasks.filter((t: any) => isStatus(t, 'COMPLETED')).length;
         const taskPending = tasks.filter((t: any) => isStatus(t, 'PENDING')).length;

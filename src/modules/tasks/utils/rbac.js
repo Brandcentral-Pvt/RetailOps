@@ -1,6 +1,6 @@
 /**
- * PEMS RBAC Permission System
- * Permission-based access control for all PEMS operations
+ * Task RBAC Permission System
+ * Permission-based access control for all task operations
  */
 
 export const PERMISSIONS = {

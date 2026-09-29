@@ -26,7 +26,7 @@ const CommandPalette = ({ open, onClose }) => {
     { id: 'sku-analysis', label: 'SKU Analysis', path: '/sku-report', category: 'Navigation', icon: '🔍' },
     { id: 'rule-sets', label: 'Rule Sets', path: '/rule-sets', category: 'Automation', icon: '⚡' },
     { id: 'tasks', label: 'Tasks', path: '/tasks', category: 'Automation', icon: '📋' },
-    { id: 'pems', label: 'PEMS Dashboard', path: '/pems/dashboard', category: 'Automation', icon: '📈' },
+    { id: 'task-performance', label: 'Task Performance', path: '/tasks/dashboard', category: 'Automation', icon: '📈' },
     { id: 'scheduled-runs', label: 'Scheduled Runs', path: '/scheduled-runs', category: 'Automation', icon: '⏰' },
     { id: 'live-sync', label: 'Live Sync Tracker', path: '/live-sync-tracker', category: 'Automation', icon: '🔄' },
     { id: 'live-data', label: 'Live Data Inspector', path: '/live-data-inspector', category: 'Automation', icon: '🔬' },

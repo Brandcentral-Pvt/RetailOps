@@ -20,7 +20,7 @@ import './ops.css';
  *
  * Corporate, data-driven layout: flat panels on a 12-column grid, uppercase
  * micro-labels, tabular numerals, dependency-free SVG charts. Built on the
- * hardened data layer (useDashboardData): one task source (PEMS workspace),
+ * hardened data layer (useDashboardData): one task source (task workspace),
  * goal-type-separated achievement math, filter-consistent targets, explicit
  * per-section error/empty states — no misleading zeros.
  *
