@@ -588,7 +588,7 @@ export const AsinHealthPanel = ({ stats, gms }) => {
     );
 };
 
-// ── Tasks (PEMS workspace source) ─────────────────────────────────────
+// ── Tasks (task workspace source) ─────────────────────────────────────
 
 const TASK_ORDER = { IN_PROGRESS: 0, PENDING: 1, IN_REVIEW: 2, TODO: 3, COMPLETED: 4, CANCELLED: 5 };
 
@@ -616,7 +616,7 @@ export const TasksPanel = ({ tasks = [], error, onRetry }) => {
         .slice(0, 5);
 
     return (
-        <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={`${tasks.length} workspace tasks${overdue > 0 ? ` · ${overdue} overdue` : ''}`} linkTo="/pems/tasks" linkLabel="Workspace">
+        <Panel id="ops-tasks" span={4} kicker="Task pipeline" meta={`${tasks.length} workspace tasks${overdue > 0 ? ` · ${overdue} overdue` : ''}`} linkTo="/tasks/tasks" linkLabel="Workspace">
             {error ? (
                 <MiniState tone="error" title="Tasks unavailable" note={String(error)} onRetry={onRetry} />
             ) : tasks.length === 0 ? (

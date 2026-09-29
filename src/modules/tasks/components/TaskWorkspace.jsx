@@ -9,7 +9,7 @@ import {
   CheckSquareOutlined, CloseCircleOutlined, MinusOutlined, DollarOutlined,
   WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import {
   WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES,
   PRIORITIES, TASK_ISSUE_SOURCES, CATEGORY_METRIC_CONFIG
@@ -331,7 +331,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     if (!taskId) return;
     setLoading(true);
     try {
-      const res = await pemsApi.getInstanceById(taskId);
+      const res = await tasksApi.getInstanceById(taskId);
       if (res.success) setTask(res.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -354,7 +354,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const handleTransition = async (toStatus, remarks = '') => {
     if (toStatus === 'SUBMITTED' && !remarks.trim()) return false;
     try {
-      await pemsApi.transitionStatus(taskId, toStatus, remarks);
+      await tasksApi.transitionStatus(taskId, toStatus, remarks);
       await loadTask();
       if (onRefresh) onRefresh();
       notifyTransition(toStatus);
@@ -391,7 +391,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     setVerifyResult(null);
     setAsinResults([]);
     try {
-      const res = await pemsApi.verifyFix?.(taskId) || { status: 'success', message: 'Fix verified — changes are live' };
+      const res = await tasksApi.verifyFix?.(taskId) || { status: 'success', message: 'Fix verified — changes are live' };
       setVerifyResult(res);
       if (subTasks.length > 0) {
         setAsinResults(subTasks.map(st => ({
@@ -414,18 +414,18 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   };
 
   const handleCompleteActivity = async (actId) => {
-    try { await pemsApi.completeActivity(actId); await loadTask(); if (onRefresh) onRefresh(); } catch (err) { console.error(err); }
+    try { await tasksApi.completeActivity(actId); await loadTask(); if (onRefresh) onRefresh(); } catch (err) { console.error(err); }
   };
 
   const handleCompleteSubTask = async (stId) => {
-    try { await pemsApi.completeSubTask(stId); await loadTask(); if (onRefresh) onRefresh(); } catch (err) { console.error(err); }
+    try { await tasksApi.completeSubTask(stId); await loadTask(); if (onRefresh) onRefresh(); } catch (err) { console.error(err); }
   };
 
   const handleReview = async () => {
     if (!reviewFeedback.trim()) return;
     setReviewSubmitting(true);
     try {
-      await pemsApi.submitReview({ taskInstanceId: taskId, decision: reviewDecision, feedback: reviewFeedback, qualityScore: reviewScore });
+      await tasksApi.submitReview({ taskInstanceId: taskId, decision: reviewDecision, feedback: reviewFeedback, qualityScore: reviewScore });
       await handleTransition(reviewDecision === 'APPROVE' ? 'APPROVED' : 'REJECTED', reviewFeedback);
       setReviewDecision(null); setReviewFeedback(''); setReviewScore(null);
       if (onRefresh) onRefresh();

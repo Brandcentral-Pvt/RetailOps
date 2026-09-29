@@ -2,7 +2,7 @@
    CommandCenterKpis — v2
    Redesigned KPI strip for the Task Execution Center.
    Same props API as v1: { kpi, risk, loading, onDrillDown, disputesOnly, onDisputesToggle }
-   Expected location: src/modules/pems/components/CommandCenterKpis.jsx
+   Expected location: src/modules/tasks/components/CommandCenterKpis.jsx
    ═══════════════════════════════════════════════════════════════════════════ */
 import React from 'react';
 import { Typography, Tooltip, Switch, Space } from 'antd';
@@ -35,10 +35,10 @@ function MiniTrend({ value, label }) {
 function KpiCard({ card }) {
   return (
     <Tooltip key={card.key} title={card.subtitle} placement="bottom">
-      <div className="pems-kpi-card" onClick={() => card.onClick?.()}>
+      <div className="tasks-kpi-card" onClick={() => card.onClick?.()}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ minWidth: 0 }}>
-            <div className="pems-section-label" style={{ marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="tasks-section-label" style={{ marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {card.title}
             </div>
             <div style={{
@@ -63,7 +63,7 @@ function KpiCard({ card }) {
             ? <MiniTrend value={card.trend} />
             : <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>{card.subtitle}</Text>}
         </div>
-        <div className="pems-kpi-accent" style={{ background: `linear-gradient(90deg, ${card.color}B3, ${card.color}14)` }} />
+        <div className="tasks-kpi-accent" style={{ background: `linear-gradient(90deg, ${card.color}B3, ${card.color}14)` }} />
       </div>
     </Tooltip>
   );
@@ -151,7 +151,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
         <Space size={8} align="center">
-          <span className="pems-live-dot" />
+          <span className="tasks-live-dot" />
           <Text style={{ fontSize: 13, fontWeight: 700, color: 'var(--bc-text-heading, #0f172a)', letterSpacing: '0.02em' }}>
             {title}
           </Text>
@@ -175,7 +175,7 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
           />
         </Space>
       </div>
-      <div className="pems-kpi-grid">
+      <div className="tasks-kpi-grid">
         {retailCards.map(card => <KpiCard key={card.key} card={card} />)}
       </div>
     </div>

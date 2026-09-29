@@ -5,7 +5,7 @@ import {
   ThunderboltOutlined, ReloadOutlined, CheckCircleOutlined,
   CalendarOutlined, ArrowRightOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { WORKFLOW_STATUSES, PRIORITIES } from '../constants';
 import { calculateHealth, getDueDateLabel, isOverdue } from '../utils/taskHealth';
 import dayjs from 'dayjs';
@@ -123,12 +123,12 @@ export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
     setLoading(true);
     try {
       const [liveRes, feedRes] = await Promise.all([
-        pemsApi.getLiveTasks({ status: 'UNDER_REVIEW' }),
-        pemsApi.getActivityFeed(),
+        tasksApi.getLiveTasks({ status: 'UNDER_REVIEW' }),
+        tasksApi.getActivityFeed(),
       ]);
       if (liveRes.success) setReviews(liveRes.data?.slice(0, 5) || []);
       if (feedRes.success) setRecent(feedRes.data?.slice(0, 8) || []);
-      const upcomingRes = await pemsApi.getLiveTasks({});
+      const upcomingRes = await tasksApi.getLiveTasks({});
       if (upcomingRes.success) {
         const tasks = (upcomingRes.data || [])
           .filter(t => t.DueDate && !isOverdue(t))

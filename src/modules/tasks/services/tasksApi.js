@@ -5,7 +5,7 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-const pemsApi = {
+const tasksApi = {
   // ── Templates ──
   getTemplates: async (params = {}) => {
     const q = new URLSearchParams(params).toString();
@@ -285,4 +285,4 @@ const pemsApi = {
   },
 };
 
-export default pemsApi;
+export default tasksApi;

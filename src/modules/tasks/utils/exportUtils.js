@@ -1,10 +1,10 @@
 /**
- * PEMS Export Utilities
+ * Task export utilities
  * Export tasks, analytics, and reports to Excel
  */
 import * as XLSX from 'xlsx';
 
-export function exportTasksToExcel(tasks, filename = 'PEMS_Tasks') {
+export function exportTasksToExcel(tasks, filename = 'Tasks') {
   const data = tasks.map((t, idx) => ({
     '#': idx + 1,
     'Task Code': t.InstanceCode,
@@ -46,7 +46,7 @@ export function exportTasksToExcel(tasks, filename = 'PEMS_Tasks') {
   XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-export function exportAnalyticsToExcel(analytics, filename = 'PEMS_Analytics') {
+export function exportAnalyticsToExcel(analytics, filename = 'Task_Analytics') {
   const wb = XLSX.utils.book_new();
 
   // Department Performance
@@ -95,7 +95,7 @@ export function exportAnalyticsToExcel(analytics, filename = 'PEMS_Analytics') {
   XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-export function exportReviewQueueToExcel(tasks, filename = 'PEMS_Review_Queue') {
+export function exportReviewQueueToExcel(tasks, filename = 'Task_Review_Queue') {
   const data = tasks.map((t, idx) => ({
     '#': idx + 1,
     'Task Code': t.InstanceCode,

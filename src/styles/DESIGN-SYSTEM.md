@@ -171,7 +171,7 @@ Categories:
   semantic:        --bc-primary-600, --bc-surface-card, --bc-text-body
   status:          --bc-status-success, --bc-status-danger-bg
   marketplace:     --bc-market-amazon, --bc-market-flipkart
-  module:          --bc-accent-gms, --bc-accent-pems
+  module:          --bc-accent-gms, --bc-accent-mte
   component:       --bc-btn-primary-bg, --bc-card-padding
 ```
 
