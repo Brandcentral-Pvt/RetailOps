@@ -956,7 +956,7 @@ const CorpDashboardPage = () => {
       {/* Row: Top ASINs / Tasks / Alerts */}
       <div className="corp-dash-row corp-dash-row--3c">
         <TopAsins products={topProducts || []} onView={() => navigate('/asin-tracker')} />
-        <TasksList tasks={optimizationTasks || []} onView={() => navigate('/pems/tasks')} />
+        <TasksList tasks={optimizationTasks || []} onView={() => navigate('/tasks/tasks')} />
         <AlertsList alerts={activityLogs || []} onView={() => navigate('/activity-log')} />
       </div>
 

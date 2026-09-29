@@ -176,9 +176,9 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'pems-dashboard',
-                    label: 'PEMS Dashboard',
-                    path: '/pems/dashboard',
+                    key: 'task-performance',
+                    label: 'Task Performance',
+                    path: '/tasks/dashboard',
                     icon: BarChart2,
                     section: 'automation',
                 }
@@ -186,9 +186,9 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_manage'),
                 {
-                    key: 'pems-templates',
+                    key: 'task-templates',
                     label: 'Task Templates',
-                    path: '/pems/templates',
+                    path: '/tasks/templates',
                     icon: ClipboardList,
                     section: 'automation',
                 }
@@ -198,7 +198,7 @@ export function useNavigationItems() {
                 {
                     key: 'tasks',
                     label: 'Tasks',
-                    path: '/pems/tasks',
+                    path: '/tasks/tasks',
                     icon: ListTodo,
                     section: 'automation',
                 }
@@ -206,9 +206,9 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'pems-reviews',
+                    key: 'task-reviews',
                     label: 'Review Queue',
-                    path: '/pems/reviews',
+                    path: '/tasks/reviews',
                     icon: UserCheck,
                     section: 'automation',
                 }
@@ -216,9 +216,9 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
-                    key: 'pems-analytics',
+                    key: 'task-analytics',
                     label: 'Analytics',
-                    path: '/pems/analytics',
+                    path: '/tasks/analytics',
                     icon: LineChart,
                     section: 'automation',
                 }

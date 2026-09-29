@@ -1,0 +1,487 @@
+/* ═══════════════════════════════════════════════════════════════
+   TaskPerformanceDashboard.module.css
+   Task Performance dashboard (/tasks/dashboard)
+   ═══════════════════════════════════════════════════════════════ */
+
+.page {
+  background: var(--bc-surface-page);
+  min-height: calc(100vh - 60px);
+}
+
+/* ── Page header ── */
+.header {
+  background: var(--bc-surface-card);
+  border-bottom: 1px solid var(--bc-border-default);
+  padding: 18px 24px 16px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--bc-text-xl);
+  font-weight: 600;
+  color: var(--bc-text-heading);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lastUpdated {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Sticky filter bar ── */
+.filterBar {
+  background: var(--bc-surface-card);
+  border-bottom: 1px solid var(--bc-border-default);
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filterSpacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.body {
+  padding: 16px 24px;
+}
+
+/* ── Section headings for the KPI groups ── */
+.groupLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--bc-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bc-text-secondary);
+  margin: 0 0 8px;
+}
+
+.groupLabelAccent {
+  color: var(--bc-primary-700);
+}
+
+.group {
+  margin-bottom: 16px;
+}
+
+/* ── KPI card ── */
+.kpiCard {
+  background: var(--bc-surface-card);
+  border: 1px solid var(--bc-border-default);
+  border-left: 3px solid var(--tone, var(--bc-primary-600));
+  border-radius: var(--bc-radius-lg);
+  padding: 12px 16px;
+  height: 100%;
+  min-height: 80px;
+}
+
+.kpiHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.kpiTitle {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  display: block;
+}
+
+.kpiValue {
+  font-size: var(--bc-text-2xl);
+  font-weight: 800;
+  color: var(--bc-text-heading);
+  line-height: 1.2;
+  margin-top: 4px;
+}
+
+.kpiSubtitle {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  margin-top: 2px;
+  display: block;
+}
+
+.kpiIcon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: var(--bc-radius-md);
+  background: var(--toneBg, var(--bc-surface-subtle));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--toneText, var(--bc-text-secondary));
+  font-size: var(--bc-text-lg);
+}
+
+.kpiTrendUp,
+.kpiTrendDown {
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  margin-top: 4px;
+  display: block;
+}
+
+.kpiTrendUp { color: var(--bc-status-success-text); }
+.kpiTrendDown { color: var(--bc-status-danger-text); }
+
+.kpiTrendLabel {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  margin-left: 4px;
+}
+
+/* ── Semantic tones ──
+   --tone     : bar / border accent (>= 3:1, non-text)
+   --toneText : text + icon colour (>= 4.5:1)
+   --toneBg   : tinted background for --toneText                    */
+.toneBrand   { --tone: var(--bc-primary-500);        --toneText: var(--bc-primary-700);         --toneBg: var(--bc-primary-100); }
+.toneSuccess { --tone: var(--bc-status-success);     --toneText: var(--bc-status-success-text); --toneBg: var(--bc-status-success-bg); }
+.toneWarning { --tone: var(--bc-status-warning);     --toneText: var(--bc-status-warning-text); --toneBg: var(--bc-status-warning-bg); }
+.toneDanger  { --tone: var(--bc-status-danger);      --toneText: var(--bc-status-danger-text);  --toneBg: var(--bc-status-danger-bg); }
+.toneInfo    { --tone: var(--bc-primary-500);        --toneText: var(--bc-primary-700);         --toneBg: var(--bc-primary-100); }
+.toneNeutral { --tone: var(--bc-slate-400);          --toneText: var(--bc-slate-600);           --toneBg: var(--bc-surface-subtle); }
+
+/* ── Status / priority / SLA tags ── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.tagSm {
+  border-radius: var(--bc-radius-md);
+  padding: 1px 7px;
+}
+
+.tagSuccess { background: var(--bc-status-success-bg); color: var(--bc-status-success-text); border-color: var(--bc-green-200); }
+.tagInfo    { background: var(--bc-primary-100);        color: var(--bc-primary-700);        border-color: var(--bc-primary-200); }
+.tagAccent  { background: var(--bc-violet-100);         color: var(--bc-violet-700);         border-color: var(--bc-violet-100); }
+.tagWarning { background: var(--bc-status-warning-bg); color: var(--bc-status-warning-text); border-color: var(--bc-amber-200); }
+.tagDanger  { background: var(--bc-status-danger-bg);  color: var(--bc-status-danger-text);  border-color: var(--bc-red-200); }
+.tagNeutral { background: var(--bc-surface-subtle);    color: var(--bc-slate-600);           border-color: var(--bc-border-default); }
+
+/* ── Pipeline funnel ── */
+.funnelRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.funnelLabel {
+  width: 90px;
+  flex: 0 0 90px;
+  text-align: right;
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  font-weight: 500;
+}
+
+.funnelTrack {
+  flex: 1;
+  height: 22px;
+  background: var(--bc-surface-subtle);
+  border-radius: var(--bc-radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.funnelFill {
+  height: 100%;
+  border-radius: var(--bc-radius-sm);
+  transition: width 0.5s ease;
+}
+
+.funnelValue {
+  width: 40px;
+  flex: 0 0 40px;
+  text-align: right;
+  font-size: var(--bc-text-sm);
+  font-weight: 600;
+  color: var(--bc-text-heading);
+}
+
+.funnelPct {
+  width: 36px;
+  flex: 0 0 36px;
+  text-align: right;
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+}
+
+/* ── Status distribution chips ── */
+.distGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.distChip {
+  padding: 6px 12px;
+  border-radius: var(--bc-radius-md);
+  min-width: 80px;
+  text-align: center;
+  cursor: default;
+}
+
+.distValue {
+  font-size: var(--bc-text-lg);
+  font-weight: 800;
+}
+
+.distLabel {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  font-weight: 600;
+}
+
+/* ── Risk center ── */
+.riskGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.riskCard {
+  padding: 10px 12px;
+  border-radius: var(--bc-radius-md);
+  border: 1px solid var(--bc-border-subtle);
+}
+
+.riskHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.riskValue {
+  font-size: var(--bc-text-xl);
+  font-weight: 800;
+}
+
+.riskLabel {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* ── Leaderboards ── */
+.leader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leaderAvatar {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: var(--bc-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--bc-text-xs);
+}
+
+.leaderAvatarTop {
+  background: var(--bc-status-warning-bg);
+  color: var(--bc-status-warning-text);
+}
+
+.leaderAvatarRest {
+  background: var(--bc-surface-subtle);
+  color: var(--bc-text-secondary);
+}
+
+/* ── Activity feed ── */
+.feedItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--bc-border-subtle);
+}
+
+.feedIcon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: var(--bc-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.feedDetails {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  display: block;
+  margin-top: 2px;
+}
+
+.feedTime {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Workload ── */
+.workloadRow + .workloadRow {
+  margin-top: 8px;
+}
+
+.workloadHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--bc-text-xs);
+}
+
+.workloadBar {
+  display: flex;
+  height: 16px;
+  border-radius: var(--bc-radius-sm);
+  overflow: hidden;
+  background: var(--bc-surface-subtle);
+}
+
+.workloadSeg {
+  transition: width 0.3s;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+}
+
+.legendSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* ── Table zebra (replaces the dead `bg-gray-50` Tailwind class) ── */
+.zebraRow > td {
+  background: var(--bc-surface-page) !important;
+}
+
+.zebraRow:hover > td {
+  background: var(--bc-surface-subtle) !important;
+}
+
+/* antd renders Badge counts at 10px by default; lift them to the 11px floor
+   this page uses everywhere else. (Progress labels are rendered by us, so
+   they are styled directly rather than overridden.) */
+.page :global(.ant-badge-count) {
+  font-size: var(--bc-text-xs);
+}
+
+.progressLabel {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+}
+
+/* ── Shared text helpers ── */
+.valueSuccess { color: var(--bc-status-success-text); }
+.valueWarning { color: var(--bc-status-warning-text); }
+.valueDanger  { color: var(--bc-status-danger-text); }
+.valueInfo    { color: var(--bc-primary-700); }
+.valueBody    { color: var(--bc-text-body); }
+.valueSecondary { color: var(--bc-text-secondary); }
+.strongText   { color: var(--bc-text-heading); font-weight: 600; }
+.monoText {
+  font-family: var(--bc-font-mono, ui-monospace, monospace);
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+}
+
+.linkText { cursor: pointer; text-decoration: underline; }
+.linkText:hover { text-decoration: none; }
+
+/* antd Progress reads `currentColor` for the bar, so the colour lives here */
+.progressSuccess { color: var(--bc-status-success); }
+.progressWarning { color: var(--bc-status-warning); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .header { padding: 16px 16px 14px; }
+  .filterBar { padding: 12px 16px; }
+  .body { padding: 16px; }
+  .title { font-size: var(--bc-text-lg); }
+}
+
+@media (max-width: 640px) {
+  .filterSpacer { display: none; }
+  .headerActions, .filterRow { width: 100%; }
+}

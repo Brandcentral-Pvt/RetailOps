@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Input, Select, Tag, Space, Modal, Form, Typography, Popconfirm, Row, Col, InputNumber, Switch, Tooltip, Empty, App, Drawer, Tabs, Divider, Progress } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, OrderedListOutlined, SaveOutlined, SettingOutlined, UserOutlined, ThunderboltOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { FREQUENCIES, CATEGORIES, PRIORITIES, TARGET_TYPES, DEPARTMENTS, COMPLEXITY_LEVELS, APPROVAL_LEVELS, AUTO_ASSIGN_STRATEGIES } from '../constants';
 
 const { Text } = Typography;
@@ -131,7 +131,7 @@ export default function TaskTemplatesPage() {
       if (search) params.search = search;
       if (categoryFilter) params.category = categoryFilter;
       if (frequencyFilter) params.frequency = frequencyFilter;
-      const res = await pemsApi.getTemplates(params);
+      const res = await tasksApi.getTemplates(params);
       if (res.success) { setTemplates(res.templates); setPagination(res.pagination); }
     } catch { message.error('Failed to load templates'); }
     finally { setLoading(false); }
@@ -183,7 +183,7 @@ export default function TaskTemplatesPage() {
     }
     // Load assignment rules
     try {
-      const detailRes = await pemsApi.getTemplateDetail(record.Id);
+      const detailRes = await tasksApi.getTemplateDetail(record.Id);
       if (detailRes.success && detailRes.data.assignmentRules) {
         const r = detailRes.data.assignmentRules;
         setAssignmentMode(r.AssignmentMode || 'manual');
@@ -227,20 +227,20 @@ export default function TaskTemplatesPage() {
       setSaving(true);
       let templateId;
       if (editingTemplate) {
-        await pemsApi.updateTemplate(editingTemplate.Id, { ...values, subTaskDefinitions: phases });
+        await tasksApi.updateTemplate(editingTemplate.Id, { ...values, subTaskDefinitions: phases });
         templateId = editingTemplate.Id;
         message.success('Template updated');
       } else {
-        const res = await pemsApi.createTemplate({ ...values, subTaskDefinitions: phases });
+        const res = await tasksApi.createTemplate({ ...values, subTaskDefinitions: phases });
         templateId = res.data?.id;
         message.success('Template created');
       }
       // Save sub tasks and assignment rules
       if (templateId) {
         if (subTasks.length > 0 && subTasks.some(st => st.title)) {
-          await pemsApi.updateTemplate(templateId, { subTaskDefinitions: phases });
+          await tasksApi.updateTemplate(templateId, { subTaskDefinitions: phases });
         }
-        await pemsApi.upsertAssignmentRules(templateId, {
+        await tasksApi.upsertAssignmentRules(templateId, {
           assignmentMode, autoAssignStrategy: autoStrategy,
           approvalLevel, escalationHours, qualityScoreRequired,
         });
@@ -252,7 +252,7 @@ export default function TaskTemplatesPage() {
   };
 
   const handleDelete = async (id) => {
-    try { await pemsApi.deleteTemplate(id); message.success('Template deleted'); loadTemplates(pagination.page); }
+    try { await tasksApi.deleteTemplate(id); message.success('Template deleted'); loadTemplates(pagination.page); }
     catch { message.error('Failed to delete'); }
   };
 
@@ -276,7 +276,7 @@ export default function TaskTemplatesPage() {
     {
       title: 'Actions', key: 'actions', width: 140, align: 'right', render: (_, record) => (
         <Space size={2}>
-          <Tooltip title="View"><Button type="text" icon={<EyeOutlined />} size="small" onClick={() => navigate(`/pems/templates/${record.Id}`)} style={{ color: '#2563eb' }} /></Tooltip>
+          <Tooltip title="View"><Button type="text" icon={<EyeOutlined />} size="small" onClick={() => navigate(`/tasks/templates/${record.Id}`)} style={{ color: '#2563eb' }} /></Tooltip>
           <Tooltip title="Edit"><Button type="text" icon={<EditOutlined />} size="small" onClick={() => openEditDrawer(record)} /></Tooltip>
           <Tooltip title="Clone"><Button type="text" icon={<CopyOutlined />} size="small" onClick={() => openDuplicateDrawer(record)} /></Tooltip>
           <Popconfirm title="Delete?" onConfirm={() => handleDelete(record.Id)}>

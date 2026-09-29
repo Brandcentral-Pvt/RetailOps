@@ -6,7 +6,7 @@ import {
   EyeOutlined, WarningOutlined, ClockCircleOutlined, SafetyCertificateOutlined, CalendarOutlined,
   AuditOutlined, DownloadOutlined, RightOutlined, DownOutlined, MinusOutlined, FileTextOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { WORKFLOW_STATUSES, SLA_STATUSES, PRIORITIES, DEPARTMENTS } from '../constants';
 import { getDueDateLabel, isOverdue } from '../utils/taskHealth';
 import { hasPermission } from '../utils/rbac';
@@ -57,8 +57,8 @@ export default function ReviewQueuePage() {
       }
 
       const [instRes, sumRes] = await Promise.all([
-        pemsApi.getInstances(params),
-        pemsApi.getDashboardSummary(),
+        tasksApi.getInstances(params),
+        tasksApi.getDashboardSummary(),
       ]);
 
       let data = [];
@@ -93,8 +93,8 @@ export default function ReviewQueuePage() {
     if (selectedIds.size === 0 || !hasPermission(currentUser, 'review.approve')) return;
     try {
       for (const id of selectedIds) {
-        await pemsApi.submitReview({ taskInstanceId: id, decision: 'APPROVE', feedback: 'Bulk approved' });
-        await pemsApi.transitionStatus(id, 'APPROVED', 'Bulk approved');
+        await tasksApi.submitReview({ taskInstanceId: id, decision: 'APPROVE', feedback: 'Bulk approved' });
+        await tasksApi.transitionStatus(id, 'APPROVED', 'Bulk approved');
       }
       message.success(`Approved ${selectedIds.size} tasks`);
       setSelectedIds(new Set()); loadInstances();
