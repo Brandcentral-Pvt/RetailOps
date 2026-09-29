@@ -13,14 +13,93 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 8px 16px;
 }
 
 .toolbarLeft {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Label, count pill and the collapse chevron stay on one line as a unit. */
+.inventoryLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-primary, #18181b);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* Right-hand control cluster. It used to be flex-shrink: 0, which pinned a
+   ~600px block that forced the whole toolbar to overflow. */
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Icon-only buttons: fixed square, touch-target sized at every breakpoint. */
+.iconButton {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+/* Inline chevron next to the "Inventory" label. It used to be a 20px box,
+   which is below a usable tap target. */
+.collapseToggle {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+@media (pointer: coarse) {
+  .collapseToggle {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+  }
+}
+
+/* Shared look for the labelled toolbar buttons. Height comes from antd's
+   default `middle` size so every control in the row lines up. */
+.toolbarButton {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+}
+
+.marketplaceSwitch,
+.viewModeSwitch {
+  border-radius: 6px;
+  flex: 0 0 auto;
+}
+
+.marketplaceSwitch {
+  background: var(--bg-active, #f1f5f9);
+  padding: 2px;
+}
+
+.progressChip {
+  height: 32px;
+  border-color: var(--border-light, #e2e8f0);
+  flex: 0 0 auto;
 }
 
 .toolbarRight {
@@ -29,12 +108,30 @@
   gap: 8px;
 }
 
-.searchInput {
-  width: 230px;
+/* InfiniteScrollSelect ships no stylesheet of its own, so its trigger renders
+   as bare text. The wrapper gives it a real control box so it lines up with
+   the 32px row instead of collapsing to a line of text. */
+.sellerSelectWrapper {
+  flex: 1 1 150px;
+  min-width: 0;
+  max-width: 200px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  overflow: hidden;
+  background: var(--bg-secondary, #fff);
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: var(--radius-md);
 }
 
-.sellerSelectWrapper {
-  width: 160px;
+/* Search and seller select grow into the available space but never force the
+   toolbar wider than its container. */
+.searchInput {
+  flex: 1 1 190px;
+  min-width: 0;
+  max-width: 260px;
 }
 
 /* Filter drawer */
@@ -126,28 +223,41 @@
 
 @media (max-width: 768px) {
   .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 12px 16px;
-    gap: 12px;
+    padding: 10px 12px;
+    gap: 8px;
   }
   .toolbarLeft {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-  .toolbarLeft > div {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .toolbarRight {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    /* Each control takes its own row; nothing may exceed the viewport. */
+    flex: 1 1 100%;
     gap: 8px;
   }
   .searchInput,
   .sellerSelectWrapper {
-    width: 100% !important;
-    flex: 1;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  .toolbarActions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .marketplaceSwitch,
+  .viewModeSwitch {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar {
+    padding: 10px;
+  }
+  /* Icon-only controls stay a comfortable 32px; labelled buttons keep their
+     text so they never get squeezed into an ellipsis. */
+  .toolbarButton {
+    flex: 0 0 auto;
+  }
+  .marketplaceSwitch,
+  .viewModeSwitch {
+    flex: 1 1 100%;
   }
 }
