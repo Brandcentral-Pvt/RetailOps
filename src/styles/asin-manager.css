@@ -1,309 +1,840 @@
 /* ==========================================================================
-   ASIN Manager — scoped component layer
-   Tokens only; no raw hex. Density + focus rings live here so the grid stops
-   relying on per-cell inline styles.
+   ASIN Manager — Modern Datatable Design System
+   Professional datatable with sticky columns, visual hierarchy, animations
    ========================================================================== */
 
-.asin-manager {
-  display: flex;
-  flex-direction: column;
-  gap: var(--bc-space-3);
-  min-height: 0;
+/* ==========================================================================
+   Design Tokens — Datatable Specific
+   ========================================================================== */
+
+:root {
+  /* Datatable specific tokens */
+  --dt-header-height: 48px;
+  --dt-header-height-compact: 40px;
+  --dt-row-height: 44px;
+  --dt-row-height-compact: 36px;
+  --dt-cell-padding-x: var(--bc-space-3);
+  --dt-cell-padding-y: var(--bc-space-2);
+  --dt-border-width: 1px;
+  --dt-border-color: var(--bc-border-subtle);
+  --dt-hover-bg: var(--bc-surface-hover);
+  --dt-selected-bg: var(--bc-status-info-bg);
+  --dt-selected-border: var(--bc-status-info);
+  --dt-sticky-z-index: 10;
+  --dt-sticky-header-z: 20;
+  --dt-sticky-col-z: 15;
+  --dt-group-header-bg: var(--bc-surface-muted);
+  --dt-group-header-border: var(--bc-border-subtle);
+  --dt-expand-transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --dt-sort-icon-size: 12px;
+  --dt-checkbox-size: 16px;
+  --dt-expand-btn-size: 20px;
+  --dt-row-gap: 0;
+  --dt-cell-min-width: 80px;
 }
 
-/* --------------------------------------------------------------- Badges -- */
+/* Density variants */
+.asin-grid--comfortable { --dt-row-height: 44px; --dt-header-height: 48px; }
+.asin-grid--compact { --dt-row-height: 36px; --dt-header-height: 40px; }
+.asin-grid--cozy { --dt-row-height: 52px; --dt-header-height: 56px; }
 
-.asin-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--bc-space-1.5);
-}
+/* ==========================================================================
+   Datatable Container & Scroll
+   ========================================================================== */
 
-.asin-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--bc-space-1.5);
-  height: 26px;
-  padding-inline: var(--bc-space-2);
-  border: 1px solid var(--bc-border-subtle);
-  border-radius: var(--bc-radius-md);
-  background: var(--bc-surface-muted);
-  color: var(--bc-text-body);
-  font-size: var(--bc-text-2xs);
-  box-shadow: var(--bc-shadow-xs);
-}
-
-.asin-badge__icon {
-  flex: none;
-  opacity: 0.8;
-}
-
-.asin-badge__label {
-  font-weight: 600;
-  font-size: var(--bc-text-2xs);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.asin-badge__value {
-  font-weight: 600;
-  max-width: 180px;
+.asin-grid-wrapper {
+  position: relative;
+  width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-radius: var(--bc-radius-lg);
+  border: var(--dt-border-width) solid var(--dt-border-color);
+  background: var(--bc-surface-card);
+  box-shadow: var(--bc-shadow-sm);
 }
-
-.asin-badge__value--query {
-  font-style: italic;
-}
-
-.asin-badge--seller {
-  background: var(--bc-text-heading);
-  border-color: var(--bc-text-heading);
-  color: var(--bc-text-inverse);
-}
-
-.asin-badge--search {
-  background: var(--bc-status-warning-bg);
-  border-color: var(--bc-status-warning);
-  color: var(--bc-status-warning-text);
-}
-
-.asin-badge--tag {
-  background: var(--bc-status-info-bg);
-  border-color: var(--bc-status-info);
-  color: var(--bc-status-info-text);
-}
-
-.asin-badge__clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  margin-left: var(--bc-space-0.5);
-  padding: 0;
-  border: 0;
-  border-radius: var(--bc-radius-sm);
-  background: transparent;
-  color: inherit;
-  opacity: 0.6;
-  cursor: pointer;
-  transition: opacity 120ms ease, color 120ms ease;
-}
-
-.asin-badge__clear:hover {
-  opacity: 1;
-  color: var(--bc-status-danger);
-}
-
-.asin-badge__clear--onDark:hover {
-  color: var(--bc-text-inverse);
-}
-
-.asin-badge__clear:focus-visible {
-  outline: 2px solid var(--bc-border-focus);
-  outline-offset: 1px;
-  opacity: 1;
-}
-
-/* ----------------------------------------------------------------- Grid -- */
 
 .asin-grid-scroll {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid var(--bc-border-subtle);
-  border-radius: var(--bc-radius-lg);
-  background: var(--bc-surface-card);
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 320px);
+  min-height: 400px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bc-border-strong) transparent;
 }
+
+.asin-grid-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.asin-grid-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.asin-grid-scroll::-webkit-scrollbar-thumb {
+  background: var(--bc-border-strong);
+  border-radius: var(--bc-radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.asin-grid-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--bc-text-muted);
+}
+
+/* ==========================================================================
+   Table Core
+   ========================================================================== */
 
 .asin-grid {
   width: 100%;
+  min-width: max-content;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--bc-text-sm);
+  font-family: var(--bc-font-mono), ui-monospace, monospace;
+  table-layout: fixed;
 }
 
-.asin-grid thead th {
+.asin-grid thead {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: var(--dt-sticky-header-z);
+}
+
+.asin-grid th {
+  position: sticky;
+  top: 0;
   background: var(--bc-surface-elevated);
   color: var(--bc-text-secondary);
   font-size: var(--bc-text-2xs);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   text-align: left;
   white-space: nowrap;
-  padding: var(--bc-space-2) var(--bc-space-2.5);
-  border-bottom: 1px solid var(--bc-border-default);
-  border-right: 1px solid var(--bc-border-subtle);
+  padding: var(--bc-space-2) var(--bc-space-3);
+  border-bottom: 2px solid var(--bc-border-default);
+  border-right: var(--dt-border-width) solid var(--dt-border-color);
+  vertical-align: bottom;
+  transition: background-color var(--dt-expand-transition);
 }
 
+.asin-grid th:last-child {
+  border-right: none;
+}
+
+/* Group header row (second row for expandable columns) */
 .asin-grid thead tr:nth-child(2) th {
-  top: 33px;
-  z-index: 3;
+  top: var(--dt-header-height);
+  background: var(--dt-group-header-bg);
+  border-bottom: 1px solid var(--dt-group-header-border);
+  font-size: var(--bc-text-3xs);
+  font-weight: 600;
+  padding: var(--bc-space-1.5) var(--bc-space-3);
 }
 
-.asin-grid tbody td {
-  padding: var(--bc-space-1.5) var(--bc-space-2.5);
-  border-bottom: 1px solid var(--bc-border-subtle);
-  border-right: 1px solid var(--bc-border-subtle);
-  color: var(--bc-text-body);
-  vertical-align: middle;
+.asin-grid thead tr:nth-child(2) th:first-child {
+  border-left: var(--dt-border-width) solid var(--dt-border-color);
 }
 
-.asin-grid tbody tr:hover td {
-  background: var(--bc-surface-hover);
-}
-
-.asin-grid tbody tr.is-selected td {
-  background: var(--bc-status-info-bg);
-}
-
-/* Out-of-stock rows stay legible but recede; selection and hover still win
-   so an unavailable row can be acted on. */
-.asin-grid tbody tr.asin-grid__row--unavailable td {
-  background: var(--bc-status-danger-bg);
-}
-
-.asin-grid tbody tr.asin-grid__row--unavailable:hover td,
-.asin-grid tbody tr.asin-grid__row--unavailable.is-selected td {
-  background: var(--bc-status-danger-bg);
-}
-
-/* Identity columns stay put while the metric axes scroll horizontally. */
-.asin-grid .asin-grid__sticky {
-  position: sticky;
-  z-index: 2;
-  background: var(--bc-surface-card);
-}
-
-.asin-grid thead .asin-grid__sticky {
-  z-index: 4;
-  background: var(--bc-surface-elevated);
-}
-
-.asin-grid tbody tr:hover .asin-grid__sticky {
-  background: var(--bc-surface-hover);
-}
-
-.asin-grid tbody tr.is-selected .asin-grid__sticky {
-  background: var(--bc-status-info-bg);
-}
-
-/* Offsets assume the select column is present. The --sticky--select-only
-   modifier is applied when it is hidden, so a visible column never lands
-   under a pinned one. */
-.asin-grid__sticky--select { left: 0; min-width: 36px; }
-.asin-grid__sticky--asin   { left: 36px; min-width: 104px; }
-.asin-grid__sticky--title  { left: 140px; min-width: 260px; }
-.asin-grid__sticky--select-only { left: 0; min-width: 104px; }
-.asin-grid__sticky--actions { right: 0; min-width: 56px; }
-
-/* ------------------------------------------------------- Parent drill -- */
-
-/* Children sit indented beneath their parent row so the hierarchy reads
-   even when the expand caret is scrolled out of view. */
-.asin-row--child td:first-child {
-  box-shadow: inset 2px 0 0 0 var(--bc-border-strong);
-}
-
-.asin-row--child td {
-  font-size: var(--bc-text-xs);
-  color: var(--bc-text-secondary);
-}
-
-.asin-row--child:hover td {
-  background: var(--bc-surface-hover);
-}
-
-.asin-inline-spinner {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1.5px solid var(--bc-border-strong);
-  border-top-color: var(--bc-text-brand);
-  border-radius: var(--bc-radius-full);
-  animation: asin-spin 640ms linear infinite;
-}
-
-@keyframes asin-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .asin-inline-spinner {
-    animation-duration: 2400ms;
-  }
-}
-
-/* --------------------------------------------------------- Interactions -- */
-
-.asin-grid__sort {
+/* Sortable header button */
+.dt-sort-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--bc-space-1);
   width: 100%;
   padding: 0;
-  border: 0;
+  border: none;
   background: transparent;
   color: inherit;
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+  text-align: inherit;
   cursor: pointer;
+  border-radius: var(--bc-radius-sm);
+  transition: color 120ms ease, background-color 120ms ease;
+  white-space: nowrap;
 }
 
-.asin-grid__sort:hover {
-  color: var(--bc-text-heading);
+.dt-sort-btn:hover {
+  color: var(--bc-text-brand);
+  background: var(--bc-surface-hover);
 }
 
-.asin-grid__sort:focus-visible {
+.dt-sort-btn:focus-visible {
   outline: 2px solid var(--bc-border-focus);
   outline-offset: 2px;
-  border-radius: var(--bc-radius-sm);
 }
 
-.asin-grid__sort-icon {
+.dt-sort-icon {
   display: inline-flex;
   flex-direction: column;
-  flex: none;
-  margin-left: var(--bc-space-1);
+  gap: -2px;
+  flex-shrink: 0;
   opacity: 0.4;
+  transition: opacity 120ms ease, color 120ms ease;
 }
 
-.asin-grid__sort-icon--active {
+.dt-sort-btn[aria-sort="ascending"] .dt-sort-icon,
+.dt-sort-btn[aria-sort="descending"] .dt-sort-icon {
   opacity: 1;
   color: var(--bc-text-brand);
 }
 
-.asin-grid__cell-action {
-  border: 0;
-  background: transparent;
+.dt-sort-icon svg {
+  width: var(--dt-sort-icon-size);
+  height: var(--dt-sort-icon-size);
+}
+
+/* ==========================================================================
+   Sticky Columns — Identity Axis
+   ========================================================================== */
+
+.asin-grid .dt-sticky-col {
+  position: sticky;
+  z-index: var(--dt-sticky-col-z);
+  background: var(--bc-surface-card);
+  border-right: 2px solid var(--bc-border-default);
+}
+
+/* Checkbox column */
+.asin-grid .dt-sticky-col--select {
+  left: 0;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
   padding: 0;
-  color: var(--bc-text-brand);
-  font: inherit;
+  text-align: center;
+  border-right: 2px solid var(--bc-border-default);
+}
+
+/* ASIN column */
+.asin-grid .dt-sticky-col--asin {
+  left: 48px;
+  min-width: 120px;
+  max-width: 200px;
+  border-right: 2px solid var(--bc-border-default);
+}
+
+/* Title column */
+.asin-grid .dt-sticky-col--title {
+  left: 168px;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+/* GMS sticky column */
+.asin-grid .dt-sticky-col--gms {
+  left: calc(168px + 200px); /* adjust based on title width */
+}
+
+/* Actions column (right sticky) */
+.asin-grid .dt-sticky-col--actions {
+  position: sticky;
+  right: 0;
+  z-index: var(--dt-sticky-col-z);
+  background: var(--bc-surface-card);
+  border-left: 2px solid var(--bc-border-default);
+  min-width: 56px;
+  width: 56px;
+  max-width: 56px;
+}
+
+/* Header sticky variants */
+.asin-grid thead .dt-sticky-col {
+  z-index: calc(var(--dt-sticky-header-z) + 5);
+}
+
+.asin-grid thead tr:nth-child(2) .dt-sticky-col {
+  z-index: calc(var(--dt-sticky-header-z) + 4);
+}
+
+/* Hover states for sticky columns */
+.asin-grid tbody tr:hover .dt-sticky-col {
+  background: var(--dt-hover-bg);
+}
+
+.asin-grid tbody tr.dt-row--selected .dt-sticky-col {
+  background: var(--dt-selected-bg);
+}
+
+/* ==========================================================================
+   Table Body
+   ========================================================================== */
+
+.asin-grid tbody {
+  background: var(--bc-surface-card);
+}
+
+.asin-grid td {
+  padding: var(--dt-cell-padding-y) var(--dt-cell-padding-x);
+  border-bottom: var(--dt-border-width) solid var(--dt-border-color);
+  border-right: var(--dt-border-width) solid var(--dt-border-color);
+  color: var(--bc-text-body);
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--dt-expand-transition);
+}
+
+.asin-grid td:last-child {
+  border-right: none;
+}
+
+/* Row states */
+.asin-grid tbody tr {
+  transition: background-color var(--dt-expand-transition);
+}
+
+.asin-grid tbody tr:hover {
+  background: var(--dt-hover-bg);
+}
+
+.asin-grid tbody tr.dt-row--selected {
+  background: var(--dt-selected-bg);
+}
+
+.asin-grid tbody tr.dt-row--selected:hover {
+  background: var(--dt-selected-bg);
+}
+
+.asin-grid tbody tr.dt-row--selected td {
+  background: var(--dt-selected-bg);
+}
+
+/* Unavailable/out of stock row */
+.asin-grid tbody tr.dt-row--unavailable {
+  opacity: 0.6;
+}
+
+.asin-grid tbody tr.dt-row--unavailable:hover {
+  background: var(--dt-hover-bg);
+  opacity: 1;
+}
+
+/* Child row (parent drill-down) */
+.asin-grid tbody tr.dt-row--child {
+  background: var(--bc-surface-muted);
+  font-size: var(--bc-text-xs);
+}
+
+.asin-grid tbody tr.dt-row--child td {
+  color: var(--bc-text-secondary);
+  padding-left: calc(var(--dt-cell-padding-x) + 16px);
+}
+
+.asin-grid tbody tr.dt-row--child td:first-child {
+  border-left: 2px solid var(--bc-border-strong);
+}
+
+.asin-grid tbody tr.dt-row--child:hover {
+  background: var(--dt-hover-bg);
+}
+
+/* Loading row */
+.asin-grid tbody tr.dt-row--loading td {
+  text-align: center;
+  color: var(--bc-text-muted);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   Expand/Collapse — Parent Rows
+   ========================================================================== */
+
+.dt-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--dt-expand-btn-size);
+  height: var(--dt-expand-btn-size);
+  margin-right: var(--bc-space-1.5);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-sm);
+  background: var(--bc-surface-secondary);
+  color: var(--bc-text-secondary);
   cursor: pointer;
-  text-align: left;
+  transition: all var(--dt-expand-transition);
 }
 
-.asin-grid__cell-action:hover {
-  text-decoration: underline;
+.dt-expand-btn:hover {
+  background: var(--bc-surface-hover);
+  border-color: var(--bc-border-strong);
+  color: var(--bc-text-brand);
 }
 
-.asin-grid__cell-action:focus-visible {
+.dt-expand-btn:focus-visible {
   outline: 2px solid var(--bc-border-focus);
   outline-offset: 2px;
+}
+
+.dt-expand-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+  transition: transform var(--dt-expand-transition);
+}
+
+.dt-expand-btn[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.dt-expand-btn.loading svg {
+  animation: dt-spin 800ms linear infinite;
+}
+
+@keyframes dt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Child count badge */
+.dt-child-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: var(--bc-space-1);
+  padding: 0 var(--bc-space-1);
+  border-radius: var(--bc-radius-full);
+  background: var(--bc-surface-muted);
+  color: var(--bc-text-muted);
+  font-size: var(--bc-text-3xs);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Checkbox — Selection
+   ========================================================================== */
+
+.dt-checkbox {
+  appearance: none;
+  width: var(--dt-checkbox-size);
+  height: var(--dt-checkbox-size);
+  border: 2px solid var(--bc-border-strong);
+  border-radius: var(--bc-radius-sm);
+  background: var(--bc-surface-card);
+  cursor: pointer;
+  transition: all 120ms ease;
+  flex-shrink: 0;
+}
+
+.dt-checkbox:checked {
+  background: var(--bc-text-brand);
+  border-color: var(--bc-text-brand);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M4 8l3 3 5-5'/%3e%3c/svg%3e");
+  background-size: 12px 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: var(--bc-text-brand);
+}
+
+.dt-checkbox:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 2px;
+}
+
+.dt-checkbox:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Expand/Collapse — Trend Columns
+   ========================================================================== */
+
+.dt-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--dt-expand-btn-size);
+  height: var(--dt-expand-btn-size);
+  margin-left: var(--bc-space-1);
+  border: none;
+  border-radius: var(--bc-radius-sm);
+  background: transparent;
+  color: var(--bc-text-secondary);
+  cursor: pointer;
+  transition: all var(--dt-expand-transition);
+}
+
+.dt-group-toggle:hover {
+  background: var(--bc-surface-hover);
+  color: var(--bc-text-brand);
   border-radius: var(--bc-radius-sm);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .asin-badge__clear {
-    transition: none;
+.dt-group-toggle:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 2px;
+}
+
+.dt-group-toggle svg {
+  width: 12px;
+  height: 12px;
+  transition: transform var(--dt-expand-transition);
+}
+
+.dt-group-toggle[aria-expanded="true"] svg {
+  transform: rotate(-90deg);
+}
+
+/* ==========================================================================
+   Trend Indicators
+   ========================================================================== */
+
+.dt-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--bc-text-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dt-trend--positive {
+  color: var(--bc-status-success);
+}
+
+.dt-trend--negative {
+  color: var(--bc-status-danger);
+}
+
+.dt-trend--neutral {
+  color: var(--bc-text-muted);
+}
+
+.dt-trend svg {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Badges & Status
+   ========================================================================== */
+
+.dt-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--bc-space-1.5);
+  border-radius: var(--bc-radius-full);
+  font-size: var(--bc-text-3xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dt-badge--success {
+  background: var(--bc-status-success-bg);
+  color: var(--bc-status-success-text);
+}
+
+.dt-badge--warning {
+  background: var(--bc-status-warning-bg);
+  color: var(--bc-status-warning-text);
+}
+
+.dt-badge--danger {
+  background: var(--bc-status-danger-bg);
+  color: var(--bc-status-danger-text);
+}
+
+.dt-badge--info {
+  background: var(--bc-status-info-bg);
+  color: var(--bc-status-info-text);
+}
+
+.dt-badge--neutral {
+  background: var(--bc-surface-muted);
+  color: var(--bc-text-muted);
+}
+
+/* ==========================================================================
+   Sortable Column Indicators
+   ========================================================================== */
+
+.th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.th-sortable:hover {
+  background: var(--bc-surface-hover);
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+
+.dt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--bc-space-12) var(--bc-space-6);
+  color: var(--bc-text-muted);
+  text-align: center;
+}
+
+.dt-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--bc-space-4);
+  opacity: 0.4;
+  color: var(--bc-text-muted);
+}
+
+.dt-empty-title {
+  font-size: var(--bc-text-lg);
+  font-weight: 600;
+  color: var(--bc-text-heading);
+  margin-bottom: var(--bc-space-1);
+}
+
+.dt-empty-desc {
+  font-size: var(--bc-text-sm);
+  max-width: 320px;
+  margin-bottom: var(--bc-space-4);
+}
+
+.dt-empty-action {
+  margin-top: var(--bc-space-2);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+.dt-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--bc-surface-card-rgb), 0.8);
+  z-index: 50;
+}
+
+.dt-skeleton-row {
+  height: var(--dt-row-height);
+  animation: dt-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dt-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.dt-skeleton-cell {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--bc-surface-muted) 25%,
+    var(--bc-surface-hover) 50%,
+    var(--bc-surface-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: dt-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes dt-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+   Column Visibility Panel Integration
+   ========================================================================== */
+
+.dt-col-vis-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bc-space-1.5);
+  padding: var(--bc-space-1.5) var(--bc-space-3);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-md);
+  background: var(--bc-surface-card);
+  color: var(--bc-text-body);
+  font-size: var(--bc-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.dt-col-vis-toggle:hover {
+  border-color: var(--bc-border-strong);
+  box-shadow: var(--bc-shadow-sm);
+}
+
+.dt-col-vis-toggle:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 2px;
+}
+
+.dt-col-vis-toggle svg {
+  width: 18px;
+  height: 18px;
+  color: var(--bc-text-muted);
+}
+
+/* ==========================================================================
+   Density Selector
+   ========================================================================== */
+
+.dt-density-selector {
+  display: inline-flex;
+  gap: var(--bc-space-1);
+  padding: var(--bc-space-1);
+  background: var(--bc-surface-muted);
+  border-radius: var(--bc-radius-md);
+}
+
+.dt-density-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bc-space-1);
+  padding: var(--bc-space-1) var(--bc-space-2);
+  border: none;
+  border-radius: var(--bc-radius-sm);
+  background: transparent;
+  color: var(--bc-text-secondary);
+  font-size: var(--bc-text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.dt-density-btn:hover {
+  color: var(--bc-text-heading);
+  background: var(--bc-surface-card);
+}
+
+.dt-density-btn.active {
+  color: var(--bc-text-brand);
+  background: var(--bc-status-info-bg);
+}
+
+.dt-density-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  :root {
+    --dt-cell-padding-x: var(--bc-space-2);
+    --dt-cell-padding-y: var(--bc-space-1.5);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asin-grid *,
+  .asin-grid *::before,
+  .asin-grid *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .asin-grid-scroll {
+    overflow: visible;
+    max-height: none;
+  }
+
+  .asin-grid thead th {
+    position: static;
+  }
+
+  .asin-grid .dt-sticky-col {
+    position: static;
+  }
+
+  .asin-grid tbody tr {
+    page-break-inside: avoid;
+  }
+}
+
+/* ==========================================================================
+   High Contrast Mode
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .asin-grid {
+    border-color: currentColor;
+  }
+
+  .asin-grid th,
+  .asin-grid td {
+    border-color: currentColor;
+  }
+
+  .dt-checkbox {
+    border-color: currentColor;
+  }
+
+  .dt-sort-btn:focus-visible,
+  .dt-checkbox:focus-visible,
+  .dt-expand-btn:focus-visible {
+    outline: 2px solid currentColor;
+  }
+}
+
+/* ==========================================================================
+   RTL Support
+   ========================================================================== */
+
+[dir="rtl"] .asin-grid .dt-sticky-col--select {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 2px solid var(--bc-border-default);
+}
+
+[dir="rtl"] .asin-grid .dt-sticky-col--asin {
+  left: auto;
+  right: 48px;
+  border-right: none;
+  border-left: 2px solid var(--bc-border-default);
+}
+
+[dir="rtl"] .asin-grid .dt-sticky-col--title {
+  left: auto;
+  right: 168px;
+}
+
+[dir="rtl"] .asin-grid .dt-sticky-col--actions {
+  right: auto;
+  left: 0;
+  border-left: none;
+  border-right: 2px solid var(--bc-border-default);
+}
+
+[dir="rtl"] .dt-expand-btn {
+  margin-right: 0;
+  margin-left: var(--bc-space-1.5);
+}
+
+[dir="rtl"] .dt-child-count {
+  margin-left: 0;
+  margin-right: var(--bc-space-1);
+}
+
+[dir="rtl"] .dt-group-toggle {
+  margin-left: 0;
+  margin-right: var(--bc-space-1);
 }

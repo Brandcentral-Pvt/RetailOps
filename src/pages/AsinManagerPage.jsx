@@ -2233,69 +2233,92 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
 
           {/* Scrollable Table Container */}
-          <div className="asin-grid-scroll">
-            <table className="asin-grid" style={{ width: 'max-content', minWidth: '100%', tableLayout: 'fixed' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
-                <tr>
-                  {isVisible('checkbox') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '40px', left: 0, zIndex: 22, background: 'var(--bg-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-light)' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectableRows.length > 0 && selectableRows.every(a => selectedIds.has(a._id))}
-                        onChange={handleToggleSelectAll}
-                        aria-label="Select all ASINs on this page"
-                        style={{ cursor: 'pointer', width: '14px', height: '14px' }}
-                      />
-                    </th>
-                  )}
-                  {isVisible('asinCode') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '110px', left: isVisible('checkbox') ? '40px' : '0px', zIndex: 21, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-light)', borderBottom: '2px solid var(--border-light)' }}>
-                      {renderSortableHeader(marketplaceFilter === 'ajio' ? 'JIOCODE' : 'ASIN ID', 'asinCode')}
-                    </th>
-                  )}
-                  {isVisible('releaseDate') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
-                      {renderSortableHeader('RELEASED', 'releaseDate', 'center')}
-                    </th>
-                  )}
+          <div className="asin-grid-wrapper">
+            <div className="asin-grid-scroll">
+              <table className="asin-grid asin-grid--comfortable">
+                <thead>
+                  <tr>
+                    {isVisible('checkbox') && (
+                      <th className="dt-sticky-col dt-sticky-col--select" rowSpan={2} scope="col">
+                        <input
+                          type="checkbox"
+                          className="dt-checkbox"
+                          checked={selectableRows.length > 0 && selectableRows.every(a => selectedIds.has(a._id))}
+                          onChange={handleToggleSelectAll}
+                          aria-label="Select all ASINs on this page"
+                        />
+                      </th>
+                    )}
+                    {isVisible('asinCode') && (
+                      <th className="dt-sticky-col dt-sticky-col--asin" rowSpan={2} scope="col">
+                        {renderSortableHeader(marketplaceFilter === 'ajio' ? 'JIOCODE' : 'ASIN ID', 'asinCode')}
+                      </th>
+                    )}
+                    {isVisible('releaseDate') && (
+                      <th className="dt-th" rowSpan={2} style={{ width: '85px', textAlign: 'center' }} scope="col">
+                        {renderSortableHeader('RELEASED', 'releaseDate', 'center')}
+                      </th>
+                    )}
                   {isVisible('parentAsin') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '110px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '110px' }} scope="col">
                       {renderSortableHeader('PARENT ASIN', 'parentAsin')}
                     </th>
                   )}
                   {isVisible('sellerBrand') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '115px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '115px' }} scope="col">
                       {renderSortableHeader('SELLER / BRAND', 'sellerBrand')}
                     </th>
                   )}
                   {isVisible('sku') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '95px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '95px' }} scope="col">
                       {renderSortableHeader('SKU', 'sku')}
                     </th>
                   )}
                   {isVisible('title') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '220px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
+                    <th className="dt-th dt-sticky-col dt-sticky-col--title" rowSpan={2} style={{ width: '220px' }} scope="col">
                       {renderSortableHeader('PRODUCT TITLE', 'title')}
                     </th>
                   )}
                   {isVisible('category') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '135px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '135px' }} scope="col">
                       {renderSortableHeader('CATEGORY', 'category')}
                     </th>
                   )}
-                  {isVisible('tags') && <th rowSpan={2} style={{ ...thStyle, width: '100px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>TAGS</th>}
+                  {isVisible('tags') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '100px' }} scope="col">
+                      TAGS
+                    </th>
+                  )}
 
                   {/* ===== DEAL & MANUFACTURER COLUMNS (Slate Palette) ===== */}
-                  {isVisible('manufacturer') && <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>MANUFACTURER</th>}
-                  {isVisible('availabilityStatus') && <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>AVAILABILITY</th>}
+                  {isVisible('manufacturer') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '120px', textAlign: 'left' }} scope="col">
+                      MANUFACTURER
+                    </th>
+                  )}
+                  {isVisible('availabilityStatus') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '100px', textAlign: 'center' }} scope="col">
+                      AVAILABILITY
+                    </th>
+                  )}
 
-                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>ADS</th>}
-                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: 'var(--bg-success-subtle)', color: '#065f46', borderBottom: '2px solid #d1fae5' }}>GMS</th>}
+                  {isVisible('ads') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '60px', textAlign: 'center' }} scope="col">
+                      ADS
+                    </th>
+                  )}
+                  {isVisible('ads') && (
+                    <th className="dt-th dt-sticky-col dt-sticky-col--gms" rowSpan={2} style={{ width: '50px', textAlign: 'center' }} scope="col">
+                      GMS
+                    </th>
+                  )}
                   {visibleOrdersCount > 0 && (
                     <th
+                      className="dt-th"
                       rowSpan={ordersExpanded ? 1 : 2}
                       colSpan={ordersExpanded ? (availableMonths.length + 1) : 1}
-                      style={{ ...thStyle, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-medium)', transition: 'all 0.3s ease' }}
+                      style={{ textAlign: 'center', background: 'var(--bc-surface-muted)', color: 'var(--bc-text-secondary)', borderBottom: '2px solid var(--bc-border-default)', transition: 'all 0.3s ease' }}
+                      scope="col"
                     >
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         {ordersExpanded ? (
@@ -2304,40 +2327,60 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                           renderSortableHeader('ORDERS', 'totalOrders', 'center')
                         )}
                         <button
+                          className="dt-group-toggle"
                           onClick={(e) => { e.stopPropagation(); setOrdersExpanded(!ordersExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center ms-1"
-                          style={{ border: 'none', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                          title={ordersExpanded ? "Collapse to Total" : "Expand to Monthly Orders"}
+                          aria-expanded={ordersExpanded}
+                          aria-label={ordersExpanded ? "Collapse to Total" : "Expand to Monthly Orders"}
                         >
                           {ordersExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
                         </button>
                       </div>
                     </th>
                   )}
-                  {isVisible('dealBadge') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL</th>}
-                  {isVisible('dealStartTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL START</th>}
-                  {isVisible('dealEndTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL END</th>}
-                  {isVisible('dealAccessType') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL TYPE</th>}
-                  {isVisible('currentBuybox') && <th rowSpan={2} style={{ ...thStyle, width: '140px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>BUYBOX</th>}
+                  {isVisible('dealBadge') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '80px', textAlign: 'center' }} scope="col">
+                      DEAL
+                    </th>
+                  )}
+                  {isVisible('dealStartTime') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '90px', textAlign: 'center' }} scope="col">
+                      DEAL START
+                    </th>
+                  )}
+                  {isVisible('dealEndTime') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '90px', textAlign: 'center' }} scope="col">
+                      DEAL END
+                    </th>
+                  )}
+                  {isVisible('dealAccessType') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '80px', textAlign: 'center' }} scope="col">
+                      DEAL TYPE
+                    </th>
+                  )}
+                  {isVisible('currentBuybox') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '140px', textAlign: 'left' }} scope="col">
+                      BUYBOX
+                    </th>
+                  )}
 
                   {/* ===== PRICE COLUMNS (MRP, Price, Dispute, Price Trend) (Indigo Palette) ===== */}
                   {isVisible('mrp') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '85px', textAlign: 'right' }} scope="col">
                       {renderSortableHeader('MRP', 'mrp', 'right')}
                     </th>
                   )}
                   {isVisible('price') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '85px', textAlign: 'right' }} scope="col">
                       {renderSortableHeader(marketplaceFilter === 'ajio' ? 'PRICE' : 'CHANNEL PRICE', 'uploadedPrice', 'right')}
                     </th>
                   )}
                   {isVisible('discountPercentage') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '85px', textAlign: 'center' }} scope="col">
                       {renderSortableHeader('DISCOUNT %', 'discountPercentage', 'center')}
                     </th>
                   )}
                   {isVisible('priceDispute') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '85px', textAlign: 'center' }} scope="col">
                       {renderSortableHeader('DISPUTE', 'priceDispute', 'center')}
                     </th>
                   )}
@@ -2359,22 +2402,29 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   )}
 
                   {isVisible('mainBsr') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '90px', textAlign: 'center' }} scope="col">
                       {renderSortableHeader('MAIN BSR', 'bsr', 'center')}
                     </th>
                   )}
-                  {isVisible('subBsr') && <th rowSpan={2} style={{ ...thStyle, width: '110px', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>SUB BSR</th>}
-                  {isVisible('bsrTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>BSR TR</th>}
+                  {isVisible('subBsr') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '110px' }} scope="col">
+                      SUB BSR
+                    </th>
+                  )}
+                  {isVisible('bsrTrendStatus') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '75px', textAlign: 'center' }} scope="col">
+                      BSR TR
+                    </th>
+                  )}
                   {visibleBsrTrendCount > 0 && (
-                    <th colSpan={visibleBsrTrendCount}
-                      style={{ ...thStyle, background: '#f5f3ff', color: '#6d28d9', textAlign: 'center', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
+                    <th className="dt-th" colSpan={visibleBsrTrendCount} style={{ textAlign: 'center' }} scope="col">
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{bsrTrendExpanded ? 'SUB-BSR TREND' : 'Sub BSR'}</span>
                         <button
+                          className="dt-group-toggle"
                           onClick={(e) => { e.stopPropagation(); setBsrTrendExpanded(!bsrTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#6d28d9', cursor: 'pointer' }}
-                          title={bsrTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
+                          aria-expanded={bsrTrendExpanded}
+                          aria-label={bsrTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {bsrTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
                         </button>
@@ -2384,52 +2434,43 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
                   {/* ===== RATING COLUMNS (Amber Palette) ===== */}
                   {isVisible('rating') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '60px', textAlign: 'center' }} scope="col">
                       {renderSortableHeader('RT', 'rating', 'center')}
                     </th>
                   )}
                   {isVisible('reviewCount') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '65px', textAlign: 'center' }} scope="col">
                       {renderSortableHeader('CNT', 'reviewCount', 'center')}
                     </th>
                   )}
                   {isVisible('ratingBreakdown') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
+                    <th className="dt-th" rowSpan={2} style={{ width: '120px', textAlign: 'center', fontSize: '10px', fontWeight: 600 }} scope="col">
                       DISTRIBUTION
                     </th>
                   )}
-                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>RATING TR</th>}
+                  {isVisible('ratingTrendStatus') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '75px', textAlign: 'center' }} scope="col">
+                      RATING TR
+                    </th>
+                  )}
                   {visibleRatingTrendCount > 0 && (
-                    <th colSpan={visibleRatingTrendCount}
-                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th className="dt-th" colSpan={visibleRatingTrendCount} style={{ textAlign: 'center' }} scope="col">
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{ratingTrendExpanded ? 'RATING TREND' : 'RT'}</span>
                         <button
+                          className="dt-group-toggle"
                           onClick={(e) => { e.stopPropagation(); setRatingTrendExpanded(!ratingTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#b45309', cursor: 'pointer' }}
-                          title={ratingTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
+                          aria-expanded={ratingTrendExpanded}
+                          aria-label={ratingTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {ratingTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
                         </button>
                       </div>
                     </th>
                   )}
-                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
-                  {visibleReviewTrendCount > 0 && (
-                    <th colSpan={visibleReviewTrendCount}
-                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
-                        <span>{reviewTrendExpanded ? 'REVIEWS TREND' : 'REV'}</span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setReviewTrendExpanded(!reviewTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#b45309', cursor: 'pointer' }}
-                          title={reviewTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
-                        >
-                          {reviewTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
-                        </button>
-                      </div>
+                  {isVisible('reviewCount') && (
+                    <th className="dt-th" rowSpan={2} style={{ width: '75px', textAlign: 'center' }} scope="col" title="Reviews Trend Status">
+                      REV TR
                     </th>
                   )}
 
