@@ -1,0 +1,429 @@
+/* ═══════════════════════════════════════════════════════════════
+   ActivityLog.module.css — Activity Log (System Logs + OTP Audit)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Page shell ── */
+.page {
+  background: var(--bc-surface-page);
+  min-height: calc(100vh - 60px);
+}
+
+.header {
+  background: var(--bc-surface-card);
+  border-bottom: 1px solid var(--bc-border-default);
+  padding: 20px 28px 16px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--bc-text-xl);
+  font-weight: 600;
+  color: var(--bc-text-heading);
+  margin: 0;
+}
+
+.countBadge {
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  color: var(--bc-text-secondary);
+  background: var(--bc-surface-subtle);
+  padding: 2px 8px;
+  border-radius: var(--bc-radius-md);
+  border: 1px solid var(--bc-border-subtle);
+}
+
+.subtitle {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.body {
+  padding: 20px 28px;
+}
+
+/* ── Filters ── */
+.filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* Fixed widths used to overflow narrow viewports; these stay capped but
+   are allowed to shrink so the row can wrap instead of clipping. */
+.searchInput {
+  width: 240px;
+  max-width: 100%;
+  min-width: 160px;
+}
+
+.typeSelect {
+  width: 170px;
+  max-width: 100%;
+}
+
+.dateRange {
+  width: 240px;
+  max-width: 100%;
+  min-width: 180px;
+}
+
+.showAll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+.showAllLabel {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.showAllCheckbox {
+  accent-color: var(--bc-primary-600);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* ── Table card ── */
+.card {
+  background: var(--bc-surface-card);
+  border: 1px solid var(--bc-border-default);
+  border-radius: var(--bc-radius-lg);
+  overflow: hidden;
+  box-shadow: 0 1px 3px var(--bc-shadow-subtle, rgba(15, 23, 42, 0.04));
+}
+
+/* ── Table overrides (antd needs !important to win its own defaults) ── */
+.table :global(.ant-table-thead) > tr > th {
+  background: var(--bc-surface-muted) !important;
+  font-size: var(--bc-text-xs) !important;
+  font-weight: 700 !important;
+  color: var(--bc-text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  border-bottom: 1px solid var(--bc-border-default) !important;
+}
+
+.table :global(.ant-table-tbody) > tr > td {
+  border-bottom: 1px solid var(--bc-border-subtle) !important;
+  background: var(--bc-surface-card);
+}
+
+.table :global(.ant-table-tbody) > tr:hover > td {
+  background: var(--bc-surface-hover) !important;
+}
+
+/* ── Event + entity badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--bc-radius-md);
+  font-weight: 600;
+  font-size: var(--bc-text-xs);
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.entityBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--bc-radius-md);
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Tones are token-backed so both themes stay legible. Every text/background
+   pair here was checked at >= 4.5:1 for the 11px badge text:
+     success  green-700  on green-50    4.79
+     info     indigo-700 on indigo-100  6.41   (cyan-600 on cyan-50 is 3.54)
+     warning  amber-700  on amber-50    4.84
+     danger   red-700    on red-50      5.91
+     accent   primary-700 on primary-100 6.15
+     neutral  slate-600  on slate-100   6.92   (slate-500 is 4.34) */
+.toneSuccess { background: var(--bc-status-success-bg); color: var(--bc-status-success-text); border-color: var(--bc-green-200); }
+.toneInfo    { background: var(--bc-indigo-100);         color: var(--bc-indigo-700);         border-color: var(--bc-indigo-100); }
+.toneWarning { background: var(--bc-status-warning-bg); color: var(--bc-status-warning-text); border-color: var(--bc-amber-200); }
+.toneDanger  { background: var(--bc-status-danger-bg);  color: var(--bc-status-danger-text);  border-color: var(--bc-red-200); }
+.toneAccent  { background: var(--bc-primary-100);       color: var(--bc-primary-700);        border-color: var(--bc-primary-200); }
+.toneNeutral { background: var(--bc-surface-subtle);    color: var(--bc-slate-600);           border-color: var(--bc-border-default); }
+
+/* ── Row details cell ── */
+/* Rendered as a real <button> so it is reachable by keyboard; reset the
+   native button chrome so it still reads as a text cell. */
+.detailsButton {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--bc-radius-sm, 4px);
+}
+
+.detailsButton:focus-visible {
+  outline: 2px solid var(--bc-border-focus);
+  outline-offset: 2px;
+}
+
+.detailsTitle {
+  font-weight: 600;
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-heading);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailsDescription {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+  line-height: 1.4;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── User cell ── */
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: var(--bc-radius-md);
+  background: var(--bc-primary-600);
+  color: var(--bc-text-inverse);
+  font-weight: 600;
+  font-size: var(--bc-text-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.avatarSystem {
+  background: var(--bc-slate-500);
+}
+
+.userName {
+  font-size: var(--bc-text-sm);
+  font-weight: 600;
+  color: var(--bc-text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userEmail {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Time cell ── */
+.timeCell {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.monoCell {
+  font-size: var(--bc-text-xs);
+  font-family: var(--bc-font-mono, ui-monospace, monospace);
+  color: var(--bc-text-secondary);
+}
+
+.reasonCell {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+}
+
+/* The "—" placeholder is still text, so it needs a readable tone;
+   --bc-text-disabled (slate-300) is 1.48:1 on the card surface. */
+.reasonEmpty {
+  color: var(--bc-text-secondary);
+}
+
+/* ── Pagination summary ── */
+.paginationSummary {
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+  font-weight: 500;
+}
+
+.paginationStrong {
+  font-weight: 600;
+  color: var(--bc-text-heading);
+}
+
+/* ── Detail modal ── */
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modalIcon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: var(--bc-radius-md);
+  background: var(--bc-primary-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--bc-text-heading);
+}
+
+.modalSubtitle {
+  font-size: var(--bc-text-xs);
+  color: var(--bc-text-secondary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionLabel {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--bc-text-secondary);
+  text-transform: uppercase;
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.descriptionBox {
+  padding: 14px;
+  background: var(--bc-surface-muted);
+  border-radius: var(--bc-radius-md);
+  border: 1px solid var(--bc-border-default);
+  font-size: var(--bc-text-sm);
+  line-height: 1.6;
+  color: var(--bc-text-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.metadataScroll {
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: var(--bc-radius-md);
+  border: 1px solid var(--bc-border-subtle);
+}
+
+.metadataEmpty {
+  margin: 0;
+  padding: 12px;
+  color: var(--bc-text-secondary);
+  font-size: var(--bc-text-sm);
+}
+
+.metadataRaw {
+  margin: 0;
+  padding: 12px;
+  background: var(--bc-surface-muted);
+  color: var(--bc-text-body);
+  font-size: var(--bc-text-xs);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.metadataJson {
+  margin: 0;
+  font-size: var(--bc-text-xs);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .header {
+    padding: 16px 16px 14px;
+  }
+
+  .body {
+    padding: 16px;
+  }
+
+  .title {
+    font-size: var(--bc-text-lg);
+  }
+}
+
+@media (max-width: 640px) {
+  .headerActions,
+  .filters {
+    width: 100%;
+  }
+
+  .searchInput,
+  .typeSelect,
+  .dateRange {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .showAll {
+    margin-left: 0;
+  }
+}
