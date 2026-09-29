@@ -171,6 +171,32 @@ const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const canAccessAjio = isAdmin || hasPermission('marketplace_ajio');
   const canAccessMyntra = isAdmin || hasPermission('marketplace_myntra');
 
+  // Only ever offer marketplaces this account can actually read. Rendering a
+  // tab for a marketplace without access previously let the user select one
+  // and receive an empty table.
+  const accessibleMarketplaces = useMemo(() => {
+    const options = [];
+    if (canAccessAmazon) options.push({ value: 'amazon.in', label: 'Amazon' });
+    if (canAccessAjio) options.push({ value: 'ajio', label: 'Ajio' });
+    if (canAccessMyntra) options.push({ value: 'myntra', label: 'Myntra' });
+    return options;
+  }, [canAccessAmazon, canAccessAjio, canAccessMyntra]);
+
+  // A single accessible marketplace leaves nothing to choose between, and an
+  // "All" tab there would only be forced straight back by the effect below.
+  const marketplaceOptions = useMemo(
+    () => (accessibleMarketplaces.length > 1
+      ? [{ value: 'all', label: 'All' }, ...accessibleMarketplaces]
+      : accessibleMarketplaces),
+    [accessibleMarketplaces]);
+
+  // The stored value can be stale (permissions changed, or a hand-edited
+  // localStorage). Treat anything not offered here as unfiltered rather than
+  // silently highlighting the wrong tab.
+  const activeMarketplace = accessibleMarketplaces.some(o => o.value === marketplaceFilter)
+    ? marketplaceFilter
+    : 'all';
+
   useEffect(() => {
     if (!canAccessAmazon && !canAccessMyntra && canAccessAjio && marketplaceFilter !== 'ajio') {
       setMarketplaceFilter('ajio');
@@ -508,7 +534,9 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
     const fetchFilters = async () => {
       try {
         const res = await asinApi.getFilters(selectedSeller ? { seller: selectedSeller } : {});
-        if (res.success) setFilterOptions(res.data);
+        // Merge rather than replace: the panel reads these lists directly, so a
+        // response that omits one key would leave it undefined and crash render.
+        if (res.success) setFilterOptions(prev => ({ ...prev, ...res.data }));
       } catch (err) {
         console.error('Error fetching filter options:', err);
       }
@@ -1037,6 +1065,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
       return { data: [], hasMore: false };
     }
   }, [marketplaceFilter]);
+
+  const appliedFilterCount = Object.values(appliedFilters).filter(v =>
+    v !== '' && (!Array.isArray(v) || v.length > 0)
+  ).length;
 
   const kpis = useMemo(() => {
     if (stats) {
@@ -1795,17 +1827,18 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
           {/* Table Toolbar */}
           <div className={`${styles.toolbar} border-bottom bg-white`}>
-            <div className={`${styles.toolbarLeft} d-flex align-items-center gap-2 flex-grow-1`} style={{ flexWrap: 'wrap', minWidth: 0 }}>
-              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }} className="text-uppercase d-flex align-items-center gap-1">
+            <div className={`${styles.toolbarLeft} d-flex align-items-center gap-2`}>
+              <span className={`${styles.inventoryLabel} text-uppercase d-flex align-items-center gap-1`}>
                 Inventory
                 <span className="bg-light border text-secondary px-1.5 rounded-pill fw-semibold" style={{ fontSize: '10px', lineHeight: '18px' }}>
                   {pagination.total.toLocaleString()}
                 </span>
                 <button
                   type="button"
-                  className="btn btn-ghost p-0 ms-1 rounded-circle text-secondary d-flex align-items-center justify-content-center"
+                  className={`${styles.collapseToggle} btn btn-ghost p-0 ms-1 rounded-circle text-secondary d-flex align-items-center justify-content-center`}
                   onClick={() => setShowDashboard(!showDashboard)}
-                  style={{ width: '20px', height: '20px', border: 'none', background: 'transparent' }}
+                  aria-label={showDashboard ? 'Collapse Overview' : 'Expand Overview'}
+                  aria-expanded={showDashboard}
                   title={showDashboard ? 'Collapse Overview' : 'Expand Overview'}
                 >
                   {showDashboard ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -1813,50 +1846,27 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
               </span>
 
               {/* MARKETPLACE SWITCHER */}
-              <Segmented
-                size="small"
-                value={marketplaceFilter === 'amazon.in' || (marketplaceFilter === 'all' && !canAccessAjio && !canAccessMyntra) ? 'amazon.in' : marketplaceFilter}
-                onChange={(val) => {
-                  setMarketplaceFilter(val);
-                  loadData(1, pagination.limit, selectedSeller, val);
-                }}
-                options={[
-                  {
-                    value: 'amazon.in',
-                    label: (
-                      <span className="d-flex align-items-center justify-content-center" style={{ height: '20px', padding: '0 4px' }}>
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" style={{ height: '10px', width: 'auto', objectFit: 'contain', filter: marketplaceFilter === 'amazon.in' ? 'none' : 'grayscale(100%)' }} alt="Amazon" />
-                      </span>
-                    )
-                  },
-                  {
-                    value: 'ajio',
-                    label: (
-                      <span className="d-flex align-items-center justify-content-center" style={{ height: '20px', padding: '0 4px' }}>
-                        <img src="https://cdn.brandfetch.io/id78Xj7CCR/w/820/h/238/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1776791426160" style={{ height: '9px', width: 'auto', objectFit: 'contain', filter: marketplaceFilter === 'ajio' ? 'none' : 'grayscale(100%)' }} alt="Ajio" />
-                      </span>
-                    )
-                  },
-                  ...(canAccessMyntra ? [{
-                    value: 'myntra',
-                    label: (
-                      <span className="d-flex align-items-center justify-content-center" style={{ height: '20px', padding: '0 4px' }}>
-                        <img src="https://cdn.brandfetch.io/idDW82Qwj2/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX&t=1772274333492" style={{ height: '10px', width: 'auto', objectFit: 'contain', filter: marketplaceFilter === 'myntra' ? 'none' : 'grayscale(100%)' }} alt="Myntra" />
-                      </span>
-                    )
-                  }] : [])
-                ]}
-                style={{ background: 'var(--bg-active)', padding: '2px', borderRadius: '6px', flexShrink: 0 }}
-              />
+              {marketplaceOptions.length > 0 && (
+                <Segmented
+                  className={styles.marketplaceSwitch}
+                  aria-label="Marketplace"
+                  value={activeMarketplace}
+                  onChange={(val) => {
+                    setMarketplaceFilter(val);
+                    loadData(1, pagination.limit, selectedSeller, val);
+                  }}
+                  options={marketplaceOptions}
+                />
+              )}
 
               <Input.Search
                 placeholder="Search ASIN, SKU, Title..."
-                size="small"
+                aria-label="Search ASINs"
                 enterButton="Find"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onSearch={handleApplySearch}
-                className={`antd-dense-search ${styles.searchInput}`}
+                className={styles.searchInput}
               />
               <div className={styles.sellerSelectWrapper}>
                 <InfiniteScrollSelect
@@ -1982,53 +1992,42 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
               >
                 <Button
                   icon={<MoreVertical size={14} />}
-                  style={{
-                    height: '32px',
-                    fontSize: 'var(--font-size-xs)',
-                    fontWeight: 600,
-                    borderRadius: 'var(--radius-md)'
-                  }}
-                  className="d-flex align-items-center gap-1 shadow-sm"
+                  aria-label="More actions"
+                  className={`${styles.toolbarButton} d-flex align-items-center gap-1 shadow-sm`}
                 >
-                  Actions
+                  <span className={styles.btnLabel}>Actions</span>
                 </Button>
               </Dropdown>
 
               {/* Scrape Progress */}
               {scrapeProgress && (
-                <div className="bg-light border rounded-2 px-2 d-flex align-items-center gap-2" style={{ height: '32px', borderColor: 'var(--border-light)' }}>
+                <div className={`${styles.progressChip} bg-light border rounded-2 px-2 d-flex align-items-center gap-2`}>
                   <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12, color: 'var(--text-danger)' }} aria-hidden="true" />
                   <span className="fw-bold font-monospace small" style={{ color: 'var(--text-primary)' }}>{scrapeProgress.processed}/{scrapeProgress.total}</span>
                 </div>
               )}
 
-              {/* Spacer */}
-              <div style={{ flex: '1 1 0', minWidth: 0 }} />
+              <div className={styles.toolbarSpacer} />
 
-              <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
+              <div className={`${styles.toolbarActions} d-flex align-items-center gap-2`}>
                 <Segmented
-                  size="small"
+                  className={styles.viewModeSwitch}
+                  aria-label="Rows shown"
                   value={viewMode}
                   onChange={(val) => setViewMode(val)}
                   options={[
                     { label: 'ASINs', value: 'asin' },
                     { label: 'Parents', value: 'parent' }
                   ]}
-                  style={{ borderRadius: 'var(--radius-md)' }}
                 />
                 <Button
                   icon={syncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
                   onClick={handleBulkScrape}
                   disabled={syncing}
-                  style={{
-                    height: '32px',
-                    fontSize: 'var(--font-size-xs)',
-                    fontWeight: 600,
-                    borderRadius: 'var(--radius-md)'
-                  }}
-                  className="d-flex align-items-center gap-2 shadow-sm"
+                  aria-label="Sync marketplace data"
+                  className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                 >
-                  Sync
+                  <span className={styles.btnLabel}>Sync</span>
                 </Button>
 
                 {hasPermission('asinmanager_manage') && (
@@ -2056,10 +2055,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                           message.error({ content: 'Auto-tags failed: ' + err.message, key: 'auto-tags', duration: 4 });
                         }
                       }}
-                      style={{ height: '32px', fontSize: 'var(--font-size-xs)', fontWeight: 600, borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center gap-2 shadow-sm"
+                      aria-label="Run auto-tags"
+                      className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                     >
-                      Auto Tags
+                      <span className={styles.btnLabel}>Auto Tags</span>
                     </Button>
                   </Tooltip>
                 )}
@@ -2068,20 +2067,15 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   onClick={() => setFilterPanelOpen(!filterPanelOpen)}
                   type={filterPanelOpen ? 'primary' : 'default'}
                   icon={<ListChecks size={14} />}
-                  style={{
-                    height: '32px',
-                    fontSize: 'var(--font-size-xs)',
-                    fontWeight: 600,
-                    borderRadius: 'var(--radius-md)'
-                  }}
-                  className="d-flex align-items-center gap-2 shadow-sm"
+                  aria-label={`Filters${appliedFilterCount > 0 ? ` (${appliedFilterCount})` : ''}`}
+                  className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                 >
-                  {(() => {
-                    const count = Object.values(appliedFilters).filter(v =>
-                      v !== '' && (!Array.isArray(v) || v.length > 0)
-                    ).length;
-                    return `Filters ${count > 0 ? `(${count})` : ''}`;
-                  })()}
+                  <span className={styles.btnLabel}>
+                    Filters{appliedFilterCount > 0 ? ` (${appliedFilterCount})` : ''}
+                  </span>
+                  {appliedFilterCount > 0 && (
+                    <span className={styles.btnBadge}>{appliedFilterCount}</span>
+                  )}
                 </Button>
 
                 <div className="position-relative">
@@ -2089,15 +2083,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                     onClick={() => setShowColumnPanel(!showColumnPanel)}
                     type={showColumnPanel ? 'primary' : 'default'}
                     icon={<LayoutGrid size={14} />}
-                    style={{
-                      height: '32px',
-                      fontSize: 'var(--font-size-xs)',
-                      fontWeight: 600,
-                      borderRadius: 'var(--radius-md)'
-                    }}
-                    className="d-flex align-items-center gap-2 shadow-sm"
+                    aria-label="Columns"
+                    className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                   >
-                    Columns
+                    <span className={styles.btnLabel}>Columns</span>
                   </Button>
 
                   <ColumnVisibilityPanel
@@ -2115,28 +2104,23 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                     onClick={cycleRowDensity}
                     type="default"
                     icon={<Rows3 size={14} />}
-                    style={{
-                      height: '32px',
-                      fontSize: 'var(--font-size-xs)',
-                      fontWeight: 600,
-                      borderRadius: 'var(--radius-md)'
-                    }}
-                    className="d-flex align-items-center gap-2 shadow-sm"
+                    aria-label={`Row density: ${DENSITY_LABELS[rowDensity]}`}
+                    className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                   >
-                    {DENSITY_LABELS[rowDensity]}
+                    <span className={styles.btnLabel}>{DENSITY_LABELS[rowDensity]}</span>
                   </Button>
                 </Tooltip>
 
-                <div className="vr mx-1 text-secondary opacity-25" style={{ height: '20px' }} />
+                <div className={`${styles.toolbarDivider} vr mx-1 text-secondary opacity-25`} style={{ height: '20px' }} />
 
                 {hasPermission('asinmanager_manage') && (
                   <Tooltip title="Bulk Optimization">
                     <Button
                       onClick={handleBulkCreateActions}
+                      aria-label="Bulk optimization"
                       disabled={asins.length === 0 || syncing}
                       icon={<Zap size={14} style={{ color: 'var(--text-danger)' }} />}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center justify-content-center shadow-sm"
+                      className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
                 )}
@@ -2145,9 +2129,9 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   <Tooltip title="Export">
                     <Button
                       onClick={() => setShowExportModal(true)}
+                      aria-label="Export ASIN data"
                       icon={<Download size={14} style={{ color: 'var(--text-primary)' }} />}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center justify-content-center shadow-sm"
+                      className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
                 )}
@@ -2158,8 +2142,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       onClick={collapseAll}
                       aria-label="Collapse all parent ASINs"
                       icon={<ChevronsUp size={14} className="text-zinc-500" />}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center justify-content-center shadow-sm"
+                      className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
                 )}
@@ -2171,8 +2154,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       disabled={loading}
                       aria-label="Recalculate LQS"
                       icon={<RefreshCw size={14} className={loading ? 'text-zinc-400' : 'text-sky-600'} />}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center justify-content-center shadow-sm"
+                      className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
                 )}
@@ -2181,9 +2163,9 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   <Tooltip title="Import">
                     <Button
                       onClick={() => setShowBulkImportModal(true)}
+                      aria-label="Import ASIN data"
                       icon={<FileUp size={14} className="text-emerald-600" />}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center justify-content-center shadow-sm"
+                      className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
                 )}
@@ -2191,9 +2173,9 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   <Tooltip title="Add ASIN">
                     <Button
                       onClick={() => setShowAddModal(true)}
+                      aria-label="Add ASIN"
                       icon={<Plus size={14} className="text-indigo-600" />}
-                      style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)' }}
-                      className="d-flex align-items-center justify-content-center shadow-sm ms-1"
+                      className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
                 )}
