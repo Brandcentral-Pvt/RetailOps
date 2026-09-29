@@ -16,6 +16,70 @@
   flex-wrap: wrap;
   gap: 8px 12px;
   padding: 8px 16px;
+  /* The toolbar is its own sizing context, so labels collapse against the
+     panel's real width rather than the viewport (the sidebar is collapsible,
+     so the two are not in step). */
+  container: toolbar / inline-size;
+}
+
+/* Toolbar button labels. Wide enough for everything: show them. */
+.btnLabel {
+  display: inline;
+}
+
+.btnBadge {
+  display: none;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary, #18181b);
+  background: var(--bg-active, #e2e8f0);
+}
+
+/* Not enough width for the full label set: drop to icon-only buttons and keep
+   the filter count as a badge so it is never silently lost. The accessible
+   name stays on the button's aria-label either way. */
+@container toolbar (max-width: 1800px) {
+  .btnLabel {
+    display: none;
+  }
+  .btnBadge {
+    display: inline-flex;
+  }
+}
+
+/* Compact tier: tighten spacing so the row keeps fitting on one line instead
+   of breaking to a second row just past the label threshold. */
+@container toolbar (max-width: 1500px) {
+  .toolbarLeft,
+  .toolbarActions {
+    gap: 6px;
+  }
+  .iconButton {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+  }
+  .searchInput {
+    flex: 0 1 130px;
+    min-width: 90px;
+  }
+  .sellerSelectWrapper {
+    flex: 0 1 110px;
+    min-width: 88px;
+  }
+  .toolbarDivider {
+    display: none;
+  }
+  .marketplaceSwitch :global(.ant-segmented-item-label) {
+    padding-inline: 6px;
+  }
 }
 
 .toolbarLeft {
@@ -108,13 +172,30 @@
   gap: 8px;
 }
 
+/* Pushes the action cluster to the right edge. Basis stays 0 so it can never
+   be the item that forces a wrap. */
+.toolbarSpacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Search and seller select grow into the available space but never force the
+   toolbar wider than its container. Basis is deliberately close to the real
+   content width: a larger basis makes the row sum exceed the container and
+   wrap onto a second line even when everything would have fitted. */
+.searchInput {
+  flex: 0 1 160px;
+  min-width: 110px;
+  max-width: 240px;
+}
+
 /* InfiniteScrollSelect ships no stylesheet of its own, so its trigger renders
    as bare text. The wrapper gives it a real control box so it lines up with
    the 32px row instead of collapsing to a line of text. */
 .sellerSelectWrapper {
-  flex: 1 1 150px;
-  min-width: 0;
-  max-width: 200px;
+  flex: 0 1 130px;
+  min-width: 104px;
+  max-width: 190px;
   min-height: 32px;
   display: flex;
   align-items: center;
@@ -124,14 +205,6 @@
   background: var(--bg-secondary, #fff);
   border: 1px solid var(--border-light, #e2e8f0);
   border-radius: var(--radius-md);
-}
-
-/* Search and seller select grow into the available space but never force the
-   toolbar wider than its container. */
-.searchInput {
-  flex: 1 1 190px;
-  min-width: 0;
-  max-width: 260px;
 }
 
 /* Filter drawer */

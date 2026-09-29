@@ -237,4 +237,45 @@ test.describe('asin manager toolbar', () => {
     });
     expect(truncated).toEqual([]);
   });
+
+  test('stays on a single row on desktop widths', async ({ page }) => {
+    for (const width of [2560, 1920, 1850, 1800, 1750]) {
+      await mockApi(page);
+      await gotoAsinManager(page, width);
+      const height = await page.locator('[class*="toolbar"]').first().evaluate(
+        el => Math.round(el.getBoundingClientRect().height));
+      // One row of 32px controls plus 8px padding above and below.
+      expect(height, `toolbar wrapped to a second row at ${width}px`)
+        .toBeLessThanOrEqual(60);
+    }
+  });
+
+  test('button labels collapse to icons as the row gets tight', async ({ page }) => {
+    const syncLabel = '[class*="btnLabel"]';
+    await mockApi(page);
+    await gotoAsinManager(page, 2560);
+    await expect(
+      page.getByRole('button', { name: 'Sync marketplace data' }).locator(syncLabel)
+    ).toBeVisible();
+
+    await mockApi(page);
+    await gotoAsinManager(page, 1920);
+    const sync = page.getByRole('button', { name: 'Sync marketplace data' });
+    // Collapsed to an icon, but still named for assistive tech.
+    await expect(sync.locator(syncLabel)).toBeHidden();
+    await expect(sync).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Columns' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Row density:/ })).toBeVisible();
+  });
+
+  test('the active filter count survives label collapse as a badge', async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/asin-tracker');
+    await expect(page.locator('[class*="toolbarActions"]')).toBeVisible({ timeout: 20000 });
+
+    const filters = page.getByRole('button', { name: /^Filters/ });
+    await expect(filters).toBeVisible();
+    // No filters applied yet: the count must not appear.
+    await expect(page.locator('[class*="btnBadge"]')).toHaveCount(0);
+  });
 });

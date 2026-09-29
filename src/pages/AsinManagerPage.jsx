@@ -1066,6 +1066,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
     }
   }, [marketplaceFilter]);
 
+  const appliedFilterCount = Object.values(appliedFilters).filter(v =>
+    v !== '' && (!Array.isArray(v) || v.length > 0)
+  ).length;
+
   const kpis = useMemo(() => {
     if (stats) {
       const reviewChange = stats.reviewAnalysis?.currentVsPreviousChange || 0;
@@ -1991,7 +1995,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   aria-label="More actions"
                   className={`${styles.toolbarButton} d-flex align-items-center gap-1 shadow-sm`}
                 >
-                  Actions
+                  <span className={styles.btnLabel}>Actions</span>
                 </Button>
               </Dropdown>
 
@@ -2002,6 +2006,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   <span className="fw-bold font-monospace small" style={{ color: 'var(--text-primary)' }}>{scrapeProgress.processed}/{scrapeProgress.total}</span>
                 </div>
               )}
+
+              <div className={styles.toolbarSpacer} />
 
               <div className={`${styles.toolbarActions} d-flex align-items-center gap-2`}>
                 <Segmented
@@ -2018,9 +2024,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   icon={syncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <RefreshCw size={14} />}
                   onClick={handleBulkScrape}
                   disabled={syncing}
+                  aria-label="Sync marketplace data"
                   className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                 >
-                  Sync
+                  <span className={styles.btnLabel}>Sync</span>
                 </Button>
 
                 {hasPermission('asinmanager_manage') && (
@@ -2051,7 +2058,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       aria-label="Run auto-tags"
                       className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                     >
-                      Auto Tags
+                      <span className={styles.btnLabel}>Auto Tags</span>
                     </Button>
                   </Tooltip>
                 )}
@@ -2060,14 +2067,15 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   onClick={() => setFilterPanelOpen(!filterPanelOpen)}
                   type={filterPanelOpen ? 'primary' : 'default'}
                   icon={<ListChecks size={14} />}
+                  aria-label={`Filters${appliedFilterCount > 0 ? ` (${appliedFilterCount})` : ''}`}
                   className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                 >
-                  {(() => {
-                    const count = Object.values(appliedFilters).filter(v =>
-                      v !== '' && (!Array.isArray(v) || v.length > 0)
-                    ).length;
-                    return `Filters ${count > 0 ? `(${count})` : ''}`;
-                  })()}
+                  <span className={styles.btnLabel}>
+                    Filters{appliedFilterCount > 0 ? ` (${appliedFilterCount})` : ''}
+                  </span>
+                  {appliedFilterCount > 0 && (
+                    <span className={styles.btnBadge}>{appliedFilterCount}</span>
+                  )}
                 </Button>
 
                 <div className="position-relative">
@@ -2075,9 +2083,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                     onClick={() => setShowColumnPanel(!showColumnPanel)}
                     type={showColumnPanel ? 'primary' : 'default'}
                     icon={<LayoutGrid size={14} />}
+                    aria-label="Columns"
                     className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                   >
-                    Columns
+                    <span className={styles.btnLabel}>Columns</span>
                   </Button>
 
                   <ColumnVisibilityPanel
@@ -2095,13 +2104,14 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                     onClick={cycleRowDensity}
                     type="default"
                     icon={<Rows3 size={14} />}
+                    aria-label={`Row density: ${DENSITY_LABELS[rowDensity]}`}
                     className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
                   >
-                    {DENSITY_LABELS[rowDensity]}
+                    <span className={styles.btnLabel}>{DENSITY_LABELS[rowDensity]}</span>
                   </Button>
                 </Tooltip>
 
-                <div className="vr mx-1 text-secondary opacity-25" style={{ height: '20px' }} />
+                <div className={`${styles.toolbarDivider} vr mx-1 text-secondary opacity-25`} style={{ height: '20px' }} />
 
                 {hasPermission('asinmanager_manage') && (
                   <Tooltip title="Bulk Optimization">
