@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../services/db';
 import api from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
+import { useDebounce } from '../hooks/useDebounce';
 import {
-    Table, Input, Select, Badge, Space, DatePicker,
-    Typography, Button, Tag, Tooltip, Modal, Descriptions, Segmented
+    Table, Input, Select, Button, DatePicker, Tooltip, Modal, Descriptions, Segmented
 } from 'antd';
 import {
-    Clock, Search, RefreshCw, Eye, User, Shield, Activity,
+    Search, RefreshCw, Eye, User, Activity,
     Cpu, Zap, Trash2, Edit3, LogIn, LogOut, XCircle, AlertTriangle,
-    PlusCircle, ClipboardList, Filter, Mail, Target, Box, Info, Database
+    PlusCircle, ClipboardList, Target, Box, Info, Database
 } from 'lucide-react';
+import styles from './ActivityLog.module.css';
 
-const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const IMPORTANT_TYPES = [
@@ -22,31 +22,49 @@ const IMPORTANT_TYPES = [
     'AUTOMATION_TASK', 'TARGET_UPDATE', 'TARGET_IMPORT', 'TARGET_DELETE'
 ];
 
+// Event types are grouped onto a small set of semantic tones rather than
+// fifteen near-identical hexes. Every tone maps to a design token that ships
+// a paired background/text/border, so badges stay legible in both themes.
+const TONE_CLASS = {
+    success: styles.toneSuccess,
+    info: styles.toneInfo,
+    warning: styles.toneWarning,
+    danger: styles.toneDanger,
+    accent: styles.toneAccent,
+    neutral: styles.toneNeutral,
+};
+
 const TYPE_STYLES = {
-    CREATE: { icon: <PlusCircle size={13} />, color: '#2E7D32', label: 'Created' },
-    UPDATE: { icon: <Edit3 size={13} />, color: '#0288D1', label: 'Updated' },
-    DELETE: { icon: <Trash2 size={13} />, color: '#D32F2F', label: 'Deleted' },
-    STATUS_CHANGE: { icon: <Activity size={13} />, color: '#ED6C02', label: 'Status Change' },
-    AUTH_SUCCESS: { icon: <LogIn size={13} />, color: '#2E7D32', label: 'Login' },
-    AUTH_FAILURE: { icon: <XCircle size={13} />, color: '#D32F2F', label: 'Login Failed' },
-    AUTH_LOGOUT: { icon: <LogOut size={13} />, color: '#64748b', label: 'Logout' },
-    SYSTEM_ERROR: { icon: <AlertTriangle size={13} />, color: '#C62828', label: 'Error' },
-    IMPORT: { icon: <ClipboardList size={13} />, color: '#0288D1', label: 'Import' },
-    LIVE_SYNC: { icon: <Zap size={13} />, color: '#9C27B0', label: 'Live Sync' },
-    LIVE_SYNC_TEST: { icon: <Zap size={13} />, color: '#9C27B0', label: 'Sync Test' },
-    AUTOMATION_TASK: { icon: <Cpu size={13} />, color: '#1976D2', label: 'Automation' },
-    TARGET_UPDATE: { icon: <Edit3 size={13} />, color: '#0284c7', label: 'Target Update' },
-    TARGET_IMPORT: { icon: <ClipboardList size={13} />, color: '#0d9488', label: 'Target Import' },
-    TARGET_DELETE: { icon: <Trash2 size={13} />, color: '#e11d48', label: 'Target Delete' },
+    CREATE: { icon: <PlusCircle size={13} />, tone: 'success', label: 'Created' },
+    UPDATE: { icon: <Edit3 size={13} />, tone: 'info', label: 'Updated' },
+    DELETE: { icon: <Trash2 size={13} />, tone: 'danger', label: 'Deleted' },
+    STATUS_CHANGE: { icon: <Activity size={13} />, tone: 'warning', label: 'Status Change' },
+    AUTH_SUCCESS: { icon: <LogIn size={13} />, tone: 'success', label: 'Login' },
+    AUTH_FAILURE: { icon: <XCircle size={13} />, tone: 'danger', label: 'Login Failed' },
+    AUTH_LOGOUT: { icon: <LogOut size={13} />, tone: 'neutral', label: 'Logout' },
+    SYSTEM_ERROR: { icon: <AlertTriangle size={13} />, tone: 'danger', label: 'Error' },
+    IMPORT: { icon: <ClipboardList size={13} />, tone: 'info', label: 'Import' },
+    LIVE_SYNC: { icon: <Zap size={13} />, tone: 'accent', label: 'Live Sync' },
+    LIVE_SYNC_TEST: { icon: <Zap size={13} />, tone: 'accent', label: 'Sync Test' },
+    AUTOMATION_TASK: { icon: <Cpu size={13} />, tone: 'accent', label: 'Automation' },
+    TARGET_UPDATE: { icon: <Edit3 size={13} />, tone: 'info', label: 'Target Update' },
+    TARGET_IMPORT: { icon: <ClipboardList size={13} />, tone: 'success', label: 'Target Import' },
+    TARGET_DELETE: { icon: <Trash2 size={13} />, tone: 'danger', label: 'Target Delete' },
 };
 
 const ENTITY_STYLES = {
-    OBJECTIVE: { color: 'blue', icon: <Target size={11} /> },
-    ACTION: { color: 'orange', icon: <PlusCircle size={11} /> },
-    USER: { color: 'purple', icon: <User size={11} /> },
-    SELLER: { color: 'green', icon: <Box size={11} /> },
-    ASIN: { color: 'geekblue', icon: <Box size={11} /> },
-    SYSTEM: { color: 'default', icon: <Database size={11} /> },
+    OBJECTIVE: { tone: 'info', icon: <Target size={11} /> },
+    ACTION: { tone: 'warning', icon: <PlusCircle size={11} /> },
+    USER: { tone: 'accent', icon: <User size={11} /> },
+    SELLER: { tone: 'success', icon: <Box size={11} /> },
+    ASIN: { tone: 'info', icon: <Box size={11} /> },
+    SYSTEM: { tone: 'neutral', icon: <Database size={11} /> },
+};
+
+const OTP_ACTION_STYLES = {
+    OTP_SENT: { tone: 'info', label: 'Sent' },
+    OTP_VERIFIED: { tone: 'success', label: 'Verified' },
+    OTP_FAILED: { tone: 'danger', label: 'Failed' },
 };
 
 function formatTime(dateStr) {
@@ -65,25 +83,36 @@ function relativeTime(dateStr) {
     return formatTime(dateStr);
 }
 
-function renderMetadata(metadata) {
-    if (!metadata) return <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>No additional data.</Text>;
+const renderMetadata = (metadata) => {
+    if (!metadata) {
+        return <p className={styles.metadataEmpty}>No additional data.</p>;
+    }
+
     let data = metadata;
     if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch { return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{data}</pre>; }
+        try {
+            data = JSON.parse(data);
+        } catch {
+            return <pre className={styles.metadataRaw}>{data}</pre>;
+        }
     }
-    if (typeof data !== 'object') return <pre style={{ margin: 0, padding: 12, background: '#f8fafc', borderRadius: "var(--radius-md)", fontSize: 'var(--font-size-xs)' }}>{String(data)}</pre>;
+
+    if (typeof data !== 'object' || data === null) {
+        return <pre className={styles.metadataRaw}>{String(data)}</pre>;
+    }
+
     return (
         <Descriptions bordered size="small" column={1}>
             {Object.entries(data).map(([key, value]) => (
                 <Descriptions.Item key={key} label={key.charAt(0).toUpperCase() + key.slice(1)}>
-                    {typeof value === 'object' ? (
-                        <pre style={{ margin: 0, fontSize: 'var(--font-size-xs)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(value, null, 2)}</pre>
+                    {typeof value === 'object' && value !== null ? (
+                        <pre className={styles.metadataJson}>{JSON.stringify(value, null, 2)}</pre>
                     ) : String(value)}
                 </Descriptions.Item>
             ))}
         </Descriptions>
     );
-}
+};
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -113,11 +142,15 @@ const ActivityLog = () => {
     // OTP state
     const [otpLogs, setOtpLogs] = useState([]);
     const [otpLoading, setOtpLoading] = useState(false);
-    const [otpStats, setOtpStats] = useState({});
     const [otpPage, setOtpPage] = useState(1);
     const [otpTotal, setOtpTotal] = useState(0);
     const [otpActionFilter, setOtpActionFilter] = useState('');
     const [otpEmailFilter, setOtpEmailFilter] = useState('');
+
+    // Typing in either search box used to refetch on every keystroke, because
+    // the raw value sat in the fetch effect's dependency list.
+    const debouncedSearch = useDebounce(searchQuery, 350);
+    const debouncedOtpEmail = useDebounce(otpEmailFilter, 350);
 
     // Real-time socket
     useEffect(() => {
@@ -139,7 +172,7 @@ const ActivityLog = () => {
                 hideNoise: showAllEvents ? 'false' : 'true'
             };
             if (filterType !== 'ALL') params.type = filterType;
-            if (searchQuery) params.search = searchQuery;
+            if (debouncedSearch) params.search = debouncedSearch;
             if (dateRange?.[0]) params.startDate = dateRange[0].toISOString();
             if (dateRange?.[1]) params.endDate = dateRange[1].toISOString();
 
@@ -153,7 +186,7 @@ const ActivityLog = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, filterType, searchQuery, dateRange, showAllEvents]);
+    }, [page, pageSize, filterType, debouncedSearch, dateRange, showAllEvents]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -163,17 +196,16 @@ const ActivityLog = () => {
         try {
             const params = { page: p, limit: 20 };
             if (otpActionFilter) params.action = otpActionFilter;
-            if (otpEmailFilter) params.email = otpEmailFilter;
+            if (debouncedOtpEmail) params.email = debouncedOtpEmail;
             const res = await api.securityApi.getOtpLogs(params);
             if (res?.success) {
                 setOtpLogs(res.data || []);
                 setOtpTotal(res.total || 0);
-                setOtpStats(res.stats || {});
                 setOtpPage(p);
             }
         } catch (e) { console.error('OTP logs error:', e); }
         finally { setOtpLoading(false); }
-    }, [otpActionFilter, otpEmailFilter]);
+    }, [otpActionFilter, debouncedOtpEmail]);
 
     useEffect(() => { if (activeTab === 'otp') fetchOtpLogs(1); }, [activeTab, fetchOtpLogs]);
 
@@ -183,7 +215,12 @@ const ActivityLog = () => {
         setDateRange(null);
         setPage(1);
     };
-    const hasFilters = searchQuery || filterType !== 'ALL' || dateRange;
+    const hasFilters = Boolean(searchQuery || filterType !== 'ALL' || dateRange);
+
+    const openDetail = (log) => {
+        setSelectedLog(log);
+        setDetailOpen(true);
+    };
 
     // ── Activity table columns ────────────────────────────────────────────
     const columns = [
@@ -192,15 +229,11 @@ const ActivityLog = () => {
             key: 'event',
             width: 150,
             render: (_, r) => {
-                const s = TYPE_STYLES[r.type] || { icon: <Info size={13} />, color: '#64748b', label: r.type || 'Event' };
+                const s = TYPE_STYLES[r.type] || { icon: <Info size={13} />, tone: 'neutral', label: r.type || 'Event' };
                 return (
-                    <Tag style={{
-                        background: `${s.color}10`, color: s.color, border: `1px solid ${s.color}25`,
-                        borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 10, padding: '3px 10px',
-                        display: 'inline-flex', alignItems: 'center', gap: 5, textTransform: 'uppercase', letterSpacing: '0.03em'
-                    }}>
+                    <span className={`${styles.badge} ${TONE_CLASS[s.tone]}`}>
                         {s.icon} {s.label}
-                    </Tag>
+                    </span>
                 );
             }
         },
@@ -208,14 +241,16 @@ const ActivityLog = () => {
             title: 'Details',
             key: 'details',
             render: (_, r) => (
-                <div style={{ cursor: 'pointer' }} onClick={() => { setSelectedLog(r); setDetailOpen(true); }}>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a', marginBottom: 2 }}>
+                <button type="button" className={styles.detailsButton}
+                    onClick={() => openDetail(r)}
+                    aria-label={`View details for ${r.entityTitle || r.entityType || 'this event'}`}>
+                    <div className={styles.detailsTitle}>
                         {r.entityTitle || r.entityType || 'System Activity'}
                     </div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', lineHeight: 1.4, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div className={styles.detailsDescription}>
                         {r.description || 'No description'}
                     </div>
-                </div>
+                </button>
             )
         },
         {
@@ -224,35 +259,31 @@ const ActivityLog = () => {
             key: 'entityType',
             width: 110,
             render: (type) => {
-                const s = ENTITY_STYLES[type] || { color: 'default', icon: <Info size={11} /> };
+                const s = ENTITY_STYLES[type] || { tone: 'neutral', icon: <Info size={11} /> };
                 return (
-                    <Tag style={{ borderRadius: 6, fontSize: 10, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
-                        color={s.color}>
+                    <span className={`${styles.entityBadge} ${TONE_CLASS[s.tone]}`}>
                         {s.icon} {type || 'SYSTEM'}
-                    </Tag>
+                    </span>
                 );
             }
         },
         {
             title: 'User',
             key: 'user',
-            width: 160,
+            width: 170,
             render: (_, r) => {
-                const name = r.user?.firstName ? `${r.user.firstName} ${r.user.lastName || ''}` : 'System';
+                const name = r.user?.firstName ? `${r.user.firstName} ${r.user.lastName || ''}`.trim() : 'System';
                 const email = r.user?.email || '';
                 const isSystem = name === 'System' || !r.user?.firstName;
                 return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                            width: 26, height: 26, borderRadius: "var(--radius-md)",
-                            background: isSystem ? 'linear-gradient(135deg, #1976D2, #1976D2)' : 'linear-gradient(135deg, #9C27B0, #d946ef)',
-                            color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
+                    <div className={styles.userCell}>
+                        <div className={`${styles.avatar} ${isSystem ? styles.avatarSystem : ''}`}
+                            aria-hidden="true">
                             {name.charAt(0)}
                         </div>
-                        <div>
-                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>{name}</div>
-                            {email && <div style={{ fontSize: 10, color: '#94a3b8' }}>{email}</div>}
+                        <div style={{ minWidth: 0 }}>
+                            <div className={styles.userName}>{name}</div>
+                            {email && <div className={styles.userEmail}>{email}</div>}
                         </div>
                     </div>
                 );
@@ -265,19 +296,19 @@ const ActivityLog = () => {
             sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
             render: (_, r) => (
                 <Tooltip title={formatTime(r.createdAt)}>
-                    <div style={{ fontSize: 'var(--font-size-sm)', color: '#475569', fontWeight: 500 }}>{relativeTime(r.createdAt)}</div>
+                    <span className={styles.timeCell}>{relativeTime(r.createdAt)}</span>
                 </Tooltip>
             )
         },
         {
             title: '',
             key: 'action',
-            width: 40,
+            width: 44,
             render: (_, r) => (
                 <Tooltip title="View details">
                     <Button type="text" size="small" icon={<Eye size={13} />}
-                        style={{ color: '#1976D2' }}
-                        onClick={() => { setSelectedLog(r); setDetailOpen(true); }} />
+                        aria-label={`View details for ${r.entityTitle || r.entityType || 'this event'}`}
+                        onClick={() => openDetail(r)} />
                 </Tooltip>
             )
         }
@@ -286,121 +317,135 @@ const ActivityLog = () => {
     // ── OTP columns ────────────────────────────────────────────────────────
     const otpColumns = [
         {
-            title: 'Time', dataIndex: 'CreatedAt', key: 'CreatedAt', width: 150,
+            title: 'Time', dataIndex: 'CreatedAt', key: 'CreatedAt', width: 170,
             sorter: (a, b) => new Date(a.CreatedAt) - new Date(b.CreatedAt),
-            render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: '#475569' }}>{formatTime(v)}</span>
+            render: (v) => <span className={styles.timeCell}>{formatTime(v)}</span>
         },
         {
-            title: 'User', key: 'user', width: 180,
+            title: 'User', key: 'user', width: 200,
             render: (_, r) => {
                 const name = [r.FirstName, r.LastName].filter(Boolean).join(' ') || r.Email;
-                const initial = (r.FirstName || r.Email || 'U')[0].toUpperCase();
+                const initial = (r.FirstName || r.Email || 'U').charAt(0).toUpperCase();
                 return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: "var(--radius-md)", background: '#1976D2', color: '#fff', fontWeight: 600, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initial}</div>
-                        <div>
-                            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{name}</div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>{r.Email}</div>
+                    <div className={styles.userCell}>
+                        <div className={styles.avatar} aria-hidden="true">{initial}</div>
+                        <div style={{ minWidth: 0 }}>
+                            <div className={styles.userName}>{name}</div>
+                            {r.Email && <div className={styles.userEmail}>{r.Email}</div>}
                         </div>
                     </div>
                 );
             }
         },
         {
-            title: 'Action', dataIndex: 'Action', key: 'Action', width: 130,
+            title: 'Action', dataIndex: 'Action', key: 'Action', width: 120,
             render: (v) => {
-                const m = { 'OTP_SENT': { color: '#0288D1', label: 'Sent' }, 'OTP_VERIFIED': { color: '#2E7D32', label: 'Verified' }, 'OTP_FAILED': { color: '#D32F2F', label: 'Failed' } };
-                const s = m[v] || { color: '#64748b', label: v };
-                return <Tag style={{ background: `${s.color}10`, color: s.color, border: `1px solid ${s.color}25`, borderRadius: 6, fontWeight: 600, fontSize: 10 }}>{s.label}</Tag>;
+                const s = OTP_ACTION_STYLES[v] || { tone: 'neutral', label: v };
+                return <span className={`${styles.badge} ${TONE_CLASS[s.tone]}`}>{s.label}</span>;
             }
         },
         {
-            title: 'Status', dataIndex: 'Status', key: 'Status', width: 90,
+            title: 'Status', dataIndex: 'Status', key: 'Status', width: 100,
             render: (v) => (
-                <Tag style={{ borderRadius: 6, fontWeight: 600, fontSize: 10, background: v === 'SUCCESS' ? '#dcfce7' : '#fee2e2', color: v === 'SUCCESS' ? '#2E7D32' : '#C62828', border: `1px solid ${v === 'SUCCESS' ? '#bbf7d0' : '#fecaca'}` }}>
+                <span className={`${styles.badge} ${v === 'SUCCESS' ? TONE_CLASS.success : TONE_CLASS.danger}`}>
                     {v}
-                </Tag>
+                </span>
             )
         },
-        { title: 'Reason', dataIndex: 'Reason', key: 'Reason', width: 160, ellipsis: true, render: (v) => <span style={{ fontSize: 'var(--font-size-sm)', color: v ? '#475569' : '#d4d4d8' }}>{v || '—'}</span> },
-        { title: 'IP', dataIndex: 'IpAddress', key: 'IpAddress', width: 120, render: (v) => <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', color: '#64748b' }}>{v || '—'}</span> },
+        {
+            title: 'Reason', dataIndex: 'Reason', key: 'Reason', width: 180, ellipsis: true,
+            render: (v) => (
+                <span className={v ? styles.reasonCell : styles.reasonEmpty}>{v || '—'}</span>
+            )
+        },
+        {
+            title: 'IP', dataIndex: 'IpAddress', key: 'IpAddress', width: 130,
+            render: (v) => <span className={styles.monoCell}>{v || '—'}</span>
+        },
     ];
 
+    const isActivity = activeTab === 'activity';
+
     return (
-        <div style={{ background: '#fafbfc', minHeight: 'calc(100vh - 60px)' }}>
+        <div className={styles.page}>
             {/* Header */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '20px 28px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className={styles.header}>
+                <div className={styles.headerRow}>
                     <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 600, color: '#0f172a', margin: 0 }}>
-                                {activeTab === 'activity' ? 'Activity Log' : 'OTP Audit'}
+                        <div className={styles.titleRow}>
+                            <h2 className={styles.title}>
+                                {isActivity ? 'Activity Log' : 'OTP Audit'}
                             </h2>
-                            {activeTab === 'activity' && total > 0 && (
-                                <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                                    {total.toLocaleString()} events
-                                </span>
+                            {isActivity && total > 0 && (
+                                <span className={styles.countBadge}>{total.toLocaleString()} events</span>
                             )}
                         </div>
-                        <p style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', margin: 0, marginTop: 4, lineHeight: 1.5 }}>
-                            {activeTab === 'activity' ? 'Track system events, user actions, and automation logs.' : 'OTP verification attempts and security events.'}
+                        <p className={styles.subtitle}>
+                            {isActivity ? 'Track system events, user actions, and automation logs.' : 'OTP verification attempts and security events.'}
                         </p>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className={styles.headerActions}>
                         <Segmented
                             value={activeTab}
                             onChange={setActiveTab}
                             options={[
-                                { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--font-size-sm)', fontWeight: 600 }}><Activity size={12} /> System Logs</span>, value: 'activity' },
-                                { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--font-size-sm)', fontWeight: 600 }}><Shield size={12} /> OTP Audit</span>, value: 'otp' },
+                                { label: 'System Logs', value: 'activity' },
+                                { label: 'OTP Audit', value: 'otp' },
                             ]}
                         />
-                        <Button icon={<RefreshCw size={13} />} onClick={activeTab === 'activity' ? fetchLogs : () => fetchOtpLogs(1)} loading={loading || otpLoading}
-                            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, border: '1px solid #e2e8f0' }}>
+                        <Button icon={<RefreshCw size={13} />}
+                            onClick={isActivity ? fetchLogs : () => fetchOtpLogs(1)}
+                            loading={loading || otpLoading}
+                            style={{ fontWeight: 600, fontSize: 'var(--bc-text-sm)' }}>
                             Refresh
                         </Button>
                     </div>
                 </div>
             </div>
 
-            <div style={{ padding: '20px 28px' }}>
+            <div className={styles.body}>
                 {/* Activity Tab */}
-                {activeTab === 'activity' && (
+                {isActivity && (
                     <>
-                        {/* Filters */}
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-                            <Input prefix={<Search size={13} style={{ color: '#94a3b8' }} />} size="small" allowClear
-                                placeholder="Search events..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-                                style={{ width: 240, borderRadius: "var(--radius-md)" }} />
-                            <Select size="small" value={filterType} onChange={v => { setFilterType(v); setPage(1); }}
-                                style={{ width: 150, borderRadius: "var(--radius-md)" }}
+                        <div className={styles.filters}>
+                            <Input className={styles.searchInput} prefix={<Search size={13} />}
+                                size="small" allowClear placeholder="Search events..."
+                                value={searchQuery}
+                                onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+                                aria-label="Search events" />
+                            <Select className={styles.typeSelect} size="small" value={filterType}
+                                aria-label="Filter by event type"
+                                onChange={v => { setFilterType(v); setPage(1); }}
                                 options={[
                                     { value: 'ALL', label: 'All Events' },
                                     ...IMPORTANT_TYPES.map(t => ({ value: t, label: TYPE_STYLES[t]?.label || t }))
                                 ]} />
-                            <RangePicker size="small" value={dateRange} onChange={v => { setDateRange(v); setPage(1); }}
-                                style={{ width: 230, borderRadius: "var(--radius-md)" }} />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', fontWeight: 500 }}>Show all</span>
-                                <input type="checkbox" checked={showAllEvents}
-                                    onChange={e => { setShowAllEvents(e.target.checked); setPage(1); }}
-                                    style={{ accentColor: '#1976D2' }} />
+                            <RangePicker className={styles.dateRange} size="small" value={dateRange}
+                                aria-label="Filter by date range"
+                                onChange={v => { setDateRange(v); setPage(1); }} />
+                            <div className={styles.showAll}>
+                                <input id="activity-show-all" type="checkbox" className={styles.showAllCheckbox}
+                                    checked={showAllEvents}
+                                    onChange={e => { setShowAllEvents(e.target.checked); setPage(1); }} />
+                                <label className={styles.showAllLabel} htmlFor="activity-show-all">Show all events</label>
                             </div>
                             {hasFilters && (
-                                <Button size="small" danger onClick={clearFilters} style={{ borderRadius: 6, fontSize: 'var(--font-size-xs)' }}>Clear</Button>
+                                <Button size="small" danger onClick={clearFilters}
+                                    style={{ fontWeight: 600, fontSize: 'var(--bc-text-sm)' }}>Clear</Button>
                             )}
                         </div>
 
-                        {/* Table */}
-                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                            <Table className="activity-table" columns={columns} dataSource={logs} rowKey={r => r._id || Math.random().toString()}
+                        <div className={styles.card}>
+                            <Table className={styles.table} columns={columns} dataSource={logs}
+                                rowKey={r => r._id ?? r.Id ?? `${r.type}-${r.createdAt}-${r.entityType}`}
                                 loading={loading} size="small" scroll={{ x: 'max-content' }}
                                 pagination={{
                                     current: page, pageSize, total,
                                     showSizeChanger: true, pageSizeOptions: ['25', '50', '100'],
                                     showTotal: (t, range) => (
-                                        <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', fontWeight: 500 }}>
-                                            Showing <span style={{ fontWeight: 600, color: '#0f172a' }}>{range[0]}-{range[1]}</span> of <span style={{ fontWeight: 600, color: '#0f172a' }}>{t.toLocaleString()}</span> events
+                                        <span className={styles.paginationSummary}>
+                                            Showing <span className={styles.paginationStrong}>{range[0]}-{range[1]}</span>
+                                            {' '}of <span className={styles.paginationStrong}>{t.toLocaleString()}</span> events
                                         </span>
                                     ),
                                     onChange: (p, ps) => { setPage(p); if (ps !== pageSize) setPageSize(ps); }
@@ -413,18 +458,28 @@ const ActivityLog = () => {
                 {/* OTP Tab */}
                 {activeTab === 'otp' && (
                     <>
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <Select size="small" allowClear placeholder="Action" value={otpActionFilter || undefined}
-                                onChange={v => setOtpActionFilter(v || '')} style={{ width: 140, borderRadius: "var(--radius-md)" }}
-                                options={[{ value: 'OTP_SENT', label: 'Sent' }, { value: 'OTP_VERIFIED', label: 'Verified' }, { value: 'OTP_FAILED', label: 'Failed' }]} />
-                            <Input prefix={<Search size={12} />} size="small" placeholder="Email..." allowClear value={otpEmailFilter}
-                                onChange={e => setOtpEmailFilter(e.target.value)} style={{ width: 200, borderRadius: "var(--radius-md)" }} />
+                        <div className={styles.filters}>
+                            <Select className={styles.typeSelect} size="small" allowClear placeholder="Action"
+                                value={otpActionFilter || undefined} aria-label="Filter by OTP action"
+                                onChange={v => setOtpActionFilter(v || '')}
+                                options={[
+                                    { value: 'OTP_SENT', label: 'Sent' },
+                                    { value: 'OTP_VERIFIED', label: 'Verified' },
+                                    { value: 'OTP_FAILED', label: 'Failed' },
+                                ]} />
+                            <Input className={styles.searchInput} prefix={<Search size={12} />} size="small"
+                                placeholder="Email..." allowClear value={otpEmailFilter}
+                                aria-label="Filter by email"
+                                onChange={e => setOtpEmailFilter(e.target.value)} />
                         </div>
-                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}>
-                            <Table className="activity-table" columns={otpColumns} dataSource={otpLogs} rowKey={r => r.Id || r.id}
+                        <div className={styles.card}>
+                            <Table className={styles.table} columns={otpColumns} dataSource={otpLogs}
+                                rowKey={r => r.Id ?? r.id}
                                 loading={otpLoading} size="small" scroll={{ x: 'max-content' }}
-                                pagination={{ current: otpPage, pageSize: 20, total: otpTotal, onChange: fetchOtpLogs,
-                                    showTotal: t => <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>{t} records</span> }} />
+                                pagination={{
+                                    current: otpPage, pageSize: 20, total: otpTotal, onChange: fetchOtpLogs,
+                                    showTotal: t => <span className={styles.paginationSummary}>{t} records</span>
+                                }} />
                         </div>
                     </>
                 )}
@@ -433,52 +488,62 @@ const ActivityLog = () => {
             {/* Detail Modal */}
             <Modal open={detailOpen} onCancel={() => setDetailOpen(false)} centered width={620} destroyOnHidden
                 title={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: "var(--radius-md)", background: 'linear-gradient(135deg, #1976D2, #1976D2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Activity size={15} style={{ color: '#fff' }} />
+                    <div className={styles.modalHeader}>
+                        <div className={styles.modalIcon}>
+                            <Activity size={15} style={{ color: 'var(--bc-text-inverse)' }} />
                         </div>
                         <div>
-                            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Event Details</div>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: '#94a3b8' }}>{selectedLog?.type || 'Activity'}</div>
+                            <div className={styles.modalTitle}>Event Details</div>
+                            <div className={styles.modalSubtitle}>{selectedLog?.type || 'Activity'}</div>
                         </div>
                     </div>
                 }
-                footer={<Button type="primary" onClick={() => setDetailOpen(false)} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Close</Button>}
+                footer={
+                    <Button type="primary" onClick={() => setDetailOpen(false)}
+                        style={{ fontWeight: 600, fontSize: 'var(--bc-text-sm)' }}>Close</Button>
+                }
             >
                 {selectedLog && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div className={styles.section}>
                         <Descriptions bordered size="small" column={2}>
                             <Descriptions.Item label="Type">
-                                {(() => { const s = TYPE_STYLES[selectedLog.type] || {}; return <Tag color={s.color || 'default'}>{s.label || selectedLog.type}</Tag>; })()}
+                                {(() => {
+                                    const s = TYPE_STYLES[selectedLog.type] || { tone: 'neutral', label: selectedLog.type };
+                                    return (
+                                        <span className={`${styles.badge} ${TONE_CLASS[s.tone]}`}>
+                                            {s.label || selectedLog.type}
+                                        </span>
+                                    );
+                                })()}
                             </Descriptions.Item>
                             <Descriptions.Item label="Entity">{selectedLog.entityType || 'SYSTEM'}</Descriptions.Item>
                             <Descriptions.Item label="Time" span={2}>{formatTime(selectedLog.createdAt)}</Descriptions.Item>
                             <Descriptions.Item label="User" span={2}>
-                                {selectedLog.user?.firstName ? `${selectedLog.user.firstName} ${selectedLog.user.lastName || ''}` : 'System'}
-                                {selectedLog.user?.email && <Text type="secondary" style={{ marginLeft: 6, fontSize: 'var(--font-size-xs)' }}>({selectedLog.user.email})</Text>}
+                                {selectedLog.user?.firstName
+                                    ? `${selectedLog.user.firstName} ${selectedLog.user.lastName || ''}`.trim()
+                                    : 'System'}
+                                {selectedLog.user?.email && (
+                                    <span style={{ marginLeft: 6, fontSize: 'var(--bc-text-xs)', color: 'var(--bc-text-secondary)' }}>
+                                        ({selectedLog.user.email})
+                                    </span>
+                                )}
                             </Descriptions.Item>
                         </Descriptions>
                         <div>
-                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Description</Text>
-                            <div style={{ padding: 14, background: '#f8fafc', borderRadius: "var(--radius-md)", border: '1px solid #e2e8f0', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, color: '#1e293b' }}>
+                            <span className={styles.sectionLabel}>Description</span>
+                            <div className={styles.descriptionBox}>
                                 {selectedLog.description || 'No description available.'}
                             </div>
                         </div>
                         <div>
-                            <Text strong style={{ display: 'block', marginBottom: 6, color: '#64748b', textTransform: 'uppercase', fontSize: 'var(--font-size-xs)', letterSpacing: '0.05em' }}>Metadata</Text>
-                            <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: "var(--radius-md)", border: '1px solid #f1f5f9' }}>
+                            <span className={styles.sectionLabel}>Metadata</span>
+                            <div className={styles.metadataScroll}>
                                 {renderMetadata(selectedLog.metadata)}
                             </div>
                         </div>
                     </div>
                 )}
             </Modal>
-
-            <style>{`
-                .activity-table .ant-table-thead > tr > th { background: #fafbfc !important; font-size: 11px !important; font-weight: 700 !important; color: #475569 !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; border-bottom: 2px solid #e2e8f0 !important; }
-                .activity-table .ant-table-tbody > tr > td { border-bottom: 1px solid #f1f5f9 !important; }
-                .activity-table .ant-table-tbody > tr:hover > td { background: #f8fafc !important; }
-            `}</style>
         </div>
     );
 };
