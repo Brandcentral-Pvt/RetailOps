@@ -141,7 +141,12 @@
   --asin-head-pad-y: var(--bc-space-1);
   --asin-row-pad-y: var(--bc-space-1);
   --asin-row-pad-x: var(--bc-space-2);
-  --asin-zebra: transparent;
+  /* Compact turns zebra striping off, but the value must still be opaque.
+     Pinned cells rely on their own background to occlude the columns that
+     scroll underneath them; a transparent one lets them bleed through. The
+     grid surface behind these rows is already --bc-surface-card, so painting
+     it here looks identical to no striping at all. */
+  --asin-zebra: var(--bc-surface-card);
 }
 
 .asin-grid-scroll--roomy {
@@ -300,6 +305,20 @@
 
 .asin-grid tbody tr.is-selected .asin-grid__sticky {
   background: var(--bc-status-info-bg);
+}
+
+/* Pinned cells must keep the same tint as the row they sit in. The zebra rule
+   above matches at (0,3,2), which outranks the plain `tr…td` state rules at
+   (0,2,3) — so an out-of-stock row lost its tint on the pinned columns and
+   fell back to the zebra value. Mirroring the state here at matching
+   specificity lets source order decide, as the trend tints above do. */
+.asin-grid tbody tr.asin-grid__row--unavailable .asin-grid__sticky {
+  background: var(--bc-status-danger-bg);
+}
+
+.asin-grid tbody tr.asin-grid__row--unavailable:hover .asin-grid__sticky,
+.asin-grid tbody tr.asin-grid__row--unavailable.is-selected .asin-grid__sticky {
+  background: var(--bc-status-danger-bg);
 }
 
 /* Offsets assume the select column is present. The --sticky--select-only
