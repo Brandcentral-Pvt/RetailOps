@@ -12,9 +12,10 @@ import { Button, Input, Modal, Progress, Select, Tooltip as AntTooltip } from 'a
 import {
     Panel, MiniState, Delta, Chip, Tip, Segmented, SegmentedBar,
     SortHeader, ShareBar, fmtINR, fmtINRFull, fmtNum, fmtNumFull, timeAgo,
+    OPS_COLOR,
 } from '../opsCenter/primitives';
 import { Sparkline, Bars, Ring } from '../opsCenter/charts';
-import { AdsAreaChart } from './AdsAreaChart';
+import { AreaTrendChart } from '../opsCenter/AreaTrendChart';
 import { useAdsHistory } from '../../hooks/useAdsModule';
 
 /* ────────────────────────────── helpers ───────────────────────────────── */
@@ -84,26 +85,26 @@ const buildChartSeries = (overview, mode) => {
     });
     const defs = {
         revenue: [
-            ['totalSales', 'Total sales', '#1349c6', { weight: 2.4 }],
-            ['sales', 'Ad sales', '#6172f3', { weight: 1.8 }],
+            ['totalSales', 'Total sales', OPS_COLOR.accent, { weight: 2.4 }],
+            ['sales', 'Ad sales', OPS_COLOR.violet, { weight: 1.8 }],
             ['organicSales', 'Organic', '#0e9039', { weight: 1.5, dashed: true }],
         ],
         spend: [
-            ['spend', 'Ad spend', '#b54708', { weight: 2.2 }],
-            ['sales', 'Ad sales', '#1349c6', { weight: 1.8 }],
+            ['spend', 'Ad spend', OPS_COLOR.warn, { weight: 2.2 }],
+            ['sales', 'Ad sales', OPS_COLOR.accent, { weight: 1.8 }],
         ],
         efficiency: [
-            ['acos', 'ACoS', '#d92d20', { weight: 2.2 }],
-            ['tacos', 'TACoS', '#b54708', { weight: 1.6, dashed: true }],
+            ['acos', 'ACoS', OPS_COLOR.neg, { weight: 2.2 }],
+            ['tacos', 'TACoS', OPS_COLOR.warn, { weight: 1.6, dashed: true }],
         ],
         traffic: [
-            ['impressions', 'Impressions', '#6172f3', { weight: 2.0 }],
-            ['clicks', 'Clicks', '#0e7490', { weight: 1.6 }],
-            ['pageViews', 'Page views', '#8896ab', { weight: 1.4, dashed: true }],
+            ['impressions', 'Impressions', OPS_COLOR.violet, { weight: 2.0 }],
+            ['clicks', 'Clicks', OPS_COLOR.teal, { weight: 1.6 }],
+            ['pageViews', 'Page views', OPS_COLOR.ink3, { weight: 1.4, dashed: true }],
         ],
         orders: [
-            ['orders', 'Ad orders', '#1349c6', { weight: 2.2 }],
-            ['totalOrders', 'Total orders', '#067647', { weight: 1.6, dashed: true }],
+            ['orders', 'Ad orders', OPS_COLOR.accent, { weight: 2.2 }],
+            ['totalOrders', 'Total orders', OPS_COLOR.pos, { weight: 1.6, dashed: true }],
         ],
     };
     const list = (defs[mode] || defs.revenue).map(([k, n, c, o]) => s(k, n, c, cur, o));
@@ -315,7 +316,7 @@ export const TrendPanel = ({
                 <MiniState tone="empty" title="No data loaded" note="Pick a window and seller to load the trend." />
             ) : (
                 <>
-                    <AdsAreaChart
+                    <AreaTrendChart
                         labels={overview.series?.keys || []}
                         series={series}
                         unit={unit}
@@ -1256,12 +1257,12 @@ export const ReportPanel = ({ report, status, onRetry, onOpenMonth }) => {
                     <MiniState tone="empty" title="No monthly data" note="No ads rows for this window with the current filters." />
                 ) : (
                     <>
-                        <AdsAreaChart
+                        <AreaTrendChart
                             labels={months.map((m) => m.key)}
                             series={[
-                                { key: 'spend', name: 'Ad spend', color: '#b54708', data: months.map((m) => num(m.spend)) },
-                                { key: 'totalSales', name: 'Total sales', color: '#1349c6', data: months.map((m) => num(m.totalSales)) },
-                                { key: 'adsTarget', name: 'ADS target', color: '#6172f3', dashed: true, data: months.map((m) => num(m.adsTarget)) },
+                                { key: 'spend', name: 'Ad spend', color: OPS_COLOR.warn, data: months.map((m) => num(m.spend)) },
+                                { key: 'totalSales', name: 'Total sales', color: OPS_COLOR.accent, data: months.map((m) => num(m.totalSales)) },
+                                { key: 'adsTarget', name: 'ADS target', color: OPS_COLOR.violet, dashed: true, data: months.map((m) => num(m.adsTarget)) },
                             ]}
                             unit="inr"
                             height={220}
