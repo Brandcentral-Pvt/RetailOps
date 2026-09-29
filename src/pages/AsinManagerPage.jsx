@@ -57,7 +57,8 @@ import {
   MoreVertical,
   MoreHorizontal,
   Edit3,
-  Upload
+  Upload,
+  Rows3
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRefresh } from '../contexts/RefreshContext';
@@ -95,6 +96,14 @@ const UNAVAILABLE_MARKERS = [
   'currently unavailable'
 ];
 
+const DENSITY_ORDER = ['compact', 'comfortable', 'roomy'];
+
+const DENSITY_LABELS = {
+  compact: 'Compact',
+  comfortable: 'Comfortable',
+  roomy: 'Roomy'
+};
+
 function isUnavailableStatus(asin) {
   const status = (asin?.availabilityStatus || '').toLowerCase();
   return UNAVAILABLE_MARKERS.some(marker => status.includes(marker));
@@ -130,6 +139,14 @@ const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAsinForPrice, setSelectedAsinForPrice] = useState(null);
+  const [rowDensity, setRowDensity] = useState(() => {
+    try {
+      const stored = localStorage.getItem('asin-table-density');
+      return DENSITY_ORDER.includes(stored) ? stored : 'comfortable';
+    } catch {
+      return 'comfortable';
+    }
+  });
   const [selectedAsinForBsr, setSelectedAsinForBsr] = useState(null);
   const [selectedAsinForRating, setSelectedAsinForRating] = useState(null);
   const [showAllPriceHistory, setShowAllPriceHistory] = useState(false);
@@ -421,6 +438,19 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
     if (uploaded > 0 && current > 0 && Math.abs(uploaded - current) > 5) return true;
     return false;
   };
+
+  const cycleRowDensity = useCallback(() => {
+    setRowDensity((prev) => {
+      const current = DENSITY_ORDER.indexOf(prev);
+      const next = DENSITY_ORDER[(current + 1) % DENSITY_ORDER.length];
+      try {
+        localStorage.setItem('asin-table-density', next);
+      } catch {
+        // Persistence is best-effort; density still applies for this session.
+      }
+      return next;
+    });
+  }, []);
 
   const resetAllFilters = useCallback(() => {
     const resetState = {
@@ -1422,30 +1452,31 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
   const thStyle = {
     fontSize: 'var(--bc-text-2xs)',
-    fontWeight: 800,
+    fontWeight: 700,
     textTransform: 'uppercase',
-    letterSpacing: '0.03em',
+    letterSpacing: '0.04em',
     color: 'var(--bc-text-secondary)',
-    padding: 'var(--bc-space-2) var(--bc-space-2.5)',
-    background: 'var(--bc-surface-elevated)',
+    padding: 'var(--asin-head-pad-y) var(--asin-head-pad-x)',
+    background: 'var(--bc-surface-muted)',
     position: 'sticky',
     top: 0,
-    borderBottom: '1px solid var(--bc-border-default)',
+    borderBottom: '1px solid var(--bc-border-subtle)',
     whiteSpace: 'nowrap',
     borderRight: '1px solid var(--bc-border-subtle)',
     zIndex: 10
   };
 
   const tdStyle = {
-    padding: 'var(--bc-space-1.5) var(--bc-space-2.5)',
+    padding: 'var(--asin-row-pad-y) var(--asin-row-pad-x)',
     fontSize: 'var(--bc-text-sm)',
     borderBottom: '1px solid var(--bc-border-subtle)',
     verticalAlign: 'middle',
     color: 'var(--bc-text-body)',
-    borderRight: '1px solid var(--bc-border-subtle)',
+    borderRight: '1px solid transparent',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    fontVariantNumeric: 'tabular-nums'
   };
 
   return (
@@ -2079,6 +2110,23 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   />
                 </div>
 
+                <Tooltip title={`Row density: ${rowDensity}`} placement="top">
+                  <Button
+                    onClick={cycleRowDensity}
+                    type="default"
+                    icon={<Rows3 size={14} />}
+                    style={{
+                      height: '32px',
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: 600,
+                      borderRadius: 'var(--radius-md)'
+                    }}
+                    className="d-flex align-items-center gap-2 shadow-sm"
+                  >
+                    {DENSITY_LABELS[rowDensity]}
+                  </Button>
+                </Tooltip>
+
                 <div className="vr mx-1 text-secondary opacity-25" style={{ height: '20px' }} />
 
                 {hasPermission('asinmanager_manage') && (
@@ -2233,7 +2281,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
 
           {/* Scrollable Table Container */}
-          <div className="asin-grid-scroll">
+          <div className={`asin-grid-scroll asin-grid-scroll--${rowDensity}`}>
             <table className="asin-grid" style={{ width: 'max-content', minWidth: '100%', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
                 <tr>
@@ -2286,16 +2334,16 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   {isVisible('tags') && <th rowSpan={2} style={{ ...thStyle, width: '100px', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-light)' }}>TAGS</th>}
 
                   {/* ===== DEAL & MANUFACTURER COLUMNS (Slate Palette) ===== */}
-                  {isVisible('manufacturer') && <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>MANUFACTURER</th>}
-                  {isVisible('availabilityStatus') && <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>AVAILABILITY</th>}
+                  {isVisible('manufacturer') && <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'left', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>MANUFACTURER</th>}
+                  {isVisible('availabilityStatus') && <th rowSpan={2} style={{ ...thStyle, width: '100px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>AVAILABILITY</th>}
 
-                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>ADS</th>}
-                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: 'var(--bg-success-subtle)', color: '#065f46', borderBottom: '2px solid #d1fae5' }}>GMS</th>}
+                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>ADS</th>}
+                  {isVisible('ads') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>GMS</th>}
                   {visibleOrdersCount > 0 && (
                     <th
                       rowSpan={ordersExpanded ? 1 : 2}
                       colSpan={ordersExpanded ? (availableMonths.length + 1) : 1}
-                      style={{ ...thStyle, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-medium)', transition: 'all 0.3s ease' }}
+                      style={{ ...thStyle, background: 'var(--bg-secondary)', textAlign: 'center', borderBottom: '2px solid var(--border-medium)', transition: 'all 0.3s ease' }}
                     >
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         {ordersExpanded ? (
@@ -2305,8 +2353,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); setOrdersExpanded(!ordersExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center ms-1"
-                          style={{ border: 'none', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                          className="asin-grid__group-toggle btn btn-sm p-0 d-inline-flex align-items-center justify-content-center ms-1"
+
                           title={ordersExpanded ? "Collapse to Total" : "Expand to Monthly Orders"}
                         >
                           {ordersExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2314,42 +2362,42 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       </div>
                     </th>
                   )}
-                  {isVisible('dealBadge') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL</th>}
-                  {isVisible('dealStartTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL START</th>}
-                  {isVisible('dealEndTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL END</th>}
-                  {isVisible('dealAccessType') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL TYPE</th>}
-                  {isVisible('currentBuybox') && <th rowSpan={2} style={{ ...thStyle, width: '140px', textAlign: 'left', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-medium)' }}>BUYBOX</th>}
+                  {isVisible('dealBadge') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL</th>}
+                  {isVisible('dealStartTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL START</th>}
+                  {isVisible('dealEndTime') && <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL END</th>}
+                  {isVisible('dealAccessType') && <th rowSpan={2} style={{ ...thStyle, width: '80px', textAlign: 'center', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>DEAL TYPE</th>}
+                  {isVisible('currentBuybox') && <th rowSpan={2} style={{ ...thStyle, width: '140px', textAlign: 'left', background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-medium)' }}>BUYBOX</th>}
 
                   {/* ===== PRICE COLUMNS (MRP, Price, Dispute, Price Trend) (Indigo Palette) ===== */}
                   {isVisible('mrp') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right' }}>
                       {renderSortableHeader('MRP', 'mrp', 'right')}
                     </th>
                   )}
                   {isVisible('price') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'right' }}>
                       {renderSortableHeader(marketplaceFilter === 'ajio' ? 'PRICE' : 'CHANNEL PRICE', 'uploadedPrice', 'right')}
                     </th>
                   )}
                   {isVisible('discountPercentage') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center' }}>
                       {renderSortableHeader('DISCOUNT %', 'discountPercentage', 'center')}
                     </th>
                   )}
                   {isVisible('priceDispute') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center', background: '#eef2ff', color: '#4338ca', borderBottom: '2px solid #c7d2fe' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '85px', textAlign: 'center' }}>
                       {renderSortableHeader('DISPUTE', 'priceDispute', 'center')}
                     </th>
                   )}
                   {visiblePriceTrendCount > 0 && (
                     <th colSpan={visiblePriceTrendCount}
-                      style={{ ...thStyle, background: '#eef2ff', color: '#4338ca', textAlign: 'center', borderBottom: '2px solid #c7d2fe', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, textAlign: 'center', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{priceTrendExpanded ? 'Price Trend' : 'Price'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setPriceTrendExpanded(!priceTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#4338ca', cursor: 'pointer' }}
+                          className="asin-grid__group-toggle btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
+
                           title={priceTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {priceTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2359,21 +2407,21 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   )}
 
                   {isVisible('mainBsr') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '90px', textAlign: 'center', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('MAIN BSR', 'bsr', 'center')}
                     </th>
                   )}
-                  {isVisible('subBsr') && <th rowSpan={2} style={{ ...thStyle, width: '110px', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>SUB BSR</th>}
-                  {isVisible('bsrTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: '#f5f3ff', color: '#6d28d9', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>BSR TR</th>}
+                  {isVisible('subBsr') && <th rowSpan={2} style={{ ...thStyle, width: '110px', transition: 'all 0.3s ease' }}>SUB BSR</th>}
+                  {isVisible('bsrTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', transition: 'all 0.3s ease' }}>BSR TR</th>}
                   {visibleBsrTrendCount > 0 && (
                     <th colSpan={visibleBsrTrendCount}
-                      style={{ ...thStyle, background: '#f5f3ff', color: '#6d28d9', textAlign: 'center', borderBottom: '2px solid #ddd6fe', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, textAlign: 'center', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{bsrTrendExpanded ? 'SUB-BSR TREND' : 'Sub BSR'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setBsrTrendExpanded(!bsrTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#6d28d9', cursor: 'pointer' }}
+                          className="asin-grid__group-toggle btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
+
                           title={bsrTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {bsrTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2384,30 +2432,30 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
                   {/* ===== RATING COLUMNS (Amber Palette) ===== */}
                   {isVisible('rating') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '60px', textAlign: 'center', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('RT', 'rating', 'center')}
                     </th>
                   )}
                   {isVisible('reviewCount') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('CNT', 'reviewCount', 'center')}
                     </th>
                   )}
                   {isVisible('ratingBreakdown') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '120px', textAlign: 'center', transition: 'all 0.3s ease', fontSize: '10px', fontWeight: 600 }}>
                       DISTRIBUTION
                     </th>
                   )}
-                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>RATING TR</th>}
+                  {isVisible('ratingTrendStatus') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', transition: 'all 0.3s ease' }}>RATING TR</th>}
                   {visibleRatingTrendCount > 0 && (
                     <th colSpan={visibleRatingTrendCount}
-                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, textAlign: 'center', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{ratingTrendExpanded ? 'RATING TREND' : 'RT'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setRatingTrendExpanded(!ratingTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#b45309', cursor: 'pointer' }}
+                          className="asin-grid__group-toggle btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
+
                           title={ratingTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {ratingTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2415,16 +2463,16 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       </div>
                     </th>
                   )}
-                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', background: 'var(--bg-warning-subtle)', color: '#b45309', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
+                  {isVisible('reviewCount') && <th rowSpan={2} style={{ ...thStyle, width: '75px', textAlign: 'center', transition: 'all 0.3s ease' }} title="Reviews Trend Status">REV TR</th>}
                   {visibleReviewTrendCount > 0 && (
                     <th colSpan={visibleReviewTrendCount}
-                      style={{ ...thStyle, background: 'var(--bg-warning-subtle)', color: '#b45309', textAlign: 'center', borderBottom: '2px solid #fde68a', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, textAlign: 'center', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{reviewTrendExpanded ? 'REVIEWS TREND' : 'REV'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setReviewTrendExpanded(!reviewTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#b45309', cursor: 'pointer' }}
+                          className="asin-grid__group-toggle btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
+
                           title={reviewTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {reviewTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2435,24 +2483,24 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
                   {/* ===== VISUALS & CONTENT COLUMNS (Video, Images, Bullet Points, A+) (Pink Palette) ===== */}
                   {isVisible('video') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }} title="Video Present">
+                    <th rowSpan={2} style={{ ...thStyle, width: '65px', textAlign: 'center', transition: 'all 0.3s ease' }} title="Video Present">
                       {renderSortableHeader('Video', 'videoCount', 'center')}
                     </th>
                   )}
                   {isVisible('imagesCount') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', transition: 'all 0.3s ease' }}>
                       {renderSortableHeader('IMG', 'imagesCount', 'center')}
                     </th>
                   )}
                   {visibleImageTrendCount > 0 && (
                     <th colSpan={visibleImageTrendCount}
-                      style={{ ...thStyle, background: '#fdf2f8', color: '#db2777', textAlign: 'center', borderBottom: '2px solid #fbcfe8', transition: 'all 0.3s ease' }}>
+                      style={{ ...thStyle, textAlign: 'center', transition: 'all 0.3s ease' }}>
                       <div className="d-flex align-items-center justify-content-center gap-1" style={{ fontSize: '10px', fontWeight: 600 }}>
                         <span>{imageTrendExpanded ? 'IMG TREND' : 'IMG'}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setImageTrendExpanded(!imageTrendExpanded); }}
-                          className="btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
-                          style={{ border: 'none', background: 'none', color: '#db2777', cursor: 'pointer' }}
+                          className="asin-grid__group-toggle btn btn-sm p-0 d-inline-flex align-items-center justify-content-center"
+
                           title={imageTrendExpanded ? "Collapse to Latest" : "Expand to 7 Days"}
                         >
                           {imageTrendExpanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -2460,13 +2508,13 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       </div>
                     </th>
                   )}
-                  {isVisible('bulletPoints') && <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>B</th>}
+                  {isVisible('bulletPoints') && <th rowSpan={2} style={{ ...thStyle, width: '35px', textAlign: 'center' }}>B</th>}
                   {isVisible('hasAplus') && (
-                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>
+                    <th rowSpan={2} style={{ ...thStyle, width: '55px', textAlign: 'center' }}>
                       {renderSortableHeader('A+', 'hasAplus', 'center')}
                     </th>
                   )}
-                  {isVisible('aplusDays') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center', background: '#fdf2f8', color: '#db2777', borderBottom: '2px solid #fbcfe8' }}>A+ DAYS</th>}
+                  {isVisible('aplusDays') && <th rowSpan={2} style={{ ...thStyle, width: '50px', textAlign: 'center' }}>A+ DAYS</th>}
                   <th rowSpan={2} style={{
                     ...thStyle,
                     width: '60px',
@@ -2529,8 +2577,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       ...getTransitionStyle(gmsRevenueExpanded, idx, availableMonths.length + 1, '70px'),
                       fontSize: 9,
                       textAlign: 'center',
-                      background: 'var(--bg-success-subtle)',
-                      color: '#065f46'
+                      
+
                     }}>
                       <div style={{
                         width: gmsRevenueExpanded ? 'auto' : '0px',
@@ -2547,9 +2595,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       ...getTransitionStyle(gmsRevenueExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
                       fontSize: 9,
                       textAlign: 'center',
-                      background: '#d1fae5',
+                      background: 'var(--bc-surface-card)',
                       fontWeight: 800,
-                      color: '#065f46'
                     }}>
                       <div style={{
                         width: gmsRevenueExpanded ? 'auto' : '0px',
@@ -2569,8 +2616,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         ...getTransitionStyle(priceTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#eef2ff',
-                        color: '#4338ca'
+                        
+
                       }}>
                         <div style={{
                           width: (priceTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2591,8 +2638,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         ...getTransitionStyle(bsrTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#f5f3ff',
-                        color: '#6d28d9'
+                        
+
                       }}>
                         <div style={{
                           width: (bsrTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2613,8 +2660,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         ...getTransitionStyle(ratingTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: 'var(--bg-warning-subtle)',
-                        color: '#b45309'
+                        
+
                       }}>
                         <div style={{
                           width: (ratingTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2635,8 +2682,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         ...getTransitionStyle(reviewTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: 'var(--bg-warning-subtle)',
-                        color: '#b45309'
+                        
+
                       }}>
                         <div style={{
                           width: (reviewTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2657,8 +2704,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         ...getTransitionStyle(imageTrendExpanded, idx, week.dates.length),
                         fontSize: 9,
                         textAlign: 'center',
-                        background: '#fdf2f8',
-                        color: '#db2777'
+                        
+
                       }}>
                         <div style={{
                           width: (imageTrendExpanded || idx === week.dates.length - 1) ? 'auto' : '0px',
@@ -2676,7 +2723,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
               <tbody>
                 {filteredAsins.length === 0 ? (
                   <tr>
-                    <td colSpan={56} style={{ padding: '60px 0', background: '#fff' }}>
+                      <td colSpan={56} style={{ padding: '60px 0' }}>
                       <EmptyState
                         icon={Package}
                         title="No ASINs Found"
@@ -3055,12 +3102,11 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                           // Handle both flat numbers and objects with .revenue
                           const revenue = typeof monthRevenue === 'object' ? (monthRevenue.revenue || 0) : monthRevenue;
                           return (
-                            <td key={`gms-c-${mIdx}`} style={{
-                              ...tdStyle,
-                              ...getTransitionStyle(gmsRevenueExpanded, mIdx, availableMonths.length + 1, '70px'),
-                              textAlign: 'center',
-                              background: '#f0fdf4'
-                            }}>
+                      <td className="asin-grid__cell--trend-revenue" key={`gms-c-${mIdx}`} style={{
+                        ...tdStyle,
+                        ...getTransitionStyle(gmsRevenueExpanded, mIdx, availableMonths.length + 1, '70px'),
+                        textAlign: 'center'
+                      }}>
                               <div style={{
                                 width: gmsRevenueExpanded ? 'auto' : '0px',
                                 overflow: 'hidden',
@@ -3079,13 +3125,12 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         })}
                         {/* GMS Revenue Total Cell */}
                         {gmsRevenueExpanded && (
-                          <td style={{
-                            ...tdStyle,
-                            ...getTransitionStyle(gmsRevenueExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
-                            textAlign: 'center',
-                            background: '#d1fae5',
-                            fontWeight: 600
-                          }}>
+                      <td className="asin-grid__cell--trend-revenue-total" style={{
+                        ...tdStyle,
+                        ...getTransitionStyle(gmsRevenueExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
+                        textAlign: 'center',
+                        fontWeight: 600
+                      }}>
                             <div style={{
                               width: 'auto',
                               overflow: 'hidden',
@@ -3289,14 +3334,13 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                             // Fallback removed to expose data integrity gaps
 
                             return (
-                              <td key={`p-${week.label}-${dIdx}`}
+                                <td className="asin-grid__cell--trend-bsr" key={`p-${week.label}-${dIdx}`}
                                 onClick={(e) => handleViewPrice(asin, e)}
                                 title="View Price Trend Matrix"
                                 style={{
                                   ...tdStyle,
                                   ...getTransitionStyle(priceTrendExpanded, dIdx, week.dates.length),
                                   textAlign: 'center',
-                                  background: '#f5f3ff33',
                                   cursor: 'pointer'
                                 }}>
                                 <div style={{
@@ -3311,7 +3355,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                           })
                         ))}
                         {isVisible('mainBsr') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer', background: '#f5f3ff1a' }}
+                          <td className="asin-grid__cell--trend-bsr" style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
                             onClick={(e) => handleViewBsr(asin, e)}>
                             <div className="d-flex flex-column align-items-center">
                               <div style={{ fontWeight: 600, color: 'var(--color-secondary)', fontSize: 'var(--font-size-xs)' }}>
@@ -3384,7 +3428,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                         )}
                         {isVisible('bsrTrendStatus') && (
                           <td
-                            style={{ ...tdStyle, textAlign: 'center', background: '#f5f3ff1a', cursor: 'pointer' }}
+                            style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
                             onClick={() => handleViewTrends(asin, 'bsr')}
                           >
                             <TrendBadge status={asin.bsrTrend} />
@@ -3396,13 +3440,12 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                             const subBsrPoint = subBsrHistoryMap[hDate];
                             const displayVal = subBsrPoint?.rank ?? asin.subBsr;
                             return (
-                              <td key={`b-${week.label}-${dIdx}`}
+                              <td className="asin-grid__cell--trend-bsr" key={`b-${week.label}-${dIdx}`}
                                 onClick={(e) => handleViewBsr(asin, e)}
                                 style={{
                                   ...tdStyle,
                                   ...getTransitionStyle(bsrTrendExpanded, dIdx, week.dates.length),
                                   textAlign: 'center',
-                                  background: '#f5f3ff33',
                                   cursor: 'pointer'
                                 }}>
                                 <div style={{
@@ -3450,13 +3493,12 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                             const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
                             const ratingVal = (wData && wData.rating !== undefined && wData.rating !== null) ? wData.rating : asin.rating;
                             return (
-                              <td key={`r-${week.label}-${dIdx}`}
+                              <td className="asin-grid__cell--trend-rating" key={`r-${week.label}-${dIdx}`}
                                 onClick={(e) => handleViewRating(asin, e)}
                                 style={{
                                   ...tdStyle,
                                   ...getTransitionStyle(ratingTrendExpanded, dIdx, week.dates.length),
                                   textAlign: 'center',
-                                  background: '#fffbeb33',
                                   cursor: 'pointer'
                                 }}>
                                 <div style={{
@@ -3483,13 +3525,12 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                             const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
                             const reviewsVal = (wData && wData.reviews !== undefined && wData.reviews !== null) ? wData.reviews : (wData?.reviewCount !== undefined && wData?.reviewCount !== null ? wData.reviewCount : asin.reviewCount);
                             return (
-                              <td key={`rev-${week.label}-${dIdx}`}
+                              <td className="asin-grid__cell--trend-rating" key={`rev-${week.label}-${dIdx}`}
                                 onClick={(e) => handleViewRating(asin, e)}
                                 style={{
                                   ...tdStyle,
                                   ...getTransitionStyle(reviewTrendExpanded, dIdx, week.dates.length),
                                   textAlign: 'center',
-                                  background: '#fffbeb33',
                                   cursor: 'pointer'
                                 }}>
                                 <div style={{
@@ -3524,14 +3565,12 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                           week.dates.map((date, dIdx) => {
                             const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
                             return (
-                              <td key={`i-${week.label}-${dIdx}`}
-                                style={{
-                                  ...tdStyle,
-                                  ...getTransitionStyle(imageTrendExpanded, dIdx, week.dates.length),
-                                  textAlign: 'center',
-                                  background: '#fdf2f833',
-                                  borderRight: '1px solid #fce7f3'
-                                }}>
+                                <td className="asin-grid__cell--trend-visual" key={`i-${week.label}-${dIdx}`}
+                                  style={{
+                                    ...tdStyle,
+                                    ...getTransitionStyle(imageTrendExpanded, dIdx, week.dates.length),
+                                    textAlign: 'center'
+                                  }}>
                                 <div style={{
                                   width: (imageTrendExpanded || dIdx === week.dates.length - 1) ? 'auto' : '0px',
                                   overflow: 'hidden',
