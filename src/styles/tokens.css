@@ -232,10 +232,13 @@
   --bc-space-0:    0;
   --bc-space-px:   1px;
   --bc-space-0\.5: 0.125rem;  /* 2px */
+  --bc-space-0-half: var(--bc-space-0\.5);
   --bc-space-1:    0.25rem;   /* 4px */
   --bc-space-1\.5: 0.375rem;  /* 6px */
+  --bc-space-1-half: var(--bc-space-1\.5);
   --bc-space-2:    0.5rem;    /* 8px */
   --bc-space-2\.5: 0.625rem;  /* 10px */
+  --bc-space-2-half: var(--bc-space-2\.5);
   --bc-space-3:    0.75rem;   /* 12px */
   --bc-space-4:    1rem;      /* 16px */
   --bc-space-5:    1.25rem;   /* 20px */
