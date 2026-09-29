@@ -5,17 +5,15 @@ import { useSocket } from '../contexts/SocketContext';
 import {
     Users, Shield, UserPlus, Search, Pencil, Trash2, Mail, Phone,
     Clock, CheckCircle2, XCircle, Info, UserCheck, RefreshCw, Store, Check,
-    SlidersHorizontal, Lock, Plus, ArrowRight, User, AlertCircle, Target, Send,
-    TrendingUp, TrendingDown, Eye, Crown, Briefcase, MoreHorizontal
+    SlidersHorizontal, Lock, Plus, User, AlertCircle, Send, Eye, Briefcase
 } from 'lucide-react';
-import { PageLoader } from '@/components/application/loading-indicator/PageLoader';
 import {
-    Space, Button, Segmented, Table, Modal, Card, Input, Row, Col,
-    Typography, Tag, Tooltip, Form, Select, Switch, Avatar, Badge, Divider,
-    notification, message as antdMessage, Popconfirm, Drawer, Empty
+    Button, Segmented, Table, Modal, Input, Row, Col,
+    Typography, Tooltip, Select, Switch,
+    notification, message as antdMessage, Popconfirm, Drawer
 } from 'antd';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -23,50 +21,59 @@ const { TextArea } = Input;
 // HELPER FUNCTIONS
 // ============================================
 
-// Generate consistent gradient based on initials
-const getAvatarGradient = (firstName = '', lastName = '') => {
-    const initials = (firstName[0] || '') + (lastName[0] || '');
-    const gradients = [
-        'linear-gradient(135deg, #1976D2, #9C27B0)',
-        'linear-gradient(135deg, #9C27B0, #db2777)',
-        'linear-gradient(135deg, #2E7D32, #2E7D32)',
-        'linear-gradient(135deg, #ED6C02, #E65100)',
-        'linear-gradient(135deg, #0288D1, #0891b2)',
-        'linear-gradient(135deg, #9C27B0, #6d28d9)',
-        'linear-gradient(135deg, #D32F2F, #C62828)',
-        'linear-gradient(135deg, #14b8a6, #0d9488)',
-        'linear-gradient(135deg, #ED6C02, #ea580c)',
-        'linear-gradient(135deg, #1976D2, #1976D2)',
+// Deterministic avatar colour per person, drawn from solid design tokens that
+// keep white initials at or above WCAG AA contrast.
+const getAvatarBackground = (firstName = '', lastName = '') => {
+    const name = `${firstName || ''}${lastName || ''}`.trim() || '?';
+    const backgrounds = [
+        'var(--bc-ro-500)',
+        'var(--bc-green-700)',
+        'var(--bc-amber-700)',
+        'var(--bc-ro-700)',
+        'var(--bc-indigo-600)',
+        'var(--text-danger)',
+        'var(--bc-violet-600)',
+        'var(--bc-amber-800)',
+        'var(--bc-ro-600)',
+        'var(--bc-ro-800)',
     ];
 
-    const hash = initials.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return gradients[hash % gradients.length];
+    // FNV-1a: a two-character sum clusters heavily onto a few buckets.
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < name.length; i += 1) {
+        hash ^= name.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return backgrounds[hash % backgrounds.length];
 };
 
-// Get role color
-const getRoleColor = (roleName) => {
-    const colors = {
-        'super_admin': '#C62828',
-        'admin': '#ea580c',
-        'operational_manager': '#9C27B0',
-        'finance_manager': '#0891b2',
-        'brand_manager': '#0288D1',
-        'catalog_manager': '#db2777',
-        'team_lead': '#9333ea',
-        'listing_team': '#16a34a',
-        'senior_executive': '#0d9488',
-        'executive': '#64748b',
-        'viewer': '#71717a'
+// Role tone as explicit token pairs (foreground + surface). Colour strings are
+// never alpha-suffixed, so `var(--x)15` style hacks are impossible here.
+const getRoleTone = (roleName) => {
+    const tones = {
+        super_admin: { color: 'var(--text-danger)', background: 'var(--bg-danger-subtle)' },
+        admin: { color: 'var(--text-warning)', background: 'var(--bg-warning-subtle)' },
+        catalog_manager: { color: 'var(--text-warning)', background: 'var(--bg-warning-subtle)' },
+        listing_team: { color: 'var(--text-success)', background: 'var(--bg-success-subtle)' },
+        operational_manager: { color: 'var(--text-brand)', background: 'var(--bg-info-subtle)' },
+        finance_manager: { color: 'var(--text-brand)', background: 'var(--bg-info-subtle)' },
+        brand_manager: { color: 'var(--text-brand)', background: 'var(--bg-info-subtle)' },
+        team_lead: { color: 'var(--text-brand)', background: 'var(--bg-info-subtle)' },
+        senior_executive: { color: 'var(--text-primary)', background: 'var(--bg-tertiary)' },
+        executive: { color: 'var(--text-muted)', background: 'var(--bg-tertiary)' },
+        viewer: { color: 'var(--text-muted)', background: 'var(--bg-tertiary)' },
     };
-    return colors[roleName?.toLowerCase()] || '#64748b';
+    return tones[roleName?.toLowerCase()] || { color: 'var(--text-muted)', background: 'var(--bg-tertiary)' };
 };
+
+const getRoleColor = (roleName) => getRoleTone(roleName).color;
 
 // Field Label Component
 const FieldLabel = ({ children }) => (
     <div style={{
         fontSize: 'var(--font-size-xs)',
         fontWeight: 600,
-        color: '#475569',
+        color: 'var(--text-muted)',
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
         marginBottom: 6
@@ -78,7 +85,6 @@ const FieldLabel = ({ children }) => (
 // Enhanced Avatar Component
 const EnhancedAvatar = ({ firstName, lastName, size = 40, showStatus = false, isOnline = false }) => {
     const initials = `${(firstName || '')[0]?.toUpperCase() || ''}${(lastName || '')[0]?.toUpperCase() || ''}` || 'U';
-    const gradient = getAvatarGradient(firstName, lastName);
 
     return (
         <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -86,15 +92,14 @@ const EnhancedAvatar = ({ firstName, lastName, size = 40, showStatus = false, is
                 width: size,
                 height: size,
                 borderRadius: '50%',
-                background: gradient,
+                background: getAvatarBackground(firstName, lastName),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
+                color: 'var(--bc-white)',
                 fontSize: size * 0.4,
                 fontWeight: 600,
-                border: '2px solid white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.18)',
                 letterSpacing: '0.02em',
                 transition: 'transform 0.2s ease'
             }}>
@@ -108,9 +113,9 @@ const EnhancedAvatar = ({ firstName, lastName, size = 40, showStatus = false, is
                     width: size * 0.25,
                     height: size * 0.25,
                     borderRadius: '50%',
-                    background: isOnline ? '#2E7D32' : '#94a3b8',
-                    border: '2px solid white',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                    background: isOnline ? 'var(--text-success)' : 'var(--text-muted)',
+                    border: '2px solid var(--bg-secondary)',
+                    boxShadow: 'var(--shadow-xs)',
                     animation: isOnline ? 'pulse 2s infinite' : 'none'
                 }} />
             )}
@@ -122,160 +127,57 @@ const EnhancedAvatar = ({ firstName, lastName, size = 40, showStatus = false, is
 const RoleBadge = ({ role }) => {
     if (!role) return null;
 
-    const color = role.color || getRoleColor(role.name);
+    const tone = role.color
+        ? { color: role.color, background: 'var(--bg-tertiary)' }
+        : getRoleTone(role.name);
 
     return (
-        <div style={{
+        <span style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
             padding: '4px 10px',
-            background: `${color}15`,
-            border: `1px solid ${color}30`,
+            background: tone.background,
+            border: '1px solid var(--border-light)',
             borderRadius: "var(--radius-lg)",
-            transition: 'all 0.2s ease',
             cursor: 'default'
         }}>
-            <div style={{
+            <span style={{
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: color,
-                boxShadow: `0 0 0 2px ${color}20`
+                background: tone.color,
+                flexShrink: 0
             }} />
             <span style={{
                 fontSize: 'var(--font-size-xs)',
                 fontWeight: 600,
-                color: color,
+                color: tone.color,
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
-                lineHeight: 1
+                lineHeight: 1,
+                whiteSpace: 'nowrap'
             }}>
                 {role.displayName || 'Standard'}
             </span>
-        </div>
+        </span>
     );
 };
 
-// Enhanced Stat Card Component
-const StatCard = ({ icon: Icon, label, value, subtitle, trend, gradient, onClick, isLive = false }) => (
-    <div
-        onClick={onClick}
-        style={{
-            flex: 1,
-            background: 'white',
-            border: '1px solid #f1f5f9',
-            borderRadius: "var(--radius-lg)",
-            padding: 20,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            position: 'relative',
-            overflow: 'hidden'
-        }}
-        onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-        }}
-        onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#f1f5f9';
-            e.currentTarget.style.boxShadow = 'none';
-            e.currentTarget.style.transform = 'translateY(0)';
-        }}
-    >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                background: gradient,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}>
-                <Icon size={20} color="white" strokeWidth={2.2} />
-            </div>
-
-            {trend && (
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 3,
-                    padding: '3px 8px',
-                    background: trend.positive ? '#dcfce7' : '#fee2e2',
-                    color: trend.positive ? '#2E7D32' : '#C62828',
-                    borderRadius: 6,
-                    fontSize: 10,
-                    fontWeight: 600
-                }}>
-                    {trend.positive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                    {trend.value}
-                </div>
-            )}
-        </div>
-
-        <div style={{
-            fontSize: 28,
-            fontWeight: 800,
-            color: '#0f172a',
-            lineHeight: 1,
-            marginBottom: 6,
-            letterSpacing: '-0.02em'
-        }}>
-            {value}
-        </div>
-
-        <div style={{
-            fontSize: 'var(--font-size-xs)',
-            fontWeight: 600,
-            color: '#64748b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: 4
-        }}>
-            {label}
-        </div>
-
-        {subtitle && (
-            <div style={{
-                fontSize: 'var(--font-size-sm)',
-                color: '#94a3b8',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4
-            }}>
-                {isLive && (
-                    <span style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        background: '#2E7D32',
-                        animation: 'pulse 2s infinite'
-                    }} />
-                )}
-                {subtitle}
-            </div>
-        )}
-    </div>
-);
-
 // Format Last Active Time
 const formatLastActive = (timestamp) => {
-    if (!timestamp) return { text: 'Never', color: '#94a3b8', isOnline: false };
+    if (!timestamp) return { text: 'Never', color: 'var(--text-muted)', isOnline: false };
 
     const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
+    const diff = Date.now() - date.getTime();
 
-    if (diff < 60000) return { text: 'Just now', color: '#2E7D32', isOnline: true };
-    if (diff < 300000) return { text: 'Online now', color: '#2E7D32', isOnline: true };
-    if (diff < 3600000) return { text: `${Math.floor(diff / 60000)}m ago`, color: '#0891b2', isOnline: false };
-    if (diff < 86400000) return { text: `${Math.floor(diff / 3600000)}h ago`, color: '#ED6C02', isOnline: false };
-    if (diff < 604800000) return { text: `${Math.floor(diff / 86400000)}d ago`, color: '#ea580c', isOnline: false };
+    if (diff < 300000) return { text: 'Online now', color: 'var(--text-success)', isOnline: true };
+    if (diff < 3600000) return { text: `${Math.floor(diff / 60000)}m ago`, color: 'var(--text-brand)', isOnline: false };
+    if (diff < 86400000) return { text: `${Math.floor(diff / 3600000)}h ago`, color: 'var(--text-warning)', isOnline: false };
+    if (diff < 604800000) return { text: `${Math.floor(diff / 86400000)}d ago`, color: 'var(--text-warning)', isOnline: false };
     return {
         text: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-        color: '#D32F2F',
+        color: 'var(--text-muted)',
         isOnline: false
     };
 };
@@ -340,7 +242,6 @@ const UsersPage = () => {
     const roleDisplayName = selectedRoleObj?.displayName?.toLowerCase() || '';
     const isListingTeam = roleName === 'listing_team' || roleDisplayName === 'listing team';
     const isCatalogManager = roleName === 'catalog_manager' || roleDisplayName === 'catalog manager' || roleName === 'catalogue_manager' || roleDisplayName === 'catalogue manager';
-    const isBrandManager = roleName === 'brand_manager' || roleDisplayName === 'brand manager';
 
     const inheritedSellers = useMemo(() => {
         return sellers.filter(s => {
@@ -632,17 +533,51 @@ const UsersPage = () => {
         }));
     };
 
+    const toPermissionIds = (permissions) =>
+        (permissions || []).map(p => p._id || p.id || p).filter(Boolean).sort();
+
+    // Some deployments return only `groupedPermissions`, so derive the total
+    // rather than rendering a misleading "2/0".
+    const totalPermissionCount = allPermissions.length || Object.values(groupedPermissions)
+        .reduce((sum, perms) => sum + (perms?.length || 0), 0);
+
+    // Roles whose edited permission set differs from what the server returned.
+    const dirtyRoleIds = useMemo(() => {
+        const dirty = new Set();
+        matrixRoles.forEach(edited => {
+            const id = edited._id || edited.id;
+            const original = roles.find(r => (r._id || r.id) === id);
+            const before = toPermissionIds(original?.permissions).join(',');
+            const after = toPermissionIds(edited.permissions).join(',');
+            if (before !== after) dirty.add(id);
+        });
+        return dirty;
+    }, [matrixRoles, roles]);
+
+    const hasUnsavedMatrixChanges = dirtyRoleIds.size > 0;
+
+    const handleDiscardMatrixChanges = useCallback(() => {
+        setMatrixRoles(prev => prev.map(edited => {
+            const id = edited._id || edited.id;
+            const original = roles.find(r => (r._id || r.id) === id);
+            return original ? { ...original } : edited;
+        }));
+    }, [roles]);
+
     const handleSaveMatrixPermissions = async () => {
+        const changed = matrixRoles.filter(r => dirtyRoleIds.has(r._id || r.id));
+        if (changed.length === 0) return;
+
         setMatrixSaving(true);
         try {
-            for (const r of matrixRoles) {
-                const ids = r.permissions?.map(p => p._id || p.id || p) || [];
+            for (const r of changed) {
+                const ids = toPermissionIds(r.permissions);
                 await roleApi.update(r._id || r.id, { permissions: ids });
                 if (socket) socket.emit('update_role_permissions', { roleId: r._id || r.id, permissions: ids });
             }
             notificationApi.success({
                 message: 'Permissions Saved',
-                description: 'Access control matrix has been updated.',
+                description: `Updated ${changed.length} ${changed.length === 1 ? 'role' : 'roles'}.`,
                 placement: 'topRight'
             });
             await loadRolesAndPerms();
@@ -773,7 +708,7 @@ const UsersPage = () => {
                             <div style={{
                                 fontSize: 'var(--font-size-base)',
                                 fontWeight: 600,
-                                color: '#0f172a',
+                                color: 'var(--text-primary)',
                                 marginBottom: 2,
                                 transition: 'color 0.2s'
                             }}>
@@ -781,12 +716,12 @@ const UsersPage = () => {
                             </div>
                             <div style={{
                                 fontSize: 'var(--font-size-sm)',
-                                color: '#64748b',
+                                color: 'var(--text-secondary)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 4
                             }}>
-                                <Mail size={11} strokeWidth={2} style={{ color: '#94a3b8' }} />
+                                <Mail size={11} strokeWidth={2} style={{ color: 'var(--text-muted)' }} />
                                 {record.email}
                             </div>
                         </div>
@@ -815,7 +750,7 @@ const UsersPage = () => {
                     return (
                         <span style={{
                             fontSize: 'var(--font-size-xs)',
-                            color: '#cbd5e1',
+                            color: 'var(--border-medium)',
                             fontStyle: 'italic'
                         }}>—</span>
                     );
@@ -847,8 +782,8 @@ const UsersPage = () => {
                                     width: 28,
                                     height: 28,
                                     borderRadius: '50%',
-                                    background: '#f1f5f9',
-                                    color: '#475569',
+                                    background: 'var(--bg-tertiary)',
+                                    color: 'var(--text-muted)',
                                     border: '2px solid white',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -877,13 +812,13 @@ const UsersPage = () => {
                         checked={isActive}
                         onChange={() => handleToggleStatus(record._id || record.id)}
                         style={{
-                            background: isActive ? '#2E7D32' : '#cbd5e1'
+                            background: isActive ? 'var(--text-success)' : 'var(--border-medium)'
                         }}
                     />
                     <span style={{
                         fontSize: 'var(--font-size-sm)',
                         fontWeight: 600,
-                        color: isActive ? '#047857' : '#64748b',
+                        color: isActive ? 'var(--text-success)' : 'var(--text-muted)',
                         transition: 'color 0.2s'
                     }}>
                         {isActive ? 'Active' : 'Inactive'}
@@ -930,10 +865,11 @@ const UsersPage = () => {
                         <Button
                             type="text"
                             size="small"
+                            aria-label="View profile"
                             onClick={() => { setProfileUser(record); setShowProfileDrawer(true); }}
                             icon={<Eye size={14} strokeWidth={2} />}
                             style={{
-                                color: '#64748b',
+                                color: 'var(--text-secondary)',
                                 width: 32,
                                 height: 32,
                                 borderRadius: 6
@@ -944,10 +880,11 @@ const UsersPage = () => {
                         <Button
                             type="text"
                             size="small"
+                            aria-label="Send email"
                             onClick={() => handleSendEmail(record)}
                             icon={<Send size={14} strokeWidth={2} />}
                             style={{
-                                color: '#64748b',
+                                color: 'var(--text-secondary)',
                                 width: 32,
                                 height: 32,
                                 borderRadius: 6
@@ -958,10 +895,11 @@ const UsersPage = () => {
                         <Button
                             type="text"
                             size="small"
+                            aria-label="Edit user"
                             onClick={() => handleOpenUserModal(record)}
                             icon={<Pencil size={14} strokeWidth={2} />}
                             style={{
-                                color: '#64748b',
+                                color: 'var(--text-secondary)',
                                 width: 32,
                                 height: 32,
                                 borderRadius: 6
@@ -981,6 +919,7 @@ const UsersPage = () => {
                                 type="text"
                                 danger
                                 size="small"
+                                aria-label="Remove user"
                                 icon={<Trash2 size={14} strokeWidth={2} />}
                                 style={{
                                     width: 32,
@@ -1008,23 +947,23 @@ const UsersPage = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '12px 14px',
-                background: isChecked ? '#eff6ff' : '#ffffff',
-                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : '#e2e8f0'}`,
+                background: isChecked ? 'var(--bg-info-subtle)' : 'var(--bc-white)',
+                border: `2px solid ${isChecked ? 'var(--text-brand)' : badge ? 'var(--text-warning)' : 'var(--border-light)'}`,
                 borderRadius: "var(--radius-md)",
                 cursor: readOnly ? 'default' : 'pointer',
                 transition: 'all 0.2s ease'
             }}
             onMouseEnter={(e) => {
                 if (!readOnly && !isChecked) {
-                    e.currentTarget.style.borderColor = badge ? '#f97316' : '#cbd5e1';
-                    e.currentTarget.style.background = '#fafbfc';
+                    e.currentTarget.style.borderColor = badge ? 'var(--text-warning)' : 'var(--border-medium)';
+                    e.currentTarget.style.background = 'var(--bg-hover)';
                     e.currentTarget.style.transform = 'translateX(2px)';
                 }
             }}
             onMouseLeave={(e) => {
                 if (!readOnly && !isChecked) {
-                    e.currentTarget.style.borderColor = badge ? '#ED6C02' : '#e2e8f0';
-                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = badge ? 'var(--text-warning)' : 'var(--border-light)';
+                    e.currentTarget.style.background = 'var(--bg-secondary)';
                     e.currentTarget.style.transform = 'translateX(0)';
                 }
             }}
@@ -1033,25 +972,25 @@ const UsersPage = () => {
                 <div style={{
                     width: 32, height: 32, borderRadius: "var(--radius-md)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: isChecked ? (iconBg || '#0288D1') : badge ? '#fff7ed' : '#f1f5f9',
-                    color: isChecked ? '#ffffff' : badge ? '#ED6C02' : '#64748b',
+                    background: isChecked ? (iconBg || 'var(--text-brand)') : badge ? 'var(--bg-warning-subtle)' : 'var(--bg-tertiary)',
+                    color: isChecked ? 'var(--bc-white)' : badge ? 'var(--text-warning)' : 'var(--text-secondary)',
                     fontSize: 'var(--font-size-xs)', fontWeight: 600,
                     transition: 'all 0.2s'
                 }}>
                     {ItemIcon ? <ItemIcon size={14} /> : name?.charAt(0)?.toUpperCase()}
                 </div>
                 <div>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: '#0f172a' }}>{name}</div>
-                    {subtitle && <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b', marginTop: 1 }}>{subtitle}</div>}
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--text-primary)' }}>{name}</div>
+                    {subtitle && <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', marginTop: 1 }}>{subtitle}</div>}
                     {badge && !isChecked && (
                         <div style={{
                             fontSize: 'var(--font-size-xs)',
-                            color: '#ED6C02',
+                            color: 'var(--text-warning)',
                             marginTop: 3,
                             padding: '1px 6px',
-                            background: '#fff7ed',
+                            background: 'var(--bg-warning-subtle)',
                             borderRadius: 'var(--radius-sm)',
-                            border: '1px solid #fed7aa',
+                            border: '1px solid var(--bg-warning-subtle)',
                             display: 'inline-block'
                         }}>
                             {badge}
@@ -1061,12 +1000,12 @@ const UsersPage = () => {
             </div>
             <div style={{
                 width: 20, height: 20, borderRadius: '50%',
-                border: `2px solid ${isChecked ? '#0288D1' : badge ? '#ED6C02' : '#cbd5e1'}`,
-                background: isChecked ? '#0288D1' : '#ffffff',
+                border: `2px solid ${isChecked ? 'var(--text-brand)' : badge ? 'var(--text-warning)' : 'var(--border-medium)'}`,
+                background: isChecked ? 'var(--text-brand)' : 'var(--bc-white)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.2s'
             }}>
-                {isChecked && <Check size={12} color="#ffffff" strokeWidth={3} />}
+                {isChecked && <Check size={12} color="var(--bc-white)" strokeWidth={3} />}
             </div>
         </div>
     );
@@ -1085,17 +1024,17 @@ const UsersPage = () => {
                 }
                 
                 .users-table .ant-table-tbody > tr:hover > td {
-                    background: #fafbfc !important;
+                    background: var(--bg-hover) !important;
                 }
                 
                 .users-table .ant-table-thead > tr > th {
-                    background: #fafbfc !important;
-                    color: #475569 !important;
+                    background: var(--bg-hover) !important;
+                    color: var(--text-secondary) !important;
                     font-weight: 700 !important;
                     font-size: 11px !important;
                     text-transform: uppercase !important;
                     letter-spacing: 0.05em !important;
-                    border-bottom: 2px solid #e2e8f0 !important;
+                    border-bottom: 2px solid var(--border-light) !important;
                 }
                 
                 .users-table .ant-table-tbody > tr > td {
@@ -1112,34 +1051,35 @@ const UsersPage = () => {
                 }
             `}</style>
 
-            <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
+            <div style={{ background: 'var(--bg-secondary)', minHeight: 'calc(100vh - 60px)' }}>
                 {messageContextHolder}
                 {notificationContextHolder}
 
                 {/* Page Header */}
-                {/* Page Header */}
                 <div style={{
-                    padding: '20px 28px',
-                    borderBottom: '1px solid #f1f5f9',
-                    background: 'white'
+                    padding: '20px clamp(16px, 2.2vw, 28px)',
+                    borderBottom: '1px solid var(--border-light)',
+                    background: 'var(--bg-secondary)'
                 }}>
                     <div style={{
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: 'flex-start',
                         justifyContent: 'space-between',
-                        gap: 20
+                        gap: 20,
+                        flexWrap: 'wrap'
                     }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 10,
-                                marginBottom: 6
+                                marginBottom: 6,
+                                flexWrap: 'wrap'
                             }}>
                                 <h2 style={{
                                     fontSize: 'var(--font-size-xl)',
                                     fontWeight: 600,
-                                    color: '#0f172a',
+                                    color: 'var(--text-primary)',
                                     margin: 0,
                                     letterSpacing: '-0.02em',
                                     lineHeight: 1.2
@@ -1148,20 +1088,20 @@ const UsersPage = () => {
                                 </h2>
                                 <span style={{
                                     padding: '3px 10px',
-                                    background: '#eef2ff',
-                                    color: '#1976D2',
+                                    background: 'var(--bg-info-subtle)',
+                                    color: 'var(--text-brand)',
                                     borderRadius: "var(--radius-lg)",
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
                                     letterSpacing: '0.02em',
-                                    border: '1px solid #e0e7ff'
+                                    border: '1px solid var(--border-light)'
                                 }}>
                                     {totalRecordCount} {totalRecordCount === 1 ? 'Member' : 'Members'}
                                 </span>
                             </div>
                             <p style={{
                                 fontSize: 'var(--font-size-sm)',
-                                color: '#64748b',
+                                color: 'var(--text-muted)',
                                 margin: 0,
                                 lineHeight: 1.5
                             }}>
@@ -1169,17 +1109,18 @@ const UsersPage = () => {
                             </p>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                        <div style={{ display: 'flex', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
                             <Button
                                 icon={<RefreshCw size={14} />}
                                 onClick={loadUsers}
+                                loading={loading}
                                 style={{
                                     borderRadius: "var(--radius-md)",
                                     fontWeight: 600,
                                     fontSize: 'var(--font-size-sm)',
                                     height: 38,
                                     paddingInline: 16,
-                                    border: '1px solid #e2e8f0',
+                                    border: '1px solid var(--border-light)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 6
@@ -1198,9 +1139,6 @@ const UsersPage = () => {
                                         fontSize: 'var(--font-size-sm)',
                                         height: 38,
                                         paddingInline: 18,
-                                        background: 'linear-gradient(135deg, #1976D2, #1976D2)',
-                                        border: 'none',
-                                        boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 6
@@ -1219,9 +1157,6 @@ const UsersPage = () => {
                                         fontSize: 'var(--font-size-sm)',
                                         height: 38,
                                         paddingInline: 18,
-                                        background: 'linear-gradient(135deg, #1976D2, #1976D2)',
-                                        border: 'none',
-                                        boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 6
@@ -1234,16 +1169,15 @@ const UsersPage = () => {
                     </div>
                 </div>
 
-                <div style={{ padding: '20px 28px' }}>
+                <div style={{ padding: '20px clamp(16px, 2.2vw, 28px)' }}>
                     {/* Tab Switcher + Filters */}
-                    {/* Tab Switcher + Filters - FIXED ALIGNMENT */}
                     <div style={{
-                        background: 'white',
+                        background: 'var(--bg-secondary)',
                         borderRadius: "var(--radius-lg)",
-                        border: '1px solid #e2e8f0',
+                        border: '1px solid var(--border-light)',
                         padding: '14px 18px',
                         marginBottom: 20,
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                        boxShadow: 'var(--shadow-xs)'
                     }}>
                         <div style={{
                             display: 'flex',
@@ -1288,7 +1222,7 @@ const UsersPage = () => {
                                     }
                                 ]}
                                 style={{
-                                    background: '#f1f5f9',
+                                    background: 'var(--bg-tertiary)',
                                     padding: 4,
                                     borderRadius: "var(--radius-md)"
                                 }}
@@ -1297,7 +1231,7 @@ const UsersPage = () => {
                             {activeTab === 'users' ? (
                                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                                     <Input
-                                        prefix={<Search size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Search size={14} style={{ color: 'var(--text-muted)' }} />}
                                         placeholder="Search users..."
                                         allowClear
                                         value={searchText}
@@ -1315,7 +1249,7 @@ const UsersPage = () => {
                                         onChange={v => { setSelectedRole(v || ''); setCurrentPage(1); }}
                                         style={{ width: 160 }}
                                         size="middle"
-                                        suffixIcon={<SlidersHorizontal size={12} style={{ color: '#94a3b8' }} />}
+                                        suffixIcon={<SlidersHorizontal size={12} style={{ color: 'var(--text-muted)' }} />}
                                     >
                                         {roles.map(r => (
                                             <Option key={r._id || r.id} value={r.name || r.id}>
@@ -1324,7 +1258,7 @@ const UsersPage = () => {
                                                         width: 8,
                                                         height: 8,
                                                         borderRadius: '50%',
-                                                        background: r.color || '#64748b',
+                                                        background: r.color || 'var(--text-muted)',
                                                         flexShrink: 0
                                                     }} />
                                                     <span>{r.displayName}</span>
@@ -1342,69 +1276,98 @@ const UsersPage = () => {
                                     >
                                         <Option value="true">
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2E7D32', flexShrink: 0 }} />
+                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--text-success)', flexShrink: 0 }} />
                                                 Active
                                             </span>
                                         </Option>
                                         <Option value="false">
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#cbd5e1', flexShrink: 0 }} />
+                                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--border-medium)', flexShrink: 0 }} />
                                                 Inactive
                                             </span>
                                         </Option>
                                     </Select>
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                                     <Input
-                                        prefix={<Search size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Search size={14} style={{ color: 'var(--text-muted)' }} />}
                                         placeholder="Search permissions..."
                                         allowClear
                                         value={permissionSearch}
                                         onChange={e => setPermissionSearch(e.target.value)}
-                                        style={{ width: 260, borderRadius: "var(--radius-md)", height: 38 }}
+                                        style={{ width: 240, borderRadius: "var(--radius-md)", height: 38 }}
                                     />
-                                    <Button
-                                        type="primary"
-                                        icon={<CheckCircle2 size={14} />}
-                                        loading={matrixSaving}
-                                        onClick={handleSaveMatrixPermissions}
+                                    <span
+                                        aria-live="polite"
                                         style={{
-                                            borderRadius: "var(--radius-md)",
-                                            fontWeight: 600,
-                                            fontSize: 'var(--font-size-sm)',
-                                            height: 38,
-                                            paddingInline: 16,
-                                            background: 'linear-gradient(135deg, #2E7D32, #2E7D32)',
-                                            border: 'none',
-                                            display: 'flex',
+                                            display: 'inline-flex',
                                             alignItems: 'center',
-                                            gap: 6
+                                            gap: 6,
+                                            fontSize: 'var(--font-size-sm)',
+                                            fontWeight: 600,
+                                            color: hasUnsavedMatrixChanges ? 'var(--text-warning)' : 'var(--text-muted)',
+                                            background: hasUnsavedMatrixChanges ? 'var(--bg-warning-subtle)' : 'transparent',
+                                            border: hasUnsavedMatrixChanges ? '1px solid var(--border-light)' : '1px solid transparent',
+                                            padding: '4px 10px',
+                                            borderRadius: "var(--radius-lg)"
                                         }}
                                     >
-                                        Save Changes
-                                    </Button>
+                                        {hasUnsavedMatrixChanges
+                                            ? `${dirtyRoleIds.size} unsaved ${dirtyRoleIds.size === 1 ? 'change' : 'changes'}`
+                                            : 'All changes saved'}
+                                    </span>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <Button
+                                            onClick={handleDiscardMatrixChanges}
+                                            disabled={!hasUnsavedMatrixChanges || matrixSaving}
+                                            style={{
+                                                borderRadius: "var(--radius-md)",
+                                                fontWeight: 600,
+                                                fontSize: 'var(--font-size-sm)',
+                                                height: 38
+                                            }}
+                                        >
+                                            Discard
+                                        </Button>
+                                        <Button
+                                            type="primary"
+                                            icon={<CheckCircle2 size={14} />}
+                                            loading={matrixSaving}
+                                            disabled={!hasUnsavedMatrixChanges}
+                                            onClick={handleSaveMatrixPermissions}
+                                            style={{
+                                                borderRadius: "var(--radius-md)",
+                                                fontWeight: 600,
+                                                fontSize: 'var(--font-size-sm)',
+                                                height: 38,
+                                                paddingInline: 16,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6
+                                            }}
+                                        >
+                                            Save Changes
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
-                    {/* USERS TAB */}
-                    {activeTab === 'users' && (
+                            {/* USERS TAB */}
+                            {activeTab === 'users' && (
                         <>
-                            {/* Enhanced Stats Cards */}
-                            {/* Enhanced Stats Cards - PROPERLY ALIGNED */}
-                            {/* Compact Stats Cards */}
                             <div style={{
                                 display: 'grid',
-                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
                                 gap: 16,
                                 marginBottom: 20
                             }}>
                                 {/* Card 1: Total Users */}
                                 <div
                                     style={{
-                                        background: 'white',
-                                        border: '1px solid #e2e8f0',
+                                        background: 'var(--bg-secondary)',
+                                        border: '1px solid var(--border-light)',
                                         borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
@@ -1414,12 +1377,12 @@ const UsersPage = () => {
                                         gap: 14
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#cbd5e1';
-                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                                        e.currentTarget.style.borderColor = 'var(--border-medium)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.borderColor = 'var(--border-light)';
                                         e.currentTarget.style.boxShadow = 'none';
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
@@ -1429,14 +1392,13 @@ const UsersPage = () => {
                                         width: 48,
                                         height: 48,
                                         borderRadius: 10,
-                                        background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                                        background: 'var(--bg-info-subtle)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
                                         flexShrink: 0
                                     }}>
-                                        <Users size={22} color="white" strokeWidth={2.2} />
+                                        <Users size={22} color="var(--text-primary)" strokeWidth={2.2} />
                                     </div>
 
                                     {/* Content */}
@@ -1444,7 +1406,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--text-muted)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 4
@@ -1459,22 +1421,11 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 26,
                                                 fontWeight: 800,
-                                                color: '#0f172a',
+                                                color: 'var(--text-primary)',
                                                 lineHeight: 1,
                                                 letterSpacing: '-0.02em'
                                             }}>
                                                 {totalRecordCount}
-                                            </div>
-                                            <div style={{
-                                                fontSize: 'var(--font-size-xs)',
-                                                fontWeight: 600,
-                                                color: '#2E7D32',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 2
-                                            }}>
-                                                <TrendingUp size={11} strokeWidth={2.5} />
-                                                +2
                                             </div>
                                         </div>
                                     </div>
@@ -1483,8 +1434,8 @@ const UsersPage = () => {
                                 {/* Card 2: Active Users */}
                                 <div
                                     style={{
-                                        background: 'white',
-                                        border: '1px solid #e2e8f0',
+                                        background: 'var(--bg-secondary)',
+                                        border: '1px solid var(--border-light)',
                                         borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
@@ -1494,12 +1445,12 @@ const UsersPage = () => {
                                         gap: 14
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#cbd5e1';
-                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                                        e.currentTarget.style.borderColor = 'var(--border-medium)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.borderColor = 'var(--border-light)';
                                         e.currentTarget.style.boxShadow = 'none';
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
@@ -1509,15 +1460,14 @@ const UsersPage = () => {
                                         width: 48,
                                         height: 48,
                                         borderRadius: 10,
-                                        background: 'linear-gradient(135deg, #2E7D32, #2E7D32)',
+                                        background: 'var(--bg-success-subtle)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
                                         flexShrink: 0,
                                         position: 'relative'
                                     }}>
-                                        <UserCheck size={22} color="white" strokeWidth={2.2} />
+                                        <UserCheck size={22} color="var(--text-success)" strokeWidth={2.2} />
                                         {activeCount > 0 && (
                                             <span style={{
                                                 position: 'absolute',
@@ -1526,8 +1476,8 @@ const UsersPage = () => {
                                                 width: 10,
                                                 height: 10,
                                                 borderRadius: '50%',
-                                                background: '#2E7D32',
-                                                border: '2px solid white',
+                                                background: 'var(--text-success)',
+                                                border: '2px solid var(--bg-secondary)',
                                                 animation: 'pulse 2s infinite'
                                             }} />
                                         )}
@@ -1538,7 +1488,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--text-muted)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 4
@@ -1553,7 +1503,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 26,
                                                 fontWeight: 800,
-                                                color: '#0f172a',
+                                                color: 'var(--text-primary)',
                                                 lineHeight: 1,
                                                 letterSpacing: '-0.02em'
                                             }}>
@@ -1562,7 +1512,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 600,
-                                                color: '#64748b'
+                                                color: 'var(--text-muted)'
                                             }}>
                                                 {totalRecordCount > 0 ? Math.round((activeCount / totalRecordCount) * 100) : 0}%
                                             </div>
@@ -1573,8 +1523,8 @@ const UsersPage = () => {
                                 {/* Card 3: Inactive Users */}
                                 <div
                                     style={{
-                                        background: 'white',
-                                        border: '1px solid #e2e8f0',
+                                        background: 'var(--bg-secondary)',
+                                        border: '1px solid var(--border-light)',
                                         borderRadius: "var(--radius-lg)",
                                         padding: '16px 20px',
                                         cursor: 'pointer',
@@ -1584,12 +1534,12 @@ const UsersPage = () => {
                                         gap: 14
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = '#cbd5e1';
-                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                                        e.currentTarget.style.borderColor = 'var(--border-medium)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = '#e2e8f0';
+                                        e.currentTarget.style.borderColor = 'var(--border-light)';
                                         e.currentTarget.style.boxShadow = 'none';
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
@@ -1599,14 +1549,13 @@ const UsersPage = () => {
                                         width: 48,
                                         height: 48,
                                         borderRadius: 10,
-                                        background: 'linear-gradient(135deg, #D32F2F, #C62828)',
+                                        background: 'var(--bg-danger-subtle)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
                                         flexShrink: 0
                                     }}>
-                                        <XCircle size={22} color="white" strokeWidth={2.2} />
+                                        <XCircle size={22} color="var(--text-danger)" strokeWidth={2.2} />
                                     </div>
 
                                     {/* Content */}
@@ -1614,7 +1563,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--text-muted)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 4
@@ -1629,7 +1578,7 @@ const UsersPage = () => {
                                             <div style={{
                                                 fontSize: 26,
                                                 fontWeight: 800,
-                                                color: '#0f172a',
+                                                color: 'var(--text-primary)',
                                                 lineHeight: 1,
                                                 letterSpacing: '-0.02em'
                                             }}>
@@ -1639,7 +1588,7 @@ const UsersPage = () => {
                                                 <div style={{
                                                     fontSize: 'var(--font-size-xs)',
                                                     fontWeight: 600,
-                                                    color: '#C62828',
+                                                    color: 'var(--text-danger)',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: 2
@@ -1655,11 +1604,11 @@ const UsersPage = () => {
 
                             {/* Enhanced Table */}
                             <div style={{
-                                background: 'white',
-                                border: '1px solid #e2e8f0',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-light)',
                                 borderRadius: "var(--radius-lg)",
                                 overflow: 'hidden',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                boxShadow: 'var(--shadow-xs)'
                             }}>
                                 <Table
                                     className="users-table"
@@ -1673,12 +1622,12 @@ const UsersPage = () => {
                                         showSizeChanger: true,
                                         pageSizeOptions: ['10', '20', '50', '100'],
                                         showTotal: (total, range) => (
-                                            <span style={{ fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
+                                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
                                                 Showing <strong>{range[0]}-{range[1]}</strong> of <strong>{total}</strong> users
                                             </span>
                                         ),
                                         onChange: (page, size) => { setCurrentPage(page); if (size) setPageSize(size); },
-                                        style: { padding: '16px 20px', margin: 0, borderTop: '1px solid #f1f5f9' }
+                                        style: { padding: '16px 20px', margin: 0, borderTop: '1px solid var(--bg-tertiary)' }
                                     }}
                                     scroll={{ x: 1000 }}
                                     locale={{
@@ -1688,23 +1637,23 @@ const UsersPage = () => {
                                                     width: 80,
                                                     height: 80,
                                                     borderRadius: '50%',
-                                                    background: '#f1f5f9',
+                                                    background: 'var(--bg-tertiary)',
                                                     margin: '0 auto 16px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center'
                                                 }}>
-                                                    <Users size={40} color="#cbd5e1" />
+                                                    <Users size={40} color="var(--border-medium)" />
                                                 </div>
                                                 <div style={{
                                                     fontSize: 'var(--font-size-lg)',
                                                     fontWeight: 600,
-                                                    color: '#475569',
+                                                    color: 'var(--text-muted)',
                                                     marginBottom: 6
                                                 }}>
                                                     No users found
                                                 </div>
-                                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#94a3b8', marginBottom: 16 }}>
+                                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)', marginBottom: 16 }}>
                                                     Try adjusting your filters or add a new user
                                                 </div>
                                                 <Button
@@ -1725,19 +1674,55 @@ const UsersPage = () => {
 
                     {/* PERMISSIONS TAB */}
                     {activeTab === 'roles' && (
-                        Object.entries(filteredGroupedPermissions).map(([category, perms]) => (
+                        <>
+                            {Object.keys(filteredGroupedPermissions).length === 0 && (
+                                <div style={{
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-light)',
+                                    borderRadius: "var(--radius-lg)",
+                                    padding: '56px 24px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        width: 64,
+                                        height: 64,
+                                        borderRadius: '50%',
+                                        background: 'var(--bg-tertiary)',
+                                        margin: '0 auto 16px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Lock size={26} style={{ color: 'var(--text-muted)' }} />
+                                    </div>
+                                    <div style={{
+                                        fontSize: 'var(--font-size-lg)',
+                                        fontWeight: 600,
+                                        color: 'var(--text-primary)',
+                                        marginBottom: 6
+                                    }}>
+                                        {permissionSearch ? 'No matching permissions' : 'No permissions available'}
+                                    </div>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)' }}>
+                                        {permissionSearch
+                                            ? `Nothing matches "${permissionSearch}". Try a different search term.`
+                                            : 'Permissions will appear here once they are defined for your roles.'}
+                                    </div>
+                                </div>
+                            )}
+                            {Object.entries(filteredGroupedPermissions).map(([category, perms]) => (
                             <div key={category} style={{
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid var(--border-light)',
                                 borderRadius: "var(--radius-lg)",
                                 overflow: 'hidden',
                                 marginBottom: 16,
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                background: 'white'
+                                boxShadow: 'var(--shadow-xs)',
+                                background: 'var(--bg-secondary)'
                             }}>
                                 <div style={{
                                     padding: '14px 20px',
-                                    borderBottom: '1px solid #f1f5f9',
-                                    background: 'linear-gradient(135deg, #fafbfc, #f1f5f9)',
+                                    borderBottom: '1px solid var(--bg-tertiary)',
+                                    background: 'var(--bg-hover)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 10
@@ -1746,16 +1731,16 @@ const UsersPage = () => {
                                         width: 28,
                                         height: 28,
                                         borderRadius: 6,
-                                        background: '#eef2ff',
+                                        background: 'var(--bg-info-subtle)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
                                     }}>
-                                        <Shield size={14} style={{ color: '#1976D2' }} />
+                                        <Shield size={14} style={{ color: 'var(--text-brand)' }} />
                                     </div>
                                     <span style={{
                                         fontWeight: 600,
-                                        color: '#0f172a',
+                                        color: 'var(--text-primary)',
                                         fontSize: 'var(--font-size-sm)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em'
@@ -1765,11 +1750,11 @@ const UsersPage = () => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
-                                        background: 'white',
+                                        color: 'var(--text-secondary)',
+                                        background: 'var(--bg-secondary)',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)",
-                                        border: '1px solid #e2e8f0'
+                                        border: '1px solid var(--border-light)'
                                     }}>
                                         {perms.length} {perms.length === 1 ? 'permission' : 'permissions'}
                                     </span>
@@ -1779,16 +1764,19 @@ const UsersPage = () => {
                                         <thead>
                                             <tr>
                                                 <th style={{
-                                                    width: 240,
+                                                    width: 260,
                                                     padding: '12px 20px',
                                                     fontSize: 'var(--font-size-xs)',
                                                     fontWeight: 600,
-                                                    color: '#475569',
+                                                    color: 'var(--text-muted)',
                                                     textAlign: 'left',
-                                                    background: '#fafbfc',
+                                                    background: 'var(--bg-hover)',
                                                     textTransform: 'uppercase',
                                                     letterSpacing: '0.05em',
-                                                    borderBottom: '1px solid #e2e8f0'
+                                                    borderBottom: '1px solid var(--border-light)',
+                                                    position: 'sticky',
+                                                    left: 0,
+                                                    zIndex: 2
                                                 }}>
                                                     Role
                                                 </th>
@@ -1797,14 +1785,14 @@ const UsersPage = () => {
                                                         padding: '12px 14px',
                                                         fontSize: 'var(--font-size-xs)',
                                                         fontWeight: 600,
-                                                        color: '#475569',
+                                                        color: 'var(--text-muted)',
                                                         textAlign: 'center',
                                                         minWidth: 130,
-                                                        borderLeft: '1px solid #f1f5f9',
+                                                        borderLeft: '1px solid var(--bg-tertiary)',
                                                         textTransform: 'uppercase',
                                                         letterSpacing: '0.04em',
-                                                        background: '#fafbfc',
-                                                        borderBottom: '1px solid #e2e8f0'
+                                                        background: 'var(--bg-hover)',
+                                                        borderBottom: '1px solid var(--border-light)'
                                                     }}>
                                                         <Tooltip title={p.name}>{p.displayName}</Tooltip>
                                                     </th>
@@ -1813,44 +1801,63 @@ const UsersPage = () => {
                                         </thead>
                                         <tbody>
                                             {matrixRoles.map(role => {
-                                                const rolePermIds = role.permissions?.map(p => p._id || p.id || p) || [];
+                                                const rolePermIds = toPermissionIds(role.permissions);
                                                 const roleColor = role.color || getRoleColor(role.name);
+                                                const isDirty = dirtyRoleIds.has(role._id || role.id);
                                                 return (
                                                     <tr
                                                         key={role._id || role.id}
                                                         style={{
-                                                            borderBottom: '1px solid #f1f5f9',
+                                                            borderBottom: '1px solid var(--bg-tertiary)',
                                                             transition: 'background 0.15s'
                                                         }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#fafbfc'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
                                                     >
                                                         <td style={{
-                                                            padding: '14px 20px',
+                                                            padding: '12px 20px',
                                                             fontSize: 'var(--font-size-sm)',
                                                             fontWeight: 600,
-                                                            color: '#0f172a',
-                                                            background: '#fafbfc',
-                                                            borderRight: '2px solid #f1f5f9'
+                                                            color: 'var(--text-primary)',
+                                                            background: 'var(--bg-hover)',
+                                                            borderRight: '1px solid var(--border-light)',
+                                                            position: 'sticky',
+                                                            left: 0,
+                                                            zIndex: 1
                                                         }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                                                                     <span style={{
                                                                         width: 8,
                                                                         height: 8,
                                                                         borderRadius: '50%',
                                                                         background: roleColor,
-                                                                        boxShadow: `0 0 0 3px ${roleColor}20`
+                                                                        flexShrink: 0
                                                                     }} />
-                                                                    {role.displayName}
+                                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                        {role.displayName}
+                                                                    </span>
+                                                                    {isDirty && (
+                                                                        <Tooltip title="Unsaved permission changes">
+                                                                            <AlertCircle size={12} style={{ color: 'var(--text-warning)', flexShrink: 0 }} />
+                                                                        </Tooltip>
+                                                                    )}
+                                                                    <span style={{
+                                                                        fontSize: 'var(--font-size-xs)',
+                                                                        fontWeight: 600,
+                                                                        color: 'var(--text-muted)'
+                                                                    }}>
+                                                                        {rolePermIds.length}/{totalPermissionCount}
+                                                                    </span>
                                                                 </div>
                                                                 <div style={{ display: 'flex', gap: 4 }}>
                                                                     <Button
                                                                         type="text"
                                                                         size="small"
+                                                                        aria-label={`Edit ${role.displayName} role`}
                                                                         onClick={() => handleOpenRoleModal(role)}
                                                                         icon={<Pencil size={12} />}
-                                                                        style={{ color: '#64748b' }}
+                                                                        style={{ color: 'var(--text-secondary)' }}
                                                                     />
                                                                     {role.name !== 'super_admin' && (
                                                                         <Popconfirm
@@ -1863,6 +1870,7 @@ const UsersPage = () => {
                                                                                 type="text"
                                                                                 danger
                                                                                 size="small"
+                                                                                aria-label={`Delete ${role.displayName} role`}
                                                                                 icon={<Trash2 size={12} />}
                                                                             />
                                                                         </Popconfirm>
@@ -1876,38 +1884,42 @@ const UsersPage = () => {
                                                                 <td key={perm._id || perm.id} style={{
                                                                     padding: '10px',
                                                                     textAlign: 'center',
-                                                                    borderLeft: '1px solid #f4f4f5'
+                                                                    borderLeft: '1px solid var(--bg-tertiary)'
                                                                 }}>
-                                                                    <div
+                                                                    <button
+                                                                        type="button"
+                                                                        role="checkbox"
+                                                                        aria-checked={isAssigned}
+                                                                        aria-label={`${perm.displayName} for ${role.displayName}`}
                                                                         onClick={() => handleToggleCellPermission(role._id || role.id, perm._id || perm.id)}
                                                                         style={{
                                                                             width: 22,
                                                                             height: 22,
+                                                                            padding: 0,
                                                                             borderRadius: 6,
-                                                                            border: `2px solid ${isAssigned ? '#2E7D32' : '#d4d4d8'}`,
-                                                                            background: isAssigned ? 'linear-gradient(135deg, #2E7D32, #2E7D32)' : '#fff',
+                                                                            border: `2px solid ${isAssigned ? 'var(--text-success)' : 'var(--border-medium)'}`,
+                                                                            background: isAssigned ? 'var(--text-success)' : 'var(--bg-secondary)',
                                                                             display: 'inline-flex',
                                                                             alignItems: 'center',
                                                                             justifyContent: 'center',
                                                                             cursor: 'pointer',
-                                                                            transition: 'all 0.2s ease',
-                                                                            boxShadow: isAssigned ? '0 2px 4px rgba(16, 185, 129, 0.2)' : 'none'
+                                                                            transition: 'all 0.2s ease'
                                                                         }}
                                                                         onMouseEnter={(e) => {
                                                                             if (!isAssigned) {
-                                                                                e.currentTarget.style.borderColor = '#94a3b8';
-                                                                                e.currentTarget.style.background = '#f8fafc';
+                                                                                e.currentTarget.style.borderColor = 'var(--text-muted)';
+                                                                                e.currentTarget.style.background = 'var(--bg-hover)';
                                                                             }
                                                                         }}
                                                                         onMouseLeave={(e) => {
                                                                             if (!isAssigned) {
-                                                                                e.currentTarget.style.borderColor = '#d4d4d8';
-                                                                                e.currentTarget.style.background = '#fff';
+                                                                                e.currentTarget.style.borderColor = 'var(--border-medium)';
+                                                                                e.currentTarget.style.background = 'var(--bg-secondary)';
                                                                             }
                                                                         }}
                                                                     >
-                                                                        {isAssigned && <Check size={12} strokeWidth={3} color="#fff" />}
-                                                                    </div>
+                                                                        {isAssigned && <Check size={12} strokeWidth={3} color="var(--bc-white)" />}
+                                                                    </button>
                                                                 </td>
                                                             );
                                                         })}
@@ -1918,7 +1930,8 @@ const UsersPage = () => {
                                     </table>
                                 </div>
                             </div>
-                        ))
+                            ))}
+                        </>
                     )}
                 </div>
 
@@ -1930,19 +1943,19 @@ const UsersPage = () => {
                                 width: 36,
                                 height: 36,
                                 borderRadius: "var(--radius-md)",
-                                background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
+                                background: 'var(--bg-info-subtle)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#1976D2'
+                                color: 'var(--text-brand)'
                             }}>
                                 <UserCheck size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
                                     {editingUser ? 'Edit User' : 'Add New User'}
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginTop: 2 }}>
                                     {editingUser ? 'Update user information' : 'Create a new team member'}
                                 </div>
                             </div>
@@ -1955,7 +1968,7 @@ const UsersPage = () => {
                     width={720}
                     styles={{
                         body: { padding: '20px 24px' },
-                        header: { padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }
+                        header: { padding: '16px 24px', borderBottom: '1px solid var(--bg-tertiary)' }
                     }}
                     footer={[
                         <Button
@@ -1974,7 +1987,7 @@ const UsersPage = () => {
                                 fontWeight: 600,
                                 fontSize: 'var(--font-size-sm)',
                                 height: 36,
-                                background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                background: 'var(--bg-brand)',
                                 border: 'none'
                             }}
                         >
@@ -1984,11 +1997,11 @@ const UsersPage = () => {
                 >
                     <div style={{ maxHeight: '65vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
                         {/* Basic Info */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: 'var(--bg-hover)', borderRadius: 10, padding: 18, border: '1px solid var(--bg-tertiary)' }}>
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: '#475569',
+                                color: 'var(--text-muted)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
                                 marginBottom: 14,
@@ -2026,7 +2039,7 @@ const UsersPage = () => {
                                         value={userFormData.email}
                                         onChange={e => setUserFormData({ ...userFormData, email: e.target.value })}
                                         placeholder="user@example.com"
-                                        prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Mail size={14} style={{ color: 'var(--text-muted)' }} />}
                                         style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
@@ -2036,7 +2049,7 @@ const UsersPage = () => {
                                         value={userFormData.phone}
                                         onChange={e => setUserFormData({ ...userFormData, phone: e.target.value })}
                                         placeholder="+91 12345 67890"
-                                        prefix={<Phone size={14} style={{ color: '#94a3b8' }} />}
+                                        prefix={<Phone size={14} style={{ color: 'var(--text-muted)' }} />}
                                         style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                     />
                                 </Col>
@@ -2047,7 +2060,7 @@ const UsersPage = () => {
                                             value={userFormData.password}
                                             onChange={e => setUserFormData({ ...userFormData, password: e.target.value })}
                                             placeholder="Enter strong password"
-                                            prefix={<Lock size={14} style={{ color: '#94a3b8' }} />}
+                                            prefix={<Lock size={14} style={{ color: 'var(--text-muted)' }} />}
                                             style={{ borderRadius: "var(--radius-md)", height: 38 }}
                                         />
                                     </Col>
@@ -2056,11 +2069,11 @@ const UsersPage = () => {
                         </div>
 
                         {/* Role */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: 'var(--bg-hover)', borderRadius: 10, padding: 18, border: '1px solid var(--bg-tertiary)' }}>
                             <div style={{
                                 fontSize: 'var(--font-size-xs)',
                                 fontWeight: 600,
-                                color: '#475569',
+                                color: 'var(--text-muted)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
                                 marginBottom: 12,
@@ -2085,7 +2098,7 @@ const UsersPage = () => {
                                                 width: 8,
                                                 height: 8,
                                                 borderRadius: '50%',
-                                                background: r.color || '#64748b'
+                                                background: r.color || 'var(--text-secondary)'
                                             }} />
                                             {r.displayName}
                                         </div>
@@ -2095,12 +2108,12 @@ const UsersPage = () => {
                         </div>
 
                         {/* Supervisors */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: 'var(--bg-hover)', borderRadius: 10, padding: 18, border: '1px solid var(--bg-tertiary)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#475569',
+                                        color: 'var(--text-muted)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         display: 'flex',
@@ -2113,8 +2126,8 @@ const UsersPage = () => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#1976D2',
-                                        background: '#eef2ff',
+                                        color: 'var(--text-brand)',
+                                        background: 'var(--bg-info-subtle)',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)"
                                     }}>
@@ -2148,7 +2161,7 @@ const UsersPage = () => {
                                         );
                                     })}
                                     {filteredSupervisors.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                                        <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 'var(--font-size-sm)' }}>
                                             No supervisors found
                                         </div>
                                     )}
@@ -2157,12 +2170,12 @@ const UsersPage = () => {
 
                         {/* Brand Managers (for Listing Team) */}
                         {isListingTeam && (
-                            <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                            <div style={{ background: 'var(--bg-hover)', borderRadius: 10, padding: 18, border: '1px solid var(--bg-tertiary)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#475569',
+                                        color: 'var(--text-muted)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         display: 'flex',
@@ -2175,8 +2188,8 @@ const UsersPage = () => {
                                     <span style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#1976D2',
-                                        background: '#eef2ff',
+                                        color: 'var(--text-brand)',
+                                        background: 'var(--bg-info-subtle)',
                                         padding: '2px 10px',
                                         borderRadius: "var(--radius-lg)"
                                     }}>
@@ -2210,7 +2223,7 @@ const UsersPage = () => {
                                         );
                                     })}
                                     {filteredBrandManagers.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                                        <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 'var(--font-size-sm)' }}>
                                             No brand managers found
                                         </div>
                                     )}
@@ -2219,12 +2232,12 @@ const UsersPage = () => {
                         )}
 
                         {/* Brands */}
-                        <div style={{ background: '#fafbfc', borderRadius: 10, padding: 18, border: '1px solid #f1f5f9' }}>
+                        <div style={{ background: 'var(--bg-hover)', borderRadius: 10, padding: 18, border: '1px solid var(--bg-tertiary)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                 <div style={{
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
-                                    color: '#475569',
+                                    color: 'var(--text-muted)',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.05em',
                                     display: 'flex',
@@ -2237,8 +2250,8 @@ const UsersPage = () => {
                                 <span style={{
                                     fontSize: 'var(--font-size-xs)',
                                     fontWeight: 600,
-                                    color: '#2E7D32',
-                                    background: '#dcfce7',
+                                    color: 'var(--text-success)',
+                                    background: 'var(--bg-success-subtle)',
                                     padding: '2px 10px',
                                     borderRadius: "var(--radius-lg)"
                                 }}>
@@ -2248,13 +2261,13 @@ const UsersPage = () => {
 
                             {isListingTeam && (
                                 <div style={{
-                                    background: '#eff6ff',
-                                    border: '1px solid #bfdbfe',
+                                    background: 'var(--bg-info-subtle)',
+                                    border: '1px solid var(--border-light)',
                                     borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
                                     fontSize: 'var(--font-size-sm)',
-                                    color: '#1d4ed8',
+                                    color: 'var(--text-brand)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 8
@@ -2265,13 +2278,13 @@ const UsersPage = () => {
                             )}
                             {isCatalogManager && (
                                 <div style={{
-                                    background: '#fffbeb',
-                                    border: '1px solid #fde68a',
+                                    background: 'var(--bg-warning-subtle)',
+                                    border: '1px solid var(--bg-warning-subtle)',
                                     borderRadius: "var(--radius-md)",
                                     padding: '10px 14px',
                                     marginBottom: 12,
                                     fontSize: 'var(--font-size-sm)',
-                                    color: '#92400e',
+                                    color: 'var(--text-warning)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 8
@@ -2319,7 +2332,7 @@ const UsersPage = () => {
                                             isChecked={checked}
                                             readOnly={isListingTeam}
                                             icon={Store}
-                                            iconBg="#2E7D32"
+                                            iconBg="var(--text-success)"
                                             name={s.name}
                                             subtitle={s.code || 'Brand'}
                                             badge={badgeText}
@@ -2336,7 +2349,7 @@ const UsersPage = () => {
                                     );
                                 })}
                                 {filteredSellers.length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 'var(--font-size-sm)' }}>
+                                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 'var(--font-size-sm)' }}>
                                         {isListingTeam ? 'Link brand managers to see brands' : 'No brands found'}
                                     </div>
                                 )}
@@ -2353,19 +2366,19 @@ const UsersPage = () => {
                                 width: 36,
                                 height: 36,
                                 borderRadius: "var(--radius-md)",
-                                background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
+                                background: 'var(--bg-info-subtle)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#1976D2'
+                                color: 'var(--text-brand)'
                             }}>
                                 <Shield size={18} strokeWidth={2} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: '#0f172a' }}>
+                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary)' }}>
                                     {editingRole ? 'Edit Role' : 'Create New Role'}
                                 </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: '#64748b', marginTop: 2 }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginTop: 2 }}>
                                     {editingRole ? 'Modify role configuration' : 'Define a new role'}
                                 </div>
                             </div>
@@ -2393,7 +2406,7 @@ const UsersPage = () => {
                                 fontWeight: 600,
                                 fontSize: 'var(--font-size-sm)',
                                 height: 36,
-                                background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                background: 'var(--bg-brand)',
                                 border: 'none'
                             }}
                         >
@@ -2448,7 +2461,7 @@ const UsersPage = () => {
                                             borderRadius: "var(--radius-md)"
                                         }}
                                     />
-                                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', color: '#64748b' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
                                         {roleFormData.color}
                                     </span>
                                 </div>
@@ -2471,12 +2484,12 @@ const UsersPage = () => {
                 <Modal
                     title={
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0288D1, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Mail size={16} color="#fff" />
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Mail size={16} color="var(--bc-white)" />
                             </div>
                             <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>Send Email</div>
-                                <div style={{ fontSize: 11, color: '#64748b' }}>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Send Email</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                                     To: {emailUser?.firstName} {emailUser?.lastName}
                                 </div>
                             </div>
@@ -2494,7 +2507,7 @@ const UsersPage = () => {
                         </Button>,
                         <Button key="send" type="primary" loading={sendingEmail} onClick={handleSendEmailSubmit}
                             icon={<Send size={14} />}
-                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 12, height: 36, background: '#18181b' }}>
+                            style={{ borderRadius: 8, fontWeight: 600, fontSize: 12, height: 36, background: 'var(--text-primary)' }}>
                             Send Email
                         </Button>
                     ]}
@@ -2537,8 +2550,8 @@ const UsersPage = () => {
                             <Input
                                 value={emailUser?.email}
                                 disabled
-                                prefix={<Mail size={14} style={{ color: '#94a3b8' }} />}
-                                style={{ borderRadius: 8, height: 40, background: '#f8fafc' }}
+                                prefix={<Mail size={14} style={{ color: 'var(--text-muted)' }} />}
+                                style={{ borderRadius: 8, height: 40, background: 'var(--bg-hover)' }}
                             />
                         </div>
 
@@ -2567,8 +2580,8 @@ const UsersPage = () => {
 
                         {/* Info Note */}
                         {emailForm.type === 'credentials' && (
-                            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fed7aa' }}>
-                                <Text style={{ fontSize: 11, color: '#92400e' }}>
+                            <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--bg-warning-subtle)', borderRadius: 8, border: '1px solid var(--bg-warning-subtle)' }}>
+                                <Text style={{ fontSize: 11, color: 'var(--text-warning)' }}>
                                     ℹ️ This will send the user their login credentials. Make sure to set a temporary password when creating the user.
                                 </Text>
                             </div>
@@ -2589,9 +2602,9 @@ const UsersPage = () => {
                         <div>
                             {/* Profile Header */}
                             <div style={{
-                                background: 'linear-gradient(135deg, #1976D2, #9C27B0)',
+                                background: 'var(--bg-brand)',
                                 padding: '32px 24px',
-                                color: 'white',
+                                color: 'var(--bc-white)',
                                 position: 'relative'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -2627,7 +2640,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--text-secondary)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         marginBottom: 10
@@ -2645,7 +2658,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--text-secondary)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         marginBottom: 10
@@ -2663,7 +2676,7 @@ const UsersPage = () => {
                                         <span style={{
                                             fontSize: 'var(--font-size-base)',
                                             fontWeight: 600,
-                                            color: profileUser.isActive ? '#047857' : '#64748b'
+                                            color: profileUser.isActive ? 'var(--text-success)' : 'var(--text-secondary)'
                                         }}>
                                             {profileUser.isActive ? 'Active' : 'Inactive'}
                                         </span>
@@ -2675,7 +2688,7 @@ const UsersPage = () => {
                                     <div style={{
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        color: '#64748b',
+                                        color: 'var(--text-secondary)',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
                                         marginBottom: 10
@@ -2683,8 +2696,8 @@ const UsersPage = () => {
                                         Last Active
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <Clock size={14} style={{ color: '#64748b' }} />
-                                        <span style={{ fontSize: 'var(--font-size-base)', color: '#0f172a' }}>
+                                        <Clock size={14} style={{ color: 'var(--text-secondary)' }} />
+                                        <span style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-primary)' }}>
                                             {profileUser.lastSeen ? new Date(profileUser.lastSeen).toLocaleString() : 'Never logged in'}
                                         </span>
                                     </div>
@@ -2696,7 +2709,7 @@ const UsersPage = () => {
                                         <div style={{
                                             fontSize: 'var(--font-size-xs)',
                                             fontWeight: 600,
-                                            color: '#64748b',
+                                            color: 'var(--text-secondary)',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.05em',
                                             marginBottom: 10
@@ -2710,16 +2723,16 @@ const UsersPage = () => {
                                                     alignItems: 'center',
                                                     gap: 10,
                                                     padding: 10,
-                                                    background: '#fafbfc',
+                                                    background: 'var(--bg-hover)',
                                                     borderRadius: "var(--radius-md)",
-                                                    border: '1px solid #f1f5f9'
+                                                    border: '1px solid var(--bg-tertiary)'
                                                 }}>
                                                     <EnhancedAvatar firstName={s.firstName} lastName={s.lastName} size={32} />
                                                     <div>
-                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
+                                                        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>
                                                             {s.firstName} {s.lastName}
                                                         </div>
-                                                        <div style={{ fontSize: 'var(--font-size-xs)', color: '#64748b' }}>
+                                                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
                                                             {s.email}
                                                         </div>
                                                     </div>
@@ -2735,7 +2748,7 @@ const UsersPage = () => {
                                     gap: 8,
                                     marginTop: 24,
                                     paddingTop: 20,
-                                    borderTop: '1px solid #f1f5f9'
+                                    borderTop: '1px solid var(--bg-tertiary)'
                                 }}>
                                     <Button
                                         icon={<Send size={14} />}
@@ -2758,7 +2771,7 @@ const UsersPage = () => {
                                             flex: 1,
                                             borderRadius: "var(--radius-md)",
                                             fontWeight: 600,
-                                            background: 'linear-gradient(135deg, #1976D2, #1976D2)',
+                                            background: 'var(--bg-brand)',
                                             border: 'none'
                                         }}
                                     >
