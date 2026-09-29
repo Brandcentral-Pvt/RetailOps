@@ -1618,7 +1618,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
               </div>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Availability</div>
-                <Select size="small" placeholder="All" value={filters.availabilityStatus || undefined} onChange={(v) => setFilters({ ...filters, availabilityStatus: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'In Stock', label: 'In Stock' }, { value: 'Out of Stock', label: 'Out of Stock' }, { value: 'Available', label: 'Available' }, { value: 'Currently unavailable.', label: 'Unavailable' }, { value: 'ADD TO BAG', label: 'Add to Bag' }]} />
+                <Select size="small" placeholder="All" value={filters.availabilityStatus || undefined} onChange={(v) => setFilters({ ...filters, availabilityStatus: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'In Stock', label: 'In Stock' }, { value: 'Out of Stock', label: 'Out of Stock' }, { value: 'ADD TO BAG', label: 'Add to Bag' }, { value: 'ADD TO CART', label: 'Add to Cart' }, { value: 'OUT OF STOCK', label: 'Out of Stock label' }, { value: 'SOLD OUT', label: 'Sold Out' }, { value: 'NOTIFY ME', label: 'Notify Me' }, { value: 'Available', label: 'Available' }, { value: 'Currently unavailable.', label: 'Unavailable' }]} />
               </div>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Deal Type</div>
@@ -2982,8 +2982,13 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                             {asin.availabilityStatus ? (
                               (() => {
                                 const s = (asin.availabilityStatus || '').toLowerCase();
-                                const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('currently unavailable');
-                                const isInStock = s.includes('in stock') || s.includes('add to bag') || s.includes('add to cart') || s === 'available';
+                                // The Ajio scraper writes the buy button text
+                                // ("ADD TO BAG") while Amazon-style values are
+                                // canonical tokens ("InStock"), so match both
+                                // spellings — the no-space form matched neither
+                                // branch before and rendered as a neutral chip.
+                                const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('outofstock') || s.includes('sold out') || s.includes('notify me');
+                                const isInStock = s.includes('in stock') || s.includes('instock') || s.includes('add to bag') || s.includes('add to cart') || s === 'available';
                                 const bgColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bg-success-subtle)' : 'var(--bg-secondary)';
                                 const textColor = isUnavailable ? 'var(--text-danger)' : isInStock ? 'var(--text-success)' : 'var(--text-secondary)';
                                 const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bc-border-success)' : 'var(--border-light)';

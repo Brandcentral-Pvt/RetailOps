@@ -319,10 +319,15 @@ exports.getAsins = async (req, res) => {
     }
     if (req.query.availabilityStatus) {
       const status = req.query.availabilityStatus;
+      // AvailabilityStatus holds different vocabularies per marketplace:
+      // Amazon writes "In Stock"/"Currently unavailable.", while the Ajio
+      // scraper writes the buy button text ("ADD TO BAG"/"OUT OF STOCK") or a
+      // canonical token ("InStock"). Match all of them so the filter actually
+      // returns those rows.
       if (status === 'In Stock') {
-        whereClause += " AND LOWER(a.AvailabilityStatus) LIKE '%in stock%'";
+        whereClause += " AND (LOWER(a.AvailabilityStatus) LIKE '%in stock%' OR LOWER(a.AvailabilityStatus) LIKE '%instock%' OR LOWER(a.AvailabilityStatus) LIKE '%add to bag%' OR LOWER(a.AvailabilityStatus) LIKE '%add to cart%' OR LOWER(a.AvailabilityStatus) LIKE '%available%')";
       } else if (status === 'Out of Stock') {
-        whereClause += " AND (LOWER(a.AvailabilityStatus) LIKE '%out of stock%' OR LOWER(a.AvailabilityStatus) LIKE '%unavailable%' OR LOWER(a.AvailabilityStatus) LIKE '%temporarily%')";
+        whereClause += " AND (LOWER(a.AvailabilityStatus) LIKE '%out of stock%' OR LOWER(a.AvailabilityStatus) LIKE '%outofstock%' OR LOWER(a.AvailabilityStatus) LIKE '%out_of_stock%' OR LOWER(a.AvailabilityStatus) LIKE '%unavailable%' OR LOWER(a.AvailabilityStatus) LIKE '%sold out%' OR LOWER(a.AvailabilityStatus) LIKE '%notify me%' OR LOWER(a.AvailabilityStatus) LIKE '%temporarily%')";
       } else {
         whereClause += ' AND LOWER(a.AvailabilityStatus) = LOWER(@availabilityStatus)';
       }

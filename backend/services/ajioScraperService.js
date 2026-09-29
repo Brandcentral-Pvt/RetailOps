@@ -6,6 +6,205 @@ const path = require("path");
 const AJIO_SCRAPER_DEBUG = process.env.AJIO_SCRAPER_DEBUG === "true";
 
 /**
+ * Canonical call-to-action labels Ajio renders on a product page. The raw
+ * button text is normalised to one of these so the AVAILABILITY column shows
+ * a stable, filterable value instead of "ADD TO BAG " or "Add To Bag".
+ */
+const AJIO_CTA_LABELS = {
+  addToBag: "ADD TO BAG",
+  addToCart: "ADD TO CART",
+  outOfStock: "OUT OF STOCK",
+  soldOut: "SOLD OUT",
+  notifyMe: "NOTIFY ME",
+  comingSoon: "COMING SOON",
+};
+
+/** Order matters: the first pattern that matches the raw label wins. */
+const AJIO_CTA_PATTERNS = [
+  [/add\s*to\s*bag/i, "addToBag"],
+  [/add\s*to\s*cart/i, "addToCart"],
+  [/out\s*of\s*stock/i, "outOfStock"],
+  [/sold\s*out/i, "soldOut"],
+  [/notify\s*me/i, "notifyMe"],
+  [/coming\s*soon/i, "comingSoon"],
+];
+
+/** Labels that mean the product cannot currently be bought. */
+const AJIO_CTA_OOS = new Set([
+  "outOfStock",
+  "soldOut",
+  "notifyMe",
+  "comingSoon",
+]);
+
+/**
+ * Interpret an Ajio stock signal. Ajio is inconsistent: stock arrives as a
+ * numeric level, as "InStock"/"OutOfStock", as "lowStock", or as a boolean.
+ * Comparing with === previously missed most of those shapes, which is why
+ * availability accuracy was low.
+ *
+ * @returns {"available"|"out_of_stock"|"unknown"}
+ */
+function resolveAjioStockSignal(signal) {
+  if (signal == null || signal === "") return "unknown";
+  if (typeof signal === "boolean") return signal ? "available" : "out_of_stock";
+
+  if (typeof signal === "object") {
+    if (typeof signal.isAvailable === "boolean") {
+      return signal.isAvailable ? "available" : "out_of_stock";
+    }
+    return resolveAjioStockSignal(
+      signal.stockLevel ?? signal.availability ?? signal.stockLevelStatus,
+    );
+  }
+
+  const raw = String(signal).trim();
+  if (raw === "") return "unknown";
+
+  // A numeric level is the most reliable signal when present.
+  const level = Number.parseInt(raw, 10);
+  if (!Number.isNaN(level) && /^-?\d+$/.test(raw)) {
+    return level > 0 ? "available" : "out_of_stock";
+  }
+
+  const key = raw.toLowerCase().replace(/[\s_-]/g, "");
+  if (key === "instock" || key === "available" || key === "in") {
+    return "available";
+  }
+  if (
+    key === "outofstock" ||
+    key === "unavailable" ||
+    key === "notavailable" ||
+    key === "out" ||
+    key === "soldout"
+  ) {
+    return "out_of_stock";
+  }
+  if (key === "lowstock" || key === "limitedavailability") {
+    return "available";
+  }
+  if (/notify|comingsoon|unavailable/i.test(raw)) return "out_of_stock";
+
+  return "unknown";
+}
+
+/**
+ * Reduce every availability signal collected from a product page to one
+ * canonical status plus the call-to-action label to display.
+ *
+ * Signal precedence, most trustworthy first:
+ *   1. Variant stock levels (Ajio prices and stocks per size)
+ *   2. Product-level stock object
+ *   3. The CTA button itself (label + enabled state)
+ *   4. Container/schema availability strings
+ *
+ * @param {object} input
+ * @returns {{status: string, label: string|null, ctaKey: string|null}}
+ */
+function resolveAjioAvailability(input = {}) {
+  const {
+    variantOptions,
+    stock,
+    productAvailability,
+    containerStockLevel,
+    ctaLabel,
+    ctaState,
+    declaredStatus,
+  } = input;
+
+  let ctaKey = null;
+  if (ctaLabel) {
+    const hit = AJIO_CTA_PATTERNS.find(([re]) => re.test(ctaLabel));
+    if (hit) ctaKey = hit[1];
+  }
+
+  // Display label: prefer the button text we actually saw, otherwise fall back
+  // to a clean canonical label for the resolved status.
+  const labelFor = (status) =>
+    ctaKey
+      ? AJIO_CTA_LABELS[ctaKey]
+      : status === "available"
+        ? AJIO_CTA_LABELS.addToBag
+        : AJIO_CTA_LABELS.outOfStock;
+
+  const done = (status) => ({ status, ctaKey, label: labelFor(status) });
+
+  // 1. Variant stock levels — most reliable on Ajio.
+  if (Array.isArray(variantOptions) && variantOptions.length > 0) {
+    let sawSignal = false;
+    let anyAvailable = false;
+    for (const variant of variantOptions) {
+      const status = resolveAjioStockSignal(variant && variant.stock);
+      if (status === "unknown") continue;
+      sawSignal = true;
+      if (status === "available") {
+        anyAvailable = true;
+        break;
+      }
+    }
+    if (sawSignal) return done(anyAvailable ? "available" : "out_of_stock");
+  }
+
+  // 2. Product-level stock object.
+  const stockStatus = resolveAjioStockSignal(stock);
+  if (stockStatus !== "unknown") return done(stockStatus);
+
+  // 3. The CTA button. A disabled or hidden buy button on Ajio means the
+  //    product cannot be bought right now, so it counts as out of stock —
+  //    previously these fell through and left the row stale.
+  if (ctaKey) {
+    if (AJIO_CTA_OOS.has(ctaKey)) return done("out_of_stock");
+    if (ctaState === "disabled" || ctaState === "hidden") {
+      return { status: "out_of_stock", ctaKey, label: AJIO_CTA_LABELS[ctaKey] };
+    }
+    return done("available");
+  }
+
+  // 4. Container / schema availability strings.
+  const containerStatus =
+    resolveAjioStockSignal(containerStockLevel) !== "unknown"
+      ? resolveAjioStockSignal(containerStockLevel)
+      : resolveAjioStockSignal(productAvailability);
+  if (containerStatus !== "unknown") return done(containerStatus);
+
+  // 5. Whatever the preloaded state declared.
+  const declared = resolveAjioStockSignal(declaredStatus);
+  if (declared !== "unknown") return done(declared);
+
+  return { status: "unknown", ctaKey, label: null };
+}
+
+/**
+ * Map a resolved status to the canonical Availability column value and to the
+ * display label stored in AvailabilityStatus. Both are written so the
+ * AVAILABILITY column shows the button text while downstream consumers keep
+ * a machine-readable stock value.
+ */
+function toAjioAvailabilityFields(resolved) {
+  if (!resolved || resolved.status === "unknown") {
+    return { availability: null, availabilityStatus: null };
+  }
+
+  // A buy CTA that is disabled/hidden is not buyable, so the raw button text
+  // ("ADD TO BAG") would be rendered as a green in-stock chip. Fall back to the
+  // out-of-stock label so the stored status and the displayed chip agree.
+  const isBuyCta =
+    resolved.ctaKey === "addToBag" || resolved.ctaKey === "addToCart";
+  const label =
+    resolved.status === "out_of_stock" && isBuyCta
+      ? AJIO_CTA_LABELS.outOfStock
+      : resolved.label ||
+        (resolved.status === "available"
+          ? AJIO_CTA_LABELS.addToBag
+          : AJIO_CTA_LABELS.outOfStock);
+
+  return {
+    availability: resolved.status === "available" ? "InStock" : "OutOfStock",
+    availabilityStatus: label,
+  };
+}
+
+/**
  * Playwright Scraper Service — Ajio (ajio.com) product-page scraper.
  * Extracts product data from Ajio product pages since there's no public API.
  */
@@ -351,6 +550,62 @@ class AjioScraperService {
   }
 
   /**
+   * Cheap, targeted read of the buy button's rendered text.
+   *
+   * The full DOM scan is deliberately skipped when core fields already
+   * resolved, but the AVAILABILITY column needs the button text on every
+   * product. This runs a handful of locator calls rather than the whole
+   * extraction, so it stays affordable for every page.
+   *
+   * @returns {Promise<{ctaLabel: string|null, ctaState: string|null}>}
+   */
+  async _extractCtaLabel(page) {
+    const selectors = [
+      '[data-testid="add-to-bag"], [data-testid="add-to-cart"]',
+      '[data-testid="buy-now"], .buy-now, .buy-button, .cta-button',
+      ".add-to-bag, .add-to-cart, .addtocart",
+      'button:has-text("ADD TO BAG"), button:has-text("Add to Bag")',
+      'button:has-text("ADD TO CART"), button:has-text("Add to Cart")',
+      'button:has-text("OUT OF STOCK"), button:has-text("Sold Out"), button:has-text("NOTIFY ME")',
+    ];
+
+    for (const sel of selectors) {
+      try {
+        const count = await page.locator(sel).count().catch(() => 0);
+        if (count === 0) continue;
+
+        for (let i = 0; i < Math.min(count, 3); i++) {
+          const btn = page.locator(sel).nth(i);
+          const isVisible = await btn.isVisible().catch(() => false);
+          const isEnabled = await btn.isEnabled().catch(() => true);
+          const text = String((await btn.textContent().catch(() => "")) || "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          // Skip hidden pre-render stubs and empty wrappers.
+          if (!text) continue;
+          if (!isVisible && !/out of stock|sold out|notify me/i.test(text))
+            continue;
+
+          let state = "available";
+          if (!isVisible) state = "hidden";
+          else if (!isEnabled) state = "disabled";
+          if (/out of stock|unavailable|sold out|notify me/i.test(text)) {
+            state = "out_of_stock";
+          }
+
+          const key =
+            (AJIO_CTA_PATTERNS.find(([re]) => re.test(text)) || [])[1] || null;
+
+          return { ctaLabel: text, ctaState: key || state };
+        }
+      } catch {}
+    }
+
+    return { ctaLabel: null, ctaState: null };
+  }
+
+  /**
    * Scrape a single Ajio product.
    * @param {string} productId - Ajio product ID (from URL /p/<id>)
    * @param {object} [opts] - { full } extra options.
@@ -477,6 +732,10 @@ class AjioScraperService {
           preloadData.addToCartStatus !== "unknown"
         )
           merged.addToCartStatus = preloadData.addToCartStatus;
+        if (!merged.ctaLabel && preloadData.ctaLabel)
+          merged.ctaLabel = preloadData.ctaLabel;
+        if (!merged.ctaState && preloadData.ctaState)
+          merged.ctaState = preloadData.ctaState;
         if (!merged.description && preloadData.description)
           merged.description = preloadData.description;
         if (!merged.category && preloadData.category)
@@ -516,6 +775,35 @@ class AjioScraperService {
             ) {
               merged[k] = domData[k];
             }
+          }
+        }
+      }
+
+      // The AVAILABILITY column shows the buy button's text, so probe for it
+      // even when the full DOM scan above was skipped.
+      if (!merged.ctaLabel) {
+        const cta = await this._extractCtaLabel(page);
+        if (cta.ctaLabel) {
+          merged.ctaLabel = cta.ctaLabel;
+          merged.ctaState = cta.ctaState;
+          // ctaState is a CTA key ("outOfStock", "soldOut", ...). An explicit
+          // out-of-stock button outranks a stale "available" from stock data;
+          // a disabled/hidden buy button means it is not purchasable.
+          if (
+            cta.ctaState &&
+            AJIO_CTA_OOS.has(cta.ctaState)
+          ) {
+            merged.addToCartStatus = "out_of_stock";
+          } else if (
+            cta.ctaState === "disabled" ||
+            cta.ctaState === "hidden"
+          ) {
+            merged.addToCartStatus = "out_of_stock";
+          } else if (
+            merged.addToCartStatus === "unknown" &&
+            (cta.ctaState === "addToBag" || cta.ctaState === "addToCart")
+          ) {
+            merged.addToCartStatus = "available";
           }
         }
       }
@@ -780,16 +1068,13 @@ class AjioScraperService {
                 : null;
             }
 
-            // Availability
-            let addToCartStatus = "unknown";
-            const availability =
-              schema.offers?.availability || schema.availability;
-            if (availability) {
-              if (/InStock|InStock/.test(availability))
-                addToCartStatus = "available";
-              else if (/OutOfStock|OutOfStock/.test(availability))
-                addToCartStatus = "out_of_stock";
-            }
+    // Availability
+    const schemaAvailability =
+      schema.offers?.availability || schema.availability || null;
+    // The previous check was /InStock|InStock/ (a duplicated branch, and case
+    // sensitive), so lowercase "instock" and "In Stock" never matched.
+    const addToCartStatus = resolveAjioStockSignal(schemaAvailability);
+
 
             // Description
             let description = "";
@@ -1132,50 +1417,23 @@ const pd = product.productDetails || product;
       else if (!reviewCount && pd.ratingsResponse?.totalReviews)
         reviewCount = parseInt(pd.ratingsResponse.totalReviews, 10);
 
-      // Add to cart status from stock
-      let addToCartStatus = "unknown";
-      if (pd.stock) {
-        if (pd.stock.isAvailable || pd.stock.availability === "InStock")
-          addToCartStatus = "available";
-        else if (pd.stock.availability === "OutOfStock")
-          addToCartStatus = "out_of_stock";
-      } else if (pd.availability) {
-        if (pd.availability === "InStock" || pd.availability === "AVAILABLE")
-          addToCartStatus = "available";
-        else if (
-          pd.availability === "OutOfStock" ||
-          pd.availability === "OUT_OF_STOCK"
-        )
-          addToCartStatus = "out_of_stock";
-      }
-
-      // Add to cart status from variant stocks (most reliable on Ajio)
-      if (addToCartStatus === "unknown") {
-        const variants = pd.variantOptions;
-        if (Array.isArray(variants) && variants.length > 0) {
-          const anyInStock = variants.some((v) => {
-            const st = v.stock || {};
-            const level = parseInt(st.stockLevel, 10);
-            if (!Number.isNaN(level)) return level > 0;
-            return /inStock|lowStock/i.test(String(st.stockLevelStatus || ""));
-          });
-          addToCartStatus = anyInStock ? "available" : "out_of_stock";
-        }
-      }
-
-      // Fallback: container-level stock indicators (state.product fields)
-      if (
-        addToCartStatus === "unknown" &&
-        product.selectedSizeStockLevel != null
-      ) {
-        const lvl = parseInt(product.selectedSizeStockLevel, 10);
-        if (!Number.isNaN(lvl)) {
-          addToCartStatus = lvl > 0 ? "available" : "out_of_stock";
-        }
-      }
-      if (addToCartStatus === "unknown" && pd.addToCartStatus) {
-        addToCartStatus = pd.addToCartStatus;
-      }
+      // Availability. Every signal is collected first and then resolved in
+      // one place (resolveAjioAvailability) so precedence is explicit and the
+      // same rules apply as in the DOM extractor.
+      const preloadedCtaLabel =
+        pd.ctaLabel || pd.addToBagLabel || pd.buttonLabel || pd.cta || null;
+      const availabilityResolved = resolveAjioAvailability({
+        variantOptions: pd.variantOptions,
+        stock: pd.stock,
+        productAvailability: pd.availability,
+        containerStockLevel: product.selectedSizeStockLevel,
+        ctaLabel: preloadedCtaLabel,
+        ctaState: pd.addToCartStatus,
+        declaredStatus: pd.addToCartStatus,
+      });
+      const addToCartStatus = availabilityResolved.status;
+      const ctaLabel = availabilityResolved.label;
+      const ctaState = availabilityResolved.ctaKey;
 
       // Price data — pick the variant matching this product ID (default size),
       // since Ajio prices vary per size. Fall back to the first in-stock variant.
@@ -1232,6 +1490,8 @@ const pd = product.productDetails || product;
         colors,
         sizes,
         addToCartStatus,
+        ctaLabel,
+        ctaState,
         brand: pd.brandName,
         title: pd.name,
       });
@@ -1242,6 +1502,8 @@ const pd = product.productDetails || product;
         colors: colors.length > 0 ? colors : null,
         sizes: sizes.length > 0 ? sizes : null,
         addToCartStatus,
+        ctaLabel,
+        ctaState,
         currentPrice,
         mrp,
         discountPercentage,
@@ -1466,37 +1728,67 @@ const pd = product.productDetails || product;
       } catch {}
     }
 
-    // 6. Add to Cart Button Status
+    // 6. Add to Bag / Add to Cart button status
+    // Ajio's primary CTA reads "ADD TO BAG"; the old selector list only
+    // matched "Add to Cart", so most products resolved to "unknown".
+    //
+    // addToCartStatus holds the stock verdict ("available" / "out_of_stock" /
+    // "unknown"); ctaState holds the CTA key ("addToBag", "soldOut", ...), which
+    // is what toAjioAvailabilityFields needs to tell a real buy button apart
+    // from an out-of-stock button.
     let addToCartStatus = "unknown";
+    let ctaLabel = null;
+    let ctaState = null;
+    let bestRank = 0;
     const cartSelectors = [
-      '[data-testid="add-to-cart"], .add-to-cart, .addtocart, button.add-to-cart',
-      'button:has-text("Add to Cart"), button:has-text("ADD TO CART"), button:has-text("Add to cart")',
+      '[data-testid="add-to-bag"], [data-testid="add-to-cart"]',
       '[data-testid="buy-now"], .buy-now, .buy-button, .cta-button',
+      ".add-to-bag, .add-to-cart, .addtocart",
+      'button:has-text("ADD TO BAG"), button:has-text("Add to Bag")',
+      'button:has-text("ADD TO CART"), button:has-text("Add to Cart"), button:has-text("Add to cart")',
+      'button:has-text("OUT OF STOCK"), button:has-text("Sold Out"), button:has-text("NOTIFY ME")',
     ];
     for (const sel of cartSelectors) {
       try {
-        const btn = page.locator(sel).first();
-        const count = await btn.count().catch(() => 0);
-        if (count > 0) {
+        const count = await page.locator(sel).count().catch(() => 0);
+        if (count === 0) continue;
+
+        for (let i = 0; i < Math.min(count, 3); i++) {
+          const btn = page.locator(sel).nth(i);
           const isVisible = await btn.isVisible().catch(() => false);
           const isEnabled = await btn.isEnabled().catch(() => true);
-          const text = await btn
-            .textContent()
-            .catch(() => "")
-            .catch(() => "");
-          if (isVisible && isEnabled) {
-            addToCartStatus = "available";
-          } else if (isVisible && !isEnabled) {
-            addToCartStatus = "disabled";
-          } else {
-            addToCartStatus = "hidden";
-          }
-          // Check for "Out of Stock" text
-          if (/out of stock|unavailable|sold out/i.test(text)) {
-            addToCartStatus = "out_of_stock";
-          }
-          break;
+          const text = String(
+            (await btn.textContent().catch(() => "")) || "",
+          )
+            .replace(/\s+/g, " ")
+            .trim();
+
+          // A hidden element with no text is usually a generic wrapper or a
+          // pre-render stub — never let it win over a real button.
+          if (!isVisible && !text) continue;
+
+          const isOos = /out of stock|unavailable|sold out|notify me/i.test(
+            text,
+          );
+          const key =
+            (AJIO_CTA_PATTERNS.find(([re]) => re.test(text)) || [])[1] || null;
+
+          // Rank candidates: a usable button beats a disabled one, which beats
+          // an explicit out-of-stock label, which beats a hidden leftover.
+          const rank = isOos ? 2 : isVisible && isEnabled ? 4 : isVisible ? 3 : 1;
+          if (rank <= bestRank) continue;
+          bestRank = rank;
+
+          ctaLabel = text || ctaLabel;
+          ctaState = key;
+          if (isOos) addToCartStatus = "out_of_stock";
+          else if (isVisible && isEnabled) addToCartStatus = "available";
+          else addToCartStatus = "disabled";
+
+          // A visible, labelled button is decisive — stop looking.
+          if (rank === 4) break;
         }
+        if (bestRank === 4) break;
       } catch {}
     }
     // Fallback: check for out of stock indicators
@@ -1512,6 +1804,8 @@ const pd = product.productDetails || product;
           .catch(() => 0);
         if (count > 0) {
           addToCartStatus = "out_of_stock";
+          ctaState = "outOfStock";
+          if (!ctaLabel) ctaLabel = "OUT OF STOCK";
           break;
         }
       }
@@ -1657,6 +1951,8 @@ const pd = product.productDetails || product;
       rating,
       reviewCount,
       addToCartStatus,
+      ctaLabel,
+      ctaState,
       sizes: sizes.length > 0 ? sizes : null,
       colors: colors.length > 0 ? colors : null,
       marketplace: "ajio",
@@ -1969,15 +2265,17 @@ const pd = product.productDetails || product;
               }
             : {}),
         };
-        const availability =
-          extracted.addToCartStatus === "available"
-            ? "InStock"
-            : extracted.addToCartStatus === "out_of_stock"
-              ? "OutOfStock"
-              : null;
+        // Availability: Availability keeps a machine-readable stock value for
+        // downstream consumers, while AvailabilityStatus carries the call to
+        // action shown in the AVAILABILITY column (e.g. "ADD TO BAG").
+        const { availability, availabilityStatus } = toAjioAvailabilityFields({
+          status: extracted.addToCartStatus,
+          label: extracted.ctaLabel,
+          ctaKey: extracted.ctaState,
+        });
         if (availability) {
           updates.Availability = availability;
-          updates.AvailabilityStatus = availability;
+          updates.AvailabilityStatus = availabilityStatus;
         }
 
         const setClause = Object.keys(updates)
@@ -2155,4 +2453,12 @@ const pd = product.productDetails || product;
   }
 }
 
-module.exports = new AjioScraperService();
+const scraper = new AjioScraperService();
+
+module.exports = scraper;
+
+// Exported for testing the pure availability helpers without a browser.
+module.exports.resolveAjioStockSignal = resolveAjioStockSignal;
+module.exports.resolveAjioAvailability = resolveAjioAvailability;
+module.exports.toAjioAvailabilityFields = toAjioAvailabilityFields;
+module.exports.AJIO_CTA_LABELS = AJIO_CTA_LABELS;
