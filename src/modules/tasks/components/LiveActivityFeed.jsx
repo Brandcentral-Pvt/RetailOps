@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Tag, Space } from 'antd';
 import { ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -23,7 +23,7 @@ export default function LiveActivityFeed({ compact = false }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await pemsApi.getActivityFeed();
+        const res = await tasksApi.getActivityFeed();
         if (res.success) setActivities(res.data || []);
       } catch {}
     };

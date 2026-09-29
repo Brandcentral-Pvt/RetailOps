@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Task Execution Center — v2 (UI/UX redesign)
-   Expected location: src/modules/pems/pages/TaskInstancesPage.jsx
+   Expected location: src/modules/tasks/pages/TaskInstancesPage.jsx
 
    What changed vs v1 (see CHANGES.md for full notes):
    • Sticky, blurred command header with brand tile, subtitle, kbd hint (Alt+N)
@@ -37,7 +37,7 @@ import {
   InfoCircleOutlined, TeamOutlined, LineChartOutlined, FileTextOutlined,
   DownloadOutlined, UserOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { WORKFLOW_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS, TASK_LIST_GRID } from '../constants';
 import { calculateHealth, isOverdue, isDueTomorrow } from '../utils/taskHealth';
 import '../tasks.css';
@@ -255,7 +255,7 @@ const ReviewRow = ({ label, value }) => (
 const ListSkeleton = () => (
   <div>
     {Array.from({ length: 6 }).map((_, i) => (
-      <div key={i} className="pems-skeleton-row">
+      <div key={i} className="tasks-skeleton-row">
         <Skeleton.Input active size="small" style={{ width: 16 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <Skeleton active title={false} paragraph={{ rows: 1, width: '55%' }} />
@@ -317,10 +317,10 @@ export default function TaskInstancesPage() {
   const [okrPriorityFilter, setOkrPriorityFilter] = useState(null);
 
   useEffect(() => {
-    pemsApi.getSellers().then(r => { if (r.success) setSellers(r.data); }).catch(() => { });
-    pemsApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => { });
-    pemsApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => { });
-    pemsApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
+    tasksApi.getSellers().then(r => { if (r.success) setSellers(r.data); }).catch(() => { });
+    tasksApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => { });
+    tasksApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => { });
+    tasksApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
   }, []);
 
   /* Sticky-header elevation on scroll */
@@ -391,8 +391,8 @@ export default function TaskInstancesPage() {
     setLoading(true);
     try {
       const [instRes, sumRes] = await Promise.all([
-        pemsApi.getInstances(buildParams()),
-        pemsApi.getDashboardSummary(),
+        tasksApi.getInstances(buildParams()),
+        tasksApi.getDashboardSummary(),
       ]);
       if (instRes.success) {
         let data = instRes.instances || [];
@@ -437,7 +437,7 @@ export default function TaskInstancesPage() {
   const handleCreateTask = async () => {
     setCreating(true);
     try {
-      await pemsApi.createInstance({
+      await tasksApi.createInstance({
         templateId: wizardData.templateId, title: wizardData.title,
         sellerId: wizardData.sellerId, sellerName: wizardData.sellerName,
         assignedTo: wizardData.assignedTo, assigneeName: wizardData.assigneeName,
@@ -468,7 +468,7 @@ export default function TaskInstancesPage() {
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          const res = await pemsApi.bulkTransition(ids, toStatus, `Bulk ${verb.toLowerCase()} via list`);
+          const res = await tasksApi.bulkTransition(ids, toStatus, `Bulk ${verb.toLowerCase()} via list`);
           const { updatedCount = 0, skippedCount = 0 } = res?.data || {};
           if (skippedCount > 0) {
             message.warning(`${updatedCount} updated · ${skippedCount} skipped (not in a transitionable state)`);
@@ -555,9 +555,9 @@ export default function TaskInstancesPage() {
     setPagination(p => ({ ...p, page: 1 }));
   };
 
-  /* ── SELLER TASKS VIEW (PEMS) ── */
+  /* ── SELLER TASKS VIEW ── */
   const renderSellerTasksView = () => {
-    if (instances.length === 0) return <Empty description="No tasks found" className="pems-empty-wrap" />;
+    if (instances.length === 0) return <Empty description="No tasks found" className="tasks-empty-wrap" />;
 
     const grouped = {};
     instances.forEach(task => {
@@ -677,7 +677,7 @@ export default function TaskInstancesPage() {
   ];
 
   const renderSellerView = () => {
-    if (sellerGroups.length === 0) return <Empty description="No objectives or tasks found. Create an objective to get started." className="pems-empty-wrap" />;
+    if (sellerGroups.length === 0) return <Empty description="No objectives or tasks found. Create an objective to get started." className="tasks-empty-wrap" />;
 
     const buildCollapseItems = (group) => {
       const items = [];
@@ -793,7 +793,7 @@ export default function TaskInstancesPage() {
       return { ...group, filteredTasks: allTasks };
     }).filter(g => g.filteredTasks.length > 0);
 
-    if (visibleGroups.length === 0) return <Empty description="No tasks match current filters" className="pems-empty-wrap" />;
+    if (visibleGroups.length === 0) return <Empty description="No tasks match current filters" className="tasks-empty-wrap" />;
 
     return (
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -842,7 +842,7 @@ export default function TaskInstancesPage() {
 
   /* ── Empty state for the list view ── */
   const renderListEmpty = () => (
-    <Empty className="pems-empty-wrap" image={Empty.PRESENTED_IMAGE_SIMPLE} description={null}>
+    <Empty className="tasks-empty-wrap" image={Empty.PRESENTED_IMAGE_SIMPLE} description={null}>
       <div style={{ textAlign: 'center' }}>
         <Text strong style={{ fontSize: 'var(--bc-text-base, 14px)', color: 'var(--bc-text-heading, #0f172a)', display: 'block' }}>No tasks found</Text>
         <Text style={{ fontSize: 'var(--bc-text-sm, 13px)', color: 'var(--bc-text-muted, #94a3b8)', display: 'block', marginTop: 2 }}>
@@ -867,26 +867,26 @@ export default function TaskInstancesPage() {
 
   /* ── LIST VIEW ── */
   const renderListView = () => (
-    <Card className="pems-list-card" styles={{ body: { padding: 0 } }}>
+    <Card className="tasks-list-card" styles={{ body: { padding: 0 } }}>
       {/* Column header — grid must mirror PremiumTaskRow's TASK_LIST_GRID */}
-      <div className="pems-list-header" style={{ gridTemplateColumns: TASK_LIST_GRID }}>
+      <div className="tasks-list-header" style={{ gridTemplateColumns: TASK_LIST_GRID }}>
         <div><Checkbox checked={selectedIds.size === instances.length && instances.length > 0} onChange={toggleSelectAll} /></div>
-        <Text className="pems-section-label">Task</Text>
-        <Text className="pems-section-label">Metrics</Text>
-        <Text className="pems-section-label">Assignee</Text>
-        <Text className="pems-section-label">Priority</Text>
-        <Text className="pems-section-label">Status</Text>
-        <Text className="pems-section-label">SLA</Text>
-        <Text className="pems-section-label">Due</Text>
-        <Text className="pems-section-label" style={{ textAlign: 'right' }}>Actions</Text>
+        <Text className="tasks-section-label">Task</Text>
+        <Text className="tasks-section-label">Metrics</Text>
+        <Text className="tasks-section-label">Assignee</Text>
+        <Text className="tasks-section-label">Priority</Text>
+        <Text className="tasks-section-label">Status</Text>
+        <Text className="tasks-section-label">SLA</Text>
+        <Text className="tasks-section-label">Due</Text>
+        <Text className="tasks-section-label" style={{ textAlign: 'right' }}>Actions</Text>
       </div>
 
       {/* Desktop rows */}
-      <div className="pems-list-desktop">
+      <div className="tasks-list-desktop">
         {loading ? <ListSkeleton /> : instances.length === 0 ? renderListEmpty() : (
           <div>
             {instances.map((task, i) => (
-              <div key={task.Id} className={`pems-row${selectedIds.has(task.Id) ? ' selected' : ''}`}>
+              <div key={task.Id} className={`tasks-row${selectedIds.has(task.Id) ? ' selected' : ''}`}>
                 <PremiumTaskRow
                   task={task}
                   index={i}
@@ -902,7 +902,7 @@ export default function TaskInstancesPage() {
       </div>
 
       {/* Mobile cards */}
-      <div className="pems-mobile-only">
+      <div className="tasks-mobile-only">
         {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
           instances.length === 0 ? <Empty description="No tasks found" style={{ padding: 40 }} /> :
             instances.map(t => <MobileTaskCard key={t.Id} task={t} onView={openWorkspace} />)}
@@ -936,12 +936,12 @@ export default function TaskInstancesPage() {
 
   /* ════════════════════════════════════════════════ RENDER ════════════════════════════════════════════════ */
   return (
-    <div className="pems-tasks-page">
+    <div className="tasks-page">
       {/* ═══ 1. STICKY COMMAND HEADER ═══ */}
-      <div className={`pems-sticky-header${headerScrolled ? ' scrolled' : ''}`}>
-        <div className="pems-page-inner" style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div className={`tasks-sticky-header${headerScrolled ? ' scrolled' : ''}`}>
+        <div className="tasks-page-inner" style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-            <span className="pems-brand-tile"><ThunderboltOutlined /></span>
+            <span className="tasks-brand-tile"><ThunderboltOutlined /></span>
             <div style={{ minWidth: 0 }}>
               <Text strong style={{ fontSize: 17, lineHeight: 1.2, display: 'block', color: 'var(--bc-text-heading, #0f172a)' }}>Task Execution Center</Text>
               <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>Execution · Reviews · SLA · Automation</Text>
@@ -964,7 +964,7 @@ export default function TaskInstancesPage() {
         </div>
       </div>
 
-      <div className="pems-page-inner">
+      <div className="tasks-page-inner">
         {/* ═══ 2. KPI STRIP ═══ */}
         <CommandCenterKpis
           kpi={kpi}
@@ -976,14 +976,14 @@ export default function TaskInstancesPage() {
 
         {/* ═══ 3. TOOLBAR: QUICK VIEWS + CONTROLS ═══ */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 16, marginBottom: activeFilterCount > 0 ? 8 : 12 }}>
-          <div className="pems-quick-pills" role="tablist" aria-label="Quick views">
+          <div className="tasks-quick-pills" role="tablist" aria-label="Quick views">
             {QUICK_VIEWS.map(qv => (
               <div
                 key={qv.key}
                 role="tab"
                 aria-selected={quickView === qv.key}
                 tabIndex={0}
-                className={`pems-quick-pill${quickView === qv.key ? ' active' : ''}`}
+                className={`tasks-quick-pill${quickView === qv.key ? ' active' : ''}`}
                 onClick={() => { setQuickView(qv.key); setPagination(p => ({ ...p, page: 1 })); }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -993,8 +993,8 @@ export default function TaskInstancesPage() {
                   }
                 }}
               >
-                <span className="pems-quick-pill-icon">{qv.icon}</span>
-                <span className="pems-quick-pill-label">{qv.label}</span>
+                <span className="tasks-quick-pill-icon">{qv.icon}</span>
+                <span className="tasks-quick-pill-label">{qv.label}</span>
               </div>
             ))}
           </div>
@@ -1025,7 +1025,7 @@ export default function TaskInstancesPage() {
               Filters {activeFilterCount > 0 && <Badge count={activeFilterCount} size="small" style={{ marginLeft: 4 }} />}
             </Button>
             <Button
-              className="pems-insights-trigger"
+              className="tasks-insights-trigger"
               icon={<EyeOutlined />}
               size="small"
               onClick={() => setInsightsOpen(true)}
@@ -1039,9 +1039,9 @@ export default function TaskInstancesPage() {
         {/* ═══ 4. ACTIVE FILTER CHIPS ═══ */}
         {activeFilterCount > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            <span className="pems-section-label">Active filters</span>
+            <span className="tasks-section-label">Active filters</span>
             {Object.entries(filters).filter(([, v]) => v).map(([k, v]) => (
-              <span key={k} className="pems-chip">
+              <span key={k} className="tasks-chip">
                 {FILTER_DEFS.find(f => f.key === k)?.label}: {getFilterLabel(k, v)}
                 <CloseOutlined onClick={() => setFilters(p => ({ ...p, [k]: null }))} />
               </span>
@@ -1090,8 +1090,8 @@ export default function TaskInstancesPage() {
           </div>
 
           {/* ═══ 6. RIGHT INSIGHTS PANEL (sticky; drawer below 1360px) ═══ */}
-          <div className="pems-insights-panel">
-            <div className="pems-insights-sticky">
+          <div className="tasks-insights-panel">
+            <div className="tasks-insights-sticky">
               <RightInsightsPanel onTaskClick={openWorkspace} refreshKey={`${quickView}-${disputesOnly}-${filters.status}-${pagination.page}`} />
             </div>
           </div>
@@ -1100,12 +1100,12 @@ export default function TaskInstancesPage() {
 
       {/* ═══ 7. FLOATING BULK ACTION BAR ═══ */}
       {selectedIds.size > 0 && (
-        <div className="pems-bulk-bar">
+        <div className="tasks-bulk-bar">
           <Checkbox checked={selectedIds.size === instances.length} onChange={toggleSelectAll} />
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
             {selectedIds.size} selected
           </Text>
-          <span className="pems-bulk-divider" />
+          <span className="tasks-bulk-divider" />
           <Button size="small" icon={<UserOutlined />} onClick={() => message.info('Bulk assignment is coming soon')} style={bulkBtnStyle}>
             Assign
           </Button>
@@ -1118,7 +1118,7 @@ export default function TaskInstancesPage() {
           <Button size="small" icon={<DownloadOutlined />} onClick={handleExport} style={bulkBtnStyle}>
             Export
           </Button>
-          <span className="pems-bulk-divider" />
+          <span className="tasks-bulk-divider" />
           <Button size="small" type="text" icon={<CloseOutlined />} onClick={() => setSelectedIds(new Set())} style={{ color: 'rgba(255,255,255,0.75)' }}>
             Clear
           </Button>
@@ -1316,7 +1316,7 @@ export default function TaskInstancesPage() {
         {wizardStep === 4 && (
           <div>
             <div style={{ padding: '14px 16px', borderRadius: 'var(--bc-radius-xl, 12px)', background: 'var(--bc-surface-subtle, #f1f5f9)', border: '1px solid var(--bc-border-default, #e2e8f0)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="pems-brand-tile" style={{ width: 34, height: 34, fontSize: 15 }}><FileTextOutlined /></span>
+              <span className="tasks-brand-tile" style={{ width: 34, height: 34, fontSize: 15 }}><FileTextOutlined /></span>
               <div style={{ minWidth: 0 }}>
                 <Text strong style={{ fontSize: 14, color: 'var(--bc-text-heading, #0f172a)', display: 'block' }}>{wizardData.title || 'Untitled Task'}</Text>
                 <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>

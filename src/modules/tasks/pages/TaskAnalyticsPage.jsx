@@ -7,12 +7,12 @@ import {
   AimOutlined, StarOutlined, ArrowUpOutlined, ArrowDownOutlined,
   ShopOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { DEPARTMENTS } from '../constants';
 
 const { Text, Title } = Typography;
 
-export default function PemsAnalyticsPage() {
+export default function TaskAnalyticsPage() {
   const [period, setPeriod] = useState('all');
   const [loading, setLoading] = useState(true);
   const [deptData, setDeptData] = useState([]);
@@ -31,10 +31,10 @@ export default function PemsAnalyticsPage() {
       else if (period === 'quarter') params.dateFrom = new Date(now.setMonth(now.getMonth() - 3)).toISOString();
 
       const [deptRes, sellerRes, mgrRes, revRes] = await Promise.all([
-        pemsApi.getDepartmentPerformance(params),
-        pemsApi.getSellerPerformance(params),
-        pemsApi.getBrandManagerPerformance(params),
-        pemsApi.getReviewerPerformance(params),
+        tasksApi.getDepartmentPerformance(params),
+        tasksApi.getSellerPerformance(params),
+        tasksApi.getBrandManagerPerformance(params),
+        tasksApi.getReviewerPerformance(params),
       ]);
       if (deptRes.success) setDeptData(deptRes.data);
       if (sellerRes.success) setSellerData(sellerRes.data);

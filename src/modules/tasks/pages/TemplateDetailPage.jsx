@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Descriptions, Tag, Typography, Space, Spin, Button, Progress, Statistic, Timeline, Tabs, Empty, Badge, Divider, Table } from 'antd';
 import { ArrowLeftOutlined, EditOutlined, CopyOutlined, CheckCircleOutlined, ClockCircleOutlined, TrophyOutlined, AimOutlined, BarChartOutlined, OrderedListOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { FREQUENCIES, CATEGORIES, PRIORITIES, DEPARTMENTS, SLA_STATUSES } from '../constants';
 
 const { Text, Title } = Typography;
@@ -20,7 +20,7 @@ export default function TemplateDetailPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await pemsApi.getTemplateDetail(id);
+        const res = await tasksApi.getTemplateDetail(id);
         if (res.success) {
           setTemplate(res.data);
           setAnalytics(res.data.analytics || {});
@@ -159,7 +159,7 @@ export default function TemplateDetailPage() {
     <div style={{ background: '#f8fafc', minHeight: '100%', padding: '0 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pems/templates')} size="small" />
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tasks/templates')} size="small" />
           <Space>
             <Text code style={{ fontSize: 'var(--font-size-xs)' }}>{template.TaskCode}</Text>
             <Text strong style={{ fontSize: 'var(--font-size-lg)' }}>{template.Name}</Text>
@@ -168,8 +168,8 @@ export default function TemplateDetailPage() {
           <Tag style={{ borderRadius: 10 }}>v{template.TemplateVersion || 1}</Tag>
         </Space>
         <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => navigate('/pems/templates')}>Edit</Button>
-          <Button icon={<CopyOutlined />} size="small" onClick={() => navigate('/pems/templates')}>Clone</Button>
+          <Button icon={<EditOutlined />} size="small" onClick={() => navigate('/tasks/templates')}>Edit</Button>
+          <Button icon={<CopyOutlined />} size="small" onClick={() => navigate('/tasks/templates')}>Clone</Button>
         </Space>
       </div>
 

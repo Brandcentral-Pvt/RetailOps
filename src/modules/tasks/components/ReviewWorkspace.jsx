@@ -6,7 +6,7 @@ import {
   SafetyCertificateOutlined, CalendarOutlined, ThunderboltOutlined, TrophyOutlined,
   AimOutlined, UserOutlined, StarOutlined, DownloadOutlined, PlayCircleOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import { WORKFLOW_STATUSES, SLA_STATUSES, FREQUENCIES, PRIORITIES } from '../constants';
 import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
 import { hasPermission } from '../utils/rbac';
@@ -170,7 +170,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
     if (!taskId) return;
     setLoading(true);
     try {
-      const res = await pemsApi.getInstanceById(taskId);
+      const res = await tasksApi.getInstanceById(taskId);
       if (res.success) setTask(res.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -189,8 +189,8 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
     setReviewSubmitting(true);
     try {
       const feedback = `[Accuracy: ${scores.accuracy}/5 | Completeness: ${scores.completeness}/5 | Evidence: ${scores.evidence}/5 | Compliance: ${scores.compliance}/5 | Score: ${totalScore}/100]\n\n${reviewFeedback}`;
-      await pemsApi.submitReview({ taskInstanceId: taskId, decision: 'APPROVE', feedback, qualityScore: totalScore });
-      await pemsApi.transitionStatus(taskId, 'APPROVED', feedback);
+      await tasksApi.submitReview({ taskInstanceId: taskId, decision: 'APPROVE', feedback, qualityScore: totalScore });
+      await tasksApi.transitionStatus(taskId, 'APPROVED', feedback);
       setReviewFeedback(''); setScores({ accuracy: 0, completeness: 0, evidence: 0, compliance: 0 });
       await loadTask(); if (onRefresh) onRefresh(); onClose();
     } catch (err) { console.error(err); }
@@ -202,8 +202,8 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
     setReviewSubmitting(true);
     try {
       const feedback = `[Score: ${totalScore}/100]\n\n${reviewFeedback}`;
-      await pemsApi.submitReview({ taskInstanceId: taskId, decision: 'REJECT', feedback, qualityScore: totalScore });
-      await pemsApi.transitionStatus(taskId, 'REJECTED', feedback);
+      await tasksApi.submitReview({ taskInstanceId: taskId, decision: 'REJECT', feedback, qualityScore: totalScore });
+      await tasksApi.transitionStatus(taskId, 'REJECTED', feedback);
       setReviewFeedback(''); setScores({ accuracy: 0, completeness: 0, evidence: 0, compliance: 0 });
       await loadTask(); if (onRefresh) onRefresh(); onClose();
     } catch (err) { console.error(err); }
@@ -213,7 +213,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh }) {
   const handleEscalate = async () => {
     setReviewSubmitting(true);
     try {
-      await pemsApi.transitionStatus(taskId, 'ESCALATED', escalateReason);
+      await tasksApi.transitionStatus(taskId, 'ESCALATED', escalateReason);
       setEscalateReason(''); setShowEscalate(false);
       await loadTask(); if (onRefresh) onRefresh();
     } catch (err) { console.error(err); }

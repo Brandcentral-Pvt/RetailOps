@@ -259,8 +259,8 @@ const Header = () => {
         const controller = new AbortController();
         try {
             if (showSpinner) setLoading(true);
-            // Fetch regular notifications + PEMS notifications in parallel
-            const [regularRes, pemsRes] = await Promise.allSettled([
+            // Fetch regular notifications + task notifications in parallel
+            const [regularRes, taskRes] = await Promise.allSettled([
                 api.notificationApi.getNotifications({ limit: 5 }, { signal: controller.signal }),
                 fetch('/api/pems/notifications/merged?limit=5', {
                     headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
@@ -269,22 +269,22 @@ const Header = () => {
             ]);
 
             const regular = regularRes.status === 'fulfilled' ? regularRes.value : null;
-            const pems = pemsRes.status === 'fulfilled' ? pemsRes.value : null;
+            const taskResBody = taskRes.status === 'fulfilled' ? taskRes.value : null;
 
             const regularData = regular?.data || [];
-            const pemsData = (pems?.data || []).map(n => ({
+            const taskData = (taskResBody?.data || []).map(n => ({
                 _id: n.Id,
                 type: n.Type || 'TASK_NOTIFICATION',
-                title: n.Title || n.Message || 'PEMS Notification',
+                title: n.Title || n.Message || 'Task Notification',
                 message: n.Message || '',
                 isRead: !!n.IsRead,
                 createdAt: n.CreatedAt,
                 referenceId: n.ReferenceId,
-                source: 'PEMS',
+                source: 'Tasks',
             }));
 
             // Merge and sort by date (most recent first)
-            const merged = [...regularData, ...pemsData]
+            const merged = [...regularData, ...taskData]
                 .sort((a, b) => new Date(b.createdAt || b.CreatedAt) - new Date(a.createdAt || a.CreatedAt))
                 .slice(0, 10);
 

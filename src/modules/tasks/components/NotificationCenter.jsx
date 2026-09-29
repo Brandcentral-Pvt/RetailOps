@@ -4,7 +4,7 @@ import {
   BellOutlined, CheckCircleOutlined, ClockCircleOutlined, WarningOutlined,
   ThunderboltOutlined, EyeOutlined, CloseCircleOutlined, CheckOutlined
 } from '@ant-design/icons';
-import pemsApi from '../services/pemsApi';
+import tasksApi from '../services/tasksApi';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -46,7 +46,7 @@ export default function NotificationCenter() {
     if (!currentUserId) return;
     setLoading(true);
     try {
-      const res = await pemsApi.getNotifications({ userId: currentUserId });
+      const res = await tasksApi.getNotifications({ userId: currentUserId });
       if (res.success) {
         setNotifications(res.data || []);
         setUnreadCount(res.unreadCount || 0);
@@ -64,7 +64,7 @@ export default function NotificationCenter() {
     if (!currentUserId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await pemsApi.getNotifications({ userId: currentUserId, unreadOnly: 'true' });
+        const res = await tasksApi.getNotifications({ userId: currentUserId, unreadOnly: 'true' });
         if (res.success) setUnreadCount(res.unreadCount || 0);
       } catch {}
     }, 30000);
@@ -73,7 +73,7 @@ export default function NotificationCenter() {
 
   const markAsRead = async (id) => {
     try {
-      await pemsApi.markNotificationRead(id);
+      await tasksApi.markNotificationRead(id);
       setNotifications(prev => prev.map(n => n.Id === id ? { ...n, IsRead: 1 } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch {}
@@ -81,7 +81,7 @@ export default function NotificationCenter() {
 
   const markAllAsRead = async () => {
     try {
-      await pemsApi.markAllNotificationsRead();
+      await tasksApi.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, IsRead: 1 })));
       setUnreadCount(0);
     } catch {}
