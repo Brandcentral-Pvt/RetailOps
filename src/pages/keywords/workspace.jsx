@@ -95,11 +95,11 @@ const compareRow = (r) => ({
 });
 
 const BAND_CHIP = {
-    strong: { bg: '#dcfce7', fg: '#166534' },
-    workable: { bg: '#e0f2fe', fg: '#075985' },
-    crowded: { bg: '#fef3c7', fg: '#92400e' },
-    avoid: { bg: '#fee2e2', fg: '#991b1b' },
-    unknown: { bg: '#eef1f5', fg: '#51607a' },
+    strong: { bg: 'var(--bc-green-100)', fg: 'var(--bc-green-800)' },
+    workable: { bg: 'var(--bc-blue-100)', fg: 'var(--bc-blue-800)' },
+    crowded: { bg: 'var(--bc-amber-100)', fg: 'var(--bc-amber-800)' },
+    avoid: { bg: 'var(--bc-red-100)', fg: 'var(--bc-red-800)' },
+    unknown: { bg: 'var(--bc-surface-subtle)', fg: 'var(--bc-text-secondary)' },
 };
 
 export const ComparePanel = ({ results = [], progress, onSelect, selectedKeyword, canExport }) => {
@@ -692,7 +692,7 @@ export const AnalysisPanel = ({ analysis, source, keyword, market, catalog, insi
                                         <td className="ops-num">{isNum(item.rating) ? Number(item.rating).toFixed(1) : '—'}</td>
                                         <td className="ops-num">{int(item.reviewCount)}</td>
                                         <td className="ops-num">{int(item.mainBSR)}</td>
-                                        <td>{item.inCatalog ? <Chip label="you sell" palette={{ 'YOU SELL': { bg: '#dcfce7', fg: '#166534' } }} /> : '—'}</td>
+                                        <td>{item.inCatalog ? <Chip label="you sell" palette={{ 'YOU SELL': { bg: 'var(--bc-green-100)', fg: 'var(--bc-green-800)' } }} /> : '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
