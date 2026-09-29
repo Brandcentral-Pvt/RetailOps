@@ -1,43 +1,63 @@
-import { Spinner } from "@/components/Spinner";
-import React, { useState, useEffect, useMemo } from 'react';
+import { Spinner } from '@/components/Spinner';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, Input, Select, Space, Tag, Tooltip, Popconfirm, Card,
-  Switch, Badge, Pagination, Empty, Spin, Typography, Table, Drawer
+  Switch, Badge, Pagination, Empty, Spin, Typography, Table, Drawer, Dropdown, Menu
 } from 'antd';
-const { Text } = Typography;
-import {
-  Plus, Search, Play, Trash2, Copy, SlidersHorizontal, Zap,
-  Settings, Activity, RefreshCw, Clock, CheckCircle2, PauseCircle,
-  Package, PlayCircle, History
-} from 'lucide-react';
-import { rulesetApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { rulesetApi } from '../services/api';
+import {
+  Plus, Search, PlayCircle, Trash2, Copy, SlidersHorizontal, Zap,
+  Settings, Activity, RefreshCw, Clock, CheckCircle2, PauseCircle,
+  Package, History, Columns, Filter, MoreHorizontal, ChevronDown
+} from 'lucide-react';
+import '../styles/rulesets.css';
+
+const { Text } = Typography;
 
 const RULE_TYPE_OPTIONS = [
   { value: 'ASIN', label: 'ASIN Operations', icon: <Activity size={13} /> },
 ];
 
 const typeColors = {
-  ASIN: { bg: '#ecfdf5', color: '#2E7D32', border: '#a7f3d0' },
+  ASIN: { bg: 'var(--bc-success-subtle)', color: 'var(--bc-success)', border: 'var(--bc-success-border)' },
 };
 
 const TypeBadge = ({ type }) => {
   const c = typeColors[type] || typeColors.ASIN;
   return (
-    <span className="badge" style={{
-      background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-      fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: "var(--radius-sm)",
-      textTransform: 'uppercase', letterSpacing: '0.03em'
-    }}>
+    <Tag className="rulesets-badge" style={{ background: c.bg, color: c.color, borderColor: c.border }}>
       {type || 'ASIN'}
-    </span>
+    </Tag>
+  );
+};
+
+const FrequencyBadge = ({ isAutomated, runFrequency }) => {
+  if (isAutomated) {
+    return (
+      <Tag className="rulesets-badge rulesets-badge--auto">
+        <Clock size={11} />
+        <span>{runFrequency || 'Daily'}</span>
+      </Tag>
+    );
+  }
+  return (
+    <Tag className="rulesets-badge rulesets-badge--manual">
+      <span>Manual</span>
+    </Tag>
+  );
+};
+
+const StatusBadge = ({ matched }) => {
+  return (
+    <Badge className="rulesets-badge rulesets-badge--status" count={matched} showZero style={{ minWidth: 36, justifyContent: 'center' }} />
   );
 };
 
 const RuleSetsPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [rulesets, setRulesets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,13 +69,60 @@ const RuleSetsPage = () => {
 
   // History Drawer State
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
-  const [selectedRulesetId, setSelectedRulesetId] = useState(null);
   const [executionHistory, setExecutionHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  useEffect(() => { loadRulesets(); }, [page, filterStatus]);
+  // Density & Column Visibility (mirror ASIN Manager pattern)
+  const [rowDensity, setRowDensity] = useState(() => {
+    const saved = localStorage.getItem('rulesets-table-density');
+    return saved || 'comfortable';
+  });
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rulesets-visible-columns');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
 
-  const loadRulesets = async (silent = false) => {
+  const DENSITY_ORDER = ['compact', 'comfortable', 'roomy'];
+  const DENSITY_LABELS = { compact: 'Compact', comfortable: 'Comfortable', roomy: 'Roomy' };
+  const DENSITY_ICONS = { compact: <Package size={12} />, comfortable: <Settings size={12} />, roomy: <Activity size={12} /> };
+
+  const cycleRowDensity = useCallback(() => {
+    const DENSITY_ORDER = ['compact', 'comfortable', 'roomy'];
+    setRowDensity(prev => {
+      const next = DENSITY_ORDER[(DENSITY_ORDER.indexOf(prev) + 1) % DENSITY_ORDER.length];
+      localStorage.setItem('rulesets-table-density', next);
+      return next;
+    });
+  }, []);
+
+  const toggleColumn = useCallback((key) => {
+    setVisibleColumns(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('rulesets-visible-columns', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const columnDefs = useMemo(() => [
+    { key: 'name', label: 'Ruleset Name', defaultVisible: true },
+    { key: 'type', label: 'Entity Type', defaultVisible: true },
+    { key: 'rulesCount', label: 'Rules Count', defaultVisible: true },
+    { key: 'frequency', label: 'Frequency', defaultVisible: true },
+    { key: 'runs', label: 'Runs', defaultVisible: true },
+    { key: 'matched', label: 'Matched', defaultVisible: true },
+    { key: 'lastRun', label: 'Last Run', defaultVisible: true },
+    { key: 'status', label: 'Status', defaultVisible: true },
+    { key: 'actions', label: 'Actions', defaultVisible: true },
+  ], []);
+
+  const isColumnVisible = useCallback((key) => {
+    if (!visibleColumns || Object.keys(visibleColumns).length === 0) return true;
+    return visibleColumns[key] !== false;
+  }, [visibleColumns]);
+
+  const loadRulesets = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       const params = { page, limit: pageSize };
@@ -67,21 +134,19 @@ const RuleSetsPage = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [page]);
 
-  const loadHistory = async (rulesetId) => {
-    setSelectedRulesetId(rulesetId);
+  useEffect(() => { loadRulesets(); }, [page, filterStatus]);
+
+  const loadHistory = useCallback(async (rulesetId) => {
     setShowHistoryDrawer(true);
     setHistoryLoading(true);
     try {
       const res = await rulesetApi.getHistory(rulesetId);
       setExecutionHistory(res.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
+    } catch (_e) { console.error(_e); }
+    finally { setHistoryLoading(false); }
+  }, []);
 
   const filtered = useMemo(() => {
     let list = rulesets;
@@ -97,37 +162,37 @@ const RuleSetsPage = () => {
   const activeCount = useMemo(() => rulesets.filter(r => r.isActive).length, [rulesets]);
   const autoCount = useMemo(() => rulesets.filter(r => r.isAutomated).length, [rulesets]);
 
-  const handleToggle = async (id) => {
+  const handleToggle = useCallback(async (id) => {
     try {
       await rulesetApi.toggle(id);
       setRulesets(prev => prev.map(r => (r._id === id || r.id === id) ? { ...r, isActive: !r.isActive } : r));
-    } catch (e) { console.error(e); }
-  };
+    } catch (_e) { console.error(_e); }
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     try {
       await rulesetApi.delete(id);
       setRulesets(prev => prev.filter(r => (r._id !== id && r.id !== id)));
       setTotal(prev => Math.max(0, prev - 1));
-    } catch (e) { console.error(e); }
-  };
+    } catch (_e) { console.error(_e); }
+  }, []);
 
-  const handleExecute = async (id) => {
+  const handleExecute = useCallback(async (id) => {
     try {
       setExecuting(id);
       await rulesetApi.execute(id);
       await loadRulesets(true);
-    } catch (e) { console.error(e); }
+    } catch (_e) { console.error(_e); }
     finally { setExecuting(null); }
-  };
+  }, [loadRulesets]);
 
-  const handleDuplicate = async (id) => {
+  const handleDuplicate = useCallback(async (id) => {
     try {
       const res = await rulesetApi.duplicate(id);
       const newId = res.data?._id || res.data?.id;
       if (newId) navigate(`/rule-sets/${newId}`);
-    } catch (e) { console.error(e); }
-  };
+    } catch (_e) { console.error(_e); }
+  }, [navigate]);
 
   const formatTime = (date) => {
     if (!date) return 'Never';
@@ -139,22 +204,20 @@ const RuleSetsPage = () => {
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: 'Ruleset Name',
       dataIndex: 'name',
       key: 'name',
       width: '28%',
+      fixed: 'left',
       render: (text, record) => (
         <div>
-          <span 
-            style={{ fontWeight: 600, color: '#18181b', fontSize: 'var(--font-size-sm)', cursor: 'pointer', hoverColor: '#1976D2' }}
-            onClick={() => navigate(`/rule-sets/${record._id || record.id}`)}
-          >
+          <span className="rulesets-name" style={{ cursor: 'pointer' }} onClick={() => navigate(`/rule-sets/${record._id || record.id}`)}>
             {text}
           </span>
           {record.description && (
-            <div style={{ fontSize: 'var(--font-size-xs)', color: '#71717a', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }} title={record.description}>
+            <div className="rulesets-desc" title={record.description}>
               {record.description}
             </div>
           )}
@@ -174,55 +237,22 @@ const RuleSetsPage = () => {
       width: '10%',
       render: (_, record) => {
         const rules = (() => { try { return JSON.parse(record.rules || '[]'); } catch { return []; } })();
-        return <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#3f3f46' }}>{rules.length} rules</span>;
+        return <span className="rulesets-count">{rules.length} rules</span>;
       }
     },
     {
       title: 'Frequency',
-      key: 'schedule',
+      key: 'frequency',
       width: '12%',
-      render: (_, record) => {
-        return record.isAutomated ? (
-          <Tag style={{ 
-            fontSize: 10, 
-            fontWeight: 600, 
-            borderRadius: 20, 
-            padding: '2px 8px', 
-            background: '#eff6ff', 
-            color: '#1976D2', 
-            border: '1px solid #bfdbfe',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4
-          }}>
-            <Clock size={11} />
-            <span>{record.runFrequency || 'Daily'}</span>
-          </Tag>
-        ) : (
-          <Tag style={{ 
-            fontSize: 10, 
-            fontWeight: 600, 
-            borderRadius: 20, 
-            padding: '2px 8px', 
-            background: '#f4f4f5', 
-            color: '#71717a', 
-            border: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4
-          }}>
-            <span>Manual</span>
-          </Tag>
-        );
-      }
+      render: (_, record) => <FrequencyBadge isAutomated={record.isAutomated} runFrequency={record.runFrequency} />
     },
     {
       title: 'Runs',
       dataIndex: 'totalRunCount',
-      key: 'totalRunCount',
+      key: 'runs',
       width: '8%',
       align: 'center',
-      render: (count) => <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#18181b' }}>{count || 0}</span>
+      render: (count) => <span className="rulesets-count">{count || 0}</span>
     },
     {
       title: 'Matched',
@@ -231,21 +261,17 @@ const RuleSetsPage = () => {
       align: 'center',
       render: (_, record) => {
         let summary = {};
-        try { summary = JSON.parse(record.lastRunSummary || '{}'); } catch {}
-        return (
-          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: (summary.totalMatched > 0) ? '#10b981' : '#71717a' }}>
-            {summary.totalMatched || 0}
-          </span>
-        );
+        try { summary = JSON.parse(record.lastRunSummary || '{}'); } catch (_e) { void _e; }
+        return <StatusBadge matched={summary.totalMatched || 0} />;
       }
     },
     {
       title: 'Last Run',
       dataIndex: 'lastRunAt',
-      key: 'lastRunAt',
+      key: 'lastRun',
       width: '12%',
       render: (date) => (
-        <span style={{ fontSize: 'var(--font-size-xs)', color: '#71717a' }}>
+        <span style={{ fontSize: 'var(--bc-font-size-xs)', color: 'var(--bc-text-secondary)' }}>
           {date ? formatTime(date) : 'Never'}
         </span>
       )
@@ -253,7 +279,7 @@ const RuleSetsPage = () => {
     {
       title: 'Status',
       dataIndex: 'isActive',
-      key: 'isActive',
+      key: 'status',
       width: '8%',
       align: 'center',
       render: (checked, record) => (
@@ -264,129 +290,176 @@ const RuleSetsPage = () => {
       title: 'Actions',
       key: 'actions',
       width: '10%',
+      fixed: 'right',
       align: 'right',
-      render: (_, record) => (
-        <Space size={8}>
-          <Tooltip title="Run Now">
-            <Button type="text" size="small" icon={<PlayCircle size={14} />}
-              loading={executing === (record._id || record.id)}
-              onClick={() => handleExecute(record._id || record.id)}
-              style={{ color: '#10b981', padding: 0 }} />
-          </Tooltip>
-          <Tooltip title="Execution History">
-            <Button type="text" size="small" icon={<History size={14} />}
-              onClick={() => loadHistory(record._id || record.id)}
-              style={{ color: '#0288D1', padding: 0 }} />
-          </Tooltip>
-          <Tooltip title="Duplicate">
-            <Button type="text" size="small" icon={<Copy size={14} />}
-              onClick={() => handleDuplicate(record._id || record.id)} style={{ color: '#64748b', padding: 0 }} />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<SlidersHorizontal size={14} />}
-              onClick={() => navigate(`/rule-sets/${record._id || record.id}`)} style={{ color: '#64748b', padding: 0 }} />
-          </Tooltip>
-          <Popconfirm title="Delete this ruleset?" onConfirm={() => handleDelete(record._id || record.id)} okText="Delete" okButtonProps={{ danger: true }}>
-            <Button type="text" danger size="small" icon={<Trash2 size={14} />} style={{ padding: 0 }} />
-          </Popconfirm>
-        </Space>
-      )
+      render: (_, record) => {
+        const id = record._id || record.id;
+        const isExecuting = executing === id;
+        const menuItems = [
+          { key: 'execute', label: 'Run Now', icon: <PlayCircle size={14} />, disabled: isExecuting, onClick: () => handleExecute(id) },
+          { key: 'history', label: 'Execution History', icon: <History size={14} />, onClick: () => loadHistory(id) },
+          { key: 'duplicate', label: 'Duplicate', icon: <Copy size={14} />, onClick: () => handleDuplicate(id) },
+          { key: 'edit', label: 'Edit', icon: <SlidersHorizontal size={14} />, onClick: () => navigate(`/rule-sets/${id}`) },
+          { type: 'divider' },
+          { key: 'delete', label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(id) },
+        ];
+        return (
+          <Space size={4}>
+            <Dropdown
+              menu={{ items: menuItems }}
+              placement="bottomRight"
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<MoreHorizontal size={14} />} style={{ padding: 0, color: 'var(--bc-text-muted)' }} />
+            </Dropdown>
+          </Space>
+        );
+      }
     }
-  ];
+  ].filter(c => isColumnVisible(c.key)), [isColumnVisible, handleToggle, handleDelete, handleExecute, handleDuplicate, loadHistory, navigate, executing]);
 
   return (
-    <div style={{ background: '#fff', minHeight: 'calc(100vh - 60px)' }}>
-      {/* Page Header */}
-      <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #f4f4f7' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="rulesets-page">
+      {/* Toolbar */}
+      <div className="rulesets-toolbar">
+        <div className="rulesets-toolbar__left">
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#18181b', margin: 0 }}>Automation Rules</h2>
-            <p style={{ fontSize: 'var(--font-size-sm)', color: '#71717a', margin: 0, marginTop: 4 }}>Automated rules for listing quality, pricing, inventory alerts & task creation</p>
+            <h2 className="rulesets-toolbar__title">Automation Rules</h2>
+            <p className="rulesets-toolbar__subtitle">Automated rules for listing quality, pricing, inventory alerts & task creation</p>
           </div>
-          <Button type="primary" icon={<Plus size={13} />} onClick={() => navigate('/rule-sets/new')}
-            style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32 }}>
+        </div>
+        <div className="rulesets-toolbar__right">
+          {/* Column Visibility */}
+          <Dropdown
+            menu={{
+              items: columnDefs.map(c => ({
+                key: c.key,
+                label: c.label,
+                icon: isColumnVisible(c.key) ? <CheckCircle2 size={14} style={{ color: 'var(--bc-success)' }} /> : null,
+                onClick: () => toggleColumn(c.key)
+              }))
+            }}
+            placement="bottomRight"
+            trigger={['click']}
+          >
+            <Tooltip title="Column Visibility">
+              <Button type="text" size="small" icon={<Columns size={14} />} style={{ padding: 0, color: 'var(--bc-text-muted)', borderRadius: 'var(--radius-md)' }} />
+            </Tooltip>
+          </Dropdown>
+          {/* Density */}
+          <Tooltip title={`Row Density: ${DENSITY_LABELS[rowDensity]}. Click to cycle.`}>
+            <Button
+              type="text"
+              size="small"
+              icon={DENSITY_ICONS[rowDensity]}
+              onClick={cycleRowDensity}
+              style={{ padding: 0, color: 'var(--bc-text-muted)', borderRadius: 'var(--radius-md)' }}
+            />
+          </Tooltip>
+          <Button
+            type="primary"
+            icon={<Plus size={13} />}
+            onClick={() => navigate('/rule-sets/new')}
+            style={{ borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--bc-font-size-xs)', height: 32 }}
+          >
             Create Ruleset
           </Button>
         </div>
       </div>
 
-      <div style={{ padding: '16px 28px' }}>
-        {/* KPI Strip */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#f4f4f5', borderRadius: "var(--radius-md)", border: '1px solid #e4e4e7' }}>
-            <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={13} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</div>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#18181b' }}>{total}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#ecfdf5', borderRadius: "var(--radius-md)", border: '1px solid #d1fae5' }}>
-            <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle2 size={13} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#2E7D32', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#065f46' }}>{activeCount}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', borderRadius: "var(--radius-md)", border: '1px solid #bfdbfe' }}>
-            <div style={{ width: 30, height: 30, borderRadius: "var(--radius-md)", background: '#0288D1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={13} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#0288D1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-run</div>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#1e40af' }}>{autoCount}</div>
-            </div>
+      {/* KPI Strip */}
+      <div className="rulesets-kpi">
+        <div className="rulesets-kpi__item">
+          <div className="rulesets-kpi__icon rulesets-kpi__icon--total"><Zap size={14} /></div>
+          <div>
+            <div className="rulesets-kpi__label">Total</div>
+            <div className="rulesets-kpi__value">{total}</div>
           </div>
         </div>
-
-        {/* Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <Input prefix={<Search size={12} style={{ color: '#a1a1aa' }} />}
-            placeholder="Search rulesets..." allowClear value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            size="small" style={{ width: 240, borderRadius: "var(--radius-md)" }} />
-          <Select size="small" value={filterStatus} style={{ width: 120, borderRadius: "var(--radius-md)" }}
-            onChange={v => { setFilterStatus(v); setPage(1); }}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'active', label: 'Active' },
-              { value: 'paused', label: 'Paused' },
-            ]} />
+        <div className="rulesets-kpi__item">
+          <div className="rulesets-kpi__icon rulesets-kpi__icon--active"><CheckCircle2 size={14} /></div>
+          <div>
+            <div className="rulesets-kpi__label">Active</div>
+            <div className="rulesets-kpi__value">{activeCount}</div>
+          </div>
         </div>
+        <div className="rulesets-kpi__item">
+          <div className="rulesets-kpi__icon rulesets-kpi__icon--auto"><Activity size={14} /></div>
+          <div>
+            <div className="rulesets-kpi__label">Auto-run</div>
+            <div className="rulesets-kpi__value">{autoCount}</div>
+          </div>
+        </div>
+      </div>
 
-        {/* Content */}
+      {/* Filters */}
+      <div className="rulesets-filters">
+        <Input
+          prefix={<Search size={12} style={{ color: 'var(--bc-text-muted)' }} />}
+          placeholder="Search rulesets..."
+          allowClear
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          size="small"
+          style={{ width: 240 }}
+        />
+        <Select
+          size="small"
+          value={filterStatus}
+          style={{ width: 120 }}
+          onChange={v => { setFilterStatus(v); setPage(1); }}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active' },
+            { value: 'paused', label: 'Paused' },
+          ]}
+        />
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: '0 var(--bc-space-5) var(--bc-space-5)' }}>
         {loading ? (
           <Spinner />
         ) : filtered.length === 0 ? (
-          <div style={{ border: '1px solid #e4e4e7', borderRadius: "var(--radius-lg)", padding: '60px 24px', textAlign: 'center' }}>
-            <Empty description={
-              <span style={{ color: '#a1a1aa', fontSize: 'var(--font-size-sm)' }}>
-                {searchQuery ? 'No rulesets match your search' : 'No rulesets yet — create your first automation rule'}
-              </span>
-            } />
+          <div className="rulesets-empty">
+            <Empty
+              description={
+                <span style={{ color: 'var(--bc-text-muted)', fontSize: 'var(--bc-font-size-sm)' }}>
+                  {searchQuery ? 'No rulesets match your search' : 'No rulesets yet — create your first automation rule'}
+                </span>
+              }
+            />
             {!searchQuery && (
-              <Button type="primary" icon={<Plus size={13} />} onClick={() => navigate('/rule-sets/new')}
-                style={{ borderRadius: "var(--radius-md)", fontWeight: 600, fontSize: 'var(--font-size-xs)', height: 32, marginTop: 8 }}>
+              <Button
+                type="primary"
+                icon={<Plus size={13} />}
+                onClick={() => navigate('/rule-sets/new')}
+                style={{ borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: 'var(--bc-font-size-xs)', height: 32 }}
+              >
                 Create First Ruleset
               </Button>
             )}
           </div>
         ) : (
           <>
-            <Table 
-              columns={columns} 
-              dataSource={filtered} 
-              rowKey={(record) => record._id || record.id} 
-              pagination={false} 
-              size="middle"
-              style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: "var(--radius-lg)", overflow: 'hidden' }}
-            />
+            <div className="rulesets-scroll">
+              <Table
+                className="rulesets-table"
+                columns={columns}
+                dataSource={filtered}
+                rowKey={(record) => record._id || record.id}
+                pagination={false}
+                size="middle"
+                rowClassName={(record) => {
+                  const cls = [];
+                  if (!record.isActive) cls.push('is-disabled');
+                  return cls.join(' ');
+                }}
+              />
+            </div>
 
             {total > pageSize && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <div className="rulesets-pagination">
                 <Pagination size="small" current={page} pageSize={pageSize} total={total}
                   onChange={p => setPage(p)} showSizeChanger={false} />
               </div>
@@ -396,33 +469,42 @@ const RuleSetsPage = () => {
       </div>
 
       {/* History Drawer */}
-      <Drawer title="Execution History" open={showHistoryDrawer} onClose={() => setShowHistoryDrawer(false)}
-        width={500} styles={{ body: { padding: '12px 20px' } }}>
-        {historyLoading ? <Spin style={{ display: 'block', margin: '40px auto' }} /> : (
-          executionHistory.length === 0 ? <Empty description="No execution history yet" /> :
-            executionHistory.map((log, i) => {
-              let summary = {};
-              try { summary = JSON.parse(log.Summary || '{}'); } catch (e) {}
-              return (
-                <div key={log.Id || i} style={{ padding: '12px 0', borderBottom: '1px solid #f4f4f5' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckCircle2 size={14} style={{ color: log.Status === 'SUCCESS' ? '#10b981' : '#ef4444' }} />
-                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: '#0f172a' }}>
-                        {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
-                      </span>
-                    </div>
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>
-                      {new Date(log.ExecutedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+      <Drawer
+        className="rulesets-drawer"
+        title="Execution History"
+        open={showHistoryDrawer}
+        onClose={() => setShowHistoryDrawer(false)}
+        width={520}
+        styles={{ body: { padding: 'var(--bc-space-3) var(--bc-space-4)' } }}
+      >
+        {historyLoading ? (
+          <Spin style={{ display: 'block', margin: '40px auto' }} />
+        ) : executionHistory.length === 0 ? (
+          <Empty description="No execution history yet" />
+        ) : (
+          executionHistory.map((log, i) => {
+            let summary = {};
+            try { summary = JSON.parse(log.Summary || '{}'); } catch (_e) { void _e; }
+            return (
+              <div key={log.Id || i} className="rulesets-drawer__item">
+                <div className="rulesets-drawer__header">
+                  <div className="rulesets-drawer__status">
+                    <CheckCircle2 className="rulesets-drawer__status-icon" style={{ color: log.Status === 'SUCCESS' ? 'var(--bc-success)' : 'var(--bc-danger)' }} />
+                    <span className="rulesets-drawer__status-text">
+                      {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
                     </span>
                   </div>
-                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', gap: 8 }}>
-                    <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{log.TriggeredBy}</strong></span>
-                    {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
-                  </div>
+                  <span className="rulesets-drawer__time">
+                    {new Date(log.ExecutedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-              );
-            })
+                <div className="rulesets-drawer__meta">
+                  <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{log.TriggeredBy}</strong></span>
+                  {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
+                </div>
+              </div>
+            );
+          })
         )}
       </Drawer>
     </div>
@@ -430,3 +512,4 @@ const RuleSetsPage = () => {
 };
 
 export default RuleSetsPage;
+
