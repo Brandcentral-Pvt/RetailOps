@@ -477,21 +477,26 @@ class LiveDataSyncService extends EventEmitter {
     // ============================================
     async _scrapeEnrichmentBatch(codes, opts = {}) {
         const results = new Map();
-        await Promise.allSettled(codes.map(async (code) => {
-            try {
-                const r = await playwrightScraperService.scrapeAsin(code, opts);
-                if (r && r.title) {
-                    results.set(code, opts.full ? r : {
-                        rating: r.rating ?? null,
-                        reviewCount: r.reviewCount ?? null,
-                        hasAplus: r.hasAplus ?? false,
-                    });
+        const errors = new Map();
+        await Promise.allSettled(
+            codes.map(async (code) => {
+                try {
+                    const r = await playwrightScraperService.scrapeAsin(code, opts);
+                    if (r && r.title) {
+                        results.set(code, opts.full ? r : {
+                            rating: r.rating ?? null,
+                            reviewCount: r.reviewCount ?? null,
+                            hasAplus: r.hasAplus ?? false,
+                        });
+                    } else {
+                        errors.set(code, 'NO_TITLE');
+                    }
+                } catch (e) {
+                    errors.set(code, e.message);
                 }
-            } catch (e) {
-                // Non-fatal — enrichment failure doesn't fail the batch
-            }
-        }));
-        return results;
+            }),
+        );
+        return { results, errors };
     }
 
     // ============================================
@@ -577,10 +582,10 @@ class LiveDataSyncService extends EventEmitter {
                     .query(`
                         UPDATE Asins SET
                             Title = ISNULL(@title, Title),
-                            CurrentPrice = ISNULL(@currentPrice, CurrentPrice),
+                            CurrentPrice = ISNULL(NULLIF(@currentPrice, 0), CurrentPrice),
                             Mrp = ISNULL(@mrp, Mrp),
                             DiscountPercentage = ISNULL(@discount, DiscountPercentage),
-                            Rating = ISNULL(@rating, Rating),
+                            Rating = ISNULL(NULLIF(@rating, 0), Rating),
                             ReviewCount = ISNULL(@reviewCount, ReviewCount),
                             HasAplus = ISNULL(@hasAplus, HasAplus),
                             ImageUrl = ISNULL(@mainImage, ImageUrl),
@@ -592,8 +597,8 @@ class LiveDataSyncService extends EventEmitter {
                             HasDeal = ISNULL(@hasDeal, HasDeal),
                             DealBadge = ISNULL(@dealBadge, DealBadge),
                             DealType = ISNULL(@dealType, DealType),
-                            BSR = ISNULL(@mainBSR, BSR),
-                            SubBSR = ISNULL(@subBSR, SubBSR),
+                            BSR = ISNULL(NULLIF(@mainBSR, 0), BSR),
+                            SubBSR = ISNULL(NULLIF(@subBSR, 0), SubBSR),
                             SubBSRCategory = ISNULL(@subBSRCategory, SubBSRCategory),
                             ScrapeStatus = 'COMPLETED',
                             LastScrapeStatus = 'COMPLETED',
@@ -751,14 +756,16 @@ class LiveDataSyncService extends EventEmitter {
                 // Full scrape fallback for API-inaccessible ASINs (background queue)
                 if (fullScrapeCodes.length > 0) {
                     const applyFull = this._scrapeEnrichmentBatch(fullScrapeCodes, { full: true })
-                        .then(async (results) => {
+                        .then(async ({ results, errors }) => {
                             await this._applyFullScrape(results);
                             for (const code of fullScrapeCodes) {
-                                if (results.has(code)) stats.successCount++;
-                                else {
+                                if (results.has(code)) {
+                                    stats.successCount++;
+                                } else {
                                     stats.failedCount++;
                                     stats.failedAsinCodes.push(code);
-                                    stats.errors.push({ asin: code, error: 'Scrape fallback failed' });
+                                    const err = errors.get(code) ?? 'Scrape fallback failed';
+                                    stats.errors.push({ asin: code, error: err });
                                 }
                             }
                         })

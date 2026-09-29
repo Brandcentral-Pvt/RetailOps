@@ -26,6 +26,7 @@ class PlaywrightScraperService {
         this.browser = null;
         this._context = null;
         this.busy = 0;
+        this._slotSeq = 0;
         this.waiters = [];
 
         // Dynamic concurrency tracking
@@ -135,16 +136,19 @@ class PlaywrightScraperService {
             await new Promise(r => setTimeout(r, waitTime));
         }
         this.busy++;
-        this.activePages.set(
-            `${this.busy}`,
-            { createdAt: Date.now(), asin: null }
-        );
+        // A unique token per slot. Keying by the `busy` counter made entries
+        // collide, so a finishing page could delete a different page's entry.
+        const token = ++this._slotSeq;
+        this.activePages.set(token, { createdAt: Date.now(), asin: null });
+        return token;
     }
 
-    release(page) {
+    release(token) {
+        if (token !== undefined && token !== null) {
+            this.activePages.delete(token);
+        }
         this.busy = Math.max(0, this.busy - 1);
-        this.activePages.delete(page || '');
-        // Periodic cleanup of old pages
+        // Periodic cleanup of stale/abandoned slots
         this._cleanupOldPages();
     }
 
@@ -180,9 +184,16 @@ class PlaywrightScraperService {
         const now = Date.now();
         for (const [key, info] of this.activePages) {
             if (now - info.createdAt > this.maxPageAgeMs) {
-                // Force release old page slot
+                // Drop the stale entry so activePages can return to 0 and the
+                // browser-restart / memory-pressure checks become reachable again.
+                //
+                // `busy` is deliberately NOT decremented here: the page behind
+                // this entry is usually still navigating (it just exceeded the
+                // soft maxPageAgeMs). Decrementing it inflated the real in-flight
+                // count downward, so the acquire() gate admitted far more
+                // concurrent amazon.in pages than configured — which is what
+                // drove the bot-protection failures.
                 this.activePages.delete(key);
-                this.busy = Math.max(0, this.busy - 1);
             }
         }
     }
@@ -296,7 +307,7 @@ class PlaywrightScraperService {
             }
             attempt++;
 
-            await this.acquire();
+            const slot = await this.acquire();
             let page = null;
             try {
                 const context = await this.getContext();
@@ -317,7 +328,6 @@ class PlaywrightScraperService {
                 
                 // Track success for dynamic concurrency and circuit breaker
                 this.trackAsinSuccess(asin);
-                this.successCount++;
                 this.consecutiveFailures = 0;
                 
                 return extracted;
@@ -332,7 +342,7 @@ class PlaywrightScraperService {
                 }
             } finally {
                 if (page) await page.close().catch(() => {});
-                this.release();
+                this.release(slot);
             }
         }
 
