@@ -25,7 +25,12 @@ const isNum = (v) => v !== null && v !== undefined && v !== '' && Number.isFinit
 const pct = (v, d = 1) => (isNum(v) ? `${Number(v).toFixed(d)}%` : '—');
 const int = (v) => (isNum(v) ? fmtNumFull(v) : '—');
 const money = (v, full = false) => (isNum(v) ? (full ? fmtINRFull(v) : fmtINR(v)) : '—');
-const TONE_COLOR = { pos: '#15803d', neg: '#b91c1c', warn: '#b45309', info: '#1349c6' };
+const TONE_COLOR = {
+    pos: 'var(--bc-status-success-text)',
+    neg: 'var(--bc-status-danger-text)',
+    warn: 'var(--bc-status-warning-text)',
+    info: 'var(--bc-text-brand)',
+};
 
 /** Opportunity band → the platform's delta vocabulary. */
 const bandMeta = (band) => ({
@@ -70,7 +75,7 @@ export const ProductCell = ({ item, onWatch, watched, onOpen, showKeyword }) => 
                     <span className="kw-rating"><StarFilled /> {Number(item.rating).toFixed(1)} · {int(item.reviewCount)} reviews</span>
                 ) : <span className="kw-muted">no rating</span>}
                 {isNum(item.mainBSR) ? <span className="kw-muted">BSR {int(item.mainBSR)}</span> : null}
-                {item.isBuyBoxWinner ? <Chip label="buy box" palette={{ 'BUY BOX': { bg: '#e0e7ff', fg: '#3730a3' } }} /> : null}
+                {item.isBuyBoxWinner ? <Chip label="buy box" palette={{ 'BUY BOX': { bg: 'var(--bc-indigo-100)', fg: 'var(--bc-indigo-700)' } }} /> : null}
             </div>
             {Array.isArray(item.ourListings) && item.ourListings.length > 0 ? (
                 <div className="kw-ourline">
@@ -364,7 +369,14 @@ export const PricePanel = ({ market, onBand, activeBand }) => {
             </>}
         >
             <SegmentedBar
-                segments={bands.map((b, i) => ({ key: b.key, label: b.label, value: b.count, color: ['#1349c6', '#2a63d8', '#5b8ae8', '#8fb0f2', '#c3d4f8', '#e0e8fb'][i] }))}
+                segments={bands.map((b, i) => ({ key: b.key, label: b.label, value: b.count, color: [
+                        'var(--bc-blue-700)',
+                        'var(--bc-blue-600)',
+                        'var(--bc-blue-400)',
+                        'var(--bc-blue-300)',
+                        'var(--bc-blue-100)',
+                        'var(--bc-blue-50)',
+                    ][i] }))}
                 total={market.sample?.priced || 0}
                 selected={activeBand}
                 onSelect={(k) => onBand?.(activeBand === k ? null : k)}
@@ -400,7 +412,7 @@ export const PricePanel = ({ market, onBand, activeBand }) => {
                 data={bands.map((b) => b.count)}
                 unit="num"
                 height={110}
-                color="#5b8ae8"
+                color="var(--bc-blue-400)"
             />
         </Panel>
     );
@@ -435,7 +447,11 @@ export const CompetitionPanel = ({ market }) => {
                         {(ratings.distribution || []).map((d) => (
                             <div className="kw-ratingbar" key={d.key}>
                                 <span className="kw-ratingbar__label">{d.label}</span>
-                                <ShareBar pct={d.share || 0} color={d.key === 'r_lt_3' ? '#b91c1c' : d.key === 'r_45_plus' ? '#15803d' : '#1349c6'} />
+                                <ShareBar pct={d.share || 0} color={d.key === 'r_lt_3'
+                                    ? 'var(--bc-status-danger-text)'
+                                    : d.key === 'r_45_plus'
+                                        ? 'var(--bc-status-success-text)'
+                                        : 'var(--bc-text-brand)'} />
                                 <span className="ops-num kw-ratingbar__value">{d.count}</span>
                             </div>
                         ))}
@@ -721,7 +737,7 @@ export const ProductTable = ({
                                 <td className="ops-num">{int(item.reviewCount)}</td>
                                 <td className="ops-num">{int(item.mainBSR)}</td>
                                 <td className="kw-truncate" title={item.seller || ''}>{item.seller || '—'}</td>
-                                <td>{item.inCatalog ? <Chip label="you sell" palette={{ 'YOU SELL': { bg: '#dcfce7', fg: '#166534' } }} /> : <span className="kw-muted">—</span>}</td>
+                                <td>{item.inCatalog ? <Chip label="you sell" palette={{ 'YOU SELL': { bg: 'var(--bc-green-100)', fg: 'var(--bc-green-800)' } }} /> : <span className="kw-muted">—</span>}</td>
                             </tr>
                         ))}
                     </tbody>
