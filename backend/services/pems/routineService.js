@@ -28,6 +28,7 @@ function applyOverrides(tpl, o = {}) {
   const out = { ...tpl };
   if (typeof o.autoAssign === 'boolean') out.autoAssign = o.autoAssign;
   if (o.dueTime) out.dueTime = parseHHmm(o.dueTime, tpl.dueTime).text;
+  if (o.brandMode === 'CHECKLIST' || o.brandMode === 'NONE') out.brandMode = o.brandMode;
   if (o.runDays) out.runDays = parseRunDays(o.runDays).join(',');
   const est = parseInt(o.estimatedExecutionMinutes, 10);
   if (est > 0) out.estimatedExecutionMinutes = Math.min(480, est);
@@ -44,7 +45,7 @@ async function importDailyOps({ rows, overrides = {}, dryRun = true, generateNow
     ? await (() => {
         const req = pool.request();
         templates.forEach((t, i) => req.input(`c${i}`, sql.VarChar, t.code));
-        return req.query(`SELECT Id, TaskCode, AutoAssign, DueTime, RunDays, EstimatedExecutionMinutes, AssigneeUserIds, IsActive
+        return req.query(`SELECT Id, TaskCode, AutoAssign, DueTime, RunDays, EstimatedExecutionMinutes, AssigneeUserIds, BrandMode, IsActive
                           FROM PemsTaskTemplates WHERE TaskCode IN (${templates.map((_, i) => `@c${i}`).join(',')})`);
       })()
     : { recordset: [] };
@@ -56,7 +57,14 @@ async function importDailyOps({ rows, overrides = {}, dryRun = true, generateNow
     const ex = existing.get(t.code);
     if (ex) {
       t.autoAssign = !!ex.AutoAssign; if (ex.DueTime) t.dueTime = ex.DueTime; if (ex.RunDays) t.runDays = ex.RunDays;
-      t.estimatedExecutionMinutes = ex.EstimatedExecutionMinutes || t.estimatedExecutionMinutes;
+      // Brand mode predates these rows (default NONE) and their minutes were "whole routine", so a stored NONE
+      // adopts the sheet's detection + per-brand minutes; a stored CHECKLIST keeps whatever the admin tuned.
+      if (ex.BrandMode === 'CHECKLIST') {
+        t.brandMode = 'CHECKLIST';
+        t.estimatedExecutionMinutes = ex.EstimatedExecutionMinutes || t.estimatedExecutionMinutes;
+      } else if (t.brandMode !== 'CHECKLIST') {
+        t.estimatedExecutionMinutes = ex.EstimatedExecutionMinutes || t.estimatedExecutionMinutes;
+      }
     }
     t = applyOverrides(t, overrides[t.code]);
 
@@ -79,7 +87,7 @@ async function importDailyOps({ rows, overrides = {}, dryRun = true, generateNow
     code: t.code, name: t.name, priority: t.priority, sourcePriority: t.sourcePriority, category: t.category,
     action: t._existingId ? 'update' : 'create',
     owner: t.owner.label, assigneeRole: t.assigneeRole, resolvedPeople: t.assigneeUserIds.length,
-    autoAssign: t.autoAssign, dueTime: t.dueTime, runDays: t.runDays,
+    autoAssign: t.autoAssign, dueTime: t.dueTime, runDays: t.runDays, brandMode: t.brandMode,
     estimatedExecutionMinutes: t.estimatedExecutionMinutes,
     subTaskCount: t.subTaskCount, activityCount: t.activityCount, scheduledSubTasks: t.scheduledSubTasks,
   }));
@@ -92,7 +100,7 @@ async function importDailyOps({ rows, overrides = {}, dryRun = true, generateNow
       frequency: t.frequency, priority: t.priority, slaHours: t.slaHours, tatHours: t.tatHours,
       expectedOutput: t.expectedOutput, assigneeRole: t.assigneeRole, subTaskDefinitions: t.subTaskDefinitions,
       tags: t.tags, estimatedExecutionMinutes: t.estimatedExecutionMinutes,
-      autoAssign: t.autoAssign, dueTime: t.dueTime, runDays: t.runDays, assigneeUserIds: t.assigneeUserIds,
+      autoAssign: t.autoAssign, dueTime: t.dueTime, runDays: t.runDays, assigneeUserIds: t.assigneeUserIds, brandMode: t.brandMode,
     };
     let id = t._existingId;
     if (id) { await pemsService.updateTemplate(id, payload); updated++; }

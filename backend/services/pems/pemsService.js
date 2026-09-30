@@ -52,19 +52,20 @@ async function createTemplate(data) {
     .input('dueTime', sql.VarChar, dueTime)
     .input('runDays', sql.VarChar, runDays)
     .input('assigneeUserIds', sql.NVarChar(sql.MAX), assigneeUserIds)
+    .input('brandMode', sql.VarChar, data.brandMode === 'CHECKLIST' ? 'CHECKLIST' : 'NONE')
     .query(`
       INSERT INTO PemsTaskTemplates
         (Id, TaskCode, Name, Description, Category, Department, Frequency, CustomCron,
          SLAHours, TATHours, Priority, TargetType, DefaultTarget, ExpectedOutput,
          ReviewerId, AssigneeRole, Activities, SubTaskDefinitions, Tags, IsActive,
          ReviewRequired, CriticalityScore, EstimatedExecutionMinutes, CreatedBy,
-         AutoAssign, DueTime, RunDays, AssigneeUserIds)
+         AutoAssign, DueTime, RunDays, AssigneeUserIds, BrandMode)
       VALUES
         (@id, @taskCode, @name, @description, @category, @department, @frequency, @customCron,
          @slaHours, @tatHours, @priority, @targetType, @defaultTarget, @expectedOutput,
          @reviewerId, @assigneeRole, @activities, @subTaskDefinitions, @tags, @isActive,
          @reviewRequired, @criticalityScore, @estMinutes, @createdBy,
-         @autoAssign, @dueTime, @runDays, @assigneeUserIds)
+         @autoAssign, @dueTime, @runDays, @assigneeUserIds, @brandMode)
     `);
 
   return { id, taskCode };
@@ -146,6 +147,7 @@ async function updateTemplate(id, data) {
     sets.push('DefaultTarget = @DefaultTarget'); req.input('DefaultTarget', sql.Decimal(18, 2), Number(data.defaultTarget) || 0);
   }
   if (data.autoAssign !== undefined) { sets.push('AutoAssign = @AutoAssign'); req.input('AutoAssign', sql.Bit, data.autoAssign ? 1 : 0); }
+  if (data.brandMode !== undefined) { sets.push('BrandMode = @BrandMode'); req.input('BrandMode', sql.VarChar, data.brandMode === 'CHECKLIST' ? 'CHECKLIST' : 'NONE'); }
   if (data.dueTime !== undefined) { sets.push('DueTime = @DueTime'); req.input('DueTime', sql.VarChar, data.dueTime ? parseHHmm(data.dueTime).text : null); }
   if (data.runDays !== undefined) { sets.push('RunDays = @RunDays'); req.input('RunDays', sql.VarChar, data.runDays === null || data.runDays === '' ? null : parseRunDays(data.runDays).join(',')); }
   if (data.assigneeUserIds !== undefined) {
@@ -310,6 +312,21 @@ async function createInstance(data) {
     }
   }
 
+  // Brand checklist (multi-brand routines): one row per brand the assignee looks after
+  if (Array.isArray(data.brands) && data.brands.length > 0) {
+    for (let i = 0; i < data.brands.length; i++) {
+      const b = data.brands[i];
+      await pool.request()
+        .input('id', sql.VarChar, genId())
+        .input('taskInstanceId', sql.VarChar, id)
+        .input('sellerId', sql.VarChar, String(b.id))
+        .input('sellerName', sql.NVarChar, b.name || '')
+        .input('sortOrder', sql.Int, i)
+        .query(`INSERT INTO PemsTaskBrands (Id, TaskInstanceId, SellerId, SellerName, SortOrder)
+                VALUES (@id, @taskInstanceId, @sellerId, @sellerName, @sortOrder)`);
+    }
+  }
+
   // Update SubTaskCount and ActivityCount on the instance
   const stCountResult = await pool.request().input('instId', sql.VarChar, id)
     .query('SELECT COUNT(*) as stCount FROM PemsSubTasks WHERE TaskInstanceId = @instId');
@@ -379,6 +396,17 @@ async function getInstances(filters = {}, requester = null) {
     if (effective.length === 1) bindSellerEquality(effective[0]);
     else if (effective.length > 1) bindSellerInList(effective);
     else sellerScope.clause = ' AND 1=0';
+
+    // Brand-less work (daily routines span all of a person's brands, so SellerId is NULL) must stay visible to
+    // the person it is assigned to / reviewed by — never to anyone else. Only when no brand filter was requested.
+    const meId = requester?.Id || requester?._id || requester?.id;
+    if (meId && requestedSellerIds.length === 0) {
+      sellerScope.params.push(['scopeMe', String(meId)]);
+      const own = '(i.SellerId IS NULL AND (i.AssignedTo = @scopeMe OR i.ReviewerId = @scopeMe))';
+      sellerScope.clause = sellerScope.clause === ' AND 1=0'
+        ? ` AND ${own}`
+        : ` AND ((${sellerScope.clause.replace(/^ AND /, '')}) OR ${own})`;
+    }
   }
   where += sellerScope.clause;
   if (filters.assignedTo) { where += ' AND i.AssignedTo = @assignedTo'; req.input('assignedTo', sql.VarChar, filters.assignedTo); }
@@ -537,6 +565,10 @@ async function getInstanceById(id) {
     });
     instance.subTasks.forEach(st => { st.activities = actMap[st.Id] || []; });
   }
+
+  const brands = await pool.request().input('instanceId', sql.VarChar, id)
+    .query('SELECT Id, SellerId, SellerName, IsCompleted, CompletedAt, Note FROM PemsTaskBrands WHERE TaskInstanceId = @instanceId ORDER BY SortOrder, SellerName');
+  instance.brands = brands.recordset;
 
   const evidence = await pool.request().input('instanceId', sql.VarChar, id)
     .query('SELECT * FROM PemsEvidence WHERE TaskInstanceId = @instanceId ORDER BY UploadedAt DESC');
@@ -724,6 +756,38 @@ async function completeSubTask(subTaskId, actorId, actorName) {
     eventBus.emit(eventBus.EVENTS.SUBTASK_COMPLETED, { taskInstanceId: instId, subTaskId, actorId, actorName });
   }
   });
+}
+
+/**
+ * Tick / un-tick a brand on a multi-brand task (or all of them when brandRowId is omitted).
+ * Only while the work is open — same window in which steps can be ticked.
+ */
+async function setBrandCheck(taskId, brandRowId, completed, actorId, note) {
+  const pool = await getPool();
+  const task = (await pool.request().input('id', sql.VarChar, taskId)
+    .query('SELECT Id, Status FROM PemsTaskInstances WHERE Id = @id')).recordset[0];
+  if (!task) { const e = new Error('Task not found'); e.status = 404; throw e; }
+  if (!['IN_PROGRESS', 'REWORK', 'ACCEPTED'].includes(task.Status)) {
+    const e = new Error('Start the task before ticking brands'); e.status = 409; throw e;
+  }
+  const req = pool.request()
+    .input('taskId', sql.VarChar, taskId)
+    .input('done', sql.Bit, completed ? 1 : 0)
+    .input('actor', sql.VarChar, actorId || null)
+    .input('note', sql.NVarChar, note === undefined ? null : String(note).slice(0, 500));
+  let where = 'TaskInstanceId = @taskId';
+  if (brandRowId) { where += ' AND Id = @rowId'; req.input('rowId', sql.VarChar, brandRowId); }
+  const res = await req.query(`
+    UPDATE PemsTaskBrands
+       SET IsCompleted = @done,
+           CompletedAt = CASE WHEN @done = 1 THEN dbo.GetEnvDate() ELSE NULL END,
+           CompletedBy = CASE WHEN @done = 1 THEN @actor ELSE NULL END,
+           Note = COALESCE(@note, Note)
+     WHERE ${where}`);
+  if (brandRowId && !res.rowsAffected[0]) { const e = new Error('Brand not found on this task'); e.status = 404; throw e; }
+  const counts = (await pool.request().input('taskId', sql.VarChar, taskId)
+    .query('SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END), 0) AS done FROM PemsTaskBrands WHERE TaskInstanceId = @taskId')).recordset[0];
+  return { total: counts.total, done: counts.done };
 }
 
 async function completeActivity(activityId, actorId, actorName) {
@@ -1027,13 +1091,18 @@ async function getMyDay(user, targetUserId) {
            i.StartedAt, i.SubmittedAt, i.ReworkCount, i.Source, i.SourceRef, i.SellerName, i.Department,
            i.Category, i.ReviewerName, i.AssignedAt,
            t.Name AS TemplateName,
-           COALESCE(t.EstimatedExecutionMinutes, 60) AS EstimatedMinutes,
+           -- multi-brand routines: the template estimate is per brand
+           COALESCE(t.EstimatedExecutionMinutes, 60)
+             * CASE WHEN t.BrandMode = 'CHECKLIST' AND bt.Total > 0 THEN bt.Total ELSE 1 END AS EstimatedMinutes,
+           bt.Total AS BrandTotal, bt.Done AS BrandDone, t.BrandMode,
            (SELECT COUNT(*) FROM PemsSubTasks st WHERE st.TaskInstanceId = i.Id) AS SubTaskTotal,
            (SELECT COUNT(*) FROM PemsSubTasks st WHERE st.TaskInstanceId = i.Id AND st.IsCompleted = 1) AS SubTaskDone,
            (SELECT COUNT(*) FROM PemsEvidence e WHERE e.TaskInstanceId = i.Id) AS EvidenceCount,
            (SELECT TOP 1 r.Feedback FROM PemsTaskReviews r WHERE r.TaskInstanceId = i.Id ORDER BY r.CreatedAt DESC) AS LastFeedback
     FROM PemsTaskInstances i
     LEFT JOIN PemsTaskTemplates t ON i.TemplateId = t.Id
+    OUTER APPLY (SELECT COUNT(*) AS Total, COALESCE(SUM(CASE WHEN b.IsCompleted = 1 THEN 1 ELSE 0 END), 0) AS Done
+                 FROM PemsTaskBrands b WHERE b.TaskInstanceId = i.Id) bt
     WHERE i.AssignedTo = @uid AND i.Status IN (${inList(MYDAY_ACTIONABLE)})
     ORDER BY i.DueDate ASC
   `);
@@ -1705,7 +1774,7 @@ async function recalculateAllWeightedProgress() {
 }
 
 module.exports = {
-  addComment, verifyFix,
+  addComment, verifyFix, setBrandCheck,
   bulkTransition,
   submitReviewAndTransition,
   createTemplate, getTemplates, getTemplateById, updateTemplate, deleteTemplate,

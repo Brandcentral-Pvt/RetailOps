@@ -40,21 +40,38 @@ describe('routineSchedule', () => {
   });
 });
 
-describe('splitSteps', () => {
-  it('splits an ordered SOP into activities', () => {
-    const a = splitSteps('1. Open the dashboard\n2. Filter OOS ASINs\n   keep only live ones\n3. Share list with seller', 'OOS check');
-    expect(a.map(x => x.title)).toEqual(['Open the dashboard', 'Filter OOS ASINs', 'Share list with seller']);
-    expect(a[1].instructions).toBe('keep only live ones');
-  });
-  it('never splits alternative methods into separate mandatory steps', () => {
-    const txt = '1. Method 1: Brand Central\n2. Method 2: Retail Ops\n3. Method 3 (backup): Vendor Central';
-    const a = splitSteps(txt, 'Inventory check');
+describe('splitSteps — tick outcomes, not clicks', () => {
+  it('keeps a numbered click-path as ONE activity with the full how-to', () => {
+    const txt = '1. Go to Help\n2. Click Contact Us\n3. Submit';
+    const a = splitSteps(txt, 'Raise a ticket');
     expect(a).toHaveLength(1);
-    expect(a[0].instructions).toBe(txt);
+    expect(a[0]).toMatchObject({ title: 'Raise a ticket', instructions: txt });
   });
-  it('keeps unstructured text as one activity with the full instructions', () => {
-    const a = splitSteps('Just check the page and note issues.', 'Quick check');
-    expect(a).toEqual([expect.objectContaining({ title: 'Quick check', instructions: 'Just check the page and note issues.' })]);
+  it('splits parent-labelled groups (Task N / Step N) and keeps children as instructions', () => {
+    const a = splitSteps('• Task 1: Receive POs\n1. Open inbox\n2. Verify\n• Task 2: Confirm POs\n1. Review', 'PO upload');
+    expect(a.map(x => x.title)).toEqual(['Task 1: Receive POs', 'Task 2: Confirm POs']);
+    expect(a[0].instructions).toBe('1. Open inbox\n2. Verify');
+  });
+  it('splits headed sections into one activity each', () => {
+    const a = splitSteps('Order Management\n• Share reminders\n• Follow up\nInventory\n• Share report', 'WhatsApp');
+    expect(a.map(x => x.title)).toEqual(['Order Management', 'Inventory']);
+    expect(a[0].instructions).toBe('• Share reminders\n• Follow up');
+  });
+  it('uses the heading before a generic lead-in like "Discuss:"', () => {
+    const a = splitSteps('Common Calls\nASIN Suppression\nDiscuss:\n• Packing\n• Quality\nBuy Box Issues\nDiscuss:\n• Price', 'Phone');
+    expect(a.map(x => x.title)).toEqual(['ASIN Suppression', 'Buy Box Issues']);
+  });
+  it('does not treat the line after "Navigate to:" as a heading', () => {
+    const a = splitSteps('Access\n1. Log in\n2. Navigate to:\nDashboard → Overall Data\n3. Export\nShare\n1. Screenshot', 'Report');
+    expect(a.map(x => x.title)).toEqual(['Access', 'Share']);
+    expect(a[0].instructions).toContain('Dashboard → Overall Data');
+  });
+  it('never splits alternatives (Method / Option / backup)', () => {
+    const txt = '• Task 1: a\n• Task 2: b\nMethod 1: x';
+    expect(splitSteps(txt, 't')).toHaveLength(1);
+  });
+  it('keeps unstructured text as one activity', () => {
+    expect(splitSteps('Just check.', 'Quick')).toEqual([expect.objectContaining({ title: 'Quick', instructions: 'Just check.' })]);
   });
 });
 
@@ -70,7 +87,7 @@ describe('parseDailyOpsSheet', () => {
   const sheet = [
     ['Daily Operations Master'], [],                          // title rows before the header
     HEAD,
-    row({ 'Task ID': 'DLY-001', Priority: 'P1', 'Main Task': 'Top ASIN Monitoring', 'Sub-Task No': '1.1', 'Sub Task': 'Inventory check', 'How to Perform': '1. Open dashboard\n2. Filter OOS', Owner: 'BM' }),
+    row({ 'Task ID': 'DLY-001', Priority: 'P1', 'Main Task': 'Top ASIN Monitoring', 'Sub-Task No': '1.1', 'Sub Task': 'Inventory check', 'How to Perform': 'Sales\n• Open dashboard\n• Filter OOS\nStock\n• Check stock', Owner: 'BM' }),
     row({ 'Sub-Task No': '1.2', 'Sub Task': 'Weekly sales report', 'How to Perform': 'Method 1: A\nMethod 2: B' }),   // continuation row
     row({ 'Sub Task': 'Output', 'How to Perform': 'Dashboard updated' }),
     row({ 'Task ID': 'DLY-009', Priority: 'P1', 'Main Task': 'Priority Based Tasks', 'Sub Task': 'Do what management asks', 'How to Perform': 'Follow instructions', Owner: 'BM' }),
@@ -94,7 +111,8 @@ describe('parseDailyOpsSheet', () => {
   it('builds sub-tasks, activities, output and inferred schedule', () => {
     const t = by('DLY-001');
     expect(t.subTaskCount).toBe(2);
-    expect(t.subTaskDefinitions[0].activities.map(a => a.title)).toEqual(['Open dashboard', 'Filter OOS']);
+    expect(t.brandMode).toBe('CHECKLIST');
+    expect(t.subTaskDefinitions[0].activities.map(a => a.title)).toEqual(['Sales', 'Stock']);
     expect(t.subTaskDefinitions[1].schedule).toEqual({ weekdays: [1] });
     expect(t.subTaskDefinitions[1].activities).toHaveLength(1);       // alternatives stay one step
     expect(t.expectedOutput).toBe('Dashboard updated');
@@ -102,7 +120,7 @@ describe('parseDailyOpsSheet', () => {
   it('treats need-driven tasks as on-demand and splits multi-owner IDs', () => {
     expect(by('DLY-009')).toMatchObject({ autoAssign: false, frequency: 'ONE_TIME' });
     expect(by('DLY-001')).toMatchObject({ autoAssign: true, frequency: 'DAILY', slaHours: 8 });
-    expect(by('DLY-0012-1').owner.names).toEqual(['TL-SWAGAT'.replace('TL-', '')]);
+    expect(by('DLY-0012-1').owner.names).toEqual(['SWAGAT']);
     expect(by('DLY-0012-2').owner.names).toEqual(['Chintan', 'Jay']);
   });
   it('fails clearly when the header is missing', () => {

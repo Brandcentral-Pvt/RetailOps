@@ -13,6 +13,10 @@ router.post('/templates', auth, requirePermission('tasks_manage'), invalidateCac
 router.put('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.updateTemplate);
 router.delete('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.deleteTemplate);
 
+// ── Brand checklist on multi-brand routines (brandId omitted = all brands) ──
+router.put('/instances/:id/brands', auth, requireTaskAccess, ctrl.setBrandCheck);
+router.put('/instances/:id/brands/:brandId', auth, requireTaskAccess, ctrl.setBrandCheck);
+
 // ── Daily routine ──
 router.post('/routine/import', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.importDailyOps);
 router.post('/routine/generate', auth, requirePermission('tasks_manage'), ctrl.generateRoutineToday);

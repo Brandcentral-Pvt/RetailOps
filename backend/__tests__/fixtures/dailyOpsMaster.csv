@@ -1,0 +1,782 @@
+Seq,Task ID,Priority,Main Task,Sub-Task No,Sub Task,How to Perform - Execute (SOP Steps),Function,Team,Owner,Expected Output,Support Person,Support Document,Frequency,Trigger,Target,TAT,SLA,Completion Evidence,Reporting Method,Reviewer,Review Status,Achievement,Variance,KRI,KPI
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Method 1: Brand Central Inventory Monitoring,"Applicable Users
+• Sellers
+• Easy Sell Team
+Single ASIN Inventory Check
+1. Log in to seller.brandcentral.in.
+2. Select the appropriate brand.
+3. Navigate to Inventory → Manage Inventory.
+4. Search using the ASIN or SKU.
+5. Review the inventory status of the selected product.
+Bulk Inventory Monitoring
+1. Navigate to Manage Inventory.
+2. Download the inventory report.
+3. Open the downloaded Excel file.
+4. Review inventory quantities for all ASINs.
+5. Filter products with 0 Inventory.
+6. Prepare a list of Out of Stock ASINs.
+7. Communicate the list to the respective seller.
+8. Request inventory replenishment.
+9. Follow up regularly until the products return to In Stock status.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Method 2: Retail Ops Inventory Monitoring,"A. Manual Inventory Check
+1. Log in to data.brandcentral.in.
+2. Navigate to the ASIN Manager section.
+3. Select the required brand from the dropdown.
+4. Enter the ASIN in the search box.
+5. Click Find.
+6. Review the product details displayed.
+Inventory Status Indicators
+Locate the Available Remark field:
+• Green ""In Stock"" – Product inventory is available.
+• Currently Unavailable – Product is Out of Stock.
+B. Bulk Inventory Monitoring
+1. Log in to data.brandcentral.in.
+2. Navigate to ASIN Manager.
+3. Select the required brand.
+4. Click Export located in the top-right corner.
+5. Download the complete product data file.
+6. Open the file in Excel.
+7. Filter the inventory status column to identify:
+o Products marked as Currently Unavailable
+o Products with Zero Stock
+8. Prepare a list of Out of Stock ASINs.
+9. Share the list with the respective seller.
+10. Request immediate inventory replenishment.
+11. Follow up until inventory is updated and products become available for sale.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Method 3: Vendor Central Inventory Monitoring (Backup Process),"When to Use
+Use Vendor Central only when:
+• Brand Central is unavailable.
+• Retail Ops is unavailable.
+Single ASIN Inventory Check
+1. Log in to vendorcentral.in.
+2. Select the appropriate brand.
+3. Navigate to:
+Items → Direct Fulfilment Inventory
+4. Search using ASIN or SKU.
+5. Review the inventory status.
+Bulk Inventory Monitoring
+1. Navigate to:
+Items → Direct Fulfilment Inventory
+2. Click Update with a Spreadsheet.
+3. Download the Inventory File.
+4. Open the file in Excel.
+5. Filter products with 0 Stock.
+6. Prepare a list of Out of Stock ASINs.
+7. Share the list with the respective seller.
+8. Request inventory replenishment.
+9. Continue follow-up until inventory is restored.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Stock Monitoring Priority,"High-Priority Monitoring
+• Monitor inventory levels for all active products regularly.
+• Prioritize products contributing approximately 80% of the brand's revenue and sales volume.
+• Ensure these high-performing ASINs remain in stock at all times.
+• Escalate critical stock-out situations immediately.
+Follow-Up Process
+1. Share OOS reports with the respective seller.
+2. Obtain an expected replenishment timeline.
+3. Track inventory restoration progress.
+4. Continue follow-up until products return to In Stock status.
+5. Update stakeholders on replenishment status when required.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Weekly Sales Report Monitoring (Twice a Week),"• Download sales reports for all assigned brands from Vendor Central twice a week.
+• Verify the downloaded reports for data accuracy and completeness.
+• Review overall sales performance and identify any significant changes or trends for further analysis.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Listing Quality Score (LQS) Monitoring,"• Monitor Listing Quality Score (LQS) for all Top ASINs.
+• Coordinate with sellers to improve listing quality through A+ Content, Brand Store, product images, titles, bullets, and backend attributes.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Rating & Customer Review Monitoring,"• Review ratings and customer feedback for all ASINs.
+• Identify ASINs with ratings below 4.0.
+• Notify sellers and recommend corrective actions to improve customer satisfaction
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,ASIN-wise Sales & Order Verification,"• Perform ASIN-wise sales reconciliation by validating ordered revenue, units sold, and order count.
+• Identify any discrepancies and update the daily monitoring tracker.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Advertising Performance Monitoring,"• Monitor advertising performance for every ASIN.
+• Track Ads Sales, Spend, ACOS, ROAS, CTR, and overall contribution to business growth.
+• Identify ASINs requiring campaign optimization
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Average Selling Price (ASP) Monitoring,"• Monitor Vendor Central ASP for all ASINs on a daily basis.
+• Identify ASP mismatches that may impact sales, particularly during the first 10 days of every month.
+• Coordinate with the concerned teams to restore the correct ASP.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Seller Central Price Monitoring,"• Compare Vendor Central ASP with Seller Central pricing.
+• Ensure Seller Central pricing does not negatively impact Vendor Central sales conversion.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Weekly Purchase Order (PO) Monitoring,"• Review weekly Purchase Orders for all Top ASINs.
+• Verify whether sufficient inventory has been allocated by Amazon.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Purchase Order Fulfillment Coordination,"• Coordinate with sellers to complete PO fulfillment for confirmed Purchase Orders.
+• Ensure timely dispatch to avoid stock shortages and improve sales growth.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Forecast Planning & Manual PO Request,"• Prepare ASIN-wise demand forecasts for products with insufficient Purchase Orders.
+• Submit Manual PO requests to the Vendor Manager (VM) based on business requirements.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Blacklisted ASIN Management,"• Identify blacklisted ASINs affecting business continuity.
+• Coordinate with sellers to create replacement ASINs where required.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,ASIN Suppression Monitoring,"• Review all ASIN suppressions daily.
+• Raise support cases for suppressed ASINs.
+• Coordinate with Amazon support and internal managers until the suppression is resolved.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Monthly Sales Target Review,"• Monitor monthly sales performance across all ASINs.
+• Compare actual sales against business targets.
+• Record achievements, identify gaps, and recommend corrective actions.
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,Critical ASIN Issue Monitoring & Escalation (Example),"• Monitor ASINs impacted by Fulfillment Center (FC) and RC issues and assess their business impact.
+• Raise escalations with the Vendor Manager (VM) and follow up regularly until resolution.
+• Example 1: Currently, 48 ASINs across two brands are affected by FC/RC issues. Despite continuous follow-ups, the issue remains unresolved, resulting in an estimated monthly business loss of ₹1.5–2.0 lakh through Seller Central. This case is being actively tracked and escalated for a permanent resolution.
+• Example 2: ASIN generating Revenue on Seller Central, but when RC Done on Vendor Central it shows in Draft and not eligible for selling
+",,,,,,,,,,,,,,,,,,,
+1,DLY-001,P1,Top ASIN Performance Monitoring,,ASIN Remarks & Business Tracking,"• Maintain ASIN-wise remarks for all monitored products.
+• Record key observations, business risks, pending actions, and escalations.
+• Share updates with stakeholders to ensure timely decision-making and business continuity.
+",,,,,,,,,,,,,,,,,,,
+2,DLY-002,P1,Buy Box Monitoring & Suppression Check,, Buy Box Analysis,"• Login into retail ops
+• Download Buybox related data
+• If Retail Ops provides accurate Buy Box data, identify ASINs that currently do not have a Buy Box offer.
+• If retail ops is not available Install Web Scarpper extension
+• Create monitoring links.
+• Navigate to inspect element
+• Insert data for key ASINs contributing approximately 80% of total revenue and having available inventory to track Buy Box status.
+",,,BM,,,,,,,,,,,,,,,,
+2,DLY-002,P1,Buy Box Monitoring & Suppression Check,, Identify Affected ASINs,• 	Filter and prepare a list of ASINs that have lost the Featured Offer (Buy Box) despite having inventory available.,,,BM,,,,,,,,,,,,,,,,
+2,DLY-002,P1,Buy Box Monitoring & Suppression Check,, Raise Support Ticket on Vendor Central,"• Log in to Vendor Central.
+• Navigate to:
+o Direct Fulfilment
+o Problems with Inventory
+",,,BM,,,,,,,,,,,,,,,,
+2,DLY-002,P1,Buy Box Monitoring & Suppression Check,, Then Provide Required Details,"• DF (Direct Fulfilment) Code
+• Warehouse Code
+• List of Affected ASINs
+• Description of the Buy Box issue and inventory availability
+",,,BM,,,,,,,,,,,,,,,,
+2,DLY-002,P1,Buy Box Monitoring & Suppression Check,, Submit and Track,"• Submit the support case.
+• Record the Case ID/Ticket Number for future follow-up.
+• Monitor the resolution status and update stakeholders as required.
+",,,BM,,,,,,,,,,,,,,,,
+2,DLY-002,P1,Buy Box Monitoring & Suppression Check,, Root Cause,"• Image Suppression
+• Higher ASP
+• Price is not updated in the pricing tool
+• Higher MRP (more than 70% of ASP)
+• CRA / PRA Concerns (Customers Review Abuse) 
+",,,BM,,,,,,,,,,,,,,,,
+3,DLY-003,P2,ASP Monitoring & Mismatch Check,,Fetch affected ASIN,"• Login into retail ops
+• Download ASP related data
+• If Retail Ops provides accurate ASP, identify ASINs having price dispute
+• If retail ops is not available Install Web Scarpper extension
+• Create monitoring links.
+• Navigate to inspect element
+• Insert data for key ASINs contributing approximately 80% of total revenue and having available inventory to Check ASP
+• Extract affected ASINs for further process in excel sheet",,,BM,,,,,,,,,,,,,,,,
+3,DLY-003,P2,ASP Monitoring & Mismatch Check,, Dispute Assessment,"• Login into accounting.brandcentral.in/admin
+• Download approved ASP data in excel (Seller Wise)
+• Compare the current ASP with the approved ASP.
+• Price variances within ±₹5 should be ignored, as minor fluctuations may occur due to pricing adjustments by Cocoblu or other marketplace factors.
+",,,BM,,,,,,,,,,,,,,,,
+3,DLY-003,P2,ASP Monitoring & Mismatch Check,,Action - Sale Cost Creation,"• For ASINs where the ASP variance exceeds ₹5, prepare and create the required sale cost dispute 
+• Compile all identified ASP disputes and corresponding sale cost requests.",,,BM,,,,,,,,,,,,,,,,
+3,DLY-003,P2,ASP Monitoring & Mismatch Check,,Submit to TL,"• Submit the Compiled final Cost Sheet to the Line Manager for review and approval.
+",,,BM,,,,,,,,,,,,,,,,
+3,DLY-003,P2,ASP Monitoring & Mismatch Check,,Mismatch Resolution with Cocoblu,"• TL will check and forward cost sheet to Vendor Manager
+• Vendor manager will take corrective action by uploading correct ASP",,,BM,,,,,,,,,,,,,,,,
+3,DLY-003,P2,ASP Monitoring & Mismatch Check,,Revalidate corrective action taken,• BM's will recheck uploaded ASP is correct or not,,,BM,,,,,,,,,,,,,,,,
+4,DLY-004,P1,OOS Data Monitoring,,Method 1: Brand Central Inventory Monitoring,"Applicable Users
+• Sellers
+• Easy Sell Team
+Single ASIN Inventory Check
+1. Log in to seller.brandcentral.in.
+2. Select the appropriate brand.
+3. Navigate to Inventory → Manage Inventory.
+4. Search using the ASIN or SKU.
+5. Review the inventory status of the selected product.
+Bulk Inventory Monitoring
+1. Navigate to Manage Inventory.
+2. Download the inventory report.
+3. Open the downloaded Excel file.
+4. Review inventory quantities for all ASINs.
+5. Filter products with 0 Inventory.
+6. Prepare a list of Out of Stock ASINs.
+7. Communicate the list to the respective seller.
+8. Request inventory replenishment.
+9. Follow up regularly until the products return to In Stock status.
+",,,BM,,,,,,,,,,,,,,,,
+4,DLY-004,P1,OOS Data Monitoring,,Method 2: Retail Ops Inventory Monitoring,"A. Manual Inventory Check
+1. Log in to data.brandcentral.in.
+2. Navigate to the ASIN Manager section.
+3. Select the required brand from the dropdown.
+4. Enter the ASIN in the search box.
+5. Click Find.
+6. Review the product details displayed.
+Inventory Status Indicators
+Locate the Available Remark field:
+• Green ""In Stock"" – Product inventory is available.
+• Currently Unavailable – Product is Out of Stock.
+B. Bulk Inventory Monitoring
+1. Log in to data.brandcentral.in.
+2. Navigate to ASIN Manager.
+3. Select the required brand.
+4. Click Export located in the top-right corner.
+5. Download the complete product data file.
+6. Open the file in Excel.
+7. Filter the inventory status column to identify:
+o Products marked as Currently Unavailable
+o Products with Zero Stock
+8. Prepare a list of Out of Stock ASINs.
+9. Share the list with the respective seller.
+10. Request immediate inventory replenishment.
+11. Follow up until inventory is updated and products become available for sale.
+",,,BM,,,,,,,,,,,,,,,,
+4,DLY-004,P1,OOS Data Monitoring,,Method 3: Vendor Central Inventory Monitoring (Backup Process),"When to Use
+Use Vendor Central only when:
+• Brand Central is unavailable.
+• Retail Ops is unavailable.
+Single ASIN Inventory Check
+1. Log in to vendorcentral.in.
+2. Select the appropriate brand.
+3. Navigate to:
+Items → Direct Fulfilment Inventory
+4. Search using ASIN or SKU.
+5. Review the inventory status.
+Bulk Inventory Monitoring
+1. Navigate to:
+Items → Direct Fulfilment Inventory
+2. Click Update with a Spreadsheet.
+3. Download the Inventory File.
+4. Open the file in Excel.
+5. Filter products with 0 Stock.
+6. Prepare a list of Out of Stock ASINs.
+7. Share the list with the respective seller.
+8. Request inventory replenishment.
+9. Continue follow-up until inventory is restored.
+",,,BM,,,,,,,,,,,,,,,,
+4,DLY-004,P1,OOS Data Monitoring,,Stock Monitoring Priority,"High-Priority Monitoring
+• Monitor inventory levels for all active products regularly.
+• Prioritize products contributing approximately 80% of the brand's revenue and sales volume.
+• Ensure these high-performing ASINs remain in stock at all times.
+• Escalate critical stock-out situations immediately.
+Follow-Up Process
+1. Share OOS reports with the respective seller.
+2. Obtain an expected replenishment timeline.
+3. Track inventory restoration progress.
+4. Continue follow-up until products return to In Stock status.
+5. Update stakeholders on replenishment status when required.
+",,,BM,,,,,,,,,,,,,,,,
+4,DLY-004,P1,OOS Data Monitoring,,Output,"A consolidated Out of Stock report containing:
+• ASIN/SKU Details
+• Current Inventory Status
+• High-Priority OOS Products
+• Seller Communication Status
+• Replenishment Follow-Up Tracker
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,Access Brand Central,"• Login to seller.brandcentral.in
+• Navigate to New Orders
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,Filter Orders,"• Select the required SLA type (e.g., Today).
+• Orders that need to be dispatched within the selected SLA period will be displayed.
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,Print Labels Tab,"Here under https://seller.brandcentral.in/ go to Ready to Print Tab
+• Print Labels and invoices for order processing
+• Once label is downloaded. 
+Packed your orders
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,Manifest Generation,"Generate Pickup Manifest
+• Navigate to Generate Pickup Manifest
+• Click Create Manifest Batch
+Select Shipping Details
+• Select the appropriate:
+o Marketplace (Vendor Flex)
+o Carrier Service
+Create Manifest
+• A Manifest Generation Link will be displayed.
+• Click the link.
+Add Orders to Manifest
+Option 1:
+• Scan each downloaded shipping label and attach it to the corresponding order.
+Option 2 
+(Recommended for Bulk Orders):
+• Click the (+) icon below the search bar.
+• Select all eligible orders.
+• Create the manifest in bulk.
+Close Manifest
+• Once all orders have been dispatched, click Close Manifest to complete the process.
+
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,"Vendor Central Order Processing (Backup Process) 
+Use Vendor Central only when:
+• Brand Central is not working.
+• Brand Central is experiencing technical issues or errors.
+","Prerequisites
+Before processing orders:
+1. Install QZ Tray
+2. Configure and test the thermal printer
+3. Ensure printing permissions are enabled
+Step 1: Access Vendor Central
+• Login to vendorcentral.in
+• Navigate to:
+Orders → Direct Fulfillment Orders
+Step 2: Process New Orders
+Print Customer Invoices
+• Select all new orders.
+• Click Print Customer Invoices.
+• Invoice files will be downloaded.
+Print Shipping Labels
+• Select all new orders.
+• Click Print Labels.
+• Shipping labels will be generated and available for download.
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,,"Step 3: Handle ZPL Label Files
+If QZ Tray is not installed, labels will be generated in ZPL format.
+Convert ZPL to PDF
+1. Open:
+https://labelary.com/viewer.html
+2. Click Open File
+3. Upload the downloaded ZPL file
+4. Select Print Density: 300 DPI
+5. Generate and download the PDF version of the labels
+Important Notes
+• A maximum of 50 labels can be downloaded and processed at one time.
+• Check Orders frequently all must be download before 1:30 PM
+",,,BM,,,,,,,,,,,,,,,,
+5,DLY-005,P1,Order Management (DF),,Output,"Successfully processed orders with:
+• Customer invoices generated
+• Shipping labels printed
+• Orders marked as RTD
+• Pickup manifest created and closed
+• Orders ready for carrier pickup within SLA timelines
+",,,BM,,,,,,,,,,,,,,,,
+6,DLY-006,P3,PO Related Activities,,	PO Upload Process,"• Task 1: Receive Purchase Orders
+1. Receive Purchase Orders (POs) from the system every Monday.
+2. Verify that all expected POs are available in the system.
+• Task 2: Confirm Purchase Orders
+1. On Thursday, review the POs available in the system.
+2. Coordinate with all concerned accounts/teams to confirm the POs.
+3. Ensure all pending confirmations are completed before proceeding.
+• Task 3: Download and Verify ASIN-Level PO Data
+1. Download the confirmed Purchase Orders (POs) at the ASIN level.
+2. Review the downloaded file for accuracy and completeness.
+3. Filter the data to include only the brands currently being handled.
+4. Select only the Purchase Orders for the designated ISK3 Fulfillment Center (FC)
+5. Exclude POs for other brands or fulfillment centers.
+6. Verify that the filtered data is ready for the next processing step.
+• Task 4: Merge PO Files
+1. Combine all downloaded ASIN-level PO files into a single master file.
+2. Validate that no records are missing or duplicated after merging.
+• Task 5: Prepare Master File for Upload
+1. Convert the merged master file into the required Accounting Central upload format.
+2. Verify that all mandatory fields are correctly mapped and formatted.
+• Task 6: Update Accepted Quantity
+1. Set the Accepted Quantity to zero (0) for all PO lines in the master file.
+2. Ensure the seller can update and accept the required quantities as per availability.
+• Task 7: Upload the Master File
+1. Upload the formatted master file to Accounting Central.
+2. Verify that the upload is completed successfully without errors.
+3. If errors then download error file and check what is the error & solve
+• Task 8: Submit Purchase Orders
+1. Submit all uploaded Purchase Orders in the system.
+2. Confirm that each PO has been successfully submitted.
+• Task 9: Submit POs to Seller
+1. Submit the confirmed Purchase Orders to the seller.
+2. Ensure the seller receives the PO details for order acceptance and further",,,BM,,,,,,,,,,,,,,,,
+6,DLY-006,P3,PO Related Activities,,PO Related Issue Management,"• Task 1: Raise Manual Purchase Order Request
+1. Identify products for which no PO has been generated based on DRR (Daily Run Rate).
+2. Calculate the required purchase quantity based on the DRR.
+3. Prepare the manual PO request file with the required details.
+4. Send the file to the Vendor Manager via email.
+5. Follow up until the manual PO is created in the system.
+
+• Task 2: Request Purchase Order Reopening
+1. Identify Purchase Orders that have been closed but require further processing.
+2. Verify the reason for reopening the PO.
+3. Send an email request to the Vendor Manager to reopen the Purchase Order.
+4. Confirm that the PO has been reopened before proceeding with further activities.
+
+• Task 3: Request Purchase Order Close Date Extension
+1. Identify Purchase Orders requiring an extension of the close date.
+2. Verify the revised timeline with the concerned team, if applicable.
+3. Send an email request to the Vendor Manager to extend the PO close date.
+4. Confirm that the revised close date has been updated in the system.
+
+• Task 4: Request ASIN-Level Price Correction
+1. Identify Purchase Orders where the ASIN-level price is outdated or incorrect.
+2. Verify the correct price as per the latest agreement or approved price list.
+3. Send an email request to the Vendor Manager for the ASIN-level price update.
+4. Verify that the corrected price has been updated in the Purchase Order.
+
+• Task 5: Request Reopening of Cancelled PO Quantity
+1. Identify Purchase Orders where some quantities have been cancelled.
+2. Verify the quantity that needs to be restored.
+3. Send an email request to the Vendor Manager to reopen the cancelled quantity.
+4. Confirm that the cancelled quantity has been reinstated in the Purchase Order.
+
+• Task 6 : PO Closure Request from Team
+1. If any team wants to close a PO from Vender Central, they should send me a message. 
+2. I will email the Vendor Manager team requesting them to close the PO.
+
+• Task 7: PO Closure for Unsent Seller POs
+1. Once the PO has been uploaded to Accounting Central, if it has not been sent to the seller for any reason, the respective Brand Manager must fill out the Google Form.
+2. After receiving the completed Google Form, I will close the PO in Accounting Central.
+",,,BM,,,,,,,,,,,,,,,,
+6,DLY-006,P3,PO Related Activities,,Post PO Upload Activities (All BM),"• Task 1: Inform Business Managers (BMs)
+1. After successfully uploading the Purchase Orders (POs) in the Accounting system, notify all respective BM
+2. Confirm that the uploaded POs are available for further processing
+
+• Task 2: Seller PO Acceptance
+1. Each Brand Manager informs their respective seller about the available Purchase Orders.
+2. The seller reviews the Purchase Orders.
+3. The seller accepts the required quantity for each ASIN based on stock availability and purchase requirements.
+4. Monitor the acceptance status to ensure all required ASINs have been accepted.
+
+• Task 3: Invoice Creation Request
+1. After the seller completes the PO acceptance, the Business Managers verify the accepted quantities.
+2. Business Managers instruct the Accounts Team to create invoices for the accepted Purchase Orders.
+3. The Accounts Team prepares invoices based on the seller's accepted quantities.
+4. Verify that invoices are created accurately before proceeding with dispatch or further processing.
+",,,BM,,,,,,,,,,,,,,,,
+6,DLY-006,P3,PO Related Activities,,Invoice Dispute Resolution,"• Task1 : Resolve Purchase Price Disputes Before Invoice Creation
+1. Monitor the invoice creation process for any purchase price disputes.
+2. Identify the ASIN(s) or Purchase Order(s) where the price discrepancy exists.
+3. Verify the correct purchase price using the approved price list or agreed purchase terms.
+4. Coordinate with the relevant teams (Brand Manager or Accounts Team) to resolve the price dispute.
+5. Ensure the purchase price is corrected in the system before invoice generation.
+6. Confirm that the dispute has been resolved successfully.
+7. Inform the Accounts Team to proceed with invoice creation.
+8. Verify that the invoice is generated successfully after the issue is resolved.
+",,,BM,,,,,,,,,,,,,,,,
+7,DLY-007,P1,Ticket Raise & Follow-up,,Login to Vendor Central,"1. Go to vendorcentral.amazon.in
+2. Enter login credentials
+3. Access the dashboard",,,BM,,,,,,,,,,,,,,,,
+7,DLY-007,P1,Ticket Raise & Follow-up,,Raise a New Ticket,"1. Click “Help” (top right corner)
+2. Click “Contact Us”
+3. Click on “Create New Issue”
+4. Select issue category
+5. Choose sub-category
+6. Enter Subject
+7. Write detailed description
+8. Attach supporting files (if required)
+9. Click “Submit”",,,BM,,,,,,,,,,,,,,,,
+7,DLY-007,P1,Ticket Raise & Follow-up,,Track Existing Tickets,"1. Click “Help”
+2. Go to “Case Log”
+3. View all open & closed cases
+4. Apply filters (Date/Status)
+5. Open specific case for details",,,BM,,,,,,,,,,,,,,,,
+7,DLY-007,P1,Ticket Raise & Follow-up,,Follow-up on Open Tickets,"1. Open the case from Case Log
+2. Click “Reply”
+3. Add follow-up message
+4. Attach documents if needed
+5. Click “Submit”",,,BM,,,,,,,,,,,,,,,,
+7,DLY-007,P1,Ticket Raise & Follow-up,,Escalate Unresolved Tickets,"1. Open existing case
+2. Click “Need More Help” or “Reopen Case”
+3. Request escalation
+4. Provide strong justification
+5. Submit escalation",,,BM,,,,,,,,,,,,,,,,
+7,DLY-007,P1,Ticket Raise & Follow-up,,Daily Follow-up Routine,"1. Open Case Log daily
+2. Filter pending cases
+3. Send follow-up replies
+4. Mark resolved cases",,,BM,,,,,,,,,,,,,,,,
+8,DLY-008,P2,Seller Communication & Query Resolution,,"WhatsApp Communication (Daily Operations)
+Every seller has a dedicated WhatsApp group where the Account Manager remains connected for daily coordination.
+(Expected Response Time: Within 1–2 Hours)","Daily Communication Includes:
+Order Management
+• Share pending order reminders.
+• Follow up for order processing.
+• Request tentative dispatch dates for pending Open Purchase Orders (POs).
+ASIN Suppression
+• Inform the seller whenever an ASIN gets suppressed.
+• Request required images, videos, or documents for POA (Plan of Action).
+• Coordinate until suppression is resolved.
+Inventory Management
+• Share Daily Sales Report.
+• Share Inventory Report.
+• Check daily In-Stock status.
+• If any ASIN is Out of Stock (OOS), discuss the reason and expected restocking timeline.
+Payment Queries
+• Resolve seller payment-related queries after coordinating with the Accounts Team.
+• Inform sellers if payments are on hold.
+• Share reasons such as:
+o GST Pending
+o Documentation Pending
+o Compliance Issues
+• Guide the seller on completing pending requirements.
+Buy Box Monitoring
+• Inform the seller whenever the Buy Box is lost.
+• Discuss possible reasons and corrective actions.
+• Escalate through a phone call if immediate action is required.
+Advertising (Ads)
+• Remind sellers to recharge Ads Wallet whenever the balance is low.
+• Share Monthly Ads Performance Report.
+• Discuss ad performance whenever necessary.
+",,,BM,,,,,,,,,,,,,,,,
+8,DLY-008,P2,Seller Communication & Query Resolution,,"Phone Call 
+Whenever WhatsApp communication is insufficient or immediate action is required, communication should be shifted to a phone call for faster resolution.
+(Expected Response Time:  Immediate / Same Day)","Common Call Discussions
+ASIN Suppression
+Discuss:
+• Packing issues
+• High defective ratio
+• Product quality concerns
+• Customer complaints
+• Immediate corrective actions
+
+Rating & Review Issues
+Discuss:
+• Reasons behind rating decline
+• Negative customer feedback
+• Product improvement suggestions
+• Packaging improvements
+• Quality enhancement
+
+Inventory Issues
+Discuss:
+• Out-of-stock products
+• Production delays
+• Dispatch planning
+• Inventory replenishment timelines
+
+Buy Box Issues
+Discuss:
+• Price competitiveness
+• Seller performance metrics
+• Stock availability
+• Buy Box recovery strategy
+",,,BM,,,,,,,,,,,,,,,,
+8,DLY-008,P2,Seller Communication & Query Resolution,,"Google Meet (Need Based)
+(Expetcer Response Time: As per scheduled meeting)","Business Review
+Discuss:
+• Overall business performance
+• Sales growth
+• Sales decline
+• Category trends
+Technical Support:
+• Whenever a seller faces any issue while using the Brand Central or Accounting Panel, a Google Meet session is scheduled for live troubleshooting.
+• If remote access is required for faster resolution, the support team connects using Ultra Viewer to diagnose and resolve the issue.
+• Ensure all seller queries are resolved before ending the session and provide any necessary follow-up guidance.
+",,,BM,,,,,,,,,,,,,,,,
+8,DLY-008,P2,Seller Communication & Query Resolution,,"Email Communication 
+Emails are used for official communication and documentation.
+(Expected Response Time: Within 24 Hours)","• Costing approval for new product launches.
+• Payment documentation
+• Escalation cases
+• Formal follow-ups
+",,,BM,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,Review management assigned tasks,New RC for new Brand,,,,,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,New RC Inventory Updation,,,,,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,Vendor Central Cost Check,,,,BM,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,Deal Submission,,,,BM,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,Pickup address Confirmation when new brand received,,,,BM,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,LMS Training Completion,,,,BM,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,Share Completion Status,,,,BM,,,,,,,,,,,,,,,,
+9,DLY-009,P1,Priority Based Tasks,,Management Assigned Task,,,,BM,,,,,,,,,,,,,,,,
+10 (A),DLY-0010A,P4,Catalogue & Listing Optimization (Manual Process),,Access Listing via Manage Inventory,"1. Login in to Seller Central
+2. Go to Menu (☰)
+3. Click on Inventory
+4. Click on Manage All Inventory
+5. Search the ASIN you want to optimize
+6. Click on 3 dots (Edit dropdown)
+7. Click on 'Edit Listing'
+8. It will open the Edit Listing page",,,BM,,,,,,,,,,,,,,,,
+10 (A),DLY-0010A,P4,Catalogue & Listing Optimization (Manual Process),,Optimize Product Details (As per UI),"1. Stay on 'Product Details' tab
+2. Update Item Name (Title)
+3. Update Item Highlight (USP)
+4. Verify Brand Name
+5. Verify Model Name
+6. Check Recommended Browse Nodes",,,BM,,,,,,,,,,,,,,,,
+10 (A),DLY-0010A,P4,Catalogue & Listing Optimization (Manual Process),,Optimize Description + Keywords,"1. Stay on 'Product Details' tab
+2. Add 5 keyword-rich bullet points
+3. Update Product Description
+4. Add Search Terms (generic keywords)
+5. Update key product features and other attributes 
+6. Maintain readability + SEO",,,BM,,,,,,,,,,,,,,,,
+10 (A),DLY-0010A,P4,Catalogue & Listing Optimization (Manual Process),,Optimize Images,"1. Go to 'Images' tab
+2. Upload optimized images if required
+3. Add main image (white background)
+4. Add lifestyle images
+5. Add Size chart images",,,BM,,,,,,,,,,,,,,,,
+10 (A),DLY-0010A,P4,Catalogue & Listing Optimization (Manual Process),,Final Submission & Verification,"1. Click 'Save and Finish'
+2. Wait for 15–30 minutes
+3. Search the ASIN on Amazon
+4. Verify updated Title, Bullets, Description
+5. Confirm parent listing reflects changes",,,BM,,,,,,,,,,,,,,,,
+11,DLY-0011,P3,GMS Analyis,,Review daily sales,"Login into retail ops 
+Navigate to downloads
+Download GMS Data",,,BM,,,,,,,,,,,,,,,,
+11,DLY-0011,P3,GMS Analyis,,Compare against targets,"From the downloaded data compare date wise GMS
+",,,BM,,,,,,,,,,,,,,,,
+11,DLY-0011,P3,GMS Analyis,,Identify gaps,"Possible Root causes
+1. Inventory OOS
+2.ASIN Suppression
+3. Buybox Issue
+4. Pricing Error
+5. Listings Removal
+6. Node Change",,,BM,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (1)
+TL-SWAGAT",,Step 1: Export Performance Reports from Adbrew,"Access Adbrew
+1. Log in to Adbrew.
+2. Select the date range:
+o Always choose a reporting period that is 1–2 days prior to the current date to ensure complete data availability.
+3. Select the required brand from the Brand dropdown.
+Export Performance Data
+1. Navigate to:
+Dashboard → Overall Data (ACOS vs Spend vs Total Sales)
+2. Click the three-dot menu (⋮) located in the top-right corner.
+3. Select Export.
+4. Save the exported file using the respective Brand Name.
+5. Repeat the process for all brands.
+",,,BM,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (1)
+TL-SWAGAT",,Step 2: Update the Daily Report,"Upload Exported Data
+1. Open the Daily Reporting workbook.
+2. Navigate to the Dump sheet.
+3. Copy and paste the exported Adbrew data into the designated area.
+Refresh Automated Report
+1. Verify that the automated reporting sheets are connected correctly.
+2. Ensure that formulas and dashboards automatically fetch and organize the updated data.
+3. Review key metrics for any abnormalities or missing values.
+",,,BM,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (1)
+TL-SWAGAT",,Step 3: Check and Identify Ads Wallet Balance and update in Daily Report,"Access AMS Portal to check Ad Wallet Balance 
+Log in to the AMS Portal. (https://advertising.amazon.in/)
+1. Select the required brand.
+2. Navigate to:
+Administration → Billing (https://advertising.amazon.in/ads-bg/billing/history)
+3. Note the available Ads Wallet Balance.
+4. Update the balance in the Daily Report.
+5. If the Balance is Low Inform Seller to de recharge
+6. Once Recharge is done Update it in daily Ad's reporting Sheet, if not then take follow up
+7 . Repeat the process for all brands.
+",,,BM,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (1)
+TL-SWAGAT",,Step 4: Validate  the Daily  Report,"1. Verify that:
+o Performance data has been updated for all brands.
+o Ads Wallet balances are correctly entered.
+o Automated calculations and dashboards are functioning properly.
+2. Cross-check figures for accuracy before sharing.
+",,,BM,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (1)
+TL-SWAGAT",,Step 5: Share the Final Report,"1. Take a screenshot of the completed Daily Report.
+2. Ensure all relevant metrics are visible and readable.
+3. Share the screenshot in the respective brand communication group.
+4. Confirm successful delivery of the report.
+",,,BM,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (1)
+TL-SWAGAT",,Output,"A fully updated Daily Business Report containing:
+• Advertising Performance Metrics
+• Sales Performance Data
+• ACOS, Spend, and Total Sales Overview
+• Ads Wallet Balances
+• Daily Performance Snapshot shared with stakeholders
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,"Access - Amazon Vendor Central
+And Check Daily GMS","Step 1: Log in to Amazon Vendor Central, Make sure the correct vendor account is selected.
+Step 2: Open Sales Dashboard
+Go to:
+• Reports → Sales Diagnostics
+OR
+• Reports → Retail Analytics (if available).
+Step 3: Select Date Range
+Review:
+• Today (if available)
+• Yesterday
+• Last 7 Days
+• Month-to-Date (MTD)
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,Record GMS Metrics,"Step 4: 
+Record:
+• Gross Merchandise Sales (GMS)
+• Ordered Revenue
+• Shipped Revenue (if needed)
+• Units Ordered
+• Units Shipped
+• Average Selling Price (ASP)
+
+Example:
+Yesterday GMS: $25,450
+Last 7 Days: $178,900
+MTD: $745,300
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,Compare Performance,"Step 5: 
+Compare:
+• Yesterday vs Previous Day
+• Last 7 Days vs Previous 7 Days
+• MTD vs Monthly Target
+• MTD vs Same Month Last Year
+
+Calculate:
+• Growth %
+• Achievement %
+• Variance
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,Investigate Changes,"Step 6:
+If sales increase or decrease significantly, check:
+• Purchase Orders
+• Instock %
+• Out-of-Stock ASINs
+• Pricing
+• Promotions
+• Advertising
+• Suppressed Listings
+• Seasonal Demand
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,Review ASIN Performance,"Step 7:
+Identify:
+• Top-selling ASINs
+• Lowest-selling ASINs
+• ASINs with sales drops
+• New ASINs with good growth
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,Compiled GMS Daily Report,"Step 8:
+Include:
+• Yesterday GMS
+• Last 7 Days GMS
+• MTD GMS
+• Target Achievement
+• Top & Lowest ASINs
+• Key Issues
+• Action Required
+",,,,,,,,,,,,,,,,,,,
+12,DLY-0012,P2,"Daily Business Report (2)
+TL-Chintan, Jay, Anjali",,Key Points  to be noted,"• Check GMS every morning.
+• Compare with targets and previous periods.
+• Monitor Purchase Orders and Instock %.
+• Investigate sudden sales changes immediately.
+• Maintain a daily tracker.
+• Escalate critical issues without delay.
+",,,,,,,,,,,,,,,,,,,
+10 (B),DLY-0010B,P2,Catalogue & Listing Optimization (Bulk Process),,Access Variation Wizard Template (Generate Template),"1. Login in to Seller Central 
+2. Go to Menu (☰) 
+3. Click on Inventory 
+4. Click on Manage All Inventory 
+5. Select the ASIN you want to optimize 
+6. In Manage Inventory tab, select ""Add a Variation"" 
+7. It will redirect you to Variation Wizard 
+8. Select ""Add to or update an existing Variation family"" 
+9. Search the ASIN 
+10. Generate template ",,,,,,,,,,,,,,,,,,,
+10 (B),DLY-0010B,P2,Catalogue & Listing Optimization (Bulk Process),,Fill Template for Optimization (Partial Update),"1. Open the downloaded template
+2. Update required fields only (Title, Bullets, Description, Search Terms)
+3. Ensure variation fields (parent_sku, parentage, relationship_type) are correct
+4. Copy optimized content across all child SKUs",,,,,,,,,,,,,,,,,,,
+10 (B),DLY-0010B,P2,Catalogue & Listing Optimization (Bulk Process),,Set Update Type,"1. Find 'update_delete' column
+2. Enter 'PartialUpdate'
+3. This ensures only filled fields are updated",,,,,,,,,,,,,,,,,,,
+10 (B),DLY-0010B,P2,Catalogue & Listing Optimization (Bulk Process),,Upload & Submit File,"1. Save file
+2. Go to 'Add Products via Upload'
+3. Upload the file
+4. Click 'Submit'",,,,,,,,,,,,,,,,,,,
+10 (B),DLY-0010B,P2,Catalogue & Listing Optimization (Bulk Process),,Monitor Upload Status,"1. Go to 'Check Upload Status'
+2. Check processing status
+3. Download processing report
+4. Fix errors if any
+5. Ensure upload is successful",,,,,,,,,,,,,,,,,,,
+10 (B),DLY-0010B,P2,Catalogue & Listing Optimization (Bulk Process),,Verify Listing Optimization,"1. Wait for 15–30 minutes
+2. Search the ASIN on Amazon
+3. Verify updated Title, Bullets & Description
+4. Confirm parent listing reflects optimized content",,,,,,,,,,,,,,,,,,,

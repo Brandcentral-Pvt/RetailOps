@@ -56,6 +56,16 @@ async function resolveAssignees(pool, tpl) {
   }));
 }
 
+/** The brands (sellers) a person looks after, for a multi-brand routine's checklist. */
+async function loadBrands(pool, userId) {
+  const res = await pool.request().input('u', sql.VarChar, userId).query(`
+    SELECT DISTINCT s.Id, s.Name
+    FROM UserSellers us JOIN Sellers s ON s.Id = us.SellerId
+    WHERE us.UserId = @u AND s.IsActive = 1
+    ORDER BY s.Name`);
+  return res.recordset.map(r => ({ id: r.Id, name: r.Name }));
+}
+
 /**
  * Daily routines: for every active AutoAssign template that runs today, create one ASSIGNED instance
  * per assignee (due today at the template's DueTime). Idempotent per (template, day, person) through
@@ -72,7 +82,7 @@ async function generateRoutineOccurrences(now = new Date(), opts = {}) {
 
   const tpls = (await req.query(`
     SELECT TOP (200) Id, TaskCode, Name, Category, Department, Priority, SLAHours, DefaultTarget, ReviewerId,
-           Frequency, RunDays, DueTime, AssigneeRole, AssigneeUserIds
+           Frequency, RunDays, DueTime, AssigneeRole, AssigneeUserIds, BrandMode
     FROM PemsTaskTemplates WHERE ${where}`)).recordset;
 
   const out = { created: 0, skipped: 0, templates: tpls.length, noAssignees: [] };
@@ -95,6 +105,11 @@ async function generateRoutineOccurrences(now = new Date(), opts = {}) {
         .input('t', sql.VarChar, tpl.Id).input('occ', sql.DateTime2, today).input('a', sql.VarChar, a.id)
         .query('SELECT COUNT(*) AS c FROM PemsRecurrenceLog WHERE TemplateId = @t AND OccurrenceFor = @occ AND AssigneeId = @a');
       if (dup.recordset[0].c > 0) { out.skipped++; continue; }
+      let brands = [];
+      if (tpl.BrandMode === 'CHECKLIST') {
+        try { brands = await loadBrands(pool, a.id); }
+        catch (err) { logger.warn(`Routine: could not load brands for ${a.id}`, { error: err.message }); }
+      }
       try {
         const inst = await pemsService.createInstance({
           templateId: tpl.Id, title: tpl.Name, department: tpl.Department, category: tpl.Category,
@@ -102,6 +117,7 @@ async function generateRoutineOccurrences(now = new Date(), opts = {}) {
           reviewerId: tpl.ReviewerId, frequency: tpl.Frequency,
           status: 'ASSIGNED', assignedTo: a.id, assigneeName: a.name,
           dueDate: dueAt, occurrenceDate: today,
+          brands, sellerName: brands.length === 1 ? brands[0].name : brands.length > 1 ? `${brands.length} brands` : '',
           source: 'ROUTINE', sourceId: tpl.Id, sourceRef: tpl.TaskCode, tags: [tpl.TaskCode].filter(Boolean),
           description: `Daily routine · ${today.toISOString().slice(0, 10)}`,
         });
@@ -215,4 +231,4 @@ async function generateDueOccurrences(now = new Date()) {
   return { disabled: false, created: created + routineCreated, scanned: templates.length };
 }
 
-module.exports = { generateDueOccurrences, generateRoutineOccurrences, resolveAssignees, computeNextOccurrence };
+module.exports = { generateDueOccurrences, generateRoutineOccurrences, resolveAssignees, loadBrands, computeNextOccurrence };

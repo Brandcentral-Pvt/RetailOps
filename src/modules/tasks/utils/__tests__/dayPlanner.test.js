@@ -159,3 +159,12 @@ test('same-day deadlines: the earlier cut-off is planned first and the reason sh
   assert.deepEqual(plan.must.map(x => x.task.Title), ['labels-1330', 'report-6pm']);
   assert.ok(scoreTask(b, now).reasons.some(r => r.text === 'Due by 1:30 PM'));
 });
+
+test('multi-brand routines: estimate shrinks as brands are covered', () => {
+  const base = { EstimatedMinutes: 120, SubTaskTotal: 0, SubTaskDone: 0, Status: 'IN_PROGRESS' };
+  assert.equal(estimateMinutes({ ...base, BrandTotal: 8, BrandDone: 0 }), 120);
+  assert.equal(estimateMinutes({ ...base, BrandTotal: 8, BrandDone: 4 }), 60);
+  assert.equal(estimateMinutes({ ...base, BrandTotal: 8, BrandDone: 8 }), 10);
+  // with sub-tasks too: average of the two progress measures (brands 50%, sub-tasks 0% → 25% done)
+  assert.equal(estimateMinutes({ ...base, SubTaskTotal: 4, SubTaskDone: 0, BrandTotal: 8, BrandDone: 4 }), 90);
+});
