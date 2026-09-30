@@ -197,24 +197,41 @@ exports.uploadEvidence = async (req, res) => {
 // REVIEWS
 // ═══════════════════════════════════════════════════════
 
+const reviewActor = (req) => ({
+  id: getUserId(req),
+  name: getUserName(req) || req.user?.email,
+  role: req.user?.role,
+});
+
+// Review + workflow transition (claim → record → decide) in ONE transaction.
 exports.submitReview = async (req, res) => {
   try {
-    const result = await pemsService.submitReview({
-      ...req.body,
-      reviewerId: getUserId(req),
-      reviewerName: getUserName(req) || req.user?.email,
-    });
-
-    // Review insert + workflow transition applied atomically
-    await pemsService.submitReviewAndTransition(req.body, {
-      id: getUserId(req),
-      name: getUserName(req) || req.user?.email,
-      role: req.user?.role,
-    });
-
+    const result = await pemsService.submitReviewAndTransition(req.body, reviewActor(req));
     res.json({ success: true, data: result });
   } catch (err) {
+    console.error('submitReview error:', err.message);
     res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.bulkReview = async (req, res) => {
+  try {
+    const { ids, decision, feedback, qualityScore } = req.body || {};
+    const result = await pemsService.bulkReview(ids, { decision, feedback, qualityScore }, reviewActor(req), req.user);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('bulkReview error:', err.message);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.getReviewStats = async (req, res) => {
+  try {
+    const data = await pemsService.getReviewStats(req.user);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('getReviewStats error:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 

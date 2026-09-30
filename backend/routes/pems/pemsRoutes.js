@@ -32,6 +32,8 @@ router.post('/evidence', auth, requireTaskAccess, ctrl.uploadEvidence);
 
 // ── Reviews ──
 router.post('/reviews', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.submitReview);
+router.post('/reviews/bulk', auth, invalidateCache('pems:instances'), ctrl.bulkReview);
+router.get('/reviews/stats', auth, ctrl.getReviewStats);
 
 // ── Dashboard ──
 router.get('/dashboard/kpis', auth, cacheRoute('pems:dashboard', 120), ctrl.getDashboardKPIs);

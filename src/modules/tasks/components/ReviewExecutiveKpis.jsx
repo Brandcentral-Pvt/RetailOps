@@ -1,79 +1,96 @@
 import React from 'react';
-import { Typography } from 'antd';
-import { ClockCircleOutlined, AlertOutlined, WarningOutlined, SafetyCertificateOutlined, CalendarOutlined, BarChartOutlined, ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, EyeOutlined } from '@ant-design/icons';
+import { Skeleton } from 'antd';
+import {
+  InboxOutlined, AlertOutlined, WarningOutlined, CalendarOutlined,
+  FieldTimeOutlined, SafetyCertificateOutlined, RollbackOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, MinusOutlined,
+} from '@ant-design/icons';
 
-const { Text } = Typography;
+/** minutes → "45m" / "3.2h" / "1.4d"  (null → "—") */
+export function formatMinutes(min) {
+  if (min === null || min === undefined || Number.isNaN(min)) return '—';
+  if (min < 60) return `${Math.max(0, Math.round(min))}m`;
+  if (min < 60 * 24) return `${(min / 60).toFixed(1).replace(/\.0$/, '')}h`;
+  return `${(min / 1440).toFixed(1).replace(/\.0$/, '')}d`;
+}
 
-function TrendArrow({ value }) {
+/**
+ * Trend chip. `goodWhen` = 'up' | 'down' decides which direction is green.
+ * value === null → no prior-period data, so nothing is shown (never fabricated).
+ */
+function Trend({ value, unit, goodWhen }) {
   if (value === null || value === undefined) return null;
-  const isUp = value > 0;
-  const isDown = value < 0;
+  if (value === 0) return <span className="rv-trend flat"><MinusOutlined style={{ fontSize: 9 }} /> 0{unit}</span>;
+  const up = value > 0;
+  const good = goodWhen === 'up' ? up : !up;
   return (
-    <span style={{ fontSize: 10, fontWeight: 600, color: isUp ? '#2E7D32' : isDown ? '#D32F2F' : '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-      {isUp ? <ArrowUpOutlined style={{ fontSize: 9 }} /> : isDown ? <ArrowDownOutlined style={{ fontSize: 9 }} /> : <MinusOutlined style={{ fontSize: 9 }} />}
-      {Math.abs(value).toFixed(0)}%
-      <span style={{ color: '#94a3b8', fontWeight: 500 }}>vs yesterday</span>
+    <span className={`rv-trend ${good ? 'good' : 'bad'}`}>
+      {up ? <ArrowUpOutlined style={{ fontSize: 9 }} /> : <ArrowDownOutlined style={{ fontSize: 9 }} />}
+      {Math.abs(value)}{unit}
     </span>
   );
 }
 
-function GlassCard({ title, value, subtitle, color, icon: Icon, trend, onClick, active }) {
+function Kpi({ label, value, color, icon, sub, trend, onClick, active }) {
+  const Icon = icon;
   return (
-    <div onClick={onClick} style={{
-      padding: '14px 16px', borderRadius: "var(--radius-lg)", background: active ? `linear-gradient(135deg, ${color}08, ${color}04)` : '#fff',
-      border: `1px solid ${active ? color + '30' : '#e5e7eb'}`,
-      cursor: onClick ? 'pointer' : 'default', transition: 'all 0.2s ease',
-      position: 'relative', overflow: 'hidden', flex: '1 1 0', minWidth: 150,
-      boxShadow: active ? `0 4px 12px ${color}10` : '0 1px 3px rgba(0,0,0,0.04)',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <Text style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, display: 'block' }}>{title}</Text>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginTop: 4, fontFamily: '-apple-system, system-ui, sans-serif' }}>{value}</div>
-          {subtitle && <Text style={{ fontSize: 'var(--font-size-xs)', color: subtitle.color || '#64748b', display: 'block', marginTop: 4, fontWeight: subtitle.bold ? 600 : 400 }}>{subtitle.text}</Text>}
-        </div>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${color}15, ${color}08)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-          <Icon size={18} />
-        </div>
+    <div
+      className={`rv-kpi${onClick ? ' clickable' : ''}${active ? ' active' : ''}`}
+      style={{ '--rv-accent': color }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+    >
+      <span className="rv-kpi__icon" style={{ background: `${color}14`, color }}><Icon /></span>
+      <div>
+        <div className="rv-kpi__label">{label}</div>
+        <div className="rv-kpi__value">{value}</div>
       </div>
-      {trend !== null && trend !== undefined && (
-        <div style={{ marginTop: 6 }}><TrendIndicator value={trend} /></div>
-      )}
-      {/* Subtle gradient bar */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${color}50, transparent)` }} />
+      <div className="rv-kpi__sub">{sub}{trend}</div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, background: `linear-gradient(90deg, ${color}B3, ${color}14)` }} />
     </div>
   );
 }
 
-export function ReviewExecutiveKpis({ data, loading }) {
-  if (loading) return null;
-
-  const kpis = [
-    { title: 'Pending Reviews', value: data.pending || 0, color: '#7c3aed', icon: ClockCircleOutlined, subtitle: { text: `${data.pendingToday || 0} due today`, color: '#7c3aed' }, trend: data.pendingTrend },
-    { title: 'Avg Review Time', value: `${data.avgReviewTime || 0}m`, color: '#2563eb', icon: EyeOutlined, subtitle: { text: 'Target: 15 min', color: '#64748b' }, trend: data.reviewTimeTrend },
-    { title: 'SLA Compliance', value: `${data.slaCompliance || 0}%`, color: (data.slaCompliance || 0) >= 95 ? '#2E7D32' : '#D32F2F', icon: SafetyCertificateOutlined, subtitle: { text: 'Target: 95%', color: '#64748b' }, trend: data.slaTrend },
-    { title: 'Rework Rate', value: `${data.reworkRate || 0}%`, color: (data.reworkRate || 0) <= 5 ? '#2E7D32' : '#ED6C02', icon: WarningOutlined, subtitle: { text: 'Target: <5%', color: '#64748b' }, trend: data.reworkTrend },
-    { title: 'Critical Reviews', value: data.critical || 0, color: data.critical > 0 ? '#D32F2F' : '#2E7D32', icon: AlertOutlined, subtitle: { text: data.critical > 0 ? 'Needs attention' : 'No escalations', color: data.critical > 0 ? '#D32F2F' : '#2E7D32' } },
-    { title: 'Due Today', value: data.today || 0, color: (data.today || 0) > 0 ? '#ED6C02' : '#2E7D32', icon: CalendarOutlined, subtitle: { text: (data.today || 0) > 0 ? 'Review now' : 'On track', color: '#64748b' } },
-  ];
+/**
+ * Review KPI strip.
+ *  counts  – live queue counts (from the queue API, so they always match the list)
+ *  stats   – /pems/reviews/stats (30-day performance + week-over-week trends)
+ *  Queue cards filter the list when clicked; performance cards are informational.
+ */
+export function ReviewExecutiveKpis({ counts = {}, stats, loading, activeView, onSelectView }) {
+  if (loading && !stats && counts.ALL === undefined) {
+    return <div className="rv-kpi-grid">{[0, 1, 2, 3, 4, 5, 6].map(i => <div key={i} className="rv-kpi"><Skeleton active paragraph={{ rows: 1 }} title={false} /></div>)}</div>;
+  }
+  const w = stats?.window30 || {};
+  const t = stats?.trends || {};
+  const teamLabel = stats?.scope === 'mine' ? 'your reviews' : 'team';
+  const pct = (v) => (v === null || v === undefined ? '—' : `${v}%`);
+  const noData = <span>No reviews in 30d</span>;
 
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-      {kpis.map(kpi => <GlassCard key={kpi.title} {...kpi} />)}
+    <div className="rv-kpi-grid">
+      <Kpi label="Awaiting review" value={counts.ALL ?? '—'} color="#1976D2" icon={InboxOutlined}
+        sub={<span>{counts.RESUBMITTED ? `${counts.RESUBMITTED} resubmitted` : 'Submitted + under review'}</span>}
+        onClick={() => onSelectView('ALL')} active={activeView === 'ALL'} />
+      <Kpi label="Critical" value={counts.CRITICAL ?? '—'} color="#D32F2F" icon={AlertOutlined}
+        sub={<span>Priority = critical</span>} onClick={() => onSelectView('CRITICAL')} active={activeView === 'CRITICAL'} />
+      <Kpi label="Overdue" value={counts.OVERDUE ?? '—'} color="#E65100" icon={WarningOutlined}
+        sub={<span>Past due date</span>} onClick={() => onSelectView('OVERDUE')} active={activeView === 'OVERDUE'} />
+      <Kpi label="Due today" value={counts.DUE_TODAY ?? '—'} color="#ED6C02" icon={CalendarOutlined}
+        sub={<span>Due before midnight</span>} onClick={() => onSelectView('DUE_TODAY')} active={activeView === 'DUE_TODAY'} />
+      <Kpi label="Avg turnaround" value={formatMinutes(w.avgTurnaroundMin)} color="#7B1FA2" icon={FieldTimeOutlined}
+        sub={w.decided ? <span>Submit → decision · 30d</span> : noData}
+        trend={<Trend value={t.avgTurnaroundPct} unit="%" goodWhen="down" />} />
+      <Kpi label="On-time approvals" value={pct(w.slaCompliance)} color="#2E7D32" icon={SafetyCertificateOutlined}
+        sub={w.decided ? <span>Approved by due date · {teamLabel}</span> : noData}
+        trend={<Trend value={t.slaCompliancePts} unit=" pts" goodWhen="up" />} />
+      <Kpi label="Sent-back rate" value={pct(w.reworkRate)} color="#C2410C" icon={RollbackOutlined}
+        sub={w.decided ? <span>{w.rejected}/{w.decided} reviews · 30d</span> : noData}
+        trend={<Trend value={t.reworkRatePts} unit=" pts" goodWhen="down" />} />
     </div>
   );
 }
 
-function TrendIndicator({ value }) {
-  if (value === undefined || value === null) return null;
-  const isUp = value > 0;
-  const isDown = value < 0;
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: isUp ? '#2E7D32' : isDown ? '#D32F2F' : '#94a3b8' }}>
-        {isUp ? '↑' : isDown ? '↓' : '—'} {Math.abs(value).toFixed(0)}%
-      </span>
-      <span style={{ fontSize: 10, color: '#94a3b8' }}>vs yesterday</span>
-    </div>
-  );
-}
+export default ReviewExecutiveKpis;
