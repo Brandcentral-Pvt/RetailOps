@@ -829,10 +829,11 @@ function buildSqlFilter(rules) {
         } else if (numericAttrs.has(cond.attribute)) {
           params[key] = Number(val);
           if (isNaN(params[key])) continue;
+          condFilters.push(`${col} ${sqlOp} @${key}`);
         } else {
           params[key] = String(val ?? '');
+          condFilters.push(`${col} ${sqlOp} @${key}`);
         }
-        condFilters.push(`${col} ${sqlOp} @${key}`);
       } else {
         continue;
       }
