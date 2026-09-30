@@ -7,7 +7,7 @@
   --bg-secondary: var(--bc-surface-muted);
   --border-light: var(--bc-border-default);
   --border-medium: var(--bc-border-strong);
-  --text-primary: var(--bc-text-primary);
+  --text-primary: var(--bc-text-heading);
   --text-secondary: var(--bc-text-secondary);
   --text-muted: var(--bc-text-muted);
   --radius-sm: var(--bc-radius-sm);
@@ -15,12 +15,15 @@
   --radius-lg: var(--bc-radius-lg);
   --shadow-sm: var(--bc-shadow-sm);
   --shadow-md: var(--bc-shadow-md);
-  --focus-ring: var(--bc-focus-ring);
+  --focus-ring: var(--bc-shadow-focus);
   --transition-fast: var(--bc-transition-fast);
 }
 
-/* ---- Density tokens (Compact / Comfortable / Roomy) ---- */
-.rulesets-table {
+/* ---- Density tokens (Compact / Comfortable / Roomy) ----
+   Declared on the wrapper because antd's Table does not forward arbitrary
+   props to any DOM node. Custom properties inherit, so the table below still
+   receives them. The density control was previously wired to nothing. */
+.rulesets-tablewrap {
   --rulesets-head-h: 36px;
   --rulesets-row-h: 44px;
   --rulesets-cell-pad-x: var(--bc-space-4);
@@ -28,7 +31,7 @@
   --rulesets-gap-sm: var(--bc-space-2);
   --rulesets-gap-md: var(--bc-space-3);
 }
-.rulesets-table[data-density="compact"] {
+.rulesets-tablewrap[data-density="compact"] {
   --rulesets-head-h: 28px;
   --rulesets-row-h: 36px;
   --rulesets-cell-pad-x: var(--bc-space-3);
@@ -36,35 +39,46 @@
   --rulesets-gap-sm: var(--bc-space-1);
   --rulesets-gap-md: var(--bc-space-2);
 }
-.rulesets-table[data-density="roomy"] {
+/* The name cell is two lines (name + description), so its content sets a row
+   floor that padding alone cannot compress. Compact hides the secondary line
+   to actually get back the vertical space the density control advertises. */
+.rulesets-tablewrap[data-density="compact"] .rulesets-desc { display: none; }
+.rulesets-tablewrap[data-density="roomy"] {
   --rulesets-row-h: 52px;
   --rulesets-cell-pad-y: var(--bc-space-3);
 }
+/* Roomy gives the secondary line breathing room and loosens the meta line. */
+.rulesets-tablewrap[data-density="roomy"] .rulesets-desc {
+  font-size: var(--bc-text-sm);
+  margin-top: var(--bc-space-1-half);
+  max-width: 420px;
+}
 
 /* ---- Layout ---- */
-.rulesets-scroll {
+.rulesets-tablewrap {
   overflow-x: auto;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-light);
-  background: var(--bc-surface);
+  background: var(--bc-surface-card);
 }
-.rulesets-scroll::-webkit-scrollbar { height: 8px; }
-.rulesets-scroll::-webkit-scrollbar-thumb { background: var(--bc-border-strong); border-radius: 4px; }
+.rulesets-tablewrap::-webkit-scrollbar { height: 8px; }
+.rulesets-tablewrap::-webkit-scrollbar-thumb { background: var(--bc-border-strong); border-radius: 4px; }
 
 /* ---- Table base ---- */
 .rulesets-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: var(--bc-font-size-sm);
+  font-size: var(--bc-text-sm);
   table-layout: fixed;
 }
 .rulesets-table thead { background: var(--bc-surface-muted); }
-.rulesets-table th {
+.rulesets-table th,
+.rulesets-table .ant-table-cell {
   height: var(--rulesets-head-h);
   padding: 0 var(--rulesets-cell-pad-x);
   font-weight: 600;
-  font-size: var(--bc-font-size-xs);
+  font-size: var(--bc-text-xs);
   color: var(--bc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -75,27 +89,39 @@
   top: 0;
   z-index: 2;
 }
-.rulesets-table td {
+/* antd sets .ant-table-cell padding with its own specificity, which beat
+   `.rulesets-table td` and made the density padding a no-op. */
+.rulesets-table td,
+.rulesets-table .ant-table-cell {
   padding: var(--rulesets-cell-pad-y) var(--rulesets-cell-pad-x);
   height: var(--rulesets-row-h);
   vertical-align: middle;
   border-bottom: 1px solid var(--border-light);
-  color: var(--bc-text-primary);
+  color: var(--bc-text-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* antd applies a larger line-height and default vertical padding via
+   `size`, so reset those to let the density tokens control the row box. */
+.rulesets-table .ant-table-cell { line-height: 1.45; }
 
-/* ---- Sticky first column (Name) ---- */
+/* ---- Sticky first column (Name) ----
+   Pinned cells need their own opaque background. `background: inherit`
+   resolved to the <tr>'s transparent background, so rows scrolled straight
+   through the frozen Name and Actions columns. */
 .rulesets-table th:first-child,
 .rulesets-table td:first-child {
   position: sticky;
   left: 0;
   z-index: 3;
-  background: inherit;
+  background: var(--bc-surface-card);
   box-shadow: inset -1px 0 0 var(--border-light);
 }
-.rulesets-table thead th:first-child { z-index: 4; }
+.rulesets-table thead th:first-child {
+  z-index: 4;
+  background: var(--bc-surface-muted);
+}
 
 /* ---- Sticky last column (Actions) ---- */
 .rulesets-table th:last-child,
@@ -103,10 +129,22 @@
   position: sticky;
   right: 0;
   z-index: 3;
-  background: inherit;
+  background: var(--bc-surface-card);
   box-shadow: inset 1px 0 0 var(--border-light);
 }
-.rulesets-table thead th:last-child { z-index: 4; }
+.rulesets-table thead th:last-child {
+  z-index: 4;
+  background: var(--bc-surface-muted);
+}
+
+/* Hover and selection must repaint the pinned cells too, or the frozen
+   columns stay put while the row slides out from under them. */
+.rulesets-table tbody tr:hover td:first-child,
+.rulesets-table tbody tr:hover td:last-child { background: var(--bc-surface-hover); }
+.rulesets-table tbody tr.is-selected td:first-child,
+.rulesets-table tbody tr.is-selected td:last-child,
+.rulesets-table tbody tr.is-selected:hover td:first-child,
+.rulesets-table tbody tr.is-selected:hover td:last-child { background: var(--bc-primary-50); }
 
 /* ---- Row states ---- */
 .rulesets-table tbody tr {
@@ -116,10 +154,10 @@
   background: var(--bc-surface-hover);
 }
 .rulesets-table tbody tr.is-selected {
-  background: var(--bc-primary-subtle);
+  background: var(--bc-primary-50);
 }
 .rulesets-table tbody tr.is-selected:hover {
-  background: var(--bc-primary-subtle-hover);
+  background: var(--bc-primary-100);
 }
 .rulesets-table tbody tr.is-disabled {
   opacity: 0.55;
@@ -131,29 +169,49 @@
 /* ---- Focus ring for keyboard nav ---- */
 .rulesets-table tbody tr:focus-within {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  box-shadow: inset 0 0 0 2px var(--bc-shadow-focus);
 }
 
 /* ---- Cell content helpers ---- */
-.rulesets-name { font-weight: 600; color: var(--bc-text-primary); }
-.rulesets-name:hover { color: var(--bc-primary); }
-.rulesets-desc { font-size: var(--bc-font-size-xs); color: var(--bc-text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+/* The name is a real <button> so it is reachable and operable by keyboard;
+   the previous <span onClick> made the whole page mouse-only. */
+.rulesets-name {
+  font: inherit;
+  font-weight: 600;
+  color: var(--bc-text-heading);
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.rulesets-name:hover { color: var(--bc-primary-600); text-decoration: underline; }
+.rulesets-name:focus-visible { outline: 2px solid var(--bc-shadow-focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.rulesets-namecell { min-width: 0; }
+.rulesets-desc { font-size: var(--bc-text-xs); color: var(--bc-text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.rulesets-lastrun { font-size: var(--bc-text-xs); color: var(--bc-text-secondary); }
 
 /* ---- Badge / Tag ---- */
 .rulesets-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--bc-font-size-xs);
+  font-size: var(--bc-text-xs);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 9999px;
   border: 1px solid transparent;
 }
 .rulesets-badge--auto {
-  background: var(--bc-info-subtle);
-  color: var(--bc-info);
-  border-color: var(--bc-info-border);
+  background: var(--bc-status-info-bg);
+  color: var(--bc-status-info);
+  border-color: var(--bc-status-info);
 }
 .rulesets-badge--manual {
   background: var(--bc-surface-muted);
@@ -161,26 +219,29 @@
   border-color: var(--bc-border-default);
 }
 .rulesets-badge--status {
-  background: var(--bc-success-subtle);
-  color: var(--bc-success);
-  border-color: var(--bc-success-border);
+  background: var(--bc-status-success-bg);
+  color: var(--bc-status-success);
+  border-color: var(--bc-border-success);
 }
 
 /* ---- Count / Numeric ---- */
 .rulesets-count {
   font-weight: 600;
-  color: var(--bc-text-primary);
+  color: var(--bc-text-heading);
 }
 .rulesets-count--matched {
-  color: var(--bc-success);
+  color: var(--bc-status-success-text);
 }
+/* A zero is real information ("ran, matched nothing"), so it stays legible
+   rather than being greyed into looking like missing data. */
+.rulesets-count--zero { color: var(--bc-text-muted); font-weight: 500; }
 
 /* ---- Switch integration ---- */
 .rulesets-table .ant-switch {
   background: var(--bc-border-default);
 }
 .rulesets-table .ant-switch-checked {
-  background: var(--bc-primary);
+  background: var(--bc-primary-600);
 }
 
 /* ---- Toolbar / Header ---- */
@@ -191,13 +252,48 @@
   gap: var(--rulesets-gap-md);
   padding: var(--bc-space-4) var(--bc-space-5);
   border-bottom: 1px solid var(--border-light);
-  background: var(--bc-surface);
+  background: var(--bc-surface-card);
 }
 .rulesets-toolbar__left { display: flex; align-items: center; gap: var(--rulesets-gap-md); flex: 1; min-width: 0; }
-.rulesets-toolbar__title { font-size: var(--bc-font-size-lg); font-weight: 600; color: var(--bc-text-primary); margin: 0; }
-.rulesets-toolbar__subtitle { font-size: var(--bc-font-size-sm); color: var(--bc-text-secondary); margin: var(--bc-space-1) 0 0; }
+.rulesets-toolbar__heading { min-width: 0; }
+.rulesets-toolbar__title { font-size: var(--bc-text-lg); font-weight: 600; color: var(--bc-text-heading); margin: 0; }
+.rulesets-toolbar__subtitle { font-size: var(--bc-text-sm); color: var(--bc-text-secondary); margin: var(--bc-space-1) 0 0; }
+.rulesets-toolbar__stamp { font-size: var(--bc-text-xs); color: var(--bc-text-muted); white-space: nowrap; }
 
 .rulesets-toolbar__right { display: flex; align-items: center; gap: var(--rulesets-gap-sm); flex-wrap: wrap; }
+
+/* Icon-only controls: a real 32px hit area with a visible focus ring, so
+   they are usable by keyboard and easy to hit on touch. */
+.rulesets-iconbtn,
+.rulesets-kebab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--bc-text-secondary);
+  border-radius: var(--radius-md);
+}
+.rulesets-iconbtn:hover,
+.rulesets-kebab:hover { color: var(--bc-text-heading); background: var(--bc-surface-hover); }
+.rulesets-iconbtn:focus-visible,
+.rulesets-kebab:focus-visible { outline: 2px solid var(--bc-shadow-focus); outline-offset: -2px; }
+
+.rulesets-cta {
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--bc-text-sm);
+  height: 32px;
+}
+.rulesets-spin { animation: rulesets-rotate 900ms linear infinite; }
+@keyframes rulesets-rotate { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .rulesets-spin { animation: none; }
+}
+
+.rulesets-check { color: var(--bc-status-success-text); }
+.rulesets-searchicon { color: var(--bc-text-muted); }
 
 /* ---- KPI strip ---- */
 .rulesets-kpi { display: flex; gap: var(--bc-space-3); padding: 0 var(--bc-space-5) var(--bc-space-4); flex-wrap: wrap; }
@@ -213,62 +309,70 @@
   width: 36px; height: 36px; border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
 }
-.rulesets-kpi__icon--total { background: var(--bc-text-primary); }
-.rulesets-kpi__icon--active { background: var(--bc-success); }
-.rulesets-kpi__icon--auto { background: var(--bc-info); }
-.rulesets-kpi__icon svg { color: #fff; }
-.rulesets-kpi__label { font-size: var(--bc-font-size-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bc-text-muted); }
-.rulesets-kpi__value { font-size: var(--bc-font-size-xl); font-weight: 700; color: var(--bc-text-primary); line-height: 1; }
+.rulesets-kpi__icon--total { background: var(--bc-text-heading); }
+.rulesets-kpi__icon--active { background: var(--bc-status-success); }
+.rulesets-kpi__icon--auto { background: var(--bc-status-info); }
+.rulesets-kpi__icon--paused { background: var(--bc-text-muted); }
+.rulesets-kpi__icon svg { color: var(--bc-surface-card); }
+.rulesets-kpi__label { font-size: var(--bc-text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bc-text-muted); }
+.rulesets-kpi__value { font-size: var(--bc-text-lg); font-weight: 700; color: var(--bc-text-heading); line-height: 1; }
+
+/* ---- Content ---- */
+.rulesets-content { padding: 0 var(--bc-space-5) var(--bc-space-5); }
+.rulesets-error { margin-top: var(--bc-space-2); }
 
 /* ---- Filters ---- */
 .rulesets-filters { display: flex; gap: var(--bc-space-3); padding: 0 var(--bc-space-5) var(--bc-space-4); flex-wrap: wrap; align-items: center; }
+.rulesets-search { width: 240px; max-width: 100%; }
+.rulesets-statusfilter { width: 140px; }
 .rulesets-filters .ant-input,
 .rulesets-filters .ant-select-selector {
   border-radius: var(--radius-md) !important;
   border-color: var(--bc-border-default) !important;
-  background: var(--bc-surface) !important;
+  background: var(--bc-surface-card) !important;
   height: 36px !important;
 }
 .rulesets-filters .ant-input:focus,
+.rulesets-filters .ant-input-focused,
 .rulesets-filters .ant-select-focused .ant-select-selector {
-  border-color: var(--bc-primary) !important;
-  box-shadow: var(--focus-ring) !important;
+  border-color: var(--bc-primary-600) !important;
+  box-shadow: var(--bc-shadow-focus) !important;
 }
-.rulesets-filters .ant-select { width: 140px !important; }
+.rulesets-clearfilters { color: var(--bc-text-secondary); font-size: var(--bc-text-sm); }
+.rulesets-clearfilters:hover { color: var(--bc-primary-600); }
 
 /* ---- Pagination ---- */
 .rulesets-pagination { display: flex; justify-content: center; padding: var(--bc-space-4) 0; }
 
 /* ---- Empty state ---- */
-.rulesets-empty { border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: var(--bc-space-12) var(--bc-space-6); text-align: center; background: var(--bc-surface); }
-.rulesets-empty__desc { color: var(--bc-text-muted); font-size: var(--bc-font-size-sm); }
+.rulesets-empty { border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: var(--bc-space-12) var(--bc-space-6); text-align: center; background: var(--bc-surface-card); }
+.rulesets-empty__desc { color: var(--bc-text-muted); font-size: var(--bc-text-sm); }
 .rulesets-empty__action { margin-top: var(--bc-space-3); }
 
 /* ---- Drawer ---- */
 .rulesets-drawer .ant-drawer-body { padding: var(--bc-space-3) var(--bc-space-4) !important; }
+.rulesets-drawerspin { display: block; margin: 40px auto; }
 .rulesets-drawer__item { padding: var(--bc-space-3) 0; border-bottom: 1px solid var(--border-light); }
 .rulesets-drawer__item:last-child { border-bottom: none; }
 .rulesets-drawer__header { display: flex; align-items: center; justify-content: space-between; gap: var(--bc-space-3); }
 .rulesets-drawer__status { display: flex; align-items: center; gap: var(--bc-space-2); }
-.rulesets-drawer__status-icon { font-size: 14px; }
-.rulesets-drawer__status-text { font-size: var(--bc-font-size-sm); font-weight: 600; color: var(--bc-text-primary); }
-.rulesets-drawer__time { font-size: var(--bc-font-size-xs); color: var(--bc-text-muted); font-weight: 500; }
-.rulesets-drawer__meta { font-size: var(--bc-font-size-xs); color: var(--bc-text-secondary); margin-top: var(--bc-space-1); display: flex; gap: var(--bc-space-3); }
-.rulesets-drawer__meta strong { color: var(--bc-text-primary); }
+/* Distinguishing pass/fail by colour alone fails colour-blind users, so the
+   icon shape differs too (tick vs cross) and the label says "Failed". */
+.rulesets-drawer__status-icon--ok { color: var(--bc-status-success-text); }
+.rulesets-drawer__status-icon--fail { color: var(--bc-status-danger-text); }
+.rulesets-drawer__status-text { font-size: var(--bc-text-sm); font-weight: 600; color: var(--bc-text-heading); }
+.rulesets-drawer__time { font-size: var(--bc-text-xs); color: var(--bc-text-muted); font-weight: 500; }
+.rulesets-drawer__meta { font-size: var(--bc-text-xs); color: var(--bc-text-secondary); margin-top: var(--bc-space-1); display: flex; gap: var(--bc-space-3); }
+.rulesets-drawer__meta strong { color: var(--bc-text-heading); }
+.rulesets-drawer__trigger { text-transform: capitalize; }
 
-/* ---- Responsive: hide low-priority columns on narrow viewports ---- */
-@media (max-width: 1100px) {
-  .rulesets-table td:nth-child(5),  /* Runs */
-  .rulesets-table th:nth-child(5) { display: none; }
-}
-@media (max-width: 900px) {
-  .rulesets-table td:nth-child(6),  /* Matched */
-  .rulesets-table th:nth-child(6) { display: none; }
-}
-@media (max-width: 760px) {
-  .rulesets-table td:nth-child(4),  /* Frequency */
-  .rulesets-table th:nth-child(4) { display: none; }
-}
+.rulesets-confirmbody { color: var(--bc-text-secondary); margin: 0; }
+.rulesets-confirmbody strong { color: var(--bc-text-heading); }
+
+/* ---- Responsive: column visibility ----
+   Handled by antd's `responsive` prop in JSX. The previous nth-child rules
+   broke as soon as a user hid a column, because the indices shifted and hid
+   whichever column happened to land on 4/5/6 instead of the intended one. */
 
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
@@ -294,10 +398,13 @@
   .rulesets-table td:last-child {
     display: none !important;
   }
-  .rulesets-scroll { overflow: visible; border: none; }
+  .rulesets-tablewrap { overflow: visible; border: none; }
   .rulesets-table { border-collapse: collapse; }
   .rulesets-table th,
-  .rulesets-table td { border: 1px solid #ccc !important; }
-  .rulesets-table thead th { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rulesets-table td { border: 1px solid var(--bc-border-strong) !important; }
+  .rulesets-table thead th { background: var(--bc-surface-muted) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rulesets-table tbody tr { page-break-inside: avoid; }
+  /* Pinned columns are meaningless on paper. */
+  .rulesets-table th:first-child,
+  .rulesets-table td:first-child { position: static; box-shadow: none; }
 }
