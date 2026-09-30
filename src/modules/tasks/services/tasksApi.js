@@ -149,6 +149,25 @@ const tasksApi = {
     return body;
   },
 
+  // ── Daily routine (Daily Operations Master) ──
+  importDailyOps: async ({ rows, overrides, dryRun = true, generateNow = true }) => {
+    const res = await fetch(`${API_BASE}/pems/routine/import`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ rows, overrides, dryRun, generateNow }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.success === false) throw new Error(body.message || 'Import failed');
+    return body.data;
+  },
+  generateRoutineToday: async (templateId) => {
+    const res = await fetch(`${API_BASE}/pems/routine/generate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ templateId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.success === false) throw new Error(body.message || 'Could not generate today\'s routine');
+    return body.data;
+  },
+
   // Everything the current user has to act on (optionally a teammate's day for global roles).
   getMyDay: async (userId) => {
     const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';

@@ -119,8 +119,12 @@ export function scoreTask(task, now, workday = DEFAULT_WORKDAY) {
       reasons.push({ text: days < 1 ? 'Overdue' : `Overdue ${days}d`, tone: 'danger' });
     } else if (due <= dayEnd) {
       urgency = 'today';
-      score += 30;
-      reasons.push({ text: 'Due today', tone: 'warn' });
+      // Earlier deadlines outrank later ones on the same day (a 1:30 PM cut-off before a 6 PM report).
+      const hoursLeft = (due - now) / 3600000;
+      score += 30 + Math.max(0, Math.min(8, Math.round(8 - hoursLeft)));
+      const t = new Date(due);
+      const clock = `${t.getHours() % 12 || 12}:${String(t.getMinutes()).padStart(2, '0')} ${t.getHours() < 12 ? 'AM' : 'PM'}`;
+      reasons.push({ text: `Due by ${clock}`, tone: 'warn' });
     } else if (due <= dayEnd + DAY) {
       urgency = 'soon';
       score += 18;

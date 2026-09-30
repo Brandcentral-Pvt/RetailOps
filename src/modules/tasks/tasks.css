@@ -685,3 +685,16 @@
 .md-mini:hover .md-mini__title { color: var(--bc-ro-600, #1565C0); }
 .md-mini__title { font-size: 13px; font-weight: 600; color: var(--bc-text-heading, #0f172a); }
 .md-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* My Day — SOP "How?" disclosure */
+.md-how__toggle {
+  margin-left: 8px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--bc-ro-600, #1565C0);
+}
+.md-how__toggle:hover { text-decoration: underline; }
+.md-how {
+  margin-top: 6px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
+  font-size: 12px; line-height: 1.55; color: var(--bc-text-body, #475569);
+  background: var(--bc-surface-page, #f8fafc); border: 1px solid var(--bc-border-subtle, #e2e8f0);
+  border-radius: var(--bc-radius-md, 8px);
+}

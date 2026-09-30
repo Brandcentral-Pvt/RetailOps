@@ -484,3 +484,29 @@ exports.getAutomationStats = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+// ── Daily routine (Daily Operations Master import + generation) ──
+exports.importDailyOps = async (req, res) => {
+  try {
+    const routineService = require('../../services/pems/routineService');
+    const { rows, overrides, dryRun, generateNow } = req.body || {};
+    const data = await routineService.importDailyOps({
+      rows, overrides: overrides || {}, dryRun: dryRun !== false, generateNow: generateNow !== false, userId: getUserId(req),
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('importDailyOps error:', err);
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.generateRoutineToday = async (req, res) => {
+  try {
+    const routineService = require('../../services/pems/routineService');
+    const data = await routineService.generateToday({ templateId: req.body?.templateId });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('generateRoutineToday error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

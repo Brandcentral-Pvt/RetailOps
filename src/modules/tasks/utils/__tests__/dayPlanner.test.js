@@ -150,3 +150,12 @@ test('helpers', () => {
   assert.equal(parseHM('13:30'), 810);
   assert.equal(formatDuration(45), '45m'); assert.equal(formatDuration(90), '1h 30m'); assert.equal(formatDuration(120), '2h');
 });
+
+test('same-day deadlines: the earlier cut-off is planned first and the reason shows the time', () => {
+  const now = at(10);
+  const a = task({ Title: 'report-6pm', Priority: 'HIGH', DueDate: due(18), EstimatedMinutes: 30 });
+  const b = task({ Title: 'labels-1330', Priority: 'HIGH', DueDate: due(13, 30), EstimatedMinutes: 30 });
+  const plan = buildPlan({ tasks: [a, b], reviews: [], now });
+  assert.deepEqual(plan.must.map(x => x.task.Title), ['labels-1330', 'report-6pm']);
+  assert.ok(scoreTask(b, now).reasons.some(r => r.text === 'Due by 1:30 PM'));
+});
