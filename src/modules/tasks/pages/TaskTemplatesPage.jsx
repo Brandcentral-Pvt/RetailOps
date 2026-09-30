@@ -11,10 +11,11 @@ import {
   RocketOutlined, FileTextOutlined, FilterOutlined, AppstoreOutlined,
   BarsOutlined, ArrowLeftOutlined, StarFilled, FireOutlined,
   SafetyCertificateOutlined, TeamOutlined, ToolOutlined, DashboardOutlined,
-  BulbOutlined,
+  BulbOutlined, UploadOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import tasksApi from '../services/tasksApi';
+import DailyOpsImportModal from '../components/DailyOpsImportModal';
 import { FREQUENCIES, CATEGORIES, PRIORITIES, TARGET_TYPES, DEPARTMENTS, COMPLEXITY_LEVELS, APPROVAL_LEVELS, AUTO_ASSIGN_STRATEGIES } from '../constants';
 
 const { Text, Paragraph } = Typography;
@@ -54,6 +55,16 @@ function SopPhaseBuilder({ phases, setPhases }) {
               <Tag style={{ margin: 0, fontWeight: 700, fontFamily: 'var(--bc-font-mono, Menlo, monospace)', fontSize: 10, borderRadius: 8, background: 'linear-gradient(135deg,#0ea5e9,#6366f1)', color: '#fff', border: 'none', padding: '3px 9px' }}>PHASE {pi + 1}</Tag>
               <Input value={phase.title} onChange={e => updatePhase(pi, 'title', e.target.value)} placeholder="Phase name (e.g. Pre-launch audit)" size="small" style={{ flex: 1, fontWeight: 600, fontSize: 13 }} bordered={false} />
               <Tag style={{ margin: 0, fontSize: 10, background: '#f1f5f9', color: '#64748b', borderRadius: 6 }}>{totalMins} min</Tag>
+              <Tooltip title="Daily routines only include this phase on these days. Leave empty for every day.">
+                <Select mode="multiple" size="small" allowClear maxTagCount={2} placeholder="Every day" style={{ minWidth: 130 }}
+                  value={phase.schedule?.weekdays || []}
+                  options={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => ({ value: i, label: d }))}
+                  onChange={(v) => {
+                    const rest = { ...(phase.schedule || {}) }; delete rest.weekdays;
+                    const next = v.length ? { ...rest, weekdays: v } : rest;
+                    updatePhase(pi, 'schedule', Object.keys(next).length ? next : undefined);
+                  }} />
+              </Tooltip>
               {phases.length > 1 && (
                 <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removePhase(pi)} />
               )}
@@ -178,6 +189,18 @@ export default function TaskTemplatesPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [form] = Form.useForm();
+  const watchedFrequency = Form.useWatch('frequency', form);
+  const [importOpen, setImportOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [namedAssignees, setNamedAssignees] = useState(0);
+  const generateToday = async () => {
+    setGenerating(true);
+    try {
+      const r = await tasksApi.generateRoutineToday();
+      message.success(r.created ? `Created ${r.created} task${r.created === 1 ? '' : 's'} for today` : 'Today\'s routine is already up to date');
+      if (r.noAssignees?.length) message.warning(`No one to assign: ${r.noAssignees.join(', ')}`);
+    } catch (e) { message.error(e.message); } finally { setGenerating(false); }
+  };
 
   // SOP & assignment
   const [phases, setPhases] = useState([{ title: '', activities: [{ title: '', instructions: '', expectedOutput: '', estimatedMinutes: 15 }] }]);
@@ -231,7 +254,8 @@ export default function TaskTemplatesPage() {
   };
 
   const openCreate = () => { resetDrawer(); setEditingTemplate(null);
-    form.setFieldsValue({ frequency: 'ONE_TIME', priority: 'MEDIUM', category: 'GENERAL', targetType: 'NUMERIC', department: 'Operations', slaHours: 48, tatHours: 24, defaultTarget: 0, isActive: true, reviewRequired: true, criticalityScore: 5, estimatedExecutionMinutes: 30 });
+    form.setFieldsValue({ frequency: 'ONE_TIME', priority: 'MEDIUM', category: 'GENERAL', targetType: 'NUMERIC', department: 'Operations', slaHours: 48, tatHours: 24, defaultTarget: 0, isActive: true, reviewRequired: true, criticalityScore: 5, estimatedExecutionMinutes: 30, autoAssign: false, dueTime: '18:00', runDays: [1, 2, 3, 4, 5, 6], assigneeRole: 'brand_manager' });
+    setNamedAssignees(0);
     setDrawerOpen(true);
   };
 
@@ -244,9 +268,13 @@ export default function TaskTemplatesPage() {
       defaultTarget: record.DefaultTarget, expectedOutput: record.ExpectedOutput, isActive: record.IsActive,
       reviewRequired: record.ReviewRequired, criticalityScore: record.CriticalityScore || 5,
       estimatedExecutionMinutes: record.EstimatedExecutionMinutes || 30,
+      autoAssign: !!record.AutoAssign, dueTime: record.DueTime || '18:00',
+      runDays: record.RunDays ? String(record.RunDays).split(',').map(Number) : [1, 2, 3, 4, 5, 6],
+      assigneeRole: record.AssigneeRole || 'brand_manager',
     });
+    setNamedAssignees((record.AssigneeUserIds || []).length);
     const sop = record.SubTaskDefinitions || record.subTaskDefinitions || [];
-    if (sop.length > 0) setPhases(sop.map(p => ({ title: p.title || '', activities: (p.activities || []).map(a => ({ title: a.title || '', instructions: a.instructions || '', expectedOutput: a.expectedOutput || '', estimatedMinutes: a.estimatedMinutes || 15 })) })));
+    if (sop.length > 0) setPhases(sop.map(p => ({ ...p, title: p.title || '', activities: (p.activities || []).map(a => ({ ...a, title: a.title || '', instructions: a.instructions || '', expectedOutput: a.expectedOutput || '', estimatedMinutes: a.estimatedMinutes || 15 })) })));
     try {
       const dr = await tasksApi.getTemplateDetail(record.Id);
       if (dr.success && dr.data.assignmentRules) {
@@ -348,6 +376,22 @@ export default function TaskTemplatesPage() {
           <Col span={6}><Form.Item name="tatHours" label="TAT (hours)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={6}><Form.Item name="estimatedExecutionMinutes" label="Est. time (min)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
         </Row>
+        {watchedFrequency && watchedFrequency !== 'ONE_TIME' && (
+          <div style={{ border: '1px solid var(--bc-border-subtle, #e2e8f0)', borderRadius: 12, padding: '12px 14px', margin: '4px 0 14px', background: 'var(--bc-surface-page, #f8fafc)' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+              <Form.Item name="autoAssign" valuePropName="checked" noStyle><Switch checkedChildren="On" unCheckedChildren="Off" /></Form.Item>
+              <div>
+                <Text strong>Create this for each person automatically</Text>
+                <div><Text type="secondary" style={{ fontSize: 12 }}>A task lands in everyone's My Day on each run day{namedAssignees ? ` — assigned to ${namedAssignees} named ${namedAssignees === 1 ? 'person' : 'people'} from the import` : ''}.</Text></div>
+              </div>
+            </div>
+            <Row gutter={12}>
+              <Col span={8}><Form.Item name="assigneeRole" label="Who does it" style={{ marginBottom: 0 }}><Select disabled={namedAssignees > 0} options={[{ value: 'brand_manager', label: 'Brand managers' }, { value: 'operational_manager', label: 'Operational managers' }]} /></Form.Item></Col>
+              <Col span={6}><Form.Item name="dueTime" label="Due by (HH:mm)" rules={[{ pattern: /^([01]?\d|2[0-3]):[0-5]\d$/, message: 'Use HH:mm' }]} style={{ marginBottom: 0 }}><Input placeholder="18:00" maxLength={5} /></Form.Item></Col>
+              <Col span={10}><Form.Item name="runDays" label="Runs on" style={{ marginBottom: 0 }}><Select mode="multiple" options={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => ({ value: i, label: d }))} /></Form.Item></Col>
+            </Row>
+          </div>
+        )}
         <Row gutter={12}>
           <Col span={8}><Form.Item name="targetType" label="Target type"><Select options={TARGET_TYPES.map(t => ({ value: t.value, label: t.label }))} /></Form.Item></Col>
           <Col span={8}><Form.Item name="defaultTarget" label="Default target"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item></Col>
@@ -455,6 +499,12 @@ export default function TaskTemplatesPage() {
               { label: <span><AppstoreOutlined /> Grid</span>, value: 'grid' },
               { label: <span><BarsOutlined /> Table</span>, value: 'table' },
             ]} size="middle" />
+            <Tooltip title="Upload the Daily Operations Master to create the team's routine tasks">
+              <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)} size="middle" style={{ borderRadius: 10 }}>Import daily ops</Button>
+            </Tooltip>
+            <Tooltip title="Create today's tasks now for every daily routine that hasn't run yet (safe to repeat)">
+              <Button icon={<ThunderboltOutlined />} loading={generating} onClick={generateToday} size="middle" style={{ borderRadius: 10 }}>Generate today</Button>
+            </Tooltip>
             <Button icon={<ReloadOutlined />} onClick={() => loadTemplates(1)} size="middle" style={{ borderRadius: 10 }}>Refresh</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} size="middle" style={{ borderRadius: 10, fontWeight: 700, background: 'linear-gradient(135deg,#0ea5e9,#6366f1)', border: 'none', boxShadow: '0 6px 18px rgba(99,102,241,0.3)' }}>New template</Button>
           </div>
@@ -554,6 +604,7 @@ export default function TaskTemplatesPage() {
         >
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={drawerTabItems} size="large" />
         </Drawer>
+        <DailyOpsImportModal open={importOpen} onClose={() => setImportOpen(false)} onDone={() => loadTemplates(1)} />
 
         <style>{`
           .tpl-table-row:hover td { background: #f8fafc; }

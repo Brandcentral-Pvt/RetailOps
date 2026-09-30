@@ -2,6 +2,7 @@ const { sql, getPool, generateId, withTransaction } = require('../../database/db
 const { canTransition, calculateSLAStatus, calculateAchievement, calculateVariance, getNextDueDate, getTransitionTimestamps, resolveReviewTransition, WORKFLOW_STATUSES } = require('./workflowEngine');
 const { canActOnTask } = require('./pemsPolicy');
 const { isGlobalUserRole } = require('../../utils/roleUtils');
+const { filterSubTasksForDate, parseRunDays, parseHHmm } = require('./routineSchedule');
 const eventBus = require('../eventBus');
 const eventStore = require('./eventStore');
 const logger = require('../../utils/logger');
@@ -17,7 +18,10 @@ async function createTemplate(data) {
   const pool = await getPool();
   const id = genId();
   const countResult = await pool.request().query('SELECT COUNT(*) as c FROM PemsTaskTemplates');
-  const taskCode = genCode('TPL', countResult.recordset[0].c + 1);
+  const taskCode = data.taskCode ? String(data.taskCode).slice(0, 20) : genCode('TPL', countResult.recordset[0].c + 1);
+  const runDays = data.runDays === undefined || data.runDays === null || data.runDays === '' ? null : parseRunDays(data.runDays).join(',');
+  const dueTime = data.dueTime ? parseHHmm(data.dueTime).text : null;
+  const assigneeUserIds = Array.isArray(data.assigneeUserIds) && data.assigneeUserIds.length ? JSON.stringify(data.assigneeUserIds) : null;
 
   await pool.request()
     .input('id', sql.VarChar, id)
@@ -44,17 +48,23 @@ async function createTemplate(data) {
     .input('criticalityScore', sql.Int, Math.min(10, Math.max(1, parseInt(data.criticalityScore, 10) || 5)))
     .input('estMinutes', sql.Int, Math.max(1, parseInt(data.estimatedExecutionMinutes, 10) || 60))
     .input('createdBy', sql.VarChar, data.createdBy || null)
+    .input('autoAssign', sql.Bit, data.autoAssign ? 1 : 0)
+    .input('dueTime', sql.VarChar, dueTime)
+    .input('runDays', sql.VarChar, runDays)
+    .input('assigneeUserIds', sql.NVarChar(sql.MAX), assigneeUserIds)
     .query(`
       INSERT INTO PemsTaskTemplates
         (Id, TaskCode, Name, Description, Category, Department, Frequency, CustomCron,
          SLAHours, TATHours, Priority, TargetType, DefaultTarget, ExpectedOutput,
          ReviewerId, AssigneeRole, Activities, SubTaskDefinitions, Tags, IsActive,
-         ReviewRequired, CriticalityScore, EstimatedExecutionMinutes, CreatedBy)
+         ReviewRequired, CriticalityScore, EstimatedExecutionMinutes, CreatedBy,
+         AutoAssign, DueTime, RunDays, AssigneeUserIds)
       VALUES
         (@id, @taskCode, @name, @description, @category, @department, @frequency, @customCron,
          @slaHours, @tatHours, @priority, @targetType, @defaultTarget, @expectedOutput,
          @reviewerId, @assigneeRole, @activities, @subTaskDefinitions, @tags, @isActive,
-         @reviewRequired, @criticalityScore, @estMinutes, @createdBy)
+         @reviewRequired, @criticalityScore, @estMinutes, @createdBy,
+         @autoAssign, @dueTime, @runDays, @assigneeUserIds)
     `);
 
   return { id, taskCode };
@@ -96,6 +106,7 @@ async function getTemplates(filters = {}) {
     Activities: safeParse(t.Activities, []),
     SubTaskDefinitions: safeParse(t.SubTaskDefinitions, []),
     Tags: safeParse(t.Tags, []),
+    AssigneeUserIds: safeParse(t.AssigneeUserIds, []),
   }));
 
   return { templates, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
@@ -106,7 +117,7 @@ async function getTemplateById(id) {
   const result = await pool.request().input('id', sql.VarChar, id).query('SELECT * FROM PemsTaskTemplates WHERE Id = @id');
   const t = result.recordset[0];
   if (!t) return null;
-  return { ...t, Activities: safeParse(t.Activities, []), SubTaskDefinitions: safeParse(t.SubTaskDefinitions, []), Tags: safeParse(t.Tags, []) };
+  return { ...t, Activities: safeParse(t.Activities, []), SubTaskDefinitions: safeParse(t.SubTaskDefinitions, []), Tags: safeParse(t.Tags, []), AssigneeUserIds: safeParse(t.AssigneeUserIds, []) };
 }
 
 async function updateTemplate(id, data) {
@@ -133,6 +144,13 @@ async function updateTemplate(id, data) {
   });
   if (data.defaultTarget !== undefined && data.defaultTarget !== null && data.defaultTarget !== '') {
     sets.push('DefaultTarget = @DefaultTarget'); req.input('DefaultTarget', sql.Decimal(18, 2), Number(data.defaultTarget) || 0);
+  }
+  if (data.autoAssign !== undefined) { sets.push('AutoAssign = @AutoAssign'); req.input('AutoAssign', sql.Bit, data.autoAssign ? 1 : 0); }
+  if (data.dueTime !== undefined) { sets.push('DueTime = @DueTime'); req.input('DueTime', sql.VarChar, data.dueTime ? parseHHmm(data.dueTime).text : null); }
+  if (data.runDays !== undefined) { sets.push('RunDays = @RunDays'); req.input('RunDays', sql.VarChar, data.runDays === null || data.runDays === '' ? null : parseRunDays(data.runDays).join(',')); }
+  if (data.assigneeUserIds !== undefined) {
+    const ids = Array.isArray(data.assigneeUserIds) ? data.assigneeUserIds.filter(Boolean) : [];
+    sets.push('AssigneeUserIds = @AssigneeUserIds'); req.input('AssigneeUserIds', sql.NVarChar(sql.MAX), ids.length ? JSON.stringify(ids) : null);
   }
   ['isActive', 'reviewRequired'].forEach(key => {
     if (data[key] !== undefined) {
@@ -243,6 +261,11 @@ async function createInstance(data) {
       .query('SELECT SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
     const tplRow2 = tplResult2.recordset[0];
     if (tplRow2) subTaskDefs = safeParse(tplRow2.SubTaskDefinitions, []);
+  }
+
+  // Recurring routines: only the sub-tasks scheduled for this occurrence's date (e.g. Monday-only steps)
+  if (data.occurrenceDate && subTaskDefs && subTaskDefs.length > 0) {
+    subTaskDefs = filterSubTasksForDate(subTaskDefs, data.occurrenceDate);
   }
 
   if (subTaskDefs && subTaskDefs.length > 0) {

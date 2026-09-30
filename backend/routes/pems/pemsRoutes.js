@@ -13,6 +13,10 @@ router.post('/templates', auth, requirePermission('tasks_manage'), invalidateCac
 router.put('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.updateTemplate);
 router.delete('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.deleteTemplate);
 
+// ── Daily routine ──
+router.post('/routine/import', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.importDailyOps);
+router.post('/routine/generate', auth, requirePermission('tasks_manage'), ctrl.generateRoutineToday);
+
 // ── Task Instances ──
 router.get('/instances', auth, cacheRoute('pems:instances', 30), ctrl.getInstances);
 router.get('/instances/:id', auth, cacheRoute('pems:instances', 60), ctrl.getInstanceById);

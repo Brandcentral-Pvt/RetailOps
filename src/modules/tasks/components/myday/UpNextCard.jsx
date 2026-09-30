@@ -15,6 +15,12 @@ const { Text } = Typography;
  * The "do this now" card. A person should be able to start, work through every
  * step and submit a task from here without opening anything else.
  */
+/** Render SOP text with clickable links (plain URLs only — never raw HTML). */
+function linkify(text) {
+  return String(text || '').split(/(https?:\/\/[^\s)]+)/g).map((part, i) =>
+    /^https?:\/\//.test(part) ? <a key={i} href={part} target="_blank" rel="noopener noreferrer">{part}</a> : part);
+}
+
 export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer, onChanged }) {
   const { message } = App.useApp();
   const task = entry.task;
@@ -70,6 +76,9 @@ export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer
   };
 
   // Ticking the last step of a sub-task completes the sub-task too — one click, not two.
+  const [howOpen, setHowOpen] = useState({});
+  const toggleHow = (id) => setHowOpen(o => ({ ...o, [id]: !o[id] }));
+
   const tickActivity = async (st, act) => {
     if (act.IsCompleted || live.Status === 'ASSIGNED' || live.Status === 'ACCEPTED') return;
     setDetail(d => ({ ...d, subTasks: d.subTasks.map(s => (s.Id !== st.Id ? s : { ...s, activities: s.activities.map(a => (a.Id === act.Id ? { ...a, IsCompleted: true } : a)) })) }));
@@ -144,7 +153,7 @@ export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer
                 const acts = st.activities || [];
                 return (
                   <div key={st.Id}>
-                    {(subTasks.length > 1 || acts.length > 0) && acts.length > 0 && <div className="md-step__group">{st.Title}</div>}
+                    {acts.length > 0 && !(acts.length === 1 && acts[0].Title === st.Title) && <div className="md-step__group">{st.Title}</div>}
                     {acts.length === 0 ? (
                       <div className={`md-step${st.IsCompleted ? ' done' : ''}`}>
                         <Checkbox checked={!!st.IsCompleted} disabled={notStarted || st.IsCompleted} onChange={() => tickSubTask(st)} />
@@ -153,7 +162,14 @@ export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer
                     ) : acts.map(a => (
                       <div key={a.Id} className={`md-step${a.IsCompleted ? ' done' : ''}`}>
                         <Checkbox checked={!!a.IsCompleted} disabled={notStarted || a.IsCompleted} onChange={() => tickActivity(st, a)} />
-                        <span className="t" style={{ flex: 1 }}>{a.Title}{a.ExpectedOutput && !a.IsCompleted ? <small style={{ display: 'block', color: 'var(--bc-text-muted, #94a3b8)' }}>{a.ExpectedOutput}</small> : null}</span>
+                        <span className="t" style={{ flex: 1 }}>
+                          {a.Title}
+                          {a.Instructions && !a.IsCompleted && (
+                            <button type="button" className="md-how__toggle" onClick={() => toggleHow(a.Id)}>{howOpen[a.Id] ? 'Hide steps' : 'How?'}</button>
+                          )}
+                          {a.ExpectedOutput && !a.IsCompleted ? <small style={{ display: 'block', color: 'var(--bc-text-muted, #94a3b8)' }}>{a.ExpectedOutput}</small> : null}
+                          {howOpen[a.Id] && !a.IsCompleted && <div className="md-how">{linkify(a.Instructions)}</div>}
+                        </span>
                         {a.IsCompleted && <CheckCircleFilled style={{ color: '#2E7D32' }} />}
                       </div>
                     ))}
