@@ -514,11 +514,13 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     if (!reviewFeedback.trim()) return;
     setReviewSubmitting(true);
     try {
+      // The server records the review AND applies the transition atomically.
       await tasksApi.submitReview({ taskInstanceId: taskId, decision: reviewDecision, feedback: reviewFeedback, qualityScore: reviewScore });
-      await handleTransition(reviewDecision === 'APPROVE' ? 'APPROVED' : 'REJECTED', reviewFeedback);
+      notifyTransition(reviewDecision === 'APPROVE' ? 'APPROVED' : 'REJECTED');
       setReviewDecision(null); setReviewFeedback(''); setReviewScore(null);
+      await loadTask();
       if (onRefresh) onRefresh();
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); message.error(err.message || 'Review failed'); }
     finally { setReviewSubmitting(false); }
   };
 

@@ -127,12 +127,32 @@ const tasksApi = {
   },
 
   // ── Reviews ──
+  // Review + workflow transition happen atomically on the server
+  // (claim → record → decide). Do NOT call transitionStatus afterwards.
   submitReview: async (data) => {
     const res = await fetch(`${API_BASE}/pems/reviews`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to submit review');
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to submit review');
+    return body;
+  },
+
+  // { ids, decision: 'APPROVE'|'REJECT', feedback } → { data: { reviewed:[{id,to}], skipped:[{id,reason}] } }
+  bulkReview: async ({ ids, decision, feedback = '' }) => {
+    const res = await fetch(`${API_BASE}/pems/reviews/bulk`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ ids, decision, feedback }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Bulk review failed');
+    return body;
+  },
+
+  getReviewStats: async () => {
+    const res = await fetch(`${API_BASE}/pems/reviews/stats`, { headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to load review stats');
+    return body;
   },
 
   // ── Dashboard (Legacy) ──

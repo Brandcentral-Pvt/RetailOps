@@ -372,6 +372,8 @@ async function getInstances(filters = {}, requester = null) {
   if (filters.source) { where += ' AND i.Source = @source'; req.input('source', sql.NVarChar, filters.source); }
   if (filters.sourceId) { where += ' AND i.SourceId = @sourceId'; req.input('sourceId', sql.VarChar, filters.sourceId); }
   if (filters.isAutomated === 'true' || filters.isAutomated === true) { where += " AND i.Source = 'RULESET'"; }
+  if (filters.overdue === 'true' || filters.overdue === true) { where += ' AND i.DueDate IS NOT NULL AND i.DueDate < dbo.GetEnvDate()'; }
+  if (filters.dueToday === 'true' || filters.dueToday === true) { where += ' AND i.DueDate IS NOT NULL AND CAST(i.DueDate AS DATE) = CAST(dbo.GetEnvDate() AS DATE)'; }
   if (filters.category) { where += ' AND (i.Category = @cat OR i.Department = @cat)'; req.input('cat', sql.NVarChar, filters.category); }
 
   const page = parseInt(filters.page) || 1;
@@ -379,7 +381,7 @@ async function getInstances(filters = {}, requester = null) {
   const offset = (page - 1) * limit;
   const sortBy = filters.sortBy || 'CreatedAt';
   const sortOrder = filters.sortOrder === 'asc' ? 'ASC' : 'DESC';
-  const allowedSorts = ['CreatedAt', 'DueDate', 'Priority', 'Status', 'AchievementPct', 'SLAStatus', 'InstanceCode', 'Department', 'Frequency'];
+  const allowedSorts = ['CreatedAt', 'DueDate', 'Priority', 'Status', 'AchievementPct', 'SLAStatus', 'InstanceCode', 'Department', 'Frequency', 'SubmittedAt', 'UpdatedAt', 'ReviewedAt'];
   const sortCol = allowedSorts.includes(sortBy) ? sortBy : 'CreatedAt';
 
   const countReq = pool.request();
@@ -398,12 +400,24 @@ async function getInstances(filters = {}, requester = null) {
   dataReq.input('offset', sql.Int, offset);
   dataReq.input('limit', sql.Int, limit);
 
+  // Priority sorts by severity (not alphabetically); NULL submit times sort last.
+  const orderExpr = sortCol === 'Priority'
+    ? `CASE i.Priority WHEN 'CRITICAL' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END ${sortOrder === 'ASC' ? 'DESC' : 'ASC'}, i.CreatedAt DESC`
+    : `i.${sortCol} ${sortOrder}`;
+  // Optional per-row counts used by the review queue (evidence / sub-task progress).
+  const reviewMetaSelect = filters.includeReviewMeta === 'true'
+    ? `,
+      (SELECT COUNT(*) FROM PemsEvidence e WHERE e.TaskInstanceId = i.Id) AS EvidenceCount,
+      (SELECT COUNT(*) FROM PemsSubTasks st WHERE st.TaskInstanceId = i.Id) AS SubTaskTotal,
+      (SELECT COUNT(*) FROM PemsSubTasks st WHERE st.TaskInstanceId = i.Id AND st.IsCompleted = 1) AS SubTaskDone`
+    : '';
+
   const result = await dataReq.query(`
-    SELECT i.*, t.Name as TemplateName, t.TaskCode as TemplateCode, t.Category as TemplateCategory
+    SELECT i.*, t.Name as TemplateName, t.TaskCode as TemplateCode, t.Category as TemplateCategory${reviewMetaSelect}
     FROM PemsTaskInstances i
     LEFT JOIN PemsTaskTemplates t ON i.TemplateId = t.Id
     ${where}
-    ORDER BY i.${sortCol} ${sortOrder}
+    ORDER BY ${orderExpr}
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
   `);
 
@@ -738,10 +752,10 @@ async function submitReview(data, tx) {
     .input('reviewerId', sql.VarChar, data.reviewerId)
     .input('reviewerName', sql.NVarChar, data.reviewerName || '')
     .input('decision', sql.VarChar, data.decision)
-    .input('qualityScore', sql.Int, data.qualityScore || null)
+    .input('qualityScore', sql.Int, data.qualityScore ?? null)
     .input('feedback', sql.NVarChar, data.feedback || '')
     .input('reviewChecklist', sql.NVarChar(sql.MAX), JSON.stringify(data.reviewChecklist || []))
-    .input('reviewDurationMinutes', sql.Int, data.reviewDurationMinutes || null)
+    .input('reviewDurationMinutes', sql.Int, data.reviewDurationMinutes ?? null)
     .query(`
       INSERT INTO PemsTaskReviews (Id, TaskInstanceId, ReviewerId, ReviewerName, Decision, QualityScore, Feedback, ReviewChecklist, ReviewDurationMinutes)
       VALUES (@id, @taskInstanceId, @reviewerId, @reviewerName, @decision, @qualityScore, @feedback, @reviewChecklist, @reviewDurationMinutes)
@@ -750,22 +764,211 @@ async function submitReview(data, tx) {
   return { id };
 }
 
+// Statuses from which a reviewer may take a task and decide on it.
+const REVIEWABLE_STATUSES = ['SUBMITTED', 'RESUBMITTED', 'ESCALATED', 'UNDER_REVIEW'];
+
+function normaliseReviewInput(data) {
+  const decision = String(data.decision || '').toUpperCase();
+  if (decision !== 'APPROVE' && decision !== 'REJECT') {
+    throw new Error('Decision must be APPROVE or REJECT');
+  }
+  const feedback = String(data.feedback || '').trim();
+  if (decision === 'REJECT' && !feedback) {
+    throw new Error('Feedback is required when sending a task back');
+  }
+  if (feedback.length > 4000) throw new Error('Feedback is too long (max 4000 characters)');
+
+  let qualityScore = null;
+  if (data.qualityScore !== undefined && data.qualityScore !== null && data.qualityScore !== '') {
+    const n = Number(data.qualityScore);
+    if (!Number.isFinite(n)) throw new Error('qualityScore must be a number');
+    qualityScore = Math.max(0, Math.min(100, Math.round(n)));
+  }
+  let reviewDurationMinutes = null;
+  if (data.reviewDurationMinutes !== undefined && data.reviewDurationMinutes !== null) {
+    const m = Number(data.reviewDurationMinutes);
+    if (Number.isFinite(m) && m >= 0) reviewDurationMinutes = Math.min(Math.round(m), 600);
+  }
+  return {
+    ...data,
+    decision,
+    feedback,
+    qualityScore,
+    reviewDurationMinutes,
+    reviewChecklist: Array.isArray(data.reviewChecklist) ? data.reviewChecklist : [],
+  };
+}
+
 /**
- * Insert the review AND apply its workflow transition atomically.
- * decision APPROVE → APPROVED · REWORK → REWORK · else REJECTED.
+ * The single review entry point. In ONE transaction it:
+ *   1. locks the task and verifies it is awaiting review,
+ *   2. enforces separation of duties (no reviewing your own task),
+ *   3. claims it (SUBMITTED / RESUBMITTED / ESCALATED → UNDER_REVIEW),
+ *   4. records the review,
+ *   5. applies the decision (APPROVE → APPROVED · REJECT → REJECTED).
+ * Any failure rolls everything back — no orphan review rows.
  */
-async function submitReviewAndTransition(data, actor) {
+async function submitReviewAndTransition(rawData, actor) {
+  const data = normaliseReviewInput(rawData);
+  if (!data.taskInstanceId) throw new Error('taskInstanceId is required');
+  if (!actor?.id) throw new Error('Reviewer identity is required');
+
   return withTransaction(async (tx) => {
-    const review = await submitReview(data, tx);
+    const cur = await tx.request()
+      .input('id', sql.VarChar, data.taskInstanceId)
+      .query('SELECT Status, AssignedTo, ReviewerId FROM PemsTaskInstances WITH (UPDLOCK, ROWLOCK) WHERE Id = @id');
+    const task = cur.recordset[0];
+    if (!task) throw new Error('Task instance not found');
+
+    if (!REVIEWABLE_STATUSES.includes(task.Status)) {
+      throw new Error(`Task is ${task.Status} and is not awaiting review`);
+    }
+    const actorRole = String(actor.role?.name || actor.role || '').toLowerCase();
+    if (!isGlobalUserRole(actorRole) && task.AssignedTo && task.AssignedTo === actor.id) {
+      throw new Error('You cannot review a task that is assigned to you');
+    }
+
+    const from = task.Status;
+    if (from !== 'UNDER_REVIEW') {
+      await transitionStatus(data.taskInstanceId, 'UNDER_REVIEW', actor.id, actor.name, actor.role, 'Review started', tx);
+    }
+    if (!task.ReviewerId) {
+      await tx.request()
+        .input('id', sql.VarChar, data.taskInstanceId)
+        .input('rid', sql.VarChar, actor.id)
+        .input('rname', sql.NVarChar, actor.name || '')
+        .query('UPDATE PemsTaskInstances SET ReviewerId = @rid, ReviewerName = @rname WHERE Id = @id AND ReviewerId IS NULL');
+    }
+
+    const review = await submitReview({ ...data, reviewerId: actor.id, reviewerName: actor.name }, tx);
+    const to = resolveReviewTransition(data.decision);
     await transitionStatus(
-      data.taskInstanceId,
-      resolveReviewTransition(data.decision),
-      actor.id, actor.name, actor.role,
-      data.feedback,
+      data.taskInstanceId, to, actor.id, actor.name, actor.role,
+      data.feedback || (data.decision === 'APPROVE' ? 'Approved' : ''),
       tx
     );
-    return review;
+    return { id: review.id, reviewId: review.id, from, to, decision: data.decision };
   });
+}
+
+/**
+ * Review many tasks with one decision. Each task runs in its own transaction
+ * and is access-checked individually; failures are reported, never fatal.
+ */
+async function bulkReview(taskIds, data, actor, user) {
+  if (!Array.isArray(taskIds) || taskIds.length === 0) throw new Error('No task ids provided');
+  if (taskIds.length > 100) throw new Error('Too many tasks (max 100 per bulk review)');
+  normaliseReviewInput({ ...data, taskInstanceId: 'x' }); // validate decision/feedback once
+
+  const pool = await getPool();
+  const reviewed = [];
+  const skipped = [];
+  for (const id of [...new Set(taskIds)]) {
+    try {
+      const r = await pool.request().input('id', sql.VarChar, id)
+        .query('SELECT Id, AssignedTo, ReviewerId FROM PemsTaskInstances WHERE Id = @id');
+      const row = r.recordset[0];
+      if (!row) { skipped.push({ id, reason: 'Task not found' }); continue; }
+      if (!canActOnTask(user, row)) { skipped.push({ id, reason: 'No access to this task' }); continue; }
+      const out = await submitReviewAndTransition({ ...data, taskInstanceId: id }, actor);
+      reviewed.push({ id, to: out.to });
+    } catch (err) {
+      skipped.push({ id, reason: err.message });
+    }
+  }
+  return { reviewed, skipped };
+}
+
+/**
+ * Real review KPIs. Global roles see the whole team; everyone else sees only
+ * tasks they are the reviewer of.
+ *  - windows compare the last 7 days with the 7 days before (trend)
+ *  - `mine` is always about the calling reviewer
+ */
+async function getReviewStats(user) {
+  const pool = await getPool();
+  const uid = user?.Id || user?._id || user?.id || null;
+  const role = String(user?.role?.name || user?.role || '').toLowerCase();
+  const scoped = !isGlobalUserRole(role);
+  const scopeSql = scoped ? ' AND i.ReviewerId = @uid' : '';
+
+  const windowStats = async (fromDays, toDays) => {
+    const rq = pool.request().input('fromDays', sql.Int, fromDays).input('toDays', sql.Int, toDays);
+    if (scoped) rq.input('uid', sql.VarChar, uid);
+    const rev = await rq.query(`
+      SELECT COUNT(*) AS decided,
+        SUM(CASE WHEN r.Decision = 'APPROVE' THEN 1 ELSE 0 END) AS approved,
+        SUM(CASE WHEN r.Decision = 'REJECT' THEN 1 ELSE 0 END) AS rejected,
+        AVG(CASE WHEN i.SubmittedAt IS NOT NULL AND r.CreatedAt >= i.SubmittedAt
+                 THEN CAST(DATEDIFF(MINUTE, i.SubmittedAt, r.CreatedAt) AS FLOAT) END) AS avgTurnaroundMin,
+        AVG(CAST(r.QualityScore AS FLOAT)) AS avgQuality
+      FROM PemsTaskReviews r
+      JOIN PemsTaskInstances i ON i.Id = r.TaskInstanceId
+      WHERE r.CreatedAt >= DATEADD(DAY, -@fromDays, dbo.GetEnvDate())
+        AND r.CreatedAt <  DATEADD(DAY, -@toDays, dbo.GetEnvDate())${scopeSql}
+    `);
+    const rq2 = pool.request().input('fromDays', sql.Int, fromDays).input('toDays', sql.Int, toDays);
+    if (scoped) rq2.input('uid', sql.VarChar, uid);
+    const sla = await rq2.query(`
+      SELECT COUNT(*) AS approvedTotal,
+        SUM(CASE WHEN i.DueDate IS NULL OR i.CompletedAt <= i.DueDate THEN 1 ELSE 0 END) AS onTime
+      FROM PemsTaskInstances i
+      WHERE i.Status = 'APPROVED' AND i.CompletedAt IS NOT NULL
+        AND i.CompletedAt >= DATEADD(DAY, -@fromDays, dbo.GetEnvDate())
+        AND i.CompletedAt <  DATEADD(DAY, -@toDays, dbo.GetEnvDate())${scopeSql}
+    `);
+    const a = rev.recordset[0] || {};
+    const b = sla.recordset[0] || {};
+    const decided = a.decided || 0;
+    return {
+      decided,
+      approved: a.approved || 0,
+      rejected: a.rejected || 0,
+      avgTurnaroundMin: a.avgTurnaroundMin != null ? Math.round(a.avgTurnaroundMin) : null,
+      avgQuality: a.avgQuality != null ? Math.round(a.avgQuality) : null,
+      approvalRate: decided ? Math.round(((a.approved || 0) / decided) * 100) : null,
+      reworkRate: decided ? Math.round(((a.rejected || 0) / decided) * 100) : null,
+      slaCompliance: b.approvedTotal ? Math.round(((b.onTime || 0) / b.approvedTotal) * 100) : null,
+    };
+  };
+
+  const [d30, d7, prev7] = await Promise.all([windowStats(30, 0), windowStats(7, 0), windowStats(14, 7)]);
+  const delta = (cur, prev) => (cur == null || prev == null) ? null : Math.round((cur - prev) * 10) / 10;
+  const pct = (cur, prev) => (cur == null || prev == null || prev === 0) ? null : Math.round(((cur - prev) / prev) * 100);
+
+  const mineReq = pool.request().input('uid', sql.VarChar, uid);
+  const mine = await mineReq.query(`
+    SELECT
+      SUM(CASE WHEN CAST(CreatedAt AS DATE) = CAST(dbo.GetEnvDate() AS DATE) THEN 1 ELSE 0 END) AS reviewsToday,
+      SUM(CASE WHEN CreatedAt >= DATEADD(DAY, -7, dbo.GetEnvDate()) THEN 1 ELSE 0 END) AS reviewsWeek,
+      COUNT(*) AS reviews30,
+      SUM(CASE WHEN Decision = 'APPROVE' THEN 1 ELSE 0 END) AS approved30,
+      AVG(CAST(ReviewDurationMinutes AS FLOAT)) AS avgMinutesSpent,
+      AVG(CAST(QualityScore AS FLOAT)) AS avgQuality
+    FROM PemsTaskReviews
+    WHERE ReviewerId = @uid AND CreatedAt >= DATEADD(DAY, -30, dbo.GetEnvDate())
+  `);
+  const m = mine.recordset[0] || {};
+
+  return {
+    scope: scoped ? 'mine' : 'team',
+    window30: d30,
+    window7: d7,
+    trends: {
+      avgTurnaroundPct: pct(d7.avgTurnaroundMin, prev7.avgTurnaroundMin),
+      slaCompliancePts: delta(d7.slaCompliance, prev7.slaCompliance),
+      reworkRatePts: delta(d7.reworkRate, prev7.reworkRate),
+      throughputPct: pct(d7.decided, prev7.decided),
+    },
+    mine: {
+      reviewsToday: m.reviewsToday || 0,
+      reviewsWeek: m.reviewsWeek || 0,
+      reviews30: m.reviews30 || 0,
+      approvalRate: m.reviews30 ? Math.round(((m.approved30 || 0) / m.reviews30) * 100) : null,
+      avgMinutesSpent: m.avgMinutesSpent != null ? Math.round(m.avgMinutesSpent) : null,
+      avgQuality: m.avgQuality != null ? Math.round(m.avgQuality) : null,
+    },
+  };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1414,6 +1617,7 @@ module.exports = {
   // V2 additions
   createNotification, getNotifications, getUnreadCount, markNotificationRead, markAllRead,
   getDepartmentPerformance, getBrandManagerPerformance, getReviewerPerformance,
+  bulkReview, getReviewStats,
   checkEscalations, getRiskPanel, getTopPerformers,
   getSellersForPEMS, getBrandManagersForPEMS, getReviewersForPEMS,
   // V3 additions
