@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button, Input, Select, Space, Tag, Tooltip, Card, Switch, Typography,
   InputNumber, Drawer, Modal, Badge, Divider, Spin, Empty, Popconfirm,
@@ -12,11 +12,15 @@ import {
   FREQUENCY_OPTIONS, TIME_OPTIONS
 } from '../constants/rulesetAttributes';
 import { ACTIONS_BY_TYPE, TASK_PRIORITIES, GROUP_BY_OPTIONS, SOP_PRESETS } from '../constants/rulesetActions';
+import { RULE_TEMPLATES, RULE_CATEGORIES } from '../constants/ruleTemplates';
 import {
   ArrowLeft, Plus, Trash2, GripVertical, PlayCircle, PauseCircle,
   Copy, Clock, CheckCircle2, AlertTriangle, Tag as TagIcon, Mail,
   Bell, Eye, ChevronUp, ChevronDown, Settings, ChevronRight,
-  Zap, Shield, Activity, Calendar, MoreHorizontal, SlidersHorizontal
+  Zap, Shield, Activity, Calendar, MoreHorizontal, SlidersHorizontal,
+  XCircle, Sparkles, Wand2, LayoutTemplate, Bot, ArrowRight, Loader2,
+  Lightbulb, FileText, Package, TrendingUp, TrendingDown, Star, Image as ImageIcon,
+  DollarSign, MessageSquare
 } from 'lucide-react';
 import '../styles/ruleset-builder.css';
 
@@ -34,15 +38,32 @@ const initialRule = (order) => ({
   action: { actionType: 'create_task', value: '' }
 });
 
+// Icon lookup for templates
+const TEMPLATE_ICONS = {
+  Shield, Zap, AlertTriangle, Package, TrendingDown, Star, Image: ImageIcon,
+  FileText, Percent: MessageSquare, Eye, MessageSquare, DollarSign, TrendingUp, Settings
+};
+
 const RulesetBuilderPage = () => {
   const { id: rulesetId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user: _user } = useAuth();
   const [messageApi, msgCtx] = antdMessage.useMessage();
 
   const [loading, setLoading] = useState(!!rulesetId);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
+
+  // AI assistant state
+  const [showAIModal, setShowAIModal] = useState(() => !rulesetId && searchParams.get('ai') === '1');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+
+  // Template gallery state
+  const [showTemplates, setShowTemplates] = useState(() => !rulesetId);
+  const [templateCategory, setTemplateCategory] = useState('All');
 
   const [ruleset, setRuleset] = useState({
     name: '',
@@ -70,7 +91,9 @@ const RulesetBuilderPage = () => {
     setHistoryLoading(true);
     try {
       const res = await rulesetApi.getHistory(rulesetId);
-      setExecutionHistory(res.data?.logs || res.data || []);
+      // Backend returns { success, data: [...] } directly (no .logs wrapping).
+      const logs = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.logs) ? res.data.logs : [];
+      setExecutionHistory(logs);
     } catch (_e) { console.error(_e); }
     finally { setHistoryLoading(false); }
   }, [rulesetId]);
@@ -79,31 +102,51 @@ const RulesetBuilderPage = () => {
     if (rulesetId) {
       setLoading(true);
       rulesetApi.getById(rulesetId).then(res => {
-        if (res.success && res.data) {
+        if (res?.success && res.data) {
           const d = res.data;
-          if (Array.isArray(d.rules)) {
-            // rules used directly
-} else {
-            try { JSON.parse(d.rules || '[]'); } catch (_e) { void _e; }
+          // Rules come back pre-parsed as an array from the backend
+          // (normalizeRuleset does the JSON.parse). Defensive double-decode
+          // just in case a legacy record is still double-stringified.
+          let parsedRules = d.rules;
+          if (typeof parsedRules === 'string') {
+            try { parsedRules = JSON.parse(parsedRules); } catch { parsedRules = []; }
+            if (typeof parsedRules === 'string') {
+              try { parsedRules = JSON.parse(parsedRules); } catch { parsedRules = []; }
+            }
           }
+          if (!Array.isArray(parsedRules) || parsedRules.length === 0) {
+            parsedRules = [initialRule(0)];
+          }
+
+          // Scope is also pre-parsed by the backend
+          let parsedScope = d.scope;
+          if (typeof parsedScope === 'string') {
+            try { parsedScope = JSON.parse(parsedScope); } catch { parsedScope = { applyTo: 'all' }; }
+          }
+
           setRuleset({
             name: d.name || '',
             description: d.description || '',
             type: d.type || 'ASIN',
             sellerId: d.sellerId || '',
-            rules: Array.isArray(d.rules) && d.rules.length > 0 ? d.rules : (() => { try { return JSON.parse(d.rules || '[]'); } catch { return []; } })(),
+            rules: parsedRules,
             usingDataFrom: d.usingDataFrom || 'Last 14 days',
             excludeDays: d.excludeDays || 'Latest day',
             isActive: d.isActive !== undefined ? d.isActive : true,
             isAutomated: d.isAutomated || false,
             runFrequency: d.runFrequency || 'Daily',
             runTime: d.runTime || '08 AM',
-            scope: d.scope || { applyTo: 'all' },
+            scope: parsedScope || { applyTo: 'all' },
             emailOnRun: d.emailOnRun || false,
-            emailAddress: d.emailEmailAddress || '',
+            emailAddress: d.emailAddress || '',
           });
+        } else {
+          messageApi.error('Ruleset not found');
         }
-      }).catch(() => messageApi.error('Failed to load ruleset'))
+      }).catch((e) => {
+        console.error('Failed to load ruleset:', e);
+        messageApi.error(e?.message || 'Failed to load ruleset');
+      })
         .finally(() => setLoading(false));
     }
   }, [rulesetId, messageApi]);
@@ -257,6 +300,65 @@ const RulesetBuilderPage = () => {
     });
   }, []);
 
+  // ── Template Gallery helpers ──
+  const applyTemplate = useCallback((tpl) => {
+    setRuleset(prev => ({
+      ...prev,
+      name: tpl.name,
+      description: tpl.description,
+      rules: tpl.rules.map((r, i) => ({ ...r, order: i })),
+      isAutomated: tpl.isAutomated !== undefined ? tpl.isAutomated : prev.isAutomated,
+      runFrequency: tpl.runFrequency || prev.runFrequency,
+      runTime: tpl.runTime || prev.runTime,
+    }));
+    setShowTemplates(false);
+    messageApi.success(`Template "${tpl.name}" loaded — review and save`);
+  }, [messageApi]);
+
+  // ── AI generation ──
+  const handleAIGenerate = useCallback(async () => {
+    if (!aiPrompt.trim()) { messageApi.warning('Describe what you want the rule to do'); return; }
+    setAiGenerating(true);
+    try {
+      const res = await rulesetApi.aiGenerate(aiPrompt, ruleset.rules.length > 0 ? ruleset.rules : []);
+      if (res?.success && res.data) {
+        setAiResult(res.data);
+      } else {
+        messageApi.error(res?.message || 'AI generation failed');
+      }
+    } catch (e) {
+      messageApi.error(e?.message || 'AI generation failed');
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [aiPrompt, ruleset.rules, messageApi]);
+
+  const applyAIRules = useCallback(() => {
+    if (!aiResult) return;
+    setRuleset(prev => ({
+      ...prev,
+      name: aiResult.name || prev.name,
+      description: aiResult.description || prev.description,
+      rules: aiResult.rules.map((r, i) => ({ ...r, order: i })),
+      isAutomated: aiResult.isAutomated !== undefined ? aiResult.isAutomated : prev.isAutomated,
+      runFrequency: aiResult.runFrequency || prev.runFrequency,
+      runTime: aiResult.runTime || prev.runTime,
+    }));
+    setShowAIModal(false);
+    setAiResult(null);
+    setAiPrompt('');
+    messageApi.success('AI-generated rules loaded — review and save');
+  }, [aiResult, messageApi]);
+
+  const startBlank = useCallback(() => {
+    setShowTemplates(false);
+  }, []);
+
+  const filteredTemplates = useMemo(() => {
+    if (templateCategory === 'All') return RULE_TEMPLATES;
+    return RULE_TEMPLATES.filter(t => t.category === templateCategory);
+  }, [templateCategory]);
+
   const getAllAttributes = useMemo(() => ATTRIBUTES_BY_TYPE[ruleset.type] || ATTRIBUTES_BY_TYPE.ASIN, [ruleset.type]);
   const getAttributeType = useCallback((value) => {
     const attr = getAllAttributes.find(a => a.value === value);
@@ -298,6 +400,18 @@ const RulesetBuilderPage = () => {
             </div>
           </div>
           <Space size={8} className="ruleset-builder__actions">
+            <Tooltip title="Browse templates">
+              <Button icon={<LayoutTemplate size={13} />} onClick={() => setShowTemplates(true)}
+                style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--bc-font-size-xs)', height: 32 }}>
+                Templates
+              </Button>
+            </Tooltip>
+            <Tooltip title="Create rules with AI">
+              <Button icon={<Sparkles size={13} style={{ color: '#8B5CF6' }} />} onClick={() => setShowAIModal(true)}
+                style={{ borderRadius: 'var(--radius-md)', fontSize: 'var(--bc-font-size-xs)', height: 32 }}>
+                AI Assist
+              </Button>
+            </Tooltip>
             {rulesetId && (
               <>
                 <Button icon={<Clock size={13} />} onClick={() => { setShowHistoryDrawer(true); loadHistory(); }}
@@ -425,7 +539,7 @@ const RulesetBuilderPage = () => {
                 </div>
                 <div className="ruleset-summary__row">
                   <span className="ruleset-summary__label">Auto-run</span>
-                  <span className="ruleset-summary__value ruleset-summary__value--{ruleset.isAutomated ? 'active' : 'inactive'}">
+                  <span className={`ruleset-summary__value ruleset-summary__value--${ruleset.isAutomated ? 'active' : 'inactive'}`}>
                     {ruleset.isAutomated ? `${ruleset.runFrequency} at ${ruleset.runTime}` : 'Off'}
                   </span>
                 </div>
@@ -464,29 +578,216 @@ const RulesetBuilderPage = () => {
           <Empty description="No execution history yet" />
         ) : (
           executionHistory.map((log, i) => {
-let summary = {};
-            // eslint-disable-next-line no-empty
-            try { summary = JSON.parse(log.Summary || '{}'); } catch (_e) { void _e; }
+            const status = log.Status || log.status;
+            const matched = log.MatchedCount ?? log.matchedCount ?? 0;
+            const actioned = log.ActionedCount ?? log.actionedCount ?? 0;
+            const triggeredBy = log.TriggeredBy || log.triggeredBy || 'manual';
+            const executedAt = log.ExecutedAt || log.executedAt;
+            const errMsg = log.ErrorMessage || log.errorMessage;
+            let summary = {};
+            try { summary = JSON.parse(log.Summary || errMsg || '{}'); } catch (_e) { void _e; }
+            const failed = status !== 'SUCCESS' && status !== 'success';
             return (
-              <div key={log.Id || i} className="ruleset-builder__drawer-item">
+              <div key={log.Id || log.id || i} className="ruleset-builder__drawer-item">
                 <div className="ruleset-builder__drawer-header">
                   <div className="ruleset-builder__drawer-status">
-                    <CheckCircle2 className="ruleset-builder__drawer-icon" style={{ color: log.Status === 'SUCCESS' ? 'var(--bc-success)' : 'var(--bc-danger)' }} />
+                    {failed
+                      ? <XCircle size={14} style={{ color: 'var(--bc-danger)' }} />
+                      : <CheckCircle2 size={14} style={{ color: 'var(--bc-success)' }} />}
                     <span className="ruleset-builder__drawer-text">
-                      {log.MatchedCount || 0} matched · {log.ActionedCount || 0} actioned
+                      {failed ? (errMsg ? `Failed: ${String(errMsg).slice(0, 80)}` : 'Failed') : `${matched} matched · ${actioned} actioned`}
                     </span>
                   </div>
-                  <span className="ruleset-builder__drawer-time">{formatDate(log.ExecutedAt)}</span>
+                  <span className="ruleset-builder__drawer-time">{formatDate(executedAt)}</span>
                 </div>
                 <div className="ruleset-builder__drawer-meta">
-                  <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{log.TriggeredBy}</strong></span>
+                  <span>Trigger: <strong style={{ textTransform: 'capitalize' }}>{triggeredBy}</strong></span>
                   {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
+                  {summary.totalEvaluated !== undefined && <span>· Evaluated: <strong>{summary.totalEvaluated}</strong></span>}
                 </div>
               </div>
             );
           })
         )}
       </Drawer>
+
+      {/* Template Gallery (shown on create unless hidden) */}
+      {showTemplates && !rulesetId && (
+        <div className="ruleset-template-gallery">
+          <div className="ruleset-template-gallery__backdrop" onClick={startBlank} />
+          <div className="ruleset-template-gallery__panel">
+            <div className="ruleset-template-gallery__header">
+              <div>
+                <h3 className="ruleset-template-gallery__title">
+                  <LayoutTemplate size={18} /> Start with a Template
+                </h3>
+                <p className="ruleset-template-gallery__subtitle">
+                  Pick a pre-built rule or start from scratch. You can edit anything later.
+                </p>
+              </div>
+              <Space>
+                <Button icon={<Sparkles size={13} style={{ color: '#8B5CF6' }} />} onClick={() => { setShowTemplates(false); setShowAIModal(true); }}>
+                  Use AI Instead
+                </Button>
+                <Button onClick={startBlank}>Start Blank</Button>
+              </Space>
+            </div>
+
+            <div className="ruleset-template-gallery__categories">
+              <Segmented
+                size="small"
+                value={templateCategory}
+                onChange={setTemplateCategory}
+                options={[
+                  { label: 'All', value: 'All' },
+                  ...RULE_CATEGORIES.map(c => ({ label: c.id, value: c.id })),
+                ]}
+              />
+            </div>
+
+            <div className="ruleset-template-gallery__grid">
+              {filteredTemplates.map(tpl => {
+                const IconComp = TEMPLATE_ICONS[tpl.icon] || Zap;
+                return (
+                  <button
+                    type="button"
+                    key={tpl.id}
+                    className="ruleset-template-card"
+                    onClick={() => applyTemplate(tpl)}
+                  >
+                    <div className="ruleset-template-card__icon" style={{ background: `${tpl.color}15`, color: tpl.color }}>
+                      <IconComp size={20} />
+                    </div>
+                    <div className="ruleset-template-card__body">
+                      <div className="ruleset-template-card__title">{tpl.name}</div>
+                      <div className="ruleset-template-card__desc">{tpl.description}</div>
+                      <div className="ruleset-template-card__meta">
+                        <Tag color="blue" style={{ margin: 0 }}>{tpl.category}</Tag>
+                        <span className="ruleset-template-card__rules">{tpl.rules.length} rule{tpl.rules.length > 1 ? 's' : ''}</span>
+                        {tpl.isAutomated && <Tag color="green" style={{ margin: 0 }}>AUTO</Tag>}
+                      </div>
+                    </div>
+                    <ArrowRight size={14} className="ruleset-template-card__arrow" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Generate Modal */}
+      <Modal
+        title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Sparkles size={16} style={{ color: '#8B5CF6' }} /> Create Rules with AI</span>}
+        open={showAIModal}
+        onCancel={() => { setShowAIModal(false); setAiResult(null); }}
+        width={640}
+        footer={aiResult ? [
+          <Button key="cancel" onClick={() => { setShowAIModal(false); setAiResult(null); }}>Cancel</Button>,
+          <Button key="regenerate" icon={<Wand2 size={13} />} onClick={handleAIGenerate} loading={aiGenerating}>Regenerate</Button>,
+          <Button key="apply" type="primary" icon={<CheckCircle2 size={13} />} onClick={applyAIRules}>
+            Apply Rules
+          </Button>,
+        ] : [
+          <Button key="cancel" onClick={() => setShowAIModal(false)}>Cancel</Button>,
+          <Button key="gen" type="primary" icon={<Sparkles size={13} />} onClick={handleAIGenerate} loading={aiGenerating}>
+            Generate
+          </Button>,
+        ]}
+        destroyOnClose
+      >
+        {!aiResult ? (
+          <div>
+            <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+              Describe what you'd like to monitor or automate in plain English. Our AI will build the rule(s), pick thresholds, and choose an action for you.
+            </Text>
+            <Input.TextArea
+              placeholder="e.g. Alert me whenever a top-1000 BSR product's rating drops below 4 stars with more than 10 reviews, and create a high-priority task grouped by seller."
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              rows={5}
+              autoFocus
+              style={{ borderRadius: 8 }}
+            />
+            <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[
+                'Flag ASINs with LQS under 60 for listing team review',
+                'Create urgent task when we lose Buy Box on any product',
+                'Add a "Low Stock" tag when stock drops below 20 units',
+                'Notify me if any ASIN has zero reviews after 30 days',
+                'Group daily pricing issues by seller with critical priority',
+              ].map(s => (
+                <Tag
+                  key={s}
+                  style={{ cursor: 'pointer', borderRadius: 999, padding: '4px 10px' }}
+                  onClick={() => setAiPrompt(s)}
+                >
+                  <Lightbulb size={10} style={{ marginRight: 4 }} />{s.slice(0, 38)}…
+                </Tag>
+              ))}
+            </div>
+            {aiGenerating && (
+              <div style={{ marginTop: 16, textAlign: 'center', padding: 16 }}>
+                <Spin indicator={<Loader2 size={24} className="rulesets-spin" />} />
+                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--bc-text-muted)' }}>
+                  <Bot size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+                  Thinking… analyzing your ASIN attributes and best practices
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <div style={{ padding: '12px', borderRadius: 8, background: '#F5F3FF', border: '1px solid #DDD6FE', marginBottom: 14 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <Sparkles size={14} style={{ color: '#8B5CF6', marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#5B21B6' }}>{aiResult.name}</div>
+                  <div style={{ fontSize: 12, color: '#6D28D9', marginTop: 2 }}>{aiResult.description}</div>
+                  {aiResult.reasoning && (
+                    <div style={{ fontSize: 11, color: '#7C3AED', marginTop: 6, fontStyle: 'italic' }}>
+                      {aiResult.reasoning}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 12, textTransform: 'uppercase', color: 'var(--bc-text-muted)', letterSpacing: '0.04em', marginBottom: 8 }}>
+              {aiResult.rules.length} Rule{aiResult.rules.length > 1 ? 's' : ''} Generated
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
+              {aiResult.rules.map((r, i) => (
+                <div key={i} className="ruleset-ai-rule-preview">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Badge count={i + 1} style={{ background: '#8B5CF6' }} />
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--bc-text-secondary)', marginBottom: 4 }}>
+                    <span style={{ color: 'var(--bc-text-muted)' }}>IF </span>
+                    {r.conditions.map((c, ci) => (
+                      <span key={ci}>
+                        {ci > 0 && <span style={{ color: 'var(--bc-text-muted)' }}> {c.logicalOp} </span>}
+                        <code style={{ background: 'var(--bc-surface-muted)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>
+                          {c.attribute} {c.operator} {c.value}{c.value2 ? ` – ${c.value2}` : ''}
+                        </code>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--bc-text-secondary)' }}>
+                    <span style={{ color: 'var(--bc-text-muted)' }}>THEN </span>
+                    <Tag color="purple" style={{ margin: 0 }}>{r.action?.actionType?.replace(/_/g, ' ')}</Tag>
+                    {r.action?.priority && r.action?.priority !== 'Medium' && (
+                      <Tag color={r.action.priority === 'Critical' ? 'red' : r.action.priority === 'High' ? 'orange' : 'blue'} style={{ marginLeft: 4 }}>
+                        {r.action.priority}
+                      </Tag>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
@@ -566,15 +867,26 @@ const RuleCard = ({
                 )}
                 {condIdx === 0 && <span className="ruleset-condition__if">IF</span>}
 
-                <Select size="small" showSearch optionFilterProp="label" value={cond.attribute || undefined}
-                  placeholder="Attribute" className="ruleset-condition__attr"
+                <Select
+                  size="small"
+                  showSearch
+                  optionFilterProp="label"
+                  value={cond.attribute || undefined}
+                  placeholder="Attribute"
+                  className="ruleset-condition__attr"
                   onChange={v => onConditionChange(condIdx, { attribute: v })}
                   options={attributeOptions}
-                  className="ruleset-condition__op"
-                  options={ops.map(o => ({ value: o.value, label: o.label }))} />
+                />
 
                 {cond.attribute && (
                   <>
+                    <Select
+                      size="small"
+                      value={cond.operator || undefined}
+                      className="ruleset-condition__op"
+                      onChange={v => onConditionChange(condIdx, { operator: v })}
+                      options={ops.map(o => ({ value: o.value, label: o.label }))}
+                    />
                     {attr?.type === 'enum' ? (
                       <Select size="small" value={cond.value || undefined}
                         placeholder="Value" className="ruleset-condition__value"

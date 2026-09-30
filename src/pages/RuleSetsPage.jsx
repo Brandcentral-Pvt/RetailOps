@@ -10,7 +10,8 @@ import { rulesetApi } from '../services/api';
 import {
   Plus, Search, PlayCircle, Trash2, Copy, SlidersHorizontal, Zap,
   Activity, RefreshCw, Clock, CheckCircle2, Package, Settings,
-  History, Columns, MoreHorizontal, AlertTriangle, XCircle
+  History, Columns, MoreHorizontal, AlertTriangle, XCircle,
+  LayoutGrid, List, RotateCw
 } from 'lucide-react';
 import '../styles/rulesets.css';
 
@@ -40,13 +41,13 @@ const FrequencyBadge = ({ isAutomated, runFrequency }) => {
     return (
       <Tag className="rulesets-badge rulesets-badge--auto">
         <Clock size={11} />
-        <span>{runFrequency || 'Daily'}</span>
+        <span>{(runFrequency || 'Daily').toUpperCase()}</span>
       </Tag>
     );
   }
   return (
     <Tag className="rulesets-badge rulesets-badge--manual">
-      <span>Manual</span>
+      <span>MANUAL</span>
     </Tag>
   );
 };
@@ -92,6 +93,10 @@ const RuleSetsPage = () => {
   const [loadError, setLoadError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterAutoRun, setFilterAutoRun] = useState('all');
+  const [filterSchedule, setFilterSchedule] = useState('all');
+  const [filterUpdated, setFilterUpdated] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
   const [executing, setExecuting] = useState(null);
   const [toggling, setToggling] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -138,13 +143,15 @@ const RuleSetsPage = () => {
   }, []);
 
   const columnDefs = useMemo(() => [
-    { key: 'name', label: 'Ruleset Name', required: true },
+    { key: 'name', label: 'Rule Name', required: true },
     { key: 'type', label: 'Entity Type' },
-    { key: 'rulesCount', label: 'Rules Count' },
-    { key: 'frequency', label: 'Frequency' },
+    { key: 'rulesCount', label: 'Rules' },
+    { key: 'schedule', label: 'Schedule' },
     { key: 'runs', label: 'Runs' },
     { key: 'matched', label: 'Matched' },
     { key: 'lastRun', label: 'Last Run' },
+    { key: 'owner', label: 'Owner' },
+    { key: 'updated', label: 'Updated' },
     { key: 'status', label: 'Status' },
     { key: 'actions', label: 'Actions', required: true },
   ], []);
@@ -199,8 +206,22 @@ const RuleSetsPage = () => {
     }
     if (filterStatus === 'active') list = list.filter(r => r.isActive);
     if (filterStatus === 'paused') list = list.filter(r => !r.isActive);
+    if (filterAutoRun === 'auto') list = list.filter(r => r.isAutomated);
+    if (filterAutoRun === 'manual') list = list.filter(r => !r.isAutomated);
+    if (filterSchedule !== 'all') list = list.filter(r => (r.runFrequency || '').toLowerCase() === filterSchedule.toLowerCase());
+    if (filterUpdated !== 'all') {
+      const now = Date.now();
+      const windows = {
+        'hour': 60 * 60 * 1000,
+        'day': 24 * 60 * 60 * 1000,
+        'week': 7 * 24 * 60 * 60 * 1000,
+        'month': 30 * 24 * 60 * 60 * 1000,
+      };
+      const win = windows[filterUpdated];
+      if (win) list = list.filter(r => r.updatedAt && (now - new Date(r.updatedAt).getTime()) < win);
+    }
     return list;
-  }, [rulesets, searchQuery, filterStatus]);
+  }, [rulesets, searchQuery, filterStatus, filterAutoRun, filterSchedule, filterUpdated]);
 
   // The endpoint returns everything at once, so the pager slices client-side
   // and its total is the *filtered* count rather than the unfiltered one.
@@ -220,7 +241,21 @@ const RuleSetsPage = () => {
   const autoCount = useMemo(() => rulesets.filter(r => r.isAutomated).length, [rulesets]);
   const pausedCount = useMemo(() => rulesets.filter(r => !r.isActive).length, [rulesets]);
 
-  const hasActiveFilters = Boolean(searchQuery.trim()) || filterStatus !== 'all';
+  // KPI strip quick-filter: click a card to filter by that status.
+  // "total" shows everything (default).
+  const [kpiFilter, setKpiFilter] = useState('total');
+  const applyKpiFilter = useCallback((key) => {
+    setKpiFilter(key);
+    if (key === 'total') applyStatusFilter('all');
+    else if (key === 'active') applyStatusFilter('active');
+    else if (key === 'paused') applyStatusFilter('paused');
+    // auto doesn't toggle status; handled separately in filter logic below
+    if (key === 'auto') setFilterAutoRun('auto');
+    else setFilterAutoRun('all');
+    setPage(1);
+  }, [applyStatusFilter]);
+
+  const hasActiveFilters = Boolean(searchQuery.trim()) || filterStatus !== 'all' || filterAutoRun !== 'all' || filterSchedule !== 'all' || filterUpdated !== 'all';
 
   // Any filter change invalidates the current page number.
   const applySearch = useCallback((value) => {
@@ -230,6 +265,15 @@ const RuleSetsPage = () => {
 
   const applyStatusFilter = useCallback((value) => {
     setFilterStatus(value);
+    setPage(1);
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilterStatus('all');
+    setFilterAutoRun('all');
+    setFilterSchedule('all');
+    setFilterUpdated('all');
     setPage(1);
   }, []);
 
@@ -291,10 +335,10 @@ const RuleSetsPage = () => {
 
   const columns = useMemo(() => [
     {
-      title: 'Ruleset Name',
+      title: 'RULE NAME',
       dataIndex: 'name',
       key: 'name',
-      width: '28%',
+      width: '22%',
       fixed: 'left',
       render: (text, record) => (
         <div className="rulesets-namecell">
@@ -305,28 +349,21 @@ const RuleSetsPage = () => {
           >
             {text}
           </button>
-          {record.description && (
-            <div className="rulesets-desc" title={record.description}>
-              {record.description}
-            </div>
-          )}
         </div>
       )
     },
     {
-      title: 'Entity Type',
+      title: 'ENTITY TYPE',
       dataIndex: 'type',
       key: 'type',
-      width: '12%',
-      responsive: ['xl'],
+      width: '10%',
       render: (type) => <TypeBadge type={type} />
     },
     {
-      title: 'Rules',
+      title: 'RULES',
       key: 'rulesCount',
-      width: '9%',
+      width: '8%',
       align: 'center',
-      responsive: ['lg'],
       render: (_, record) => {
         const rules = parseRules(record.rules);
         return (
@@ -337,46 +374,64 @@ const RuleSetsPage = () => {
       }
     },
     {
-      title: 'Frequency',
-      key: 'frequency',
-      width: '12%',
-      responsive: ['lg'],
+      title: 'SCHEDULE',
+      key: 'schedule',
+      width: '10%',
       render: (_, record) => <FrequencyBadge isAutomated={record.isAutomated} runFrequency={record.runFrequency} />
     },
     {
-      title: 'Runs',
+      title: 'RUNS',
       dataIndex: 'totalRunCount',
       key: 'runs',
       width: '7%',
       align: 'center',
-      responsive: ['xl'],
       render: (count) => <span className="rulesets-count">{count || 0}</span>
     },
     {
-      title: 'Matched',
+      title: 'MATCHED',
       key: 'matched',
-      width: '9%',
+      width: '8%',
       align: 'center',
-      responsive: ['xxl'],
       render: (_, record) => {
-        let summary;
+        let summary = {};
         try { summary = JSON.parse(record.lastRunSummary || '{}'); } catch { summary = {}; }
-        return <MatchedCount matched={summary.totalMatched || 0} />;
+        return <MatchedCount matched={summary.totalMatched ?? 0} />;
       }
     },
     {
-      title: 'Last Run',
+      title: 'LAST RUN',
       dataIndex: 'lastRunAt',
       key: 'lastRun',
-      width: '12%',
+      width: '10%',
       render: (date) => (
         <span className="rulesets-lastrun">
-          {date ? formatTime(date) : 'Never'}
+          {date ? formatTime(date).toUpperCase() : 'NEVER'}
         </span>
       )
     },
     {
-      title: 'Status',
+      title: 'OWNER',
+      key: 'owner',
+      width: '12%',
+      render: (_, record) => (
+        <span className="rulesets-owner">
+          {record.owner || record.createdByName || '—'}
+        </span>
+      )
+    },
+    {
+      title: 'UPDATED',
+      dataIndex: 'updatedAt',
+      key: 'updated',
+      width: '10%',
+      render: (date) => (
+        <span className="rulesets-updated">
+          {date ? formatTime(date).toUpperCase() : '—'}
+        </span>
+      )
+    },
+    {
+      title: 'STATUS',
       dataIndex: 'isActive',
       key: 'status',
       width: '9%',
@@ -385,22 +440,30 @@ const RuleSetsPage = () => {
         const id = record._id || record.id;
         const busy = toggling === id;
         return (
-          <Tooltip title={checked ? 'Pause this ruleset' : 'Activate this ruleset'}>
-            <Switch
-              size="small"
-              checked={checked}
-              loading={busy}
-              aria-label={`${checked ? 'Pause' : 'Activate'} ${record.name}`}
-              onChange={(next) => handleToggle(id, next)}
-            />
-          </Tooltip>
+          <div className="rulesets-statuscell">
+            <Tag
+              color={checked ? 'success' : 'default'}
+              className={`rulesets-status-tag ${checked ? 'rulesets-status-tag--active' : 'rulesets-status-tag--paused'}`}
+            >
+              {checked ? 'ACTIVE' : 'PAUSED'}
+            </Tag>
+            <Tooltip title={checked ? 'Pause this rule' : 'Activate this rule'}>
+              <Switch
+                size="small"
+                checked={checked}
+                loading={busy}
+                aria-label={`${checked ? 'Pause' : 'Activate'} ${record.name}`}
+                onChange={(next) => handleToggle(id, next)}
+              />
+            </Tooltip>
+          </div>
         );
       }
     },
     {
-      title: 'Actions',
+      title: 'ACTIONS',
       key: 'actions',
-      width: '8%',
+      width: '7%',
       fixed: 'right',
       align: 'right',
       render: (_, record) => {
@@ -417,8 +480,6 @@ const RuleSetsPage = () => {
             label: 'Delete',
             icon: <Trash2 size={14} />,
             danger: true,
-            // Deleting a ruleset discards its rules and execution history with
-            // no undo, so it is confirmed rather than fired on one click.
             onClick: () => setPendingDelete({ id, name: record.name }),
           },
         ];
@@ -436,8 +497,6 @@ const RuleSetsPage = () => {
         );
       }
     }
-  // handleDelete is reached via the pendingDelete confirm modal rather than
-  // directly from a column, so it is not a dependency here.
   ].filter(c => isColumnVisible(c.key)), [isColumnVisible, handleToggle, handleExecute, handleDuplicate, loadHistory, navigate, executing, toggling, deleting]);
 
   // Deleting a ruleset also discards its rules and execution history, and the
@@ -455,25 +514,40 @@ const RuleSetsPage = () => {
       <div className="rulesets-toolbar">
         <div className="rulesets-toolbar__left">
           <div className="rulesets-toolbar__heading">
-            <h2 className="rulesets-toolbar__title">Automation Rules</h2>
-            <p className="rulesets-toolbar__subtitle">Automated rules for listing quality, pricing, inventory alerts &amp; task creation</p>
+            <div className="rulesets-toolbar__title-row">
+              <h2 className="rulesets-toolbar__title">Automation Rules</h2>
+              <Tag color="green" className="rulesets-env-badge">PRODUCTION</Tag>
+            </div>
+            <p className="rulesets-toolbar__subtitle">Rules for listing quality, pricing, inventory alerts &amp; task creation</p>
           </div>
         </div>
         <div className="rulesets-toolbar__right">
-          {lastRefreshed && (
-            <span className="rulesets-toolbar__stamp">
-              Updated{' '}
-              {lastRefreshed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+          <Tooltip title="Board view">
+            <Button
+              type="text"
+              size="small"
+              className={`rulesets-iconbtn ${viewMode === 'board' ? 'rulesets-iconbtn--active' : ''}`}
+              icon={<LayoutGrid size={14} />}
+              onClick={() => setViewMode('board')}
+              aria-label="Board view"
+            />
+          </Tooltip>
+          <Tooltip title="List view">
+            <Button
+              type="text"
+              size="small"
+              className={`rulesets-iconbtn ${viewMode === 'list' ? 'rulesets-iconbtn--active' : ''}`}
+              icon={<List size={14} />}
+              onClick={() => setViewMode('list')}
+              aria-label="List view"
+            />
+          </Tooltip>
           <Tooltip title="Column Visibility">
             <Dropdown
               menu={{
                 items: columnDefs.map(c => ({
                   key: c.key,
                   label: c.label,
-                  // The name and action columns are structural — hiding them
-                  // would strand rows with no way to open or act on a ruleset.
                   disabled: c.required,
                   icon: isColumnVisible(c.key) ? <CheckCircle2 size={14} className="rulesets-check" /> : null,
                   onClick: () => toggleColumn(c.key),
@@ -491,75 +565,88 @@ const RuleSetsPage = () => {
               />
             </Dropdown>
           </Tooltip>
-          <Tooltip title={`Row Density: ${DENSITY_LABELS[rowDensity]}. Click to cycle.`}>
-            <Button
-              type="text"
-              size="small"
-              className="rulesets-iconbtn"
-              icon={DENSITY_ICONS[rowDensity]}
-              onClick={cycleRowDensity}
-              aria-label={`Row density: ${DENSITY_LABELS[rowDensity]}`}
-            />
-          </Tooltip>
           <Tooltip title="Refresh">
             <Button
               type="text"
               size="small"
               className="rulesets-iconbtn"
-              icon={<RefreshCw size={14} className={refreshing ? 'rulesets-spin' : undefined} />}
+              icon={<RotateCw size={14} className={refreshing ? 'rulesets-spin' : undefined} />}
               onClick={() => loadRulesets(true)}
               loading={refreshing}
               aria-label="Refresh rulesets"
             />
           </Tooltip>
           <Button
+            className="rulesets-cta-secondary"
+            onClick={() => window.open('/tasks', '_blank')}
+            style={{ borderRadius: 8, fontWeight: 600, background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', borderColor: '#bae6fd', color: '#0369a1' }}
+          >
+            🤖 View generated tasks
+          </Button>
+          <Button
             type="primary"
             className="rulesets-cta"
             icon={<Plus size={13} />}
             onClick={() => navigate('/rule-sets/new')}
           >
-            Create Ruleset
+            Create Rule
           </Button>
         </div>
       </div>
 
       {/* KPI Strip */}
       <div className="rulesets-kpi">
-        <div className="rulesets-kpi__item">
+        <button
+          type="button"
+          className={`rulesets-kpi__item ${kpiFilter === 'total' ? 'rulesets-kpi__item--selected' : ''}`}
+          onClick={() => applyKpiFilter('total')}
+        >
           <div className="rulesets-kpi__icon rulesets-kpi__icon--total"><Zap size={14} /></div>
           <div>
             <div className="rulesets-kpi__label">Total</div>
             <div className="rulesets-kpi__value">{rulesets.length}</div>
           </div>
-        </div>
-        <div className="rulesets-kpi__item">
+        </button>
+        <button
+          type="button"
+          className={`rulesets-kpi__item ${kpiFilter === 'active' ? 'rulesets-kpi__item--selected' : ''}`}
+          onClick={() => applyKpiFilter('active')}
+        >
           <div className="rulesets-kpi__icon rulesets-kpi__icon--active"><CheckCircle2 size={14} /></div>
           <div>
             <div className="rulesets-kpi__label">Active</div>
             <div className="rulesets-kpi__value">{activeCount}</div>
           </div>
-        </div>
-        <div className="rulesets-kpi__item">
+        </button>
+        <button
+          type="button"
+          className={`rulesets-kpi__item ${kpiFilter === 'auto' ? 'rulesets-kpi__item--selected' : ''}`}
+          onClick={() => applyKpiFilter('auto')}
+        >
           <div className="rulesets-kpi__icon rulesets-kpi__icon--auto"><Activity size={14} /></div>
           <div>
             <div className="rulesets-kpi__label">Auto-run</div>
             <div className="rulesets-kpi__value">{autoCount}</div>
           </div>
-        </div>
-        <div className="rulesets-kpi__item">
+        </button>
+        <button
+          type="button"
+          className={`rulesets-kpi__item ${kpiFilter === 'paused' ? 'rulesets-kpi__item--selected' : ''}`}
+          onClick={() => applyKpiFilter('paused')}
+        >
           <div className="rulesets-kpi__icon rulesets-kpi__icon--paused"><AlertTriangle size={14} /></div>
           <div>
             <div className="rulesets-kpi__label">Paused</div>
             <div className="rulesets-kpi__value">{pausedCount}</div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Filters */}
       <div className="rulesets-filters">
         <Input
           prefix={<Search size={12} className="rulesets-searchicon" />}
-          placeholder="Search rulesets..."
+          placeholder="Search rules, descriptions or ..."
           allowClear
           value={searchQuery}
           onChange={e => applySearch(e.target.value)}
@@ -572,11 +659,51 @@ const RuleSetsPage = () => {
           value={filterStatus}
           onChange={applyStatusFilter}
           aria-label="Filter by status"
-          className="rulesets-statusfilter"
+          className="rulesets-filter-select"
           options={[
-            { value: 'all', label: 'All' },
+            { value: 'all', label: 'All statuses' },
             { value: 'active', label: 'Active' },
             { value: 'paused', label: 'Paused' },
+          ]}
+        />
+        <Select
+          size="small"
+          value={filterAutoRun}
+          onChange={v => { setFilterAutoRun(v); setPage(1); }}
+          aria-label="Filter by auto-run"
+          className="rulesets-filter-select"
+          options={[
+            { value: 'all', label: 'Any auto-run' },
+            { value: 'auto', label: 'Auto-run' },
+            { value: 'manual', label: 'Manual' },
+          ]}
+        />
+        <Select
+          size="small"
+          value={filterSchedule}
+          onChange={v => { setFilterSchedule(v); setPage(1); }}
+          aria-label="Filter by schedule"
+          className="rulesets-filter-select"
+          options={[
+            { value: 'all', label: 'Any schedule' },
+            { value: 'daily', label: 'Daily' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'hourly', label: 'Hourly' },
+            { value: 'manual', label: 'Manual only' },
+          ]}
+        />
+        <Select
+          size="small"
+          value={filterUpdated}
+          onChange={v => { setFilterUpdated(v); setPage(1); }}
+          aria-label="Filter by updated time"
+          className="rulesets-filter-select"
+          options={[
+            { value: 'all', label: 'Any time' },
+            { value: 'hour', label: 'Last hour' },
+            { value: 'day', label: 'Last 24 hours' },
+            { value: 'week', label: 'Last week' },
+            { value: 'month', label: 'Last month' },
           ]}
         />
         {hasActiveFilters && (
@@ -584,11 +711,25 @@ const RuleSetsPage = () => {
             type="text"
             size="small"
             className="rulesets-clearfilters"
-            onClick={() => { applySearch(''); applyStatusFilter('all'); }}
+            onClick={clearAllFilters}
           >
             Clear filters
           </Button>
         )}
+        <div className="rulesets-filters__spacer" />
+        <span className="rulesets-refresh-label">
+          Updated {lastRefreshed ? formatTime(lastRefreshed).toLowerCase() : '—'}
+        </span>
+        <Tooltip title="Refresh">
+          <button
+            type="button"
+            className="rulesets-refresh-btn"
+            onClick={() => loadRulesets(true)}
+            aria-label="Refresh"
+          >
+            <RotateCw size={12} className={refreshing ? 'rulesets-spin' : undefined} /> Refresh
+          </button>
+        </Tooltip>
       </div>
 
       {/* Content */}
@@ -621,7 +762,7 @@ const RuleSetsPage = () => {
                 <Button
                   type="text"
                   className="rulesets-empty__action"
-                  onClick={() => { applySearch(''); applyStatusFilter('all'); }}
+                  onClick={clearAllFilters}
                 >
                   Clear filters
                 </Button>
@@ -710,27 +851,35 @@ const RuleSetsPage = () => {
           <Empty description="No execution history yet" />
         ) : (
           executionHistory.map((log, i) => {
-            let summary;
-            try { summary = JSON.parse(log.Summary || '{}'); } catch { summary = {}; }
-            const failed = log.Status !== 'SUCCESS';
+            // SQL Server returns columns as PascalCase; normalize defensively.
+            const status = log.Status || log.status;
+            const matched = log.MatchedCount ?? log.matchedCount ?? 0;
+            const actioned = log.ActionedCount ?? log.actionedCount ?? 0;
+            const triggeredBy = log.TriggeredBy || log.triggeredBy || 'manual';
+            const executedAt = log.ExecutedAt || log.executedAt;
+            const errMsg = log.ErrorMessage || log.errorMessage;
+            let summary = {};
+            try { summary = JSON.parse(log.Summary || errMsg || '{}'); } catch { summary = {}; }
+            const failed = status !== 'SUCCESS' && status !== 'success';
             return (
-              <div key={log.Id || i} className="rulesets-drawer__item">
+              <div key={log.Id || log.id || i} className="rulesets-drawer__item">
                 <div className="rulesets-drawer__header">
                   <div className="rulesets-drawer__status">
                     {failed
                       ? <XCircle size={14} className="rulesets-drawer__status-icon rulesets-drawer__status-icon--fail" />
                       : <CheckCircle2 size={14} className="rulesets-drawer__status-icon rulesets-drawer__status-icon--ok" />}
                     <span className="rulesets-drawer__status-text">
-                      {failed ? 'Failed' : `${log.MatchedCount || 0} matched · ${log.ActionedCount || 0} actioned`}
+                      {failed ? (errMsg ? `Failed: ${String(errMsg).slice(0, 80)}` : 'Failed') : `${matched} matched · ${actioned} actioned`}
                     </span>
                   </div>
                   <span className="rulesets-drawer__time">
-                    {new Date(log.ExecutedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {executedAt ? new Date(executedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                   </span>
                 </div>
                 <div className="rulesets-drawer__meta">
-                  <span>Trigger: <strong className="rulesets-drawer__trigger">{log.TriggeredBy}</strong></span>
+                  <span>Trigger: <strong className="rulesets-drawer__trigger">{triggeredBy}</strong></span>
                   {summary.executionTimeMs && <span>· Time: <strong>{(summary.executionTimeMs / 1000).toFixed(1)}s</strong></span>}
+                  {summary.totalEvaluated !== undefined && <span>· Evaluated: <strong>{summary.totalEvaluated}</strong></span>}
                 </div>
               </div>
             );

@@ -230,6 +230,7 @@ const QUICK_VIEWS = [
   { key: 'IN_PROGRESS', label: 'In Progress', icon: <PlayCircleOutlined /> },
   { key: 'PENDING_REVIEW', label: 'Pending Review', icon: <EyeOutlined /> },
   { key: 'OVERDUE', label: 'Overdue', icon: <ClockCircleOutlined /> },
+  { key: 'AUTOMATION', label: '🤖 Automation', icon: <ThunderboltOutlined /> },
   { key: 'TOMORROW', label: 'Tomorrow', icon: <CalendarOutlined /> },
   { key: 'UPCOMING', label: 'Upcoming', icon: <CalendarOutlined /> },
   { key: 'COMPLETED', label: 'Completed', icon: <CheckCircleOutlined /> },
@@ -280,7 +281,8 @@ export default function TaskInstancesPage() {
   const [search, setSearch] = useState('');
   const [disputesOnly, setDisputesOnly] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [filters, setFilters] = useState({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null });
+  const [filters, setFilters] = useState({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null, source: null });
+  const [automationStats, setAutomationStats] = useState({ total: 0, open: 0, overdue: 0, byRuleset: [] });
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [lastSync, setLastSync] = useState(null);
   const [headerScrolled, setHeaderScrolled] = useState(false);
@@ -321,6 +323,7 @@ export default function TaskInstancesPage() {
     tasksApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => { });
     tasksApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => { });
     tasksApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
+    tasksApi.getAutomationStats().then(setAutomationStats).catch(() => { });
   }, []);
 
   /* Sticky-header elevation on scroll */
@@ -375,6 +378,7 @@ export default function TaskInstancesPage() {
     else if (quickView === 'Operations') p.department = 'Operations';
     else if (quickView === 'Brand Managers') p.department = 'Brand Managers';
     else if (quickView === 'Catalog Team') p.department = 'Catalog Team';
+    else if (quickView === 'AUTOMATION') p.isAutomated = true;
     if (filters.department) p.department = filters.department;
     if (filters.seller) p.sellerId = filters.seller;
     if (filters.manager) p.assignedTo = filters.manager;
@@ -382,6 +386,8 @@ export default function TaskInstancesPage() {
     if (filters.priority) p.priority = filters.priority;
     if (filters.status) p.status = filters.status;
     if (filters.frequency) p.frequency = filters.frequency;
+    if (filters.source === 'automation') p.isAutomated = true;
+    else if (filters.source) p.source = filters.source;
     if (viewMode === 'seller') p.includeSubtasks = 'true';
     p.includeRuleTasks = 'true';
     return p;
@@ -398,6 +404,7 @@ export default function TaskInstancesPage() {
         let data = instRes.instances || [];
         if (quickView === 'OVERDUE') data = data.filter(t => isOverdue(t));
         if (quickView === 'TODO') data = data.filter(t => !['APPROVED', 'CANCELLED'].includes(t.Status));
+        if (quickView === 'AUTOMATION') data = data.filter(t => t.Source === 'RULESET' || t.IsRuleTask || t.source === 'ACTION_RULE');
         if (quickView === 'TOMORROW') data = data.filter(t => isDueTomorrow(t));
         if (quickView === 'UPCOMING') data = data.filter(t => {
           if (!t.DueDate) return false;
@@ -519,7 +526,9 @@ export default function TaskInstancesPage() {
     return {
       total, active: inProg, approved, overdue, pendingReview,
       slaCompliance, pricingMismatches, avgHealth: avgHealth ?? summary?.kpi?.avgHealth,
-      autoTasks: ruleTasks.length,
+      autoTasks: ruleTasks.length + (automationStats?.total || 0),
+      autoOpen: ruleTasks.filter(t => !['COMPLETED','APPROVED','CANCELLED','REJECTED'].includes(t.Status)).length + (automationStats?.open || 0),
+      autoOverdue: automationStats?.overdue || ruleTasks.filter(t => isOverdue(t)).length,
       activeDisputes: ruleTasks.filter(t => ['IN_PROGRESS', 'SUBMITTED'].includes(t.Status)).length,
       buyBoxPct: buyBoxPct ?? summary?.kpi?.buyBoxPct,
       disputeTrend: summary?.kpi?.disputeTrend,
@@ -545,13 +554,18 @@ export default function TaskInstancesPage() {
     { key: 'status', label: 'Status', options: Object.entries(WORKFLOW_STATUSES).map(([k, v]) => ({ value: k, label: v.label })) },
     { key: 'health', label: 'Health', options: [{ value: 'critical', label: 'Critical' }, { value: 'attention', label: 'Attention' }, { value: 'healthy', label: 'Healthy' }] },
     { key: 'frequency', label: 'Frequency', options: FREQUENCIES.map(f => ({ value: f.value, label: f.label })) },
+    { key: 'source', label: 'Source', options: [
+      { value: 'automation', label: '🤖 Automation rules' },
+      { value: 'MANUAL', label: '👤 Manually created' },
+      { value: 'TEMPLATE', label: '📋 From template' },
+    ]},
   ];
   const getFilterLabel = (key, value) => {
     const def = FILTER_DEFS.find(f => f.key === key);
     return def?.options.find(o => o.value === value)?.label || value;
   };
   const clearAllFilters = () => {
-    setFilters({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null });
+    setFilters({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null, source: null });
     setPagination(p => ({ ...p, page: 1 }));
   };
 
@@ -949,6 +963,7 @@ export default function TaskInstancesPage() {
             <LiveActivityFeed compact />
           </div>
           <Space size={8} wrap>
+            <Button icon={<ThunderboltOutlined />} onClick={() => window.open('/rule-sets', '_blank')} size="small" style={{ borderRadius: 'var(--bc-radius-md, 6px)', background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', borderColor: '#bae6fd', color: '#0369a1', fontWeight: 600 }}>🤖 Automation Rules</Button>
             <Button icon={<ReloadOutlined />} onClick={loadInstances} loading={loading} size="small" style={{ borderRadius: 'var(--bc-radius-md, 6px)' }}>Refresh</Button>
             <Button icon={<DownloadOutlined />} size="small" onClick={handleExport} style={{ borderRadius: 'var(--bc-radius-md, 6px)' }}>Export</Button>
             <Button
@@ -980,6 +995,7 @@ export default function TaskInstancesPage() {
             {QUICK_VIEWS.map(qv => (
               <div
                 key={qv.key}
+                data-key={qv.key}
                 role="tab"
                 aria-selected={quickView === qv.key}
                 tabIndex={0}

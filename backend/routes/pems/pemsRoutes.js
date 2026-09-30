@@ -71,6 +71,9 @@ router.get('/notifications/merged', auth, cacheRoute('pems:notifications', 15), 
   }
 });
 
+// ── Automation (ruleset) stats ──
+router.get('/automation-stats', auth, cacheRoute('pems:instances', 30), ctrl.getAutomationStats);
+
 // ── Dynamic Data Sources ──
 router.get('/sellers', auth, cacheRoute('pems:meta', 300), ctrl.getSellers);
 router.get('/brand-managers', auth, cacheRoute('pems:meta', 300), ctrl.getBrandManagers);

@@ -146,18 +146,33 @@ async function createInstance(data) {
   const now = new Date();
   const dueDate = data.dueDate || getNextDueDate(data.frequency || 'ONE_TIME');
 
-  // Resolve template defaults (department, SOP) once up-front
-  const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
-    .query('SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
-  const tplRow = tplResult.recordset[0];
+  // Resolve template defaults (department, SOP) once up-front.
+  // Guard against missing templateId so programmatic callers (ruleset engine,
+  // integrations) can create ad-hoc tasks without a pre-existing template.
+  let tplRow = null;
+  if (data.templateId) {
+    const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
+      .query('SELECT Department, SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
+    tplRow = tplResult.recordset[0];
+  }
   const department = data.department || tplRow?.Department || 'Operations';
+
+  // Resolve sellerName if not provided
+  let sellerName = data.sellerName || '';
+  if (!sellerName && data.sellerId) {
+    try {
+      const sn = await pool.request().input('sid', sql.VarChar, data.sellerId)
+        .query('SELECT TOP 1 Name FROM Sellers WHERE Id = @sid');
+      sellerName = sn.recordset[0]?.Name || '';
+    } catch (_) { /* best effort */ }
+  }
 
   await pool.request()
     .input('id', sql.VarChar, id)
     .input('instanceCode', sql.VarChar, instanceCode)
     .input('templateId', sql.VarChar, data.templateId)
     .input('sellerId', sql.VarChar, data.sellerId || null)
-    .input('sellerName', sql.NVarChar, data.sellerName || '')
+    .input('sellerName', sql.NVarChar, sellerName || '')
     .input('assignedTo', sql.VarChar, data.assignedTo || null)
     .input('assigneeName', sql.NVarChar, data.assigneeName || '')
     .input('reviewerId', sql.VarChar, data.reviewerId || null)
@@ -174,32 +189,37 @@ async function createInstance(data) {
     .input('slaStatus', sql.VarChar, 'WITHIN_SLA')
     .input('slaHours', sql.Int, data.slaHours || 48)
     .input('dueDate', sql.DateTime2, dueDate)
-    .input('assignedAt', sql.DateTime2, data.status === 'ASSIGNED' ? now : null)
+    .input('assignedAt', sql.DateTime2, data.status === 'ASSIGNED' || data.status === 'IN_PROGRESS' ? now : null)
     .input('attachments', sql.NVarChar(sql.MAX), JSON.stringify(data.attachments || []))
     .input('tags', sql.NVarChar(sql.MAX), JSON.stringify(data.tags || []))
+    .input('source', sql.NVarChar, data.source || 'MANUAL')
+    .input('sourceId', sql.VarChar, data.sourceId || null)
+    .input('sourceRef', sql.NVarChar, data.sourceRef || null)
+    .input('asins', sql.NVarChar(sql.MAX), JSON.stringify(data.asins || data.ASINs || []))
+    .input('category', sql.NVarChar, data.category || department)
     .query(`
       INSERT INTO PemsTaskInstances
         (Id, InstanceCode, TemplateId, SellerId, SellerName, AssignedTo, AssigneeName,
          ReviewerId, ReviewerName, Department, Status, ReviewStatus, Frequency, Title, Description,
          Priority, Target, Achievement, SLAStatus, SLAHours, DueDate, AssignedAt,
-         Attachments, Tags)
+         Attachments, Tags, Source, SourceId, SourceRef, Asins, Category)
       VALUES
         (@id, @instanceCode, @templateId, @sellerId, @sellerName, @assignedTo, @assigneeName,
          @reviewerId, @reviewerName, @department, @status, @reviewStatus, @frequency, @title, @description,
          @priority, @target, @achievement, @slaStatus, @slaHours, @dueDate, @assignedAt,
-         @attachments, @tags)
+         @attachments, @tags, @source, @sourceId, @sourceRef, @asins, @category)
     `);
 
   // Create subtasks from template definitions
   // Fetch template's SOP if subTaskDefinitions not provided in request
   let subTaskDefs = data.subTaskDefinitions;
-  if (!subTaskDefs || subTaskDefs.length === 0) {
-    const tplResult = await pool.request().input('tplId', sql.VarChar, data.templateId)
+  if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId && tplRow?.SubTaskDefinitions) {
+    subTaskDefs = safeParse(tplRow.SubTaskDefinitions, []);
+  } else if ((!subTaskDefs || subTaskDefs.length === 0) && data.templateId) {
+    const tplResult2 = await pool.request().input('tplId', sql.VarChar, data.templateId)
       .query('SELECT SubTaskDefinitions FROM PemsTaskTemplates WHERE Id = @tplId');
-    const tplRow = tplResult.recordset[0];
-    if (tplRow) {
-      subTaskDefs = safeParse(tplRow.SubTaskDefinitions, []);
-    }
+    const tplRow2 = tplResult2.recordset[0];
+    if (tplRow2) subTaskDefs = safeParse(tplRow2.SubTaskDefinitions, []);
   }
 
   if (subTaskDefs && subTaskDefs.length > 0) {
@@ -326,6 +346,10 @@ async function getInstances(filters = {}, requester = null) {
   if (filters.templateId) { where += ' AND i.TemplateId = @templateId'; req.input('templateId', sql.VarChar, filters.templateId); }
   if (filters.department) { where += ' AND i.Department = @department'; req.input('department', sql.NVarChar, filters.department); }
   if (filters.frequency) { where += ' AND i.Frequency = @frequency'; req.input('frequency', sql.VarChar, filters.frequency); }
+  if (filters.source) { where += ' AND i.Source = @source'; req.input('source', sql.NVarChar, filters.source); }
+  if (filters.sourceId) { where += ' AND i.SourceId = @sourceId'; req.input('sourceId', sql.VarChar, filters.sourceId); }
+  if (filters.isAutomated === 'true' || filters.isAutomated === true) { where += " AND i.Source = 'RULESET'"; }
+  if (filters.category) { where += ' AND (i.Category = @cat OR i.Department = @cat)'; req.input('cat', sql.NVarChar, filters.category); }
 
   const page = parseInt(filters.page) || 1;
   const limit = parseInt(filters.limit) || 25;

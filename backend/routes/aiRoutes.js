@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const aiGoalController = require('../controllers/aiGoalController');
 const aiTaskController = require('../controllers/aiTaskController');
+const aiRulesController = require('../controllers/aiRulesController');
 const nvidiaAiService = require('../services/nvidiaAiService');
 const { authenticate } = require('../middleware/auth');
 
@@ -16,6 +17,10 @@ router.post('/goals/ai-create', authenticate, aiGoalController.createFullStrateg
 // AI TASK LIFECYCLE
 router.post('/tasks/ai-create', authenticate, aiTaskController.createEnrichedTask);
 router.post('/generate-recovery-tasks', authenticate, aiTaskController.generateRecoveryTasks);
+
+// AI RULES LIFECYCLE (NVIDIA NIM)
+router.post('/rules/generate', authenticate, aiRulesController.generateRules);
+router.post('/rules/explain', authenticate, aiRulesController.explainRules);
 
 // ═══════════════════════════════════════════════════════════════
 // PRODUCT INTELLIGENCE (NVIDIA Vision AI)

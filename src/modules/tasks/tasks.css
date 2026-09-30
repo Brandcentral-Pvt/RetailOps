@@ -172,6 +172,21 @@
 }
 .tasks-quick-pill.active .tasks-quick-pill-icon { opacity: 1; }
 
+/* Automation pill gets a signature gradient when inactive and a louder
+   cyan→violet gradient when selected to visually separate rule-generated
+   work from manual work. */
+.tasks-quick-pill[data-key="AUTOMATION"] {
+  background: linear-gradient(135deg, #ecfeff, #ede9fe);
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+.tasks-quick-pill[data-key="AUTOMATION"].active {
+  color: #fff;
+  background: linear-gradient(135deg, #0891b2, #7c3aed);
+  border-color: #0891b2;
+  box-shadow: 0 2px 10px rgba(8, 145, 178, 0.35);
+}
+
 /* ──────────────────────────────────────────────
    4. ACTIVE FILTER CHIPS
    ────────────────────────────────────────────── */

@@ -6,9 +6,10 @@ const { authenticate, requirePermission } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 router.get('/rulesets', authenticate, requirePermission('rules_view'), rulesetController.getAllRulesets);
+router.get('/rulesets-stats', authenticate, requirePermission('rules_view'), rulesetController.getRulesetStats);
 router.get('/rulesets/:id', authenticate, requirePermission('rules_view'), rulesetController.getRulesetById);
 router.post('/rulesets', authenticate, requirePermission('rules_manage'), validate('createRuleset'), rulesetController.createRuleset);
-router.put('/rulesets/:id', authenticate, requirePermission('rules_manage'), rulesetController.updateRuleset);
+router.put('/rulesets/:id', authenticate, requirePermission('rules_manage'), validate('updateRuleset'), rulesetController.updateRuleset);
 router.delete('/rulesets/:id', authenticate, requirePermission('rules_manage'), rulesetController.deleteRuleset);
 router.patch('/rulesets/:id/toggle', authenticate, requirePermission('rules_manage'), rulesetController.toggleRuleset);
 router.post('/rulesets/:id/execute', authenticate, requirePermission('rules_manage'), rulesetController.executeRuleset);
