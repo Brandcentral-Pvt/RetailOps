@@ -84,6 +84,24 @@ exports.getInstances = async (req, res) => {
   }
 };
 
+exports.addComment = async (req, res) => {
+  try {
+    const data = await pemsService.addComment(req.params.id, req.body?.text, getUserId(req), getUserName(req) || req.user?.email);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.verifyFix = async (req, res) => {
+  try {
+    const data = await pemsService.verifyFix(req.params.id, getUserId(req), getUserName(req) || req.user?.email);
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 exports.getInstanceById = async (req, res) => {
   try {
     const instance = await pemsService.getInstanceById(req.params.id);
@@ -179,24 +197,51 @@ exports.uploadEvidence = async (req, res) => {
 // REVIEWS
 // ═══════════════════════════════════════════════════════
 
+const reviewActor = (req) => ({
+  id: getUserId(req),
+  name: getUserName(req) || req.user?.email,
+  role: req.user?.role,
+});
+
+// Review + workflow transition (claim → record → decide) in ONE transaction.
 exports.submitReview = async (req, res) => {
   try {
-    const result = await pemsService.submitReview({
-      ...req.body,
-      reviewerId: getUserId(req),
-      reviewerName: getUserName(req) || req.user?.email,
-    });
-
-    // Review insert + workflow transition applied atomically
-    await pemsService.submitReviewAndTransition(req.body, {
-      id: getUserId(req),
-      name: getUserName(req) || req.user?.email,
-      role: req.user?.role,
-    });
-
+    const result = await pemsService.submitReviewAndTransition(req.body, reviewActor(req));
     res.json({ success: true, data: result });
   } catch (err) {
+    console.error('submitReview error:', err.message);
     res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.bulkReview = async (req, res) => {
+  try {
+    const { ids, decision, feedback, qualityScore } = req.body || {};
+    const result = await pemsService.bulkReview(ids, { decision, feedback, qualityScore }, reviewActor(req), req.user);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('bulkReview error:', err.message);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.getMyDay = async (req, res) => {
+  try {
+    const data = await pemsService.getMyDay(req.user, req.query.userId);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('getMyDay error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.getReviewStats = async (req, res) => {
+  try {
+    const data = await pemsService.getReviewStats(req.user);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('getReviewStats error:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
@@ -406,5 +451,73 @@ exports.recalculateProgress = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Automation (ruleset) stats ─────────────────────
+exports.getAutomationStats = async (req, res) => {
+  try {
+    const sql = require('mssql');
+    const { getPool } = require('../../config/db');
+    const pool = await getPool();
+    const total = await pool.request().query("SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET'");
+    const open = await pool.request().query("SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET' AND Status NOT IN ('COMPLETED','APPROVED','CANCELLED','REJECTED')");
+    const overdue = await pool.request().query(`SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET' AND SLAStatus = 'OVERDUE' AND Status NOT IN ('COMPLETED','APPROVED','CANCELLED','REJECTED')`);
+    const rulesets = await pool.request().query(`
+      SELECT SourceId as rulesetId, SourceRef as ruleName, COUNT(*) as tasks,
+             SUM(CASE WHEN Status IN ('COMPLETED','APPROVED') THEN 1 ELSE 0 END) as completed
+      FROM PemsTaskInstances
+      WHERE Source = 'RULESET' AND SourceId IS NOT NULL
+      GROUP BY SourceId, SourceRef
+      ORDER BY tasks DESC
+    `);
+    res.json({
+      success: true,
+      data: {
+        total: total.recordset[0]?.c || 0,
+        open: open.recordset[0]?.c || 0,
+        overdue: overdue.recordset[0]?.c || 0,
+        byRuleset: rulesets.recordset,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// ── Daily routine (Daily Operations Master import + generation) ──
+exports.importDailyOps = async (req, res) => {
+  try {
+    const routineService = require('../../services/pems/routineService');
+    const { rows, overrides, dryRun, generateNow } = req.body || {};
+    const data = await routineService.importDailyOps({
+      rows, overrides: overrides || {}, dryRun: dryRun !== false, generateNow: generateNow !== false, userId: getUserId(req),
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('importDailyOps error:', err);
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.generateRoutineToday = async (req, res) => {
+  try {
+    const routineService = require('../../services/pems/routineService');
+    const data = await routineService.generateToday({ templateId: req.body?.templateId });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('generateRoutineToday error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.setBrandCheck = async (req, res) => {
+  try {
+    const { completed, note } = req.body || {};
+    if (typeof completed !== 'boolean') return res.status(400).json({ success: false, message: '"completed" (true/false) is required' });
+    const data = await pemsService.setBrandCheck(req.params.id, req.params.brandId, completed, getUserId(req), note);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({ success: false, message: err.message });
   }
 };

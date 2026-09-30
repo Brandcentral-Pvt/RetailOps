@@ -13,12 +13,22 @@ router.post('/templates', auth, requirePermission('tasks_manage'), invalidateCac
 router.put('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.updateTemplate);
 router.delete('/templates/:id', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.deleteTemplate);
 
+// ── Brand checklist on multi-brand routines (brandId omitted = all brands) ──
+router.put('/instances/:id/brands', auth, requireTaskAccess, ctrl.setBrandCheck);
+router.put('/instances/:id/brands/:brandId', auth, requireTaskAccess, ctrl.setBrandCheck);
+
+// ── Daily routine ──
+router.post('/routine/import', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.importDailyOps);
+router.post('/routine/generate', auth, requirePermission('tasks_manage'), ctrl.generateRoutineToday);
+
 // ── Task Instances ──
 router.get('/instances', auth, cacheRoute('pems:instances', 30), ctrl.getInstances);
 router.get('/instances/:id', auth, cacheRoute('pems:instances', 60), ctrl.getInstanceById);
 router.post('/instances', auth, invalidateCache('pems:instances'), ctrl.createInstance);
 router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
 router.post('/instances/:id/transition', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.transitionStatus);
+router.post('/instances/:id/comments', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.addComment);
+router.post('/instances/:id/verify-fix', auth, requireTaskAccess, ctrl.verifyFix);
 router.put('/instances/:id/achievement', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.updateAchievement);
 
 // ── Sub Tasks & Activities ──
@@ -30,6 +40,9 @@ router.post('/evidence', auth, requireTaskAccess, ctrl.uploadEvidence);
 
 // ── Reviews ──
 router.post('/reviews', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.submitReview);
+router.post('/reviews/bulk', auth, invalidateCache('pems:instances'), ctrl.bulkReview);
+router.get('/reviews/stats', auth, ctrl.getReviewStats);
+router.get('/my-day', auth, ctrl.getMyDay);
 
 // ── Dashboard ──
 router.get('/dashboard/kpis', auth, cacheRoute('pems:dashboard', 120), ctrl.getDashboardKPIs);
@@ -70,6 +83,9 @@ router.get('/notifications/merged', auth, cacheRoute('pems:notifications', 15), 
     res.json({ success: true, data: [], unreadCount: 0 });
   }
 });
+
+// ── Automation (ruleset) stats ──
+router.get('/automation-stats', auth, cacheRoute('pems:instances', 30), ctrl.getAutomationStats);
 
 // ── Dynamic Data Sources ──
 router.get('/sellers', auth, cacheRoute('pems:meta', 300), ctrl.getSellers);

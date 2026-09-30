@@ -85,3 +85,10 @@ export function hasAllPermissions(user, permissions) {
 export function hasAnyPermission(user, permissions) {
   return permissions.some(p => hasPermission(user, p));
 }
+
+/**
+ * Backend user id — the API returns `Id`, older payloads use `_id` / `id`.
+ */
+export function getUserId(user) {
+  return user?.Id || user?._id || user?.id || null;
+}

@@ -7,9 +7,11 @@ import {
   PlayCircleOutlined, InfoCircleOutlined, UserOutlined,
   CalendarOutlined, SafetyCertificateOutlined, ThunderboltOutlined,
   CheckSquareOutlined, CloseCircleOutlined, MinusOutlined, DollarOutlined,
-  WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined
+  WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined,
+  LinkOutlined, PlusOutlined, ShopOutlined, ExportOutlined
 } from '@ant-design/icons';
 import tasksApi from '../services/tasksApi';
+import BrandChecklist from './BrandChecklist';
 import {
   WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES,
   PRIORITIES, TASK_ISSUE_SOURCES, CATEGORY_METRIC_CONFIG
@@ -34,6 +36,56 @@ const CATEGORY_THEME = {
   COMPLIANCE: { headerBg: 'var(--bc-red-50)', borderColor: 'var(--bc-red-200)', bg: 'var(--bc-red-50)', accent: '#dc2626', label: 'Compliance Check' },
   GENERAL: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#64748b', label: 'Task Review' },
 };
+
+
+const STEPS = [
+  ['DRAFT', 'Draft'], ['ASSIGNED', 'Assigned'], ['IN_PROGRESS', 'In progress'],
+  ['SUBMITTED', 'Submitted'], ['UNDER_REVIEW', 'In review'], ['APPROVED', 'Done'],
+];
+const STEP_INDEX = {
+  DRAFT: 0, ASSIGNED: 1, ACCEPTED: 1, IN_PROGRESS: 2, ESCALATED: 2, REWORK: 2,
+  SUBMITTED: 3, RESUBMITTED: 3, UNDER_REVIEW: 4, REJECTED: 4, APPROVED: 5, CANCELLED: -1,
+};
+const EXCEPTION_STATUSES = new Set(['REJECTED', 'REWORK', 'ESCALATED', 'CANCELLED']);
+
+function parseJsonArray(v) {
+  if (Array.isArray(v)) return v;
+  if (!v) return [];
+  try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch { return []; }
+}
+
+function initials(name) {
+  return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+}
+
+function WorkflowStepper({ status }) {
+  const idx = STEP_INDEX[status] ?? 0;
+  const cancelled = status === 'CANCELLED';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 12, opacity: cancelled ? 0.45 : 1 }}>
+      {STEPS.map(([key, label], i) => {
+        const done = i < idx || (status === 'APPROVED' && i <= idx);
+        const current = i === idx && status !== 'APPROVED';
+        const color = done ? '#16a34a' : current ? '#2563eb' : '#cbd5e1';
+        return (
+          <React.Fragment key={key}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: done ? '#16a34a' : current ? '#fff' : '#fff', border: `2px solid ${color}`,
+                boxShadow: current ? '0 0 0 4px rgba(37,99,235,0.14)' : 'none', color: '#fff', fontSize: 10,
+              }}>
+                {done ? <CheckCircleOutlined style={{ fontSize: 11 }} /> : current ? <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb' }} /> : null}
+              </div>
+              <Text style={{ fontSize: 11, fontWeight: current ? 700 : 500, color: done || current ? 'var(--bc-text-heading)' : 'var(--bc-text-muted)' }}>{label}</Text>
+            </div>
+            {i < STEPS.length - 1 && <div style={{ flex: 1, height: 2, margin: '0 8px', minWidth: 12, background: i < idx ? '#16a34a' : '#e2e8f0', borderRadius: 2 }} />}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 function SectionHeader({ title, icon: Icon, count, action }) {
   return (
@@ -130,7 +182,7 @@ function UotActionPanel({ ticketId, setTicketId, requestId, setRequestId, action
   );
 }
 
-function UotValidatePanel({ verifying, verifyResult, handleVerify, handleSubmit, canSubmit, taskStatus, allSubTasksDone, subTaskCount, completedCount, asinResults }) {
+function UotValidatePanel({ verifying, verifyResult, handleVerify, onManualConfirm, handleSubmit, canSubmit, taskStatus, allSubTasksDone, subTaskCount, completedCount, asinResults }) {
   const isClosed = taskStatus === 'APPROVED' || taskStatus === 'CANCELLED';
   const allAsinsVerified = !asinResults?.length || asinResults.every(a => a.verified);
   const canComplete = canSubmit && verifyResult?.status === 'success' && allAsinsVerified;
@@ -175,12 +227,18 @@ function UotValidatePanel({ verifying, verifyResult, handleVerify, handleSubmit,
             border: `1px solid ${verifyResult.status === 'success' ? 'var(--bc-green-200)' : verifyResult.status === 'mismatch' ? 'var(--bc-red-200)' : 'var(--bc-amber-200)'}`
           }}>
             <Space>
-              {verifyResult.status === 'success' ? <CheckCircleOutlined style={{ color: 'var(--bc-green-600)' }} /> : <WarningOutlined style={{ color: 'var(--bc-red-600)' }} />}
+              {verifyResult.status === 'success' ? <CheckCircleOutlined style={{ color: 'var(--bc-green-600)' }} /> : <WarningOutlined style={{ color: verifyResult.status === 'unavailable' ? 'var(--bc-amber-800)' : 'var(--bc-red-600)' }} />}
               <Text style={{ fontSize: 11, color: verifyResult.status === 'success' ? 'var(--bc-green-600)' : 'var(--bc-red-600)' }}>
                 {verifyResult.message || (verifyResult.status === 'success' ? 'Fix verified — changes are live' : 'Fix not confirmed — retry or escalate')}
               </Text>
             </Space>
           </div>
+        )}
+
+        {verifyResult?.status === 'unavailable' && (
+          <Button size="small" block onClick={onManualConfirm} icon={<CheckCircleOutlined />} style={{ borderRadius: 6 }}>
+            I have checked it manually — confirm
+          </Button>
         )}
 
         {subTaskBlock && (
@@ -312,32 +370,63 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
   // Comment
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState([]);
+  const [commentSending, setCommentSending] = useState(false);
+  const [evidenceDraft, setEvidenceDraft] = useState({ fileName: '', fileUrl: '', remarks: '' });
+  const [evidenceSaving, setEvidenceSaving] = useState(false);
 
-  const handleSendComment = () => {
+  const handleSendComment = async () => {
     const text = newComment.trim();
-    if (!text) return;
-    setComments(prev => [{
-      id: `c_${Date.now()}`,
-      text,
-      author: currentUser?.firstName || 'You',
-      createdAt: new Date().toISOString(),
-    }, ...prev]);
-    setNewComment('');
-    message.success('Comment added');
+    if (!text || commentSending) return;
+    setCommentSending(true);
+    try {
+      await tasksApi.addComment(taskId, text);
+      setNewComment('');
+      await loadTask({ silent: true });
+      message.success('Comment added');
+    } catch (err) { message.error(err.message || 'Could not add comment'); }
+    finally { setCommentSending(false); }
   };
 
-  const loadTask = useCallback(async () => {
+  const handleAddEvidence = async () => {
+    const fileName = evidenceDraft.fileName.trim();
+    const fileUrl = evidenceDraft.fileUrl.trim();
+    if (!fileName) return message.warning('Give the evidence a name');
+    if (!/^https?:\/\//i.test(fileUrl)) return message.warning('Enter a valid link starting with http:// or https://');
+    setEvidenceSaving(true);
+    try {
+      await tasksApi.uploadEvidence({ taskInstanceId: taskId, fileName, fileUrl, fileType: 'LINK', remarks: evidenceDraft.remarks.trim() });
+      setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '' });
+      await loadTask({ silent: true });
+      message.success('Evidence added');
+    } catch (err) { message.error(err.message || 'Could not add evidence'); }
+    finally { setEvidenceSaving(false); }
+  };
+
+  const loadTask = useCallback(async (opts = {}) => {
     if (!taskId) return;
-    setLoading(true);
+    if (!opts.silent) setLoading(true);
     try {
       const res = await tasksApi.getInstanceById(taskId);
       if (res.success) setTask(res.data);
     } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    finally { if (!opts.silent) setLoading(false); }
   }, [taskId]);
 
   useEffect(() => { loadTask(); }, [loadTask]);
+
+  // Reset per-task working state so nothing leaks from the previously opened task
+  useEffect(() => {
+    setIssueSource(null); setTicketId(''); setRequestId(''); setActionNotes('');
+    setVerifyResult(null); setAsinResults([]); setNewComment('');
+    setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '' });
+    setTask(null);
+    setActiveTab('overview');
+  }, [taskId]);
+  const taskLoadedId = task?.Id;
+  useEffect(() => {
+    if (!taskLoadedId) return;
+    setActiveTab(task?.Source === 'RULESET' || task?.IsRuleTask ? 'resolve' : 'overview');
+  }, [taskLoadedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const notifyTransition = useCallback(async (toStatus) => {
     try {
@@ -373,6 +462,11 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       message.warning('Complete all sub-tasks before submitting.');
       return false;
     }
+    const openBrands = (task.brands || []).filter(b => !b.IsCompleted).length;
+    if (toStatus === 'SUBMITTED' && openBrands > 0) {
+      message.warning(`${openBrands} brand${openBrands > 1 ? 's' : ''} not covered yet — tick them on the SOP tab.`);
+      return false;
+    }
     const isNewListing = task.Category === 'LISTING' && task.InstanceCode?.includes('DLY-004');
     const aiTarget = task.TargetScore ?? task.AITarget ?? 9.0;
     if (isNewListing && toStatus === 'SUBMITTED' && (task.AIHealthScore ?? 0) < aiTarget) {
@@ -391,17 +485,18 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     setVerifyResult(null);
     setAsinResults([]);
     try {
-      const res = await tasksApi.verifyFix?.(taskId) || { status: 'success', message: 'Fix verified — changes are live' };
+      const res = await tasksApi.verifyFix(taskId);
       setVerifyResult(res);
-      if (subTasks.length > 0) {
-        setAsinResults(subTasks.map(st => ({
-          asin: st.SKU || st.Asin || `SUB-${st.Id?.slice(0, 6)}`,
-          verified: st.IsCompleted && res.status === 'success',
-        })));
-      }
-    } catch {
-      setVerifyResult({ status: 'mismatch', message: 'Verification failed — system values still diverge' });
+      setAsinResults((res.asins || []).map(a => ({ asin: a.asin, verified: !!a.verified })));
+      loadTask({ silent: true });
+    } catch (err) {
+      setVerifyResult({ status: 'mismatch', message: err.message || 'Verification failed' });
     } finally { setVerifying(false); }
+  };
+
+  const handleManualConfirm = () => {
+    setAsinResults([]);
+    setVerifyResult({ status: 'success', manual: true, message: 'Manually confirmed — no automatic check was possible' });
   };
 
   const handleSubmitComplete = async () => {
@@ -425,11 +520,13 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     if (!reviewFeedback.trim()) return;
     setReviewSubmitting(true);
     try {
+      // The server records the review AND applies the transition atomically.
       await tasksApi.submitReview({ taskInstanceId: taskId, decision: reviewDecision, feedback: reviewFeedback, qualityScore: reviewScore });
-      await handleTransition(reviewDecision === 'APPROVE' ? 'APPROVED' : 'REJECTED', reviewFeedback);
+      notifyTransition(reviewDecision === 'APPROVE' ? 'APPROVED' : 'REJECTED');
       setReviewDecision(null); setReviewFeedback(''); setReviewScore(null);
+      await loadTask();
       if (onRefresh) onRefresh();
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); message.error(err.message || 'Review failed'); }
     finally { setReviewSubmitting(false); }
   };
 
@@ -442,6 +539,11 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   const totalActivities = subTasks.reduce((s, st) => s + (st.activities?.length || 0), 0);
   const completedActivities = subTasks.reduce((s, st) => s + (st.activities?.filter(a => a.IsCompleted).length || 0), 0);
 
+  const isRuleTask = !!task && (task.Source === 'RULESET' || task.IsRuleTask);
+  const rulesetName = task?.SourceRef || task?.RulesetName || '';
+  const rulesetId = task?.SourceId || task?.RulesetId || '';
+  const taskAsins = task ? parseJsonArray(task.Asins) : [];
+  const openRuleset = () => window.open(rulesetId ? `/rule-sets/${rulesetId}` : '/rule-sets', '_blank', 'noopener');
   const categoryKey = task?.Category || task?.Department || 'GENERAL';
   const theme = CATEGORY_THEME[categoryKey] || CATEGORY_THEME.GENERAL;
 
@@ -455,38 +557,26 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       label: <Space size={4}><InfoCircleOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Overview</span></Space>,
       children: task && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* ═══ MODULAR ACTION CENTER ═══ */}
-          <div style={{ background: theme.bg, borderRadius: 12, border: `1px solid ${theme.borderColor}`, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 16px', background: theme.headerBg, borderBottom: `1px solid ${theme.borderColor}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <SafetyCertificateOutlined style={{ color: theme.accent, fontSize: 15 }} />
-              <Text strong style={{ fontSize: 13, color: theme.accent }}>{theme.label}</Text>
-              {task.IsRuleTask && (
-                <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-blue-50)', color: 'var(--bc-blue-600)', border: 'none', margin: 0, marginLeft: 'auto' }}>
-                  <ThunderboltOutlined style={{ marginRight: 4 }} />Auto-detected
-                </Tag>
+          {isRuleTask && (
+            <div style={{ padding: '14px 16px', borderRadius: 12, background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', border: '1px solid #bae6fd' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#0891b2,#7c3aed)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}><ThunderboltOutlined /></div>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <Text strong style={{ fontSize: 13, color: '#0f172a', display: 'block' }}>Created automatically by an automation rule</Text>
+                  <Text style={{ fontSize: 12, color: '#475569' }}>{rulesetName ? <>Rule: <b>{rulesetName}</b></> : 'Ruleset-generated task'}{task.CreatedAt ? <> · {dayjs(task.CreatedAt).format('DD MMM YYYY, h:mm A')}</> : null}</Text>
+                </div>
+                <Button size="small" icon={<ExportOutlined />} onClick={openRuleset} style={{ borderRadius: 8, fontWeight: 600 }}>Open rule</Button>
+                <Button size="small" type="primary" onClick={() => setActiveTab('resolve')} style={{ borderRadius: 8, fontWeight: 600, background: 'linear-gradient(135deg,#0891b2,#7c3aed)', border: 'none' }}>Resolve</Button>
+              </div>
+              {taskAsins.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ASINs ({taskAsins.length})</Text>
+                  {taskAsins.slice(0, 12).map(a => <Text code key={a} style={{ fontSize: 10, margin: 0 }}>{a}</Text>)}
+                  {taskAsins.length > 12 && <Text style={{ fontSize: 11, color: '#64748b' }}>+{taskAsins.length - 12} more</Text>}
+                </div>
               )}
             </div>
-            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Step 1: Trigger */}
-              <UotTriggerPanel task={task} categoryKey={categoryKey} />
-              {/* Step 2: Categorize */}
-              <UotCategorizePanel categoryKey={categoryKey} issueSource={issueSource} setIssueSource={setIssueSource} />
-              {/* Automated Data Panel */}
-              <AutomatedDataPanel subTasks={subTasks} />
-              {/* Step 3: Action */}
-              <UotActionPanel ticketId={ticketId} setTicketId={setTicketId} requestId={requestId} setRequestId={setRequestId} actionNotes={actionNotes} setActionNotes={setActionNotes} />
-              {/* AI/Vision Feedback (universal for Catalog) */}
-              {categoryKey === 'LISTING' && <VisionFeedbackPanel task={task} />}
-              {/* Step 4: Validate */}
-              <UotValidatePanel
-                verifying={verifying} verifyResult={verifyResult}
-                handleVerify={handleVerify} handleSubmit={handleSubmitComplete}
-                canSubmit={canSubmit} taskStatus={task.Status}
-                allSubTasksDone={allSubTasksDone} subTaskCount={subTasks.length} completedCount={completedSubTasks}
-                asinResults={asinResults}
-              />
-            </div>
-          </div>
+          )}
 
           {/* KPI Cards */}
           <SectionHeader title="Performance Metrics" icon={AimOutlined} />
@@ -553,6 +643,10 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       label: <Space size={4}><CheckSquareOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>SOP</span></Space>,
       children: task && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <BrandChecklist brands={task.brands || []} canEdit={['IN_PROGRESS', 'REWORK', 'ACCEPTED'].includes(task.Status)}
+            hint="Start the task to tick brands."
+            onToggle={async (b, completed) => { try { await tasksApi.setBrandCheck(task.Id, b.Id, completed); await loadTask(); onRefresh?.(); } catch (err) { message.error(err.message); } }}
+            onToggleAll={async (completed) => { try { await tasksApi.setBrandCheck(task.Id, null, completed); await loadTask(); onRefresh?.(); } catch (err) { message.error(err.message); } }} />
           <SectionHeader title={`SOP Execution — ${completedActivities}/${totalActivities} steps`} icon={ThunderboltOutlined} />
           {subTasks.length === 0 ? <Empty description="No SOP defined for this task" /> : subTasks.map((st, stIdx) => {
             const done = st.activities?.filter(a => a.IsCompleted).length || 0;
@@ -607,21 +701,69 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       ),
     },
     {
+      key: 'resolve',
+      label: <Space size={4}><SafetyCertificateOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Resolution</span></Space>,
+      children: task && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* ═══ MODULAR ACTION CENTER ═══ */}
+          <div style={{ background: theme.bg, borderRadius: 12, border: `1px solid ${theme.borderColor}`, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', background: theme.headerBg, borderBottom: `1px solid ${theme.borderColor}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <SafetyCertificateOutlined style={{ color: theme.accent, fontSize: 15 }} />
+              <Text strong style={{ fontSize: 13, color: theme.accent }}>{theme.label}</Text>
+              {task.IsRuleTask && (
+                <Tag style={{ fontSize: 9, borderRadius: 4, background: 'var(--bc-blue-50)', color: 'var(--bc-blue-600)', border: 'none', margin: 0, marginLeft: 'auto' }}>
+                  <ThunderboltOutlined style={{ marginRight: 4 }} />Auto-detected
+                </Tag>
+              )}
+            </div>
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Step 1: Trigger */}
+              <UotTriggerPanel task={task} categoryKey={categoryKey} />
+              {/* Step 2: Categorize */}
+              <UotCategorizePanel categoryKey={categoryKey} issueSource={issueSource} setIssueSource={setIssueSource} />
+              {/* Automated Data Panel */}
+              <AutomatedDataPanel subTasks={subTasks} />
+              {/* Step 3: Action */}
+              <UotActionPanel ticketId={ticketId} setTicketId={setTicketId} requestId={requestId} setRequestId={setRequestId} actionNotes={actionNotes} setActionNotes={setActionNotes} />
+              {/* AI/Vision Feedback (universal for Catalog) */}
+              {categoryKey === 'LISTING' && <VisionFeedbackPanel task={task} />}
+              {/* Step 4: Validate */}
+              <UotValidatePanel
+                verifying={verifying} verifyResult={verifyResult}
+                handleVerify={handleVerify} onManualConfirm={handleManualConfirm} handleSubmit={handleSubmitComplete}
+                canSubmit={canSubmit} taskStatus={task.Status}
+                allSubTasksDone={allSubTasksDone} subTaskCount={subTasks.length} completedCount={completedSubTasks}
+                asinResults={asinResults}
+              />
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
       key: 'evidence',
-      label: <Space size={4}><FileTextOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Evidence</span></Space>,
+      label: <Space size={4}><FileTextOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Evidence</span>{task?.evidence?.length > 0 && <Badge count={task.evidence.length} size="small" color="#2563eb" />}</Space>,
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SectionHeader title={`Evidence (${task?.evidence?.length || 0})`} icon={FileTextOutlined} />
-          {!task?.evidence?.length ? <Empty description="No evidence uploaded yet" /> : task.evidence.map(ev => (
-            <div key={ev.Id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)' }}>
-              <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: 'var(--bc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FileTextOutlined style={{ color: 'var(--bc-blue-600)' }} />
+          <div style={{ padding: 14, borderRadius: 12, border: '1px dashed var(--bc-border-strong, #cbd5e1)', background: 'var(--bc-surface-subtle)' }}>
+            <Text style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--bc-text-secondary)', display: 'block', marginBottom: 8 }}>Attach evidence link</Text>
+            <Row gutter={8}>
+              <Col xs={24} md={8}><Input size="small" prefix={<FileTextOutlined />} placeholder="Name (e.g. Updated listing screenshot)" value={evidenceDraft.fileName} onChange={e => setEvidenceDraft(d => ({ ...d, fileName: e.target.value }))} /></Col>
+              <Col xs={24} md={10}><Input size="small" prefix={<LinkOutlined />} placeholder="https://drive.google.com/…" value={evidenceDraft.fileUrl} onChange={e => setEvidenceDraft(d => ({ ...d, fileUrl: e.target.value }))} /></Col>
+              <Col xs={24} md={6}><Button size="small" type="primary" block icon={<PlusOutlined />} loading={evidenceSaving} onClick={handleAddEvidence} style={{ borderRadius: 6 }}>Add</Button></Col>
+            </Row>
+            <Input size="small" style={{ marginTop: 8 }} placeholder="Remarks (optional)" value={evidenceDraft.remarks} onChange={e => setEvidenceDraft(d => ({ ...d, remarks: e.target.value }))} onPressEnter={handleAddEvidence} />
+          </div>
+          {!task?.evidence?.length ? <Empty description="No evidence attached yet" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : task.evidence.map(ev => (
+            <div key={ev.Id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--bc-blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {ev.FileType === 'LINK' ? <LinkOutlined style={{ color: 'var(--bc-blue-600)' }} /> : <FileTextOutlined style={{ color: 'var(--bc-blue-600)' }} />}
               </div>
-              <div style={{ flex: 1 }}>
-                <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{ev.FileName}</Text>
-                <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{ev.UploadedByName} · {dayjs(ev.UploadedAt).format('DD MMM YYYY [at] h:mm A')}</Text>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {ev.FileUrl ? <a href={ev.FileUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{ev.FileName} <ExportOutlined style={{ fontSize: 10 }} /></a> : <Text strong style={{ fontSize: 'var(--font-size-sm)' }}>{ev.FileName}</Text>}
+                <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{ev.UploadedByName || 'Unknown'} · {dayjs(ev.UploadedAt).format('DD MMM YYYY [at] h:mm A')}</Text>
               </div>
-              {ev.Remarks && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.Remarks}</Text>}
+              {ev.Remarks && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ev.Remarks}>{ev.Remarks}</Text>}
             </div>
           ))}
         </div>
@@ -629,29 +771,31 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     },
     {
       key: 'comments',
-      label: <Space size={4}><CommentOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Comments</span></Space>,
+      label: <Space size={4}><CommentOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Discussion</span>{task?.comments?.length > 0 && <Badge count={task.comments.length} size="small" color="#2563eb" />}</Space>,
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SectionHeader title="Discussion" icon={CommentOutlined} />
-          <div style={{ padding: '12px 14px', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)' }}>
-            <Input.TextArea rows={2} value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add a comment... (@mention, attach files)" style={{ borderRadius: "var(--radius-md)", background: 'var(--bc-surface-card)' }} />
+          <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)' }}>
+            <Input.TextArea rows={2} maxLength={2000} value={newComment} onChange={e => setNewComment(e.target.value)}
+              onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleSendComment(); }}
+              placeholder="Write an update for the team…  (Ctrl/⌘ + Enter to send)" style={{ borderRadius: 'var(--radius-md)', background: 'var(--bc-surface-card)' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-              <Button type="primary" size="small" icon={<SendOutlined />} disabled={!newComment.trim()} onClick={handleSendComment} style={{ borderRadius: 6, background: 'var(--bc-blue-600)' }}>Comment</Button>
+              <Button type="primary" size="small" icon={<SendOutlined />} loading={commentSending} disabled={!newComment.trim()} onClick={handleSendComment} style={{ borderRadius: 6 }}>Post comment</Button>
             </div>
           </div>
-          {comments.length === 0 ? (
-            <div style={{ padding: '20px 0', textAlign: 'center' }}>
-              <Text type="secondary" style={{ fontSize: 'var(--font-size-sm)' }}>Comments will appear here as team members collaborate.</Text>
-            </div>
+          {!task?.comments?.length ? (
+            <Empty description="No comments yet — start the discussion" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {comments.map(c => (
-                <div key={c.id} style={{ padding: '10px 12px', borderRadius: "var(--radius-md)", border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 600, color: 'var(--bc-text-heading)' }}>{c.author}</Text>
-                    <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{new Date(c.createdAt).toLocaleString()}</Text>
+              {task.comments.map(c => (
+                <div key={c.Id} style={{ display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)' }}>
+                  <Avatar size={30} style={{ background: '#6366f1', fontSize: 11, flexShrink: 0 }}>{initials(c.ActorName)}</Avatar>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <Text style={{ fontSize: 12, fontWeight: 700, color: 'var(--bc-text-heading)' }}>{c.ActorName || 'Unknown'}</Text>
+                      <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{dayjs(c.CreatedAt).fromNow?.() || dayjs(c.CreatedAt).format('DD MMM, h:mm A')}</Text>
+                    </div>
+                    <Text style={{ fontSize: 12, color: 'var(--bc-text-body)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.Details}</Text>
                   </div>
-                  <Text style={{ fontSize: 12, color: 'var(--bc-text-body)', whiteSpace: 'pre-wrap' }}>{c.text}</Text>
                 </div>
               ))}
             </div>
@@ -666,7 +810,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           <SectionHeader title="Audit Timeline" icon={ClockCircleOutlined} count={task.auditLogs?.length} />
           {!task.auditLogs?.length ? <Empty description="No activity recorded" /> : task.auditLogs.map((log, i) => {
-            const colors = { CREATED: 'var(--bc-blue-600)', STATUS_CHANGED: 'var(--bc-green-600)', SUBTASK_COMPLETED: 'var(--bc-green-600)', EVIDENCE_UPLOADED: 'var(--bc-violet-600)' };
+            const colors = { CREATED: 'var(--bc-blue-600)', STATUS_CHANGED: 'var(--bc-green-600)', SUBTASK_COMPLETED: 'var(--bc-green-600)', EVIDENCE_UPLOADED: 'var(--bc-violet-600)', COMMENT: '#6366f1', FIX_VERIFIED: 'var(--bc-green-600)', FIX_NOT_VERIFIED: 'var(--bc-red-600)' };
             return (
               <div key={log.Id} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: i < task.auditLogs.length - 1 ? '1px solid var(--bc-border-subtle)' : 'none' }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: colors[log.Action] || 'var(--bc-text-muted)', marginTop: 4, flexShrink: 0 }} />
@@ -686,12 +830,23 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     },
   ];
 
+  const forwardStatuses = nextStatuses.filter(st => st !== 'APPROVED' && st !== 'REJECTED' && st !== 'CANCELLED');
+  const reviewStatuses = nextStatuses.filter(st => st === 'APPROVED' || st === 'REJECTED');
+  const primaryStatus = forwardStatuses[0];
+  const startTransition = (st) => {
+    if (!checkGate(st)) return;
+    setTransModal({ toStatus: st, remarks: '' });
+  };
+  const railLabel = { fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, display: 'block', marginBottom: 6 };
+  const priority = PRIORITIES[task?.Priority] || { bg: 'var(--bc-surface-subtle)', color: 'var(--bc-text-body)', label: task?.Priority };
+  const sla = SLA_STATUSES[task?.SLAStatus] || { label: (task?.SLAStatus || 'WITHIN SLA').replace(/_/g, ' '), color: 'var(--bc-text-secondary)', bg: 'var(--bc-surface-subtle)' };
+
   return (
     <Drawer
       title={null}
       open={open}
       onClose={onClose}
-      width="75vw"
+      width="min(1180px, 92vw)"
       destroyOnHidden
       styles={{
         body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' },
@@ -703,113 +858,134 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       ) : (
         <div style={{ display: 'flex', height: '100%' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-              <Button type="text" onClick={onClose} style={{ fontSize: 18, color: 'var(--bc-text-secondary)' }}>✕</Button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Text code style={{ fontSize: 'var(--font-size-xs)' }}>{task.InstanceCode}</Text>
-                  <Tag style={{ fontSize: 9, borderRadius: 10, fontWeight: 600, background: STATUS_COLORS[task.Status] + '15', color: STATUS_COLORS[task.Status], border: `1px solid ${STATUS_COLORS[task.Status]}30` }}>{task.Status}</Tag>
-                  <Tag style={{ fontSize: 9, borderRadius: 6, background: PRIORITIES[task.Priority]?.bg || 'var(--bc-surface-subtle)', color: PRIORITIES[task.Priority]?.color || 'var(--bc-text-body)' }}>{task.Priority}</Tag>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: health.color }} title={`Health: ${health.score}/100`} />
-                </div>
-                <Text strong style={{ fontSize: 15, color: 'var(--bc-text-heading)', display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.Title || task.TemplateName}</Text>
+
+            {/* ═══ HEADER ═══ */}
+            <div style={{ padding: '14px 24px 12px', borderBottom: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)', flexShrink: 0, position: 'relative' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: isRuleTask ? 'linear-gradient(180deg,#0891b2,#7c3aed)' : (STATUS_COLORS[task.Status] || '#2563eb') }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Button type="text" size="small" onClick={onClose} aria-label="Close" style={{ fontSize: 16, color: 'var(--bc-text-secondary)', marginLeft: -8 }}>✕</Button>
+                <Text code style={{ fontSize: 11 }}>{task.InstanceCode}</Text>
+                <Tag style={{ fontSize: 10, borderRadius: 10, fontWeight: 700, margin: 0, background: (STATUS_COLORS[task.Status] || '#64748b') + '15', color: STATUS_COLORS[task.Status] || '#64748b', border: `1px solid ${(STATUS_COLORS[task.Status] || '#64748b')}30` }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
+                <Tag style={{ fontSize: 10, borderRadius: 10, fontWeight: 700, margin: 0, border: 'none', background: priority.bg, color: priority.color }}>{priority.label || task.Priority}</Tag>
+                {isRuleTask && (
+                  <Tooltip title="Open the originating rule">
+                    <Tag onClick={openRuleset} style={{ cursor: 'pointer', fontSize: 10, borderRadius: 10, fontWeight: 700, margin: 0, border: 'none', color: '#fff', background: 'linear-gradient(135deg,#0891b2,#7c3aed)' }}>
+                      <ThunderboltOutlined /> {rulesetName ? `Rule: ${rulesetName}` : 'Automation'}
+                    </Tag>
+                  </Tooltip>
+                )}
+                {EXCEPTION_STATUSES.has(task.Status) && <Tag color="warning" style={{ margin: 0, borderRadius: 10, fontSize: 10, fontWeight: 700 }}>Needs attention</Tag>}
+                <div style={{ flex: 1 }} />
+                <Tooltip title="Reload"><Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => loadTask({ silent: true })} /></Tooltip>
+                <Space size={6}>
+                  {reviewStatuses.includes('REJECTED') && <Button size="small" danger icon={<CloseCircleOutlined />} style={{ borderRadius: 8 }} onClick={() => setReviewDecision('REJECT')}>Reject</Button>}
+                  {reviewStatuses.includes('APPROVED') && <Button size="small" type="primary" icon={<CheckCircleOutlined />} style={{ borderRadius: 8, fontWeight: 700, background: 'var(--bc-green-600)', borderColor: 'var(--bc-green-600)' }} onClick={() => setReviewDecision('APPROVE')}>Approve</Button>}
+                  {forwardStatuses.filter(st => st !== primaryStatus).map(st => (
+                    <Button key={st} size="small" style={{ borderRadius: 8 }} onClick={() => startTransition(st)}>{WORKFLOW_STATUSES[st]?.label}</Button>
+                  ))}
+                  {primaryStatus && (
+                    <Button size="small" type="primary" icon={<ArrowRightOutlined />} onClick={() => startTransition(primaryStatus)}
+                      style={{ borderRadius: 8, fontWeight: 700, background: 'linear-gradient(135deg,#0ea5e9,#6366f1)', border: 'none', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
+                      {primaryStatus === 'SUBMITTED' ? 'Submit for review' : primaryStatus === 'IN_PROGRESS' ? 'Start work' : WORKFLOW_STATUSES[primaryStatus]?.label}
+                    </Button>
+                  )}
+                </Space>
               </div>
-              <Space>
-                {nextStatuses.map(s => {
-                  const isSubmit = s === 'SUBMITTED';
-                  const isApprove = s === 'APPROVED';
-                  const isReject = s === 'REJECTED';
-                  if (isApprove) return <Button key={s} size="small" type="primary" icon={<CheckCircleOutlined />} style={{ borderRadius: 6, background: 'var(--bc-green-600)', borderColor: 'var(--bc-green-600)' }} onClick={() => setReviewDecision('APPROVE')}>Approve</Button>;
-                  if (isReject) return <Button key={s} size="small" danger icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }} onClick={() => setReviewDecision('REJECT')}>Reject</Button>;
-                  return <Button key={s} size="small" type={isSubmit ? 'primary' : 'default'} icon={<ArrowRightOutlined />} style={{ borderRadius: 6, ...(isSubmit ? { background: 'var(--bc-blue-600)', borderColor: 'var(--bc-blue-600)' } : {}) }} onClick={() => { if (s === 'IN_PROGRESS' && !checkGate('IN_PROGRESS')) return; if (s === 'SUBMITTED' && !checkGate('SUBMITTED')) return; setTransModal({ toStatus: s, remarks: '' }); }}>{WORKFLOW_STATUSES[s]?.label}</Button>;
-                })}
-              </Space>
+
+              <Text strong style={{ fontSize: 19, letterSpacing: '-0.01em', color: 'var(--bc-text-heading)', display: 'block', marginTop: 8, lineHeight: 1.3 }}>{task.Title || task.TemplateName}</Text>
+              {task.Description && <Text style={{ fontSize: 12, color: 'var(--bc-text-secondary)', display: 'block', marginTop: 2, maxWidth: 820 }}>{task.Description}</Text>}
+
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+                <Space size={6}><Avatar size={20} style={{ background: task.AssigneeName ? '#2563eb' : '#cbd5e1', fontSize: 9 }}>{initials(task.AssigneeName)}</Avatar><Text style={{ fontSize: 12 }}>{task.AssigneeName || <Text type="secondary">Unassigned</Text>}</Text></Space>
+                {task.SellerName && <Space size={4}><ShopOutlined style={{ color: 'var(--bc-text-muted)' }} /><Text style={{ fontSize: 12 }}>{task.SellerName}</Text></Space>}
+                {dueLabel && <Space size={4}><CalendarOutlined style={{ color: dueLabel.color }} /><Text style={{ fontSize: 12, fontWeight: 600, color: dueLabel.color }}>{dueLabel.text}</Text></Space>}
+                <Tag style={{ margin: 0, borderRadius: 8, fontSize: 10, fontWeight: 700, border: 'none', background: sla.bg, color: sla.color }}>{sla.label}</Tag>
+                <Tooltip title={`Health ${health.score}/100`}><Tag style={{ margin: 0, borderRadius: 8, fontSize: 10, fontWeight: 700, border: 'none', background: health.bgColor, color: health.color }}>● {health.label}</Tag></Tooltip>
+              </div>
+
+              <WorkflowStepper status={task.Status} />
             </div>
 
-            <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+            <div style={{ flex: 1, overflow: 'auto', padding: '8px 24px 24px' }}>
               <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
             </div>
           </div>
 
-          <div style={{ width: 240, borderLeft: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)', padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0, overflow: 'auto' }}>
+          {/* ═══ RIGHT RAIL ═══ */}
+          <div style={{ width: 252, borderLeft: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-subtle)', padding: 16, display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0, overflow: 'auto' }}>
             <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>SLA Status</Text>
-              <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-md)", padding: '4px 10px', background: (SLA_STATUSES[task.SLAStatus]?.bg || 'var(--bc-surface-subtle)'), color: SLA_STATUSES[task.SLAStatus]?.color || 'var(--bc-text-secondary)', border: `1px solid ${SLA_STATUSES[task.SLAStatus]?.color || '#d1d5db'}30` }}>
-                {task.SLAStatus?.replace(/_/g, ' ') || 'WITHIN SLA'}
-              </Tag>
+              <Text style={railLabel}>Progress</Text>
+              <Progress percent={Math.round(task.WeightedProgressPct || task.ProgressPct || 0)} strokeColor={(task.WeightedProgressPct || task.ProgressPct || 0) >= 80 ? 'var(--bc-green-600)' : 'var(--bc-blue-600)'} />
+              <Text style={{ fontSize: 10, color: 'var(--bc-text-secondary)' }}>{completedSubTasks}/{subTasks.length} phases · {completedActivities}/{totalActivities} steps</Text>
             </div>
 
             <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Due Date</Text>
+              <Text style={railLabel}>Due</Text>
               {dueLabel ? (
-                <div style={{ padding: '6px 10px', borderRadius: "var(--radius-md)", background: dueLabel.color + '10', border: `1px solid ${dueLabel.color}20` }}>
+                <div style={{ padding: '6px 10px', borderRadius: 'var(--radius-md)', background: dueLabel.color + '10', border: `1px solid ${dueLabel.color}20` }}>
                   <Text strong style={{ fontSize: 'var(--font-size-sm)', color: dueLabel.color }}>{dueLabel.text}</Text>
-                  {task.DueDate && <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{dayjs(task.DueDate).format('DD MMM YYYY')}</Text>}
+                  {task.DueDate && <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{dayjs(task.DueDate).format('ddd, DD MMM YYYY')}</Text>}
                 </div>
               ) : <Text style={{ fontSize: 'var(--font-size-sm)', color: 'var(--bc-text-muted)' }}>No due date</Text>}
             </div>
 
-            <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Priority</Text>
-              <Tag style={{ fontSize: 'var(--font-size-xs)', borderRadius: "var(--radius-md)", padding: '4px 10px', background: PRIORITIES[task.Priority]?.bg || 'var(--bc-surface-subtle)', color: PRIORITIES[task.Priority]?.color || 'var(--bc-text-body)' }}>{task.Priority}</Tag>
-            </div>
+            <Divider style={{ margin: 0 }} />
 
             <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Progress</Text>
-              <Progress percent={task.WeightedProgressPct || task.ProgressPct || 0} strokeColor={task.WeightedProgressPct >= 80 ? 'var(--bc-green-600)' : 'var(--bc-blue-600)'} />
-              <Text style={{ fontSize: 10, color: 'var(--bc-text-secondary)' }}>{completedSubTasks}/{subTasks.length} subtasks</Text>
-            </div>
-
-            <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Health</Text>
-              <div style={{ padding: '8px 10px', borderRadius: "var(--radius-md)", background: health.bgColor, border: `1px solid ${health.color}20`, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: health.color }} />
-                <Text strong style={{ fontSize: 'var(--font-size-sm)', color: health.color }}>{health.label} ({health.score})</Text>
-              </div>
-            </div>
-
-            <Divider style={{ margin: '4px 0' }} />
-
-            <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Quick Actions</Text>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {nextStatuses.map(s => (
-                  <Button key={s} size="small" block style={{ borderRadius: 6, justifyContent: 'flex-start' }} icon={<ArrowRightOutlined />}
-                    onClick={() => {
-                      if (!checkGate(s)) return;
-                      s === 'SUBMITTED' ? setTransModal({ toStatus: s, remarks: '' }) : handleTransition(s);
-                    }}>
-                    {WORKFLOW_STATUSES[s]?.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <Divider style={{ margin: '4px 0' }} />
-
-            <div>
-              <Text style={{ fontSize: 9, color: 'var(--bc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block', marginBottom: 6 }}>Recent Activity</Text>
+              <Text style={railLabel}>People</Text>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(task.auditLogs || []).slice(0, 5).map(log => (
-                  <div key={log.Id}>
-                    <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-text-body)' }}>{log.Action.replace(/_/g, ' ').toLowerCase()}</Text>
-                    <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{log.ActorName || 'System'}</Text>
+                {[['Assignee', task.AssigneeName], ['Reviewer', task.ReviewerName]].map(([role, name]) => (
+                  <div key={role} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar size={24} style={{ background: name ? '#6366f1' : '#e2e8f0', color: name ? '#fff' : '#94a3b8', fontSize: 10 }}>{initials(name)}</Avatar>
+                    <div style={{ minWidth: 0 }}>
+                      <Text style={{ fontSize: 12, fontWeight: 600, display: 'block', lineHeight: 1.2 }}>{name || 'Not set'}</Text>
+                      <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)' }}>{role}</Text>
+                    </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <Text style={railLabel}>Origin</Text>
+              {isRuleTask ? (
+                <div onClick={openRuleset} style={{ cursor: 'pointer', padding: '8px 10px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', border: '1px solid #bae6fd' }}>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', display: 'block' }}><ThunderboltOutlined /> Automation rule</Text>
+                  <Text style={{ fontSize: 11, color: '#475569' }}>{rulesetName || 'Open rulesets'} <ExportOutlined style={{ fontSize: 9 }} /></Text>
+                </div>
+              ) : (
+                <Text style={{ fontSize: 12 }}>{task.TemplateName ? <>Template · <b>{task.TemplateName}</b></> : 'Created manually'}</Text>
+              )}
+            </div>
+
+            <Divider style={{ margin: 0 }} />
+
+            <div>
+              <Text style={railLabel}>Recent activity</Text>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(task.auditLogs || []).slice(0, 6).map(log => (
+                  <div key={log.Id}>
+                    <Text style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--bc-text-body)' }}>{String(log.Action || '').replace(/_/g, ' ').toLowerCase()}</Text>
+                    <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', display: 'block' }}>{log.ActorName || 'System'} · {dayjs(log.CreatedAt).format('DD MMM, h:mm A')}</Text>
+                  </div>
+                ))}
+                {!(task.auditLogs || []).length && <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)' }}>Nothing yet</Text>}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      <Modal title="Submit for Review" open={!!transModal.toStatus} onCancel={() => setTransModal({ toStatus: null, remarks: '' })}
+      <Modal title={transModal.toStatus === 'SUBMITTED' ? 'Submit for Review' : `Move to ${WORKFLOW_STATUSES[transModal.toStatus]?.label || 'next stage'}`} open={!!transModal.toStatus} onCancel={() => setTransModal({ toStatus: null, remarks: '' })}
         onOk={async () => { const ok = await handleTransition(transModal.toStatus, transModal.remarks); if (ok) { setTransModal({ toStatus: null, remarks: '' }); if (onRefresh) onRefresh(); } }}
-        okText="Submit" destroyOnHidden width={480}>
+        okText={transModal.toStatus === 'SUBMITTED' ? 'Submit' : 'Confirm'} okButtonProps={{ disabled: transModal.toStatus === 'SUBMITTED' && !transModal.remarks.trim() }} destroyOnHidden width={480}>
         <div style={{ padding: '4px 0' }}>
+          {transModal.toStatus === 'SUBMITTED' && (
           <div style={{ padding: '8px 12px', background: 'var(--bc-amber-50)', border: '1px solid var(--bc-amber-200)', borderRadius: "var(--radius-md)", marginBottom: 12 }}>
             <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-amber-800)', fontWeight: 600 }}>Describe what work was done before submitting.</Text>
           </div>
-          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Work Summary <Text type="danger">*</Text></Text>
+          )}
+          <Text style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'block', marginBottom: 4 }}>{transModal.toStatus === 'SUBMITTED' ? <>Work Summary <Text type="danger">*</Text></> : 'Note (optional)'}</Text>
           <Input.TextArea rows={4} value={transModal.remarks} onChange={e => setTransModal(m => ({ ...m, remarks: e.target.value }))} placeholder={"• Completed all checklist items\n• Updated listings\n• Ready for review"} style={{ borderRadius: "var(--radius-md)" }} />
         </div>
       </Modal>
