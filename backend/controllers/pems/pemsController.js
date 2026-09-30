@@ -84,6 +84,24 @@ exports.getInstances = async (req, res) => {
   }
 };
 
+exports.addComment = async (req, res) => {
+  try {
+    const data = await pemsService.addComment(req.params.id, req.body?.text, getUserId(req), getUserName(req) || req.user?.email);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.verifyFix = async (req, res) => {
+  try {
+    const data = await pemsService.verifyFix(req.params.id, getUserId(req), getUserName(req) || req.user?.email);
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 exports.getInstanceById = async (req, res) => {
   try {
     const instance = await pemsService.getInstanceById(req.params.id);

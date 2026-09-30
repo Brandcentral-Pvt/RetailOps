@@ -19,6 +19,8 @@ router.get('/instances/:id', auth, cacheRoute('pems:instances', 60), ctrl.getIns
 router.post('/instances', auth, invalidateCache('pems:instances'), ctrl.createInstance);
 router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
 router.post('/instances/:id/transition', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.transitionStatus);
+router.post('/instances/:id/comments', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.addComment);
+router.post('/instances/:id/verify-fix', auth, requireTaskAccess, ctrl.verifyFix);
 router.put('/instances/:id/achievement', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.updateAchievement);
 
 // ── Sub Tasks & Activities ──

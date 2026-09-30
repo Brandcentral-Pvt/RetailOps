@@ -513,6 +513,14 @@ async function getInstanceById(id) {
     .query('SELECT TOP 50 * FROM PemsTaskAuditLogs WHERE TaskInstanceId = @instanceId ORDER BY CreatedAt DESC');
   instance.auditLogs = auditLogs.recordset.map(l => ({ ...l, Metadata: safeParse(l.Metadata, null) }));
 
+  // Comments are stored as COMMENT audit entries; fetched separately so a busy
+  // audit trail can never push them out of the TOP 50 window above.
+  const commentRows = await pool.request().input('instanceId', sql.VarChar, id)
+    .query(`SELECT TOP 200 Id, ActorId, ActorName, Details, CreatedAt
+            FROM PemsTaskAuditLogs WHERE TaskInstanceId = @instanceId AND Action = 'COMMENT'
+            ORDER BY CreatedAt DESC`);
+  instance.comments = commentRows.recordset;
+
   return instance;
 }
 
@@ -886,6 +894,59 @@ async function getSellerPerformance(filters = {}) {
 // ═══════════════════════════════════════════════════════
 // UTILITIES
 // ═══════════════════════════════════════════════════════
+
+async function addComment(taskInstanceId, text, actorId, actorName) {
+  const body = String(text || '').trim();
+  if (!body) throw new Error('Comment cannot be empty');
+  if (body.length > 2000) throw new Error('Comment is too long (max 2000 characters)');
+  await writeAuditLog(taskInstanceId, 'COMMENT', null, null, actorId, actorName, body);
+  return { taskInstanceId, text: body, actorName, createdAt: new Date().toISOString() };
+}
+
+/**
+ * Verify that the work behind a task is really done.
+ *  - RULESET tasks that carry ASINs: dry-run the originating ruleset against those
+ *    ASINs. An ASIN that still matches the rule's conditions is NOT fixed.
+ *  - Everything else: all sub-tasks must be completed.
+ * Never mutates task data apart from an audit entry.
+ */
+async function verifyFix(taskInstanceId, actorId, actorName) {
+  const pool = await getPool();
+  const r = await pool.request().input('id', sql.VarChar, taskInstanceId)
+    .query('SELECT Id, Source, SourceId, Asins FROM PemsTaskInstances WHERE Id = @id');
+  const task = r.recordset[0];
+  if (!task) throw new Error('Task not found');
+
+  const subs = await pool.request().input('id', sql.VarChar, taskInstanceId)
+    .query('SELECT COUNT(*) AS total, SUM(CASE WHEN IsCompleted = 1 THEN 1 ELSE 0 END) AS done FROM PemsSubTasks WHERE TaskInstanceId = @id');
+  const total = subs.recordset[0].total || 0;
+  const done = subs.recordset[0].done || 0;
+  const asins = safeParse(task.Asins, []);
+
+  let result;
+  if (task.Source === 'RULESET' && task.SourceId && asins.length > 0) {
+    try {
+      const engine = require('../rulesetEngineService');
+      const { entries } = await engine.evaluateRuleset(task.SourceId, { dryRun: true, triggeredBy: 'manual', selectedAsins: asins });
+      const stillFailing = new Set((entries || []).map(e => e.entityId));
+      const items = asins.map(a => ({ asin: a, verified: !stillFailing.has(a) }));
+      const failing = items.filter(i => !i.verified).length;
+      result = failing === 0
+        ? { status: 'success', message: `All ${items.length} ASIN(s) now pass the rule — fix confirmed`, asins: items }
+        : { status: 'mismatch', message: `${failing} of ${items.length} ASIN(s) still match the rule conditions`, asins: items };
+    } catch (err) {
+      result = { status: 'unavailable', message: `Automatic check unavailable (${err.message}). Confirm manually.`, asins: asins.map(a => ({ asin: a, verified: false })) };
+    }
+  } else if (total > 0 && done < total) {
+    result = { status: 'mismatch', message: `${total - done} of ${total} sub-task(s) still open`, asins: [] };
+  } else {
+    result = { status: 'success', message: total > 0 ? 'All sub-tasks completed' : 'No automated check for this task — nothing outstanding', asins: [] };
+  }
+
+  await writeAuditLog(taskInstanceId, result.status === 'success' ? 'FIX_VERIFIED' : 'FIX_NOT_VERIFIED',
+    null, null, actorId, actorName, result.message);
+  return { ...result, checkedAt: new Date().toISOString() };
+}
 
 async function writeAuditLog(taskInstanceId, action, fromStatus, toStatus, actorId, actorName, details, tx) {
   const pool = tx || (await getPool());
@@ -1339,6 +1400,7 @@ async function recalculateAllWeightedProgress() {
 }
 
 module.exports = {
+  addComment, verifyFix,
   bulkTransition,
   submitReviewAndTransition,
   createTemplate, getTemplates, getTemplateById, updateTemplate, deleteTemplate,

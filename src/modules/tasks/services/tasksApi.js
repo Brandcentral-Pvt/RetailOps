@@ -280,8 +280,18 @@ const tasksApi = {
 
   verifyFix: async (taskId) => {
     const res = await fetch(`${API_BASE}/pems/instances/${taskId}/verify-fix`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Verification failed');
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Verification failed');
+    return body;
+  },
+
+  addComment: async (taskId, text) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/comments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ text }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to add comment');
+    return body;
   },
 
   // ── Automation / ruleset linkage ──
