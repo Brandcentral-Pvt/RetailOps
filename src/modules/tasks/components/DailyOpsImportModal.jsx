@@ -8,10 +8,15 @@ import { PRIORITIES } from '../constants';
 const { Text } = Typography;
 const { Dragger } = Upload;
 
-/** Read a CSV/XLSX file into an array of rows (the server finds the header row itself). */
-async function readSheet(file) {
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array', cellDates: false });
+/**
+ * Read a CSV/XLSX file into an array of rows (the server finds the header row itself).
+ * CSV is read as UTF-8 text: handing SheetJS the raw bytes makes it assume Windows-1252 and garble • ₹ → etc.
+ */
+export async function readSheet(file) {
+  const isCsv = /\.csv$/i.test(file.name || '') || file.type === 'text/csv';
+  const wb = isCsv
+    ? XLSX.read((await file.text()).replace(/^\uFEFF/, ''), { type: 'string' })
+    : XLSX.read(await file.arrayBuffer(), { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
   return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, blankrows: false });
 }
@@ -90,8 +95,18 @@ export default function DailyOpsImportModal({ open, onClose, onDone }) {
       render: (v, t) => <Input size="small" value={v} maxLength={5} style={{ width: 70 }} disabled={!t.autoAssign} onChange={e => setOv(t.code, { dueTime: e.target.value })} />,
     },
     {
-      title: 'Est. min', dataIndex: 'estimatedExecutionMinutes', width: 92,
-      render: (v, t) => <InputNumber size="small" min={5} max={480} value={v} style={{ width: 66 }} onChange={n => setOv(t.code, { estimatedExecutionMinutes: n })} />,
+      title: <Tooltip title="Runs once for each brand the person manages — one task with a brand checklist, not one task per brand">Per brand</Tooltip>,
+      dataIndex: 'brandMode', width: 88,
+      render: (v, t) => <Switch size="small" checked={v === 'CHECKLIST'} onChange={c => setOv(t.code, { brandMode: c ? 'CHECKLIST' : 'NONE' })} />,
+    },
+    {
+      title: 'Est. min', dataIndex: 'estimatedExecutionMinutes', width: 104,
+      render: (v, t) => (
+        <span style={{ whiteSpace: 'nowrap' }}>
+          <InputNumber size="small" min={1} max={480} value={v} style={{ width: 62 }} onChange={n => setOv(t.code, { estimatedExecutionMinutes: n })} />
+          {t.brandMode === 'CHECKLIST' && <span style={{ fontSize: 11, color: 'var(--bc-text-muted, #64748b)' }}> /brand</span>}
+        </span>
+      ),
     },
     { title: '', dataIndex: 'action', width: 70, render: v => <Tag color={v === 'create' ? 'green' : 'blue'}>{v === 'create' ? 'New' : 'Update'}</Tag> },
   ];

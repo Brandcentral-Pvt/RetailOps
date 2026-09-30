@@ -102,6 +102,16 @@ const tasksApi = {
   },
 
   // ── Sub Tasks & Activities ──
+  // Tick one brand (or all, when brandRowId is null) on a multi-brand routine
+  setBrandCheck: async (taskId, brandRowId, completed) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/brands${brandRowId ? `/${brandRowId}` : ''}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ completed }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.success === false) throw new Error(body.message || 'Could not save that brand');
+    return body.data;
+  },
+
   completeSubTask: async (subTaskId) => {
     const res = await fetch(`${API_BASE}/pems/subtasks/${subTaskId}/complete`, {
       method: 'POST', headers: authHeaders(),

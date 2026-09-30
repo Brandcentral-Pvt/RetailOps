@@ -3,6 +3,7 @@ const mockLog = [];              // simulated PemsRecurrenceLog rows
 const mockCreated = [];          // createInstance payloads
 let mockTemplates = [];
 let mockUsers = [];
+let mockBrands = [];
 const mockUpdates = [];
 
 jest.mock('../../database/db', () => {
@@ -12,6 +13,7 @@ jest.mock('../../database/db', () => {
       input: (k, _t, v) => { params[k] = v; return req; },
       query: async (q) => {
         if (/FROM PemsTaskTemplates WHERE/.test(q) && /AutoAssign/.test(q)) return { recordset: mockTemplates };
+        if (/FROM UserSellers/.test(q)) return { recordset: mockBrands.filter(b => b.u === params.u).map(b => ({ Id: b.Id, Name: b.Name })) };
         if (/FROM Users/.test(q)) return { recordset: mockUsers };
         if (/COUNT\(\*\) AS c FROM PemsRecurrenceLog/.test(q)) {
           const hit = mockLog.some(l => l.t === params.t && +l.occ === +params.occ && l.a === params.a);
@@ -41,12 +43,13 @@ const { generateRoutineOccurrences } = require('../../services/pems/recurrenceSe
 const tpl = (o = {}) => ({
   Id: 'T1', TaskCode: 'DLY-001', Name: 'Top ASIN Monitoring', Category: 'ANALYTICS', Department: 'Brand Managers',
   Priority: 'HIGH', SLAHours: 8, DefaultTarget: 0, ReviewerId: null, Frequency: 'DAILY',
-  RunDays: '1,2,3,4,5,6', DueTime: '18:00', AssigneeRole: 'brand_manager', AssigneeUserIds: null, ...o,
+  RunDays: '1,2,3,4,5,6', DueTime: '18:00', AssigneeRole: 'brand_manager', AssigneeUserIds: null, BrandMode: 'NONE', ...o,
 });
 
 beforeEach(() => {
   mockLog.length = 0; mockCreated.length = 0; mockUpdates.length = 0;
   mockTemplates = [tpl()];
+  mockBrands = [];
   mockUsers = [{ Id: 'u1', FirstName: 'Asha', LastName: 'K' }, { Id: 'u2', FirstName: 'Ravi', LastName: '' }];
 });
 
@@ -101,5 +104,34 @@ describe('generateRoutineOccurrences', () => {
     const r = await generateRoutineOccurrences(TUE_EARLY);
     expect(r.created).toBe(0);
     expect(r.noAssignees).toEqual(['DLY-001']);
+  });
+
+  it('multi-brand routines: one task per person carrying that person\'s brands as a checklist', async () => {
+    mockTemplates = [tpl({ BrandMode: 'CHECKLIST' })];
+    mockBrands = [
+      { u: 'u1', Id: 'b1', Name: 'Alpha' }, { u: 'u1', Id: 'b2', Name: 'Beta' }, { u: 'u1', Id: 'b3', Name: 'Gamma' },
+      { u: 'u2', Id: 'b9', Name: 'Solo' },
+    ];
+    const r = await generateRoutineOccurrences(TUE_EARLY);
+    expect(r.created).toBe(2);                                    // NOT 4 — never one task per brand
+    const u1 = mockCreated.find(c => c.assignedTo === 'u1');
+    const u2 = mockCreated.find(c => c.assignedTo === 'u2');
+    expect(u1.brands.map(b => b.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
+    expect(u1.sellerName).toBe('3 brands');
+    expect(u2.brands).toHaveLength(1);
+    expect(u2.sellerName).toBe('Solo');
+  });
+
+  it('a person with no brands still gets the task, without a checklist', async () => {
+    mockTemplates = [tpl({ BrandMode: 'CHECKLIST' })];
+    await generateRoutineOccurrences(TUE_EARLY);
+    expect(mockCreated).toHaveLength(2);
+    expect(mockCreated.every(c => c.brands.length === 0 && c.sellerName === '')).toBe(true);
+  });
+
+  it('brand-independent routines carry no brand list', async () => {
+    mockBrands = [{ u: 'u1', Id: 'b1', Name: 'Alpha' }];
+    await generateRoutineOccurrences(TUE_EARLY);
+    expect(mockCreated.every(c => c.brands.length === 0)).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import {
   PaperClipOutlined, CheckCircleFilled, ExclamationCircleOutlined, ExportOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import BrandChecklist from '../BrandChecklist';
 import tasksApi from '../../services/tasksApi';
 import { primaryAction, formatDuration, FRIENDLY_STATUS } from '../../utils/dayPlanner';
 import { accentFor } from './myDayTheme';
@@ -53,7 +54,9 @@ export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer
     return n + (acts.length ? acts.filter(a => !a.IsCompleted).length : 1);
   }, 0), [subTasks]);
 
-  const action = primaryAction(live, detail ? stepsLeft : 0);
+  const brands = detail?.brands || [];
+  const brandsLeft = brands.filter(b => !b.IsCompleted).length;
+  const action = primaryAction(live, detail ? stepsLeft + brandsLeft : 0);
   const lastFeedback = task.LastFeedback || detail?.reviews?.[0]?.Feedback;
   const showFeedback = (live.Status === 'REJECTED' || live.Status === 'REWORK') && lastFeedback;
 
@@ -89,6 +92,20 @@ export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer
       await loadDetail({ silent: true });
       onChanged?.();
     } catch (err) { message.error(err.message || 'Could not save that step'); loadDetail({ silent: true }); }
+  };
+
+  const [brandBusy, setBrandBusy] = useState(false);
+  const toggleBrand = async (b, completed) => {
+    setDetail(d => ({ ...d, brands: d.brands.map(x => (x.Id === b.Id ? { ...x, IsCompleted: completed } : x)) }));
+    try { await tasksApi.setBrandCheck(task.Id, b.Id, completed); onChanged?.(); }
+    catch (err) { message.error(err.message || 'Could not save that brand'); loadDetail({ silent: true }); }
+  };
+  const toggleAllBrands = async (completed) => {
+    setBrandBusy(true);
+    setDetail(d => ({ ...d, brands: d.brands.map(x => ({ ...x, IsCompleted: completed })) }));
+    try { await tasksApi.setBrandCheck(task.Id, null, completed); onChanged?.(); }
+    catch (err) { message.error(err.message || 'Could not save brands'); loadDetail({ silent: true }); }
+    finally { setBrandBusy(false); }
   };
 
   const tickSubTask = async (st) => {
@@ -176,6 +193,8 @@ export default function UpNextCard({ entry, eyebrow = 'Up next', onOpen, onDefer
                   </div>
                 );
               })}
+              <BrandChecklist brands={brands} busy={brandBusy} canEdit={!notStarted && !['SUBMITTED', 'UNDER_REVIEW', 'APPROVED'].includes(live.Status)}
+                hint="Start the task to tick brands." onToggle={toggleBrand} onToggleAll={toggleAllBrands} />
               {evidence > 0 && <Text style={{ fontSize: 12, color: 'var(--bc-text-muted, #64748b)', display: 'block', marginTop: 8 }}><PaperClipOutlined /> {evidence} evidence item{evidence > 1 ? 's' : ''} attached</Text>}
             </>
           )}

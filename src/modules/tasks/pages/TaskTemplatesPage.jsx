@@ -190,6 +190,7 @@ export default function TaskTemplatesPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [form] = Form.useForm();
   const watchedFrequency = Form.useWatch('frequency', form);
+  const watchedBrandMode = Form.useWatch('brandMode', form);
   const [importOpen, setImportOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [namedAssignees, setNamedAssignees] = useState(0);
@@ -254,7 +255,7 @@ export default function TaskTemplatesPage() {
   };
 
   const openCreate = () => { resetDrawer(); setEditingTemplate(null);
-    form.setFieldsValue({ frequency: 'ONE_TIME', priority: 'MEDIUM', category: 'GENERAL', targetType: 'NUMERIC', department: 'Operations', slaHours: 48, tatHours: 24, defaultTarget: 0, isActive: true, reviewRequired: true, criticalityScore: 5, estimatedExecutionMinutes: 30, autoAssign: false, dueTime: '18:00', runDays: [1, 2, 3, 4, 5, 6], assigneeRole: 'brand_manager' });
+    form.setFieldsValue({ frequency: 'ONE_TIME', priority: 'MEDIUM', category: 'GENERAL', targetType: 'NUMERIC', department: 'Operations', slaHours: 48, tatHours: 24, defaultTarget: 0, isActive: true, reviewRequired: true, criticalityScore: 5, estimatedExecutionMinutes: 30, autoAssign: false, dueTime: '18:00', runDays: [1, 2, 3, 4, 5, 6], assigneeRole: 'brand_manager', brandMode: 'NONE' });
     setNamedAssignees(0);
     setDrawerOpen(true);
   };
@@ -270,7 +271,7 @@ export default function TaskTemplatesPage() {
       estimatedExecutionMinutes: record.EstimatedExecutionMinutes || 30,
       autoAssign: !!record.AutoAssign, dueTime: record.DueTime || '18:00',
       runDays: record.RunDays ? String(record.RunDays).split(',').map(Number) : [1, 2, 3, 4, 5, 6],
-      assigneeRole: record.AssigneeRole || 'brand_manager',
+      assigneeRole: record.AssigneeRole || 'brand_manager', brandMode: record.BrandMode || 'NONE',
     });
     setNamedAssignees((record.AssigneeUserIds || []).length);
     const sop = record.SubTaskDefinitions || record.subTaskDefinitions || [];
@@ -374,7 +375,7 @@ export default function TaskTemplatesPage() {
           <Col span={6}><Form.Item name="priority" label="Default priority"><Select options={Object.entries(PRIORITIES).map(([k, v]) => ({ value: k, label: v.label }))} /></Form.Item></Col>
           <Col span={6}><Form.Item name="slaHours" label="SLA (hours)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
           <Col span={6}><Form.Item name="tatHours" label="TAT (hours)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
-          <Col span={6}><Form.Item name="estimatedExecutionMinutes" label="Est. time (min)"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+          <Col span={6}><Form.Item name="estimatedExecutionMinutes" label={watchedBrandMode === 'CHECKLIST' ? 'Est. min per brand' : 'Est. time (min)'}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
         </Row>
         {watchedFrequency && watchedFrequency !== 'ONE_TIME' && (
           <div style={{ border: '1px solid var(--bc-border-subtle, #e2e8f0)', borderRadius: 12, padding: '12px 14px', margin: '4px 0 14px', background: 'var(--bc-surface-page, #f8fafc)' }}>
@@ -390,6 +391,15 @@ export default function TaskTemplatesPage() {
               <Col span={6}><Form.Item name="dueTime" label="Due by (HH:mm)" rules={[{ pattern: /^([01]?\d|2[0-3]):[0-5]\d$/, message: 'Use HH:mm' }]} style={{ marginBottom: 0 }}><Input placeholder="18:00" maxLength={5} /></Form.Item></Col>
               <Col span={10}><Form.Item name="runDays" label="Runs on" style={{ marginBottom: 0 }}><Select mode="multiple" options={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => ({ value: i, label: d }))} /></Form.Item></Col>
             </Row>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginTop: 12 }}>
+              <Form.Item name="brandMode" noStyle getValueProps={v => ({ checked: v === 'CHECKLIST' })} getValueFromEvent={c => (c ? 'CHECKLIST' : 'NONE')}>
+                <Switch checkedChildren="Per brand" unCheckedChildren="Once" />
+              </Form.Item>
+              <div>
+                <Text strong>Repeat for each of the person's brands</Text>
+                <div><Text type="secondary" style={{ fontSize: 12 }}>Still one task per person — it carries a checklist of their brands, and the time estimate scales with how many they have.</Text></div>
+              </div>
+            </div>
           </div>
         )}
         <Row gutter={12}>

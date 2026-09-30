@@ -11,6 +11,7 @@ import {
   LinkOutlined, PlusOutlined, ShopOutlined, ExportOutlined
 } from '@ant-design/icons';
 import tasksApi from '../services/tasksApi';
+import BrandChecklist from './BrandChecklist';
 import {
   WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES,
   PRIORITIES, TASK_ISSUE_SOURCES, CATEGORY_METRIC_CONFIG
@@ -461,6 +462,11 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       message.warning('Complete all sub-tasks before submitting.');
       return false;
     }
+    const openBrands = (task.brands || []).filter(b => !b.IsCompleted).length;
+    if (toStatus === 'SUBMITTED' && openBrands > 0) {
+      message.warning(`${openBrands} brand${openBrands > 1 ? 's' : ''} not covered yet — tick them on the SOP tab.`);
+      return false;
+    }
     const isNewListing = task.Category === 'LISTING' && task.InstanceCode?.includes('DLY-004');
     const aiTarget = task.TargetScore ?? task.AITarget ?? 9.0;
     if (isNewListing && toStatus === 'SUBMITTED' && (task.AIHealthScore ?? 0) < aiTarget) {
@@ -637,6 +643,10 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       label: <Space size={4}><CheckSquareOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>SOP</span></Space>,
       children: task && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <BrandChecklist brands={task.brands || []} canEdit={['IN_PROGRESS', 'REWORK', 'ACCEPTED'].includes(task.Status)}
+            hint="Start the task to tick brands."
+            onToggle={async (b, completed) => { try { await tasksApi.setBrandCheck(task.Id, b.Id, completed); await loadTask(); onRefresh?.(); } catch (err) { message.error(err.message); } }}
+            onToggleAll={async (completed) => { try { await tasksApi.setBrandCheck(task.Id, null, completed); await loadTask(); onRefresh?.(); } catch (err) { message.error(err.message); } }} />
           <SectionHeader title={`SOP Execution — ${completedActivities}/${totalActivities} steps`} icon={ThunderboltOutlined} />
           {subTasks.length === 0 ? <Empty description="No SOP defined for this task" /> : subTasks.map((st, stIdx) => {
             const done = st.activities?.filter(a => a.IsCompleted).length || 0;

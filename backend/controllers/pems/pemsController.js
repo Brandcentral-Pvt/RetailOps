@@ -510,3 +510,14 @@ exports.generateRoutineToday = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.setBrandCheck = async (req, res) => {
+  try {
+    const { completed, note } = req.body || {};
+    if (typeof completed !== 'boolean') return res.status(400).json({ success: false, message: '"completed" (true/false) is required' });
+    const data = await pemsService.setBrandCheck(req.params.id, req.params.brandId, completed, getUserId(req), note);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(err.status || 500).json({ success: false, message: err.message });
+  }
+};

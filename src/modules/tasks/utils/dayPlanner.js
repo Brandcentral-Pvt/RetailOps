@@ -91,7 +91,12 @@ export function estimateMinutes(task) {
   const base = Math.min(480, Math.max(10, Number(task.EstimatedMinutes) || 60));
   const total = Number(task.SubTaskTotal) || 0;
   const done = Number(task.SubTaskDone) || 0;
-  const progress = total > 0 ? Math.min(1, done / total) : 0;
+  // Multi-brand routines: brands covered count as progress too (averaged with sub-task progress when both exist).
+  const brandTotal = Number(task.BrandTotal) || 0;
+  const brandDone = Number(task.BrandDone) || 0;
+  const stProgress = total > 0 ? Math.min(1, done / total) : null;
+  const brandProgress = brandTotal > 0 ? Math.min(1, brandDone / brandTotal) : null;
+  const progress = stProgress !== null && brandProgress !== null ? (stProgress + brandProgress) / 2 : (brandProgress ?? stProgress ?? 0);
   const isFix = task.Status === 'REJECTED' || task.Status === 'REWORK';
   const remaining = base * (isFix ? 0.5 : 1) * (1 - progress);
   return Math.max(10, Math.round(remaining / 5) * 5);

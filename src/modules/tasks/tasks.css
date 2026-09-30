@@ -698,3 +698,14 @@
   background: var(--bc-surface-page, #f8fafc); border: 1px solid var(--bc-border-subtle, #e2e8f0);
   border-radius: var(--bc-radius-md, 8px);
 }
+
+/* Multi-brand routines — brand coverage checklist */
+.md-brands { margin-top: 12px; padding: 10px 12px; background: var(--bc-surface-page, #f8fafc); border: 1px solid var(--bc-border-subtle, #e2e8f0); border-radius: var(--bc-radius-lg, 10px); }
+.md-brands__head { display: flex; align-items: center; margin-bottom: 6px; font-size: 13px; }
+.md-brands__title { font-weight: 600; color: var(--bc-text-heading, #0f172a); white-space: nowrap; }
+.md-brands__title b { color: var(--bc-ro-700, #0D47A1); margin-left: 4px; }
+.md-brands__hint { font-size: 12px; color: var(--bc-text-muted, #64748b); margin-bottom: 6px; }
+.md-brands__list { display: flex; flex-wrap: wrap; gap: 6px 8px; max-height: 168px; overflow: auto; }
+.md-brand { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--bc-border-subtle, #e2e8f0); border-radius: 999px; background: #fff; font-size: 12px; cursor: pointer; user-select: none; }
+.md-brand.done { background: var(--bc-success-bg, #E8F5E9); border-color: #A5D6A7; color: #1B5E20; }
+.md-brand.done .n { text-decoration: line-through; text-decoration-color: rgba(27, 94, 32, .45); }
