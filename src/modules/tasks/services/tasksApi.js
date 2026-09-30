@@ -75,8 +75,9 @@ const tasksApi = {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ toStatus, details }),
     });
-    if (!res.ok) throw new Error('Failed to transition status');
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to transition status');
+    return body;
   },
 
   bulkTransition: async (ids, toStatus, details = '') => {
@@ -101,6 +102,16 @@ const tasksApi = {
   },
 
   // ── Sub Tasks & Activities ──
+  // Tick one brand (or all, when brandRowId is null) on a multi-brand routine
+  setBrandCheck: async (taskId, brandRowId, completed) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/brands${brandRowId ? `/${brandRowId}` : ''}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ completed }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.success === false) throw new Error(body.message || 'Could not save that brand');
+    return body.data;
+  },
+
   completeSubTask: async (subTaskId) => {
     const res = await fetch(`${API_BASE}/pems/subtasks/${subTaskId}/complete`, {
       method: 'POST', headers: authHeaders(),
@@ -127,12 +138,60 @@ const tasksApi = {
   },
 
   // ── Reviews ──
+  // Review + workflow transition happen atomically on the server
+  // (claim → record → decide). Do NOT call transitionStatus afterwards.
   submitReview: async (data) => {
     const res = await fetch(`${API_BASE}/pems/reviews`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to submit review');
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to submit review');
+    return body;
+  },
+
+  // { ids, decision: 'APPROVE'|'REJECT', feedback } → { data: { reviewed:[{id,to}], skipped:[{id,reason}] } }
+  bulkReview: async ({ ids, decision, feedback = '' }) => {
+    const res = await fetch(`${API_BASE}/pems/reviews/bulk`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ ids, decision, feedback }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Bulk review failed');
+    return body;
+  },
+
+  // ── Daily routine (Daily Operations Master) ──
+  importDailyOps: async ({ rows, overrides, dryRun = true, generateNow = true }) => {
+    const res = await fetch(`${API_BASE}/pems/routine/import`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ rows, overrides, dryRun, generateNow }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.success === false) throw new Error(body.message || 'Import failed');
+    return body.data;
+  },
+  generateRoutineToday: async (templateId) => {
+    const res = await fetch(`${API_BASE}/pems/routine/generate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ templateId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.success === false) throw new Error(body.message || 'Could not generate today\'s routine');
+    return body.data;
+  },
+
+  // Everything the current user has to act on (optionally a teammate's day for global roles).
+  getMyDay: async (userId) => {
+    const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`${API_BASE}/pems/my-day${q}`, { headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to load your day');
+    return body;
+  },
+
+  getReviewStats: async () => {
+    const res = await fetch(`${API_BASE}/pems/reviews/stats`, { headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to load review stats');
+    return body;
   },
 
   // ── Dashboard (Legacy) ──
@@ -280,8 +339,24 @@ const tasksApi = {
 
   verifyFix: async (taskId) => {
     const res = await fetch(`${API_BASE}/pems/instances/${taskId}/verify-fix`, { method: 'POST', headers: authHeaders() });
-    if (!res.ok) throw new Error('Verification failed');
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Verification failed');
+    return body;
+  },
+
+  addComment: async (taskId, text) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/comments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ text }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to add comment');
+    return body;
+  },
+
+  // ── Automation / ruleset linkage ──
+  getAutomationStats: async () => {
+    const r = await fetchJson('/pems/automation-stats');
+    return r.data;
   },
 };
 

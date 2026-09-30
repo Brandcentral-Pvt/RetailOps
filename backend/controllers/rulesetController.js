@@ -2,6 +2,10 @@ const { sql, getPool, generateId } = require('../database/db');
 
 const normalizeRuleset = (r) => {
     if (!r) return null;
+    let lastRunSummaryParsed = null;
+    if (r.LastRunSummary) {
+        try { lastRunSummaryParsed = typeof r.LastRunSummary === 'string' ? JSON.parse(r.LastRunSummary) : r.LastRunSummary; } catch (e) { lastRunSummaryParsed = null; }
+    }
     return {
         _id: r.Id,
         id: r.Id,
@@ -21,10 +25,11 @@ const normalizeRuleset = (r) => {
                 return [];
             }
         })(),
-        conditions: r.Conditions ? JSON.parse(r.Conditions) : {},
-        actions: r.Actions ? JSON.parse(r.Actions) : [],
+        conditions: (() => { try { return typeof r.Conditions === 'string' ? JSON.parse(r.Conditions) : (r.Conditions || {}); } catch (e) { return {}; } })(),
+        actions: (() => { try { return typeof r.Actions === 'string' ? JSON.parse(r.Actions) : (r.Actions || []); } catch (e) { return []; } })(),
         createdBy: r.CreatedBy,
         createdByName: r.CreatedByName,
+        owner: r.CreatedByName || r.OwnerName || null,
         isActive: r.IsActive === true || r.IsActive === 1,
         type: r.Type,
         sellerId: r.SellerId,
@@ -33,14 +38,18 @@ const normalizeRuleset = (r) => {
         isAutomated: r.IsAutomated === true || r.IsAutomated === 1,
         runFrequency: r.RunFrequency,
         runTime: r.RunTime,
-        scope: r.Scope ? JSON.parse(r.Scope) : { applyTo: 'all' },
+        scope: (() => { try { return typeof r.Scope === 'string' ? JSON.parse(r.Scope) : (r.Scope || { applyTo: 'all' }); } catch (e) { return { applyTo: 'all' }; } })(),
         conflictResolution: r.ConflictResolution,
         emailOnRun: r.EmailOnRun === true || r.EmailOnRun === 1,
         emailOnAction: r.EmailOnAction === true || r.EmailOnAction === 1,
         emailAddress: r.EmailAddress,
         lastRunAt: r.LastRunAt,
         totalRunCount: r.TotalRunCount || 0,
-        lastRunSummary: r.LastRunSummary ? JSON.parse(r.LastRunSummary) : null,
+        // Keep lastRunSummary as a JSON string so both the list page
+        // (which does its own JSON.parse) and callers that want an object
+        // can handle it consistently.
+        lastRunSummary: r.LastRunSummary ? (typeof r.LastRunSummary === 'string' ? r.LastRunSummary : JSON.stringify(r.LastRunSummary)) : null,
+        _lastRunSummaryObj: lastRunSummaryParsed,
         createdAt: r.CreatedAt,
         updatedAt: r.UpdatedAt
     };
@@ -63,11 +72,42 @@ exports.getRulesets = async (req, res) => {
                 SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName
                 FROM Rulesets r
                 LEFT JOIN Users u ON r.CreatedBy = u.Id
-                ORDER BY r.CreatedAt DESC
+                ORDER BY r.UpdatedAt DESC
             `);
 
         const rulesets = result.recordset.map(normalizeRuleset);
         res.json({ success: true, data: rulesets });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * GET /api/rulesets/stats — lightweight summary for dashboard widget
+ */
+exports.getRulesetStats = async (req, res) => {
+    try {
+        const pool = await getPool();
+        const result = await pool.request().query(`
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS active,
+                SUM(CASE WHEN IsAutomated = 1 THEN 1 ELSE 0 END) AS autoRun,
+                SUM(CASE WHEN IsActive = 0 THEN 1 ELSE 0 END) AS paused,
+                SUM(CASE WHEN LastRunAt >= DATEADD(HOUR, -24, dbo.GetEnvDate()) THEN ISNULL(TotalRunCount, 0) ELSE 0 END) AS runs24h
+            FROM Rulesets
+        `);
+        const row = result.recordset[0] || {};
+        res.json({
+            success: true,
+            data: {
+                total: row.total || 0,
+                active: row.active || 0,
+                autoRun: row.autoRun || 0,
+                paused: row.paused || 0,
+                runs24h: row.runs24h || 0,
+            }
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -124,7 +164,7 @@ exports.createRuleset = async (req, res) => {
 
         const result = await pool.request()
             .input('id', sql.VarChar, id)
-            .query("SELECT * FROM Rulesets WHERE Id = @id");
+            .query("SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName FROM Rulesets r LEFT JOIN Users u ON r.CreatedBy = u.Id WHERE r.Id = @id");
 
         const r = result.recordset[0];
         const ruleset = normalizeRuleset(r);
@@ -175,7 +215,7 @@ exports.updateRuleset = async (req, res) => {
         request.input('id', sql.VarChar, id);
         const result = await request.query(`
             UPDATE Rulesets SET ${updates.join(', ')} WHERE Id = @id;
-            SELECT * FROM Rulesets WHERE Id = @id;
+            SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName FROM Rulesets r LEFT JOIN Users u ON r.CreatedBy = u.Id WHERE r.Id = @id;
         `);
 
         const records = result.recordsets && result.recordsets.length > 1 
@@ -322,10 +362,15 @@ exports.getRulesetById = async (req, res) => {
         const pool = await getPool();
         const result = await pool.request()
             .input('id', sql.VarChar, req.params.id)
-            .query("SELECT * FROM Rulesets WHERE Id = @id");
+            .query(`
+                SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName
+                FROM Rulesets r
+                LEFT JOIN Users u ON r.CreatedBy = u.Id
+                WHERE r.Id = @id
+            `);
         const r = result.recordset[0];
         if (!r) return res.status(404).json({ success: false, message: 'Ruleset not found' });
-        
+
         const ruleset = normalizeRuleset(r);
         res.json({ success: true, data: ruleset });
     } catch (error) {
@@ -337,12 +382,19 @@ exports.toggleRuleset = async (req, res) => {
     try {
         const { id } = req.params;
         const pool = await getPool();
+        // Properly flip a BIT column with CASE — ~ on BIT returns -2/0, not 1/0.
         const result = await pool.request()
             .input('id', sql.VarChar, id)
-            .query("UPDATE Rulesets SET IsActive = ~IsActive WHERE Id = @id; SELECT * FROM Rulesets WHERE Id = @id");
-        
-        const records = result.recordsets && result.recordsets.length > 1 
-            ? result.recordsets[1] 
+            .query(`
+                UPDATE Rulesets SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END, UpdatedAt = dbo.GetEnvDate() WHERE Id = @id;
+                SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName
+                FROM Rulesets r
+                LEFT JOIN Users u ON r.CreatedBy = u.Id
+                WHERE r.Id = @id
+            `);
+
+        const records = result.recordsets && result.recordsets.length > 1
+            ? result.recordsets[1]
             : result.recordset;
 
         const r = records && records[0];
@@ -389,7 +441,7 @@ exports.duplicateRuleset = async (req, res) => {
 
         const getResult = await pool.request()
             .input('id', sql.VarChar, id)
-            .query("SELECT * FROM Rulesets WHERE Id = @id");
+            .query("SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName FROM Rulesets r LEFT JOIN Users u ON r.CreatedBy = u.Id WHERE r.Id = @id");
 
         if (getResult.recordset.length === 0) {
             return res.status(404).json({ success: false, message: 'Ruleset not found' });
@@ -434,7 +486,7 @@ exports.duplicateRuleset = async (req, res) => {
 
         const newResult = await pool.request()
             .input('newId', sql.VarChar, newId)
-            .query("SELECT * FROM Rulesets WHERE Id = @newId");
+            .query("SELECT r.*, u.FirstName + ' ' + u.LastName as CreatedByName FROM Rulesets r LEFT JOIN Users u ON r.CreatedBy = u.Id WHERE r.Id = @newId");
 
         const r = newResult.recordset[0];
         const duplicatedRuleset = normalizeRuleset(r);

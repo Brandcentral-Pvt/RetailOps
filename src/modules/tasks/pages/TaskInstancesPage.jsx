@@ -25,7 +25,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress,
   Modal, Segmented, Checkbox, Empty, App, Drawer, Row, Col, Collapse, Avatar,
-  Badge, Steps, Skeleton, DatePicker
+  Badge, Steps, Skeleton, DatePicker, InputNumber
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined,
@@ -35,9 +35,10 @@ import {
   ArrowDownOutlined, UnorderedListOutlined, AppstoreOutlined, ShopOutlined,
   FlagOutlined, FilterOutlined, ClearOutlined, CloseOutlined, ThunderboltOutlined,
   InfoCircleOutlined, TeamOutlined, LineChartOutlined, FileTextOutlined,
-  DownloadOutlined, UserOutlined
+  DownloadOutlined, UserOutlined, RocketOutlined
 } from '@ant-design/icons';
 import tasksApi from '../services/tasksApi';
+import { useSearchParams } from 'react-router-dom';
 import { WORKFLOW_STATUSES, FREQUENCIES, PRIORITIES, DEPARTMENTS, TASK_LIST_GRID } from '../constants';
 import { calculateHealth, isOverdue, isDueTomorrow } from '../utils/taskHealth';
 import '../tasks.css';
@@ -230,6 +231,7 @@ const QUICK_VIEWS = [
   { key: 'IN_PROGRESS', label: 'In Progress', icon: <PlayCircleOutlined /> },
   { key: 'PENDING_REVIEW', label: 'Pending Review', icon: <EyeOutlined /> },
   { key: 'OVERDUE', label: 'Overdue', icon: <ClockCircleOutlined /> },
+  { key: 'AUTOMATION', label: '🤖 Automation', icon: <ThunderboltOutlined /> },
   { key: 'TOMORROW', label: 'Tomorrow', icon: <CalendarOutlined /> },
   { key: 'UPCOMING', label: 'Upcoming', icon: <CalendarOutlined /> },
   { key: 'COMPLETED', label: 'Completed', icon: <CheckCircleOutlined /> },
@@ -271,6 +273,7 @@ const ListSkeleton = () => (
 export default function TaskInstancesPage() {
   const { message, modal } = App.useApp();
   const { user: currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0 });
@@ -280,7 +283,8 @@ export default function TaskInstancesPage() {
   const [search, setSearch] = useState('');
   const [disputesOnly, setDisputesOnly] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [filters, setFilters] = useState({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null });
+  const [filters, setFilters] = useState({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null, source: null });
+  const [automationStats, setAutomationStats] = useState({ total: 0, open: 0, overdue: 0, byRuleset: [] });
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [lastSync, setLastSync] = useState(null);
   const [headerScrolled, setHeaderScrolled] = useState(false);
@@ -321,6 +325,7 @@ export default function TaskInstancesPage() {
     tasksApi.getBrandManagers().then(r => { if (r.success) setManagers(r.data); }).catch(() => { });
     tasksApi.getReviewers().then(r => { if (r.success) setReviewers(r.data); }).catch(() => { });
     tasksApi.getTemplates({ limit: 100, isActive: true }).then(r => { if (r.success) setTemplates(r.templates || []); }).catch(() => { });
+    tasksApi.getAutomationStats().then(setAutomationStats).catch(() => { });
   }, []);
 
   /* Sticky-header elevation on scroll */
@@ -375,6 +380,7 @@ export default function TaskInstancesPage() {
     else if (quickView === 'Operations') p.department = 'Operations';
     else if (quickView === 'Brand Managers') p.department = 'Brand Managers';
     else if (quickView === 'Catalog Team') p.department = 'Catalog Team';
+    else if (quickView === 'AUTOMATION') p.isAutomated = true;
     if (filters.department) p.department = filters.department;
     if (filters.seller) p.sellerId = filters.seller;
     if (filters.manager) p.assignedTo = filters.manager;
@@ -382,6 +388,8 @@ export default function TaskInstancesPage() {
     if (filters.priority) p.priority = filters.priority;
     if (filters.status) p.status = filters.status;
     if (filters.frequency) p.frequency = filters.frequency;
+    if (filters.source === 'automation') p.isAutomated = true;
+    else if (filters.source) p.source = filters.source;
     if (viewMode === 'seller') p.includeSubtasks = 'true';
     p.includeRuleTasks = 'true';
     return p;
@@ -398,6 +406,7 @@ export default function TaskInstancesPage() {
         let data = instRes.instances || [];
         if (quickView === 'OVERDUE') data = data.filter(t => isOverdue(t));
         if (quickView === 'TODO') data = data.filter(t => !['APPROVED', 'CANCELLED'].includes(t.Status));
+        if (quickView === 'AUTOMATION') data = data.filter(t => t.Source === 'RULESET' || t.IsRuleTask || t.source === 'ACTION_RULE');
         if (quickView === 'TOMORROW') data = data.filter(t => isDueTomorrow(t));
         if (quickView === 'UPCOMING') data = data.filter(t => {
           if (!t.DueDate) return false;
@@ -423,12 +432,42 @@ export default function TaskInstancesPage() {
   const openWorkspace = (task) => { setWorkspaceTaskId(task.Id); setWorkspaceOpen(true); };
 
   /* ── Create-task wizard ── */
-  const openWizard = () => { setWizardStep(0); setWizardData({}); setWizardErrors({}); setWizardOpen(true); };
+  const openWizard = (arg) => {
+    const prefill = (arg && typeof arg === 'object' && arg.templateId) ? { templateId: arg.templateId } : {};
+    const t = prefill.templateId ? templates.find(x => x.Id === prefill.templateId) : null;
+    setWizardStep(0);
+    setWizardErrors({});
+    setWizardData({
+      templateId: prefill.templateId || null,
+      title: t?.Name ? `${t.Name} — new run` : '',
+      department: t?.Department || '',
+      priority: t?.Priority || 'MEDIUM',
+      frequency: t?.Frequency || 'ONE_TIME',
+      target: t?.DefaultTarget || 0,
+      tags: [], description: '', priority2: 'MEDIUM', slaHours: t?.SLAHours || 48,
+      ...prefill,
+    });
+    setWizardOpen(true);
+  };
+  // Auto-open wizard when navigated from template detail (?template=xxx&new=1)
+  useEffect(() => {
+    if (!templates.length) return;
+    const tplId = searchParams.get('template');
+    const isNew = searchParams.get('new');
+    if (tplId && isNew) {
+      openWizard({ templateId: tplId });
+      setSearchParams({}, { replace: true });
+    }
+  }, [templates, searchParams]); // eslint-disable-line
+
   const handleWizardNext = () => {
     const errors = {};
     if (wizardStep === 0) {
       if (!wizardData.templateId) errors.templateId = 'Select a template to continue';
       if (!wizardData.title || !String(wizardData.title).trim()) errors.title = 'Task name is required';
+    }
+    if (wizardStep === 1) {
+      if (!wizardData.assignedTo) errors.assignedTo = 'Assign someone responsible for this task';
     }
     if (Object.keys(errors).length > 0) { setWizardErrors(errors); return; }
     setWizardErrors({});
@@ -439,17 +478,23 @@ export default function TaskInstancesPage() {
     try {
       await tasksApi.createInstance({
         templateId: wizardData.templateId, title: wizardData.title,
+        description: wizardData.description || '',
         sellerId: wizardData.sellerId, sellerName: wizardData.sellerName,
         assignedTo: wizardData.assignedTo, assigneeName: wizardData.assigneeName,
         reviewerId: wizardData.reviewerId, reviewerName: wizardData.reviewerName,
         department: wizardData.department, priority: wizardData.priority,
         target: wizardData.target, dueDate: wizardData.dueDate?.toISOString(),
-        frequency: wizardData.frequency,
+        frequency: wizardData.frequency || 'ONE_TIME',
+        status: wizardData.assignedTo ? 'ASSIGNED' : 'DRAFT',
+        slaHours: wizardData.slaHours || 48,
+        tags: Array.isArray(wizardData.tags) ? wizardData.tags : [],
+        category: (templates.find(x => x.Id === wizardData.templateId)?.Category) || wizardData.department,
       });
-      message.success('Task created');
+      message.success('Task created and assigned');
       setWizardOpen(false);
+      setWizardData({});
       loadInstances();
-    } catch { message.error('Failed to create task'); }
+    } catch (err) { message.error(err.message || 'Failed to create task'); }
     finally { setCreating(false); }
   };
 
@@ -519,7 +564,9 @@ export default function TaskInstancesPage() {
     return {
       total, active: inProg, approved, overdue, pendingReview,
       slaCompliance, pricingMismatches, avgHealth: avgHealth ?? summary?.kpi?.avgHealth,
-      autoTasks: ruleTasks.length,
+      autoTasks: ruleTasks.length + (automationStats?.total || 0),
+      autoOpen: ruleTasks.filter(t => !['COMPLETED','APPROVED','CANCELLED','REJECTED'].includes(t.Status)).length + (automationStats?.open || 0),
+      autoOverdue: automationStats?.overdue || ruleTasks.filter(t => isOverdue(t)).length,
       activeDisputes: ruleTasks.filter(t => ['IN_PROGRESS', 'SUBMITTED'].includes(t.Status)).length,
       buyBoxPct: buyBoxPct ?? summary?.kpi?.buyBoxPct,
       disputeTrend: summary?.kpi?.disputeTrend,
@@ -545,13 +592,18 @@ export default function TaskInstancesPage() {
     { key: 'status', label: 'Status', options: Object.entries(WORKFLOW_STATUSES).map(([k, v]) => ({ value: k, label: v.label })) },
     { key: 'health', label: 'Health', options: [{ value: 'critical', label: 'Critical' }, { value: 'attention', label: 'Attention' }, { value: 'healthy', label: 'Healthy' }] },
     { key: 'frequency', label: 'Frequency', options: FREQUENCIES.map(f => ({ value: f.value, label: f.label })) },
+    { key: 'source', label: 'Source', options: [
+      { value: 'automation', label: '🤖 Automation rules' },
+      { value: 'MANUAL', label: '👤 Manually created' },
+      { value: 'TEMPLATE', label: '📋 From template' },
+    ]},
   ];
   const getFilterLabel = (key, value) => {
     const def = FILTER_DEFS.find(f => f.key === key);
     return def?.options.find(o => o.value === value)?.label || value;
   };
   const clearAllFilters = () => {
-    setFilters({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null });
+    setFilters({ department: null, seller: null, manager: null, reviewer: null, priority: null, status: null, health: null, frequency: null, source: null });
     setPagination(p => ({ ...p, page: 1 }));
   };
 
@@ -949,6 +1001,7 @@ export default function TaskInstancesPage() {
             <LiveActivityFeed compact />
           </div>
           <Space size={8} wrap>
+            <Button icon={<ThunderboltOutlined />} onClick={() => window.open('/rule-sets', '_blank')} size="small" style={{ borderRadius: 'var(--bc-radius-md, 6px)', background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', borderColor: '#bae6fd', color: '#0369a1', fontWeight: 600 }}>🤖 Automation Rules</Button>
             <Button icon={<ReloadOutlined />} onClick={loadInstances} loading={loading} size="small" style={{ borderRadius: 'var(--bc-radius-md, 6px)' }}>Refresh</Button>
             <Button icon={<DownloadOutlined />} size="small" onClick={handleExport} style={{ borderRadius: 'var(--bc-radius-md, 6px)' }}>Export</Button>
             <Button
@@ -980,6 +1033,7 @@ export default function TaskInstancesPage() {
             {QUICK_VIEWS.map(qv => (
               <div
                 key={qv.key}
+                data-key={qv.key}
                 role="tab"
                 aria-selected={quickView === qv.key}
                 tabIndex={0}
@@ -1190,153 +1244,227 @@ export default function TaskInstancesPage() {
       {/* ═══ 11. ENTERPRISE TASK WORKSPACE ═══ */}
       <TaskWorkspace open={workspaceOpen} onClose={() => setWorkspaceOpen(false)} taskId={workspaceTaskId} onRefresh={loadInstances} />
 
-      {/* ═══ 12. CREATE TASK WIZARD ═══ */}
+      {/* ═══ 12. CREATE TASK WIZARD (premium) ═══ */}
       <Drawer
-        title={<Space size={8}><PlusOutlined style={{ color: 'var(--bc-ro-500, #1976D2)' }} /><span>Create Task</span></Space>}
+        title={null}
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
-        width={640}
+        width={Math.min(780, typeof window !== 'undefined' ? window.innerWidth - 40 : 780)}
         destroyOnHidden
+        closable={false}
+        styles={{ body: { padding: 0, background: 'var(--bc-surface-page, #f8fafc)' }, header: { display: 'none' }, footer: { borderTop: '1px solid #e2e8f0', padding: '14px 22px' } }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>Step {wizardStep + 1} of 5</Text>
             <Space>
-              <Button onClick={() => setWizardStep(Math.max(0, wizardStep - 1))} disabled={wizardStep === 0}>
-                Back
-              </Button>
+              <div className="wizard-steps" style={{ margin: 0 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div key={i} className={`wizard-step-dot${i === wizardStep ? ' active' : ''}${i < wizardStep ? ' done' : ''}`} />
+                ))}
+              </div>
+              <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)', marginLeft: 8 }}>
+                Step {wizardStep + 1} of 5 · {['Pick template', 'Assign', 'Details', 'Timeline', 'Review'][wizardStep]}
+              </Text>
+            </Space>
+            <Space>
+              <Button onClick={() => setWizardOpen(false)}>Cancel</Button>
+              <Button onClick={() => setWizardStep(Math.max(0, wizardStep - 1))} disabled={wizardStep === 0}>Back</Button>
               {wizardStep < 4 ? (
-                <Button type="primary" icon={<ArrowRightOutlined />} onClick={handleWizardNext} style={{ background: 'var(--bc-ro-500, #1976D2)', borderColor: 'var(--bc-ro-500, #1976D2)' }}>
-                  Next
-                </Button>
+                <Button type="primary" icon={<ArrowRightOutlined />} onClick={handleWizardNext} style={{ borderRadius: 10, fontWeight: 700, background: 'linear-gradient(135deg,#0ea5e9,#6366f1)', border: 'none', boxShadow: '0 6px 16px rgba(99,102,241,0.3)' }}>Continue</Button>
               ) : (
-                <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleCreateTask} loading={creating} style={{ background: 'var(--bc-green-600, #16a34a)', borderColor: 'var(--bc-green-600, #16a34a)' }}>
-                  Create Task
-                </Button>
+                <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleCreateTask} loading={creating} style={{ borderRadius: 10, fontWeight: 700, background: 'linear-gradient(135deg,#10b981,#059669)', border: 'none', boxShadow: '0 6px 16px rgba(16,185,129,0.3)' }}>Create task</Button>
               )}
             </Space>
           </div>
         }
       >
-        <Steps
-          size="small"
-          current={wizardStep}
-          style={{ marginBottom: 24 }}
-          items={[
-            { title: 'Basic Info', icon: <InfoCircleOutlined /> },
-            { title: 'Assignments', icon: <TeamOutlined /> },
-            { title: 'Performance', icon: <LineChartOutlined /> },
-            { title: 'Timeline', icon: <CalendarOutlined /> },
-            { title: 'Preview', icon: <FileTextOutlined /> },
-          ]}
-        />
-
-        {wizardStep === 0 && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <div className="wizard-shell">
+          <div className="wizard-hero" style={{ margin: 24 }}>
+            <div className="wizard-hero__icon"><RocketOutlined /></div>
             <div>
-              <Text style={fieldLabel}>Template *</Text>
-              <Select
-                status={wizardErrors.templateId ? 'error' : ''}
-                placeholder="Select a template"
-                value={wizardData.templateId}
-                onChange={v => {
-                  const t = templates.find(x => x.Id === v);
-                  setWizardData(d => ({ ...d, templateId: v, department: t?.Department, priority: t?.Priority, frequency: t?.Frequency, target: t?.DefaultTarget }));
-                  setWizardErrors(e => ({ ...e, templateId: null }));
-                }}
-                showSearch
-                optionFilterProp="label"
-                style={{ width: '100%' }}
-                options={templates.map(t => ({ value: t.Id, label: `${t.TaskCode} — ${t.Name}` }))}
-              />
-              {wizardErrors.templateId && <Text style={fieldError}>{wizardErrors.templateId}</Text>}
+              <h4 className="wizard-hero__title">Create a new task</h4>
+              <p className="wizard-hero__sub">Pick a template, assign an owner, set priority and a due date. SOP steps and acceptance criteria from the template are attached automatically.</p>
             </div>
-            <div>
-              <Text style={fieldLabel}>Task Name *</Text>
-              <Input
-                status={wizardErrors.title ? 'error' : ''}
-                value={wizardData.title}
-                onChange={e => { setWizardData(d => ({ ...d, title: e.target.value })); setWizardErrors(err => ({ ...err, title: null })); }}
-                placeholder="Enter task name"
-                style={{ borderRadius: 'var(--bc-radius-md, 6px)' }}
-              />
-              {wizardErrors.title && <Text style={fieldError}>{wizardErrors.title}</Text>}
-            </div>
-            <Row gutter={12}>
-              <Col span={12}>
-                <Text style={fieldLabel}>Department</Text>
-                <Select value={wizardData.department} onChange={v => setWizardData(d => ({ ...d, department: v }))} style={{ width: '100%' }} options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))} />
-              </Col>
-              <Col span={12}>
-                <Text style={fieldLabel}>Priority</Text>
-                <Select value={wizardData.priority} onChange={v => setWizardData(d => ({ ...d, priority: v }))} style={{ width: '100%' }} options={Object.entries(PRIORITIES).map(([k, v]) => ({ value: k, label: v.label }))} />
-              </Col>
-            </Row>
-          </Space>
-        )}
-
-        {wizardStep === 1 && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <div>
-              <Text style={fieldLabel}>Seller</Text>
-              <Select placeholder="Select seller" value={wizardData.sellerId} onChange={v => { const s = sellers.find(x => x.Id === v); setWizardData(d => ({ ...d, sellerId: v, sellerName: s?.Name })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={sellers.map(s => ({ value: s.Id, label: s.Name }))} />
-            </div>
-            <div>
-              <Text style={fieldLabel}>Brand Manager</Text>
-              <Select placeholder="Select assignee" value={wizardData.assignedTo} onChange={v => { const m = managers.find(x => x.Id === v); setWizardData(d => ({ ...d, assignedTo: v, assigneeName: m?.FullName })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={managers.map(m => ({ value: m.Id, label: m.FullName }))} />
-            </div>
-            <div>
-              <Text style={fieldLabel}>Reviewer</Text>
-              <Select placeholder="Select reviewer" value={wizardData.reviewerId} onChange={v => { const r = reviewers.find(x => x.Id === v); setWizardData(d => ({ ...d, reviewerId: v, reviewerName: r?.FullName })); }} showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} options={reviewers.map(r => ({ value: r.Id, label: r.FullName }))} />
-            </div>
-          </Space>
-        )}
-
-        {wizardStep === 2 && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <div>
-              <Text style={fieldLabel}>Target</Text>
-              <Input value={wizardData.target} onChange={e => setWizardData(d => ({ ...d, target: Number(e.target.value) }))} placeholder="Enter numeric target" style={{ borderRadius: 'var(--bc-radius-md, 6px)' }} />
-            </div>
-            <div>
-              <Text style={fieldLabel}>Frequency</Text>
-              <Select value={wizardData.frequency} onChange={v => setWizardData(d => ({ ...d, frequency: v }))} style={{ width: '100%' }} options={FREQUENCIES.map(f => ({ value: f.value, label: f.label }))} />
-            </div>
-          </Space>
-        )}
-
-        {wizardStep === 3 && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <div>
-              <Text style={fieldLabel}>Due Date</Text>
-              <DatePicker value={wizardData.dueDate} onChange={v => setWizardData(d => ({ ...d, dueDate: v }))} style={{ width: '100%' }} />
-            </div>
-          </Space>
-        )}
-
-        {wizardStep === 4 && (
-          <div>
-            <div style={{ padding: '14px 16px', borderRadius: 'var(--bc-radius-xl, 12px)', background: 'var(--bc-surface-subtle, #f1f5f9)', border: '1px solid var(--bc-border-default, #e2e8f0)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="tasks-brand-tile" style={{ width: 34, height: 34, fontSize: 15 }}><FileTextOutlined /></span>
-              <div style={{ minWidth: 0 }}>
-                <Text strong style={{ fontSize: 14, color: 'var(--bc-text-heading, #0f172a)', display: 'block' }}>{wizardData.title || 'Untitled Task'}</Text>
-                <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>
-                  {templates.find(t => t.Id === wizardData.templateId)?.TaskCode || 'No template'} · {wizardData.department || 'Department not set'}
-                </Text>
-              </div>
-            </div>
-            <Card size="small" style={{ borderRadius: 'var(--bc-radius-xl, 12px)' }} styles={{ body: { padding: '4px 16px' } }}>
-              <ReviewRow label="Template" value={templates.find(t => t.Id === wizardData.templateId)?.Name} />
-              <ReviewRow label="Department" value={wizardData.department} />
-              <ReviewRow label="Seller" value={wizardData.sellerName} />
-              <ReviewRow label="Brand Manager" value={wizardData.assigneeName} />
-              <ReviewRow label="Reviewer" value={wizardData.reviewerName} />
-              <ReviewRow label="Priority" value={wizardData.priority} />
-              <ReviewRow label="Target" value={wizardData.target != null ? String(wizardData.target) : null} />
-              <ReviewRow label="Frequency" value={wizardData.frequency} />
-              <ReviewRow label="Due Date" value={wizardData.dueDate ? dayjs(wizardData.dueDate).format('DD MMM YYYY') : null} />
-            </Card>
           </div>
-        )}
+
+          <div style={{ padding: '0 24px 20px' }}>
+            {wizardStep === 0 && (
+              <div className="wizard-step-card">
+                <div className="wizard-field">
+                  <Text className="wizard-field__label wizard-required">Template</Text>
+                  <Select
+                    size="large"
+                    status={wizardErrors.templateId ? 'error' : ''}
+                    placeholder="Search templates (e.g. BuyBox, Listing, Pricing)"
+                    value={wizardData.templateId}
+                    onChange={v => {
+                      const t = templates.find(x => x.Id === v);
+                      setWizardData(d => ({ ...d, templateId: v, department: t?.Department, priority: t?.Priority, frequency: t?.Frequency, target: t?.DefaultTarget, title: d.title || (t?.Name ? `${t.Name} — new run` : ''), slaHours: t?.SLAHours || 48 }));
+                      setWizardErrors(e => ({ ...e, templateId: null }));
+                    }}
+                    showSearch optionFilterProp="label" style={{ width: '100%' }}
+                    options={templates.map(t => ({ value: t.Id, label: `${t.TaskCode} — ${t.Name}` }))}
+                  />
+                  {wizardErrors.templateId && <Text style={fieldError}>{wizardErrors.templateId}</Text>}
+                  <div className="wizard-field__hint">Templates carry SOPs, SLAs and acceptance criteria.</div>
+                </div>
+
+                {wizardData.templateId && (() => {
+                  const t = templates.find(x => x.Id === wizardData.templateId);
+                  const phases = t?.SubTaskDefinitions || [];
+                  const acts = phases.reduce((s, p) => s + (p.activities?.length || 0), 0);
+                  return (
+                    <div style={{ padding: 14, borderRadius: 12, background: '#f8fafc', border: '1px dashed #cbd5e1', marginBottom: 16 }}>
+                      <Space size={8} wrap style={{ marginBottom: 6 }}>
+                        <Text code style={{ fontSize: 11 }}>{t?.TaskCode}</Text>
+                        <Tag style={{ borderRadius: 8, fontSize: 10, margin: 0 }}>{t?.Category}</Tag>
+                        <Tag style={{ borderRadius: 8, fontSize: 10, margin: 0 }}>{t?.SLAHours}h SLA</Tag>
+                        {phases.length > 0 && <Tag style={{ borderRadius: 8, fontSize: 10, margin: 0 }}>{phases.length} phases · {acts} steps</Tag>}
+                      </Space>
+                      {t?.Description && <Text style={{ fontSize: 12, color: '#64748b', display: 'block' }}>{t.Description}</Text>}
+                    </div>
+                  );
+                })()}
+
+                <div className="wizard-field">
+                  <Text className="wizard-field__label wizard-required">Task title</Text>
+                  <Input size="large" status={wizardErrors.title ? 'error' : ''} value={wizardData.title}
+                    onChange={e => { setWizardData(d => ({ ...d, title: e.target.value })); setWizardErrors(err => ({ ...err, title: null })); }}
+                    placeholder="e.g. Fix BuyBox loss for B08XYZ123" />
+                  {wizardErrors.title && <Text style={fieldError}>{wizardErrors.title}</Text>}
+                </div>
+
+                <div className="wizard-field">
+                  <Text className="wizard-field__label">Context (optional)</Text>
+                  <Input.TextArea rows={2} value={wizardData.description} onChange={e => setWizardData(d => ({ ...d, description: e.target.value }))}
+                    placeholder="Why is this needed? Link to the issue, expected impact..." />
+                </div>
+
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <div className="wizard-field">
+                      <Text className="wizard-field__label">Department</Text>
+                      <Select value={wizardData.department} onChange={v => setWizardData(d => ({ ...d, department: v }))} style={{ width: '100%' }} options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))} />
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <div className="wizard-field">
+                      <Text className="wizard-field__label">Priority</Text>
+                      <Select value={wizardData.priority} onChange={v => setWizardData(d => ({ ...d, priority: v }))} style={{ width: '100%' }} options={Object.entries(PRIORITIES).map(([k, v]) => ({ value: k, label: v.label }))} />
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+            )}
+
+            {wizardStep === 1 && (
+              <div className="wizard-step-card">
+                <div className="wizard-field">
+                  <Text className="wizard-field__label">Seller (optional)</Text>
+                  <Select placeholder="Select seller account" value={wizardData.sellerId}
+                    onChange={v => { const s = sellers.find(x => x.Id === v); setWizardData(d => ({ ...d, sellerId: v, sellerName: s?.Name })); }}
+                    showSearch optionFilterProp="label" allowClear style={{ width: '100%' }} size="large"
+                    options={sellers.map(s => ({ value: s.Id, label: s.Name }))} />
+                  <div className="wizard-field__hint">If this task relates to a specific seller account, select it now.</div>
+                </div>
+                <div className="wizard-field">
+                  <Text className="wizard-field__label wizard-required">Assign to</Text>
+                  <Select size="large" status={wizardErrors.assignedTo ? 'error' : ''}
+                    placeholder="Select a brand manager / owner" value={wizardData.assignedTo}
+                    onChange={v => { const m = managers.find(x => x.Id === v); setWizardData(d => ({ ...d, assignedTo: v, assigneeName: m?.FullName })); setWizardErrors(e => ({ ...e, assignedTo: null })); }}
+                    showSearch optionFilterProp="label" allowClear style={{ width: '100%' }}
+                    options={managers.map(m => ({ value: m.Id, label: m.FullName }))} />
+                  {wizardErrors.assignedTo && <Text style={fieldError}>{wizardErrors.assignedTo}</Text>}
+                  {wizardData.assigneeName && (
+                    <div style={{ marginTop: 8, padding: 10, borderRadius: 10, background: '#ecfdf5', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Avatar size={28} style={{ background: '#16a34a', fontSize: 12 }}>{wizardData.assigneeName.charAt(0)}</Avatar>
+                      <Text strong style={{ fontSize: 12, color: '#065f46' }}>{wizardData.assigneeName}</Text>
+                      <Text style={{ fontSize: 11, color: '#047857', marginLeft: 'auto' }}>will be notified</Text>
+                    </div>
+                  )}
+                </div>
+                <div className="wizard-field">
+                  <Text className="wizard-field__label">Reviewer (optional)</Text>
+                  <Select placeholder="Select a reviewer" value={wizardData.reviewerId}
+                    onChange={v => { const r = reviewers.find(x => x.Id === v); setWizardData(d => ({ ...d, reviewerId: v, reviewerName: r?.FullName })); }}
+                    showSearch optionFilterProp="label" allowClear style={{ width: '100%' }}
+                    options={reviewers.map(r => ({ value: r.Id, label: r.FullName }))} />
+                </div>
+              </div>
+            )}
+
+            {wizardStep === 2 && (
+              <div className="wizard-step-card">
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <div className="wizard-field">
+                      <Text className="wizard-field__label">Frequency</Text>
+                      <Select value={wizardData.frequency} onChange={v => setWizardData(d => ({ ...d, frequency: v }))} style={{ width: '100%' }} options={FREQUENCIES.map(f => ({ value: f.value, label: f.label }))} />
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <div className="wizard-field">
+                      <Text className="wizard-field__label">SLA (hours)</Text>
+                      <InputNumber min={1} value={wizardData.slaHours} onChange={v => setWizardData(d => ({ ...d, slaHours: v }))} style={{ width: '100%' }} />
+                    </div>
+                  </Col>
+                </Row>
+                <div className="wizard-field">
+                  <Text className="wizard-field__label">Target (optional)</Text>
+                  <InputNumber value={wizardData.target} onChange={v => setWizardData(d => ({ ...d, target: v ?? 0 }))} placeholder="e.g. 95" style={{ width: '100%' }} />
+                  <div className="wizard-field__hint">A measurable target lets reviewers verify completion objectively.</div>
+                </div>
+              </div>
+            )}
+
+            {wizardStep === 3 && (
+              <div className="wizard-step-card">
+                <div className="wizard-field">
+                  <Text className="wizard-field__label">Due date</Text>
+                  <DatePicker value={wizardData.dueDate} onChange={v => setWizardData(d => ({ ...d, dueDate: v }))} style={{ width: '100%' }} size="large" placeholder="Select a due date" disabledDate={c => c && c < dayjs().startOf('day')} />
+                  <div className="wizard-field__hint">
+                    {wizardData.dueDate ? <>Due <Text strong>{dayjs(wizardData.dueDate).format('ddd, DD MMM YYYY')}</Text></> : 'Leave blank to auto-calculate from the SLA.'}
+                  </div>
+                </div>
+                <div className="wizard-quick-actions">
+                  {[1, 2, 3, 5, 7].map(d => (
+                    <button key={d} type="button" className="wizard-quick-chip" onClick={() => setWizardData(wd => ({ ...wd, dueDate: dayjs().add(d, 'day') }))}>
+                      <ClockCircleOutlined /> {d === 1 ? 'Tomorrow' : `+${d} days`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {wizardStep === 4 && (() => {
+              const pri = PRIORITIES[wizardData.priority] || PRIORITIES.MEDIUM;
+              const Row_ = ({ l, children }) => <div className="wizard-preview__row"><span className="wizard-preview__row-lbl">{l}</span><span className="wizard-preview__row-val">{children}</span></div>;
+              return (
+                <div className="wizard-preview">
+                  <div className="wizard-preview__header">
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}><CheckCircleOutlined /></div>
+                    <div>
+                      <h5 className="wizard-preview__title" style={{ color: '#fff' }}>{wizardData.title || 'Untitled task'}</h5>
+                      <p className="wizard-preview__sub">Creating will notify the assignee and start the SLA clock.</p>
+                    </div>
+                  </div>
+                  <div className="wizard-preview__body">
+                    <Row_ l="Template">{templates.find(t => t.Id === wizardData.templateId)?.Name || '—'}</Row_>
+                    <Row_ l="Department">{wizardData.department || '—'}</Row_>
+                    {wizardData.sellerName && <Row_ l="Seller">{wizardData.sellerName}</Row_>}
+                    <Row_ l="Assignee">{wizardData.assigneeName || 'Unassigned'}</Row_>
+                    {wizardData.reviewerName && <Row_ l="Reviewer">{wizardData.reviewerName}</Row_>}
+                    <Row_ l="Priority"><Tag style={{ borderRadius: 8, background: pri.bg, color: pri.color, border: 'none', margin: 0 }}>{pri.label}</Tag></Row_>
+                    <Row_ l="Frequency">{FREQUENCIES.find(f => f.value === wizardData.frequency)?.label || 'One time'}</Row_>
+                    <Row_ l="SLA">{wizardData.slaHours}h</Row_>
+                    <Row_ l="Target">{wizardData.target ?? '—'}</Row_>
+                    <Row_ l="Due date">{wizardData.dueDate ? dayjs(wizardData.dueDate).format('ddd, DD MMM YYYY') : 'Auto (from SLA)'}</Row_>
+                    {wizardData.description && <Row_ l="Context">{wizardData.description}</Row_>}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </Drawer>
     </div>
   );

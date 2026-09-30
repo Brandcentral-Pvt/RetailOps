@@ -32,6 +32,7 @@ import AchievementDonut from '../components/dashboard/AchievementDonut';
 import TopAsinsCard from '../components/dashboard/TopAsinsCard';
 import TasksOverviewCard from '../components/dashboard/TasksOverviewCard';
 import AlertsPipelineCard from '../components/dashboard/AlertsPipelineCard';
+import AutomationRulesCard from '../components/dashboard/AutomationRulesCard';
 
 const containerVariants = {
     hidden: { opacity: 0, y: 15 },
@@ -315,10 +316,17 @@ const Dashboard = () => {
 </Col>
                 </Row>
 
-                {/* Layer 8: Activity Timeline */}
-                <DashboardErrorBoundary fallbackText="Activity timeline failed to load">
-                    <ActivityTimeline events={activityLogs} />
-                </DashboardErrorBoundary>
+                {/* Layer 10: Automation Rules */}
+                <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
+                    <Col xs={24} lg={14}>
+                        <DashboardErrorBoundary fallbackText="Automation rules failed to load">
+                            <AutomationRulesCard />
+                        </DashboardErrorBoundary>
+                    </Col>
+                    <Col xs={24} lg={10}>
+                        <ActivityTimeline events={activityLogs} />
+                    </Col>
+                </Row>
             </motion.div>
         </>
     );

@@ -60,6 +60,7 @@ const TemplateManagerPage = lazy(() => import('./pages/TemplateManagerPage'));
 
 const TaskPerformanceDashboard = lazy(() => import('./modules/tasks/pages/TaskPerformanceDashboard'));
 const TaskTemplatesPage = lazy(() => import('./modules/tasks/pages/TaskTemplatesPage'));
+const MyDayPage = lazy(() => import('./modules/tasks/pages/MyDayPage'));
 const TaskInstancesPage = lazy(() => import('./modules/tasks/pages/TaskInstancesPage'));
 const ReviewQueuePage = lazy(() => import('./modules/tasks/pages/ReviewQueuePage'));
 const TaskAnalyticsPage = lazy(() => import('./modules/tasks/pages/TaskAnalyticsPage'));
@@ -105,6 +106,18 @@ function LegacyTemplateRedirect() {
   return <Navigate to={`/tasks/templates/${id}`} replace />;
 }
 
+// First landing of a session: employees (non-admin, non-global roles that can use
+// Tasks) start on "My Day" — their plan for today. Admins and managers keep the
+// Ops Center. MyDayPage marks the session as greeted, so a later visit to "/"
+// (e.g. the Dashboard link) shows the dashboard instead of bouncing back.
+function HomeRoute() {
+  const { isAdmin, isGlobalUser, hasPermission } = useAuth();
+  const greeted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('landing.myday') === '1';
+  const isEmployee = !isAdmin && !isGlobalUser && hasPermission('tasks_view');
+  if (isEmployee && !greeted) return <Navigate to="/tasks/my-day" replace />;
+  return <ProtectedRoute permission="dashboard_view"><OpsCenter /></ProtectedRoute>;
+}
+
 function AppRoutes() {
   const { isAuthenticated, loading, bootstrapping } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
@@ -133,7 +146,7 @@ function AppRoutes() {
                 <ModuleFallback>
                 <RoutePageMeta />
                 <Routes>
-                  <Route path="/" element={<ProtectedRoute permission="dashboard_view"><OpsCenter /></ProtectedRoute>} />
+                  <Route path="/" element={<HomeRoute />} />
                   <Route path="/dashboard" element={<ProtectedRoute permission="dashboard_view"><OpsCenter /></ProtectedRoute>} />
                   <Route path="/dashboard-v2" element={<ProtectedRoute permission="dashboard_view"><DashboardV2 /></ProtectedRoute>} />
                   <Route path="/sku-report" element={<ProtectedRoute permission="skureport_view"><SkuReport /></ProtectedRoute>} />
@@ -176,6 +189,7 @@ function AppRoutes() {
                   <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />
                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
                   <Route path="/tasks" element={<Navigate to="/tasks/tasks" replace />} />
+                  <Route path="/tasks/my-day" element={<ProtectedRoute permission="tasks_view"><MyDayPage /></ProtectedRoute>} />
                   <Route path="/tasks/dashboard" element={<ProtectedRoute permission="tasks_view"><TaskPerformanceDashboard /></ProtectedRoute>} />
                   <Route path="/tasks/templates" element={<ProtectedRoute permission="tasks_manage"><TaskTemplatesPage /></ProtectedRoute>} />
                   <Route path="/tasks/templates/:id" element={<ProtectedRoute permission="tasks_manage"><TemplateDetailPage /></ProtectedRoute>} />

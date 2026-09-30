@@ -117,20 +117,26 @@ export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
   const [upcoming, setUpcoming] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [recent, setRecent] = useState([]);
+  const [autoTasks, setAutoTasks] = useState([]);
+  const [autoStats, setAutoStats] = useState({ total: 0, open: 0, overdue: 0 });
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [liveRes, feedRes] = await Promise.all([
+      const [liveRes, feedRes, autoRes, upRes, autoStatsRes] = await Promise.all([
         tasksApi.getLiveTasks({ status: 'UNDER_REVIEW' }),
         tasksApi.getActivityFeed(),
+        tasksApi.getLiveTasks({ isAutomated: true, limit: 5 }).catch(() => ({ success: false })),
+        tasksApi.getLiveTasks({}),
+        tasksApi.getAutomationStats().catch(() => ({ total:0, open:0, overdue:0, byRuleset:[] })),
       ]);
       if (liveRes.success) setReviews(liveRes.data?.slice(0, 5) || []);
       if (feedRes.success) setRecent(feedRes.data?.slice(0, 8) || []);
-      const upcomingRes = await tasksApi.getLiveTasks({});
-      if (upcomingRes.success) {
-        const tasks = (upcomingRes.data || [])
+      setAutoStats(autoStatsRes || { total:0, open:0, overdue:0 });
+      if (autoRes.success) setAutoTasks((autoRes.data || []).slice(0, 5));
+      if (upRes.success) {
+        const tasks = (upRes.data || [])
           .filter(t => t.DueDate && !isOverdue(t))
           .sort((a, b) => new Date(a.DueDate) - new Date(b.DueDate))
           .slice(0, 5);
@@ -169,6 +175,21 @@ export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
           style={{ fontSize: 11, color: 'var(--bc-text-muted)' }}
         />
       </div>
+
+      <InsightSection title="🤖 Automation Queue" icon={ThunderboltOutlined} count={autoStats.open || autoTasks.length}>
+        {autoTasks.length === 0 ? (
+          <div>
+            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '4px 0', display: 'block' }}>
+              {autoStats.total > 0 ? `${autoStats.total} total automation tasks — ${autoStats.open} open` : 'No ruleset-generated tasks yet.'}
+            </Text>
+            <Button size="small" type="link" style={{ padding: 0, fontSize: 11, height: 'auto' }} onClick={() => window.open('/rule-sets', '_blank')}>
+              Configure rulesets →
+            </Button>
+          </div>
+        ) : autoTasks.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
+      </InsightSection>
+
+      <Divider style={{ margin: '4px 0 16px', borderColor: 'var(--bc-border-subtle)' }} />
 
       <InsightSection title="Upcoming Deadlines" icon={ClockCircleOutlined} count={upcoming.length}>
         {upcoming.length === 0 ? (
