@@ -972,6 +972,85 @@ async function getReviewStats(user) {
 }
 
 // ═══════════════════════════════════════════════════════
+// MY DAY — everything one person has to act on today
+// ═══════════════════════════════════════════════════════
+
+// Statuses where the ASSIGNEE is the one who must act next.
+const MYDAY_ACTIONABLE = ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'REWORK', 'REJECTED', 'ESCALATED'];
+// Statuses where the ball is in a reviewer's court.
+const MYDAY_IN_REVIEW = ['SUBMITTED', 'RESUBMITTED', 'UNDER_REVIEW'];
+
+/**
+ * Raw material for the employee's daily plan. Ranking and scheduling are done
+ * client-side (working hours + "now" are local, and the plan re-flows as the
+ * day goes by), so this only returns facts:
+ *   actionable  – tasks the user must do (with estimate, step progress, last reviewer feedback)
+ *   waiting     – tasks the user submitted that are waiting on a reviewer
+ *   reviews     – tasks waiting for THIS user to review
+ *   doneToday   – tasks the user submitted / got approved today
+ * Global roles may pass `targetUserId` to see a teammate's day.
+ */
+async function getMyDay(user, targetUserId) {
+  const pool = await getPool();
+  const callerId = user?.Id || user?._id || user?.id || null;
+  const role = String(user?.role?.name || user?.role || '').toLowerCase();
+  const uid = targetUserId && isGlobalUserRole(role) ? targetUserId : callerId;
+  if (!uid) throw new Error('User identity is required');
+
+  const inList = (arr) => arr.map(x => `'${x}'`).join(',');   // constants only, never user input
+
+  const actionableQ = pool.request().input('uid', sql.VarChar, uid).query(`
+    SELECT i.Id, i.InstanceCode, i.Title, i.Priority, i.Status, i.DueDate, i.SLAStatus, i.SLAHours,
+           i.StartedAt, i.SubmittedAt, i.ReworkCount, i.Source, i.SourceRef, i.SellerName, i.Department,
+           i.Category, i.ReviewerName, i.AssignedAt,
+           t.Name AS TemplateName,
+           COALESCE(t.EstimatedExecutionMinutes, 60) AS EstimatedMinutes,
+           (SELECT COUNT(*) FROM PemsSubTasks st WHERE st.TaskInstanceId = i.Id) AS SubTaskTotal,
+           (SELECT COUNT(*) FROM PemsSubTasks st WHERE st.TaskInstanceId = i.Id AND st.IsCompleted = 1) AS SubTaskDone,
+           (SELECT COUNT(*) FROM PemsEvidence e WHERE e.TaskInstanceId = i.Id) AS EvidenceCount,
+           (SELECT TOP 1 r.Feedback FROM PemsTaskReviews r WHERE r.TaskInstanceId = i.Id ORDER BY r.CreatedAt DESC) AS LastFeedback
+    FROM PemsTaskInstances i
+    LEFT JOIN PemsTaskTemplates t ON i.TemplateId = t.Id
+    WHERE i.AssignedTo = @uid AND i.Status IN (${inList(MYDAY_ACTIONABLE)})
+    ORDER BY i.DueDate ASC
+  `);
+
+  const waitingQ = pool.request().input('uid', sql.VarChar, uid).query(`
+    SELECT TOP 30 i.Id, i.InstanceCode, i.Title, i.Priority, i.Status, i.DueDate, i.SubmittedAt, i.ReviewerName
+    FROM PemsTaskInstances i
+    WHERE i.AssignedTo = @uid AND i.Status IN (${inList(MYDAY_IN_REVIEW)})
+    ORDER BY i.SubmittedAt ASC
+  `);
+
+  const reviewsQ = pool.request().input('uid', sql.VarChar, uid).query(`
+    SELECT TOP 50 i.Id, i.InstanceCode, i.Title, i.Priority, i.Status, i.DueDate, i.SubmittedAt, i.AssigneeName, i.SellerName
+    FROM PemsTaskInstances i
+    WHERE i.ReviewerId = @uid AND (i.AssignedTo IS NULL OR i.AssignedTo <> @uid)
+      AND i.Status IN (${inList(MYDAY_IN_REVIEW)})
+    ORDER BY i.SubmittedAt ASC
+  `);
+
+  const doneQ = pool.request().input('uid', sql.VarChar, uid).query(`
+    SELECT TOP 30 i.Id, i.InstanceCode, i.Title, i.Priority, i.Status, i.SubmittedAt, i.CompletedAt
+    FROM PemsTaskInstances i
+    WHERE i.AssignedTo = @uid
+      AND (CAST(i.SubmittedAt AS DATE) = CAST(dbo.GetEnvDate() AS DATE)
+        OR CAST(i.CompletedAt AS DATE) = CAST(dbo.GetEnvDate() AS DATE))
+    ORDER BY COALESCE(i.CompletedAt, i.SubmittedAt) DESC
+  `);
+
+  const [actionable, waiting, reviews, done] = await Promise.all([actionableQ, waitingQ, reviewsQ, doneQ]);
+  return {
+    userId: uid,
+    actionable: actionable.recordset,
+    waiting: waiting.recordset,
+    reviews: reviews.recordset,
+    doneToday: done.recordset,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+// ═══════════════════════════════════════════════════════
 // ACHIEVEMENT & SLA
 // ═══════════════════════════════════════════════════════
 
@@ -1617,7 +1696,7 @@ module.exports = {
   // V2 additions
   createNotification, getNotifications, getUnreadCount, markNotificationRead, markAllRead,
   getDepartmentPerformance, getBrandManagerPerformance, getReviewerPerformance,
-  bulkReview, getReviewStats,
+  bulkReview, getReviewStats, getMyDay,
   checkEscalations, getRiskPanel, getTopPerformers,
   getSellersForPEMS, getBrandManagersForPEMS, getReviewersForPEMS,
   // V3 additions

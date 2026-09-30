@@ -9,7 +9,8 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test:auth": "playwright test"
+    "test:auth": "playwright test",
+    "test:planner": "node --test src/modules/tasks/utils/__tests__/dayPlanner.test.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
