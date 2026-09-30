@@ -806,9 +806,26 @@ function buildSqlFilter(rules) {
         const textAttrs = new Set(['dealBadge','bsrTrend','ratingTrend','availabilityStatus','asinStatus','seller','category','brand']);
 
         if (boolAttrs.has(cond.attribute)) {
-          // BIT column: compare against 1/0
-          sqlVal = (val === 'true' || val === true || val === 1 || val === 'Yes' || val === 'yes') ? 1 : 0;
-          params[key] = sqlVal;
+          // BIT column: compare against 1/0, but include NULL for "false" checks
+          // NULL BuyBoxWin means "not won" → should match "false"/"No"
+          const isTrue = (val === 'true' || val === true || val === 1 || val === 'Yes' || val === 'yes');
+          const isNotOp = (sqlOp === '<>' || op === '≠' || op === 'is not');
+          
+          if (isTrue && !isNotOp) {
+            // true/Yes: exact match 1
+            params[key] = 1;
+            condFilters.push(`${col} ${sqlOp} @${key}`);
+          } else if (!isTrue && !isNotOp) {
+            // false/No: match 0 OR NULL (never won = not won)
+            condFilters.push(`(${col} = 0 OR ${col} IS NULL)`);
+          } else if (isTrue && isNotOp) {
+            // NOT true/Yes: match 0 OR NULL
+            condFilters.push(`(${col} = 0 OR ${col} IS NULL)`);
+          } else {
+            // NOT false/No: match 1 only
+            params[key] = 1;
+            condFilters.push(`${col} ${sqlOp} @${key}`);
+          }
         } else if (numericAttrs.has(cond.attribute)) {
           params[key] = Number(val);
           if (isNaN(params[key])) continue;
