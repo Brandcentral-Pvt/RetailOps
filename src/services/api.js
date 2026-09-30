@@ -1767,6 +1767,9 @@ export const rulesetApi = {
     const query = new URLSearchParams(params).toString();
     return api.get(`/rulesets?${query}`);
   },
+  getStats: async () => {
+    return api.get('/rulesets-stats');
+  },
   getById: async (id) => {
     return api.get(`/rulesets/${id}`);
   },
@@ -1800,7 +1803,14 @@ export const rulesetApi = {
   },
   executeForAsins: async (selectedAsins) => {
     return api.post('/rulesets/execute-for-asins', { selectedAsins });
-  }
+  },
+  // AI-assisted rule generation (NVIDIA NIM)
+  aiGenerate: async (prompt, existingRules = []) => {
+    return api.post('/ai/rules/generate', { prompt, existingRules });
+  },
+  aiExplain: async (rules) => {
+    return api.post('/ai/rules/explain', { rules });
+  },
 };
 
 export const taskApi = {

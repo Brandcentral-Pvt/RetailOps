@@ -283,6 +283,12 @@ const tasksApi = {
     if (!res.ok) throw new Error('Verification failed');
     return res.json();
   },
+
+  // ── Automation / ruleset linkage ──
+  getAutomationStats: async () => {
+    const r = await fetchJson('/pems/automation-stats');
+    return r.data;
+  },
 };
 
 export default tasksApi;

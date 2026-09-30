@@ -113,12 +113,13 @@ function evaluateCondition(condition, entity) {
   if (entityValue === undefined || entityValue === null) {
     if (operator === 'is empty') return true;
     if (operator === 'is not empty') return false;
-    if (operator === '≠') return true;
     return false;
   }
 
-  // Boolean type
-  if (typeof entityValue === 'boolean' || (value === 'true' || value === 'false' || value === 'Yes' || value === 'No' || value === 'yes' || value === 'no')) {
+  // ── Boolean attributes (only when both sides are actually boolean) ──
+  const isEntityBool = typeof entityValue === 'boolean' || entityValue === 1 || entityValue === 0;
+  const boolValues = ['true', 'false', true, false, 1, 0, 'Yes', 'No', 'yes', 'no', 'Y', 'N', 'y', 'n'];
+  if (isEntityBool && boolValues.includes(value)) {
     const boolVal = value === 'true' || value === true || value === 1 || value === 'Yes' || value === 'yes' || value === 'Y' || value === 'y';
     const currentBool = entityValue === true || entityValue === 1;
     if (operator === '=' || operator === 'is') return currentBool === boolVal;
@@ -126,39 +127,44 @@ function evaluateCondition(condition, entity) {
     return false;
   }
 
-  // List type (tags array)
+  // ── List (tags array) ──
   if (Array.isArray(entityValue)) {
-    const arrStr = entityValue.join(',').toLowerCase();
     const valStr = String(value).toLowerCase();
     switch (operator) {
-      case 'contains': return arrStr.includes(valStr);
-      case 'not contains': return !arrStr.includes(valStr);
-      case '=': return entityValue.map(v => String(v).toLowerCase()).includes(valStr);
-      case '≠': return !entityValue.map(v => String(v).toLowerCase()).includes(valStr);
+      case 'contains': return entityValue.some(v => String(v).toLowerCase().includes(valStr));
+      case 'not contains': return !entityValue.some(v => String(v).toLowerCase().includes(valStr));
+      case '=': return entityValue.some(v => String(v).toLowerCase() === valStr);
+      case '≠': return !entityValue.some(v => String(v).toLowerCase() === valStr);
+      case 'is empty': return entityValue.length === 0;
+      case 'is not empty': return entityValue.length > 0;
       default: return false;
     }
   }
 
-  // Enum/text type
+  // ── Enum / text ──
   if (typeof entityValue === 'string') {
     const ev = entityValue.toLowerCase();
-    const v = String(value).toLowerCase();
+    const v = String(value ?? '').toLowerCase();
     switch (operator) {
       case '=': return ev === v;
       case '≠': return ev !== v;
       case 'contains': return ev.includes(v);
       case 'not contains': return !ev.includes(v);
       case 'starts with': return ev.startsWith(v);
-      case 'is empty': return ev === '';
-      case 'is not empty': return ev !== '';
+      case 'is empty': return ev.trim() === '';
+      case 'is not empty': return ev.trim() !== '';
       default: return false;
     }
   }
 
-  // Number type
+  // ── Number ──
   const numVal = Number(entityValue);
   const targetVal = Number(value);
   const targetVal2 = Number(value2);
+
+  if (operator === 'is empty') return numVal === 0 || isNaN(numVal);
+  if (operator === 'is not empty') return numVal !== 0 && !isNaN(numVal);
+  if (isNaN(targetVal)) return false;
 
   switch (operator) {
     case '=': return numVal === targetVal;
@@ -167,9 +173,7 @@ function evaluateCondition(condition, entity) {
     case '<=': return numVal <= targetVal;
     case '>': return numVal > targetVal;
     case '>=': return numVal >= targetVal;
-    case 'between': return numVal >= targetVal && numVal <= targetVal2;
-    case 'is empty': return numVal === 0 || isNaN(numVal);
-    case 'is not empty': return numVal !== 0 && !isNaN(numVal);
+    case 'between': return !isNaN(targetVal2) && numVal >= targetVal && numVal <= targetVal2;
     default: return false;
   }
 }
@@ -197,9 +201,22 @@ function evaluateRule(rule, entity) {
   return result;
 }
 
-async function applyAction(entity, action, type, sellerId, userId, matchedRule = null) {
+async function applyAction(entity, action, type, sellerId, userId, matchedRule = null, rulesetMeta = null) {
   const results = [];
   const pool = await getPool();
+
+  // Map action.priority to PEMS priority (CRITICAL/HIGH/MEDIUM/LOW)
+  const pemsPriority = (p) => {
+    const m = { Critical: 'CRITICAL', High: 'HIGH', Medium: 'MEDIUM', Low: 'LOW', critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW' };
+    return m[p] || 'MEDIUM';
+  };
+  const mapCategory = (attr) => {
+    if (/price|buyBox|mrp|discount|deal/i.test(attr || '')) return 'PRICING';
+    if (/lqs|title|bullet|image|description|aplus/i.test(attr || '')) return 'LISTING';
+    if (/stock|availability|inventory/i.test(attr || '')) return 'INVENTORY';
+    if (/bsr|rating|review|order/i.test(attr || '')) return 'GENERAL';
+    return 'GENERAL';
+  };
 
   switch (action.actionType) {
     case 'send_email':
@@ -231,40 +248,83 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
     case 'create_task':
     case 'create_task_high': {
       try {
-        const id = generateId();
-        const asinsJson = JSON.stringify([entity.asinCode || entity.entityId]);
-        const priority = action.actionType === 'create_task_high' ? 'High' : 'Medium';
         const ruleName = matchedRule?.name || 'Ruleset Rule';
         const asinCode = entity.asinCode || entity.entityId || '';
         const title = `[Ruleset] ${ruleName}${asinCode ? ` — ${asinCode}` : ''}`;
-        const description = `Automated task from ruleset "${ruleName}" for ASIN ${asinCode}.`;
+        const attrCsv = (matchedRule?.conditions || []).map(c => `${c.attribute} ${c.operator} ${c.value}${c.value2 ? '–' + c.value2 : ''}`).join(', ');
+        const description = `Automated task from ruleset "${rulesetMeta?.name || 'Ruleset'}" — rule "${ruleName}".\nTrigger: ${attrCsv}\nASIN: ${asinCode}${entity.title ? `\nTitle: ${entity.title}` : ''}`;
         const sellerIdStr = sellerId || entity.seller || '';
-        const createdByUserId = userId || ruleset?.CreatedBy || '';
+        const createdByUserId = userId || rulesetMeta?.createdBy || '';
+        const priority = action.priority || (action.actionType === 'create_task_high' ? 'High' : 'Medium');
+        const category = mapCategory(matchedRule?.conditions?.[0]?.attribute);
 
         // Default due date: CRITICAL=1d, HIGH=3d, MEDIUM=7d, LOW=14d
-        const dueDays = { Critical: 1, High: 3, Medium: 7, Low: 14 };
+        const dueDays = { Critical: 1, High: 3, Medium: 7, Low: 14, CRITICAL: 1, HIGH: 3, MEDIUM: 7, LOW: 14 };
+        const slaHours = { Critical: 24, High: 72, Medium: 168, Low: 336, CRITICAL: 24, HIGH: 72, MEDIUM: 168, LOW: 336 };
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + (dueDays[priority] || 7));
 
-        await pool.request()
-          .input('Id', sql.VarChar, id)
-          .input('Title', sql.NVarChar, title)
-          .input('Description', sql.NVarChar, description)
-          .input('Priority', sql.NVarChar, priority)
-          .input('Status', sql.NVarChar, 'PENDING')
-          .input('Type', sql.NVarChar, 'automated')
-          .input('Category', sql.NVarChar, 'Listing')
-          .input('Asins', sql.NVarChar, asinsJson)
-          .input('SellerId', sql.VarChar, sellerIdStr)
-          .input('CreatedBy', sql.VarChar, createdByUserId)
-          .input('AssignedTo', sql.VarChar, createdByUserId)
-          .input('DueDate', sql.DateTime2, dueDate)
-          .input('TimeLimit', sql.Int, dueDays[priority] || 7)
-          .query(`
-            INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SellerId, CreatedBy, AssignedTo, DueDate, TimeLimit, CreatedAt, UpdatedAt)
-            VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SellerId, @CreatedBy, @AssignedTo, @DueDate, @TimeLimit, dbo.GetEnvDate(), dbo.GetEnvDate())
-          `);
-        results.push({ action: 'task_created', status: 'success', taskId: id, title, priority, dueDate: dueDate.toISOString() });
+        // Resolve assignee: prefer seller-mapped brand manager, else creator
+        let assignedTo = createdByUserId;
+        let assigneeName = '';
+        if (sellerIdStr) {
+          try {
+            const ar = await pool.request()
+              .input('sid', sql.VarChar, sellerIdStr)
+              .query('SELECT TOP 1 UserId FROM UserSellers WHERE SellerId = @sid');
+            if (ar.recordset.length > 0 && ar.recordset[0].UserId) {
+              assignedTo = ar.recordset[0].UserId;
+            }
+          } catch (e) { /* fallback to creator */ }
+        }
+
+        // Try PEMS first; if it fails, fall back to legacy Actions table
+        let taskId;
+        try {
+          const pemsService = require('./pems/pemsService');
+          const r = await pemsService.createInstance({
+            title,
+            description,
+            priority: pemsPriority(priority),
+            status: 'ASSIGNED',
+            frequency: 'ONE_TIME',
+            department: category === 'PRICING' ? 'Operations' : category === 'LISTING' ? 'Catalog Team' : 'Operations',
+            category,
+            sellerId: sellerIdStr,
+            assignedTo,
+            assigneeName,
+            createdBy: createdByUserId,
+            reviewerId: null,
+            dueDate,
+            slaHours: slaHours[priority] || 168,
+            tags: ['automation', 'ruleset', rulesetMeta?.name || ''].filter(Boolean),
+            source: 'RULESET',
+            sourceId: rulesetMeta?.id || null,
+            sourceRef: ruleName,
+            asins: asinCode ? [asinCode] : [],
+          });
+          taskId = r.id;
+        } catch (pemsErr) {
+          // Fallback: write into legacy Actions table
+          taskId = generateId();
+          await pool.request()
+            .input('Id', sql.VarChar, taskId)
+            .input('Title', sql.NVarChar, title)
+            .input('Description', sql.NVarChar, description)
+            .input('Priority', sql.NVarChar, priority)
+            .input('Status', sql.NVarChar, 'PENDING')
+            .input('Type', sql.NVarChar, 'automated')
+            .input('Category', sql.NVarChar, category)
+            .input('Asins', sql.NVarChar, JSON.stringify(asinCode ? [asinCode] : []))
+            .input('SellerId', sql.VarChar, sellerIdStr)
+            .input('CreatedBy', sql.VarChar, createdByUserId)
+            .input('AssignedTo', sql.VarChar, assignedTo)
+            .input('DueDate', sql.DateTime2, dueDate)
+            .query(`INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SellerId, CreatedBy, AssignedTo, DueDate, CreatedAt, UpdatedAt)
+                    VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SellerId, @CreatedBy, @AssignedTo, @DueDate, dbo.GetEnvDate(), dbo.GetEnvDate())`);
+        }
+
+        results.push({ action: 'task_created', status: 'success', taskId, title, priority, dueDate: dueDate.toISOString(), source: 'RULESET' });
       } catch (err) {
         results.push({ action: 'task_failed', status: 'failed', error: err.message });
       }
@@ -575,11 +635,42 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
       } catch (e) { /* fallback */ }
     }
 
-    const taskId = generateId();
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDateMs);
 
     if (!dryRun) {
+      let taskId;
+      try {
+        const pemsService = require('./pems/pemsService');
+        const r = await pemsService.createInstance({
+          title: mainTitle,
+          description,
+          priority: ({ Critical:'CRITICAL', High:'HIGH', Medium:'MEDIUM', Low:'LOW' })[priority] || 'MEDIUM',
+          status: 'ASSIGNED',
+          frequency: 'ONE_TIME',
+          department: group.entities[0]?.category || 'Operations',
+          category: group.entities[0]?.category || 'GENERAL',
+          sellerId: groupByField === 'seller' ? groupKey : null,
+          assignedTo,
+          createdBy: ruleset.CreatedBy || '',
+          dueDate,
+          slaHours: dueDateMs * 24,
+          tags: ['automation','ruleset',ruleset.Name||''].filter(Boolean),
+          source: 'RULESET',
+          sourceId: ruleset.Id,
+          sourceRef: rule.name,
+          asins: subTasks.map(st => st.asinCode),
+          subTaskDefinitions: subTasks.map((st, i) => ({
+            title: st.title || `Resolve ${st.asinCode}`,
+            description: st.description || '',
+            expectedOutput: 'Issue resolved per rule.',
+            activities: st.sop?.map(s => ({ title: s.title, instructions: s.description, expectedOutput: 'Done', isMandatory: true })) || [],
+          })),
+        });
+        taskId = r.id;
+      } catch (pemsErr) {
+        console.warn('[rulesetEngine] PEMS create failed, falling back to legacy Actions:', pemsErr.message);
+        taskId = generateId();
       await pool.request()
         .input('Id', sql.VarChar, taskId)
         .input('Title', sql.NVarChar, mainTitle)
@@ -600,6 +691,7 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
           INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SubTasks, SubTaskProgress, SellerId, CreatedBy, AssignedTo, DueDate, TimeLimit, CreatedAt, UpdatedAt)
           VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SubTasks, @SubTaskProgress, @SellerId, @CreatedBy, @AssignedTo, @DueDate, @TimeLimit, dbo.GetEnvDate(), dbo.GetEnvDate())
         `);
+      } // end catch (legacy fallback)
     }
 
     results.push({
@@ -624,24 +716,40 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
 
 function mapAttributeToColumn(attr) {
   const map = {
+    // Price & BuyBox
     priceDispute: 'PriceDispute',
     buyBoxWin: 'BuyBoxWin',
-    stockLevel: 'StockLevel',
-    currentPrice: 'CurrentPrice',
     uploadedPrice: 'UploadedPrice',
+    currentPrice: 'CurrentPrice',
     mrp: 'Mrp',
     discountPercentage: 'DiscountPercentage',
     hasDeal: 'HasDeal',
+    dealBadge: 'DealBadge',
+    // Listing Quality
     lqs: 'LQS',
+    titleScore: 'TitleScore',
+    bulletScore: 'BulletScore',
+    imageScore: 'ImageScore',
+    descriptionScore: 'DescriptionScore',
+    imagesCount: 'ImagesCount',
+    bulletPoints: 'BulletPoints',
+    hasAplus: 'HasAplus',
+    // Performance
     bsr: 'BSR',
     subBsr: 'SubBsr',
+    bsrTrend: 'BsrTrend',
     rating: 'Rating',
+    ratingTrend: 'RatingTrend',
     reviewCount: 'ReviewCount',
+    // Inventory
+    stockLevel: 'StockLevel',
     availabilityStatus: 'AvailabilityStatus',
+    // Filters
     asinStatus: 'Status',
     seller: 'SellerId',
     category: 'Category',
-    brand: 'Brand'
+    brand: 'Brand',
+    ads: 'Ads',
   };
   return map[attr] || null;
 }
@@ -691,13 +799,21 @@ function buildSqlFilter(rules) {
       } else if (op === '=' || op === '≠' || op === '<' || op === '<=' || op === '>' || op === '>=') {
         let sqlOp = op === '≠' ? '<>' : op;
         let sqlVal = val;
-        if (val === 'true' || val === 'Yes' || val === 'yes') sqlVal = '1';
-        else if (val === 'false' || val === 'No' || val === 'no') sqlVal = '0';
 
-        if (isNaN(sqlVal)) {
-          params[key] = String(sqlVal);
+        // Type-aware binding: booleans → 1/0, numbers → Number, strings → String
+        const boolAttrs = new Set(['priceDispute','buyBoxWin','hasDeal','hasAplus','ads']);
+        const numericAttrs = new Set(['stockLevel','currentPrice','uploadedPrice','mrp','discountPercentage','lqs','titleScore','bulletScore','imageScore','descriptionScore','imagesCount','bulletPoints','bsr','subBsr','rating','reviewCount']);
+        const textAttrs = new Set(['dealBadge','bsrTrend','ratingTrend','availabilityStatus','asinStatus','seller','category','brand']);
+
+        if (boolAttrs.has(cond.attribute)) {
+          // BIT column: compare against 1/0
+          sqlVal = (val === 'true' || val === true || val === 1 || val === 'Yes' || val === 'yes') ? 1 : 0;
+          params[key] = sqlVal;
+        } else if (numericAttrs.has(cond.attribute)) {
+          params[key] = Number(val);
+          if (isNaN(params[key])) continue;
         } else {
-          params[key] = Number(sqlVal);
+          params[key] = String(val ?? '');
         }
         condFilters.push(`${col} ${sqlOp} @${key}`);
       } else {
@@ -832,7 +948,8 @@ async function evaluateRuleset(rulesetId, options = {}) {
           ruleset.Type,
           ruleset.SellerId,
           ruleset.CreatedBy,
-          matchedRule
+          matchedRule,
+          { id: ruleset.Id, name: ruleset.Name, createdBy: ruleset.CreatedBy }
         );
         summary.totalActioned++;
       }
@@ -884,20 +1001,47 @@ async function evaluateRuleset(rulesetId, options = {}) {
 
   summary.executionTimeMs = Date.now() - startTime;
 
-  if (!dryRun && entries.length > 0) {
+  if (!dryRun) {
     const logId = generateId();
-    await pool.request()
-      .input('Id', sql.VarChar, logId)
-      .input('RulesetId', sql.VarChar, rulesetId)
-      .input('TriggeredBy', sql.NVarChar, triggeredBy)
-      .input('Status', sql.NVarChar, 'SUCCESS')
-      .input('MatchedCount', sql.Int, summary.totalMatched)
-      .input('ActionedCount', sql.Int, summary.totalActioned)
-      .input('ErrorMessage', sql.NVarChar, JSON.stringify(summary))
-      .query(`
-        INSERT INTO RulesetExecutionLogs (Id, RulesetId, ExecutedAt, TriggeredBy, Status, MatchedCount, ActionedCount, ErrorMessage)
-        VALUES (@Id, @RulesetId, dbo.GetEnvDate(), @TriggeredBy, @Status, @MatchedCount, @ActionedCount, @ErrorMessage)
-      `);
+    const summaryJson = JSON.stringify(summary);
+    // Detect whether the Summary column exists (migration 026). If not,
+    // fall back to stuffing the JSON into ErrorMessage (the historical bug)
+    // so execution logs are never lost before migrations run.
+    const colCheck = await pool.request().query(`
+      SELECT 1 FROM sys.columns
+       WHERE object_id = OBJECT_ID('dbo.RulesetExecutionLogs') AND name = 'Summary'
+    `);
+    const hasSummaryCol = colCheck.recordset.length > 0;
+
+    if (hasSummaryCol) {
+      await pool.request()
+        .input('Id', sql.VarChar, logId)
+        .input('RulesetId', sql.VarChar, rulesetId)
+        .input('TriggeredBy', sql.NVarChar, triggeredBy)
+        .input('Status', sql.NVarChar, 'SUCCESS')
+        .input('MatchedCount', sql.Int, summary.totalMatched)
+        .input('ActionedCount', sql.Int, summary.totalActioned)
+        .input('Summary', sql.NVarChar, summaryJson)
+        .input('ErrorMessage', sql.NVarChar, null)
+        .query(`
+          INSERT INTO RulesetExecutionLogs (Id, RulesetId, ExecutedAt, TriggeredBy, Status, MatchedCount, ActionedCount, Summary, ErrorMessage)
+          VALUES (@Id, @RulesetId, dbo.GetEnvDate(), @TriggeredBy, @Status, @MatchedCount, @ActionedCount, @Summary, @ErrorMessage)
+        `);
+    } else {
+      // Legacy fallback: ErrorMessage doubles as summary storage.
+      await pool.request()
+        .input('Id', sql.VarChar, logId)
+        .input('RulesetId', sql.VarChar, rulesetId)
+        .input('TriggeredBy', sql.NVarChar, triggeredBy)
+        .input('Status', sql.NVarChar, 'SUCCESS')
+        .input('MatchedCount', sql.Int, summary.totalMatched)
+        .input('ActionedCount', sql.Int, summary.totalActioned)
+        .input('ErrorMessage', sql.NVarChar, summaryJson)
+        .query(`
+          INSERT INTO RulesetExecutionLogs (Id, RulesetId, ExecutedAt, TriggeredBy, Status, MatchedCount, ActionedCount, ErrorMessage)
+          VALUES (@Id, @RulesetId, dbo.GetEnvDate(), @TriggeredBy, @Status, @MatchedCount, @ActionedCount, @ErrorMessage)
+        `);
+    }
 
     await pool.request()
       .input('id', sql.VarChar, rulesetId)

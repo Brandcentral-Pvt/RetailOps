@@ -141,10 +141,71 @@ const schemas = {
   }),
 
   createRuleset: Joi.object({
-    name: Joi.string().min(3).max(200).required(),
+    name: Joi.string().min(1).max(200).required(),
     description: Joi.string().max(2000).optional().allow('', null),
-    type: Joi.string().valid('ASIN', 'Product', 'Inventory', 'Pricing').required(),
+    type: Joi.string().valid('ASIN', 'Product', 'Inventory', 'Pricing').default('ASIN'),
+    sellerId: Joi.string().max(50).optional().allow('', null),
+    rules: Joi.alternatives().try(
+      Joi.string().max(100000),
+      Joi.array().items(Joi.any())
+    ).default('[]'),
+    conditions: Joi.alternatives().try(
+      Joi.string().max(50000),
+      Joi.object()
+    ).optional().allow(null),
+    actions: Joi.alternatives().try(
+      Joi.string().max(50000),
+      Joi.array().items(Joi.any())
+    ).optional().allow(null),
+    isActive: Joi.boolean().default(true),
+    isAutomated: Joi.boolean().default(false),
+    usingDataFrom: Joi.string().max(50).optional().allow('', null),
+    excludeDays: Joi.string().max(50).optional().allow('', null),
+    runFrequency: Joi.string().max(50).optional().allow('', null),
+    runTime: Joi.string().max(50).optional().allow('', null),
+    scope: Joi.alternatives().try(
+      Joi.string().max(5000),
+      Joi.object()
+    ).optional().allow(null),
+    conflictResolution: Joi.string().max(50).optional().allow('', null),
+    emailOnRun: Joi.boolean().default(false),
+    emailOnAction: Joi.boolean().default(false),
+    emailAddress: Joi.string().max(255).optional().allow('', null),
   }),
+
+  updateRuleset: Joi.object({
+    name: Joi.string().min(1).max(200).optional(),
+    description: Joi.string().max(2000).optional().allow('', null),
+    type: Joi.string().valid('ASIN', 'Product', 'Inventory', 'Pricing').optional(),
+    sellerId: Joi.string().max(50).optional().allow('', null),
+    rules: Joi.alternatives().try(
+      Joi.string().max(100000),
+      Joi.array().items(Joi.any())
+    ).optional(),
+    conditions: Joi.alternatives().try(
+      Joi.string().max(50000),
+      Joi.object()
+    ).optional().allow(null),
+    actions: Joi.alternatives().try(
+      Joi.string().max(50000),
+      Joi.array().items(Joi.any())
+    ).optional().allow(null),
+    isActive: Joi.boolean().optional(),
+    isAutomated: Joi.boolean().optional(),
+    usingDataFrom: Joi.string().max(50).optional().allow('', null),
+    excludeDays: Joi.string().max(50).optional().allow('', null),
+    runFrequency: Joi.string().max(50).optional().allow('', null),
+    runTime: Joi.string().max(50).optional().allow('', null),
+    scope: Joi.alternatives().try(
+      Joi.string().max(5000),
+      Joi.object()
+    ).optional().allow(null),
+    conflictResolution: Joi.string().max(50).optional().allow('', null),
+    emailOnRun: Joi.boolean().optional(),
+    emailOnAction: Joi.boolean().optional(),
+    emailAddress: Joi.string().max(255).optional().allow('', null),
+  }).min(1),
+
 
   pagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),

@@ -227,7 +227,7 @@ exports.getSummary = async (req, res) => {
 exports.getLiveTasks = async (req, res) => {
   try {
     const pool = await getPool();
-    const { department, sellerId, assignedTo, status, priority } = req.query;
+    const { department, sellerId, assignedTo, status, priority, source, isAutomated } = req.query;
 
     // Pagination guard: default 15, max 50
     let limit = parseInt(req.query.limit, 10);
@@ -243,14 +243,17 @@ exports.getLiveTasks = async (req, res) => {
     if (assignedTo) { where += ' AND i.AssignedTo = @assignedTo'; req_.input('assignedTo', sql.VarChar, assignedTo); }
     if (status) { where += ' AND i.Status = @status'; req_.input('status', sql.VarChar, status); }
     if (priority) { where += ' AND i.Priority = @priority'; req_.input('priority', sql.VarChar, priority); }
+    if (source) { where += ' AND i.Source = @source'; req_.input('source', sql.NVarChar, source); }
+    if (isAutomated === 'true' || isAutomated === true) { where += " AND i.Source = 'RULESET'"; }
 
     const result = await req_.query(`
       SELECT TOP (@limit) i.Id, i.InstanceCode, i.Title, i.Department, i.SellerName, i.AssigneeName,
-        i.Status, i.ReviewStatus, i.Priority, i.Frequency,
+        i.Status, i.ReviewStatus, i.Priority, i.Frequency, i.Category,
         i.Target, i.Achievement, i.AchievementPct, i.Variance, i.ProgressPct,
         i.SLAStatus, i.SLAHours, i.DueDate, i.CreatedAt,
         i.SubTaskCount, i.ActivityCount, i.CompletedSubTasks,
-        i.SubmissionRemarks, i.ReviewRemarks
+        i.SubmissionRemarks, i.ReviewRemarks,
+        i.Source, i.SourceId, i.SourceRef
       FROM PemsTaskInstances i
       ${where}
       ORDER BY

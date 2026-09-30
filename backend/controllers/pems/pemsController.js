@@ -408,3 +408,34 @@ exports.recalculateProgress = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+// ── Automation (ruleset) stats ─────────────────────
+exports.getAutomationStats = async (req, res) => {
+  try {
+    const sql = require('mssql');
+    const { getPool } = require('../../config/db');
+    const pool = await getPool();
+    const total = await pool.request().query("SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET'");
+    const open = await pool.request().query("SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET' AND Status NOT IN ('COMPLETED','APPROVED','CANCELLED','REJECTED')");
+    const overdue = await pool.request().query(`SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET' AND SLAStatus = 'OVERDUE' AND Status NOT IN ('COMPLETED','APPROVED','CANCELLED','REJECTED')`);
+    const rulesets = await pool.request().query(`
+      SELECT SourceId as rulesetId, SourceRef as ruleName, COUNT(*) as tasks,
+             SUM(CASE WHEN Status IN ('COMPLETED','APPROVED') THEN 1 ELSE 0 END) as completed
+      FROM PemsTaskInstances
+      WHERE Source = 'RULESET' AND SourceId IS NOT NULL
+      GROUP BY SourceId, SourceRef
+      ORDER BY tasks DESC
+    `);
+    res.json({
+      success: true,
+      data: {
+        total: total.recordset[0]?.c || 0,
+        open: open.recordset[0]?.c || 0,
+        overdue: overdue.recordset[0]?.c || 0,
+        byRuleset: rulesets.recordset,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
