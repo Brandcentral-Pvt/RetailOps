@@ -310,7 +310,12 @@
 .rulesets-searchicon { color: var(--bc-text-muted); }
 
 /* ---- KPI strip ---- */
-.rulesets-kpi { display: flex; gap: var(--bc-space-3); padding: 0 var(--bc-space-5) var(--bc-space-4); flex-wrap: wrap; }
+.rulesets-kpi { 
+  display: flex; 
+  gap: var(--bc-space-3); 
+  padding: var(--bc-space-4) var(--bc-space-5) var(--bc-space-4); 
+  flex-wrap: wrap; 
+}
 .rulesets-kpi__item {
   flex: 1; min-width: 140px;
   display: flex; align-items: center; gap: var(--bc-space-3);

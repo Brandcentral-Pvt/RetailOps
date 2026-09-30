@@ -241,22 +241,6 @@ const RuleSetsPage = () => {
   const autoCount = useMemo(() => rulesets.filter(r => r.isAutomated).length, [rulesets]);
   const pausedCount = useMemo(() => rulesets.filter(r => !r.isActive).length, [rulesets]);
 
-  // KPI strip quick-filter: click a card to filter by that status.
-  // "total" shows everything (default).
-  const [kpiFilter, setKpiFilter] = useState('total');
-  const applyKpiFilter = useCallback((key) => {
-    setKpiFilter(key);
-    if (key === 'total') applyStatusFilter('all');
-    else if (key === 'active') applyStatusFilter('active');
-    else if (key === 'paused') applyStatusFilter('paused');
-    // auto doesn't toggle status; handled separately in filter logic below
-    if (key === 'auto') setFilterAutoRun('auto');
-    else setFilterAutoRun('all');
-    setPage(1);
-  }, [applyStatusFilter]);
-
-  const hasActiveFilters = Boolean(searchQuery.trim()) || filterStatus !== 'all' || filterAutoRun !== 'all' || filterSchedule !== 'all' || filterUpdated !== 'all';
-
   // Any filter change invalidates the current page number.
   const applySearch = useCallback((value) => {
     setSearchQuery(value);
@@ -276,6 +260,22 @@ const RuleSetsPage = () => {
     setFilterUpdated('all');
     setPage(1);
   }, []);
+
+  // KPI strip quick-filter: click a card to filter by that status.
+  // "total" shows everything (default).
+  const [kpiFilter, setKpiFilter] = useState('total');
+  const applyKpiFilter = useCallback((key) => {
+    setKpiFilter(key);
+    if (key === 'total') applyStatusFilter('all');
+    else if (key === 'active') applyStatusFilter('active');
+    else if (key === 'paused') applyStatusFilter('paused');
+    // auto doesn't toggle status; handled separately in filter logic below
+    if (key === 'auto') setFilterAutoRun('auto');
+    else setFilterAutoRun('all');
+    setPage(1);
+  }, [applyStatusFilter]);
+
+  const hasActiveFilters = Boolean(searchQuery.trim()) || filterStatus !== 'all' || filterAutoRun !== 'all' || filterSchedule !== 'all' || filterUpdated !== 'all';
 
   const handleToggle = useCallback(async (id, nextActive) => {
     setToggling(id);
