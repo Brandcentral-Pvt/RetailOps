@@ -40,16 +40,21 @@ async function createTemplate(data) {
     .input('subTaskDefinitions', sql.NVarChar(sql.MAX), JSON.stringify(data.subTaskDefinitions || []))
     .input('tags', sql.NVarChar(sql.MAX), JSON.stringify(data.tags || []))
     .input('isActive', sql.Bit, data.isActive !== false ? 1 : 0)
+    .input('reviewRequired', sql.Bit, data.reviewRequired === false ? 0 : 1)
+    .input('criticalityScore', sql.Int, Math.min(10, Math.max(1, parseInt(data.criticalityScore, 10) || 5)))
+    .input('estMinutes', sql.Int, Math.max(1, parseInt(data.estimatedExecutionMinutes, 10) || 60))
     .input('createdBy', sql.VarChar, data.createdBy || null)
     .query(`
       INSERT INTO PemsTaskTemplates
         (Id, TaskCode, Name, Description, Category, Department, Frequency, CustomCron,
          SLAHours, TATHours, Priority, TargetType, DefaultTarget, ExpectedOutput,
-         ReviewerId, AssigneeRole, Activities, SubTaskDefinitions, Tags, IsActive, CreatedBy)
+         ReviewerId, AssigneeRole, Activities, SubTaskDefinitions, Tags, IsActive,
+         ReviewRequired, CriticalityScore, EstimatedExecutionMinutes, CreatedBy)
       VALUES
         (@id, @taskCode, @name, @description, @category, @department, @frequency, @customCron,
          @slaHours, @tatHours, @priority, @targetType, @defaultTarget, @expectedOutput,
-         @reviewerId, @assigneeRole, @activities, @subTaskDefinitions, @tags, @isActive, @createdBy)
+         @reviewerId, @assigneeRole, @activities, @subTaskDefinitions, @tags, @isActive,
+         @reviewRequired, @criticalityScore, @estMinutes, @createdBy)
     `);
 
   return { id, taskCode };
@@ -109,12 +114,30 @@ async function updateTemplate(id, data) {
   const sets = [];
   const req = pool.request().input('id', sql.VarChar, id);
 
-  const fields = ['Name', 'Description', 'Category', 'Department', 'Frequency', 'CustomCron', 'SLAHours', 'TATHours', 'Priority', 'TargetType', 'DefaultTarget', 'ExpectedOutput', 'ReviewerId', 'AssigneeRole', 'IsActive'];
+  const fields = ['Name', 'Description', 'Category', 'Department', 'Frequency', 'CustomCron', 'Priority', 'TargetType', 'ExpectedOutput', 'ReviewerId', 'AssigneeRole'];
   fields.forEach(f => {
     const key = f.charAt(0).toLowerCase() + f.slice(1);
     if (data[key] !== undefined) {
       sets.push(`${f} = @${f}`);
-      req.input(f, data[key] === null ? sql.NVarChar : (typeof data[key] === 'number' ? sql.Int : sql.NVarChar), data[key]);
+      req.input(f, sql.NVarChar, data[key] === null ? null : String(data[key]));
+    }
+  });
+  // Typed columns (ints / decimals / bits) — never coerce these through NVarChar
+  const intFields = { SLAHours: 'slaHours', TATHours: 'tatHours', CriticalityScore: 'criticalityScore', EstimatedExecutionMinutes: 'estimatedExecutionMinutes' };
+  Object.entries(intFields).forEach(([col, key]) => {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+      let v = parseInt(data[key], 10); if (Number.isNaN(v)) return;
+      if (col === 'CriticalityScore') v = Math.min(10, Math.max(1, v));
+      sets.push(`${col} = @${col}`); req.input(col, sql.Int, v);
+    }
+  });
+  if (data.defaultTarget !== undefined && data.defaultTarget !== null && data.defaultTarget !== '') {
+    sets.push('DefaultTarget = @DefaultTarget'); req.input('DefaultTarget', sql.Decimal(18, 2), Number(data.defaultTarget) || 0);
+  }
+  ['isActive', 'reviewRequired'].forEach(key => {
+    if (data[key] !== undefined) {
+      const col = key.charAt(0).toUpperCase() + key.slice(1);
+      sets.push(`${col} = @${col}`); req.input(col, sql.Bit, data[key] ? 1 : 0);
     }
   });
 
