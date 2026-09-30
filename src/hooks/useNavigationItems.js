@@ -176,6 +176,16 @@ export function useNavigationItems() {
             guard(
                 isAdmin || isGlobalUser || hasPermission('tasks_view'),
                 {
+                    key: 'my-day',
+                    label: 'My Day',
+                    path: '/tasks/my-day',
+                    icon: Calendar,
+                    section: 'automation',
+                }
+            ),
+            guard(
+                isAdmin || isGlobalUser || hasPermission('tasks_view'),
+                {
                     key: 'task-performance',
                     label: 'Task Performance',
                     path: '/tasks/dashboard',

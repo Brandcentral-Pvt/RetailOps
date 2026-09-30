@@ -225,6 +225,16 @@ exports.bulkReview = async (req, res) => {
   }
 };
 
+exports.getMyDay = async (req, res) => {
+  try {
+    const data = await pemsService.getMyDay(req.user, req.query.userId);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('getMyDay error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 exports.getReviewStats = async (req, res) => {
   try {
     const data = await pemsService.getReviewStats(req.user);

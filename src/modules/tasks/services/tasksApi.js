@@ -75,8 +75,9 @@ const tasksApi = {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ toStatus, details }),
     });
-    if (!res.ok) throw new Error('Failed to transition status');
-    return res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to transition status');
+    return body;
   },
 
   bulkTransition: async (ids, toStatus, details = '') => {
@@ -145,6 +146,15 @@ const tasksApi = {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || 'Bulk review failed');
+    return body;
+  },
+
+  // Everything the current user has to act on (optionally a teammate's day for global roles).
+  getMyDay: async (userId) => {
+    const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`${API_BASE}/pems/my-day${q}`, { headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to load your day');
     return body;
   },
 
