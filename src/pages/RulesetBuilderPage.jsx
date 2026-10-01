@@ -320,7 +320,11 @@ const RulesetBuilderPage = () => {
     if (!aiPrompt.trim()) { messageApi.warning('Describe what you want the rule to do'); return; }
     setAiGenerating(true);
     try {
-      const res = await rulesetApi.aiGenerate(aiPrompt, ruleset.rules.length > 0 ? ruleset.rules : []);
+      const res = await rulesetApi.aiGenerate(
+        aiPrompt,
+        ruleset.rules.length > 0 ? ruleset.rules : [],
+        { seller: ruleset.sellerId || undefined }
+      );
       if (res?.success && res.data) {
         setAiResult(res.data);
       } else {
@@ -331,7 +335,7 @@ const RulesetBuilderPage = () => {
     } finally {
       setAiGenerating(false);
     }
-  }, [aiPrompt, ruleset.rules, messageApi]);
+  }, [aiPrompt, ruleset.rules, ruleset.sellerId, messageApi]);
 
   const applyAIRules = useCallback(() => {
     if (!aiResult) return;
@@ -694,7 +698,7 @@ const RulesetBuilderPage = () => {
             Generate
           </Button>,
         ]}
-        destroyOnClose
+        destroyOnHidden
       >
         {!aiResult ? (
           <div>
@@ -755,6 +759,21 @@ const RulesetBuilderPage = () => {
             <div style={{ fontWeight: 600, fontSize: 12, textTransform: 'uppercase', color: 'var(--bc-text-muted)', letterSpacing: '0.04em', marginBottom: 8 }}>
               {aiResult.rules.length} Rule{aiResult.rules.length > 1 ? 's' : ''} Generated
             </div>
+            {aiResult.warnings?.length > 0 && (
+              <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: aiResult.warnings.length > 1 ? 6 : 0 }}>
+                  <AlertTriangle size={14} style={{ color: '#B45309', marginTop: 2, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#92400E' }}>
+                      {aiResult.warnings.length} part{aiResult.warnings.length > 1 ? 's' : ''} of the request could not be used
+                    </div>
+                    {aiResult.warnings.map((w, wi) => (
+                      <div key={wi} style={{ fontSize: 11, color: '#92400E', marginTop: 4 }}>• {w}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
               {aiResult.rules.map((r, i) => (
                 <div key={i} className="ruleset-ai-rule-preview">

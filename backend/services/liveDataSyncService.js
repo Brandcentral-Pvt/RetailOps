@@ -6,6 +6,7 @@ const notificationController = require('../controllers/notificationController');
 const listingQualityService = require('./listingQualityService');
 const rulesetEngineService = require('./rulesetEngineService');
 const playwrightScraperService = require('./playwrightScraperService');
+const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 const EventEmitter = require('events');
 
 class LiveDataSyncService extends EventEmitter {
@@ -116,7 +117,18 @@ class LiveDataSyncService extends EventEmitter {
                 throw new Error('No active ASINs found for this seller');
             }
 
-            console.log(`Live sync: Seller ${sellerIdStr} - ${allAsins.length} ASINs`);
+            // 1b. Fetch seller name once for this sync (used for BuyBox winner logic)
+            let sellerName = sellerIdStr;
+            try {
+                const nameResult = await pool.request()
+                    .input('id', sql.VarChar, sellerIdStr)
+                    .query('SELECT Name FROM Sellers WHERE Id = @id');
+                if (nameResult.recordset.length > 0) {
+                    sellerName = nameResult.recordset[0].Name;
+                }
+            } catch (e) { /* use sellerId as fallback */ }
+
+            console.log(`Live sync: Seller ${sellerIdStr} (${sellerName}) - ${allAsins.length} ASINs`);
 
             this.emit('liveSync:started', {
                 sellerId: sellerIdStr,
@@ -144,7 +156,7 @@ class LiveDataSyncService extends EventEmitter {
                 }
 
                 try {
-                    await this._processBatch(sellerIdStr, batch, credId, stats);
+                    await this._processBatch(sellerIdStr, batch, credId, stats, sellerName);
                     completedCount++;
 
                     const progress = Math.round((completedCount / totalBatches) * 100);
@@ -662,7 +674,7 @@ class LiveDataSyncService extends EventEmitter {
     // ============================================
     // Internal: Process Batch
     // ============================================
-    async _processBatch(sellerId, batch, credId, stats) {
+    async _processBatch(sellerId, batch, credId, stats, sellerName = null) {
         const codes = batch.map(a => a.AsinCode);
         let lastError = null;
 
@@ -672,7 +684,7 @@ class LiveDataSyncService extends EventEmitter {
                     const throttledCred = this._selectBestCred();
                     if (throttledCred && throttledCred !== credId) {
                         console.log(`   Credential '${credId}' throttled, switching to '${throttledCred}'`);
-                        return this._processBatch(sellerId, batch, throttledCred, stats);
+                        return this._processBatch(sellerId, batch, throttledCred, stats, sellerName);
                     }
                     throw new Error(`Credential '${credId}' is throttled — waiting`);
                 }
@@ -731,7 +743,7 @@ class LiveDataSyncService extends EventEmitter {
 
                     savePromises.push((async () => {
                         try {
-                            await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord, null);
+                            await this._updateAsinFromLiveSync(asinRecord.Id, sellerId, item, asinRecord, null, sellerName);
                             stats.successCount++;
                         } catch (e) {
                             stats.failedCount++;
@@ -808,7 +820,7 @@ class LiveDataSyncService extends EventEmitter {
                     if (fallbackCred && fallbackCred !== credId) {
                         console.log(`   Switching to '${fallbackCred}' for retry`);
                         await this._delay(2000);
-                        return this._processBatch(sellerId, batch, fallbackCred, stats);
+                        return this._processBatch(sellerId, batch, fallbackCred, stats, sellerName);
                     }
                     // All credentials throttled — wait for the shortest throttle to expire
                     const minUntil = Math.min(...Array.from(this._credThrottledUntil.values()).filter(t => t !== Infinity));
@@ -825,7 +837,7 @@ class LiveDataSyncService extends EventEmitter {
                     const fallbackCred = this._selectBestCred();
                     if (fallbackCred && fallbackCred !== credId) {
                         await this._delay(this._config.retryDelay);
-                        return this._processBatch(sellerId, batch, fallbackCred, stats);
+                        return this._processBatch(sellerId, batch, fallbackCred, stats, sellerName);
                     }
                     await this._delay(this._config.retryDelay);
                     continue;
@@ -842,14 +854,14 @@ class LiveDataSyncService extends EventEmitter {
     // ============================================
     // 🔥 KEY: Update ALL Fields EXCEPT A+ and Rating Breakdown
     // ============================================
-    async _updateAsinFromLiveSync(asinId, sellerId, item, asinRecord = null, scrapeData = null) {
+    async _updateAsinFromLiveSync(asinId, sellerId, item, asinRecord = null, scrapeData = null, sellerName = null) {
         const pool = await getPool();
         const transaction = new sql.Transaction(pool);
 
         try {
             await transaction.begin();
 
-            const extracted = this._extractFields(item);
+            const extracted = this._extractFields(item, sellerName);
 
             // Scraper enrichment overrides API rating/reviewCount when available
             const rating = (scrapeData && scrapeData.rating != null) ? scrapeData.rating : extracted.rating;
@@ -990,7 +1002,7 @@ class LiveDataSyncService extends EventEmitter {
     // Internal: Extract Fields from API response
     // Maps the actual Creators API JSON response format
     // ============================================
-    _extractFields(item) {
+    _extractFields(item, sellerName = null) {
         // ── Buy Box / Listing (Creators API uses offersV2.listings) ─────
         const listing = item.offersV2?.listings?.find(l => l.isBuyBoxWinner)
             || item.offersV2?.listings?.[0]
@@ -1198,7 +1210,7 @@ class LiveDataSyncService extends EventEmitter {
             buyBoxes,
             soldBy: buyBoxWinner?.seller || listing?.merchantInfo?.name || null,
             soldBySec: buyBoxes.find(b => !b.isBuyBoxWinner && b.seller)?.seller || null,
-            buyBoxWin: buyBoxes.some(b => b.isBuyBoxWinner),
+            buyBoxWin: isBuyBoxWinner(buyBoxWinner?.seller || listing?.merchantInfo?.name || null, sellerName),
             allOffers: buyBoxes.map(b => ({
                 seller: b.seller,
                 price: b.priceAmount || 0,
@@ -1402,6 +1414,17 @@ class LiveDataSyncService extends EventEmitter {
                 return;
             }
 
+            // Fetch seller name once for this re-sync (used for BuyBox winner logic)
+            let sellerName = sellerId;
+            try {
+                const nameResult = await pool.request()
+                    .input('id', sql.VarChar, sellerId)
+                    .query('SELECT Name FROM Sellers WHERE Id = @id');
+                if (nameResult.recordset.length > 0) {
+                    sellerName = nameResult.recordset[0].Name;
+                }
+            } catch (e) { /* fallback */ }
+
             const batches = this._createBatches(asinsToRetry, this._config.maxPerRequest);
 
             for (const batch of batches) {
@@ -1413,7 +1436,7 @@ class LiveDataSyncService extends EventEmitter {
                     continue;
                 }
                 try {
-                    await this._processBatch(sellerId, batch, credId, stats);
+                    await this._processBatch(sellerId, batch, credId, stats, sellerName);
                 } catch (e) {
                     stats.errors.push({ error: e.message });
                     batch.forEach(a => stats.failedAsinCodes.push(a.AsinCode));
@@ -1445,7 +1468,6 @@ class LiveDataSyncService extends EventEmitter {
             } catch (e) { console.error('Socket emission error:', e.message); }
 
             // Log re-sync
-            let sellerName = sellerId;
             try {
                 const nameResult = await pool.request()
                     .input('id', sql.VarChar, sellerId)

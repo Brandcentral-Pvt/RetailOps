@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Button, Progress, Skeleton, Empty, App, Typography } from 'antd';
-import { ReloadOutlined, ThunderboltOutlined, SmileOutlined, ScheduleOutlined, WarningOutlined } from '@ant-design/icons';
+import { Button, Skeleton, App, Typography } from 'antd';
+import { ReloadOutlined, SmileOutlined, ScheduleOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import tasksApi from '../services/tasksApi';
@@ -11,7 +11,7 @@ import DayTimeline from '../components/myday/DayTimeline';
 import { WorkdaySettings, HowItWorks, ReviewsCard, MiniList, DoneIcon, WaitIcon } from '../components/myday/MyDayBits';
 import { accentFor } from '../components/myday/myDayTheme';
 import { buildPlan, DEFAULT_WORKDAY, greeting, formatDuration, FRIENDLY_STATUS } from '../utils/dayPlanner';
-import '../tasks.css';
+import '../myday.css';
 
 const { Text } = Typography;
 
@@ -92,20 +92,29 @@ export default function MyDayPage() {
   const openTask = (id) => setWorkspaceId(id);
 
   const healthChip = {
-    on_track: { cls: 'good', text: 'On track' },
-    tight: { cls: 'warn', text: 'Tight day' },
-    overloaded: { cls: 'bad', text: 'Overloaded' },
-    clear: { cls: 'good', text: 'All clear' },
+    on_track: { dot: 'good', text: 'On track' },
+    tight: { dot: 'warn', text: 'Tight day' },
+    overloaded: { dot: 'bad', text: 'Overloaded' },
+    clear: { dot: 'good', text: 'All clear' },
   }[summary.health];
 
   // ── loading / error ──
   if (loading && !data) {
-    return <div className="md-page"><Skeleton active paragraph={{ rows: 2 }} /><Skeleton active paragraph={{ rows: 6 }} /></div>;
+    return (
+      <div className="md-page md-loading">
+        <Skeleton active paragraph={{ rows: 2 }} />
+        <Skeleton active paragraph={{ rows: 6 }} />
+      </div>
+    );
   }
   if (error && !data) {
     return (
       <div className="md-page">
-        <Empty description={error}><Button type="primary" icon={<ReloadOutlined />} onClick={() => load()}>Try again</Button></Empty>
+        <div className="md-note md-note--bad">
+          <WarningOutlined className="md-note__icon" />
+          <div className="md-note__body">{error}</div>
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => load()}>Try again</Button>
+        </div>
       </div>
     );
   }
@@ -119,59 +128,138 @@ export default function MyDayPage() {
     sub: `${FRIENDLY_STATUS[t.Status]}${t.ReviewerName ? ` · ${t.ReviewerName}` : ''}${t.SubmittedAt ? ` · sent ${dayjs(t.SubmittedAt).format('D MMM, h:mm A')}` : ''}`,
   }));
   const doneItems = (data?.doneToday || []).map(t => ({
-    id: t.Id, title: t.Title, color: '#2E7D32',
+    id: t.Id, title: t.Title, color: 'var(--md-done)',
     sub: t.Status === 'APPROVED' ? 'Approved' : FRIENDLY_STATUS[t.Status] || t.Status,
   }));
 
+  const waitingCount = (data?.waiting || []).length;
   const allClear = summary.health === 'clear';
+  const hasContent = plan.slots.some(s => s.type !== 'break')
+    || laterItems.length > 0 || waitingItems.length > 0 || doneItems.length > 0 || summary.reviewCount > 0;
+
+  const dayLabel = plan.isTomorrow ? 'Tomorrow' : 'Today';
+  const subLine = allClear
+    ? (doneCount > 0 ? `${doneCount} completed · nothing outstanding` : 'Nothing needs you right now')
+    : [
+      `${planned} task${planned === 1 ? '' : 's'} planned`,
+      summary.reviewCount > 0 && `${summary.reviewCount} review${summary.reviewCount === 1 ? '' : 's'}`,
+      `about ${formatDuration(summary.plannedMin)}`,
+      lastSlot && `finishes around ${dayjs(lastSlot.end).format('h:mm A')}`,
+    ].filter(Boolean).join(' · ');
 
   return (
     <div className="md-page">
-      {viewingUserId && <div className="md-note info"><ScheduleOutlined /> You are viewing a teammate's day.</div>}
+      {viewingUserId && (
+        <div className="md-note md-note--info">
+          <ScheduleOutlined className="md-note__icon" />
+          <div className="md-note__body">You are viewing a teammate&rsquo;s day.</div>
+        </div>
+      )}
 
-      {/* ═══ HERO ═══ */}
-      <div className="md-hero">
-        <div className="md-ring">
-          <Progress type="circle" percent={pct} size={92} strokeColor="#fff" railColor="rgba(255,255,255,.25)" strokeWidth={9}
-            format={() => <span style={{ color: '#fff', fontWeight: 800 }}>{doneCount}/{doneCount + planned}</span>} />
-          <div className="md-ring-label">done today</div>
-        </div>
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <h1 className="md-hero__title">{greeting(now)}, {firstName}</h1>
-          <div className="md-hero__sub">
-            {dayjs(now).format('dddd, D MMMM')}
-            {' · '}
-            {allClear
-              ? (doneCount > 0 ? 'You\'ve cleared everything — great work.' : 'Nothing needs you right now.')
-              : [
-                planned > 0 && `${planned} task${planned === 1 ? '' : 's'}`,
-                summary.reviewCount > 0 && 'a review block',
-                `about ${formatDuration(summary.plannedMin)}`,
-                lastSlot && `wraps up around ${dayjs(lastSlot.end).format('h:mm A')}`,
-              ].filter(Boolean).join(' · ')}
+      {/* ═══ HEADER ═══ */}
+      <header className="md-head">
+        <div className="md-head__main">
+          <div className="md-head__id">
+            <h1 className="md-head__title">{greeting(now)}, {firstName}</h1>
+            <div className="md-head__sub">{dayjs(now).format('dddd, D MMMM')} · {subLine}</div>
           </div>
-          <div className="md-hero__chips">
-            <span className={`md-chip ${healthChip.cls}`}>{healthChip.text}</span>
-            {overdueCount > 0 && <span className="md-chip bad"><WarningOutlined /> {overdueCount} overdue</span>}
-            {summary.mustCount > 0 && <span className="md-chip">{summary.mustCount} must-do</span>}
-            {summary.shouldCount > 0 && <span className="md-chip">{summary.shouldCount} if time allows</span>}
-            {summary.reviewCount > 0 && <span className="md-chip">{summary.reviewCount} to review</span>}
-            {plan.later.length > 0 && <span className="md-chip">{plan.later.length} later</span>}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-          <HowItWorks />
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="md-head__actions">
+            <HowItWorks />
             <WorkdaySettings workday={workday} onChange={changeWorkday} />
-            <Button size="small" icon={<ReloadOutlined />} loading={loading} onClick={() => load()} style={{ borderRadius: 6 }}>Refresh</Button>
+            <button
+              type="button"
+              className={`md-btn${loading ? ' md-btn--busy' : ''}`}
+              onClick={() => load()}
+              disabled={loading}
+            >
+              <ReloadOutlined /> Refresh
+            </button>
           </div>
         </div>
-      </div>
+
+        <div className="md-progress">
+          <div className="md-progress__meta">
+            <span className="md-progress__label">
+              {doneCount} of {doneCount + planned} completed {plan.isTomorrow ? 'in tomorrow’s plan' : 'today'}
+            </span>
+            <span className="md-progress__value">
+              {summary.plannedMin > 0
+                ? `${formatDuration(summary.plannedMin)} of ${formatDuration(summary.capacityMin)} available`
+                : `${formatDuration(summary.capacityMin)} available`}
+            </span>
+          </div>
+          <div
+            className="md-progress__track"
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${doneCount} of ${doneCount + planned} tasks completed`}
+          >
+            <div className={`md-progress__fill${pct >= 100 && doneCount > 0 ? ' is-complete' : ''}`} style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        <div className="md-stats">
+          <div className={`md-stat${summary.mustCount > 0 ? ' md-stat--danger' : ''}`}>
+            <span className="md-stat__label">Must do</span>
+            <span className="md-stat__value">{summary.mustCount}</span>
+            <span className="md-stat__note">{formatDuration(summary.mustMin)} booked</span>
+          </div>
+          <div className="md-stat">
+            <span className="md-stat__label">If time allows</span>
+            <span className="md-stat__value">{summary.shouldCount}</span>
+            <span className="md-stat__note">{summary.laterCount} in later</span>
+          </div>
+          <div className={`md-stat${summary.reviewCount > 0 ? ' md-stat--accent' : ''}`}>
+            <span className="md-stat__label">To review</span>
+            <span className="md-stat__value">{summary.reviewCount}</span>
+            <span className="md-stat__note">{summary.reviewMin > 0 ? `~${formatDuration(summary.reviewMin)} needed` : 'none waiting'}</span>
+          </div>
+          <div className="md-stat">
+            <span className="md-stat__label">With reviewer</span>
+            <span className="md-stat__value">{waitingCount}</span>
+            <span className="md-stat__note">{waitingCount === 0 ? 'nothing blocked' : 'awaiting sign-off'}</span>
+          </div>
+          <div className="md-stat">
+            <span className="md-stat__label">Done today</span>
+            <span className="md-stat__value">{doneCount}</span>
+            <span className="md-stat__note">{doneCount > 0 ? 'logged today' : 'none yet'}</span>
+          </div>
+        </div>
+
+        <div className="md-status">
+          <span className={`md-status__item md-status__health md-status__health--${healthChip.dot}`}>
+            <span className={`md-status__dot ${healthChip.dot}`} />
+            {healthChip.text}
+          </span>
+          <span className="md-status__item">
+            <span className="md-status__dot" />
+            <span className="md-status__text">{dayLabel}&rsquo;s capacity <b>{formatDuration(summary.capacityMin)}</b></span>
+          </span>
+          {overdueCount > 0 && (
+            <span className="md-status__item">
+              <span className="md-status__dot bad" />
+              <span className="md-status__text"><b>{overdueCount}</b> overdue</span>
+            </span>
+          )}
+          {plan.later.length > 0 && (
+            <span className="md-status__item">
+              <span className="md-status__dot" />
+              <span className="md-status__text"><b>{plan.later.length}</b> not scheduled today</span>
+            </span>
+          )}
+        </div>
+      </header>
 
       {summary.health === 'overloaded' && (
-        <div className="md-note bad">
-          <WarningOutlined style={{ marginTop: 3 }} />
-          <span>Your must-do work is about <b>{formatDuration(summary.overflowMinutes)}</b> longer than the time you have {plan.isTomorrow ? 'tomorrow' : 'left today'}. Move anything that can wait with <b>Do later</b>, or ask your lead to re-assign or extend a deadline.</span>
+        <div className="md-note md-note--bad">
+          <WarningOutlined className="md-note__icon" />
+          <span>
+            Your must-do work is about <b>{formatDuration(summary.overflowMinutes)}</b> longer than the time you have{' '}
+            {plan.isTomorrow ? 'tomorrow' : 'left today'}. Move anything that can wait with <b>Do later</b>, or ask your
+            lead to re-assign or extend a deadline.
+          </span>
         </div>
       )}
 
@@ -186,13 +274,17 @@ export default function MyDayPage() {
           onChanged={() => load({ silent: true })}
         />
       ) : allClear && (
-        <div className="md-card" style={{ textAlign: 'center', padding: '36px 20px' }}>
-          <SmileOutlined style={{ fontSize: 40, color: '#2E7D32' }} />
-          <h2 style={{ margin: '10px 0 4px', fontSize: 20 }}>{doneCount > 0 ? 'Everything is done for today 🎉' : 'Nothing is assigned to you right now'}</h2>
-          <Text style={{ color: 'var(--bc-text-muted, #64748b)' }}>
-            {summary.reviewCount > 0 ? 'You do have reviews waiting — teammates are counting on them.' : 'New work will appear here the moment it\'s assigned.'}
+        <div className="md-card md-clear">
+          <SmileOutlined className="md-clear__icon" />
+          <h2 className="md-clear__title">
+            {doneCount > 0 ? 'Everything is cleared for today' : 'Nothing is assigned to you right now'}
+          </h2>
+          <Text className="md-quiet">
+            {summary.reviewCount > 0
+              ? 'You do have reviews waiting — teammates are counting on them.'
+              : 'New work will appear here the moment it\'s assigned.'}
           </Text>
-          <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="md-clear__actions">
             <Button onClick={() => navigate('/tasks/tasks')}>Browse all tasks</Button>
             {summary.reviewCount > 0 && <Button type="primary" onClick={() => navigate('/tasks/reviews')}>Open review queue</Button>}
           </div>
@@ -200,14 +292,19 @@ export default function MyDayPage() {
       )}
 
       {/* ═══ PLAN + SIDE ═══ */}
-      {(plan.slots.some(s => s.type !== 'break') || laterItems.length > 0 || waitingItems.length > 0 || doneItems.length > 0 || summary.reviewCount > 0) && (
+      {hasContent && (
         <div className="md-grid">
           <div className="md-card">
-            <div className="md-card__title"><span><ThunderboltOutlined /> {plan.isTomorrow ? 'Tomorrow\'s plan' : 'Today\'s plan'}</span><span style={{ textTransform: 'none', letterSpacing: 0 }}>{formatDuration(summary.plannedMin)} of {formatDuration(summary.capacityMin)} available</span></div>
+            <div className="md-card__title">
+              <span>{plan.isTomorrow ? 'Tomorrow’s plan' : 'Today’s plan'}</span>
+              <span className="md-card__title-aside">
+                {formatDuration(summary.plannedMin)} of {formatDuration(summary.capacityMin)} available
+              </span>
+            </div>
             <DayTimeline plan={plan} now={now} nextKey={nextKey} onOpen={openTask} />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="md-stack">
             <ReviewsCard reviews={data?.reviews || []} />
             <MiniList
               title="Later" icon={<ScheduleOutlined />} items={laterItems} onOpen={openTask}
@@ -216,7 +313,7 @@ export default function MyDayPage() {
                 : null}
             />
             <MiniList title="With your reviewer" icon={WaitIcon} items={waitingItems} onOpen={openTask} />
-            <MiniList title="Done today" icon={DoneIcon} items={doneItems} onOpen={openTask} tone="#2E7D32" />
+            <MiniList title="Done today" icon={DoneIcon} items={doneItems} onOpen={openTask} tone="done" />
           </div>
         </div>
       )}

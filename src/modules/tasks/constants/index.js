@@ -184,4 +184,18 @@ export const CATEGORY_METRIC_CONFIG = {
    Must match the grid used by PremiumTaskRow's root row element.
    ───────────────────────────────────────────────────────────────────────────── */
 
-export const TASK_LIST_GRID = '36px minmax(0,2fr) 140px 70px 70px 80px 80px 70px minmax(130px, auto)';
+// Task list row layout. Kept in one place because the page header row and
+// PremiumTaskRow both render it and a mismatch visibly breaks the columns.
+//
+// Consolidated to 9 columns on purpose: an 11-column variant left the two
+// flexible tracks (task + details) with only a few dozen pixels on a ~1000px
+// card, so every cell wrapped and rows grew to ~400px. SLA is now a dot inside
+// the Due cell and priority is a tag inside the Task cell, which is what freed
+// up the width. The row is given a min-width and scrolls horizontally instead of
+// crushing, so narrow desktops degrade to a scrollbar rather than a mess.
+//
+// [checkbox, task, seller, details, assignee, progress, status, due+sla, actions]
+export const TASK_LIST_GRID = '34px minmax(0,2.1fr) 132px minmax(0,1.7fr) 158px 96px 92px 92px minmax(122px, auto)';
+
+// Below this the columns stop being readable, so the card scrolls sideways.
+export const TASK_LIST_MIN_WIDTH = 1180;

@@ -8,6 +8,7 @@ const {
     computeRatingFromBreakdown,
     hasAplusContent
 } = require('../utils/marketDataParser');
+const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 
 class AsinDataParser {
     /**
@@ -205,7 +206,7 @@ class AsinDataParser {
     /**
      * Transform raw Octoparse data into Asins table row
      */
-    static transformToAsinRow(rawData, sellerId) {
+    static transformToAsinRow(rawData, sellerId, sellerName = null) {
         const parsed = this.parseRawData(rawData);
         const url = parsed.Original_URL || parsed.Page_URL || parsed.page_url || parsed.url || '';
         const asinCode = this.extractAsin(url);
@@ -303,9 +304,12 @@ class AsinDataParser {
         const buttonText = (parsed.Button_text || parsed.button_text || parsed.biutton_text || parsed.unavilable || '').trim();
         const buyBoxStatus = buttonText || 'Unknown';
 
-        const buyBoxWin = parsed.buy_box_win || 0;
+        const scrapedBuyBoxWin = parsed.buy_box_win || 0;
         const buyBoxSellerId = parsed.second_buybox ? parsed.second_buybox.match(/seller=([^&]+)/)?.[1] || '' : '';
         const soldBy = parsed.sold_by || '';
+
+        // Compute BuyBox win using our authoritative logic, not the scraped value
+        const buyBoxWin = isBuyBoxWinner(soldBy, sellerName);
         
         // Deal badge / MRP
         const secondAsp = mrp || this.parsePrice(parsed.second_asp || parsed.SecondAsp);
@@ -375,8 +379,8 @@ class AsinDataParser {
             Weight: 0,
             LossPerReturn: 0,
             Mrp: mrp > 0 ? mrp : null,
-            SecondAsp: mrp > 0 ? mrp : null,
-            SoldBySec: '',
+            SecondAsp: secondAsp,
+            SoldBySec: buyBoxSellerId,
             AspDifference: aspDifference,
             AvailabilityStatus: buyBoxStatus,
             AplusAbsentSince: null,
@@ -392,9 +396,9 @@ class AsinDataParser {
     /**
      * Insert or update a single ASIN
      */
-    static async upsertAsinFromRaw(rawData, sellerId) {
+    static async upsertAsinFromRaw(rawData, sellerId, sellerName = null) {
         const pool = await getPool();
-        const row = this.transformToAsinRow(rawData, sellerId);
+        const row = this.transformToAsinRow(rawData, sellerId, sellerName);
 
         const request = pool.request();
         const columns = [];
@@ -465,9 +469,22 @@ class AsinDataParser {
     static async bulkUpsertAsins(rawDataArray, sellerId) {
         const results = [];
         const updatedAsinCodes = [];
+
+        // Fetch seller name once for the batch (used for BuyBox winner logic)
+        let sellerName = sellerId;
+        try {
+            const pool = await getPool();
+            const nameResult = await pool.request()
+                .input('id', sql.VarChar, sellerId)
+                .query('SELECT Name FROM Sellers WHERE Id = @id');
+            if (nameResult.recordset.length > 0) {
+                sellerName = nameResult.recordset[0].Name;
+            }
+        } catch (e) { /* fallback */ }
+
         for (const rawData of rawDataArray) {
             try {
-                const result = await this.upsertAsinFromRaw(rawData, sellerId);
+                const result = await this.upsertAsinFromRaw(rawData, sellerId, sellerName);
                 results.push({ success: true, ...result });
                 if (result.asinCode) {
                     updatedAsinCodes.push(result.asinCode);
