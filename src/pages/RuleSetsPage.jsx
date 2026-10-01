@@ -241,6 +241,19 @@ const RuleSetsPage = () => {
   const autoCount = useMemo(() => rulesets.filter(r => r.isAutomated).length, [rulesets]);
   const pausedCount = useMemo(() => rulesets.filter(r => !r.isActive).length, [rulesets]);
 
+  // Any filter change invalidates the current page number.
+  // Declared before applyKpiFilter: its useCallback dependency array reads
+  // applyStatusFilter, which must already be initialised at that point.
+  const applySearch = useCallback((value) => {
+    setSearchQuery(value);
+    setPage(1);
+  }, []);
+
+  const applyStatusFilter = useCallback((value) => {
+    setFilterStatus(value);
+    setPage(1);
+  }, []);
+
   // KPI strip quick-filter: click a card to filter by that status.
   // "total" shows everything (default).
   const [kpiFilter, setKpiFilter] = useState('total');
@@ -256,17 +269,6 @@ const RuleSetsPage = () => {
   }, [applyStatusFilter]);
 
   const hasActiveFilters = Boolean(searchQuery.trim()) || filterStatus !== 'all' || filterAutoRun !== 'all' || filterSchedule !== 'all' || filterUpdated !== 'all';
-
-  // Any filter change invalidates the current page number.
-  const applySearch = useCallback((value) => {
-    setSearchQuery(value);
-    setPage(1);
-  }, []);
-
-  const applyStatusFilter = useCallback((value) => {
-    setFilterStatus(value);
-    setPage(1);
-  }, []);
 
   const clearAllFilters = useCallback(() => {
     setSearchQuery('');

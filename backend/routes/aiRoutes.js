@@ -4,7 +4,7 @@ const aiGoalController = require('../controllers/aiGoalController');
 const aiTaskController = require('../controllers/aiTaskController');
 const aiRulesController = require('../controllers/aiRulesController');
 const nvidiaAiService = require('../services/nvidiaAiService');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 /**
  * Brandcentral AI Strategy Routes
@@ -19,8 +19,10 @@ router.post('/tasks/ai-create', authenticate, aiTaskController.createEnrichedTas
 router.post('/generate-recovery-tasks', authenticate, aiTaskController.generateRecoveryTasks);
 
 // AI RULES LIFECYCLE (NVIDIA NIM)
-router.post('/rules/generate', authenticate, aiRulesController.generateRules);
-router.post('/rules/explain', authenticate, aiRulesController.explainRules);
+// Generation is permission-gated to match the ruleset write routes: any call
+// can be reviewed and saved by the caller, so it needs rules_manage.
+router.post('/rules/generate', authenticate, requirePermission('rules_manage'), aiRulesController.generateRules);
+router.post('/rules/explain', authenticate, requirePermission('rules_view'), aiRulesController.explainRules);
 
 // ═══════════════════════════════════════════════════════════════
 // PRODUCT INTELLIGENCE (NVIDIA Vision AI)

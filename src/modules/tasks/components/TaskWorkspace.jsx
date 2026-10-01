@@ -8,7 +8,8 @@ import {
   CalendarOutlined, SafetyCertificateOutlined, ThunderboltOutlined,
   CheckSquareOutlined, CloseCircleOutlined, MinusOutlined, DollarOutlined,
   WarningOutlined, FlagOutlined, BulbOutlined, ExperimentOutlined,
-  LinkOutlined, PlusOutlined, ShopOutlined, ExportOutlined
+  LinkOutlined, PlusOutlined, ShopOutlined, ExportOutlined,
+  TableOutlined, DatabaseOutlined, ExclamationCircleOutlined
 } from '@ant-design/icons';
 import tasksApi from '../services/tasksApi';
 import BrandChecklist from './BrandChecklist';
@@ -29,11 +30,11 @@ const STATUS_COLORS = {
 };
 
 const CATEGORY_THEME = {
-  PRICING: { headerBg: 'var(--bc-cyan-50)', borderColor: 'var(--bc-cyan-100)', bg: 'var(--bc-cyan-50)', accent: '#0d9488', label: 'Pricing Dispute' },
-  LISTING: { headerBg: 'var(--bc-blue-100)', borderColor: 'var(--bc-blue-200)', bg: 'var(--bc-indigo-50)', accent: '#2563eb', label: 'Catalog Audit' },
-  INVENTORY: { headerBg: 'var(--bc-violet-100)', borderColor: 'var(--bc-violet-100)', bg: 'var(--bc-violet-50)', accent: '#7c3aed', label: 'Inventory Check' },
-  ADS: { headerBg: 'var(--bc-amber-50)', borderColor: 'var(--bc-amber-200)', bg: 'var(--bc-amber-50)', accent: '#ea580c', label: 'Ad Review' },
-  COMPLIANCE: { headerBg: 'var(--bc-red-50)', borderColor: 'var(--bc-red-200)', bg: 'var(--bc-red-50)', accent: '#dc2626', label: 'Compliance Check' },
+  PRICING: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#0d9488', label: 'Pricing Dispute' },
+  LISTING: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#2563eb', label: 'Catalog Audit' },
+  INVENTORY: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#7c3aed', label: 'Inventory Check' },
+  ADS: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#ea580c', label: 'Ad Review' },
+  COMPLIANCE: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#dc2626', label: 'Compliance Check' },
   GENERAL: { headerBg: 'var(--bc-surface-subtle)', borderColor: 'var(--bc-border-default)', bg: 'var(--bc-surface-subtle)', accent: '#64748b', label: 'Task Review' },
 };
 
@@ -52,6 +53,229 @@ function parseJsonArray(v) {
   if (Array.isArray(v)) return v;
   if (!v) return [];
   try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch { return []; }
+}
+
+function AffectedASINsPanel({ task, taskId, loadTask, message }) {
+  const [asinData, setAsinData] = useState(null);
+  const [loadingAsins, setLoadingAsins] = useState(true);
+  const [activeSeller, setActiveSeller] = useState(null);
+  const [editingRemarks, setEditingRemarks] = useState({}); // key: asinId, value: {remarks, resolution}
+
+  useEffect(() => {
+    if (!taskId) return;
+    setLoadingAsins(true);
+    tasksApi.getInstanceAsins(taskId)
+      .then(res => { if (res.success) setAsinData(res.data); })
+      .catch(err => message.error(err.message || 'Failed to load affected ASINs'))
+      .finally(() => setLoadingAsins(false));
+  }, [taskId]);
+
+  const handleSaveRemarks = async (asinId, sellerId, signalCode, remarks, resolution, waiveReason) => {
+    try {
+      await tasksApi.updateAsinRemarks(taskId, asinId, sellerId, signalCode, remarks, resolution, waiveReason);
+      setEditingRemarks(prev => ({ ...prev, [asinId]: { remarks, resolution } }));
+      message.success('Remarks updated');
+    } catch (err) {
+      message.error(err.message);
+    }
+  };
+
+  const handleResolveAsin = async (asinId, action, waiveReason) => {
+    if (action === 'waive' && !waiveReason) {
+      message.warning('Waive reason required');
+      return;
+    }
+    try {
+      await tasksApi.resolveAsin(taskId, asinId, action, waiveReason);
+      // Refresh the data
+      const res = await tasksApi.getInstanceAsins(taskId);
+      if (res.success) setAsinData(res.data);
+      message.success(action === 'resolve' ? 'ASIN marked resolved' : 'ASIN waived');
+    } catch (err) {
+      message.error(err.message);
+    }
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'critical': return 'var(--bc-red-600)';
+      case 'major': return 'var(--bc-amber-600)';
+      default: return 'var(--bc-blue-600)';
+    }
+  };
+
+  const getStatusTag = (status) => {
+    switch (status) {
+      case 'RESOLVED': return <Tag color="success" size="small">Resolved</Tag>;
+      case 'WAIVED': return <Tag color="warning" size="small">Waived</Tag>;
+      default: return <Tag color="default" size="small">Open</Tag>;
+    }
+  };
+
+  if (!asinData) return loadingAsins ? <Spin size="large" style={{ margin: '24px auto', display: 'block' }} /> : null;
+
+  const totalOpen = asinData.sellers?.reduce((sum, s) => sum + (s.counts?.total || 0), 0) || 0;
+  const totalCritical = asinData.sellers?.reduce((sum, s) => sum + (s.counts?.critical || 0), 0) || 0;
+  const totalMajor = asinData.sellers?.reduce((sum, s) => sum + (s.counts?.major || 0), 0) || 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: '100%', overflow: 'auto' }}>
+      {/* Summary Cards */}
+      <SectionHeader title="Affected ASINs" icon={TableOutlined} count={totalOpen} />
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--bc-red-50)', border: '1px solid var(--bc-red-100)', flex: '1 1 120', minWidth: 120 }}>
+          <Text style={{ fontSize: 9, color: 'var(--bc-red-700)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block' }}>Critical</Text>
+          <Text strong style={{ fontSize: 20, color: 'var(--bc-red-600)', lineHeight: 1.2 }}>{totalCritical}</Text>
+        </div>
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--bc-amber-50)', border: '1px solid var(--bc-amber-100)', flex: '1 1 120', minWidth: 120 }}>
+          <Text style={{ fontSize: 9, color: 'var(--bc-amber-700)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block' }}>Major</Text>
+          <Text strong style={{ fontSize: 20, color: 'var(--bc-amber-600)', lineHeight: 1.2 }}>{totalMajor}</Text>
+        </div>
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-100)', flex: '1 1 120', minWidth: 120 }}>
+          <Text style={{ fontSize: 9, color: 'var(--bc-blue-700)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block' }}>Total Open</Text>
+          <Text strong style={{ fontSize: 20, color: 'var(--bc-blue-600)', lineHeight: 1.2 }}>{totalOpen}</Text>
+        </div>
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--bc-green-50)', border: '1px solid var(--bc-green-100)', flex: '1 1 120', minWidth: 120 }}>
+          <Text style={{ fontSize: 9, color: 'var(--bc-green-700)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, display: 'block' }}>Sellers</Text>
+          <Text strong style={{ fontSize: 20, color: 'var(--bc-green-600)', lineHeight: 1.2 }}>{asinData.sellers?.length || 0}</Text>
+        </div>
+      </div>
+
+      {/* Seller-grouped tables */}
+      {asinData.sellers?.length === 0 ? (
+        <Empty description="No affected ASINs for this task" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {asinData.sellers.map(seller => (
+            <div key={seller.sellerId} style={{ borderRadius: 10, border: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)', overflow: 'hidden' }}>
+              <div style={{ padding: '10px 14px', background: 'var(--bc-surface-subtle)', borderBottom: '1px solid var(--bc-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <Space size={8}>
+                  <Text strong style={{ fontSize: 13, color: 'var(--bc-text-heading)' }}>{seller.sellerName}</Text>
+                  <Text code style={{ fontSize: 10, color: 'var(--bc-text-secondary)' }}>{seller.sellerId}</Text>
+                  <Badge count={seller.asins?.length || 0} size="small" color="#2563eb" />
+                </Space>
+                <Space size={6}>
+                  {seller.counts?.critical > 0 && <Badge color="error" count={seller.counts.critical} size="small" style={{ fontSize: 10 }} />}
+                  {seller.counts?.major > 0 && <Badge color="warning" count={seller.counts.major} size="small" style={{ fontSize: 10 }} />}
+                </Space>
+              </div>
+
+<Table
+                columns={[
+                  {
+                    title: 'ASIN',
+                    dataIndex: 'asinCode',
+                    width: 140,
+                    render: (val) => <Text code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-heading)' }}>{val}</Text>,
+                  },
+                  {
+                    title: 'Signal',
+                    dataIndex: 'signalCode',
+                    width: 120,
+                    render: (val, record) => (
+                      <>
+                        <Text code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-secondary)' }}>{val}</Text>
+                        {record.signalLabel && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-muted)', display: 'block', marginTop: 2 }}>{record.signalLabel}</Text>}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Severity',
+                    dataIndex: 'severity',
+                    width: 80,
+                    align: 'center',
+                    render: (val) => <Tag size="small" color={val === 'critical' ? 'red' : val === 'major' ? 'orange' : 'blue'}>{val?.charAt(0).toUpperCase() + val?.slice(1)}</Tag>,
+                  },
+                  {
+                    title: 'Value',
+                    dataIndex: 'numericValue',
+                    width: 100,
+                    align: 'right',
+                    render: (val, record) => (
+                      <>
+                        {record.numericValue != null && <Text code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-heading)' }}>{typeof record.numericValue === 'number' ? record.numericValue.toLocaleString() : record.numericValue}</Text>}
+                        {record.stringValue && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-muted)', display: 'block', marginTop: 2 }}>{record.stringValue}</Text>}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Remarks',
+                    dataIndex: 'id',
+                    width: 200,
+                    render: (val, record) => {
+                      const editing = editingRemarks[record.id];
+                      if (editing) {
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <Input.TextArea
+                              rows={2}
+                              value={editing.remarks || ''}
+                              onChange={e => setEditingRemarks(prev => ({ ...prev, [record.id]: { ...prev[record.id], remarks: e.target.value } }))}
+                              placeholder="Remarks..."
+                              size="small"
+                              style={{ fontSize: 'var(--font-size-xs)' }}
+                            />
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <Input size="small" placeholder="Resolution" value={editing.resolution || ''} onChange={e => setEditingRemarks(prev => ({ ...prev, [record.id]: { ...prev[record.id], resolution: e.target.value } }))} style={{ flex: 1 }} />
+                              <Button size="small" type="primary" onClick={() => handleSaveRemarks(record.id, record.sellerId || seller.sellerId, record.signalCode, editing.remarks, editing.resolution, null)} style={{ fontSize: 'var(--font-size-xs)' }}>Save</Button>
+                              <Button size="small" onClick={() => setEditingRemarks(prev => { const n = { ...prev }; delete n[record.id]; return n; })} style={{ fontSize: 'var(--font-size-xs)' }}>Cancel</Button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {record.remarks && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-body)' }}>{record.remarks}</Text>}
+                          {record.resolution && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-green-600)' }}>Resolution: {record.resolution}</Text>}
+                          {record.waiveReason && <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-amber-700)' }}>Waived: {record.waiveReason}</Text>}
+                          {!record.remarks && !record.resolution && !record.waiveReason && <Text type="secondary" style={{ fontSize: 'var(--font-size-xs)' }}>No remarks</Text>}
+                          <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditingRemarks(prev => ({ ...prev, [record.id]: { remarks: record.remarks || '', resolution: record.resolution || '' } }))} style={{ fontSize: 'var(--font-size-xs)' }}>Edit</Button>
+                          </div>
+                        </div>
+                      );
+                    },
+                  },
+                  {
+                    title: 'Status',
+                    dataIndex: 'status',
+                    width: 80,
+                    align: 'center',
+                    render: (val) => getStatusTag(val),
+                  },
+                  {
+                    title: 'Actions',
+                    dataIndex: 'id',
+                    width: 140,
+                    align: 'center',
+                    render: (val, record) => (
+                      record.status === 'OPEN' ? (
+                        <Space size={2}>
+                          <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleResolveAsin(record.id, 'resolve')} style={{ fontSize: 'var(--font-size-xs)', padding: '0 6px', height: 24 }}>Resolve</Button>
+                          <Button size="small" danger icon={<ExclamationCircleOutlined />} onClick={() => { const reason = window.prompt('Waive reason:'); if (reason) handleResolveAsin(record.id, 'waive', reason); }} style={{ fontSize: 'var(--font-size-xs)', padding: '0 6px', height: 24 }}>Waive</Button>
+                        </Space>
+                      ) : (
+                        <Text style={{ fontSize: 'var(--font-size-xs)', color: 'var(--bc-text-muted)' }}>
+                          {record.resolvedAt ? dayjs(record.resolvedAt).format('DD MMM') : ''}
+                        </Text>
+                      )
+                    ),
+                  },
+                ]}
+                dataSource={seller.asins || []}
+                rowKey="id"
+                bordered
+                size="small"
+                scroll={{ x: 1000 }}
+              />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function initials(name) {
@@ -309,9 +533,9 @@ function VisionFeedbackPanel({ task }) {
   const missingViews = standardViews.filter(v => task[`Image_${v.replace(/\s/g, '')}`] === false || task.MissingViews?.includes(v));
 
   return (
-    <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bc-indigo-50)', border: '1px solid var(--bc-blue-200)' }}>
+    <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bc-surface-subtle)', border: '1px solid var(--bc-border-default)' }}>
       <Space size={6} style={{ marginBottom: 6 }}>
-        <EyeOutlined style={{ color: 'var(--bc-indigo-600)', fontSize: 13 }} />
+        <EyeOutlined style={{ color: 'var(--bc-text-secondary)', fontSize: 13 }} />
         <Text style={{ fontSize: 11, fontWeight: 600, color: 'var(--bc-text-heading)' }}>AI Vision Feedback</Text>
         <Tag style={{ fontSize: 8, borderRadius: 4, background: 'var(--bc-blue-50)', color: 'var(--bc-blue-600)', border: 'none', margin: 0, marginLeft: 'auto' }}>
           AI-Powered
@@ -558,15 +782,15 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       children: task && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {isRuleTask && (
-            <div style={{ padding: '14px 16px', borderRadius: 12, background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', border: '1px solid #bae6fd' }}>
+            <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--bc-surface-subtle)', border: '1px solid var(--bc-border-default)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#0891b2,#7c3aed)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}><ThunderboltOutlined /></div>
+                <div style={{ width: 30, height: 30, borderRadius: 'var(--radius-sm)', background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-100)', color: 'var(--bc-blue-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}><ThunderboltOutlined /></div>
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <Text strong style={{ fontSize: 13, color: '#0f172a', display: 'block' }}>Created automatically by an automation rule</Text>
-                  <Text style={{ fontSize: 12, color: '#475569' }}>{rulesetName ? <>Rule: <b>{rulesetName}</b></> : 'Ruleset-generated task'}{task.CreatedAt ? <> · {dayjs(task.CreatedAt).format('DD MMM YYYY, h:mm A')}</> : null}</Text>
+                  <Text strong style={{ fontSize: 13, color: 'var(--bc-text-primary)', display: 'block' }}>Created automatically by an automation rule</Text>
+                  <Text style={{ fontSize: 12, color: 'var(--bc-text-secondary)' }}>{rulesetName ? <>Rule: <b>{rulesetName}</b></> : 'Ruleset-generated task'}{task.CreatedAt ? <> · {dayjs(task.CreatedAt).format('DD MMM YYYY, h:mm A')}</> : null}</Text>
                 </div>
-                <Button size="small" icon={<ExportOutlined />} onClick={openRuleset} style={{ borderRadius: 8, fontWeight: 600 }}>Open rule</Button>
-                <Button size="small" type="primary" onClick={() => setActiveTab('resolve')} style={{ borderRadius: 8, fontWeight: 600, background: 'linear-gradient(135deg,#0891b2,#7c3aed)', border: 'none' }}>Resolve</Button>
+                <Button size="small" icon={<ExportOutlined />} onClick={openRuleset} style={{ fontWeight: 600 }}>Open rule</Button>
+                <Button size="small" type="primary" onClick={() => setActiveTab('resolve')} style={{ fontWeight: 600 }}>Resolve</Button>
               </div>
               {taskAsins.length > 0 && (
                 <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -741,6 +965,11 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       ),
     },
     {
+      key: 'asins',
+      label: <Space size={4}><TableOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Affected ASINs</span></Space>,
+      children: task && <AffectedASINsPanel task={task} taskId={taskId} loadTask={loadTask} message={message} />,
+    },
+    {
       key: 'evidence',
       label: <Space size={4}><FileTextOutlined style={{ fontSize: 'var(--font-size-sm)' }} /><span>Evidence</span>{task?.evidence?.length > 0 && <Badge count={task.evidence.length} size="small" color="#2563eb" />}</Space>,
       children: (
@@ -846,7 +1075,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       title={null}
       open={open}
       onClose={onClose}
-      width="min(1180px, 92vw)"
+      size="min(1180px, 92vw)"
       destroyOnHidden
       styles={{
         body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' },
@@ -861,20 +1090,20 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
             {/* ═══ HEADER ═══ */}
             <div style={{ padding: '14px 24px 12px', borderBottom: '1px solid var(--bc-border-default)', background: 'var(--bc-surface-card)', flexShrink: 0, position: 'relative' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: isRuleTask ? 'linear-gradient(180deg,#0891b2,#7c3aed)' : (STATUS_COLORS[task.Status] || '#2563eb') }} />
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: isRuleTask ? 'var(--bc-blue-600)' : (STATUS_COLORS[task.Status] || '#2563eb') }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <Button type="text" size="small" onClick={onClose} aria-label="Close" style={{ fontSize: 16, color: 'var(--bc-text-secondary)', marginLeft: -8 }}>✕</Button>
                 <Text code style={{ fontSize: 11 }}>{task.InstanceCode}</Text>
-                <Tag style={{ fontSize: 10, borderRadius: 10, fontWeight: 700, margin: 0, background: (STATUS_COLORS[task.Status] || '#64748b') + '15', color: STATUS_COLORS[task.Status] || '#64748b', border: `1px solid ${(STATUS_COLORS[task.Status] || '#64748b')}30` }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
-                <Tag style={{ fontSize: 10, borderRadius: 10, fontWeight: 700, margin: 0, border: 'none', background: priority.bg, color: priority.color }}>{priority.label || task.Priority}</Tag>
+                <Tag style={{ fontSize: 10, borderRadius: 4, fontWeight: 700, margin: 0, background: (STATUS_COLORS[task.Status] || '#64748b') + '15', color: STATUS_COLORS[task.Status] || '#64748b', border: `1px solid ${(STATUS_COLORS[task.Status] || '#64748b')}30` }}>{WORKFLOW_STATUSES[task.Status]?.label || task.Status}</Tag>
+                <Tag style={{ fontSize: 10, borderRadius: 4, fontWeight: 700, margin: 0, border: 'none', background: priority.bg, color: priority.color }}>{priority.label || task.Priority}</Tag>
                 {isRuleTask && (
                   <Tooltip title="Open the originating rule">
-                    <Tag onClick={openRuleset} style={{ cursor: 'pointer', fontSize: 10, borderRadius: 10, fontWeight: 700, margin: 0, border: 'none', color: '#fff', background: 'linear-gradient(135deg,#0891b2,#7c3aed)' }}>
+                    <Tag onClick={openRuleset} style={{ cursor: 'pointer', fontSize: 10, borderRadius: 4, fontWeight: 700, margin: 0, color: 'var(--bc-blue-700)', background: 'var(--bc-blue-50)', border: '1px solid var(--bc-blue-100)' }}>
                       <ThunderboltOutlined /> {rulesetName ? `Rule: ${rulesetName}` : 'Automation'}
                     </Tag>
                   </Tooltip>
                 )}
-                {EXCEPTION_STATUSES.has(task.Status) && <Tag color="warning" style={{ margin: 0, borderRadius: 10, fontSize: 10, fontWeight: 700 }}>Needs attention</Tag>}
+                {EXCEPTION_STATUSES.has(task.Status) && <Tag color="warning" style={{ margin: 0, borderRadius: 4, fontSize: 10, fontWeight: 700 }}>Needs attention</Tag>}
                 <div style={{ flex: 1 }} />
                 <Tooltip title="Reload"><Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => loadTask({ silent: true })} /></Tooltip>
                 <Space size={6}>
@@ -885,7 +1114,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
                   ))}
                   {primaryStatus && (
                     <Button size="small" type="primary" icon={<ArrowRightOutlined />} onClick={() => startTransition(primaryStatus)}
-                      style={{ borderRadius: 8, fontWeight: 700, background: 'linear-gradient(135deg,#0ea5e9,#6366f1)', border: 'none', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
+                      style={{ fontWeight: 600 }}>
                       {primaryStatus === 'SUBMITTED' ? 'Submit for review' : primaryStatus === 'IN_PROGRESS' ? 'Start work' : WORKFLOW_STATUSES[primaryStatus]?.label}
                     </Button>
                   )}
@@ -949,9 +1178,9 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
             <div>
               <Text style={railLabel}>Origin</Text>
               {isRuleTask ? (
-                <div onClick={openRuleset} style={{ cursor: 'pointer', padding: '8px 10px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg,#ecfeff,#ede9fe)', border: '1px solid #bae6fd' }}>
-                  <Text style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', display: 'block' }}><ThunderboltOutlined /> Automation rule</Text>
-                  <Text style={{ fontSize: 11, color: '#475569' }}>{rulesetName || 'Open rulesets'} <ExportOutlined style={{ fontSize: 9 }} /></Text>
+                <div onClick={openRuleset} style={{ cursor: 'pointer', padding: '8px 10px', borderRadius: 'var(--radius-md)', background: 'var(--bc-surface-subtle)', border: '1px solid var(--bc-border-default)' }}>
+                  <Text style={{ fontSize: 11, fontWeight: 700, color: 'var(--bc-text-primary)', display: 'block' }}><ThunderboltOutlined /> Automation rule</Text>
+                  <Text style={{ fontSize: 11, color: 'var(--bc-text-secondary)' }}>{rulesetName || 'Open rulesets'} <ExportOutlined style={{ fontSize: 9 }} /></Text>
                 </div>
               ) : (
                 <Text style={{ fontSize: 12 }}>{task.TemplateName ? <>Template · <b>{task.TemplateName}</b></> : 'Created manually'}</Text>
