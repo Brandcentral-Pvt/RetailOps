@@ -1804,12 +1804,13 @@ export const rulesetApi = {
   executeForAsins: async (selectedAsins) => {
     return api.post('/rulesets/execute-for-asins', { selectedAsins });
   },
-  // AI-assisted rule generation (NVIDIA NIM)
-  aiGenerate: async (prompt, existingRules = []) => {
-    return api.post('/ai/rules/generate', { prompt, existingRules });
+  // AI-assisted rule generation (NVIDIA NIM).
+  // aiRoutes is mounted at /api/strategy in server.js, not /api/ai.
+  aiGenerate: async (prompt, existingRules = [], context = {}) => {
+    return api.post('/strategy/rules/generate', { prompt, existingRules, context });
   },
   aiExplain: async (rules) => {
-    return api.post('/ai/rules/explain', { rules });
+    return api.post('/strategy/rules/explain', { rules });
   },
 };
 

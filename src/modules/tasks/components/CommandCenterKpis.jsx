@@ -5,7 +5,7 @@
    Expected location: src/modules/tasks/components/CommandCenterKpis.jsx
    ═══════════════════════════════════════════════════════════════════════════ */
 import React from 'react';
-import { Typography, Tooltip, Switch, Space } from 'antd';
+import { Tooltip, Switch } from 'antd';
 import {
   ArrowUpOutlined, ArrowDownOutlined, MinusOutlined,
   ThunderboltOutlined, EyeOutlined, ClockCircleOutlined,
@@ -13,58 +13,45 @@ import {
   StarOutlined, AimOutlined, FilterOutlined
 } from '@ant-design/icons';
 
-const { Text } = Typography;
 
 function MiniTrend({ value, label }) {
   if (value === undefined || value === null) return null;
   const isUp = value > 0;
   const isDown = value < 0;
+  const dir = isUp ? 'good' : isDown ? 'bad' : 'flat';
   return (
-    <span style={{
-      fontSize: 11, fontWeight: 600,
-      color: isUp ? 'var(--bc-green-600, #16a34a)' : isDown ? 'var(--bc-red-600, #dc2626)' : 'var(--bc-text-muted, #94a3b8)',
-      display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap',
-    }}>
-      {isUp ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : isDown ? <ArrowDownOutlined style={{ fontSize: 10 }} /> : <MinusOutlined style={{ fontSize: 10 }} />}
+    <span className={`tasks-kpi-trend tasks-kpi-trend--${dir}`}>
+      {isUp ? <ArrowUpOutlined /> : isDown ? <ArrowDownOutlined /> : <MinusOutlined />}
       {Math.abs(value).toFixed(1)}%
-      {label && <span style={{ color: 'var(--bc-text-muted, #94a3b8)', fontWeight: 400 }}> {label}</span>}
+      {label && <span style={{ color: 'var(--tec-text-4, #94a3b8)', fontWeight: 400 }}> {label}</span>}
     </span>
   );
 }
 
 function KpiCard({ card }) {
+  // Tone drives only the 2px top rule, the icon, and the value colour — the
+  // card surface stays neutral so eight cards do not read as eight alerts.
+  const tone = card.color || 'var(--tec-text, #0f172a)';
   return (
-    <Tooltip key={card.key} title={card.subtitle} placement="bottom">
-      <div className="tasks-kpi-card" onClick={() => card.onClick?.()}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="tasks-section-label" style={{ marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {card.title}
-            </div>
-            <div style={{
-              fontSize: 25, fontWeight: 800, color: card.color,
-              lineHeight: 1.15, letterSpacing: '-0.02em',
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              {card.value}
-            </div>
-          </div>
-          <div style={{
-            width: 34, height: 34, borderRadius: 'var(--bc-radius-lg, 8px)',
-            background: `${card.color}1A`, color: card.color,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 15, flexShrink: 0,
-          }}>
-            {card.icon}
-          </div>
+    <Tooltip key={card.key} title={card.subtitle} placement="bottom" mouseEnterDelay={0.4}>
+      <button
+        type="button"
+        className="tasks-kpi-card"
+        onClick={() => card.onClick?.()}
+        aria-label={`${card.title}: ${card.value}. ${card.subtitle || ''}`}
+      >
+        <div className="tasks-kpi-card__label">{card.title}</div>
+        <div className="tasks-kpi-card__row">
+          <span className="tasks-kpi-card__value">{card.value}</span>
+          <span className="tasks-kpi-card__icon" style={{ color: tone }}>{card.icon}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minHeight: 16 }}>
+        <div className="tasks-kpi-card__row" style={{ minHeight: 16 }}>
           {card.trend != null
             ? <MiniTrend value={card.trend} />
-            : <Text style={{ fontSize: 10, color: 'var(--bc-text-muted, #94a3b8)' }}>{card.subtitle}</Text>}
+            : <span className="tasks-kpi-card__context">{card.subtitle}</span>}
         </div>
-        <div className="tasks-kpi-accent" style={{ background: `linear-gradient(90deg, ${card.color}B3, ${card.color}14)` }} />
-      </div>
+        <span className="tasks-kpi-accent" style={{ background: tone }} />
+      </button>
     </Tooltip>
   );
 }
@@ -149,31 +136,25 @@ export function CommandCenterKpis({ kpi, risk, loading, onDrillDown, disputesOnl
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
-        <Space size={8} align="center">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '18px 0 10px', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="tasks-live-dot" />
-          <Text style={{ fontSize: 13, fontWeight: 700, color: 'var(--bc-text-heading, #0f172a)', letterSpacing: '0.02em' }}>
-            {title}
-          </Text>
-          {lastUpdated && (
-            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>
-              · synced {lastUpdated}
-            </Text>
-          )}
-        </Space>
-        <Space size={10} align="center">
-          <FilterOutlined style={{ color: disputesOnly ? 'var(--bc-red-500, #ef4444)' : 'var(--bc-text-muted, #94a3b8)', fontSize: 12, transition: 'color 0.15s' }} />
-          <Text style={{ fontSize: 11, fontWeight: disputesOnly ? 700 : 500, color: disputesOnly ? 'var(--bc-red-600, #dc2626)' : 'var(--bc-text-secondary, #64748b)' }}>
+          <span className="tasks-section-label">{title}</span>
+          {lastUpdated && <span className="tasks-kpi-card__context">· synced {lastUpdated}</span>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FilterOutlined style={{ color: disputesOnly ? 'var(--bc-red-600, #dc2626)' : 'var(--tec-text-4, #94a3b8)', fontSize: 12 }} />
+          <span style={{ fontSize: 12, fontWeight: disputesOnly ? 600 : 500, color: disputesOnly ? 'var(--bc-red-600, #dc2626)' : 'var(--tec-text-3, #64748b)' }}>
             Disputes only
-          </Text>
+          </span>
           <Switch
             size="small"
             checked={disputesOnly}
             onChange={onDisputesToggle}
             loading={loading}
-            style={{ background: disputesOnly ? 'var(--bc-red-500, #ef4444)' : 'var(--bc-slate-300, #cbd5e1)' }}
+            style={{ background: disputesOnly ? 'var(--bc-red-600, #dc2626)' : 'var(--bc-slate-300, #cbd5e1)' }}
           />
-        </Space>
+        </div>
       </div>
       <div className="tasks-kpi-grid">
         {retailCards.map(card => <KpiCard key={card.key} card={card} />)}

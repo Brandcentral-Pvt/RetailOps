@@ -17,6 +17,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import tasksApi from '../services/tasksApi';
 import DailyOpsImportModal from '../components/DailyOpsImportModal';
 import { FREQUENCIES, CATEGORIES, PRIORITIES, TARGET_TYPES, DEPARTMENTS, COMPLEXITY_LEVELS, APPROVAL_LEVELS, AUTO_ASSIGN_STRATEGIES } from '../constants';
+// The .tpl-* / .sop-* classes this page renders live in tasks.css. This page is
+// code-split, so it must pull the stylesheet in itself — otherwise the page only
+// renders styled when the user happened to open the task list or review queue
+// first (the only other importers), and a direct load or refresh on
+// /tasks/templates comes up unstyled.
+import '../tasks.css';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;

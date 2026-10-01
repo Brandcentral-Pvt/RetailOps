@@ -1,8 +1,26 @@
 /**
  * PEMS V2 Dashboard Controller — Enterprise Command Center
  * 3 consolidated endpoints for maximum performance
+ *
+ * RBAC: every query in this file is scoped to the caller's sellers. The
+ * dashboard previously aggregated the whole PemsTaskInstances table for anyone
+ * logged in, so a user assigned two sellers could read every other seller's
+ * task counts, department performance, top performers and risk figures. Scope is
+ * resolved once per request from the canonical helper and re-bound onto every
+ * request object, because mssql request instances do not share parameters.
  */
 const { sql, getPool } = require('../../database/db');
+const { resolveSellerScope, buildScopeClause, applyScopeInputs } = require('../../services/pems/sellerScope');
+
+/**
+ * Builds the seller-scope pieces for a request against `PemsTaskInstances`.
+ * `alias` may be '' for un-aliased queries.
+ */
+function scopeFor(req, alias = '') {
+  const scope = resolveSellerScope(req.user, req.query?.sellerId);
+  const { clause, params } = buildScopeClause(scope, alias);
+  return { scope, clause, params, bind: (r) => applyScopeInputs(r, params, sql) };
+}
 
 // ═══════════════════════════════════════════════════════
 // ENDPOINT 1: GET /api/pems/dashboard/summary
@@ -29,6 +47,12 @@ exports.getSummary = async (req, res) => {
       where += ' AND CreatedAt >= @defaultDateFrom';
       req_.input('defaultDateFrom', sql.DateTime2, new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
     }
+
+    // Seller scope. Applied to the shared `where` (so the KPI and department
+    // queries both inherit it) and bound separately onto each additional query.
+    const { clause: scopeClause, params: scopeParams, bind: bindScope } = scopeFor(req, '');
+    where += scopeClause;
+    bindScope(req_);
 
     // Main aggregate query
     const agg = await req_.query(`
@@ -99,24 +123,30 @@ exports.getSummary = async (req, res) => {
       slaCompliance: d.totalTasks > 0 ? Math.round(((d.totalTasks - d.slaBreached) / d.totalTasks) * 100) : 100,
     }));
 
-    // Top performers (single query)
+    // Top performers (single query). These had their own WHERE clauses, so the
+    // scope has to be re-applied and re-bound per request — the KPI query's
+    // `where` is not inherited here.
+    const sellerPerfReq = pool.request();
+    const managerPerfReq = pool.request();
+    bindScope(sellerPerfReq);
+    bindScope(managerPerfReq);
     const [sellerPerf, managerPerf] = await Promise.all([
-      pool.request().query(`
+      sellerPerfReq.query(`
         SELECT TOP 10 SellerId, SellerName,
           COUNT(*) as tasks, SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as completed,
           ISNULL(AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END), 0) as avgAchievement,
           SUM(CASE WHEN SLAStatus = 'WITHIN_SLA' THEN 1 ELSE 0 END) as withinSla,
           COUNT(*) as totalSellerTasks
-        FROM PemsTaskInstances WHERE SellerId IS NOT NULL
+        FROM PemsTaskInstances WHERE SellerId IS NOT NULL${scopeClause}
         GROUP BY SellerId, SellerName ORDER BY completed DESC
       `),
-      pool.request().query(`
+      managerPerfReq.query(`
         SELECT TOP 10 AssignedTo as UserId, AssigneeName as UserName,
           COUNT(*) as tasks, SUM(CASE WHEN Status = 'APPROVED' THEN 1 ELSE 0 END) as completed,
           ISNULL(AVG(CASE WHEN Target > 0 THEN (Achievement / Target) * 100 END), 0) as avgAchievement,
           SUM(CASE WHEN SLAStatus = 'WITHIN_SLA' THEN 1 ELSE 0 END) as withinSla,
           COUNT(*) as totalMgrTasks
-        FROM PemsTaskInstances WHERE AssignedTo IS NOT NULL
+        FROM PemsTaskInstances WHERE AssignedTo IS NOT NULL${scopeClause}
         GROUP BY AssignedTo, AssigneeName ORDER BY completed DESC
       `),
     ]);
@@ -133,7 +163,9 @@ exports.getSummary = async (req, res) => {
     }));
 
     // Workload distribution
-    const workload = await pool.request().query(`
+    const workloadReq = pool.request();
+    bindScope(workloadReq);
+    const workload = await workloadReq.query(`
       SELECT Department, AssignedTo, AssigneeName,
         SUM(CASE WHEN Status IN ('ASSIGNED','ACCEPTED') THEN 1 ELSE 0 END) as assigned,
         SUM(CASE WHEN Status = 'IN_PROGRESS' THEN 1 ELSE 0 END) as inProgress,
@@ -141,25 +173,29 @@ exports.getSummary = async (req, res) => {
         SUM(CASE WHEN Status = 'REWORK' THEN 1 ELSE 0 END) as rework,
         COUNT(*) as total
       FROM PemsTaskInstances
-      WHERE Status NOT IN ('APPROVED','CANCELLED') AND AssignedTo IS NOT NULL
+      WHERE Status NOT IN ('APPROVED','CANCELLED') AND AssignedTo IS NOT NULL${scopeClause}
       GROUP BY Department, AssignedTo, AssigneeName
       ORDER BY total DESC
     `);
 
     // Pending reviews > 48h
-    const staleReviews = await pool.request().query(`
+    const staleReviewsReq = pool.request();
+    bindScope(staleReviewsReq);
+    const staleReviews = await staleReviewsReq.query(`
       SELECT COUNT(*) as count FROM PemsTaskInstances
       WHERE Status IN ('SUBMITTED','UNDER_REVIEW')
       AND SubmittedAt IS NOT NULL
-      AND DATEDIFF(HOUR, SubmittedAt, dbo.GetEnvDate()) > 48
+      AND DATEDIFF(HOUR, SubmittedAt, dbo.GetEnvDate()) > 48${scopeClause}
     `);
 
     // High priority delays
-    const highPriorityDelays = await pool.request().query(`
+    const highPriorityDelaysReq = pool.request();
+    bindScope(highPriorityDelaysReq);
+    const highPriorityDelays = await highPriorityDelaysReq.query(`
       SELECT COUNT(*) as count FROM PemsTaskInstances
       WHERE Priority IN ('CRITICAL','HIGH')
       AND Status NOT IN ('APPROVED','CANCELLED')
-      AND DueDate < dbo.GetEnvDate()
+      AND DueDate < dbo.GetEnvDate()${scopeClause}
     `);
 
     res.json({
@@ -246,6 +282,12 @@ exports.getLiveTasks = async (req, res) => {
     if (source) { where += ' AND i.Source = @source'; req_.input('source', sql.NVarChar, source); }
     if (isAutomated === 'true' || isAutomated === true) { where += " AND i.Source = 'RULESET'"; }
 
+    // Seller scope, layered on top of any explicit ?sellerId filter (which the
+    // scope resolver already intersects for restricted users).
+    const { clause: scopeClause, bind: bindScope } = scopeFor(req, 'i');
+    where += scopeClause;
+    bindScope(req_);
+
     const result = await req_.query(`
       SELECT TOP (@limit) i.Id, i.InstanceCode, i.Title, i.Department, i.SellerName, i.AssigneeName,
         i.Status, i.ReviewStatus, i.Priority, i.Frequency, i.Category,
@@ -276,12 +318,19 @@ exports.getLiveTasks = async (req, res) => {
 exports.getActivityFeed = async (req, res) => {
   try {
     const pool = await getPool();
-    const result = await pool.request().query(`
+    // Scoped through the joined instance. Audit rows whose task was deleted
+    // (i.* IS NULL) drop out for restricted users, which is the correct call:
+    // there is no seller left to authorise them against.
+    const { clause: scopeClause, bind: bindScope } = scopeFor(req, 'i');
+    const request = pool.request();
+    bindScope(request);
+    const result = await request.query(`
       SELECT TOP 20
         a.Id, a.TaskInstanceId, a.Action, a.ActorName, a.Details,
         a.CreatedAt, i.InstanceCode, i.Title, i.Department
       FROM PemsTaskAuditLogs a
       LEFT JOIN PemsTaskInstances i ON a.TaskInstanceId = i.Id
+      WHERE 1=1${scopeClause}
       ORDER BY a.CreatedAt DESC
     `);
 
