@@ -227,6 +227,7 @@ app.use('/api/logs', systemLogRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/setup-wizard', setupWizardRoutes);
 app.use('/api/settings', systemSettingRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/strategy', aiRoutes);
 app.use('/api/seller-tracker', sellerAsinTrackerRoutes);
 app.use('/api/revenue-engine', revenueRoutes);
