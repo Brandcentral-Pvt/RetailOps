@@ -242,8 +242,6 @@ const RuleSetsPage = () => {
   const pausedCount = useMemo(() => rulesets.filter(r => !r.isActive).length, [rulesets]);
 
   // Any filter change invalidates the current page number.
-  // Declared before applyKpiFilter: its useCallback dependency array reads
-  // applyStatusFilter, which must already be initialised at that point.
   const applySearch = useCallback((value) => {
     setSearchQuery(value);
     setPage(1);
@@ -251,6 +249,15 @@ const RuleSetsPage = () => {
 
   const applyStatusFilter = useCallback((value) => {
     setFilterStatus(value);
+    setPage(1);
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilterStatus('all');
+    setFilterAutoRun('all');
+    setFilterSchedule('all');
+    setFilterUpdated('all');
     setPage(1);
   }, []);
 
@@ -269,15 +276,6 @@ const RuleSetsPage = () => {
   }, [applyStatusFilter]);
 
   const hasActiveFilters = Boolean(searchQuery.trim()) || filterStatus !== 'all' || filterAutoRun !== 'all' || filterSchedule !== 'all' || filterUpdated !== 'all';
-
-  const clearAllFilters = useCallback(() => {
-    setSearchQuery('');
-    setFilterStatus('all');
-    setFilterAutoRun('all');
-    setFilterSchedule('all');
-    setFilterUpdated('all');
-    setPage(1);
-  }, []);
 
   const handleToggle = useCallback(async (id, nextActive) => {
     setToggling(id);
