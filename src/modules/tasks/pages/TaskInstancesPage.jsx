@@ -25,7 +25,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card, Table, Button, Input, Select, Tag, Space, Typography, Tooltip, Progress,
   Modal, Segmented, Checkbox, Empty, App, Drawer, Row, Col, Collapse, Avatar,
-  Badge, Steps, Skeleton, DatePicker, InputNumber
+  Badge, Steps, Skeleton, DatePicker, InputNumber, Alert
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined, CheckCircleOutlined,
@@ -278,6 +278,7 @@ export default function TaskInstancesPage() {
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0 });
   const [summary, setSummary] = useState(null);
+  const [aggregates, setAggregates] = useState(null);
   const [quickView, setQuickView] = useState('ALL');
   const [viewMode, setViewMode] = useState('list');
   const [search, setSearch] = useState('');
@@ -381,6 +382,10 @@ export default function TaskInstancesPage() {
     else if (quickView === 'Brand Managers') p.department = 'Brand Managers';
     else if (quickView === 'Catalog Team') p.department = 'Catalog Team';
     else if (quickView === 'AUTOMATION') p.isAutomated = true;
+    else if (quickView === 'OVERDUE') p.overdue = true;
+    else if (quickView === 'TOMORROW') { p.dueTomorrow = true; p.open = true; }
+    else if (quickView === 'UPCOMING') { p.upcoming = true; p.open = true; }
+    else if (quickView === 'TODO') p.open = true;
     if (filters.department) p.department = filters.department;
     if (filters.seller) p.sellerId = filters.seller;
     if (filters.manager) p.assignedTo = filters.manager;
@@ -404,22 +409,19 @@ export default function TaskInstancesPage() {
       ]);
       if (instRes.success) {
         let data = instRes.instances || [];
-        if (quickView === 'OVERDUE') data = data.filter(t => isOverdue(t));
-        if (quickView === 'TODO') data = data.filter(t => !['APPROVED', 'CANCELLED'].includes(t.Status));
-        if (quickView === 'AUTOMATION') data = data.filter(t => t.Source === 'RULESET' || t.IsRuleTask || t.source === 'ACTION_RULE');
-        if (quickView === 'TOMORROW') data = data.filter(t => isDueTomorrow(t));
-        if (quickView === 'UPCOMING') data = data.filter(t => {
-          if (!t.DueDate) return false;
-          const d = new Date(t.DueDate);
-          const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(0, 0, 0, 0);
-          return d >= tomorrow && !['APPROVED', 'CANCELLED'].includes(t.Status);
-        });
+        // Quick views (OVERDUE / TOMORROW / UPCOMING / TODO / AUTOMATION) are resolved by the
+        // API in buildParams. They used to be re-applied here to the 25 rows of the current
+        // page, so the list silently dropped rows and every count described the page rather
+        // than the workload. Only the health bucket stays client-side: calculateHealth() is
+        // the single source of truth for that score, and duplicating it in SQL would let the
+        // two definitions drift. The UI labels it as page-scoped.
         if (disputesOnly) data = data.filter(t => t.Category === 'PRICING' || t.Category === 'LISTING' || t.IsRuleTask);
         if (filters.health === 'critical') data = data.filter(t => calculateHealth(t).score < 50);
         else if (filters.health === 'attention') data = data.filter(t => { const h = calculateHealth(t).score; return h >= 50 && h < 80; });
         else if (filters.health === 'healthy') data = data.filter(t => calculateHealth(t).score >= 80);
         setInstances(data);
         setPagination(instRes.pagination);
+        setAggregates(instRes.aggregates || null);
       }
       if (sumRes.success) setSummary(sumRes.data);
       setLastSync(dayjs().format('h:mm A'));
@@ -540,45 +542,59 @@ export default function TaskInstancesPage() {
   const totalPages = Math.max(1, Math.ceil(pagination.total / pagination.limit));
 
   const computedKpi = useMemo(() => {
-    const total = instances.length;
-    const ruleTasks = instances.filter(t => t.IsRuleTask || t.source === 'ACTION_RULE' || t.InstanceCode?.startsWith('R'));
-    const pricing = instances.filter(t => (t.Category || t.Department) === 'PRICING');
+    // Workload-wide numbers come from the API, which aggregates the whole filtered set
+    // (same seller scope, same filters) rather than the rows on screen. Anything that needs
+    // per-row detail — pricing/listing quality, buy-box wins — is still derived from this
+    // page and is labelled as such in the UI.
+    const a = aggregates;
+    const pageRows = instances;
+    const ruleTasks = pageRows.filter(t => t.IsRuleTask || t.source === 'ACTION_RULE' || t.InstanceCode?.startsWith('R'));
+    const pricing = pageRows.filter(t => (t.Category || t.Department) === 'PRICING');
     const pricingMismatches = pricing.filter(t => {
       const asp = t.SellingPrice || t.ASP;
       const sp = t.StandardPrice || t.SP;
       return asp && sp && Math.abs(((asp - sp) / sp) * 100) > 2;
     }).length;
-    const listing = instances.filter(t => (t.Category || t.Department) === 'LISTING');
+    const listing = pageRows.filter(t => (t.Category || t.Department) === 'LISTING');
     const scores = listing.map(t => t.AIHealthScore ?? t.CatalogScore).filter(s => s != null);
-    const avgHealth = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
-    const approved = instances.filter(t => t.Status === 'APPROVED').length;
-    const inProg = instances.filter(t => t.Status === 'IN_PROGRESS').length;
-    const overdue = instances.filter(t => isOverdue(t)).length;
-    const pendingReview = instances.filter(t => t.Status === 'UNDER_REVIEW').length;
-    const slaOk = instances.filter(t => t.SLAStatus === 'WITHIN_SLA' || !t.SLAStatus).length;
-    const slaCompliance = total > 0 ? Math.round((slaOk / total) * 100) : 100;
-    const buyBoxTasks = instances.filter(t => t.InstanceCode?.includes('DLY-002'));
+    const avgHealth = scores.length > 0 ? scores.reduce((x, y) => x + y, 0) / scores.length : null;
+    const pageApproved = pageRows.filter(t => t.Status === 'APPROVED').length;
+    const pageInProg = pageRows.filter(t => t.Status === 'IN_PROGRESS').length;
+    const pageOverdue = pageRows.filter(t => isOverdue(t)).length;
+    const pagePendingReview = pageRows.filter(t => t.Status === 'UNDER_REVIEW').length;
+    const pageSlaOk = pageRows.filter(t => t.SLAStatus === 'WITHIN_SLA' || !t.SLAStatus).length;
+    const buyBoxTasks = pageRows.filter(t => t.InstanceCode?.includes('DLY-002'));
     const buyBoxWin = buyBoxTasks.filter(t => t.IsBuyBoxWon || t.BuyBoxStatus === 'WON').length;
-    const buyBoxPct = buyBoxTasks.length > 0 ? Math.round((buyBoxWin / buyBoxTasks.length) * 100) : null;
+    const pageBuyBoxPct = buyBoxTasks.length > 0 ? Math.round((buyBoxWin / buyBoxTasks.length) * 100) : null;
+
+    const total = a ? a.total : pagination.total;
+    const approved = a ? a.approved : pageApproved;
+    const slaCompliance = a
+      ? (a.total > 0 ? Math.round(((a.total - a.slaBreached) / a.total) * 100) : 100)
+      : (pageRows.length > 0 ? Math.round((pageSlaOk / pageRows.length) * 100) : 100);
 
     return {
-      total, active: inProg, approved, overdue, pendingReview,
+      total,
+      active: a ? a.inProgress : pageInProg,
+      approved,
+      overdue: a ? a.overdue : pageOverdue,
+      pendingReview: a ? a.underReview : pagePendingReview,
       slaCompliance, pricingMismatches, avgHealth: avgHealth ?? summary?.kpi?.avgHealth,
-      autoTasks: ruleTasks.length + (automationStats?.total || 0),
-      autoOpen: ruleTasks.filter(t => !['COMPLETED','APPROVED','CANCELLED','REJECTED'].includes(t.Status)).length + (automationStats?.open || 0),
-      autoOverdue: automationStats?.overdue || ruleTasks.filter(t => isOverdue(t)).length,
-      activeDisputes: ruleTasks.filter(t => ['IN_PROGRESS', 'SUBMITTED'].includes(t.Status)).length,
-      buyBoxPct: buyBoxPct ?? summary?.kpi?.buyBoxPct,
+      autoTasks: a ? a.automated : (ruleTasks.length + (automationStats?.total || 0)),
+      autoOpen: a ? Math.max(0, a.automated - a.approved) : (automationStats?.open || 0),
+      autoOverdue: a ? a.overdue : (automationStats?.overdue || pageOverdue),
+      activeDisputes: a ? a.underReview : ruleTasks.filter(t => ['IN_PROGRESS', 'SUBMITTED'].includes(t.Status)).length,
+      buyBoxPct: pageBuyBoxPct ?? summary?.kpi?.buyBoxPct,
       disputeTrend: summary?.kpi?.disputeTrend,
       pricingTrend: summary?.kpi?.pricingTrend,
       qualityTrend: summary?.kpi?.qualityTrend,
       buyBoxTrend: summary?.kpi?.buyBoxTrend,
       successTrend: summary?.kpi?.successTrend,
       overdueTrend: summary?.kpi?.overdueTrend,
-      completionRate: total > 0 ? Math.round((approved / total) * 100) : 0,
+      completionRate: a ? a.completionRate : (total > 0 ? Math.round((approved / total) * 100) : 0),
       pricingHealth: pricingMismatches,
     };
-  }, [instances, summary]);
+  }, [instances, aggregates, summary, pagination.total, automationStats]);
 
   const kpi = { ...summary?.kpi, ...computedKpi };
 
@@ -590,7 +606,7 @@ export default function TaskInstancesPage() {
     { key: 'reviewer', label: 'Reviewer', options: reviewers.map(r => ({ value: r.Id, label: r.FullName })) },
     { key: 'priority', label: 'Priority', options: Object.entries(PRIORITIES).map(([k, v]) => ({ value: k, label: v.label })) },
     { key: 'status', label: 'Status', options: Object.entries(WORKFLOW_STATUSES).map(([k, v]) => ({ value: k, label: v.label })) },
-    { key: 'health', label: 'Health', options: [{ value: 'critical', label: 'Critical' }, { value: 'attention', label: 'Attention' }, { value: 'healthy', label: 'Healthy' }] },
+    { key: 'health', label: 'Health (this page)', options: [{ value: 'critical', label: 'Critical' }, { value: 'attention', label: 'Attention' }, { value: 'healthy', label: 'Healthy' }] },
     { key: 'frequency', label: 'Frequency', options: FREQUENCIES.map(f => ({ value: f.value, label: f.label })) },
     { key: 'source', label: 'Source', options: [
       { value: 'automation', label: '🤖 Automation rules' },
@@ -964,7 +980,10 @@ export default function TaskInstancesPage() {
       {instances.length > 0 && (
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--bc-border-subtle, #f1f5f9)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Space size={12}>
-            <Text style={{ fontSize: 12, color: 'var(--bc-text-secondary, #64748b)' }}>{pagination.total} tasks</Text>
+            <Text style={{ fontSize: 12, color: 'var(--bc-text-secondary, #64748b)' }}>
+              {pagination.total.toLocaleString()} tasks
+              {pagination.ruleTasks?.total > 0 && ` + ${pagination.ruleTasks.total.toLocaleString()} ruleset backlog`}
+            </Text>
             <Space size={6}>
               <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>Per page</Text>
               <Select
@@ -1026,6 +1045,57 @@ export default function TaskInstancesPage() {
           onDisputesToggle={() => setDisputesOnly(d => !d)}
           lastUpdated={lastSync}
         />
+
+        {/* Workload signal line. Every figure is an aggregate over the whole filtered set,
+            so it stays correct while paging and while a quick view narrows the list. */}
+        {aggregates && aggregates.total > 0 && (
+          <div className="tasks-signal" role="status">
+            <span className="tasks-signal-label">Workload</span>
+            <span className="tasks-signal-item">
+              <b>{aggregates.open.toLocaleString()}</b> open
+            </span>
+            <span className="tasks-signal-item">
+              <b>{aggregates.overdueRate}%</b> overdue
+            </span>
+            <span className="tasks-signal-item">
+              <b>{aggregates.dueToday.toLocaleString()}</b> due today
+            </span>
+            <span className="tasks-signal-item">
+              <b>{aggregates.slaBreached.toLocaleString()}</b> SLA breached
+            </span>
+            {aggregates.unassigned > 0 && (
+              <span className="tasks-signal-item tasks-signal-warn">
+                <b>{aggregates.unassigned.toLocaleString()}</b> unassigned
+              </span>
+            )}
+            <span className="tasks-signal-item">
+              <b>{aggregates.completionRate}%</b> completion
+            </span>
+            <span className="tasks-signal-item tasks-signal-muted">
+              avg open age <b>{aggregates.avgOpenAgeDays}d</b>
+            </span>
+          </div>
+        )}
+
+        {/* Legacy ruleset rows are paginated server-side like PEMS instances. If the
+            ruleset backlog is larger than the page we say so, instead of showing a
+            truncated list that looks complete. */}
+        {pagination.ruleTasks?.truncated && (
+          <Alert
+            type="warning"
+            showIcon
+            icon={<ExclamationCircleOutlined />}
+            style={{ marginTop: 16 }}
+            message={`${(pagination.ruleTasks.total || 0).toLocaleString()} open ruleset tasks in the backlog`}
+            description={
+              <span>
+                Showing {pagination.ruleTasks.returned} of {(pagination.ruleTasks.total || 0).toLocaleString()} on this page.
+                These were created by a ruleset run before task creation was fixed, and they are no longer being produced.
+                {' '}Review and close them in bulk, or clear the backlog from the Tasks page maintenance action.
+              </span>
+            }
+          />
+        )}
 
         {/* ═══ 3. TOOLBAR: QUICK VIEWS + CONTROLS ═══ */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 16, marginBottom: activeFilterCount > 0 ? 8 : 12 }}>
