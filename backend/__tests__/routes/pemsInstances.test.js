@@ -70,7 +70,9 @@ const instanceFor = (sellerId, i = 0) => ({
 
 /** Instances derived from the bound seller scope — lets responses differ per user. */
 const pemsPool = () => makeFakePool([
-    { match: /COUNT\(\*\) as total FROM PemsTaskInstances/, rows: [{ total: 1 }] },
+    // The count query now also returns the workload aggregates used by the Tasks KPI
+    // header, so the SELECT list is longer than just `COUNT(*) as total`.
+    { match: /COUNT\(\*\) as total[\s\S]*FROM PemsTaskInstances/, rows: [{ total: 1, openCount: 1, overdueCount: 0, slaBreachedCount: 0 }] },
     {
         match: /FROM PemsTaskInstances i/,
         rows: (entry) => {

@@ -709,3 +709,36 @@
 .md-brand { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--bc-border-subtle, #e2e8f0); border-radius: 999px; background: #fff; font-size: 12px; cursor: pointer; user-select: none; }
 .md-brand.done { background: var(--bc-success-bg, #E8F5E9); border-color: #A5D6A7; color: #1B5E20; }
 .md-brand.done .n { text-decoration: line-through; text-decoration-color: rgba(27, 94, 32, .45); }
+
+/* Workload signal line: aggregate figures for the whole filtered set, not the page. */
+.tasks-signal {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 12px 0 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--bc-border, #e2e8f0);
+  border-left: 3px solid var(--bc-primary, #2563eb);
+  border-radius: 8px;
+  background: var(--bc-surface, #fff);
+  font-size: 12.5px;
+  color: var(--bc-text-secondary, #475569);
+}
+.tasks-signal-label {
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  color: var(--bc-text-muted, #64748b);
+}
+.tasks-signal-item b {
+  color: var(--bc-text, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+.tasks-signal-warn b { color: #b45309; }
+.tasks-signal-muted b { color: var(--bc-text-secondary, #475569); font-weight: 500; }
+
+@media (max-width: 900px) {
+  .tasks-signal { gap: 4px 12px; }
+}

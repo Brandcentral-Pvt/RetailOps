@@ -425,6 +425,22 @@ async function getInstances(filters = {}, requester = null) {
   if (filters.isAutomated === 'true' || filters.isAutomated === true) { where += " AND i.Source = 'RULESET'"; }
   if (filters.overdue === 'true' || filters.overdue === true) { where += ' AND i.DueDate IS NOT NULL AND i.DueDate < dbo.GetEnvDate()'; }
   if (filters.dueToday === 'true' || filters.dueToday === true) { where += ' AND i.DueDate IS NOT NULL AND CAST(i.DueDate AS DATE) = CAST(dbo.GetEnvDate() AS DATE)'; }
+  // These three back the Tasks page quick views. They used to be applied in the browser
+  // to the 25 rows of the current page, which made both the row list and the counts
+  // wrong the moment a view matched more tasks than fit on one page.
+  if (filters.dueTomorrow === 'true' || filters.dueTomorrow === true) {
+    where += ` AND i.DueDate IS NOT NULL
+               AND CAST(i.DueDate AS DATE) = DATEADD(DAY, 1, CAST(dbo.GetEnvDate() AS DATE))`;
+  }
+  if (filters.upcoming === 'true' || filters.upcoming === true) {
+    where += ` AND i.DueDate IS NOT NULL
+               AND CAST(i.DueDate AS DATE) > DATEADD(DAY, 1, CAST(dbo.GetEnvDate() AS DATE))`;
+  }
+  // "open" = anything not yet approved/cancelled/rejected. Backs the TODO and UPCOMING
+  // pills, which both exclude finished work.
+  if (filters.open === 'true' || filters.open === true) {
+    where += " AND i.Status NOT IN ('APPROVED','CANCELLED','REJECTED')";
+  }
   if (filters.category) { where += ' AND (i.Category = @cat OR i.Department = @cat)'; req.input('cat', sql.NVarChar, filters.category); }
 
   const page = parseInt(filters.page) || 1;
@@ -440,8 +456,64 @@ async function getInstances(filters = {}, requester = null) {
   sellerScope.params.forEach(([n, v]) => countReq.input(n, sql.VarChar, v));
   if (filters.dueBefore) countReq.input('dueBefore', sql.DateTime2, new Date(filters.dueBefore));
   if (filters.dueAfter) countReq.input('dueAfter', sql.DateTime2, new Date(filters.dueAfter));
-  const countResult = await countReq.query(`SELECT COUNT(*) as total FROM PemsTaskInstances i ${where}`);
-  const total = countResult.recordset[0].total;
+  const countResult = await countReq.query(`
+    SELECT COUNT(*) as total,
+      SUM(CASE WHEN i.Status NOT IN ('APPROVED','CANCELLED','REJECTED') THEN 1 ELSE 0 END) AS openCount,
+      SUM(CASE WHEN i.Status = 'ASSIGNED' THEN 1 ELSE 0 END) AS assignedCount,
+      SUM(CASE WHEN i.Status = 'IN_PROGRESS' THEN 1 ELSE 0 END) AS inProgressCount,
+      SUM(CASE WHEN i.Status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) AS underReviewCount,
+      SUM(CASE WHEN i.Status = 'APPROVED' THEN 1 ELSE 0 END) AS approvedCount,
+      SUM(CASE WHEN i.Status = 'REJECTED' THEN 1 ELSE 0 END) AS rejectedCount,
+      SUM(CASE WHEN i.DueDate IS NOT NULL AND i.DueDate < dbo.GetEnvDate()
+                AND i.Status NOT IN ('APPROVED','CANCELLED','REJECTED') THEN 1 ELSE 0 END) AS overdueCount,
+      SUM(CASE WHEN CAST(i.DueDate AS DATE) = CAST(dbo.GetEnvDate() AS DATE)
+                AND i.Status NOT IN ('APPROVED','CANCELLED','REJECTED') THEN 1 ELSE 0 END) AS dueTodayCount,
+      SUM(CASE WHEN CAST(i.DueDate AS DATE) = DATEADD(DAY, 1, CAST(dbo.GetEnvDate() AS DATE))
+                AND i.Status NOT IN ('APPROVED','CANCELLED','REJECTED') THEN 1 ELSE 0 END) AS dueTomorrowCount,
+      SUM(CASE WHEN i.AssignedTo IS NULL AND i.Status NOT IN ('APPROVED','CANCELLED','REJECTED') THEN 1 ELSE 0 END) AS unassignedCount,
+      SUM(CASE WHEN i.SLAStatus = 'BREACHED' THEN 1 ELSE 0 END) AS slaBreachedCount,
+      SUM(CASE WHEN i.SLAStatus = 'AT_RISK' THEN 1 ELSE 0 END) AS slaAtRiskCount,
+      SUM(CASE WHEN i.Source = 'RULESET' THEN 1 ELSE 0 END) AS automatedCount,
+      SUM(CASE WHEN i.ReviewStatus = 'PENDING' THEN 1 ELSE 0 END) AS pendingReviewCount,
+      AVG(CASE WHEN i.Status NOT IN ('APPROVED','CANCELLED','REJECTED') AND i.CreatedAt IS NOT NULL
+               THEN DATEDIFF(DAY, i.CreatedAt, dbo.GetEnvDate()) END) AS avgOpenAgeDays,
+      SUM(CASE WHEN i.UpdatedAt >= DATEADD(DAY, -7, dbo.GetEnvDate())
+                AND i.Status = 'APPROVED' THEN 1 ELSE 0 END) AS approvedLast7Count
+    FROM PemsTaskInstances i ${where}
+  `);
+  // The count query can legitimately return without a row (e.g. a mocked pool, or a plan
+  // that short-circuits). Treat that as zero rather than throwing a 500 out of the list.
+  const total = countResult?.recordset?.[0]?.total || 0;
+  // The Tasks page used to derive its KPIs from the rows of the current page, so every
+  // number moved as you paged and none of them described the whole workload. These are
+  // computed over the entire filtered set, using the same WHERE (and therefore the same
+  // seller scope) as the list itself.
+  const agg = countResult?.recordset?.[0] || {};
+  const aggregates = {
+    total,
+    open: agg.openCount || 0,
+    assigned: agg.assignedCount || 0,
+    inProgress: agg.inProgressCount || 0,
+    underReview: agg.underReviewCount || 0,
+    approved: agg.approvedCount || 0,
+    rejected: agg.rejectedCount || 0,
+    overdue: agg.overdueCount || 0,
+    dueToday: agg.dueTodayCount || 0,
+    dueTomorrow: agg.dueTomorrowCount || 0,
+    unassigned: agg.unassignedCount || 0,
+    slaBreached: agg.slaBreachedCount || 0,
+    slaAtRisk: agg.slaAtRiskCount || 0,
+    automated: agg.automatedCount || 0,
+    pendingReview: agg.pendingReviewCount || 0,
+    approvedLast7: agg.approvedLast7Count || 0,
+    avgOpenAgeDays: agg.avgOpenAgeDays != null ? Math.round(agg.avgOpenAgeDays * 10) / 10 : 0,
+  };
+  aggregates.overdueRate = aggregates.open > 0
+    ? Math.round((aggregates.overdue / aggregates.open) * 1000) / 10
+    : 0;
+  aggregates.completionRate = total > 0
+    ? Math.round((aggregates.approved / total) * 1000) / 10
+    : 0;
 
   const dataReq = pool.request();
   applyFilterInputs(dataReq, filters);
@@ -473,6 +545,7 @@ async function getInstances(filters = {}, requester = null) {
   `);
 
   let instances = result.recordset.map(r => ({ ...r, Tags: safeParse(r.Tags, []), Attachments: safeParse(r.Attachments, []) }));
+  const pagination = { page, limit, total, totalPages: Math.ceil(total / limit) };
 
   if (filters.includeSubtasks === 'true' && instances.length > 0) {
     const ids = instances.map(r => r.Id);
@@ -491,20 +564,45 @@ async function getInstances(filters = {}, requester = null) {
   }
 
   if (filters.includeRuleTasks === 'true') {
-    const ruleReq = pool.request();
-    let ruleWhere = "WHERE a.Status IN ('PENDING','IN_PROGRESS') AND a.Type = 'automated'";
-    if (filters.sellerId) { ruleWhere += ' AND a.SellerId = @ruleSellerId'; ruleReq.input('ruleSellerId', sql.VarChar, filters.sellerId); }
-    if (filters.priority) { ruleWhere += ' AND a.Priority = @rulePriority'; ruleReq.input('rulePriority', sql.VarChar, filters.priority); }
+    // Legacy ruleset rows live in Actions. Build the filter clause and bind the
+    // parameters on a given request so the page query and the COUNT stay in sync.
+    const applyRuleFilters = (req) => {
+      let where = "WHERE a.Status IN ('PENDING','IN_PROGRESS') AND a.Type = 'automated'";
+      if (filters.sellerId) { where += ' AND a.SellerId = @ruleSellerId'; req.input('ruleSellerId', sql.VarChar, filters.sellerId); }
+      if (filters.priority) { where += ' AND a.Priority = @rulePriority'; req.input('rulePriority', sql.VarChar, filters.priority); }
+      if (filters.assignedTo) { where += ' AND a.AssignedTo = @ruleAssignedTo'; req.input('ruleAssignedTo', sql.VarChar, filters.assignedTo); }
+      if (filters.search) {
+        where += ' AND (a.Title LIKE @ruleSearch OR a.Description LIKE @ruleSearch)';
+        req.input('ruleSearch', sql.NVarChar, `%${filters.search}%`);
+      }
+      return where;
+    };
+
     try {
-      const ruleResult = await ruleReq.query(`
-        SELECT a.Id, a.Title, a.Status, a.Priority, a.SellerId, s.Name as SellerName,
-               a.AssignedTo, a.CreatedAt, a.DueDate, a.Description, a.Asins, a.SubTasks,
-               a.SubTaskProgress, a.Category as Department
-        FROM Actions a
-        LEFT JOIN Sellers s ON a.SellerId = s.Id
-        ${ruleWhere}
-        ORDER BY a.CreatedAt DESC
-      `);
+      const ruleReq = pool.request();
+      const ruleWhere = applyRuleFilters(ruleReq);
+      // These legacy rows are paginated exactly like PEMS instances. They used to be
+      // fetched with no LIMIT at all, so a single ruleset run that wrote 221k rows made
+      // every Tasks page request serialise the entire backlog.
+      ruleReq.input('ruleOffset', sql.Int, (page - 1) * limit).input('ruleLimit', sql.Int, limit);
+
+      const countReq = pool.request();
+      const countWhere = applyRuleFilters(countReq);
+
+      const [ruleResult, ruleCount] = await Promise.all([
+        ruleReq.query(`
+          SELECT a.Id, a.Title, a.Status, a.Priority, a.SellerId, s.Name as SellerName,
+                 a.AssignedTo, a.CreatedAt, a.DueDate, a.Description, a.Asins, a.SubTasks,
+                 a.SubTaskProgress, a.Category as Department
+          FROM Actions a
+          LEFT JOIN Sellers s ON a.SellerId = s.Id
+          ${ruleWhere}
+          ORDER BY a.CreatedAt DESC
+          OFFSET @ruleOffset ROWS FETCH NEXT @ruleLimit ROWS ONLY
+        `),
+        countReq.query(`SELECT COUNT(*) AS c FROM Actions a ${countWhere}`),
+      ]);
+      const ruleTaskTotal = ruleCount.recordset[0]?.c || 0;
       const ruleTasks = ruleResult.recordset.map(r => ({
         Id: `rule_${r.Id}`,
         InstanceCode: `[RULESET]`,
@@ -525,10 +623,17 @@ async function getInstances(filters = {}, requester = null) {
         IsRuleTask: true,
       }));
       instances = [...ruleTasks, ...instances];
+      pagination.ruleTasks = {
+        total: ruleTaskTotal,
+        returned: ruleTasks.length,
+        // Surfaced so the UI can warn that the ruleset backlog is bigger than the page
+        // instead of silently showing a truncated list as if it were complete.
+        truncated: ruleTaskTotal > ruleTasks.length,
+      };
     } catch (e) { console.error('Failed to fetch rule tasks:', e.message); }
   }
 
-  return { instances, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return { instances, pagination, aggregates };
 }
 
 async function getInstanceById(id) {
