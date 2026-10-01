@@ -1,5 +1,6 @@
 const S = require('../../services/pems/routineSchedule');
-const { parseDailyOpsSheet, splitSteps, parseOwner } = require('../../services/pems/dailyOpsImporter');
+const { parseDailyOpsSheet, splitSteps, parseOwner, mapFrequency, parseHours, TASK_DEFAULTS } = require('../../services/pems/dailyOpsImporter');
+const { loadDailyOpsDefaults, DEFAULT_FILE } = require('../../services/pems/dailyOpsDefaults');
 
 const HEAD = ['Seq', 'Task ID', 'Priority', 'Main Task', 'Sub-Task No', 'Sub Task', 'How to Perform', 'Function', 'Team', 'Owner', 'Expected Output'];
 const row = (o) => HEAD.map(h => o[h] || '');
@@ -125,5 +126,52 @@ describe('parseDailyOpsSheet', () => {
   });
   it('fails clearly when the header is missing', () => {
     expect(() => parseDailyOpsSheet([['a', 'b'], ['1', '2']])).toThrow(/header row/);
+  });
+});
+
+describe('defaults are data, not code', () => {
+  const WIDE = [...HEAD, 'Frequency', 'TAT', 'SLA'];
+  const wideRow = (o) => WIDE.map(h => o[h] || '');
+
+  it('loads the shipped defaults file and keeps shared settings separate from per-task ones', () => {
+    const { base, byCode } = loadDailyOpsDefaults(DEFAULT_FILE);
+    expect(base).toMatchObject({ slaHours: 8, runDays: '1,2,3,4,5,6' });
+    expect(byCode['DLY-001']).toMatchObject({ minutes: 12, brand: true, dueTime: '18:00' });
+    expect(byCode['DLY-009'].onDemand).toBe(true);
+    expect(Object.keys(byCode)).not.toContain('_note');
+    expect(TASK_DEFAULTS['DLY-001']).toMatchObject({ minutes: 12, brand: true, slaHours: 8 });   // flat view the importer exposes
+  });
+
+  it('lets a caller-supplied defaults file win over the shipped one', () => {
+    const rows = [WIDE, wideRow({ 'Task ID': 'DLY-042', Priority: 'P2', 'Main Task': 'Anything', 'Sub Task': 'Do it', 'How to Perform': 'Go' })];
+    const t = parseDailyOpsSheet(rows, { defaults: { byCode: { 'DLY-042': { minutes: 99, brand: true, dueTime: '09:15', onDemand: true } } } }).templates[0];
+    expect(t).toMatchObject({ code: 'DLY-042', estimatedExecutionMinutes: 99, brandMode: 'CHECKLIST', dueTime: '09:15', autoAssign: false, frequency: 'ONE_TIME' });
+  });
+
+  it('reads Frequency, TAT and SLA from the sheet itself, carried down the block', () => {
+    const rows = [
+      WIDE,
+      wideRow({ 'Task ID': 'DLY-050', Priority: 'P1', 'Main Task': 'Reports', 'Sub Task': 'First', 'How to Perform': 'a', Frequency: 'Weekly', TAT: '4 hrs', SLA: '2 days' }),
+      wideRow({ 'Sub Task': 'Second', 'How to Perform': 'b' }),
+    ];
+    const { templates, warnings } = parseDailyOpsSheet(rows);
+    const t = templates[0];
+    expect(t).toMatchObject({ code: 'DLY-050', frequency: 'WEEKLY', tatHours: 4 });
+    expect(t.slaHours).toBe(8);                                    // "2 days" is not hours → not guessed
+    expect(warnings.some(w => /SLA "2 days" is not a number of hours/.test(w))).toBe(true);
+  });
+
+  it('never guesses a frequency, and never turns need-driven text into a daily task', () => {
+    expect(mapFrequency('Every day')).toBe('DAILY');
+    expect(mapFrequency('Twice a week')).toBe('BI_WEEKLY');
+    expect(mapFrequency('Monthly')).toBe('MONTHLY');
+    expect(mapFrequency('on demand')).toBe('ONE_TIME');
+    expect(mapFrequency('whenever needed')).toBe('ONE_TIME');
+    expect(mapFrequency('sometime soon')).toBeNull();
+    expect(mapFrequency('')).toBeNull();
+    expect(parseHours('8')).toBe(8);
+    expect(parseHours('12 hours')).toBe(12);
+    expect(parseHours('1 day')).toBeNull();
+    expect(parseHours('TBD')).toBeNull();
   });
 });

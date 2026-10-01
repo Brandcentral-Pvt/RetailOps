@@ -35,9 +35,17 @@ function applyOverrides(tpl, o = {}) {
   return out;
 }
 
-async function importDailyOps({ rows, overrides = {}, dryRun = true, generateNow = true, userId = null } = {}) {
+/**
+ * @param {Object}   [opts]
+ * @param {Array}    [opts.rows]       sheet as an array of cell arrays (xlsx header:1)
+ * @param {Object}   [opts.overrides]  per-code preview edits: { [code]: { dueTime, runDays, brandMode, … } }
+ * @param {Object}   [opts.defaults]   blank-cell defaults, same shape as config/dailyOps.defaults.json
+ * @param {boolean}  [opts.dryRun]     true = report only, nothing written (default)
+ * @param {boolean}  [opts.generateNow] also create today's occurrences after saving
+ */
+async function importDailyOps({ rows, overrides = {}, defaults, dryRun = true, generateNow = true, userId = null } = {}) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('The sheet is empty.');
-  const { templates, warnings } = parseDailyOpsSheet(rows);
+  const { templates, warnings } = parseDailyOpsSheet(rows, { defaults });
   const pool = await getPool();
 
   // Existing templates (matched by code = Task ID) keep their routine settings on re-import.
