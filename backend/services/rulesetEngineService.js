@@ -264,18 +264,32 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + (dueDays[priority] || 7));
 
-        // Resolve assignee: prefer seller-mapped brand manager, else creator
+        // Resolve the assignee to a real, seller-associated user and capture
+        // their name. Both halves matter: the id decides who can open the task,
+        // and the name is what the list renders (it was left empty before, so
+        // every ruleset task showed "Unknown").
         let assignedTo = createdByUserId;
         let assigneeName = '';
         if (sellerIdStr) {
           try {
-            const ar = await pool.request()
-              .input('sid', sql.VarChar, sellerIdStr)
-              .query('SELECT TOP 1 UserId FROM UserSellers WHERE SellerId = @sid');
-            if (ar.recordset.length > 0 && ar.recordset[0].UserId) {
-              assignedTo = ar.recordset[0].UserId;
+            const pemsService = require('./pems/pemsService');
+            const owner = await pemsService.resolveAssigneeForSeller(sellerIdStr, createdByUserId);
+            if (owner) {
+              assignedTo = owner.id;
+              assigneeName = owner.name;
+            } else {
+              // Nobody covers this seller: leave it visibly unassigned rather
+              // than crediting someone who cannot access the task.
+              assignedTo = '';
+              assigneeName = '';
             }
-          } catch (e) { /* fallback to creator */ }
+          } catch (e) { /* keep creator as a last resort */ }
+        } else if (createdByUserId) {
+          try {
+            const pemsService = require('./pems/pemsService');
+            const creator = await pemsService.resolveAssigneeForSeller(null, createdByUserId);
+            if (creator) { assignedTo = creator.id; assigneeName = creator.name; }
+          } catch (e) { /* best effort */ }
         }
 
         // Try PEMS first; if it fails, fall back to legacy Actions table
@@ -622,18 +636,23 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
       'Complete all sub-tasks below to resolve.',
     ].join('\n');
 
-    // Fetch assigned user for this group key
+    // Resolve the assignee for this group to a real, seller-associated user and
+    // keep their name, so grouped ruleset tasks are attributed rather than
+    // rendering as "Unknown". See resolveAssigneeForSeller for the ordering.
+    const groupSellerId = groupByField === 'seller' && groupKey !== 'UNKNOWN' ? groupKey : null;
     let assignedTo = ruleset.CreatedBy || '';
-    if (groupByField === 'seller' && groupKey !== 'UNKNOWN') {
-      try {
-        const assigneeRes = await pool.request()
-          .input('sid', sql.VarChar, groupKey)
-          .query('SELECT TOP 1 UserId FROM UserSellers WHERE SellerId = @sid');
-        if (assigneeRes.recordset.length > 0) {
-          assignedTo = assigneeRes.recordset[0].UserId;
-        }
-      } catch (e) { /* fallback */ }
-    }
+    let assigneeName = '';
+    try {
+      const pemsService = require('./pems/pemsService');
+      const owner = await pemsService.resolveAssigneeForSeller(groupSellerId, ruleset.CreatedBy || null);
+      if (owner) {
+        assignedTo = owner.id;
+        assigneeName = owner.name;
+      } else if (groupSellerId) {
+        assignedTo = '';
+        assigneeName = '';
+      }
+    } catch (e) { /* keep creator as a last resort */ }
 
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDateMs);
@@ -652,6 +671,7 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
           category: group.entities[0]?.category || 'GENERAL',
           sellerId: groupByField === 'seller' ? groupKey : null,
           assignedTo,
+          assigneeName,
           createdBy: ruleset.CreatedBy || '',
           dueDate,
           slaHours: dueDateMs * 24,
@@ -714,44 +734,53 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
   return results;
 }
 
+/**
+ * Authoritative attribute -> column map. Anything not in here cannot be
+ * evaluated or turned into SQL, so this table is the contract for rule authors
+ * (including the AI generator).
+ */
+const RULE_ATTRIBUTE_COLUMNS = {
+  // Price & BuyBox
+  priceDispute: 'PriceDispute',
+  buyBoxWin: 'BuyBoxWin',
+  uploadedPrice: 'UploadedPrice',
+  currentPrice: 'CurrentPrice',
+  mrp: 'Mrp',
+  discountPercentage: 'DiscountPercentage',
+  hasDeal: 'HasDeal',
+  dealBadge: 'DealBadge',
+  // Listing Quality
+  lqs: 'LQS',
+  titleScore: 'TitleScore',
+  bulletScore: 'BulletScore',
+  imageScore: 'ImageScore',
+  descriptionScore: 'DescriptionScore',
+  imagesCount: 'ImagesCount',
+  bulletPoints: 'BulletPoints',
+  hasAplus: 'HasAplus',
+  // Performance
+  bsr: 'BSR',
+  subBsr: 'SubBsr',
+  bsrTrend: 'BsrTrend',
+  rating: 'Rating',
+  ratingTrend: 'RatingTrend',
+  reviewCount: 'ReviewCount',
+  // Inventory
+  stockLevel: 'StockLevel',
+  availabilityStatus: 'AvailabilityStatus',
+  // Filters
+  asinStatus: 'Status',
+  seller: 'SellerId',
+  category: 'Category',
+  brand: 'Brand',
+  ads: 'Ads',
+};
+
+/** Valid `groupBy` values for create_group_task actions. */
+const RULE_GROUP_BY_FIELDS = ['seller', 'category', 'brand', 'bsrRange', 'priceRange'];
+
 function mapAttributeToColumn(attr) {
-  const map = {
-    // Price & BuyBox
-    priceDispute: 'PriceDispute',
-    buyBoxWin: 'BuyBoxWin',
-    uploadedPrice: 'UploadedPrice',
-    currentPrice: 'CurrentPrice',
-    mrp: 'Mrp',
-    discountPercentage: 'DiscountPercentage',
-    hasDeal: 'HasDeal',
-    dealBadge: 'DealBadge',
-    // Listing Quality
-    lqs: 'LQS',
-    titleScore: 'TitleScore',
-    bulletScore: 'BulletScore',
-    imageScore: 'ImageScore',
-    descriptionScore: 'DescriptionScore',
-    imagesCount: 'ImagesCount',
-    bulletPoints: 'BulletPoints',
-    hasAplus: 'HasAplus',
-    // Performance
-    bsr: 'BSR',
-    subBsr: 'SubBsr',
-    bsrTrend: 'BsrTrend',
-    rating: 'Rating',
-    ratingTrend: 'RatingTrend',
-    reviewCount: 'ReviewCount',
-    // Inventory
-    stockLevel: 'StockLevel',
-    availabilityStatus: 'AvailabilityStatus',
-    // Filters
-    asinStatus: 'Status',
-    seller: 'SellerId',
-    category: 'Category',
-    brand: 'Brand',
-    ads: 'Ads',
-  };
-  return map[attr] || null;
+  return RULE_ATTRIBUTE_COLUMNS[attr] || null;
 }
 
 // formatSqlCondition removed — use parameterized buildSqlFilter instead
@@ -1122,5 +1151,10 @@ module.exports = {
   runForSeller,
   getEntityData,
   evaluateCondition,
-  evaluateRule
+  evaluateRule,
+  // Exported so the AI prompt builder derives its allowed-attribute list from
+  // the same table the SQL filter uses. An attribute the AI invents is an
+  // attribute the engine silently drops, so the two must not drift.
+  RULE_ATTRIBUTE_COLUMNS,
+  RULE_GROUP_BY_FIELDS,
 };

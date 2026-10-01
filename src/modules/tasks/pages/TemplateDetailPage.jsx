@@ -14,6 +14,9 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import tasksApi from '../services/tasksApi';
 import { FREQUENCIES, CATEGORIES, PRIORITIES, DEPARTMENTS } from '../constants';
+// See the note in TaskTemplatesPage.jsx: this page renders .tpl-detail-* and
+// .sop-* classes from tasks.css and is code-split, so it needs its own import.
+import '../tasks.css';
 
 const { Text, Title } = Typography;
 

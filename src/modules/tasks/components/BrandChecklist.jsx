@@ -19,14 +19,21 @@ export default function BrandChecklist({ brands = [], canEdit = true, busy = fal
     <div className="md-brands" data-testid="brand-checklist">
       <div className="md-brands__head">
         <span className="md-brands__title"><ShopOutlined /> Brands <b>{done}/{brands.length}</b></span>
-        <Progress percent={Math.round((done / brands.length) * 100)} showInfo={false} size="small" style={{ flex: 1, margin: '0 10px' }} />
+        <Progress
+          className="md-brands__progress"
+          percent={Math.round((done / brands.length) * 100)}
+          showInfo={false}
+          size="small"
+        />
         {onToggleAll && (
           <Button type="link" size="small" disabled={!canEdit || busy} onClick={() => onToggleAll(done !== brands.length)}>
             {done === brands.length ? 'Clear all' : 'Mark all done'}
           </Button>
         )}
       </div>
-      {brands.length > 8 && <Input size="small" allowClear placeholder="Find a brand…" value={q} onChange={e => setQ(e.target.value)} style={{ marginBottom: 6 }} />}
+      {brands.length > 8 && (
+        <Input className="md-brands__search" size="small" allowClear placeholder="Find a brand…" value={q} onChange={e => setQ(e.target.value)} />
+      )}
       {!canEdit && hint && <div className="md-brands__hint">{hint}</div>}
       <div className="md-brands__list">
         {shown.map(b => (
@@ -35,7 +42,7 @@ export default function BrandChecklist({ brands = [], canEdit = true, busy = fal
             <span className="n">{b.SellerName || 'Unnamed brand'}</span>
           </label>
         ))}
-        {!shown.length && <div className="md-brands__hint">No brand matches “{q}”.</div>}
+        {!shown.length && <div className="md-brands__hint">No brand matches &ldquo;{q}&rdquo;.</div>}
       </div>
     </div>
   );

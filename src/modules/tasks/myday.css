@@ -1,0 +1,589 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MY DAY  (.md-*)
+   Component layer for src/modules/tasks/pages/MyDayPage.jsx
+   Sits on the BrandCentral design tokens (src/styles/tokens.css).
+
+   Design intent — an operations console, not a dashboard:
+     · solid white surfaces with 1px cool-gray borders, never a gradient
+     · one primary blue; semantic colour only where it carries meaning
+     · a slim horizontal progress bar instead of a decorative ring
+     · dense but readable: 13-14px body, 11-12px metadata
+
+   Schema rules honoured here (src/styles/DESIGN-SYSTEM.md §14):
+     · no hardcoded hex — every colour is a --bc-* semantic token
+     · no primitive tokens in rules — only semantic tokens + local --md-*
+       component tokens, which dark mode can override in one place
+     · all spacing on the 4px grid (--bc-space-*)
+     · transitions respect prefers-reduced-motion
+     · body text meets WCAG AA (4.5:1) on its surface
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────
+   1. COMPONENT TOKENS
+   ────────────────────────────────────────────── */
+.md-page {
+  /* Accents that appear more than once. */
+  --md-review: var(--bc-violet-700);
+  --md-review-soft: var(--bc-violet-50);
+  --md-review-line: var(--bc-violet-100);
+  --md-done: var(--bc-green-700);
+  --md-break: var(--bc-slate-300);
+  --md-now: var(--bc-red-600);
+
+  --md-shadow: var(--bc-shadow-card);
+  --md-gap: var(--bc-space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-now { animation: none; }
+  .md-next { transition: none; }
+  .md-slot__card { transition: none; }
+  .md-slot__card:hover { transform: none; }
+  .md-btn:hover { transform: none; }
+}
+
+/* ──────────────────────────────────────────────
+   2. PAGE SHELL
+   ────────────────────────────────────────────── */
+.md-page {
+  max-width: var(--bc-content-max-width);
+  margin: 0 auto;
+  padding: var(--bc-space-5) var(--bc-space-5) var(--bc-space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-gap);
+}
+@media (max-width: 768px) {
+  .md-page { padding: var(--bc-space-4) var(--bc-space-3) var(--bc-space-10); }
+}
+
+/* ──────────────────────────────────────────────
+   3. HEADER — solid surface, 1px border.
+   Identity on the left, controls on the right, then a slim progress bar and
+   a stat strip. No ring, no gradient, no decorative fill.
+   ────────────────────────────────────────────── */
+.md-head {
+  background: var(--bc-surface-card);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-xl);
+  box-shadow: var(--bc-shadow-card);
+  overflow: hidden;
+}
+
+.md-head__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bc-space-4);
+  flex-wrap: wrap;
+  padding: var(--bc-space-4) var(--bc-space-5);
+}
+.md-head__id { min-width: 0; }
+.md-head__title {
+  font-size: var(--bc-text-2xl);
+  font-weight: 600;
+  line-height: var(--bc-leading-tight);
+  letter-spacing: -0.01em;
+  color: var(--bc-text-heading);
+  margin: 0;
+}
+.md-head__sub {
+  font-size: var(--bc-text-base);
+  color: var(--bc-text-secondary);
+  margin-top: var(--bc-space-1);
+  line-height: var(--bc-leading-snug);
+}
+.md-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--bc-space-2);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Quiet secondary control — deliberately not filled, so the page keeps one
+   clear focal point (the Up Next action). */
+.md-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--bc-radius-md);
+  font-size: var(--bc-text-sm);
+  font-weight: 500;
+  color: var(--bc-text-body);
+  background: var(--bc-surface-card);
+  border: 1px solid var(--bc-border-default);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-btn:hover { background: var(--bc-surface-page); border-color: var(--bc-border-strong); }
+.md-btn:focus-visible { outline: 2px solid var(--bc-primary-600); outline-offset: 1px; }
+.md-btn .anticon { font-size: var(--bc-text-base); color: var(--bc-text-secondary); }
+.md-btn--busy .anticon { animation: md-spin 0.7s linear infinite; }
+@keyframes md-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .md-btn--busy .anticon { animation: none; } }
+
+/* ── Horizontal progress ── */
+.md-progress {
+  padding: 0 var(--bc-space-5) var(--bc-space-4);
+}
+.md-progress__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--bc-space-3);
+  margin-bottom: 6px;
+  font-size: var(--bc-text-sm);
+}
+.md-progress__label { color: var(--bc-text-body); font-weight: 500; }
+.md-progress__value {
+  color: var(--bc-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.md-progress__track {
+  height: 6px;
+  border-radius: var(--bc-radius-full);
+  background: var(--bc-surface-subtle);
+  overflow: hidden;
+}
+.md-progress__fill {
+  height: 100%;
+  border-radius: var(--bc-radius-full);
+  background: var(--bc-primary-600);
+  transition: width 0.3s ease;
+}
+/* The bar turns green only once everything is cleared — completion is the
+   only state that earns the success colour. */
+.md-progress__fill.is-complete { background: var(--md-done); }
+
+/* ── Stat strip ── dividers instead of separate cards, so five numbers read as
+   one summary rather than five competing widgets. */
+.md-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--bc-border-subtle);
+  background: var(--bc-surface-muted);
+}
+@media (max-width: 900px) { .md-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .md-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.md-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--bc-space-3) var(--bc-space-5);
+  border-left: 1px solid var(--bc-border-subtle);
+}
+.md-stat:first-child { border-left: 0; }
+.md-stat__label {
+  font-size: var(--bc-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--bc-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bc-text-secondary);
+}
+.md-stat__value {
+  font-size: var(--bc-text-xl);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--bc-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+.md-stat__note { font-size: var(--bc-text-xs); color: var(--bc-text-secondary); }
+.md-stat--danger .md-stat__value { color: var(--bc-red-700); }
+.md-stat--warn .md-stat__value { color: var(--bc-amber-700); }
+.md-stat--good .md-stat__value { color: var(--md-done); }
+.md-stat--accent .md-stat__value { color: var(--md-review); }
+@media (max-width: 900px) {
+  .md-stat:nth-child(4) { border-left: 0; }
+}
+@media (max-width: 560px) {
+  .md-stat:nth-child(odd) { border-left: 0; }
+  .md-stat:nth-child(n + 3) { border-top: 1px solid var(--bc-border-subtle); }
+}
+
+/* ── Workload status line ── */
+.md-status {
+  display: flex;
+  align-items: center;
+  gap: var(--bc-space-3);
+  flex-wrap: wrap;
+  padding: var(--bc-space-3) var(--bc-space-5);
+  border-top: 1px solid var(--bc-border-subtle);
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-secondary);
+}
+.md-status__item { display: inline-flex; align-items: center; gap: 6px; }
+.md-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--bc-radius-full);
+  background: var(--bc-slate-300);
+  flex-shrink: 0;
+}
+.md-status__dot.good { background: var(--bc-green-600); }
+.md-status__dot.warn { background: var(--bc-amber-500); }
+.md-status__dot.bad { background: var(--bc-red-600); }
+.md-status__text b { color: var(--bc-text-body); font-weight: 600; font-variant-numeric: tabular-nums; }
+.md-status__health { font-weight: 600; }
+.md-status__health--good { color: var(--bc-green-700); }
+.md-status__health--warn { color: var(--bc-amber-700); }
+.md-status__health--bad { color: var(--bc-red-700); }
+
+/* ──────────────────────────────────────────────
+   4. NOTES
+   ────────────────────────────────────────────── */
+.md-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--bc-space-2);
+  padding: var(--bc-space-3) var(--bc-space-4);
+  border-radius: var(--bc-radius-lg);
+  font-size: var(--bc-text-base);
+  border: 1px solid transparent;
+}
+.md-note__icon { flex-shrink: 0; margin-top: 2px; }
+.md-note__body { flex: 1; min-width: 0; }
+.md-note--warn { background: var(--bc-amber-50); color: var(--bc-amber-800); border-color: var(--bc-amber-200); }
+.md-note--bad { background: var(--bc-red-50); color: var(--bc-red-800); border-color: var(--bc-red-200); }
+.md-note--info { background: var(--bc-primary-50); color: var(--bc-primary-700); border-color: var(--bc-primary-200); }
+.md-note--sm { padding: var(--bc-space-2) var(--bc-space-3); font-size: var(--bc-text-sm); margin-bottom: var(--bc-space-2); }
+.md-note b { font-weight: 600; }
+
+/* ──────────────────────────────────────────────
+   5. CARD
+   ────────────────────────────────────────────── */
+.md-card {
+  background: var(--bc-surface-card);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-xl);
+  padding: var(--bc-card-padding);
+  box-shadow: var(--bc-shadow-card);
+}
+.md-card--review { border-color: var(--md-review-line); }
+.md-card__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bc-space-2);
+  font-size: var(--bc-text-sm);
+  font-weight: 600;
+  letter-spacing: var(--bc-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bc-text-secondary);
+  margin: 0 0 var(--bc-space-3);
+}
+.md-card__title--review { color: var(--md-review); }
+.md-card__title-aside { text-transform: none; letter-spacing: var(--bc-tracking-normal); font-weight: 400; }
+
+/* ──────────────────────────────────────────────
+   6. GRID
+   ────────────────────────────────────────────── */
+.md-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--md-gap); align-items: start; }
+@media (max-width: 1000px) { .md-grid { grid-template-columns: minmax(0, 1fr); } }
+.md-stack { display: flex; flex-direction: column; gap: var(--md-gap); }
+
+/* ──────────────────────────────────────────────
+   7. UP NEXT — the single focal point of the page.
+   ────────────────────────────────────────────── */
+.md-next {
+  position: relative;
+  border-radius: var(--bc-radius-xl);
+  background: var(--bc-surface-card);
+  border: 1px solid var(--bc-border-strong);
+  box-shadow: var(--bc-shadow-md);
+  overflow: hidden;
+}
+.md-next__bar { height: 3px; background: var(--md-accent, var(--bc-primary-600)); }
+.md-next__body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+@media (max-width: 900px) { .md-next__body { grid-template-columns: minmax(0, 1fr); } }
+.md-next__left { padding: var(--bc-space-5); display: flex; flex-direction: column; gap: var(--bc-space-3); }
+.md-next__right {
+  padding: var(--bc-space-5);
+  background: var(--bc-surface-muted);
+  border-left: 1px solid var(--bc-border-subtle);
+}
+@media (max-width: 900px) {
+  .md-next__right { border-left: none; border-top: 1px solid var(--bc-border-subtle); }
+}
+.md-eyebrow {
+  font-size: var(--bc-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--bc-tracking-wide);
+  text-transform: uppercase;
+  color: var(--md-accent, var(--bc-primary-700));
+}
+.md-next__title {
+  font-size: var(--bc-text-xl);
+  font-weight: 600;
+  line-height: var(--bc-leading-tight);
+  letter-spacing: -0.01em;
+  color: var(--bc-text-heading);
+  margin: 0;
+}
+.md-next__actions { display: flex; align-items: center; gap: var(--bc-space-3); flex-wrap: wrap; }
+.md-cta {
+  height: 40px;
+  border-radius: var(--bc-radius-lg);
+  font-weight: 600;
+  font-size: var(--bc-text-base);
+  padding: 0 var(--bc-space-6);
+}
+/* The CTA is tinted with the task's priority accent. When the action is
+   blocked the token is dropped so antd's disabled styling wins. */
+.md-cta:not(.md-cta--blocked) { background: var(--md-accent); border-color: var(--md-accent); }
+.md-cta--accent { color: var(--bc-white); }
+.md-quiet { color: var(--bc-text-secondary); font-size: var(--bc-text-base); }
+.md-sub { font-size: var(--bc-text-sm); color: var(--bc-text-secondary); }
+.md-tiny { font-size: var(--bc-text-xs); color: var(--bc-text-secondary); }
+.md-meta { display: flex; gap: var(--bc-space-3); flex-wrap: wrap; font-size: var(--bc-text-base); color: var(--bc-text-secondary); }
+
+/* Reason pills */
+.md-reasons { display: flex; gap: var(--bc-space-1); flex-wrap: wrap; }
+.md-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bc-space-1);
+  padding: 2px var(--bc-space-2);
+  border-radius: var(--bc-radius-full);
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.md-reason--danger { background: var(--bc-red-50); color: var(--bc-red-700); }
+.md-reason--warn { background: var(--bc-amber-50); color: var(--bc-amber-700); }
+.md-reason--info { background: var(--bc-primary-50); color: var(--bc-primary-700); }
+.md-reason--auto { background: var(--bc-cyan-50); color: var(--bc-primary-700); border: 1px solid var(--bc-cyan-100); }
+
+/* Inline hint under the CTA */
+.md-hint { display: block; font-size: var(--bc-text-sm); line-height: var(--bc-leading-snug); }
+.md-hint--warn,
+.md-hint.warn { color: var(--bc-amber-700); }
+.md-hint a { color: var(--bc-primary-700); cursor: pointer; text-decoration: underline; }
+.md-evidence { display: block; margin-top: var(--bc-space-2); }
+.md-note-input { margin-top: var(--bc-space-2); }
+
+/* Review queue CTA */
+.md-review-cta { margin-top: var(--bc-space-3); border-radius: var(--bc-radius-lg); font-weight: 600; background: var(--md-review); border-color: var(--md-review); }
+.md-card__title--done { color: var(--md-done); }
+.md-done-icon { color: var(--md-done); }
+
+/* Reviewer feedback */
+.md-feedback {
+  padding: var(--bc-space-3);
+  border-radius: var(--bc-radius-lg);
+  background: var(--bc-red-50);
+  border: 1px solid var(--bc-red-200);
+  color: var(--bc-red-800);
+  font-size: var(--bc-text-base);
+  white-space: pre-wrap;
+}
+.md-feedback__label { font-weight: 600; }
+
+/* All-clear panel */
+.md-clear { text-align: center; padding: var(--bc-space-10) var(--bc-space-5); display: flex; flex-direction: column; gap: var(--bc-space-2); align-items: center; }
+.md-clear__icon { font-size: var(--bc-text-3xl); line-height: var(--bc-leading-none); color: var(--md-done); }
+.md-clear__title { font-size: var(--bc-text-xl); font-weight: 600; color: var(--bc-text-heading); margin: var(--bc-space-2) 0 0; }
+.md-clear__actions { margin-top: var(--bc-space-2); display: flex; gap: var(--bc-space-2); justify-content: center; flex-wrap: wrap; }
+
+/* ──────────────────────────────────────────────
+   8. STEPS
+   ────────────────────────────────────────────── */
+.md-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--bc-space-2);
+  padding: var(--bc-space-2) 0;
+  border-bottom: 1px solid var(--bc-border-subtle);
+  font-size: var(--bc-text-base);
+}
+.md-step:last-child { border-bottom: none; }
+.md-step.done { color: var(--bc-text-secondary); }
+.md-step.done .md-step__label { text-decoration: line-through; }
+.md-step__body { flex: 1; min-width: 0; }
+.md-step__label { display: block; }
+.md-step__output { display: block; font-size: var(--bc-text-xs); color: var(--bc-text-secondary); margin-top: 2px; }
+.md-step__done { color: var(--md-done); flex-shrink: 0; margin-top: 2px; }
+.md-step__group {
+  font-size: var(--bc-text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--bc-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bc-text-secondary);
+  margin: var(--bc-space-3) 0 var(--bc-space-1);
+}
+
+/* ──────────────────────────────────────────────
+   9. TIMELINE
+   ────────────────────────────────────────────── */
+.md-slot { display: grid; grid-template-columns: 64px var(--bc-space-4) minmax(0, 1fr); gap: var(--bc-space-2); }
+.md-slot__time {
+  text-align: right;
+  font-size: var(--bc-text-sm);
+  font-weight: 600;
+  color: var(--bc-text-body);
+  padding-top: var(--bc-space-3);
+  font-variant-numeric: tabular-nums;
+}
+.md-slot__time small { display: block; font-weight: var(--bc-weight-regular); color: var(--bc-text-secondary); font-size: var(--bc-text-2xs); }
+.md-slot__rail { position: relative; }
+.md-slot__rail::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--bc-border-subtle); }
+.md-slot:first-child .md-slot__rail::before { top: var(--bc-space-4); }
+.md-slot:last-child .md-slot__rail::before { bottom: calc(100% - var(--bc-space-4)); }
+.md-slot__dot {
+  position: absolute;
+  left: 1px;
+  top: var(--bc-space-3);
+  width: var(--bc-space-3);
+  height: var(--bc-space-3);
+  border-radius: var(--bc-radius-full);
+  background: var(--md-accent, var(--bc-slate-400));
+  border: 2px solid var(--bc-surface-card);
+  box-shadow: 0 0 0 1px var(--md-accent, var(--bc-slate-400));
+}
+.md-slot__card {
+  margin-bottom: var(--bc-space-2);
+  padding: var(--bc-space-3) var(--bc-space-4);
+  border-radius: var(--bc-radius-lg);
+  border: 1px solid var(--bc-border-subtle);
+  background: var(--bc-surface-card);
+  border-left: 3px solid var(--md-accent, var(--bc-slate-400));
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.md-slot__card:hover { box-shadow: var(--bc-shadow-md); border-color: var(--bc-border-strong); }
+.md-slot__card:focus-visible { outline: 2px solid var(--bc-primary-600); outline-offset: 2px; }
+.md-slot__card.is-next { border-color: var(--bc-primary-600); background: var(--bc-primary-50); }
+.md-slot__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--bc-space-2); }
+.md-slot__title { font-size: var(--bc-text-base); font-weight: 600; color: var(--bc-text-heading); }
+.md-slot__meta { font-size: var(--bc-text-xs); color: var(--bc-text-secondary); flex-shrink: 0; }
+.md-slot__tags { display: flex; gap: var(--bc-space-1); flex-wrap: wrap; margin-top: var(--bc-space-2); align-items: center; }
+.md-slot__card.break {
+  cursor: default;
+  background: var(--bc-surface-muted);
+  border-left-style: dashed;
+  color: var(--bc-text-secondary);
+  font-size: var(--bc-text-sm);
+  padding: var(--bc-space-1) var(--bc-space-4);
+}
+.md-slot__card.break:hover { box-shadow: none; border-color: var(--bc-border-subtle); }
+.md-slot__card.review { border-left-color: var(--md-review); }
+.md-slot__review-title { color: var(--md-review); }
+
+.md-now { display: flex; align-items: center; gap: var(--bc-space-2); margin: 0 0 var(--bc-space-2) 74px; color: var(--md-now); font-size: var(--bc-text-2xs); font-weight: 600; letter-spacing: var(--bc-tracking-wide); }
+.md-now::after { content: ''; flex: 1; height: 2px; background: linear-gradient(90deg, var(--md-now), transparent); }
+
+/* Overflow block */
+.md-overflow { margin-top: var(--bc-space-4); }
+.md-overflow__title { color: var(--bc-amber-700); margin-bottom: var(--bc-space-2); }
+
+/* ──────────────────────────────────────────────
+   10. MINI LIST
+   ────────────────────────────────────────────── */
+.md-mini { display: flex; align-items: center; gap: var(--bc-space-2); padding: var(--bc-space-2) 0; border-bottom: 1px solid var(--bc-border-subtle); cursor: pointer; }
+.md-mini:last-child { border-bottom: none; }
+.md-mini:hover .md-mini__title { color: var(--bc-primary-700); }
+.md-mini__body { flex: 1; min-width: 0; }
+.md-mini__title {
+  font-size: var(--bc-text-base);
+  font-weight: 500;
+  color: var(--bc-text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-mini__sub { font-size: var(--bc-text-xs); color: var(--bc-text-secondary); }
+.md-mini__sub--must { color: var(--bc-red-700); font-weight: 600; }
+.md-mini__empty { font-size: var(--bc-text-sm); color: var(--bc-text-secondary); }
+.md-dot { width: var(--bc-space-2); height: var(--bc-space-2); border-radius: var(--bc-radius-full); flex-shrink: 0; background: var(--dot, var(--bc-slate-400)); }
+
+/* ──────────────────────────────────────────────
+   11. SOP "How?" DISCLOSURE
+   ────────────────────────────────────────────── */
+.md-how__toggle {
+  margin-left: var(--bc-space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--bc-text-xs);
+  font-weight: 600;
+  color: var(--bc-primary-700);
+}
+.md-how__toggle:hover { text-decoration: underline; }
+.md-how {
+  margin-top: var(--bc-space-2);
+  padding: var(--bc-space-2) var(--bc-space-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: var(--bc-text-sm);
+  line-height: var(--bc-leading-normal);
+  color: var(--bc-text-body);
+  background: var(--bc-surface-page);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-md);
+}
+.md-how a { color: var(--bc-primary-700); }
+
+/* ──────────────────────────────────────────────
+   12. BRAND COVERAGE CHECKLIST
+   ────────────────────────────────────────────── */
+.md-brands {
+  margin-top: var(--bc-space-3);
+  padding: var(--bc-space-3);
+  background: var(--bc-surface-page);
+  border: 1px solid var(--bc-border-subtle);
+  border-radius: var(--bc-radius-lg);
+}
+.md-brands__head { display: flex; align-items: center; gap: var(--bc-space-2); margin-bottom: var(--bc-space-2); font-size: var(--bc-text-base); }
+.md-brands__title { font-weight: 500; color: var(--bc-text-heading); white-space: nowrap; }
+.md-brands__title b { color: var(--bc-primary-700); margin-left: var(--bc-space-1); font-variant-numeric: tabular-nums; }
+.md-brands__progress { flex: 1; min-width: 40px; }
+.md-brands__hint { font-size: var(--bc-text-sm); color: var(--bc-text-secondary); margin-bottom: var(--bc-space-2); }
+.md-brands__search { margin-bottom: var(--bc-space-2); }
+.md-brands__list { display: flex; flex-wrap: wrap; gap: var(--bc-space-1) var(--bc-space-2); max-height: 168px; overflow: auto; }
+.md-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bc-space-1);
+  padding: var(--bc-space-1) var(--bc-space-3) var(--bc-space-1) var(--bc-space-2);
+  border: 1px solid var(--bc-border-default);
+  border-radius: var(--bc-radius-full);
+  background: var(--bc-surface-card);
+  font-size: var(--bc-text-sm);
+  color: var(--bc-text-body);
+  cursor: pointer;
+  user-select: none;
+}
+.md-brand.done { background: var(--bc-green-50); border-color: var(--bc-green-200); color: var(--bc-green-800); }
+.md-brand.done .n { text-decoration: line-through; text-decoration-color: var(--bc-green-600); }
+
+/* ──────────────────────────────────────────────
+   13. LOADING
+   ────────────────────────────────────────────── */
+.md-loading { display: flex; flex-direction: column; gap: var(--bc-space-4); }
+
+/* ──────────────────────────────────────────────
+   14. DARK MODE
+   ────────────────────────────────────────────── */
+body.bc-dark .md-page {
+  --md-review: var(--bc-violet-500);
+  --md-review-soft: color-mix(in srgb, var(--bc-violet-600) 14%, transparent);
+  --md-review-line: color-mix(in srgb, var(--bc-violet-600) 34%, transparent);
+  --md-done: var(--bc-green-500);
+}
+body.bc-dark .md-note--warn { background: color-mix(in srgb, var(--bc-amber-600) 16%, transparent); border-color: var(--bc-amber-600); }
+body.bc-dark .md-note--bad { background: color-mix(in srgb, var(--bc-red-600) 16%, transparent); border-color: var(--bc-red-600); }
+body.bc-dark .md-note--info { background: color-mix(in srgb, var(--bc-primary-600) 18%, transparent); border-color: var(--bc-primary-600); }
+body.bc-dark .md-reason--danger { background: color-mix(in srgb, var(--bc-red-600) 18%, transparent); }
+body.bc-dark .md-reason--warn { background: color-mix(in srgb, var(--bc-amber-600) 18%, transparent); }
+body.bc-dark .md-reason--info,
+body.bc-dark .md-reason--auto { background: color-mix(in srgb, var(--bc-cyan-600) 20%, transparent); color: var(--bc-cyan-100); border-color: var(--bc-cyan-600); }
+body.bc-dark .md-feedback { background: color-mix(in srgb, var(--bc-red-600) 14%, transparent); color: var(--bc-red-200); }
+body.bc-dark .md-brand.done { background: color-mix(in srgb, var(--bc-green-600) 16%, transparent); border-color: var(--bc-green-600); color: var(--bc-green-200); }
+body.bc-dark .md-stats { background: var(--bc-surface-muted); }

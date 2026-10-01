@@ -1,5 +1,7 @@
 const pemsService = require('../../services/pems/pemsService');
 const { WORKFLOW_STATUSES, FREQUENCIES, CATEGORIES, PRIORITIES } = require('../../services/pems/workflowEngine');
+const { canCreateTaskForSeller } = require('../../services/pems/pemsPolicy');
+const { isGlobalUserRole } = require('../../utils/roleUtils');
 
 function getUserId(req) { return req.user?.Id || req.user?._id; }
 function getUserName(req) { return (`${req.user?.FirstName || ''} ${req.user?.LastName || ''}`).trim() || req.user?.Email; }
@@ -65,6 +67,37 @@ exports.deleteTemplate = async (req, res) => {
 
 exports.createInstance = async (req, res) => {
   try {
+    // A restricted user must not be able to open work against a seller they do
+    // not own — that would put a task outside their scope in someone else's list.
+    const sellerId = req.body?.sellerId || req.body?.SellerId || null;
+    if (!canCreateTaskForSeller(req.user, sellerId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have access to the selected seller',
+      });
+    }
+
+    // The assignee and reviewer must actually cover this seller, otherwise the
+    // work is created for someone who can never see it. The UI already hides
+    // other brands' people from the dropdowns; this closes the API so a
+    // hand-built request cannot do the same thing.
+    if (sellerId) {
+      const targets = [
+        ['assignee', req.body?.assignedTo || req.body?.AssignedTo],
+        ['reviewer', req.body?.reviewerId || req.body?.ReviewerId],
+      ];
+      for (const [role, userId] of targets) {
+        if (!userId) continue;
+        const covers = await pemsService.userCoversSeller(userId, sellerId);
+        if (!covers) {
+          return res.status(403).json({
+            success: false,
+            error: `The selected ${role} does not work on this seller`,
+          });
+        }
+      }
+    }
+
     const result = await pemsService.createInstance(req.body);
     res.json({ success: true, data: result });
   } catch (err) {
@@ -104,7 +137,11 @@ exports.verifyFix = async (req, res) => {
 
 exports.getInstanceById = async (req, res) => {
   try {
-    const instance = await pemsService.getInstanceById(req.params.id);
+    // req.user is required: the service enforces seller scope and fails closed,
+    // so omitting it would 404 every lookup. A task outside the caller's
+    // sellers returns 404 rather than 403, so the id cannot be probed for
+    // existence.
+    const instance = await pemsService.getInstanceById(req.params.id, req.user);
     if (!instance) return res.status(404).json({ success: false, error: 'Instance not found' });
     res.json({ success: true, data: instance });
   } catch (err) {
@@ -134,7 +171,9 @@ exports.bulkTransition = async (req, res) => {
     const result = await pemsService.bulkTransition(
       ids, toStatus,
       getUserId(req), getUserName(req) || req.user?.email, req.user?.role,
-      details
+      details,
+      // Full requester: seller scope is enforced per task inside the service.
+      req.user
     );
     res.json({ success: true, data: result });
   } catch (err) {
@@ -154,7 +193,7 @@ exports.updateAchievement = async (req, res) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // SUB TASKS & ACTIVITIES
 // ═══════════════════════════════════════════════════════
 
@@ -176,7 +215,7 @@ exports.completeActivity = async (req, res) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // EVIDENCE
 // ═══════════════════════════════════════════════════════
 
@@ -193,9 +232,62 @@ exports.uploadEvidence = async (req, res) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// AFFECTED ASINS
+// ════════════════════════════════════════════════════════
+
+exports.getInstanceAsins = async (req, res) => {
+  try {
+    const data = await pemsService.getInstanceAsins(req.params.id, req.user);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('getInstanceAsins error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.updateAsinRemarks = async (req, res) => {
+  try {
+    const { asinCode, sellerId, signalCode, remarks, resolution, waiveReason } = req.body || {};
+    if (!asinCode || !sellerId || !signalCode) {
+      return res.status(400).json({ success: false, error: 'asinCode, sellerId, signalCode required' });
+    }
+    const data = await pemsService.updateAsinRemarks(
+      req.params.id, asinCode, sellerId, signalCode,
+      remarks, resolution, waiveReason,
+      getUserId(req), getUserName(req) || req.user?.email
+    );
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('updateAsinRemarks error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+exports.resolveAsin = async (req, res) => {
+  try {
+    const { action, waiveReason } = req.body || {};
+    if (!action || !['resolve', 'waive'].includes(action)) {
+      return res.status(400).json({ success: false, error: 'action must be "resolve" or "waive"' });
+    }
+    if (action === 'waive' && !waiveReason) {
+      return res.status(400).json({ success: false, error: 'waiveReason required when waiving' });
+    }
+    const data = await pemsService.resolveAsin(
+      req.params.id, req.params.asinId,
+      action, waiveReason,
+      getUserId(req), getUserName(req) || req.user?.email
+    );
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('resolveAsin error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// ════════════════════════════════════════════════════════
 // REVIEWS
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 
 const reviewActor = (req) => ({
   id: getUserId(req),
@@ -245,13 +337,13 @@ exports.getReviewStats = async (req, res) => {
   }
 };
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
 
 exports.getDashboardKPIs = async (req, res) => {
   try {
-    const kpis = await pemsService.getDashboardKPIs(req.query);
+    const kpis = await pemsService.getDashboardKPIs(req.query, req.user);
     res.json({ success: true, data: kpis });
   } catch (err) {
     console.error('getDashboardKPIs error:', err);
@@ -261,7 +353,7 @@ exports.getDashboardKPIs = async (req, res) => {
 
 exports.getSellerPerformance = async (req, res) => {
   try {
-    const perf = await pemsService.getSellerPerformance(req.query);
+    const perf = await pemsService.getSellerPerformance(req.query, req.user);
     res.json({ success: true, data: perf });
   } catch (err) {
     console.error('getSellerPerformance error:', err);
@@ -280,11 +372,18 @@ exports.refreshSLA = async (req, res) => {
 
 // ═══════════════════════════════════════════════════════
 // V2: NOTIFICATIONS
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 
 exports.getNotifications = async (req, res) => {
   try {
-    const userId = getUserId(req) || req.query.userId;
+    // Notifications carry task titles and seller names, so a ?userId override
+    // let any user read anyone else's feed via IDOR. Only global roles may look
+    // at another user's notifications; everyone else is pinned to their own.
+    const callerId = getUserId(req);
+    const role = String(req.user?.role?.name || req.user?.role || '').toLowerCase();
+    const userId = callerId && (!req.query.userId || String(req.query.userId) === String(callerId))
+      ? callerId
+      : (isGlobalUserRole(role) ? req.query.userId : callerId);
     if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
     const unreadOnly = req.query.unreadOnly === 'true';
     const notifications = await pemsService.getNotifications(userId, unreadOnly);
@@ -316,11 +415,11 @@ exports.markAllNotificationsRead = async (req, res) => {
 
 // ═══════════════════════════════════════════════════════
 // V2: ANALYTICS & DEPARTMENTS
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 
 exports.getDepartmentPerformance = async (req, res) => {
   try {
-    const perf = await pemsService.getDepartmentPerformance(req.query);
+    const perf = await pemsService.getDepartmentPerformance(req.query, req.user);
     res.json({ success: true, data: perf });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -329,7 +428,7 @@ exports.getDepartmentPerformance = async (req, res) => {
 
 exports.getBrandManagerPerformance = async (req, res) => {
   try {
-    const perf = await pemsService.getBrandManagerPerformance(req.query);
+    const perf = await pemsService.getBrandManagerPerformance(req.query, req.user);
     res.json({ success: true, data: perf });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -338,7 +437,7 @@ exports.getBrandManagerPerformance = async (req, res) => {
 
 exports.getReviewerPerformance = async (req, res) => {
   try {
-    const perf = await pemsService.getReviewerPerformance(req.query);
+    const perf = await pemsService.getReviewerPerformance(req.query, req.user);
     res.json({ success: true, data: perf });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -347,7 +446,7 @@ exports.getReviewerPerformance = async (req, res) => {
 
 exports.getRiskPanel = async (req, res) => {
   try {
-    const risk = await pemsService.getRiskPanel();
+    const risk = await pemsService.getRiskPanel(req.user);
     res.json({ success: true, data: risk });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -356,9 +455,10 @@ exports.getRiskPanel = async (req, res) => {
 
 exports.getTopPerformers = async (req, res) => {
   try {
-    const performers = await pemsService.getTopPerformers();
+    const performers = await pemsService.getTopPerformers(req.user);
     res.json({ success: true, data: performers });
   } catch (err) {
+    console.error('getTopPerformers error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 };
@@ -374,11 +474,23 @@ exports.checkEscalations = async (req, res) => {
 
 // ═══════════════════════════════════════════════════════
 // V2: DYNAMIC DATA SOURCES
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+
+exports.getAutomationStats = async (req, res) => {
+  try {
+    // Seller-scoped: this drives a dashboard tile, so an unscoped count would
+    // expose other sellers' automation volume.
+    const stats = await pemsService.getAutomationStats(req.query, req.user);
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    console.error('getAutomationStats error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
 
 exports.getSellers = async (req, res) => {
   try {
-    const sellers = await pemsService.getSellersForPEMS(req.query.marketplace);
+    const sellers = await pemsService.getSellersForPEMS(req.query.marketplace, req.user);
     res.json({ success: true, data: sellers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -387,7 +499,9 @@ exports.getSellers = async (req, res) => {
 
 exports.getBrandManagers = async (req, res) => {
   try {
-    const managers = await pemsService.getBrandManagersForPEMS();
+    // sellerId narrows the list to that brand's own people. The service clamps
+    // it to the caller's own sellers, so passing someone else's id returns [].
+    const managers = await pemsService.getBrandManagersForPEMS(req.user, req.query.sellerId);
     res.json({ success: true, data: managers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -396,7 +510,7 @@ exports.getBrandManagers = async (req, res) => {
 
 exports.getReviewers = async (req, res) => {
   try {
-    const reviewers = await pemsService.getReviewersForPEMS();
+    const reviewers = await pemsService.getReviewersForPEMS(req.user, req.query.sellerId);
     res.json({ success: true, data: reviewers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -420,7 +534,7 @@ exports.getFilterOptions = async (req, res) => {
   });
 };
 
-// ═══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // V3: TEMPLATE DETAIL ANALYTICS
 // ═══════════════════════════════════════════════════════
 
@@ -454,36 +568,11 @@ exports.recalculateProgress = async (req, res) => {
   }
 };
 
-// ── Automation (ruleset) stats ─────────────────────
-exports.getAutomationStats = async (req, res) => {
-  try {
-    const sql = require('mssql');
-    const { getPool } = require('../../config/db');
-    const pool = await getPool();
-    const total = await pool.request().query("SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET'");
-    const open = await pool.request().query("SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET' AND Status NOT IN ('COMPLETED','APPROVED','CANCELLED','REJECTED')");
-    const overdue = await pool.request().query(`SELECT COUNT(*) as c FROM PemsTaskInstances WHERE Source = 'RULESET' AND SLAStatus = 'OVERDUE' AND Status NOT IN ('COMPLETED','APPROVED','CANCELLED','REJECTED')`);
-    const rulesets = await pool.request().query(`
-      SELECT SourceId as rulesetId, SourceRef as ruleName, COUNT(*) as tasks,
-             SUM(CASE WHEN Status IN ('COMPLETED','APPROVED') THEN 1 ELSE 0 END) as completed
-      FROM PemsTaskInstances
-      WHERE Source = 'RULESET' AND SourceId IS NOT NULL
-      GROUP BY SourceId, SourceRef
-      ORDER BY tasks DESC
-    `);
-    res.json({
-      success: true,
-      data: {
-        total: total.recordset[0]?.c || 0,
-        open: open.recordset[0]?.c || 0,
-        overdue: overdue.recordset[0]?.c || 0,
-        byRuleset: rulesets.recordset,
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-};
+// NOTE: an unscoped duplicate of getAutomationStats used to live here. Because
+// it was defined *after* the seller-scoped version above, it silently replaced it
+// on `exports`, and its `require('../../config/db')` pointed at a path that does
+// not exist (the real module is database/db) — which is what surfaced to the UI
+// as a 500 on /api/pems/automation-stats.
 
 // ── Daily routine (Daily Operations Master import + generation) ──
 exports.importDailyOps = async (req, res) => {

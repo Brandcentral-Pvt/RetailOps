@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, requirePermission } = require('../../middleware/auth');
-const { requireTaskAccess } = require('../../middleware/pemsAccess');
+const { requireTaskAccess, requireTaskView, requireGlobalPemsRole } = require('../../middleware/pemsAccess');
 const ctrl = require('../../controllers/pems/pemsController');
 const { cacheRoute, invalidateCache } = require('../../middleware/cache');
 
@@ -22,9 +22,12 @@ router.post('/routine/import', auth, requirePermission('tasks_manage'), invalida
 router.post('/routine/generate', auth, requirePermission('tasks_manage'), ctrl.generateRoutineToday);
 
 // ── Task Instances ──
+// getInstanceById uses the *view* level check: you may read a task in your
+// sellers even if it is assigned to someone else. Every write below uses the
+// stricter 'act' check (seller scope AND assigned to / reviewing you).
 router.get('/instances', auth, cacheRoute('pems:instances', 30), ctrl.getInstances);
-router.get('/instances/:id', auth, cacheRoute('pems:instances', 60), ctrl.getInstanceById);
-router.post('/instances', auth, invalidateCache('pems:instances'), ctrl.createInstance);
+router.get('/instances/:id', auth, requireTaskView, cacheRoute('pems:instances', 60), ctrl.getInstanceById);
+router.post('/instances', auth, requirePermission('tasks_manage'), invalidateCache('pems:instances'), ctrl.createInstance);
 router.post('/instances/bulk/transition', auth, invalidateCache('pems:instances'), ctrl.bulkTransition);
 router.post('/instances/:id/transition', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.transitionStatus);
 router.post('/instances/:id/comments', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.addComment);
@@ -37,6 +40,11 @@ router.post('/activities/:activityId/complete', auth, requireTaskAccess, invalid
 
 // ── Evidence ──
 router.post('/evidence', auth, requireTaskAccess, ctrl.uploadEvidence);
+
+// ── Affected ASINs (per task instance) ──
+router.get('/instances/:id/asins', auth, requireTaskView, ctrl.getInstanceAsins);
+router.put('/instances/:id/asins/remarks', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.updateAsinRemarks);
+router.post('/instances/:id/asins/:asinId/resolve', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.resolveAsin);
 
 // ── Reviews ──
 router.post('/reviews', auth, requireTaskAccess, invalidateCache('pems:instances'), ctrl.submitReview);
@@ -52,8 +60,8 @@ router.get('/dashboard/brand-manager-performance', auth, cacheRoute('pems:dashbo
 router.get('/dashboard/reviewer-performance', auth, cacheRoute('pems:dashboard', 120), ctrl.getReviewerPerformance);
 router.get('/dashboard/risk-panel', auth, cacheRoute('pems:dashboard', 120), ctrl.getRiskPanel);
 router.get('/dashboard/top-performers', auth, cacheRoute('pems:dashboard', 120), ctrl.getTopPerformers);
-router.post('/dashboard/refresh-sla', auth, ctrl.refreshSLA);
-router.post('/dashboard/check-escalations', auth, ctrl.checkEscalations);
+router.post('/dashboard/refresh-sla', auth, requireGlobalPemsRole, ctrl.refreshSLA);
+router.post('/dashboard/check-escalations', auth, requireGlobalPemsRole, ctrl.checkEscalations);
 
 // ── Enterprise Dashboard (3 consolidated endpoints) ──
 const dc = require('../../controllers/pems/dashboardController');
@@ -64,7 +72,7 @@ router.get('/dashboard/activity-feed', auth, cacheRoute('pems:dashboard', 30), d
 // ── V3: Template Detail + Assignment Rules ──
 router.get('/templates/:id/detail', auth, cacheRoute('pems:templates', 120), ctrl.getTemplateDetail);
 router.put('/templates/:templateId/assignment-rules', auth, requirePermission('tasks_manage'), invalidateCache('pems:templates'), ctrl.upsertAssignmentRules);
-router.post('/recalculate-progress', auth, ctrl.recalculateProgress);
+router.post('/recalculate-progress', auth, requireGlobalPemsRole, ctrl.recalculateProgress);
 
 // ── Notifications ──
 router.get('/notifications', auth, cacheRoute('pems:notifications', 15), ctrl.getNotifications);
@@ -93,7 +101,7 @@ router.get('/brand-managers', auth, cacheRoute('pems:meta', 300), ctrl.getBrandM
 router.get('/reviewers', auth, cacheRoute('pems:meta', 300), ctrl.getReviewers);
 
 // ── Demo Seed ──
-router.post('/seed-demo', auth, async (req, res) => {
+router.post('/seed-demo', auth, requireGlobalPemsRole, async (req, res) => {
   try {
     const { seedDemo } = require('../../services/pems/seedDemo');
     const result = await seedDemo();

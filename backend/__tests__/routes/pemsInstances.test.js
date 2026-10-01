@@ -79,6 +79,14 @@ const pemsPool = () => makeFakePool([
                 .filter(([k]) => k.startsWith('scopeSeller_'))
                 .map(([, v]) => v);
             const single = entry.inputs.sellerId;
+            // The scope clause distinguishes the two outcomes a restricted user
+            // with zero assigned sellers can still have: the impossible
+            // predicate (an explicit out-of-scope ?sellerId) yields nothing,
+            // while the brand-less clause yields only their own brand-less work.
+            const ownBrandless = entry.sql.includes('SellerId IS NULL');
+            if (ownBrandless && scoped.length === 0 && !single) {
+                return [{ ...instanceFor(null, 0), Id: 'inst-brandless-0', AssignedTo: entry.inputs.scopeMe }];
+            }
             const ids = scoped.length > 0 ? scoped : (single ? [single] : ['s-all']);
             return ids.map((sid, i) => instanceFor(sid, i));
         },
@@ -145,12 +153,20 @@ describe('GET /api/pems/instances — seller-level access', () => {
         expect(res.body.instances).toEqual([]);
     });
 
-    test('restricted user with no assigned sellers sees nothing', async () => {
+    test('restricted user with no assigned sellers sees only their own brand-less work', async () => {
         mockState.user = mkUser('u-bm-4', []);
         const res = await request(buildApp()).get('/api/pems/instances');
 
         expect(res.status).toBe(200);
-        expect(res.body.instances).toEqual([]);
+        // Zero assigned sellers means no seller-owned task is reachable. Daily
+        // routines are brand-less by design and stay visible to the person they
+        // are assigned to, so the result is exactly that carve-out.
+        const sellers = res.body.instances.map(i => i.SellerId);
+        expect(sellers.every(sid => sid === null)).toBe(true);
+        expect(res.body.instances.every(i => i.AssignedTo === 'u-bm-4')).toBe(true);
+        const select = mockState.pool.callWhere(/FROM PemsTaskInstances i\s+LEFT JOIN/);
+        expect(select.sql).toContain('SellerId IS NULL');
+        expect(select.sql).not.toContain('SellerId IN (');
     });
 
     test('global user can filter by explicit sellerId', async () => {

@@ -384,3 +384,22 @@ textarea.ant-input,
 .ant-input {
   line-height: normal !important;
 }
+
+/* ──────────────────────────────────────────────
+   My Day — scoped Ant Design overrides
+   antd v5 ships these as `.ant-btn.ant-btn-primary` (specificity 0,2,0),
+   so a bare component class can't win. The schema requires every antd
+   override to live here rather than in component CSS.
+   ────────────────────────────────────────────── */
+
+/* Ghost buttons sitting on the My Day hero gradient */
+
+/* Review-queue primary button keeps the review accent */
+.md-page .md-review-cta.ant-btn-primary { background: var(--md-review); border-color: var(--md-review); }
+.md-page .md-review-cta.ant-btn-primary:not(:disabled):hover { background: var(--md-review) !important; border-color: var(--md-review) !important; }
+
+/* Up-next primary button inherits the slot accent */
+.md-page .md-cta--accent.ant-btn-primary { background: var(--md-accent, var(--bc-primary-600)); border-color: var(--md-accent, var(--bc-primary-600)); }
+.md-page .md-cta--accent.ant-btn-primary:not(:disabled):hover { filter: brightness(0.94); }
+
+/* Ring text colour lives on the render prop's own span, so no override needed. */

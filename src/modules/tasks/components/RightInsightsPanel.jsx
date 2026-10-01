@@ -1,115 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Badge, Space, Divider } from 'antd';
 import {
   ClockCircleOutlined, EyeOutlined, WarningOutlined,
-  ThunderboltOutlined, ReloadOutlined, CheckCircleOutlined,
-  CalendarOutlined, ArrowRightOutlined
+  ThunderboltOutlined, ReloadOutlined, CalendarOutlined
 } from '@ant-design/icons';
 import tasksApi from '../services/tasksApi';
-import { WORKFLOW_STATUSES, PRIORITIES } from '../constants';
+import { PRIORITIES } from '../constants';
 import { calculateHealth, getDueDateLabel, isOverdue } from '../utils/taskHealth';
 import dayjs from 'dayjs';
 
-const { Text } = Typography;
-
-function InsightSection({ title, icon: Icon, count, children }) {
+function InsightSection({ title, icon: Icon, count, empty, children }) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 10,
-      }}>
-        <Space size={8}>
-          <Icon style={{ fontSize: 13, color: 'var(--bc-text-secondary)' }} />
-          <Text style={{
-            fontSize: 11, fontWeight: 600,
-            textTransform: 'uppercase', letterSpacing: '0.05em',
-            color: 'var(--bc-text-secondary)',
-          }}>{title}</Text>
-        </Space>
-        {count !== undefined && (
-          <div style={{
-            background: 'var(--bc-surface-subtle)', color: 'var(--bc-text-body)',
-            borderRadius: 10, padding: '0 8px',
-            fontSize: 10, fontWeight: 600, lineHeight: '18px',
-          }}>{count}</div>
-        )}
-      </div>
-      {children}
-    </div>
+    <section className="tasks-panel-section">
+      <header className="tasks-panel-section__head">
+        <span className="tasks-panel-section__title"><Icon /> {title}</span>
+        {count !== undefined && <span className="tasks-panel-section__count">{count}</span>}
+      </header>
+      {count === 0 ? <p className="tasks-panel-empty">{empty}</p> : children}
+    </section>
   );
 }
 
 function TaskRow({ task, onClick }) {
   const health = calculateHealth(task);
   const due = getDueDateLabel(task);
-  const prCfg = PRIORITIES[task.Priority] || {};
   return (
-    <div
-      onClick={() => onClick?.(task)}
-      style={{
-        padding: '10px 12px',
-        borderRadius: 'var(--bc-radius-lg)',
-        border: '1px solid var(--bc-border-subtle)',
-        background: 'var(--bc-surface-card)',
-        marginBottom: 6,
-        cursor: 'pointer',
-        transition: 'all 0.1s ease',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = '#2563EB30';
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(37,99,235,0.08)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--bc-border-subtle)';
-        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)';
-      }}
-    >
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-        marginBottom: 6,
-      }}>
-        <Text style={{
-          fontSize: 12, fontWeight: 600, color: 'var(--bc-text-heading)',
-          lineHeight: 1.3, flex: 1,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{task.Title || 'Untitled'}</Text>
-        <div style={{
-          width: 7, height: 7, borderRadius: '50%',
-          background: health.color, flexShrink: 0, marginTop: 5,
-          boxShadow: `0 0 0 2px ${health.color}20`,
-        }} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space size={6}>
-          <Text style={{ fontSize: 10, color: 'var(--bc-text-muted)', fontFamily: 'var(--bc-font-mono)' }}>{task.InstanceCode}</Text>
-          {task.Priority && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 3,
-              padding: '1px 6px', borderRadius: 4,
-              background: prCfg.bg, color: prCfg.color,
-              fontSize: 9, fontWeight: 600,
-            }}>
-              <div style={{
-                width: 4, height: 4, borderRadius: '50%',
-                background: prCfg.color,
-              }} />
-              {task.Priority}
-            </div>
+    <button type="button" className="tasks-panel-item" onClick={() => onClick?.(task)}>
+      <span className="tasks-panel-dot" style={{ background: health.color }} />
+      <span className="tasks-panel-item__body">
+        <span className="tasks-panel-item__title">{task.Title || 'Untitled'}</span>
+        <span className="tasks-panel-item__meta">
+          <span style={{ fontFamily: 'var(--bc-font-mono)' }}>{task.InstanceCode}</span>
+          {task.Priority && task.Priority !== 'MEDIUM' && (
+            <span className={`tasks-priority tasks-priority--${String(task.Priority).toLowerCase()}`}>{task.Priority}</span>
           )}
-        </Space>
-        {due && (
-          <Text style={{
-            fontSize: 10, fontWeight: 600, color: due.color,
-            display: 'flex', alignItems: 'center', gap: 3,
-          }}>
-            <CalendarOutlined style={{ fontSize: 9 }} />
-            {due.text}
-          </Text>
-        )}
-      </div>
-    </div>
+          {due && (
+            <span style={{ color: due.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <CalendarOutlined style={{ fontSize: 9 }} />
+              {due.text}
+            </span>
+          )}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -148,100 +80,76 @@ export default function RightInsightsPanel({ onTaskClick, refreshKey }) {
 
   useEffect(() => { loadData(); }, [refreshKey]);
 
-  const actionIcons = {
-    CREATED: <ThunderboltOutlined style={{ fontSize: 10 }} />,
-    STATUS_CHANGED: <CheckCircleOutlined style={{ fontSize: 10 }} />,
-  };
+  if (loading) {
+    return (
+      <div className="tasks-insights-panel__inner">
+        <div className="tasks-panel-section">
+          <span className="tasks-panel-section__title">Insights</span>
+        </div>
+        <div className="tasks-panel-section">
+          <p className="tasks-panel-empty">Loading current deadlines, reviews, and activity…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{
-      width: 280,
-      background: 'var(--bc-surface-card)',
-      borderRadius: 'var(--bc-radius-2xl)',
-      border: '1px solid var(--bc-border-default)',
-      padding: '18px',
-      flexShrink: 0,
-      overflowY: 'auto',
-      maxHeight: 'calc(100vh - 280px)',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-    }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--bc-border-subtle)',
-      }}>
-        <Text style={{ fontSize: 14, fontWeight: 700, color: 'var(--bc-text-heading)' }}>Insights</Text>
-        <Button
-          type="text" size="small" icon={<ReloadOutlined />} onClick={loadData}
-          style={{ fontSize: 11, color: 'var(--bc-text-muted)' }}
-        />
+    <div className="tasks-insights-panel__inner">
+      <div className="tasks-panel-section">
+        <div className="tasks-panel-section__head" style={{ marginBottom: 0 }}>
+          <span className="tasks-panel-section__title" style={{ fontSize: 12, letterSpacing: '0.02em', textTransform: 'none', color: 'var(--tec-text, #0f172a)' }}>
+            Insights
+          </span>
+          <button type="button" className="tasks-chip__remove" onClick={loadData} aria-label="Refresh insights" title="Refresh">
+            <ReloadOutlined style={{ fontSize: 11 }} />
+          </button>
+        </div>
       </div>
 
-      <InsightSection title="🤖 Automation Queue" icon={ThunderboltOutlined} count={autoStats.open || autoTasks.length}>
-        {autoTasks.length === 0 ? (
-          <div>
-            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '4px 0', display: 'block' }}>
-              {autoStats.total > 0 ? `${autoStats.total} total automation tasks — ${autoStats.open} open` : 'No ruleset-generated tasks yet.'}
-            </Text>
-            <Button size="small" type="link" style={{ padding: 0, fontSize: 11, height: 'auto' }} onClick={() => window.open('/rule-sets', '_blank')}>
-              Configure rulesets →
-            </Button>
-          </div>
-        ) : autoTasks.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
-      </InsightSection>
-
-      <Divider style={{ margin: '4px 0 16px', borderColor: 'var(--bc-border-subtle)' }} />
-
-      <InsightSection title="Upcoming Deadlines" icon={ClockCircleOutlined} count={upcoming.length}>
-        {upcoming.length === 0 ? (
-          <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '8px 0', display: 'block' }}>No upcoming tasks</Text>
-        ) : upcoming.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
-      </InsightSection>
-
-      <Divider style={{ margin: '4px 0 16px', borderColor: 'var(--bc-border-subtle)' }} />
-
-      <InsightSection title="My Reviews" icon={EyeOutlined} count={reviews.length}>
-        {reviews.length === 0 ? (
-          <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '8px 0', display: 'block' }}>No pending reviews</Text>
-        ) : reviews.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
-      </InsightSection>
-
-      <Divider style={{ margin: '4px 0 16px', borderColor: 'var(--bc-border-subtle)' }} />
-
-      <InsightSection title="Recent Activity" icon={WarningOutlined}>
-        {recent.length === 0 ? (
-          <Text style={{ fontSize: 11, color: 'var(--bc-text-muted)', padding: '8px 0', display: 'block' }}>No recent activity</Text>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {recent.slice(0, 6).map(a => (
-              <div key={a.Id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <div style={{
-                  width: 20, height: 20, borderRadius: 6,
-                  background: a.Action === 'CREATED' ? 'var(--bc-blue-50)' : 'var(--bc-green-50)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, marginTop: 1,
-                }}>
-                  {actionIcons[a.Action] || <ThunderboltOutlined style={{ fontSize: 9, color: 'var(--bc-blue-600)' }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{
-                    fontSize: 11, color: 'var(--bc-text-body)', lineHeight: 1.3,
-                    display: 'block',
-                  }}>
-                    <span style={{ fontWeight: 600 }}>{a.ActorName || 'System'}</span>{' '}
-                    {a.Action.replace(/_/g, ' ').toLowerCase()}
-                  </Text>
-                  <Text style={{
-                    fontSize: 10, color: 'var(--bc-text-muted)',
-                    display: 'flex', alignItems: 'center', gap: 4, marginTop: 1,
-                  }}>
-                    {a.InstanceCode && <><span style={{ fontFamily: 'var(--bc-font-mono)' }}>{a.InstanceCode}</span><span>·</span></>}
-                    {dayjs(a.CreatedAt).fromNow?.() || dayjs(a.CreatedAt).format('HH:mm')}
-                  </Text>
-                </div>
-              </div>
-            ))}
-          </div>
+      <InsightSection
+        title="Automation queue"
+        icon={ThunderboltOutlined}
+        count={autoTasks.length || autoStats.open || 0}
+        empty={autoStats.total > 0
+          ? `${autoStats.total} automation tasks recorded, none open right now.`
+          : 'No ruleset-generated tasks yet.'}
+      >
+        {autoTasks.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
+        {autoStats.total > 0 && (
+          <button
+            type="button"
+            className="tasks-clearall"
+            style={{ marginTop: 8 }}
+            onClick={() => window.open('/rule-sets', '_blank')}
+          >
+            Configure rulesets
+          </button>
         )}
+      </InsightSection>
+
+      <InsightSection title="Upcoming deadlines" icon={ClockCircleOutlined} count={upcoming.length} empty="No upcoming deadlines.">
+        {upcoming.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
+      </InsightSection>
+
+      <InsightSection title="My reviews" icon={EyeOutlined} count={reviews.length} empty="No pending reviews.">
+        {reviews.map(t => <TaskRow key={t.Id} task={t} onClick={onTaskClick} />)}
+      </InsightSection>
+
+      <InsightSection title="Recent activity" icon={WarningOutlined} empty="No recent activity.">
+        {recent.slice(0, 6).map(a => (
+          <div key={a.Id} className="tasks-panel-item">
+            <span className="tasks-panel-item__body">
+              <span className="tasks-panel-item__title">
+                <b style={{ fontWeight: 600 }}>{a.ActorName || 'System'}</b>{' '}
+                {String(a.Action || '').replace(/_/g, ' ').toLowerCase()}
+              </span>
+              <span className="tasks-panel-item__meta">
+                {a.InstanceCode && <span style={{ fontFamily: 'var(--bc-font-mono)' }}>{a.InstanceCode}</span>}
+                <span>{dayjs(a.CreatedAt).fromNow?.() || dayjs(a.CreatedAt).format('HH:mm')}</span>
+              </span>
+            </span>
+          </div>
+        ))}
       </InsightSection>
     </div>
   );

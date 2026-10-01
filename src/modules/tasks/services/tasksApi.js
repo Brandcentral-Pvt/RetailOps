@@ -283,14 +283,18 @@ const tasksApi = {
     return res.json();
   },
 
-  getBrandManagers: async () => {
-    const res = await fetch(`${API_BASE}/pems/brand-managers`, { headers: authHeaders() });
+  // `sellerId` narrows the list to the people assigned to that brand, so one
+  // brand's team is not offered as assignees on another brand's task.
+  getBrandManagers: async (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE}/pems/brand-managers${q ? `?${q}` : ''}`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed');
     return res.json();
   },
 
-  getReviewers: async () => {
-    const res = await fetch(`${API_BASE}/pems/reviewers`, { headers: authHeaders() });
+  getReviewers: async (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE}/pems/reviewers${q ? `?${q}` : ''}`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed');
     return res.json();
   },
@@ -344,6 +348,34 @@ const tasksApi = {
     return body;
   },
 
+  // ── Affected ASINs ──
+  getInstanceAsins: async (taskId) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/asins`, { headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to fetch affected ASINs');
+    return body;
+  },
+
+  updateAsinRemarks: async (taskId, asinCode, sellerId, signalCode, remarks, resolution, waiveReason) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/asins/remarks`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ asinCode, sellerId, signalCode, remarks, resolution, waiveReason }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to update ASIN remarks');
+    return body;
+  },
+
+  resolveAsin: async (taskId, asinId, action, waiveReason) => {
+    const res = await fetch(`${API_BASE}/pems/instances/${taskId}/asins/${asinId}/resolve`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ action, waiveReason }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to resolve ASIN');
+    return body;
+  },
+
   addComment: async (taskId, text) => {
     const res = await fetch(`${API_BASE}/pems/instances/${taskId}/comments`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ text }),
@@ -355,8 +387,10 @@ const tasksApi = {
 
   // ── Automation / ruleset linkage ──
   getAutomationStats: async () => {
-    const r = await fetchJson('/pems/automation-stats');
-    return r.data;
+    const res = await fetch(`${API_BASE}/pems/automation-stats`, { headers: authHeaders() });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Failed to load automation stats');
+    return body.data;
   },
 };
 

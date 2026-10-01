@@ -1,0 +1,3272 @@
+{
+  "_note": "Real TitleIssues labels extracted from Asins. Regenerate with: node scripts/extractAsinIssueLabels.js",
+  "extractedFor": "asinIssueClassifier",
+  "labels": [
+    {
+      "label": "[Title] Title could benefit from better information structure",
+      "n": 77160
+    },
+    {
+      "label": "Missing title",
+      "n": 63438
+    },
+    {
+      "label": "[Title] Contains restricted characters: _",
+      "n": 16529
+    },
+    {
+      "label": "[Title] Brand name not clearly identified at the start of the title",
+      "n": 14648
+    },
+    {
+      "label": "[Title] Title is approaching the 200 character limit",
+      "n": 7134
+    },
+    {
+      "label": "[Title] Multiple words used exactly twice, approaching repetition limits",
+      "n": 4683
+    },
+    {
+      "label": "[Title] Title lacks structured information order",
+      "n": 4540
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"premium\"",
+      "n": 3177
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: one - should use numerals",
+      "n": 2563
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: three - should use numerals",
+      "n": 1745
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"perfect\"",
+      "n": 1620
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"perfect\"",
+      "n": 1561
+    },
+    {
+      "label": "[Title] Title is quite long (146 chars) - may be truncated on mobile",
+      "n": 1492
+    },
+    {
+      "label": "[Title] Title is quite long (135 chars) - may be truncated on mobile",
+      "n": 1294
+    },
+    {
+      "label": "[Title] Title is quite long (134 chars) - may be truncated on mobile",
+      "n": 1164
+    },
+    {
+      "label": "[Title] Title is quite long (141 chars) - may be truncated on mobile",
+      "n": 1124
+    },
+    {
+      "label": "[Title] Title is quite long (137 chars) - may be truncated on mobile",
+      "n": 1114
+    },
+    {
+      "label": "[Title] Title is quite long (139 chars) - may be truncated on mobile",
+      "n": 1097
+    },
+    {
+      "label": "[Title] Title is quite long (145 chars) - may be truncated on mobile",
+      "n": 1083
+    },
+    {
+      "label": "[Title] Title is very long (158 chars) - will be truncated on most devices",
+      "n": 1078
+    },
+    {
+      "label": "[Title] Title is quite long (133 chars) - may be truncated on mobile",
+      "n": 1067
+    },
+    {
+      "label": "[Title] Title is quite long (112 chars) - may be truncated on mobile",
+      "n": 1061
+    },
+    {
+      "label": "[Title] Title is quite long (118 chars) - may be truncated on mobile",
+      "n": 1057
+    },
+    {
+      "label": "[Title] Title is quite long (144 chars) - may be truncated on mobile",
+      "n": 1057
+    },
+    {
+      "label": "[Title] Title is quite long (147 chars) - may be truncated on mobile",
+      "n": 1056
+    },
+    {
+      "label": "[Title] Title is quite long (136 chars) - may be truncated on mobile",
+      "n": 1051
+    },
+    {
+      "label": "[Title] Title is very long (166 chars) - will be truncated on most devices",
+      "n": 1050
+    },
+    {
+      "label": "[Title] Title is quite long (130 chars) - may be truncated on mobile",
+      "n": 1031
+    },
+    {
+      "label": "[Title] Title is very long (154 chars) - will be truncated on most devices",
+      "n": 1030
+    },
+    {
+      "label": "[Title] Title is very long (181 chars) - will be truncated on most devices",
+      "n": 1021
+    },
+    {
+      "label": "[Title] Title is quite long (121 chars) - may be truncated on mobile",
+      "n": 1021
+    },
+    {
+      "label": "[Title] Title is very long (162 chars) - will be truncated on most devices",
+      "n": 1005
+    },
+    {
+      "label": "[Title] Title is quite long (143 chars) - may be truncated on mobile",
+      "n": 1004
+    },
+    {
+      "label": "[Title] Title is very long (151 chars) - will be truncated on most devices",
+      "n": 1001
+    },
+    {
+      "label": "[Title] Title is quite long (142 chars) - may be truncated on mobile",
+      "n": 988
+    },
+    {
+      "label": "[Title] Title is quite long (117 chars) - may be truncated on mobile",
+      "n": 986
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (3x)",
+      "n": 976
+    },
+    {
+      "label": "[Title] Title is quite long (138 chars) - may be truncated on mobile",
+      "n": 974
+    },
+    {
+      "label": "[Title] Title is quite long (132 chars) - may be truncated on mobile",
+      "n": 969
+    },
+    {
+      "label": "[Title] Title is quite long (123 chars) - may be truncated on mobile",
+      "n": 968
+    },
+    {
+      "label": "[Title] Title is quite long (140 chars) - may be truncated on mobile",
+      "n": 957
+    },
+    {
+      "label": "[Title] Title is very long (195 chars) - will be truncated on most devices",
+      "n": 956
+    },
+    {
+      "label": "[Title] Title is very long (163 chars) - will be truncated on most devices",
+      "n": 951
+    },
+    {
+      "label": "[Title] Title is quite long (110 chars) - may be truncated on mobile",
+      "n": 941
+    },
+    {
+      "label": "[Title] Title is quite long (119 chars) - may be truncated on mobile",
+      "n": 939
+    },
+    {
+      "label": "[Title] Title is very long (168 chars) - will be truncated on most devices",
+      "n": 935
+    },
+    {
+      "label": "[Title] Title is very long (157 chars) - will be truncated on most devices",
+      "n": 931
+    },
+    {
+      "label": "[Title] Title is quite long (114 chars) - may be truncated on mobile",
+      "n": 928
+    },
+    {
+      "label": "[Title] Title is very long (164 chars) - will be truncated on most devices",
+      "n": 926
+    },
+    {
+      "label": "[Title] Title is very long (165 chars) - will be truncated on most devices",
+      "n": 926
+    },
+    {
+      "label": "[Title] Title is very long (155 chars) - will be truncated on most devices",
+      "n": 924
+    },
+    {
+      "label": "[Title] Title is quite long (131 chars) - may be truncated on mobile",
+      "n": 922
+    },
+    {
+      "label": "[Title] Title is quite long (150 chars) - may be truncated on mobile",
+      "n": 912
+    },
+    {
+      "label": "[Title] Title is quite long (149 chars) - may be truncated on mobile",
+      "n": 909
+    },
+    {
+      "label": "[Title] Title is quite long (129 chars) - may be truncated on mobile",
+      "n": 898
+    },
+    {
+      "label": "[Title] Title is quite long (148 chars) - may be truncated on mobile",
+      "n": 897
+    },
+    {
+      "label": "[Title] Title is very long (156 chars) - will be truncated on most devices",
+      "n": 890
+    },
+    {
+      "label": "[Title] Title is quite long (116 chars) - may be truncated on mobile",
+      "n": 888
+    },
+    {
+      "label": "[Title] Title is very long (191 chars) - will be truncated on most devices",
+      "n": 885
+    },
+    {
+      "label": "[Title] Title is quite long (122 chars) - may be truncated on mobile",
+      "n": 884
+    },
+    {
+      "label": "[Title] Title is quite long (115 chars) - may be truncated on mobile",
+      "n": 883
+    },
+    {
+      "label": "[Title] Title is quite long (120 chars) - may be truncated on mobile",
+      "n": 880
+    },
+    {
+      "label": "[Title] Title is very long (193 chars) - will be truncated on most devices",
+      "n": 872
+    },
+    {
+      "label": "[Title] Title is very long (159 chars) - will be truncated on most devices",
+      "n": 866
+    },
+    {
+      "label": "[Title] Title is very long (160 chars) - will be truncated on most devices",
+      "n": 861
+    },
+    {
+      "label": "[Title] Title is quite long (108 chars) - may be truncated on mobile",
+      "n": 860
+    },
+    {
+      "label": "[Title] Title is very long (192 chars) - will be truncated on most devices",
+      "n": 859
+    },
+    {
+      "label": "[Title] Title is very long (170 chars) - will be truncated on most devices",
+      "n": 853
+    },
+    {
+      "label": "[Title] Title is very long (183 chars) - will be truncated on most devices",
+      "n": 851
+    },
+    {
+      "label": "[Title] Title is very long (152 chars) - will be truncated on most devices",
+      "n": 849
+    },
+    {
+      "label": "[Title] Title is very long (153 chars) - will be truncated on most devices",
+      "n": 849
+    },
+    {
+      "label": "[Title] Title is quite long (128 chars) - may be truncated on mobile",
+      "n": 841
+    },
+    {
+      "label": "[Title] Title is very long (182 chars) - will be truncated on most devices",
+      "n": 836
+    },
+    {
+      "label": "[Title] Title is very long (176 chars) - will be truncated on most devices",
+      "n": 831
+    },
+    {
+      "label": "[Title] Title is very long (184 chars) - will be truncated on most devices",
+      "n": 824
+    },
+    {
+      "label": "[Title] Title is very long (167 chars) - will be truncated on most devices",
+      "n": 822
+    },
+    {
+      "label": "[Title] Title is very long (174 chars) - will be truncated on most devices",
+      "n": 819
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: two - should use numerals",
+      "n": 819
+    },
+    {
+      "label": "[Title] Title is quite long (109 chars) - may be truncated on mobile",
+      "n": 818
+    },
+    {
+      "label": "[Title] Title is quite long (126 chars) - may be truncated on mobile",
+      "n": 817
+    },
+    {
+      "label": "[Title] Title is very long (173 chars) - will be truncated on most devices",
+      "n": 812
+    },
+    {
+      "label": "[Title] Title is very long (161 chars) - will be truncated on most devices",
+      "n": 807
+    },
+    {
+      "label": "[Title] Title is very long (179 chars) - will be truncated on most devices",
+      "n": 804
+    },
+    {
+      "label": "[Title] Title is quite long (127 chars) - may be truncated on mobile",
+      "n": 801
+    },
+    {
+      "label": "[Title] Title is quite long (124 chars) - may be truncated on mobile",
+      "n": 796
+    },
+    {
+      "label": "[Title] Title is very long (194 chars) - will be truncated on most devices",
+      "n": 796
+    },
+    {
+      "label": "[Title] Title is very long (185 chars) - will be truncated on most devices",
+      "n": 780
+    },
+    {
+      "label": "[Title] Title is very long (196 chars) - will be truncated on most devices",
+      "n": 778
+    },
+    {
+      "label": "[Title] Title is quite long (113 chars) - may be truncated on mobile",
+      "n": 778
+    },
+    {
+      "label": "[Title] Title is quite long (106 chars) - may be truncated on mobile",
+      "n": 776
+    },
+    {
+      "label": "[Title] Title is very long (171 chars) - will be truncated on most devices",
+      "n": 775
+    },
+    {
+      "label": "[Title] Title is quite long (125 chars) - may be truncated on mobile",
+      "n": 761
+    },
+    {
+      "label": "[Title] Title is very long (169 chars) - will be truncated on most devices",
+      "n": 757
+    },
+    {
+      "label": "[Title] Title is very long (178 chars) - will be truncated on most devices",
+      "n": 750
+    },
+    {
+      "label": "[Title] Title is very long (186 chars) - will be truncated on most devices",
+      "n": 749
+    },
+    {
+      "label": "[Title] Title is quite long (101 chars) - may be truncated on mobile",
+      "n": 746
+    },
+    {
+      "label": "[Title] Title is very long (172 chars) - will be truncated on most devices",
+      "n": 740
+    },
+    {
+      "label": "[Title] Title is very long (187 chars) - will be truncated on most devices",
+      "n": 734
+    },
+    {
+      "label": "[Title] Title is very long (189 chars) - will be truncated on most devices",
+      "n": 733
+    },
+    {
+      "label": "[Title] Title is very long (177 chars) - will be truncated on most devices",
+      "n": 733
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"super\"",
+      "n": 731
+    },
+    {
+      "label": "[Title] Title is quite long (102 chars) - may be truncated on mobile",
+      "n": 728
+    },
+    {
+      "label": "[Title] Title is quite long (107 chars) - may be truncated on mobile",
+      "n": 721
+    },
+    {
+      "label": "[Title] Title is quite long (104 chars) - may be truncated on mobile",
+      "n": 719
+    },
+    {
+      "label": "[Title] Title is very long (180 chars) - will be truncated on most devices",
+      "n": 709
+    },
+    {
+      "label": "[Title] Title is quite long (111 chars) - may be truncated on mobile",
+      "n": 694
+    },
+    {
+      "label": "[Title] Title is quite long (105 chars) - may be truncated on mobile",
+      "n": 693
+    },
+    {
+      "label": "[Title] Title is very long (175 chars) - will be truncated on most devices",
+      "n": 683
+    },
+    {
+      "label": "[Title] Title is very long (190 chars) - will be truncated on most devices",
+      "n": 681
+    },
+    {
+      "label": "[Title] Title is very long (198 chars) - will be truncated on most devices",
+      "n": 672
+    },
+    {
+      "label": "[Title] Title is very long (188 chars) - will be truncated on most devices",
+      "n": 658
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x)",
+      "n": 654
+    },
+    {
+      "label": "[Title] Title is quite long (103 chars) - may be truncated on mobile",
+      "n": 634
+    },
+    {
+      "label": "[Title] Title is very long (197 chars) - will be truncated on most devices",
+      "n": 598
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (3x)",
+      "n": 536
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (3x)",
+      "n": 515
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (3x)",
+      "n": 491
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (3x)",
+      "n": 464
+    },
+    {
+      "label": "[Title] Title is very long (199 chars) - will be truncated on most devices",
+      "n": 382
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"best\"",
+      "n": 357
+    },
+    {
+      "label": "[Title] Title is very long (200 chars) - will be truncated on most devices",
+      "n": 336
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bra\" (3x)",
+      "n": 307
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"crop\" (3x)",
+      "n": 269
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"||\" (7x)",
+      "n": 244
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"ultra\"",
+      "n": 210
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (4x)",
+      "n": 205
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (4x)",
+      "n": 192
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sets\" (3x)",
+      "n": 185
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"boys\" (3x)",
+      "n": 182
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"set\" (3x)",
+      "n": 177
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (4x)",
+      "n": 170
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"extra\"",
+      "n": 154
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"!!!\", \"!!\", \"3 exclamation mark(s)\"",
+      "n": 153
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (4x)",
+      "n": 148
+    },
+    {
+      "label": "[Title] Contains restricted characters: !",
+      "n": 142
+    },
+    {
+      "label": "[Title] Title is too short (38 chars) - mobile users may not see enough info",
+      "n": 141
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tshirt\" (3x)",
+      "n": 118
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"top\" (3x)",
+      "n": 115
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x)",
+      "n": 110
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"choli\" (3x)",
+      "n": 102
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"short\" (3x)",
+      "n": 100
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (4x), \"shirts\" (5x), \"casual\" (3x), \"||\" (5x)",
+      "n": 95
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"||\" (6x)",
+      "n": 94
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurti\" (3x)",
+      "n": 90
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (3x), \"||\" (4x)",
+      "n": 89
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hangers\" (3x)",
+      "n": 88
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"waist\" (3x), \"shapewear\" (3x)",
+      "n": 87
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (5x), \"||\" (4x), \"shirt\" (5x)",
+      "n": 84
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cotton\" (3x)",
+      "n": 82
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (3x)",
+      "n": 81
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"clock\" (3x)",
+      "n": 78
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"boys\" (3x), \"cotton\" (3x)",
+      "n": 78
+    },
+    {
+      "label": "[Title] Title capitalization is inconsistent",
+      "n": 78
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"exclusive\"",
+      "n": 78
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (5x)",
+      "n": 73
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cotton\" (3x), \"shirt\" (3x)",
+      "n": 72
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hoodies\" (3x), \"men\" (3x), \"||\" (8x), \"women\" (3x), \"hoodie\" (3x)",
+      "n": 69
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"must-have\"",
+      "n": 68
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"white\" (3x)",
+      "n": 66
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"green\" (4x)",
+      "n": 65
+    },
+    {
+      "label": "[Title] Title could be more descriptive",
+      "n": 62
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"luxury\"",
+      "n": 61
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hoodies\" (3x), \"||\" (8x), \"women\" (3x)",
+      "n": 59
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hoodies\" (3x), \"men\" (3x), \"||\" (8x), \"women\" (3x)",
+      "n": 54
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kids\" (3x), \"||\" (3x)",
+      "n": 54
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"light\" (3x)",
+      "n": 54
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (5x)",
+      "n": 54
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (3x), \"women\" (3x)",
+      "n": 51
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silk\" (3x)",
+      "n": 49
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (3x)",
+      "n": 49
+    },
+    {
+      "label": "[Title] Title is too short (39 chars) - mobile users may not see enough info",
+      "n": 47
+    },
+    {
+      "label": "[Title] Title is too short (37 chars) - mobile users may not see enough info",
+      "n": 47
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"waist\" (3x)",
+      "n": 46
+    },
+    {
+      "label": "[Title] Title is too short (36 chars) - mobile users may not see enough info",
+      "n": 44
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"perfect\", \"premium\"",
+      "n": 43
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (6x)",
+      "n": 43
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: one, three - should use numerals",
+      "n": 41
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pant\" (3x)",
+      "n": 41
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"regular\" (3x)",
+      "n": 39
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"skirt\" (4x)",
+      "n": 39
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (4x)",
+      "n": 38
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cargo\" (3x)",
+      "n": 38
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dupatta\" (3x)",
+      "n": 37
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kids\" (3x)",
+      "n": 36
+    },
+    {
+      "label": "[Title] Title may be missing a clear product type identifier",
+      "n": 36
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sleevless\" (3x)",
+      "n": 36
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shorts\" (3x)",
+      "n": 35
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"belt\" (3x)",
+      "n": 35
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pants\" (3x)",
+      "n": 35
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"frock\" (3x)",
+      "n": 35
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (4x)",
+      "n": 35
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"drain\" (3x)",
+      "n": 34
+    },
+    {
+      "label": "[Title] Title is very long (212 chars) - will be truncated on most devices",
+      "n": 34
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 12 characters (212/200)",
+      "n": 34
+    },
+    {
+      "label": "[Title] Contains restricted characters: ? _",
+      "n": 32
+    },
+    {
+      "label": "[Title] Contains restricted characters: ?",
+      "n": 31
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 13 characters (213/200)",
+      "n": 31
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 11 characters (211/200)",
+      "n": 31
+    },
+    {
+      "label": "[Title] Title is very long (213 chars) - will be truncated on most devices",
+      "n": 31
+    },
+    {
+      "label": "[Title] Title is very long (211 chars) - will be truncated on most devices",
+      "n": 31
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (4x), \"women\" (3x)",
+      "n": 31
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x)",
+      "n": 31
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"clock\" (4x)",
+      "n": 30
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (7x)",
+      "n": 30
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (3x), \"regular\" (3x)",
+      "n": 30
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"set\" (4x)",
+      "n": 29
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gown\" (3x)",
+      "n": 28
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lehenga\" (3x)",
+      "n": 27
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"ultimate\"",
+      "n": 27
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (6x)",
+      "n": 26
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: six - should use numerals",
+      "n": 25
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"40\" (3x)",
+      "n": 24
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"baby\" (3x), \"boys\" (3x)",
+      "n": 24
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"girls\" (3x)",
+      "n": 24
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shorts\" (4x)",
+      "n": 24
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silk\" (3x), \"saree\" (4x)",
+      "n": 23
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (5x), \"men\" (3x)",
+      "n": 22
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"years\" (3x)",
+      "n": 22
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cargo\" (3x), \"||\" (4x), \"men\" (4x)",
+      "n": 22
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"blouse\" (3x)",
+      "n": 22
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"brush\" (3x)",
+      "n": 21
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"leather\" (3x)",
+      "n": 21
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"jumpsuit\" (3x)",
+      "n": 20
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"casual\" (3x)",
+      "n": 20
+    },
+    {
+      "label": "[Title] Title is too short (31 chars) - mobile users may not see enough info",
+      "n": 20
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"premium quality\"",
+      "n": 20
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shorts\" (3x), \"regular\" (3x)",
+      "n": 20
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (3x), \"dress\" (3x)",
+      "n": 19
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"luxury\", \"ultimate\"",
+      "n": 19
+    },
+    {
+      "label": "[Title] Title is too short (34 chars) - mobile users may not see enough info",
+      "n": 19
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"belt\" (4x)",
+      "n": 19
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (3x)",
+      "n": 19
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"amazing\", \"perfect\"",
+      "n": 18
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"amazing\", \"perfect\"",
+      "n": 18
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"seat\" (3x)",
+      "n": 18
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (7x), \"women\" (6x)",
+      "n": 17
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silk\" (3x), \"saree\" (3x)",
+      "n": 17
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"water\" (3x)",
+      "n": 17
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pipe\" (3x)",
+      "n": 17
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cm\" (3x)",
+      "n": 17
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"great\"",
+      "n": 16
+    },
+    {
+      "label": "[Title] Title is too short (32 chars) - mobile users may not see enough info",
+      "n": 16
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"waist\" (3x), \"shaper\" (3x)",
+      "n": 16
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"belt\" (4x)",
+      "n": 16
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silk\" (4x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"storage\" (3x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tap\" (3x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shaper\" (3x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shapewear\" (3x), \"women\" (3x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Title is too short (22 chars) - lacks sufficient product information",
+      "n": 15
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"co\" (3x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rack\" (3x)",
+      "n": 15
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 10 characters (210/200)",
+      "n": 14
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"shop now\"",
+      "n": 14
+    },
+    {
+      "label": "[Title] Title is very long (210 chars) - will be truncated on most devices",
+      "n": 14
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sets\" (4x), \"boys\" (3x)",
+      "n": 14
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"surface\" (3x)",
+      "n": 14
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"table\" (3x)",
+      "n": 13
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (4x), \"men\" (3x)",
+      "n": 13
+    },
+    {
+      "label": "[Title] Title is too short (35 chars) - mobile users may not see enough info",
+      "n": 13
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"banarasi\" (3x), \"saree\" (3x)",
+      "n": 13
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"super\", \"ultra\"",
+      "n": 13
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coat\" (3x)",
+      "n": 13
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"stunning\"",
+      "n": 12
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shower\" (3x)",
+      "n": 12
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"soap\" (3x)",
+      "n": 12
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tape\" (3x)",
+      "n": 12
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (6x), \"dress\" (6x)",
+      "n": 12
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 15 characters (215/200)",
+      "n": 11
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 16 characters (216/200)",
+      "n": 11
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"perfect\", \"stunning\"",
+      "n": 11
+    },
+    {
+      "label": "[Title] Contains restricted characters: ! _",
+      "n": 11
+    },
+    {
+      "label": "[Title] Title is very long (215 chars) - will be truncated on most devices",
+      "n": 11
+    },
+    {
+      "label": "[Title] Title is very long (216 chars) - will be truncated on most devices",
+      "n": 11
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"crop\" (3x), \"top\" (3x)",
+      "n": 11
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"half\" (3x)",
+      "n": 11
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (5x), \"cargo\" (4x), \"||\" (4x)",
+      "n": 11
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"light\" (5x)",
+      "n": 11
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lights\" (3x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pants\" (4x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pant\" (3x), \"kurti\" (3x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coord\" (3x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cable\" (3x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"chanderi\" (3x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Title is too short (33 chars) - mobile users may not see enough info",
+      "n": 10
+    },
+    {
+      "label": "[Title] Title is very long (214 chars) - will be truncated on most devices",
+      "n": 10
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 14 characters (214/200)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (3x), \"set\" (4x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"white\" (4x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wear\" (3x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"women\" (5x), \"shaper\" (4x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shapewear\" (3x), \"women\" (5x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (4x), \"||\" (5x)",
+      "n": 10
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"splash\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"suit\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spray\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"waist\" (4x), \"shapewear\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 17 characters (217/200)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Title is too short (20 chars) - lacks sufficient product information",
+      "n": 9
+    },
+    {
+      "label": "[Title] Title is very long (217 chars) - will be truncated on most devices",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coconut\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"garden\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lehenga\" (3x), \"choli\" (3x), \"set\" (3x)",
+      "n": 9
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"inch\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (6x), \"||\" (5x), \"shirt\" (5x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"flush\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hangers\" (4x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hose\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ceiling\" (3x), \"light\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dispenser\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Title is very long (208 chars) - will be truncated on most devices",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"basket\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Title is too short (24 chars) - lacks sufficient product information",
+      "n": 8
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 8 characters (208/200)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"perfect\", \"luxury\"",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"valve\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"track\" (3x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"salt\" (4x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shapewear\" (3x), \"women\" (6x)",
+      "n": 8
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (6x), \"men\" (4x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"skirt\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"utensils\" (3x), \"set\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (4x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: four - should use numerals",
+      "n": 7
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"exclusive\", \"super\"",
+      "n": 7
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 5 characters (205/200)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"black\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"board\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Title is very long (205 chars) - will be truncated on most devices",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"door\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cleaning\" (3x), \"cloth\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"girls\" (3x), \"saree\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mirror\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"niren\" (3x), \"frock\" (3x)",
+      "n": 7
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"organizer\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"palazzo\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kitchen\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"light\" (4x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hanger\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fridge\" (3x), \"storage\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"frock\" (3x), \"square\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coffee\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"baby\" (3x), \"dress\" (4x), \"girls\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wide\" (3x), \"hangers\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spatula\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silk\" (3x), \"lehenga\" (3x)",
+      "n": 6
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spoon\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"storage\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"table\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tape\" (5x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (3x), \"shapewear\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wire\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"water\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"viscose\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title is very long (220 chars) - will be truncated on most devices",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bathroom\" (4x), \"cleaning\" (3x), \"brush\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title is very long (209 chars) - will be truncated on most devices",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title is very long (207 chars) - will be truncated on most devices",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 7 characters (207/200)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 9 characters (209/200)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title is too short (15 chars) - lacks sufficient product information",
+      "n": 5
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 20 characters (220/200)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cargo\" (3x), \"pant\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (3x), \"||\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (3x), \"material\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gas\" (5x), \"stand\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fat\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fit\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hoodies\" (4x), \"men\" (3x), \"||\" (8x), \"women\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"girls\" (3x), \"sharara\" (3x), \"set\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"makeup\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"sets\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurti\" (3x), \"set\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (4x), \"set\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hoodie\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kids\" (3x), \"kurta\" (4x), \"pyjama\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"parry\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"printed\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"printed\" (3x), \"kurti\" (4x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"neck\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"money\" (3x), \"box\" (3x)",
+      "n": 5
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"money\" (3x), \"box\" (3x), \"bank\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (6x), \"cargo\" (4x), \"||\" (5x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"oil\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"oil\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pads\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"height\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"flamingo\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fence\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"flour\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"drain\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"crop\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cup\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cups\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"car\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cleaning\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 18 characters (218/200)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"premium\", \"luxury\"",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"sale\"",
+      "n": 4
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: five - should use numerals",
+      "n": 4
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: one, two - should use numerals",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"affordable\"",
+      "n": 4
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: two, three - should use numerals",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title is too short (21 chars) - lacks sufficient product information",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title is too short (27 chars) - mobile users may not see enough info",
+      "n": 4
+    },
+    {
+      "label": "[Title] Title is very long (218 chars) - will be truncated on most devices",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"banarasi\" (4x), \"saree\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bandhej\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bottle\" (4x), \"green\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bowls\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (3x), \"shirt\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"||\" (4x), \"hoodie\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"airforce\" (3x), \"blue\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (6x), \"tummy\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (5x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (5x), \"dress\" (6x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"water\" (3x), \"gun\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (3x), \"wear\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"red\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (5x), \"men\" (5x), \"||\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (5x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (4x), \"crease\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (4x), \"men\" (4x), \"||\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (4x), \"women\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tart\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"soap\" (5x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silver\" (3x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silicone\" (3x), \"spatula\" (4x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (6x), \"men\" (7x), \"||\" (6x)",
+      "n": 4
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silk\" (4x), \"saree\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silicone\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sink\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"soap\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tap\" (3x), \"sink\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (5x), \"men\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shaper\" (3x), \"women\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shirt\" (6x), \"men\" (6x), \"||\" (5x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"roti\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (4x), \"women\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (3x), \"banarasi\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"roll\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (5x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"screw\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"yellow\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (5x), \"shaper\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (4x), \"set\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (3x), \"set\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toe\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toilet\" (3x), \"seat\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"adhesive\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title is very long (221 chars) - will be truncated on most devices",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bank\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title is very long (219 chars) - will be truncated on most devices",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title is very long (206 chars) - will be truncated on most devices",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title is too short (29 chars) - mobile users may not see enough info",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title is too short (25 chars) - mobile users may not see enough info",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 6 characters (206/200)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"premium quality\", \"perfect\"",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 19 characters (219/200)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 21 characters (221/200)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ceiling\" (3x), \"light\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bottle\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cover\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cotton\" (3x), \"material\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dining\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"flush\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fit\" (3x), \"cargo\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (5x), \"||\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"egg\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"holder\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hook\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"glass\" (4x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"oil\" (3x), \"brush\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"night\" (3x), \"set\" (3x), \"||\" (3x), \"men\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"night\" (3x), \"set\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mop\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"money\" (3x), \"bank\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"knife\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"jewelry\" (5x), \"box\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"long\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lehenga\" (3x), \"choli\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"laptop\" (3x)",
+      "n": 3
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"pant\" (3x), \"set\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lamp\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x), \"light\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lock\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"juicer\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ice\" (5x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (4x), \"pyjama\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"knitting\" (6x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mugs\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"night\" (3x), \"set\" (3x), \"||\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"net\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"money\" (3x), \"saving\" (3x), \"box\" (3x), \"lakh\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (4x), \"||\" (3x), \"shirt\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mirror\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mixer\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"patola\" (3x), \"saree\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rack\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pet\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"glue\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"glue\" (3x), \"water\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"glue\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gun\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gun\" (3x), \"water\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hooded\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"espresso\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fridge\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"flush\" (3x), \"handle\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"easy\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"garlic\" (5x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dress\" (4x), \"women\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cotton\" (3x), \"saree\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"color\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"color\" (3x), \"ceiling\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ceiling\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cleaning\" (4x), \"brush\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 33 characters (233/200)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"best\", \"extra\"",
+      "n": 2
+    },
+    {
+      "label": "[Title] Title is too short (23 chars) - lacks sufficient product information",
+      "n": 2
+    },
+    {
+      "label": "[Title] Title is too short (30 chars) - mobile users may not see enough info",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bathroom\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bathroom\" (4x), \"cleaning\" (3x), \"brush\" (5x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"baking\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"brush\" (3x), \"cleaning\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"breast\" (4x), \"pads\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Title is very long (233 chars) - will be truncated on most devices",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"arch\" (3x), \"support\" (3x), \"flat\" (3x), \"insole\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"arch\" (3x), \"support\" (3x), \"flat\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toilet\" (3x), \"seat\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tape\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"shaper\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"women\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"trap\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"top\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"waste\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"water\" (3x), \"gun\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women's\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wooden\" (5x), \"hanger\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"work\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"seat\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rice\" (6x), \"spoon\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rice\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"saree\" (10x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (4x), \"wipes\" (6x), \"sneaker\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (4x), \"wipes\" (7x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (4x), \"wipes\" (7x), \"sneaker\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (6x), \"cream\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shapewear\" (3x), \"women\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shapewear\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"table\" (5x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"table\" (3x), \"set\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"street\" (3x), \"light\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"storage\" (5x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"storage\" (3x), \"rack\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"storage\" (3x), \"box\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spot\" (3x), \"track\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"solar\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"soup\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silicone\" (3x), \"air\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shower\" (3x), \"hose\" (3x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shower\" (4x)",
+      "n": 2
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shower\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shower\" (3x), \"head\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shorts\" (4x), \"||\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"silicone\" (3x), \"spoon\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spatula\" (3x), \"set\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spatula\" (5x), \"griddle\" (3x), \"scraper\" (4x), \"grill\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"spike\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"soap\" (5x), \"dispenser\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sink\" (3x), \"waste\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sneaker\" (3x), \"wipes\" (6x), \"shoe\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"storage\" (3x), \"kitchen\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"stove\" (3x), \"fire\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"strap\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sprout\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sprout\" (3x), \"maker\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"square\" (3x), \"clock\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"squeegee\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"stair\" (4x), \"nosing\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"stand\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"stand\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"steel\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"stickers\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"surface\" (3x), \"light\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"table\" (4x), \"mats\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tank\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tank\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tap\" (3x), \"water\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tea\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tissue\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tissue\" (4x), \"box\" (3x), \"holder\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shapewear\" (3x), \"waist\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shaper\" (4x), \"tummy\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ship\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoes\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (3x), \"wipes\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"shoe\" (4x), \"cleaning\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rice\" (4x), \"paddle\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rice\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"rice\" (5x), \"spoon\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ro\" (3x), \"water\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"roller\" (3x), \"paint\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"server\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"screwdriver\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sealing\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"sauce\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"scraper\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"screen\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (3x), \"||\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (3x), \"||\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (3x), \"boys\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"set\" (3x), \"kurta\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"work\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"water\" (4x), \"spray\" (3x), \"gun\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wheel\" (5x), \"silicone\" (3x), \"cover\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (6x), \"paste\" (4x), \"crack\" (3x), \"filler\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wash\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (3x), \"clock\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (3x), \"clock\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (3x), \"glasses\" (3x), \"coffee\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wall\" (3x), \"room\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wire\" (3x), \"tool\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"window\" (3x), \"brush\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"wine\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"white\" (4x), \"shoe\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (4x), \"tummy\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (4x), \"tummy\" (5x), \"shaper\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"women\" (6x), \"tummy\" (3x), \"shaper\" (3x), \"shapewear\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"towel\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"towel\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (4x), \"women\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (4x), \"women\" (5x), \"shaper\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"turner\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"travel\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"valve\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"shaper\" (3x), \"women\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"shaper\" (4x), \"women\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"tucker\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tummy\" (3x), \"women\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"tape\" (4x), \"body\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toilet\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toilet\" (3x), \"flush\" (4x), \"syphon\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toilet\" (3x), \"seat\" (3x), \"hinges\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"toilet\" (4x), \"seat\" (3x), \"lifter\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"apple\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ac\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ac\" (4x), \"outdoor\" (3x), \"cover\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bag\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bag\" (3x), \"pain\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bag\" (3x), \"washing\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bag\" (4x), \"heat\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bag\" (4x), \"washing\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bag\" (5x), \"hot\" (3x), \"water\" (3x), \"heat\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title is very long (245 chars) - will be truncated on most devices",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title is very long (265 chars) - will be truncated on most devices",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title is very long (228 chars) - will be truncated on most devices",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"30\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"breast\" (4x), \"tape\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bra\" (3x), \"strap\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"brush\" (3x), \"window\" (3x), \"cleaner\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"brush\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bucket\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"box\" (3x), \"tableware\" (3x), \"rack\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"box\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bolt\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"banarasi\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bathroom\" (4x), \"cleaning\" (4x), \"brush\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"blue\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bathroom\" (3x), \"cleaning\" (3x), \"brush\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"bathroom\" (3x), \"cleaning\" (4x), \"brush\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title is very long (203 chars) - will be truncated on most devices",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title is very long (204 chars) - will be truncated on most devices",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title is too short (28 chars) - mobile users may not see enough info",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 65 characters (265/200)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"excellent\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"exclusive\", \"super\", \"ultra\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"must have\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"wonderful\", \"ultra\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains promotional content: \"amazing\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Spelled-out numbers found: thirty - should use numerals",
+      "n": 1
+    },
+    {
+      "label": "[Title] Contains restricted characters: { }",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 4 characters (204/200)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 45 characters (245/200)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 28 characters (228/200)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title exceeds 200 character limit by 3 characters (203/200)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"wonderful\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"must have\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"excellent\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Title contains subjective/promotional language: \"amazing\"",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cleaning\" (3x), \"brush\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"clogs\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cloth\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cloth\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"clothing\" (3x), \"set\" (6x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coffee\" (3x), \"cup\" (3x), \"glass\" (3x), \"mug\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coconut\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"coat\" (5x), \"rack\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cargo\" (4x), \"||\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cleaner\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ceiling\" (4x), \"light\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ceiling\" (4x), \"light\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"connector\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cotton\" (3x), \"dress\" (3x), \"material\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cutter\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"cutter\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"crystal\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dish\" (4x), \"rack\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"drain\" (3x), \"cover\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"door\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"double\" (3x), \"glass\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gas\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gas\" (6x), \"stand\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"furniture\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"garden\" (3x), \"lights\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"flush\" (3x), \"button\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"fan\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"egg\" (3x), \"boiler\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"end\" (3x), \"pipe\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"drying\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"dumpling\" (3x), \"maker\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"duster\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"floor\" (4x), \"board\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"filler\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"faucet\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"height\" (4x), \"men\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hooks\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ice\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ice\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gun\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gun\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"hammock\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"handheld\" (3x), \"ironing\" (3x), \"board\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"grey\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"gloves\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"glass\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pillow\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"regular\" (5x), \"fit\" (5x), \"shirt\" (5x), \"men\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"relief\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"remover\" (4x), \"clothes\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"printed\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"protector\" (3x), \"edge\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pump\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"push\" (3x), \"tap\" (3x), \"water\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pipe\" (3x), \"drain\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pipe\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pizza\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"plate\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"peach\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"peeler\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"paper\" (3x), \"holder\" (3x), \"bathroom\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pads\" (3x), \"washing\" (3x), \"machine\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"pads\" (3x), \"washing\" (4x), \"machine\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"paint\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"painting\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"panel\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"panel\" (3x), \"light\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"panel\" (3x), \"light\" (3x), \"ceiling\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ml\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (4x), \"shirts\" (5x), \"casual\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men's\" (3x), \"shirt\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"metal\" (3x), \"spatula\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"men\" (5x), \"trouser\" (3x), \"||\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"moulds\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"nipple\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"nipple\" (4x), \"cover\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"oil\" (5x), \"sauce\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"outdoor\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"outlet\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kitchen\" (3x), \"mats\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kitchen\" (3x), \"tray\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (3x), \"pant\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kurta\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ladle\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ice\" (5x), \"tray\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"inlet\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"jars\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"jeans\" (4x), \"men\" (4x), \"||\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"jewel\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"knife\" (3x), \"knives\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"knife\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"knife\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"knife\" (6x), \"set\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"kit\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"ltr\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"makeup\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"massage\" (4x), \"ball\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mat\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"mat\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lighter\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lighter\" (6x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lights\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lint\" (3x), \"clothes\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lint\" (4x), \"ball\" (3x), \"remover\" (4x), \"clothes\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"lint\" (4x), \"clothes\" (3x), \"roller\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x), \"light\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x), \"light\" (5x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x), \"street\" (3x), \"lights\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (4x), \"panel\" (3x), \"light\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (4x), \"panel\" (3x), \"light\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"leakage\" (3x), \"tape\" (4x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x), \"ceiling\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"led\" (3x), \"ceiling\" (3x), \"light\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"light\" (4x), \"ceiling\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"light\" (4x), \"white\" (3x)",
+      "n": 1
+    },
+    {
+      "label": "[Title] Words repeated more than twice: \"light\" (4x), \"white\" (4x)",
+      "n": 1
+    }
+  ],
+  "grades": [
+    {
+      "grade": "A",
+      "n": 66828
+    },
+    {
+      "grade": "A+",
+      "n": 30589
+    },
+    {
+      "grade": "B",
+      "n": 14422
+    },
+    {
+      "grade": "C",
+      "n": 1592
+    },
+    {
+      "grade": "D",
+      "n": 38
+    },
+    {
+      "grade": "F",
+      "n": 63452
+    }
+  ]
+}

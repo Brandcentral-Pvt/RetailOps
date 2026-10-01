@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Popover, TimePicker, Switch, Typography, Empty, Space } from 'antd';
+import { Button, Popover, TimePicker, Switch, Typography } from 'antd';
 import { SettingOutlined, InfoCircleOutlined, AuditOutlined, RightOutlined, CheckCircleFilled, HourglassOutlined, UndoOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -36,7 +36,7 @@ export function WorkdaySettings({ workday, onChange }) {
         </div>
       )}
     >
-      <Button icon={<SettingOutlined />} size="small" style={{ borderRadius: 6 }}>Working hours</Button>
+      <button type="button" className="md-btn"><SettingOutlined /> Working hours</button>
     </Popover>
   );
 }
@@ -46,7 +46,7 @@ export function HowItWorks() {
     <Popover
       placement="bottomRight" title="How your plan is made"
       content={(
-        <div style={{ width: 300, fontSize: 13, color: 'var(--bc-text-body, #475569)', lineHeight: 1.55 }}>
+        <div style={{ width: 300, fontSize: 13, lineHeight: 1.55 }}>
           <p style={{ margin: '0 0 6px' }}>Every task gets a score — the higher it is, the sooner it appears:</p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             <li><b>Overdue</b> and <b>due today</b> come first</li>
@@ -58,7 +58,7 @@ export function HowItWorks() {
         </div>
       )}
     >
-      <Button type="text" size="small" icon={<InfoCircleOutlined />} style={{ color: 'rgba(255,255,255,.85)' }}>How this works</Button>
+      <button type="button" className="md-btn"><InfoCircleOutlined /> How this works</button>
     </Popover>
   );
 }
@@ -69,18 +69,21 @@ export function ReviewsCard({ reviews }) {
   const oldest = reviews[0];
   const waitH = oldest.SubmittedAt ? Math.round((Date.now() - new Date(oldest.SubmittedAt).getTime()) / 3600000) : null;
   return (
-    <div className="md-card" style={{ borderColor: '#e1bee7', background: 'linear-gradient(135deg,#faf5ff,#fff)' }}>
-      <div className="md-card__title" style={{ color: '#7B1FA2' }}><span><AuditOutlined /> Waiting for your review</span><span>{reviews.length}</span></div>
+    <div className="md-card md-card--review">
+      <div className="md-card__title md-card__title--review">
+        <span><AuditOutlined /> Waiting for your review</span>
+        <span>{reviews.length}</span>
+      </div>
       {reviews.slice(0, 3).map(r => (
         <div className="md-mini" key={r.Id} onClick={() => navigate(`/tasks/reviews?task=${r.Id}`)}>
-          <span className="md-dot" style={{ background: accentFor(r) }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="md-mini__title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.Title}</div>
-            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>{r.AssigneeName || 'Teammate'}</Text>
+          <span className="md-dot" style={{ '--dot': accentFor(r) }} />
+          <div className="md-mini__body">
+            <div className="md-mini__title">{r.Title}</div>
+            <Text className="md-mini__sub">{r.AssigneeName || 'Teammate'}</Text>
           </div>
         </div>
       ))}
-      <Button type="primary" block style={{ marginTop: 10, background: '#7B1FA2', borderColor: '#7B1FA2', borderRadius: 8, fontWeight: 600 }} onClick={() => navigate('/tasks/reviews')}>
+      <Button type="primary" block className="md-review-cta" onClick={() => navigate('/tasks/reviews')}>
         Review {reviews.length} task{reviews.length > 1 ? 's' : ''}{waitH >= 4 ? ` · oldest waiting ${waitH}h` : ''} <RightOutlined />
       </Button>
     </div>
@@ -92,13 +95,18 @@ export function MiniList({ title, icon, items, empty, onOpen, renderExtra, tone 
   if (!items.length && !empty) return null;
   return (
     <div className="md-card">
-      <div className="md-card__title" style={tone ? { color: tone } : undefined}><span>{icon} {title}</span><span>{items.length}</span></div>
-      {items.length === 0 ? <Text style={{ fontSize: 12, color: 'var(--bc-text-muted, #94a3b8)' }}>{empty}</Text> : items.map(it => (
+      <div className={`md-card__title${tone === 'done' ? ' md-card__title--done' : ''}`}>
+        <span>{icon} {title}</span>
+        <span>{items.length}</span>
+      </div>
+      {items.length === 0 ? (
+        <Text className="md-mini__empty">{empty}</Text>
+      ) : items.map(it => (
         <div className="md-mini" key={it.id} onClick={() => onOpen?.(it.id)}>
-          <span className="md-dot" style={{ background: it.color }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="md-mini__title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</div>
-            <Text style={{ fontSize: 11, color: 'var(--bc-text-muted, #94a3b8)' }}>{it.sub}</Text>
+          <span className="md-dot" style={{ '--dot': it.color }} />
+          <div className="md-mini__body">
+            <div className="md-mini__title">{it.title}</div>
+            <Text className="md-mini__sub">{it.sub}</Text>
           </div>
           {renderExtra?.(it)}
         </div>
@@ -107,6 +115,6 @@ export function MiniList({ title, icon, items, empty, onOpen, renderExtra, tone 
   );
 }
 
-export const DoneIcon = <CheckCircleFilled style={{ color: '#2E7D32' }} />;
+export const DoneIcon = <CheckCircleFilled className="md-done-icon" />;
 export const WaitIcon = <HourglassOutlined />;
 export { formatDuration, FRIENDLY_STATUS };
