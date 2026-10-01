@@ -1,5 +1,13 @@
 const { sql, getPool, generateId } = require('../database/db');
 
+// Upper bound on tasks one ruleset execution may create. A rule that matched the
+// whole ASIN catalog created 221,665 rows in a single run, which made the Tasks
+// page unusable. Re-running continues where the previous run stopped.
+const MAX_TASKS_PER_RUN = (() => {
+  const raw = Number(process.env.RULESET_MAX_TASKS_PER_RUN);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 5000;
+})();
+
 const DATE_RANGE_MAP = {
   'Last 7 days': 7,
   'Last 14 days': 14,
@@ -249,6 +257,8 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
     case 'create_task_high': {
       try {
         const ruleName = matchedRule?.name || 'Ruleset Rule';
+        // Some entity rows carry the ASIN in a numeric-ish column, so a raw value can
+        // arrive as 7.02632E+11. Keep the identifier verbatim; never reformat it here.
         const asinCode = entity.asinCode || entity.entityId || '';
         const title = `[Ruleset] ${ruleName}${asinCode ? ` — ${asinCode}` : ''}`;
         const attrCsv = (matchedRule?.conditions || []).map(c => `${c.attribute} ${c.operator} ${c.value}${c.value2 ? '–' + c.value2 : ''}`).join(', ');
@@ -278,7 +288,35 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
           } catch (e) { /* fallback to creator */ }
         }
 
-        // Try PEMS first; if it fails, fall back to legacy Actions table
+        // Re-running a ruleset must not pile up a second open task for the same
+        // (ruleset, rule, entity). Check for an existing open instance first — the
+        // IX_PemsTaskInstances_RulesetDedupe index makes this a seek.
+        const openStatuses = ['DRAFT', 'ASSIGNED', 'IN_PROGRESS', 'UNDER_REVIEW'];
+        const dupeReq = pool.request()
+          .input('srcId', sql.VarChar, rulesetMeta?.id || null)
+          .input('srcRef', sql.NVarChar, ruleName)
+          .input('asinVal', sql.NVarChar, asinCode);
+        openStatuses.forEach((s, i) => dupeReq.input(`st${i}`, sql.VarChar, s));
+        const dupe = await dupeReq.query(`
+            SELECT TOP 1 Id, Title FROM PemsTaskInstances
+            WHERE SourceId = @srcId
+              AND SourceRef = @srcRef
+              AND Source = 'RULESET'
+              AND Status IN (${openStatuses.map((_, i) => `@st${i}`).join(',')})
+              ${asinCode ? "AND Asins LIKE '%' + @asinVal + '%'" : ''}
+          `);
+        if (dupe.recordset.length > 0) {
+          results.push({
+            action: 'task_created', status: 'skipped', reason: 'open task already exists',
+            taskId: dupe.recordset[0].Id, title, existing: true,
+          });
+          break;
+        }
+
+        // Try PEMS first. NOTE: do NOT swallow a failure and silently fall back to the
+        // legacy Actions table — that hid a hard schema error and let one ruleset run
+        // write 221,665 rows into Actions instead of PEMS. A PEMS failure is now an
+        // error result, so the run summary reports it.
         let taskId;
         try {
           const pemsService = require('./pems/pemsService');
@@ -305,23 +343,14 @@ async function applyAction(entity, action, type, sellerId, userId, matchedRule =
           });
           taskId = r.id;
         } catch (pemsErr) {
-          // Fallback: write into legacy Actions table
-          taskId = generateId();
-          await pool.request()
-            .input('Id', sql.VarChar, taskId)
-            .input('Title', sql.NVarChar, title)
-            .input('Description', sql.NVarChar, description)
-            .input('Priority', sql.NVarChar, priority)
-            .input('Status', sql.NVarChar, 'PENDING')
-            .input('Type', sql.NVarChar, 'automated')
-            .input('Category', sql.NVarChar, category)
-            .input('Asins', sql.NVarChar, JSON.stringify(asinCode ? [asinCode] : []))
-            .input('SellerId', sql.VarChar, sellerIdStr)
-            .input('CreatedBy', sql.VarChar, createdByUserId)
-            .input('AssignedTo', sql.VarChar, assignedTo)
-            .input('DueDate', sql.DateTime2, dueDate)
-            .query(`INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SellerId, CreatedBy, AssignedTo, DueDate, CreatedAt, UpdatedAt)
-                    VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SellerId, @CreatedBy, @AssignedTo, @DueDate, dbo.GetEnvDate(), dbo.GetEnvDate())`);
+          console.error(
+            `[Ruleset] PEMS task creation failed for rule "${ruleName}" (${asinCode || 'no asin'}): ${pemsErr.message}`
+          );
+          results.push({
+            action: 'task_failed', status: 'failed', error: pemsErr.message,
+            note: 'Not written to the legacy Actions table on purpose — fix the PEMS error and re-run.',
+          });
+          break;
         }
 
         results.push({ action: 'task_created', status: 'success', taskId, title, priority, dueDate: dueDate.toISOString(), source: 'RULESET' });
@@ -638,8 +667,13 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + dueDateMs);
 
+    // `taskId` is read below in the results.push, which sits OUTSIDE the `if (!dryRun)`
+    // block. Declaring it inside that block made every group task throw
+    // "ReferenceError: taskId is not defined" after it had already been inserted.
+    let taskId = null;
+    let creationError = null;
+
     if (!dryRun) {
-      let taskId;
       try {
         const pemsService = require('./pems/pemsService');
         const r = await pemsService.createInstance({
@@ -658,7 +692,7 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
           tags: ['automation','ruleset',ruleset.Name||''].filter(Boolean),
           source: 'RULESET',
           sourceId: ruleset.Id,
-          sourceRef: rule.name,
+          sourceRef: group.rule?.name || ruleName,
           asins: subTasks.map(st => st.asinCode),
           subTaskDefinitions: subTasks.map((st, i) => ({
             title: st.title || `Resolve ${st.asinCode}`,
@@ -669,34 +703,35 @@ async function createGroupTasks(matchedEntities, ruleset, pool, options = {}) {
         });
         taskId = r.id;
       } catch (pemsErr) {
-        console.warn('[rulesetEngine] PEMS create failed, falling back to legacy Actions:', pemsErr.message);
-        taskId = generateId();
-      await pool.request()
-        .input('Id', sql.VarChar, taskId)
-        .input('Title', sql.NVarChar, mainTitle)
-        .input('Description', sql.NVarChar, description)
-        .input('Priority', sql.NVarChar, priority)
-        .input('Status', sql.NVarChar, 'PENDING')
-        .input('Type', sql.NVarChar, 'automated')
-        .input('Category', sql.NVarChar, group.entities[0]?.category || 'General')
-        .input('Asins', sql.NVarChar, JSON.stringify(subTasks.map(st => st.asinCode)))
-        .input('SubTasks', sql.NVarChar, JSON.stringify(subTasks))
-        .input('SubTaskProgress', sql.NVarChar, `0/${entityCount}`)
-        .input('SellerId', sql.VarChar, groupKey)
-        .input('CreatedBy', sql.VarChar, ruleset.CreatedBy || '')
-        .input('AssignedTo', sql.VarChar, assignedTo)
-        .input('DueDate', sql.DateTime2, dueDate)
-        .input('TimeLimit', sql.Int, dueDateMs)
-        .query(`
-          INSERT INTO Actions (Id, Title, Description, Priority, Status, Type, Category, Asins, SubTasks, SubTaskProgress, SellerId, CreatedBy, AssignedTo, DueDate, TimeLimit, CreatedAt, UpdatedAt)
-          VALUES (@Id, @Title, @Description, @Priority, @Status, @Type, @Category, @Asins, @SubTasks, @SubTaskProgress, @SellerId, @CreatedBy, @AssignedTo, @DueDate, @TimeLimit, dbo.GetEnvDate(), dbo.GetEnvDate())
-        `);
-      } // end catch (legacy fallback)
+        // No legacy Actions fallback here either: this is the second writer that filled
+        // Actions with "[<rule>] <seller> — <N> items" rows. Record the failure and let
+        // the run report it instead of silently duplicating tasks into the old table.
+        console.warn('[rulesetEngine] PEMS group task creation failed:', pemsErr.message);
+        creationError = pemsErr.message;
+      }
+    }
+
+    if (creationError) {
+      results.push({
+        action: 'group_task_created',
+        status: 'failed',
+        title: mainTitle,
+        groupKey,
+        displayName,
+        groupByField,
+        entityCount,
+        subTaskCount: subTasks.length,
+        priority,
+        dueDate: dueDate.toISOString(),
+        error: creationError,
+        note: 'Not written to the legacy Actions table on purpose — fix the PEMS error and re-run.',
+      });
+      continue;
     }
 
     results.push({
       action: 'group_task_created',
-      status: 'success',
+      status: dryRun ? 'dry_run' : 'success',
       taskId,
       title: mainTitle,
       groupKey,
@@ -910,6 +945,12 @@ async function evaluateRuleset(rulesetId, options = {}) {
     totalMatched: 0,
     totalActioned: 0,
     totalSkipped: 0,
+    // Safety valve: a rule that matches the whole ~188k ASIN catalog produced
+    // 221,665 task rows in a single run. Cap task-creating actions per run and
+    // report the remainder instead of silently writing an unbounded number.
+    taskCap: MAX_TASKS_PER_RUN,
+    tasksCreated: 0,
+    cappedAt: null,
     executionTimeMs: 0
   };
 
@@ -958,6 +999,32 @@ async function evaluateRuleset(rulesetId, options = {}) {
   for (let i = 0; i < individualEntities.length; i += batchSize) {
     const batch = individualEntities.slice(i, i + batchSize);
     await Promise.all(batch.map(async ({ entity, matchedRule, matchedIndex }) => {
+      const isTaskAction = matchedRule?.action?.actionType === 'create_task'
+        || matchedRule?.action?.actionType === 'create_task_high';
+
+      // Stop creating tasks once the per-run cap is reached. The rest are reported
+      // as capped so the operator sees the rule matched more than we actioned.
+      if (!dryRun && isTaskAction && summary.tasksCreated >= MAX_TASKS_PER_RUN) {
+        summary.cappedAt = MAX_TASKS_PER_RUN;
+        summary.totalSkipped++;
+        entries.push({
+          entityId: entity.asinCode || entity.entityId,
+          entityType: ruleset.Type,
+          entityName: entity.title || entity.asinCode,
+          ruleName: matchedRule.name,
+          ruleOrder: matchedIndex,
+          conditionsMet: matchedRule.conditions.map(c => ({
+            attribute: c.attribute,
+            operator: c.operator,
+            value: c.value
+          })),
+          actionApplied: matchedRule.action,
+          status: 'capped',
+          note: `Per-run task cap of ${MAX_TASKS_PER_RUN} reached — re-run to continue.`
+        });
+        return;
+      }
+
       let actionResults = [];
       if (!dryRun) {
         actionResults = await applyAction(
@@ -970,6 +1037,9 @@ async function evaluateRuleset(rulesetId, options = {}) {
           { id: ruleset.Id, name: ruleset.Name, createdBy: ruleset.CreatedBy }
         );
         summary.totalActioned++;
+        if (actionResults.some(r => r.action === 'task_created' && r.status === 'success')) {
+          summary.tasksCreated++;
+        }
       }
 
       entries.push({
