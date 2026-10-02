@@ -4,10 +4,8 @@ import { requestAuthentication, storeAuthSession } from './authRequest';
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // Auth helper functions
-const getAuthHeader = () => {
-  const token = localStorage.getItem('authToken');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
-};
+// Tokens live in httpOnly cookies; getAuthHeader returns empty object.
+const getAuthHeader = () => ({});
 
 const handleResponse = async (res, defaultErrorMsg = 'Request failed') => {
   if (res.ok) {
@@ -33,7 +31,7 @@ const handleResponse = async (res, defaultErrorMsg = 'Request failed') => {
 export const authApi = {
   login: async (email, password, options = {}) => {
     const data = await requestAuthentication('login', { email, password }, options);
-    if (data.data?.accessToken && !options.deferSession) storeAuthSession(data);
+    if (!options.deferSession) storeAuthSession(data);
     return data;
   },
 
@@ -48,21 +46,15 @@ export const authApi = {
   },
 
   post: async (endpoint, body = {}) => {
-    const token = localStorage.getItem('authToken');
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Request failed');
     return data;
-  },
-
-  getMe: async () => {
-    const token = localStorage.getItem('authToken');
-    const res = await fetch(`${API_BASE}/auth/me`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    return res.json();
   },
 
   register: async (userData) => {
@@ -76,18 +68,15 @@ export const authApi = {
       throw new Error(error.message || 'Registration failed');
     }
     const data = await res.json();
-    if (data.success) {
-      localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-    }
+    if (data.success) storeAuthSession(data);
     return data;
   },
 
   logout: async () => {
     const res = await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
     });
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
@@ -98,6 +87,7 @@ export const authApi = {
   getMe: async () => {
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { ...getAuthHeader() },
+      credentials: 'same-origin',
     });
     if (!res.ok) throw new Error('Failed to get user info');
     return res.json();
@@ -128,6 +118,11 @@ export const authApi = {
       throw new Error(error.message || 'Failed to change password');
     }
     return res.json();
+  },
+
+  getCurrentUser: () => {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
   },
 
   requestPasswordChange: async (currentPassword) => {
@@ -184,21 +179,16 @@ export const authApi = {
   },
 
   refreshToken: async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) throw new Error('No refresh token');
-
+    // The refresh token is an httpOnly cookie; the browser sends it automatically.
     const res = await fetch(`${API_BASE}/auth/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      credentials: 'same-origin',
     });
     if (!res.ok) throw new Error('Failed to refresh token');
 
     const data = await res.json();
-    if (data.success) {
-      localStorage.setItem('authToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
-    }
+    // New tokens arrive as Set-Cookie; nothing is persisted client-side.
     return data;
   },
 
@@ -208,7 +198,7 @@ export const authApi = {
   },
 
   isAuthenticated: () => {
-    return !!localStorage.getItem('authToken');
+    return !!localStorage.getItem('user');
   },
 };
 
