@@ -5,6 +5,7 @@ import { Alert, Row, Col } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../contexts/PageTitleContext';
 import { useDateRange } from '../contexts/DateRangeContext';
+import { useSocket } from '../contexts/SocketContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useCommandPalette } from '../components/dashboard/CommandPalette';
 import api, { marketSyncApi } from '../services/api';
@@ -99,9 +100,41 @@ const Dashboard = () => {
     // ✅ Sync button now triggers a real data ingestion pipeline run
     // (previously it only re-fetched the dashboard, never pulling new data).
     const [syncing, setSyncing] = useState(false);
+
+    // Live progress for the sync run, fed by the scrape socket. Additive only:
+    // the KPI/donut/target pipeline below is unchanged.
+    const [syncProgress, setSyncProgress] = useState({
+        isRunning: false, count: 0, total: 0, status: 'idle'
+    });
+
+    const socket = useSocket();
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleBatchStart = (data) => {
+            setSyncProgress({ isRunning: true, count: 0, total: data?.total || 0, status: 'starting' });
+        };
+        const handleBatchComplete = (data) => {
+            setSyncProgress((prev) => ({
+                ...prev,
+                count: prev.count + (data?.count || 0),
+                status: 'processing',
+            }));
+        };
+
+        socket.on('scrape_batch_start', handleBatchStart);
+        socket.on('scrape_batch_complete', handleBatchComplete);
+        return () => {
+            socket.off?.('scrape_batch_start', handleBatchStart);
+            socket.off?.('scrape_batch_complete', handleBatchComplete);
+        };
+    }, [socket]);
+
     const handleSync = useCallback(async () => {
         if (syncing) return;
         setSyncing(true);
+        setSyncProgress((prev) => ({ ...prev, isRunning: true, status: 'initiating' }));
         try {
             try {
                 await marketSyncApi.ingestAllResults();
@@ -113,6 +146,7 @@ const Dashboard = () => {
             await refresh();
         } finally {
             setSyncing(false);
+            setSyncProgress((prev) => ({ ...prev, isRunning: false, status: 'completed' }));
         }
     }, [syncing, refresh]);
 
