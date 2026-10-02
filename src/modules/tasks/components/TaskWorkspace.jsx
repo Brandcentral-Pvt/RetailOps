@@ -159,8 +159,7 @@ function AffectedASINsPanel({ task, taskId, loadTask, message }) {
                   {seller.counts?.major > 0 && <Badge color="warning" count={seller.counts.major} size="small" style={{ fontSize: 10 }} />}
                 </Space>
               </div>
-
-<Table
+              <Table
                 columns={[
                   {
                     title: 'ASIN',
@@ -269,8 +268,6 @@ function AffectedASINsPanel({ task, taskId, loadTask, message }) {
                 scroll={{ x: 1000 }}
               />
                 </div>
-              </div>
-            </div>
           ))}
         </div>
       )}
