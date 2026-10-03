@@ -163,7 +163,10 @@ exports.authenticate = async (req, res, next) => {
 exports.requirePermission = (permissionName) => {
   return async (req, res, next) => {
     if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
-    if (req.user.role?.name === 'admin' || req.user.role?.Name === 'admin' || req.user.role?.name === 'super_admin' || req.user.role?.Name === 'super_admin') return next();
+    // Admin/super_admin hold a wildcard permission (*) that grants all access.
+    // This replaces the old role-name bypass so the app's nav always matches the server.
+    const hasWildcard = await req.user.hasPermission('*');
+    if (hasWildcard) return next();
 
     const hasPerm = await req.user.hasPermission(permissionName);
     if (!hasPerm) {
@@ -180,7 +183,8 @@ exports.requirePermission = (permissionName) => {
 exports.requireAnyPermission = (permissionNames) => {
   return async (req, res, next) => {
     if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
-    if (req.user.role?.name === 'admin' || req.user.role?.Name === 'admin' || req.user.role?.name === 'super_admin' || req.user.role?.Name === 'super_admin') return next();
+    const hasWildcard = await req.user.hasPermission('*');
+    if (hasWildcard) return next();
 
     const hasAny = await req.user.hasAnyPermission(permissionNames);
     if (!hasAny) return res.status(403).json({ success: false, message: 'Missing required permissions' });
