@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "RetailOps",
+    "slug": "retailops-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "retailops",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1976D2"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.brandcentral.retailops",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "in.brandcentral.retailops",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#1976D2",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.INTERNET", "android.permission.VIBRATE"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "EXPO_PUBLIC_API_URL": "https://data.brandcentral.in/api",
+      "EXPO_PUBLIC_SOCKET_URL": "https://data.brandcentral.in",
+      "EXPO_PUBLIC_API_TIMEOUT": "30000"
+    },
+    "plugins": ["expo-font"]
+  }
+}
