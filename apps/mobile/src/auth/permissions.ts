@@ -11,10 +11,10 @@
  */
 
 export type Surface = 'internal' | 'seller' | 'both';
-
 export type ScopeMode = 'global' | 'assigned' | 'self';
 
-export type RoleKey =
+/** Known registry roles, widened for server-created custom internal roles. */
+export type KnownRoleKey =
   | 'admin'
   | 'operational_manager'
   | 'Brand Manager'
@@ -23,76 +23,75 @@ export type RoleKey =
   | 'reviewer'
   | 'viewer'
   | 'seller_client';
+export type RoleKey = KnownRoleKey | (string & {});
 
 /** Pseudo-roles used by the screen inventory. They are not real accounts. */
-export type PseudoRole =
-  | 'ALL_INTERNAL'
-  | 'ALL_AUTHENTICATED'
-  | 'ALL_SURFACES'
-  | 'NONE';
-
-export type RoleRef = RoleKey | PseudoRole;
+export type PseudoRole = 'ALL_INTERNAL' | 'ALL_AUTHENTICATED' | 'ALL_SURFACES' | 'NONE';
+export type RoleRef = KnownRoleKey | PseudoRole;
 
 export type Session = {
   userId: string;
   email: string;
   displayName: string;
   role: RoleKey;
-  /** Every permission the backend granted, including extra_permissions. */
+  /** Every effective permission from the backend, including per-user overrides. */
   permissions: string[];
-  /**
-   * The seller accounts this user may read. `[]` on the internal surface.
-   * `self` scope is a single-entry list.
-   */
+  /** The seller accounts this user may read. Empty on a global internal account. */
   sellerIds: string[];
+  /** Server-derived; never inferred from a role on the device. */
   scope: ScopeMode;
   token: string;
   expiresAt: number;
+  requiresSetup: boolean;
+  needsPasswordReset: boolean;
 };
 
-/* ── Permission expression evaluation ────────────────────────────────────────
- * The screen inventory stores permission requirements as short expressions,
- * e.g. "dashboard_view or targets_view", "chat_view", "asinmanager_manage",
- * or null for "no permission gate". We evaluate them against the session's
- * permission set rather than string-comparing, so a screen that requires any
- * one of several permissions behaves the way its spec says.
- * -------------------------------------------------------------------------- */
+/* ── Permission expression evaluation ───────────────────────────────────── */
 
 /** Every permission string the session holds, lower-cased for comparison. */
 export function permissionSet(permissions: string[]): Set<string> {
-  return new Set(permissions.map((p) => p.trim().toLowerCase()).filter(Boolean));
+  return new Set(permissions.map((permission) => permission.trim().toLowerCase()).filter(Boolean));
 }
 
-const splitAlternatives = (expr: string): string[] =>
-  expr
-    .split(/\s+or\s+/i)
-    .map((s) => s.trim())
+/** Supports the registry's human-friendly `a or b` and `a | b` any-of forms. */
+const splitAlternatives = (expression: string): string[] =>
+  expression
+    .split(/\s+or\s+|\s*\|\s*/i)
+    .map((part) => part.trim())
     .filter(Boolean);
+
+function permissionMatches(granted: string, requirement: string): boolean {
+  if (requirement === '*') return true;
+  if (!requirement.includes('*')) return granted === requirement;
+  // Registry wildcards are permission-family patterns (`*_export`,
+  // `*report_view`). Escape every non-wildcard character before matching.
+  const escaped = requirement
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*');
+  return new RegExp(`^${escaped}$`, 'i').test(granted);
+}
 
 /**
  * Does the session satisfy this screen's permission requirement?
  *
- * - `null` / `undefined` / `''`  → no gate, everyone passes.
- * - `"a or b"`                   → holds at least one of them.
- * - `"a"`                        → holds it.
- *
- * `*` inside a permission matches any suffix (`asinmanager_*`), which is how
- * the inventory abbreviates the `_view _manage _import _export` families.
+ * - `null` / `undefined` / `''` → no gate, everyone passes.
+ * - `"a or b"` / `"a | b"`    → holds at least one.
+ * - wildcards                    → match a permission family.
+ * - an effective `*` grant       → every permission requirement passes.
  */
 export function satisfies(granted: Set<string>, requirement: string | null | undefined): boolean {
   if (requirement == null) return true;
-  const expr = String(requirement).trim();
-  if (expr === '' || expr === 'NONE' || expr === '—') return true;
+  const expression = String(requirement).trim();
+  if (expression === '' || expression === 'NONE' || expression === '—') return true;
+  if (granted.has('*')) return true;
 
-  return splitAlternatives(expr).some((alt) => {
-    const p = alt.toLowerCase();
-    if (p.endsWith('_*')) {
-      const prefix = p.slice(0, -1); // keep the underscore
-      for (const g of granted) if (g.startsWith(prefix)) return true;
-      return false;
+  return splitAlternatives(expression).some((alternative) => {
+    const normalized = alternative.toLowerCase();
+    for (const permission of granted) {
+      if (permissionMatches(permission, normalized)) return true;
     }
-    if (p === '*') return true;
-    return granted.has(p);
+    return false;
   });
 }
 
@@ -102,7 +101,7 @@ export function sessionSatisfies(session: Session | null, requirement: string | 
   return satisfies(permissionSet(session.permissions), requirement);
 }
 
-/* ── Surface ─────────────────────────────────────────────────────────────── */
+/* ── Surface ───────────────────────────────────────────────────────────── */
 
 /** Which surface does this session see? Seller clients get the seller shell. */
 // contract-allow: C-02 — surface membership is an account TYPE, not a
@@ -120,16 +119,13 @@ export function surfaceAllows(sessionSurface: Surface, screenSurface: Surface): 
   return screenSurface === sessionSurface;
 }
 
-/* ── The single gate ─────────────────────────────────────────────────────── */
+/* ── The single gate ───────────────────────────────────────────────────── */
 
 export type GateResult =
   | { allowed: true }
   | { allowed: false; reason: 'no-session' | 'wrong-surface' | 'no-permission' };
 
-/**
- * The one function navigation and every screen call. Returns *why* access was
- * refused so the 403 screen can say something useful.
- */
+/** The one function navigation and every screen call. */
 export function canAccess(
   session: Session | null,
   screen: { surface: Surface; permission: string | null; roleKeys: RoleRef[] },
@@ -144,7 +140,7 @@ export function canAccess(
   return { allowed: true };
 }
 
-/* ── Scope ───────────────────────────────────────────────────────────────── */
+/* ── Scope ─────────────────────────────────────────────────────────────── */
 
 /**
  * The seller switcher offers depend on scope:
@@ -160,8 +156,16 @@ export function scopeOffers(
     case 'global':
       return { canSwitch: true, canSelectAll: true, sellers: allSellers };
     case 'assigned':
-      return { canSwitch: true, canSelectAll: false, sellers: allSellers.filter((s) => session.sellerIds.includes(s.id)) };
+      return {
+        canSwitch: true,
+        canSelectAll: false,
+        sellers: allSellers.filter((seller) => session.sellerIds.includes(seller.id)),
+      };
     case 'self':
-      return { canSwitch: false, canSelectAll: false, sellers: allSellers.filter((s) => session.sellerIds.includes(s.id)) };
+      return {
+        canSwitch: false,
+        canSelectAll: false,
+        sellers: allSellers.filter((seller) => session.sellerIds.includes(seller.id)),
+      };
   }
 }

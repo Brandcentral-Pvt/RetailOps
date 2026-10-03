@@ -9,7 +9,7 @@
  * Do not add a screen by hand: edit the inventory and run `npm run scaffold`.
  *
  * Gate: surface=internal
- *       permission="per report _export"
+ *       permission="skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export"
  *       roleKeys=['admin', 'operational_manager', 'Brand Manager', 'catalog_manager', 'listing_team', 'reviewer', 'viewer']
  * Scope:      all/assigned
  * Critical:   no
@@ -26,7 +26,7 @@ export const meta: ScreenMeta = {
   id: 'INT-GR-21',
   name: "Report export",
   surface: 'internal',
-  permission: "per report _export",
+  permission: "skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export",
   roleKeys: ['admin', 'operational_manager', 'Brand Manager', 'catalog_manager', 'listing_team', 'reviewer', 'viewer'],
   scope: "all/assigned",
   critical: false,

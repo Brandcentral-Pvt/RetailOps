@@ -2,15 +2,15 @@
  * authService — the wire contract with backend/routes/authRoutes.js.
  *
  * Login is two-legged: password, then OTP, unless the device is trusted.
- * `hydrate()` uses GET /auth/me, which is the *only* endpoint that returns the
- * assigned sellers alongside the permissions, so it is what builds the session.
+ * `fetchMe()` is authoritative for the effective permissions, seller scope and
+ * setup state that determine the mobile shell.
  */
-import { api } from './apiClient';
-import type { RoleKey, ScopeMode, Session } from '../auth/permissions';
+import type { ScopeMode, Session } from '../auth/permissions';
+import { ApiError } from './ApiError';
+import { api, type AuthTokens } from './apiClient';
 
 type LoginRequest = { email: string; password: string };
 
-/** POST /auth/login → OTP branch */
 type LoginOtpResponse = {
   success: true;
   requiresOtp: true;
@@ -20,134 +20,188 @@ type LoginOtpResponse = {
   message: string;
 };
 
-/** POST /auth/login → trusted-device branch */
 type LoginDirectResponse = {
   success: true;
   requiresOtp?: false;
   data: { user: RawUser; accessToken: string; refreshToken: string };
-  trustedDevice: boolean;
-  requiresSetup: boolean;
+  trustedDevice?: boolean;
+  requiresSetup?: boolean;
+  needsPasswordReset?: boolean;
+};
+
+export type AuthenticatedResult = {
+  kind: 'authenticated';
+  accessToken: string;
+  refreshToken: string;
   needsPasswordReset: boolean;
+  requiresSetup: boolean;
 };
 
 export type LoginResult =
   | { kind: 'otp'; tempToken: string; destination: string; expiresIn: number; message: string }
-  | { kind: 'authenticated'; accessToken: string; refreshToken: string; needsPasswordReset: boolean; requiresSetup: boolean };
+  | AuthenticatedResult;
+
+export type RawSeller = { Id?: string; id?: string; Name?: string; name?: string };
 
 export type RawUser = {
-  id: string;
+  id?: string;
   _id?: string;
+  Id?: string;
   Email?: string;
   email?: string;
   FirstName?: string;
+  firstName?: string;
   LastName?: string;
-  role: { Name: string; DisplayName: string };
-  permissions: string[];
-  sellers?: { Id: string; Name: string }[];
+  lastName?: string;
+  role?: { Name?: string; name?: string; DisplayName?: string; displayName?: string };
+  permissions?: string[];
+  sellers?: RawSeller[];
   assignedSellers?: string[];
+  scope?: ScopeMode;
+  requiresSetup?: boolean;
+  needsPasswordReset?: boolean;
 };
 
 export async function login({ email, password }: LoginRequest): Promise<LoginResult> {
-  const res = await api.post<LoginOtpResponse | LoginDirectResponse>('/auth/login', {
-    email: email.trim().toLowerCase(),
-    password,
-  });
+  const result = await api.post<LoginOtpResponse | LoginDirectResponse>(
+    '/auth/login',
+    { email: email.trim().toLowerCase(), password },
+    { skipAuthRefresh: true },
+  );
 
-  if ('requiresOtp' in res && res.requiresOtp) {
+  if ('requiresOtp' in result && result.requiresOtp) {
     return {
       kind: 'otp',
-      tempToken: res.tempToken,
-      destination: res.destination,
-      expiresIn: res.expiresIn,
-      message: res.message,
+      tempToken: result.tempToken,
+      destination: result.destination,
+      expiresIn: result.expiresIn,
+      message: result.message,
     };
   }
 
-  const direct = res as LoginDirectResponse;
-  return {
-    kind: 'authenticated',
-    accessToken: direct.data.accessToken,
-    refreshToken: direct.data.refreshToken,
-    needsPasswordReset: direct.needsPasswordReset,
-    requiresSetup: direct.requiresSetup,
-  };
+  return toAuthenticatedResult(result as LoginDirectResponse);
 }
 
 /** POST /auth/verify-otp — completes the second leg. */
-export async function verifyOtp(tempToken: string, code: string) {
-  const res = await api.post<LoginDirectResponse>('/auth/verify-otp', { tempToken, code });
-  return {
-    accessToken: res.data.accessToken,
-    refreshToken: res.data.refreshToken,
-    needsPasswordReset: res.needsPasswordReset,
-    requiresSetup: res.requiresSetup,
-  };
+export async function verifyOtp(tempToken: string, otp: string, trustDevice: boolean): Promise<AuthenticatedResult> {
+  const result = await api.post<LoginDirectResponse>(
+    '/auth/verify-otp',
+    { tempToken, otp, trustDevice },
+    { skipAuthRefresh: true },
+  );
+  return toAuthenticatedResult(result);
 }
 
-export async function resendOtp(tempToken: string) {
-  const res = await api.post<{ message: string; expiresIn: number }>('/auth/resend-otp', { tempToken });
-  return res;
+export async function resendOtp(tempToken: string): Promise<{ destination?: string; expiresIn?: number; message?: string }> {
+  return api.post('/auth/resend-otp', { tempToken }, { skipAuthRefresh: true });
 }
 
-export async function forgotPassword(email: string) {
-  return api.post<{ message: string }>('/auth/forgot-password', { email: email.trim().toLowerCase() });
+/** Deliberately neutral on success so the UI never reveals whether an account exists. */
+export async function forgotPassword(email: string): Promise<{ message?: string }> {
+  return api.post('/auth/forgot-password', { email: email.trim().toLowerCase() }, { skipAuthRefresh: true });
 }
 
-export async function logout() {
-  return api.post('/auth/logout');
+export async function resetPassword(token: string, newPassword: string): Promise<{ message?: string }> {
+  return api.post('/auth/reset-password', { token, newPassword }, { skipAuthRefresh: true });
+}
+
+export async function logout(): Promise<void> {
+  await api.post('/auth/logout', {}, { skipAuthRefresh: true });
+}
+
+/** First-login setup endpoints. */
+export type FirstLoginSetupStatus = {
+  needsSetup?: boolean;
+  completedSteps?: string[];
+};
+
+export async function getFirstLoginSetupStatus(): Promise<FirstLoginSetupStatus> {
+  const result = await api.get<{ success?: boolean; data?: FirstLoginSetupStatus }>('/setup-wizard/status');
+  if (!result.success || !result.data) {
+    throw new ApiError(500, 'The server returned invalid setup progress.', '/setup-wizard/status', result);
+  }
+  return result.data;
+}
+
+export async function acknowledgeFirstLoginSetup(): Promise<void> {
+  // The compact mobile flow presents the welcome/security guidance above the
+  // form and records those acknowledgements before changing the password. If a
+  // network request fails here, the temporary password remains usable.
+  await api.post('/setup-wizard/step/welcome/complete', {});
+  await api.post('/setup-wizard/step/security_tips/complete', {});
+  await api.post('/setup-wizard/step/accept_policies/complete', {});
+}
+
+export async function setFirstLoginPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post('/setup-wizard/password', { currentPassword, newPassword });
+}
+
+export async function completeFirstLoginSetup(): Promise<void> {
+  // Kept separate from the password write so an interrupted final request can
+  // be resumed on the next launch without asking for the old temporary secret.
+  await api.post('/setup-wizard/step/complete/complete', {});
+  await api.post('/setup-wizard/complete', {});
+}
+
+/** Standard authenticated password-change endpoint. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.put('/auth/change-password', { currentPassword, newPassword });
 }
 
 /** GET /auth/me — the authoritative session payload. */
 export async function fetchMe(): Promise<RawUser> {
-  const res = await api.get<{ success: true; data: RawUser }>('/auth/me');
-  return res.data;
+  const result = await api.get<{ success?: boolean; data?: RawUser }>('/auth/me');
+  if (!result.success || !result.data) {
+    throw new ApiError(500, 'The server returned an invalid session.', '/auth/me', result);
+  }
+  return result.data;
 }
 
-const ROLE_KEYS: readonly string[] = [
-  'admin',
-  'operational_manager',
-  'Brand Manager',
-  'catalog_manager',
-  'listing_team',
-  'reviewer',
-  'viewer',
-  'seller_client',
-];
-
-// contract-allow: C-02 — scope mode is server-derived account metadata.
-// This mirrors backend/controllers/roleController.js, which computes it from
-// the role. The correct fix is for /auth/me to return `scope` directly; that
-// is tracked as a backend gap (README §6). Until then this is the only place
-// that may map a role name to a scope.
-function scopeFor(user: RawUser): ScopeMode {
-  if (user.role?.Name === 'seller_client') return 'self';
-  if (user.role?.Name === 'admin' || user.role?.Name === 'operational_manager') return 'global';
-  return 'assigned';
-}
-
-/**
- * Normalise the raw user into a Session.
- *
- * NOTE (backend gap, see docs/design/mobile/agents/06-api-screen-mapping.md):
- * both /auth/login and /auth/me return `permissions` straight from
- * RolePermissions, while backend/middleware/auth.js additionally applies each
- * user's ExtraPermissions and ExcludedPermissions. Until that is fixed on the
- * server, this app's nav can disagree with the server for users with custom
- * permission overrides. See apps/mobile/README.md §6.
- */
-export function toSession(user: RawUser, tokens: { accessToken: string; refreshToken: string }): Session {
-  const name = [user.FirstName, user.LastName].filter(Boolean).join(' ') || user.Email || user.email || 'User';
+function toAuthenticatedResult(result: LoginDirectResponse): AuthenticatedResult {
+  const accessToken = result.data?.accessToken;
+  const refreshToken = result.data?.refreshToken;
+  if (typeof accessToken !== 'string' || !accessToken || typeof refreshToken !== 'string' || !refreshToken) {
+    throw new ApiError(500, 'The server returned an invalid sign-in response.', '/auth/login', result);
+  }
   return {
-    userId: user.id ?? user._id ?? '',
-    email: (user.Email ?? user.email ?? '').toLowerCase(),
-    displayName: name,
-    role: (ROLE_KEYS.includes(user.role?.Name ?? '') ? user.role.Name : 'viewer') as RoleKey,
-    permissions: user.permissions ?? [],
-    sellerIds: user.assignedSellers ?? (user.sellers ?? []).map((s) => s.Id),
-    scope: scopeFor(user),
+    kind: 'authenticated',
+    accessToken,
+    refreshToken,
+    needsPasswordReset: Boolean(result.needsPasswordReset),
+    requiresSetup: Boolean(result.requiresSetup),
+  };
+}
+
+function scopeOf(user: RawUser): ScopeMode {
+  // The backend always sends this field. Failing closed to `assigned` prevents
+  // an old or malformed server response from widening a seller list client-side.
+  return user.scope === 'global' || user.scope === 'assigned' || user.scope === 'self' ? user.scope : 'assigned';
+}
+
+export function toSession(user: RawUser, tokens: AuthTokens): Session {
+  const firstName = user.FirstName ?? user.firstName ?? '';
+  const lastName = user.LastName ?? user.lastName ?? '';
+  const email = (user.Email ?? user.email ?? '').trim().toLowerCase();
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || 'User';
+  const role = user.role?.Name ?? user.role?.name ?? 'viewer';
+  const sellerIds = (user.assignedSellers ?? (user.sellers ?? [])
+    .map((seller) => seller.Id ?? seller.id ?? '')
+    .filter(Boolean))
+    .map(String);
+
+  return {
+    userId: String(user.Id ?? user.id ?? user._id ?? ''),
+    email,
+    displayName,
+    role,
+    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    sellerIds: [...new Set(sellerIds)],
+    scope: scopeOf(user),
     token: tokens.accessToken,
-    // The JWT is refreshed on 401 rather than pre-emptively; treat it as
-    // "valid until the server says otherwise".
+    // The API refreshes reactively on a 401. The server remains the authority
+    // for expiry and revocation; a stale local timestamp must not grant access.
     expiresAt: Number.MAX_SAFE_INTEGER,
+    requiresSetup: Boolean(user.requiresSetup),
+    needsPasswordReset: Boolean(user.needsPasswordReset),
   };
 }

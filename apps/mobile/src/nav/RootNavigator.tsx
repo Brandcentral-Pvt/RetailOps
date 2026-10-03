@@ -12,6 +12,7 @@ import { useAuthStore } from '../auth/authStore';
 import { BootstrapScreen } from '../components/BootstrapScreen';
 import { AuthNavigator } from './AuthNavigator';
 import { ShellNavigator } from './ShellNavigator';
+import { SetupNavigator } from './SetupNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +20,7 @@ export function RootNavigator() {
   const t = useTheme();
   const session = useAuthStore((s) => s.session);
   const bootstrapping = useAuthStore((s) => s.bootstrapping);
+  const requiresCredentialUpdate = Boolean(session?.requiresSetup || session?.needsPasswordReset);
 
   const navTheme = useMemo(
     () =>
@@ -54,7 +56,11 @@ export function RootNavigator() {
         {bootstrapping ? (
           <Stack.Screen name="Bootstrap" component={BootstrapScreen} />
         ) : session ? (
-          <Stack.Screen name="Shell" component={ShellNavigator} />
+          requiresCredentialUpdate ? (
+            <Stack.Screen name="CredentialUpdate" component={SetupNavigator} />
+          ) : (
+            <Stack.Screen name="Shell" component={ShellNavigator} />
+          )
         ) : (
           <Stack.Screen name="Auth" component={AuthNavigator} />
         )}

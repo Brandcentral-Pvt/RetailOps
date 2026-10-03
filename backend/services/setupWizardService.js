@@ -60,6 +60,13 @@ class SetupWizardService {
   }
 
   async changePassword(userId, currentPassword, newPassword) {
+    // This route is intentionally separate from /auth/change-password, so it
+    // cannot rely on that route's Joi middleware for basic password hygiene.
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string'
+      || newPassword.length < 8 || newPassword.length > 128 || newPassword.includes('<')) {
+      throw new Error('Password does not meet requirements');
+    }
+
     const pool = await getPool();
     const result = await pool.request().input('id', sql.VarChar, userId).query('SELECT Password FROM Users WHERE Id = @id');
     const user = result.recordset[0];
@@ -67,6 +74,9 @@ class SetupWizardService {
 
     const isValid = await bcrypt.compare(currentPassword, user.Password);
     if (!isValid) throw new Error('Current password is incorrect');
+    if (await bcrypt.compare(newPassword, user.Password)) {
+      throw new Error('New password must be different from the current password');
+    }
 
     const history = await pool.request().input('id', sql.VarChar, userId)
       .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @id ORDER BY ChangedAt DESC');
