@@ -3,10 +3,29 @@ const { sql, getPool } = require('../database/db');
 const config = require('../config/env');
 const tokenBlacklist = require('../services/tokenBlacklistService');
 const { isGlobalUserRole } = require('../utils/roleUtils');
+const { deviceFingerprint } = require('../utils/requestFingerprint');
+const { resolveAccessProfile } = require('../services/accessProfileService');
 const eventBus = require('../services/eventBus');
 
 /**
- * SQL-based Authentication Middleware
+ * The route exceptions are intentionally narrow. This runs inside the common
+ * bearer middleware, so it protects every feature router rather than relying
+ * on each controller to remember a first-login/password-expiry check.
+ */
+function isCredentialMaintenanceRequest(req, allowSetupWizard) {
+  const pathname = String(req.originalUrl || req.url || '').split('?')[0];
+  if (/\/(?:api\/)?auth\/(me|logout|change-password|request-password-change|change-password-with-otp)$/.test(pathname)) {
+    return true;
+  }
+  return allowSetupWizard && /\/(?:api\/)?setup-wizard\//.test(pathname);
+}
+
+/**
+ * SQL-based authentication middleware.
+ *
+ * `resolveAccessProfile` is also used by /auth/login and /auth/me. Keeping a
+ * single resolver makes the permissions the mobile app composes into its
+ * navigation exactly match the permissions route middleware enforces.
  */
 exports.authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -16,27 +35,34 @@ exports.authenticate = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) return res.status(401).json({ success: false, message: 'Authentication required' });
 
     if (await tokenBlacklist.isBlacklisted(token)) {
       return res.status(401).json({ success: false, message: 'Token revoked' });
     }
 
     const decoded = jwt.verify(token, config.jwt.secret);
+    // A refresh token must never be accepted at an access-token endpoint when
+    // JWT_REFRESH_SECRET intentionally falls back to JWT_SECRET in a legacy
+    // deployment.
+    if (decoded.type !== 'access') {
+      return res.status(401).json({ success: false, message: 'Invalid access token' });
+    }
 
     if (await tokenBlacklist.isUserBlacklisted(decoded.userId, decoded.iat)) {
       return res.status(401).json({ success: false, message: 'Session invalidated' });
     }
 
     const pool = await getPool();
-
     const userResult = await pool.request()
       .input('id', sql.VarChar, decoded.userId)
       .query(`
-        SELECT U.Id, U.Email, U.FirstName, U.LastName, U.Avatar, U.IsActive,
+        SELECT U.Id, U.Email, U.FirstName, U.LastName, U.Avatar, U.Phone, U.IsActive,
                U.RoleId, U.ExtraPermissions, U.ExcludedPermissions,
-               U.PasswordExpiresAt, U.IsOnline, U.LastSeen,
-               R.Name as RoleName, R.DisplayName as RoleDisplayName 
+               U.PasswordExpiresAt, U.ForcePasswordReset, U.IsFirstLogin,
+               U.SetupCompletedAt, U.SecurityPolicyAccepted, U.IsOnline, U.LastSeen,
+               R.Name AS RoleName, R.DisplayName AS RoleDisplayName
         FROM Users U
         LEFT JOIN Roles R ON U.RoleId = R.Id
         WHERE U.Id = @id
@@ -51,101 +77,54 @@ exports.authenticate = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
 
-    if (decoded.fp) {
-      const currentFp = Buffer.from(`${req.headers['user-agent'] || ''}|${req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''}`).toString('base64').slice(0, 32);
-      if (decoded.fp !== currentFp) {
-        console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId} from ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
-        if (process.env.NODE_ENV === 'production') {
-          return res.status(401).json({ success: false, message: 'Session invalid: device mismatch' });
-        }
+    if (decoded.fp && decoded.fp !== deviceFingerprint(req)) {
+      console.warn(`[SECURITY] Fingerprint mismatch for user ${decoded.userId}`);
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(401).json({ success: false, message: 'Session invalid: device mismatch' });
       }
     }
 
-    if (userData.PasswordExpiresAt && new Date(userData.PasswordExpiresAt) < new Date()) {
-      req.forcePasswordReset = true;
+    const needsPasswordReset = Boolean(userData.ForcePasswordReset)
+      || Boolean(userData.PasswordExpiresAt && new Date(userData.PasswordExpiresAt) < new Date());
+    const requiresSetup = Boolean(userData.IsFirstLogin) && !userData.SetupCompletedAt;
+    req.forcePasswordReset = needsPasswordReset;
+    req.requiresSetup = requiresSetup;
+
+    // UI routing is a convenience, not a security boundary. A client with a
+    // temporary/expired credential must not call normal protected APIs by
+    // bypassing the mobile setup screen. Leave only the authoritative session
+    // read, logout and credential-maintenance endpoints reachable.
+    if ((needsPasswordReset || requiresSetup) && !isCredentialMaintenanceRequest(req, requiresSetup)) {
+      return res.status(428).json({
+        success: false,
+        code: 'CREDENTIAL_UPDATE_REQUIRED',
+        message: 'Password update required before continuing',
+      });
     }
 
-    const permissionsResult = await pool.request()
-      .input('roleId', sql.VarChar, userData.RoleId)
-      .query(`
-        SELECT P.Name 
-        FROM Permissions P
-        JOIN RolePermissions RP ON P.Id = RP.PermissionId
-        WHERE RP.RoleId = @roleId
-      `);
-    let permissions = permissionsResult.recordset.map(p => p.Name);
-
-    const allPermsResult = await pool.request().query('SELECT Id, Name FROM Permissions');
-    const permMap = {};
-    allPermsResult.recordset.forEach(p => {
-      permMap[p.Id] = p.Name;
-      permMap[p.Name] = p.Name;
-    });
-
-    let extraPerms = [];
-    let exclPerms = [];
-    try {
-      if (userData.ExtraPermissions) {
-        extraPerms = JSON.parse(userData.ExtraPermissions).map(idOrName => permMap[idOrName] || idOrName);
-      }
-    } catch (e) {
-      console.error('Failed to parse ExtraPermissions:', e);
-    }
-    try {
-      if (userData.ExcludedPermissions) {
-        exclPerms = JSON.parse(userData.ExcludedPermissions).map(idOrName => permMap[idOrName] || idOrName);
-      }
-    } catch (e) {
-      console.error('Failed to parse ExcludedPermissions:', e);
-    }
-
-    extraPerms.forEach(p => {
-      if (p && !permissions.includes(p)) {
-        permissions.push(p);
-      }
-    });
-    permissions = permissions.filter(p => !exclPerms.includes(p));
-
-    let assignedSellers = [];
-    if (userData.RoleName === 'listing_team') {
-      const bmSellersResult = await pool.request()
-        .input('userId', sql.VarChar, userData.Id)
-        .query(`
-          SELECT DISTINCT SellerId FROM UserSellers WHERE UserId = @userId
-          UNION
-          SELECT DISTINCT US.SellerId 
-          FROM UserSellers US
-          JOIN UserBrandManagers UBM ON US.UserId = UBM.BrandManagerId
-          WHERE UBM.UserId = @userId
-        `);
-      assignedSellers = bmSellersResult.recordset.map(s => s.SellerId);
-    } else {
-      const sellersResult = await pool.request()
-        .input('userId', sql.VarChar, userData.Id)
-        .query(`SELECT SellerId FROM UserSellers WHERE UserId = @userId`);
-      assignedSellers = sellersResult.recordset.map(s => s.SellerId);
-    }
+    const access = await resolveAccessProfile(userData, pool);
+    const permissions = access.permissions;
 
     req.userId = userData.Id;
     req.user = {
       Id: userData.Id,
+      id: userData.Id,
       _id: userData.Id,
       Email: userData.Email,
       FirstName: userData.FirstName,
       LastName: userData.LastName,
       Avatar: userData.Avatar,
+      Phone: userData.Phone,
       IsActive: userData.IsActive,
       IsOnline: userData.IsOnline,
       LastSeen: userData.LastSeen,
-      role: {
-        Name: userData.RoleName === 'super_admin' ? 'admin' : userData.RoleName,
-        name: userData.RoleName === 'super_admin' ? 'admin' : userData.RoleName,
-        DisplayName: userData.RoleDisplayName
-      },
-      assignedSellers: assignedSellers,
-      permissions: permissions,
-      hasPermission: async (perm) => permissions.includes(perm),
-      hasAnyPermission: async (perms) => perms.some(p => permissions.includes(p))
+      role: access.role,
+      assignedSellers: access.assignedSellers,
+      sellers: access.sellers,
+      scope: access.scope,
+      permissions,
+      hasPermission: async (permission) => permissions.includes(permission),
+      hasAnyPermission: async (requested) => requested.some((permission) => permissions.includes(permission)),
     };
 
     next();
@@ -157,44 +136,49 @@ exports.authenticate = async (req, res, next) => {
   }
 };
 
-/**
- * Require Permission Middleware (SQL Version)
- */
+/** Require one effective permission. Admin access is data (`*`), not a role-name bypass. */
 exports.requirePermission = (permissionName) => {
   return async (req, res, next) => {
     if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
-    // Admin/super_admin hold a wildcard permission (*) that grants all access.
-    // This replaces the old role-name bypass so the app's nav always matches the server.
     const hasWildcard = await req.user.hasPermission('*');
     if (hasWildcard) return next();
 
-    const hasPerm = await req.user.hasPermission(permissionName);
-    if (!hasPerm) {
-      eventBus.emit(eventBus.EVENTS.PERMISSION_DENIED, { userId: req.user?.Id, permission: permissionName, url: req.originalUrl, ip: req.ip });
+    const hasPermission = await req.user.hasPermission(permissionName);
+    if (!hasPermission) {
+      eventBus.emit(eventBus.EVENTS.PERMISSION_DENIED, {
+        userId: req.user?.Id,
+        permission: permissionName,
+        url: req.originalUrl,
+        ip: req.ip,
+      });
       return res.status(403).json({ success: false, message: 'Missing required permission' });
     }
     next();
   };
 };
 
-/**
- * Require Any Permission Middleware (SQL Version)
- */
+/** Require at least one effective permission. */
 exports.requireAnyPermission = (permissionNames) => {
   return async (req, res, next) => {
     if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
     const hasWildcard = await req.user.hasPermission('*');
     if (hasWildcard) return next();
 
-    const hasAny = await req.user.hasAnyPermission(permissionNames);
-    if (!hasAny) return res.status(403).json({ success: false, message: 'Missing required permissions' });
+    const hasAnyPermission = await req.user.hasAnyPermission(permissionNames);
+    if (!hasAnyPermission) {
+      eventBus.emit(eventBus.EVENTS.PERMISSION_DENIED, {
+        userId: req.user?.Id,
+        permission: permissionNames,
+        url: req.originalUrl,
+        ip: req.ip,
+      });
+      return res.status(403).json({ success: false, message: 'Missing required permissions' });
+    }
     next();
   };
 };
 
-/**
- * Require Role Middleware (SQL Version)
- */
+/** Role checks remain for legacy route contracts; new visibility uses permissions. */
 exports.requireRole = (...roles) => {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
@@ -204,9 +188,7 @@ exports.requireRole = (...roles) => {
   };
 };
 
-/**
- * Check Seller Access Middleware (SQL Version)
- */
+/** Check a requested seller is inside the server-resolved seller scope. */
 exports.checkSellerAccess = async (req, res, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
 
@@ -222,9 +204,7 @@ exports.checkSellerAccess = async (req, res, next) => {
   next();
 };
 
-/**
- * Check User Hierarchy Access Middleware (SQL Version)
- */
+/** Check user hierarchy access for legacy people-management endpoints. */
 exports.checkUserHierarchyAccess = async (req, res, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
 

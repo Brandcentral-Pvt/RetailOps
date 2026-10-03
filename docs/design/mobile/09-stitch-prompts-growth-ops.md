@@ -182,9 +182,9 @@ gradients, no heavy shadows, no floating action button over the navigation bar.
 ```
 
 #### INT-GR-09 · Target create / edit
-`perm: targets_create | targets_edit`
+`perm: targets_create or targets_edit`
 ```
-Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: targets_create | targets_edit.
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: targets_create or targets_edit.
 Required states: conflict, error-recovery.
 
 Design a single Android Material 3 mobile form screen for RetailOps, an internal B2B e-commerce
@@ -424,9 +424,9 @@ button.
 ```
 
 #### INT-GR-21 · Report export
-`perm: per report _export` · `states: download progress`
+`perm: skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export` · `states: download progress`
 ```
-Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: per report _export.
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export.
 Required states: upload-download.
 
 Design a single Android Material 3 mobile export screen for RetailOps, an internal B2B e-commerce

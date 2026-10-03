@@ -18,6 +18,10 @@ import { Text } from '../components/ui/Text';
 import { Chip } from '../components/ui/Chip';
 import type { Session } from '../auth/permissions';
 import type { ScreenId } from './types';
+import { TrustedDevicesScreen } from '../features/auth/TrustedDevicesScreen';
+import { BiometricUnlockScreen } from '../features/auth/BiometricUnlockScreen';
+import { SystemSetupScreen } from '../features/auth/SystemSetupScreen';
+import { SecuritySettingsScreen } from '../features/auth/SecuritySettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -28,10 +32,16 @@ function TabStack({ tab }: { tab: string }) {
   const ids = useMemo(() => (session ? screensForTab(session, tab) : []), [session, tab]);
   if (ids.length === 0) return null;
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName={tab === 'more' ? 'SecurityHome' : undefined} screenOptions={{ headerShown: false }}>
+      {tab === 'more' ? <Stack.Screen name="SecurityHome" component={SecuritySettingsScreen} /> : null}
       {ids.map((id) => (
         <Stack.Screen key={id} name={SCREENS[id]!.route} component={SCREENS[id]!.component as React.ComponentType} />
       ))}
+      {/* Account-security routes are deliberately present in each reachable
+          tab stack so the More/Preferences entry works on either surface. */}
+      <Stack.Screen name="TrustedDevices" component={TrustedDevicesScreen} />
+      <Stack.Screen name="BiometricUnlock" component={BiometricUnlockScreen} />
+      <Stack.Screen name="SystemSetup" component={SystemSetupScreen} />
     </Stack.Navigator>
   );
 }

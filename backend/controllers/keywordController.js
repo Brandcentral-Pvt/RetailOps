@@ -29,11 +29,10 @@ const SORT_OPTIONS = [
     { value: 'NewestArrivals', label: 'Newest arrivals' },
 ];
 
-/** Does the caller hold a permission? (`requirePermission` already bypasses admin/super_admin.) */
+/** Does the caller hold an effective permission? Full access is the `*` grant, never a role-name exception. */
 function hasPermission(req, name) {
-    const role = req.user?.role?.Name || req.user?.role?.name;
-    if (role === 'admin' || role === 'super_admin') return true;
-    return (req.user?.permissions || []).includes(name);
+    const permissions = req.user?.permissions || [];
+    return permissions.includes('*') || permissions.includes(name);
 }
 
 /** Build the upstream search parameters from a query/body bag. */
