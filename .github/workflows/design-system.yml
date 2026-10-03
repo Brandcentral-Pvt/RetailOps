@@ -1,0 +1,67 @@
+name: Design System
+
+# Guards the mobile UI/UX design schema and agent prompt pack.
+# See docs/design/mobile/agents/00-agent-system.md for what these checks enforce.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docs/design/mobile/**'
+      - '.github/workflows/design-system.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'docs/design/mobile/**'
+      - '.github/workflows/design-system.yml'
+
+concurrency:
+  group: design-system-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  DESIGN_DIR: docs/design/mobile
+
+jobs:
+  validate:
+    name: Registry, prompts and tokens
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # ─── Registry must be in sync with the inventory + prompts ─────────
+      - name: Verify registry has no drift
+        run: node $DESIGN_DIR/agents/tools/build-registry.mjs --check
+
+      # ─── Every prompt must satisfy the consistency contract ───────────
+      - name: Validate all prompts
+        run: |
+          fail=0
+          for f in "$DESIGN_DIR"/0[89]-*.md "$DESIGN_DIR"/1[01]-*.md; do
+            echo "── $(basename "$f")"
+            if ! node "$DESIGN_DIR/agents/tools/validate-screen.mjs" --file "$f"; then
+              fail=1
+            fi
+          done
+          exit $fail
+
+      # ─── Colour tokens must remain WCAG 2.2 AA ────────────────────────
+      - name: Contrast audit (WCAG 2.2 AA)
+        run: node $DESIGN_DIR/tools/contrast-audit.mjs
+
+      # ─── The token file must remain valid JSON ────────────────────────
+      - name: Validate token and registry JSON
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/02-design-tokens.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/agents/registry/roles.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/agents/registry/screens.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/agents/state/progress.json','utf8'))"
