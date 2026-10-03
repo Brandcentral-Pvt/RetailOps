@@ -326,7 +326,6 @@ export default function TaskInstancesPage() {
   const [objectives, setObjectives] = useState([]);
   const [allActions, setAllActions] = useState([]);
   const [okrSellers, setOkrSellers] = useState([]);
-  const [okrUsers, setOkrUsers] = useState([]);
   const [okrLoading, setOkrLoading] = useState(false);
   const [editingObjective, setEditingObjective] = useState(null);
   const [isObjectiveModalOpen, setIsObjectiveModalOpen] = useState(false);
@@ -334,6 +333,26 @@ export default function TaskInstancesPage() {
   const [okrSearchQuery, setOkrSearchQuery] = useState('');
   const [okrStatusFilter, setOkrStatusFilter] = useState(null);
   const [okrPriorityFilter, setOkrPriorityFilter] = useState(null);
+
+  // OKR data loading (moved up to avoid hoisting issues)
+  const loadOkrData = useCallback(async () => {
+    setOkrLoading(true);
+    try {
+      const [objRes, actRes, sellRes, userRes] = await Promise.allSettled([
+        db.getObjectives(),
+        db.getActions(),
+        db.getSellers(),
+        db.getUsers(),
+      ]);
+      const objs = objRes.status === 'fulfilled' ? (objRes.value?.data || objRes.value || []) : [];
+      const acts = actRes.status === 'fulfilled' ? (actRes.value?.data || actRes.value || []) : [];
+      setObjectives(objs);
+      setAllActions(acts);
+      if (sellRes.status === 'fulfilled') setOkrSellers(Array.isArray(sellRes.value) ? sellRes.value : (sellRes.value?.data || []));
+      if (userRes.status === 'fulfilled') setOkrUsers(Array.isArray(userRes.value) ? userRes.value : (userRes.value?.data || []));
+    } catch (e) { console.error('OKR load error:', e); }
+    finally { setOkrLoading(false); }
+  }, []);
 
   useEffect(() => {
     tasksApi.getSellers().then(r => { if (r.success) setSellers(r.data); }).catch(() => { });
@@ -412,25 +431,6 @@ export default function TaskInstancesPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  const loadOkrData = useCallback(async () => {
-    setOkrLoading(true);
-    try {
-      const [objRes, actRes, sellRes, userRes] = await Promise.allSettled([
-        db.getObjectives(),
-        db.getActions(),
-        db.getSellers(),
-        db.getUsers(),
-      ]);
-      const objs = objRes.status === 'fulfilled' ? (objRes.value?.data || objRes.value || []) : [];
-      const acts = actRes.status === 'fulfilled' ? (actRes.value?.data || actRes.value || []) : [];
-      setObjectives(objs);
-      setAllActions(acts);
-      if (sellRes.status === 'fulfilled') setOkrSellers(Array.isArray(sellRes.value) ? sellRes.value : (sellRes.value?.data || []));
-      if (userRes.status === 'fulfilled') setOkrUsers(Array.isArray(userRes.value) ? userRes.value : (userRes.value?.data || []));
-    } catch (e) { console.error('OKR load error:', e); }
-    finally { setOkrLoading(false); }
   }, []);
 
   const buildParams = useCallback(() => {
