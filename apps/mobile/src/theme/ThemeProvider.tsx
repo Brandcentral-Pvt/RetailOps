@@ -14,6 +14,7 @@ import {
   motion as motionTokens,
   a11y as a11yTokens,
   domain as domainTokens,
+  component as componentTokens,
 } from './tokens.generated';
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -31,6 +32,7 @@ export type Theme = {
   motion: typeof motionTokens;
   a11y: typeof a11yTokens;
   domain: typeof domainTokens;
+  component: typeof componentTokens;
   /** Screen gutter for the active width class. */
   padding: number;
   layout: 'compact' | 'medium' | 'expanded';
@@ -50,6 +52,7 @@ function buildTheme(scheme: ColorSchemeName, width: number): Theme {
     motion: motionTokens,
     a11y: a11yTokens,
     domain: domainTokens,
+    component: componentTokens,
     layout,
     padding: spacingTokens.screenPadding[layout],
   };

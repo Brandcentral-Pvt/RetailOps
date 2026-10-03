@@ -9,7 +9,7 @@
  * Do not add a screen by hand: edit the inventory and run `npm run scaffold`.
  *
  * Gate: surface=internal
- *       permission="targets_create | targets_edit"
+ *       permission="targets_create or targets_edit"
  *       roleKeys=['admin', 'operational_manager', 'Brand Manager']
  * Scope:      all/assigned
  * Critical:   no
@@ -27,7 +27,7 @@ export const meta: ScreenMeta = {
   id: 'INT-GR-09',
   name: "Target create / edit",
   surface: 'internal',
-  permission: "targets_create | targets_edit",
+  permission: "targets_create or targets_edit",
   roleKeys: ['admin', 'operational_manager', 'Brand Manager'],
   scope: "all/assigned",
   critical: false,

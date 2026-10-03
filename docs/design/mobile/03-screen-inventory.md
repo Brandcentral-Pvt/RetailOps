@@ -59,8 +59,8 @@ Shared by both surfaces; the visual accent and the post-login landing differ.
 | ID | Screen | Roles | Perm | Scope | States |
 |---|---|---|---|---|---|
 | INT-HM-01 | Dashboard | Σ-int | `dashboard_view` **or** `targets_view` | all/assigned | E, O, S, X |
-| INT-HM-02 | Alerts inbox | Σ-int | alert perms | all/assigned | E, F, O, S |
-| INT-HM-03 | Alert detail | Σ-int | alert perms | all/assigned | O, X |
+| INT-HM-02 | Alerts inbox | Σ-int | `dashboard_view` or `targets_view` | all/assigned | E, F, O, S |
+| INT-HM-03 | Alert detail | Σ-int | `dashboard_view` or `targets_view` | all/assigned | O, X |
 | INT-HM-04 | Alert rules | admin, ops_mgr | `rules_view` | all | E, X |
 | INT-HM-05 | Alert rule editor | admin, ops_mgr | `rules_manage` | all | C, X |
 | INT-HM-06 | Notifications centre | Σ-int | — | own | E, F, O |
@@ -101,10 +101,10 @@ Shared by both surfaces; the visual accent and the post-login landing differ.
 | INT-GR-06 | Ads — report/export | Σ-int | `adsreport_export` | all/assigned | U |
 | INT-GR-07 | Targets — dashboard | Σ-int | `targets_view` | all/assigned | E, O, S |
 | INT-GR-08 | Target detail vs achievement | Σ-int | `targets_view` | all/assigned | O, S |
-| INT-GR-09 | Target create/edit | admin, ops_mgr, brand_mgr | `targets_create`/`_edit` | all/assigned | C, X |
+| INT-GR-09 | Target create/edit | admin, ops_mgr, brand_mgr | `targets_create` or `targets_edit` | all/assigned | C, X |
 | INT-GR-10 | GMS Tracker | Σ-int | `gms_tracker_view` | all/assigned | E, O, S |
 | INT-GR-11 | GMS import | admin, ops_mgr | `gms_tracker_import` | all/assigned | U, X |
-| INT-GR-12 | Reports hub | Σ-int | any `*report_view` | all/assigned | E |
+| INT-GR-12 | Reports hub | Σ-int | `skureport_view` or `parentreport_view` or `monthlyreport_view` or `pnlreport_view` or `inventoryreport_view` or `goalsreport_view` | all/assigned | E |
 | INT-GR-13 | SKU report | Σ-int | `skureport_view` | all/assigned | E, F, O |
 | INT-GR-14 | Parent ASIN report | Σ-int | `parentreport_view` | all/assigned | E, F, O |
 | INT-GR-15 | Monthly trends | Σ-int | `monthlyreport_view` | all/assigned | E, O |
@@ -112,8 +112,8 @@ Shared by both surfaces; the visual accent and the post-login landing differ.
 | INT-GR-17 | Inventory report | Σ-int | `inventoryreport_view` | all/assigned | E, O, S |
 | INT-GR-18 | Goals report | Σ-int | `goalsreport_view` | all/assigned | E, O |
 | INT-GR-19 | Revenue calculator | Σ-int | `calculator_view` | all/assigned | E, X |
-| INT-GR-20 | Report viewer (generic) | Σ-int | per report | all/assigned | O, S, X |
-| INT-GR-21 | Report export | Σ-int | per report `_export` | all/assigned | U |
+| INT-GR-20 | Report viewer (generic) | Σ-int | `skureport_view` or `parentreport_view` or `monthlyreport_view` or `pnlreport_view` or `inventoryreport_view` or `goalsreport_view` | all/assigned | O, S, X |
+| INT-GR-21 | Report export | Σ-int | `skureport_export` or `parentreport_export` or `monthlyreport_export` or `pnlreport_export` or `inventoryreport_export` | all/assigned | U |
 
 ## 5. Internal — Ops (`INT-OP`)
 
@@ -185,9 +185,9 @@ Shared by both surfaces; the visual accent and the post-login landing differ.
 | SEL-PF-03 | Advertising | `adsreport_view` | own | E, O, S |
 | SEL-PF-04 | Campaign detail | `adsreport_view` | own | O, S |
 | SEL-PF-05 | Target vs achievement | `targets_view` | own | E, O |
-| SEL-PF-06 | Reports library | `skureport_view` etc. | own | E |
-| SEL-PF-07 | Report viewer | per report | own | O, S |
-| SEL-PF-08 | Report export | `*_export` | own | U, X |
+| SEL-PF-06 | Reports library | `skureport_view` or `parentreport_view` or `monthlyreport_view` or `pnlreport_view` or `inventoryreport_view` or `goalsreport_view` | own | E |
+| SEL-PF-07 | Report viewer | `skureport_view` or `parentreport_view` or `monthlyreport_view` or `pnlreport_view` or `inventoryreport_view` or `goalsreport_view` | own | O, S |
+| SEL-PF-08 | Report export | `skureport_export` or `parentreport_export` or `monthlyreport_export` or `pnlreport_export` or `inventoryreport_export` | own | U, X |
 | SEL-PR-01 | My Products — list | `asinmanager_view` | own | E, F, O, S |
 | SEL-PR-02 | Product detail | `asinmanager_view` | own | O, S, X |
 | SEL-PR-03 | Listing quality | `asinmanager_view` | own | E, O |

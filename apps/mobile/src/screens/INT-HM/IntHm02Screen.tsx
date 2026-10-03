@@ -9,7 +9,7 @@
  * Do not add a screen by hand: edit the inventory and run `npm run scaffold`.
  *
  * Gate: surface=internal
- *       permission="alert perms"
+ *       permission="dashboard_view or targets_view"
  *       roleKeys=['admin', 'operational_manager', 'Brand Manager', 'catalog_manager', 'listing_team', 'reviewer', 'viewer']
  * Scope:      all/assigned
  * Critical:   no
@@ -29,7 +29,7 @@ export const meta: ScreenMeta = {
   id: 'INT-HM-02',
   name: "Alerts inbox",
   surface: 'internal',
-  permission: "alert perms",
+  permission: "dashboard_view or targets_view",
   roleKeys: ['admin', 'operational_manager', 'Brand Manager', 'catalog_manager', 'listing_team', 'reviewer', 'viewer'],
   scope: "all/assigned",
   critical: false,

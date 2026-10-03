@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuthStore } from '../auth/authStore';
 import { Text } from './ui/Text';
@@ -16,9 +16,19 @@ export function BootstrapScreen() {
   return (
     <View
       accessibilityLabel="Starting RetailOps"
-      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.c.pageBackground as string }}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: t.spacing.scale.md, backgroundColor: t.c.surface as string }}
     >
-      <Text role="displaySmall" color="primary">RetailOps</Text>
+      <Image
+        source={require('../../assets/brandcentral-logo.png')}
+        accessibilityLabel="BrandCentral"
+        resizeMode="contain"
+        style={{ width: t.component.avatar.xl, height: t.component.avatar.xl }}
+      />
+      <View style={{ alignItems: 'center', gap: t.spacing.scale.xs }}>
+        <Text role="headlineSmall">RetailOps</Text>
+        <Text role="labelMedium" color="onSurfaceVariant">E-commerce operations</Text>
+      </View>
+      <ActivityIndicator accessibilityLabel="Loading" color={t.c.primary as string} />
     </View>
   );
 }

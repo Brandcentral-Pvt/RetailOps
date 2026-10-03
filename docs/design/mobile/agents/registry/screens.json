@@ -903,7 +903,7 @@
         "operational_manager",
         "Brand Manager"
       ],
-      "permission": "targets_create | targets_edit",
+      "permission": "targets_create or targets_edit",
       "scope": "all/assigned",
       "states": [
         "conflict",
@@ -912,7 +912,7 @@
       "promptFile": "09-stitch-prompts-growth-ops.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: targets_create | targets_edit.\nRequired states: conflict, error-recovery."
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: targets_create or targets_edit.\nRequired states: conflict, error-recovery."
     },
     {
       "id": "INT-GR-10",
@@ -977,7 +977,7 @@
         "reviewer",
         "viewer"
       ],
-      "permission": "any *report_view",
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
       "scope": "all/assigned",
       "states": [
         "empty-true"
@@ -985,7 +985,7 @@
       "promptFile": "09-stitch-prompts-growth-ops.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: any *report_view.\nRequired states: empty-true."
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: empty-true."
     },
     {
       "id": "INT-GR-13",
@@ -1188,7 +1188,7 @@
         "reviewer",
         "viewer"
       ],
-      "permission": "per report",
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
       "scope": "all/assigned",
       "states": [
         "offline-cached",
@@ -1198,7 +1198,7 @@
       "promptFile": "09-stitch-prompts-growth-ops.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: per report.\nRequired states: offline-cached, stale-partial, error-recovery."
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: offline-cached, stale-partial, error-recovery."
     },
     {
       "id": "INT-GR-21",
@@ -1215,7 +1215,7 @@
         "reviewer",
         "viewer"
       ],
-      "permission": "per report _export",
+      "permission": "skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export",
       "scope": "all/assigned",
       "states": [
         "upload-download"
@@ -1223,7 +1223,7 @@
       "promptFile": "09-stitch-prompts-growth-ops.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: per report _export.\nRequired states: upload-download."
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export.\nRequired states: upload-download."
     },
     {
       "id": "INT-HM-01",
@@ -1268,7 +1268,7 @@
         "reviewer",
         "viewer"
       ],
-      "permission": "alert perms",
+      "permission": "dashboard_view or targets_view",
       "scope": "all/assigned",
       "states": [
         "empty-true",
@@ -1279,7 +1279,7 @@
       "promptFile": "08-stitch-prompts-auth-home-catalog.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: alert perms.\nRequired states: empty-true, empty-filtered, offline-cached, stale-partial."
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view or targets_view.\nRequired states: empty-true, empty-filtered, offline-cached, stale-partial."
     },
     {
       "id": "INT-HM-03",
@@ -1296,7 +1296,7 @@
         "reviewer",
         "viewer"
       ],
-      "permission": "alert perms",
+      "permission": "dashboard_view or targets_view",
       "scope": "all/assigned",
       "states": [
         "offline-cached",
@@ -1305,7 +1305,7 @@
       "promptFile": "08-stitch-prompts-auth-home-catalog.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: alert perms.\nRequired states: offline-cached, error-recovery."
+      "roleHeader": "Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view or targets_view.\nRequired states: offline-cached, error-recovery."
     },
     {
       "id": "INT-HM-04",
@@ -2828,7 +2828,7 @@
       "group": "SEL",
       "critical": false,
       "roleKeys": [],
-      "permission": "skureport_view etc.",
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
       "scope": "own",
       "states": [
         "empty-true"
@@ -2836,7 +2836,7 @@
       "promptFile": "11-stitch-prompts-seller.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_view etc..\nRequired states: empty-true."
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: empty-true."
     },
     {
       "id": "SEL-PF-07",
@@ -2845,7 +2845,7 @@
       "group": "SEL",
       "critical": false,
       "roleKeys": [],
-      "permission": "per report",
+      "permission": "skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view",
       "scope": "own",
       "states": [
         "offline-cached",
@@ -2854,7 +2854,7 @@
       "promptFile": "11-stitch-prompts-seller.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: per report.\nRequired states: offline-cached, stale-partial."
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_view or parentreport_view or monthlyreport_view or pnlreport_view or inventoryreport_view or goalsreport_view.\nRequired states: offline-cached, stale-partial."
     },
     {
       "id": "SEL-PF-08",
@@ -2863,7 +2863,7 @@
       "group": "SEL",
       "critical": false,
       "roleKeys": [],
-      "permission": "*_export",
+      "permission": "skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export",
       "scope": "own",
       "states": [
         "upload-download"
@@ -2871,7 +2871,7 @@
       "promptFile": "11-stitch-prompts-seller.md",
       "kind": null,
       "hasPrompt": true,
-      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: *_export.\nRequired states: upload-download."
+      "roleHeader": "Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_export or parentreport_export or monthlyreport_export or pnlreport_export or inventoryreport_export.\nRequired states: upload-download."
     },
     {
       "id": "SEL-PR-01",
