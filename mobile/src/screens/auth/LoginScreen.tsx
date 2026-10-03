@@ -100,7 +100,7 @@ export default function LoginScreen({ navigation }: Props) {
                   },
                 ]}
               >
-                <BrandLogo size={36} />
+                <BrandLogo size={32} />
               </View>
               <Text variant="headlineMedium" style={[styles.title, { color: colors.onSurface }]}>
                 Welcome back

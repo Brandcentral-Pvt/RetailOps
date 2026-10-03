@@ -61,3 +61,19 @@ backend/data/
 
 # Graphify knowledge-graph artifacts (generated, large)
 graphify-out/
+
+# Aider cache
+.aider.tags.cache*/
+
+# Mobile build artifacts
+mobile/dist/
+mobile/.expo/
+mobile/build-output-*.txt
+
+# Backend temp uploads
+backend/uploads/temp/
+
+# Misc generated files
+session.md
+work_report.md
+octoparse_sync_diagnostics.log
