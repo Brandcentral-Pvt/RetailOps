@@ -23,20 +23,26 @@ Start with `01-design-schema.md`. Everything else is a companion to it.
 | **09** | [`09-stitch-prompts-growth-ops.md`](./09-stitch-prompts-growth-ops.md) | 42 prompts: internal Growth, Ops | Wave 2–3 generation |
 | **10** | [`10-stitch-prompts-more-system.md`](./10-stitch-prompts-more-system.md) | 35 prompts: More menu, People/Admin/Account, system states | Wave 3–4 generation |
 | **11** | [`11-stitch-prompts-seller.md`](./11-stitch-prompts-seller.md) | 26 prompts: the seller surface, plus the plain-language glossary | Wave 2 onwards, separate project |
+| **AG** | [`agents/`](./agents/README.md) | **Agent system:** defined agent roles, the master system prompt, a 48-rule consistency contract, machine-readable registry, and automated validation | When an AI agent generates or verifies screens |
 | — | [`tools/contrast-audit.mjs`](./tools/contrast-audit.mjs) | Re-runs the contrast audit. `node docs/design/mobile/tools/contrast-audit.mjs` | In CI, after token edits |
 
 ### Two entry points, depending on what you need
 
 - **Designing in Stitch?** Start at [`07-stitch-setup-and-workflow.md`](./07-stitch-setup-and-workflow.md),
   then open the prompt file for the batch you are generating. Every prompt is written to be
-  pasted as-is.
+  pasted as-is, and each one opens with its own role definition.
+- **Running an AI agent against this?** Start at [`agents/00-agent-system.md`](./agents/00-agent-system.md),
+  paste [`agents/01-master-system-prompt.md`](./agents/01-master-system-prompt.md) as the system
+  prompt, and let the agent read `agents/registry/screens.json`.
 - **Implementing in the app?** Start at [`01-design-schema.md`](./01-design-schema.md), then
   [`04-component-library.md`](./04-component-library.md) and
   [`02-design-tokens.json`](./02-design-tokens.json).
 
 **141 prompts ↔ 140 screens, one-to-one.** Every prompt is headed with its screen ID from
-`03-screen-inventory.md`, and the ID is verified against the inventory, so a Stitch screen and
-a spec screen can never drift apart.
+`03-screen-inventory.md` and carries a generated role block (surface, audience, scope,
+permission, required states). Both are verified against the registry by
+`agents/tools/build-registry.mjs --check`, so a Stitch screen, a prompt and a spec screen can
+never drift apart.
 
 ---
 

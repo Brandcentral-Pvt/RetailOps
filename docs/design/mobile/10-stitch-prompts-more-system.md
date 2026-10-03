@@ -13,8 +13,15 @@
 ---
 
 #### X-01 · More / drawer
-`perm: always visible`
+`perm: always visible` · `kind: navigation shell`
 ```
+Role: internal RetailOps staff — all internal roles (items are permission-filtered at runtime).
+Kind: navigation shell, not a screen. Items shown here are the union across roles; the rendered list must contain only destinations the current permissions allow.
+
+Kind: navigation shell, not a screen. Items shown here are the union across roles; the rendered list must contain only destinations the current permissions allow.
+
+Kind: navigation shell, not a screen. Items shown here are the union across roles; the rendered list must contain only destinations the current permissions allow.
+
 Design a single Android Material 3 mobile navigation drawer overlay for RetailOps, an internal
 B2B e-commerce operations app, shown over a dimmed dashboard.
 The drawer slides from the left and is 320dp wide with a white surface. At the top, a header block
@@ -39,6 +46,9 @@ The selected item uses a filled tinted pill behind it. Flat, 16dp internal paddi
 #### INT-MR-01 · Sellers — list
 `perm: seller_view` · `states: empty, filtered-empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: seller_view.
+Required states: empty-true, empty-filtered.
+
 Design a single Android Material 3 mobile seller list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Sellers", a search icon and a plus icon. Bottom navigation with
@@ -55,6 +65,9 @@ small avatar and name. One card is inactive and dimmed with a grey "Inactive" ch
 #### INT-MR-02 · Seller detail
 `states: offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: seller_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile seller detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Sellers" above "Seller A" — with an overflow menu.
@@ -72,6 +85,9 @@ with label–value rows — "Partner tag", "Token status Connected" with a green
 #### INT-MR-03 · Seller create / edit
 `perm: seller_manage` · `states: conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: seller_manage.
+Required states: conflict.
+
 Design a single Android Material 3 mobile seller form screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a close icon, title "New seller", and a text button "Save". Bottom navigation with
@@ -83,12 +99,15 @@ selected; a filled field "Partner tag"; a filled field "Primary contact email"; 
 "Phone (optional)"; a section header "Assigned team" with two multi-select fields, "Brand managers"
 showing chips, and "Listing team" with an "+ Add member" chip; and a section header "Preferences"
 with three toggle rows — "Active", "Include in daily routine", "Alerts enabled". At the bottom, a
-sticky bar with an outlined "Cancel" and a filled "Save seller". Flat fields, 16dp margins.
+sticky bar with an outlined "Cancel" and a filled "Save seller". Flat fields, 16dp margins. No gradients.
 ```
 
 #### INT-MR-04 · Teams — list
 `perm: teams_manage` · `states: empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: teams_manage.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile team list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Teams", a plus icon. Bottom navigation with 5 items — Home,
@@ -104,6 +123,9 @@ margins, no gradients.
 #### INT-MR-05 · Team detail
 `perm: teams_manage` · `states: conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: teams_manage.
+Required states: conflict.
+
 Design a single Android Material 3 mobile team detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Teams" above "Brand — Nike" — with an overflow menu.
@@ -120,6 +142,9 @@ legend. Flat cards, 16dp margins, no gradients.
 #### INT-MR-06 · Conversations
 `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile conversation list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: title "Chat", a search icon, and a "New" icon button. Bottom navigation with 5 items
@@ -136,6 +161,9 @@ preview. Flat rows with dividers, 16dp margins, no gradients.
 #### INT-MR-07 · Conversation ★ critical
 `states: empty, offline, conflict, upload`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.
+Required states: empty-true, offline-cached, conflict, upload-download.
+
 Design a single Android Material 3 mobile chat conversation screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, and a two-line title with the contact's circular avatar on the left — the
@@ -157,6 +185,9 @@ Flat surfaces, no gradients.
 #### INT-MR-08 · Shared media
 `states: empty, upload`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.
+Required states: empty-true, upload-download.
+
 Design a single Android Material 3 mobile shared-media screen for RetailOps, an internal B2B
 e-commerce operations app, for one conversation.
 Top app bar: back arrow, title "Shared media", and an overflow menu. Bottom navigation with 5
@@ -171,6 +202,9 @@ the grid as a section, with 3 rows. Flat, 16dp margins, no gradients.
 #### INT-MR-09 · New conversation / group
 `states: filtered-empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: chat_view.
+Required states: empty-filtered.
+
 Design a single Android Material 3 mobile new-conversation screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a close icon, title "New message", and a segmented control below it reading
@@ -187,6 +221,9 @@ a full-width filled button "Start chat". Flat rows with dividers, 16dp margins, 
 #### INT-MR-10 · Active call
 `states: error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.
+Required states: error-recovery.
+
 Design a single Android Material 3 mobile active call screen for RetailOps, an internal B2B
 e-commerce operations app, on a dark surface.
 Centred: a large circular avatar, the contact name "Priya Sharma" in 22sp, a call status line
@@ -201,6 +238,9 @@ imagery.
 #### INT-MR-11 · Call history
 `states: empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile call history screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Calls", a search icon and a filter icon. Bottom navigation with
@@ -216,6 +256,9 @@ right edge for quick redial. Flat rows with dividers, 16dp margins, no gradients
 #### INT-MR-12 · Call detail
 `states: offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: chat_view.
+Required states: offline-cached.
+
 Design a single Android Material 3 mobile call detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Call details", and an overflow menu. Bottom navigation with 5
@@ -237,6 +280,9 @@ bottom, a text button "Report a problem". Flat cards, 16dp margins, no gradients
 #### INT-MR-13 · Users — list
 `perm: users_view` · `states: empty, filtered-empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: users_view.
+Required states: empty-true, empty-filtered.
+
 Design a single Android Material 3 mobile user list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Users", a search icon and a plus icon. Bottom navigation with 5
@@ -253,6 +299,9 @@ with dividers, 16dp margins, no gradients.
 #### INT-MR-14 · User detail / edit
 `perm: users_manage` · `states: conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: users_manage.
+Required states: conflict.
+
 Design a single Android Material 3 mobile user detail and edit screen for RetailOps, an internal
 B2B e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Users" above "Akash Mehta" — with an overflow menu
@@ -271,6 +320,9 @@ At the bottom, a filled button "Save changes". Flat cards, 16dp margins, no grad
 #### INT-MR-15 · Roles & permissions
 `perm: roles_view` · `states: empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: roles_view.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile roles list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Roles and permissions", a plus icon. Bottom navigation with 5 items
@@ -286,6 +338,9 @@ margins, no gradients.
 #### INT-MR-16 · Role detail / permission editor
 `perm: roles_manage` · `states: conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: roles_manage.
+Required states: conflict.
+
 Design a single Android Material 3 mobile permission editor screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Roles" above "Brand Manager" — and a text button
@@ -304,6 +359,9 @@ margins, no gradients.
 #### INT-MR-17 · API keys
 `perm: apikeys_manage` · `states: empty, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: apikeys_manage.
+Required states: empty-true, error-recovery.
+
 Design a single Android Material 3 mobile API keys screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "API keys", and a plus icon. Bottom navigation with 5 items — Home,
@@ -320,6 +378,9 @@ red. One key is dimmed with a grey chip "Revoked". At the bottom, a note with an
 #### INT-MR-18 · System settings
 `perm: settings_manage` · `states: conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: settings_manage.
+Required states: conflict.
+
 Design a single Android Material 3 mobile settings screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "System settings". Bottom navigation with 5 items — Home, Catalog,
@@ -337,6 +398,9 @@ One row carries a small amber chip "Requires restart". Flat cards, 16dp margins,
 #### INT-MR-19 · Activity log
 `perm: activitylogs_view` · `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: activitylogs_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile activity log screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Activity log", a search icon and a filter icon. Bottom navigation
@@ -353,6 +417,9 @@ margins, no gradients.
 #### INT-MR-20 · File manager
 `perm: files_manage` · `states: empty, upload`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: files_manage.
+Required states: empty-true, upload-download.
+
 Design a single Android Material 3 mobile file manager screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Files", a search icon and an upload icon. Bottom navigation with
@@ -369,6 +436,9 @@ no gradients.
 #### INT-MR-21 · Upload / export queue
 `states: upload, error`
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: upload-download, error-recovery.
+
 Design a single Android Material 3 mobile jobs queue screen for RetailOps, an internal B2B
 e-commerce operations app, showing uploads and exports.
 Top app bar: back arrow, title "Downloads and exports", and an overflow menu. Bottom navigation
@@ -391,6 +461,9 @@ button. Flat cards, 16dp margins, no gradients.
 
 #### INT-MR-22 · Profile
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile profile screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Profile". Bottom navigation with 5 items — Home, Catalog, Growth,
@@ -407,6 +480,9 @@ margins, no gradients.
 #### INT-MR-23 · Security
 `states: empty, error`
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: empty-true, error-recovery.
+
 Design a single Android Material 3 mobile security screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Security". Bottom navigation with 5 items — Home, Catalog, Growth,
@@ -423,6 +499,9 @@ cards, 16dp margins, no gradients.
 #### INT-MR-24 · Notification preferences
 `states: empty`
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile notification preferences screen for RetailOps, an
 internal B2B e-commerce operations app.
 Top app bar: back arrow, title "Notifications". Bottom navigation with 5 items — Home, Catalog,
@@ -438,6 +517,9 @@ chips. Flat cards, 16dp margins, no gradients.
 
 #### INT-MR-25 · Appearance & accessibility
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile appearance settings screen for RetailOps, an internal
 B2B e-commerce operations app.
 Top app bar: back arrow, title "Appearance". Bottom navigation with 5 items — Home, Catalog, Growth,
@@ -455,6 +537,9 @@ fades" and a switch off, and "Haptics" with a switch on. Then a section header "
 #### INT-MR-26 · About & diagnostics
 `states: empty`
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile about screen for RetailOps, an internal B2B e-commerce
 operations app.
 Top app bar: back arrow, title "About". Bottom navigation with 5 items — Home, Catalog, Growth,
@@ -471,6 +556,9 @@ Flat cards, 16dp margins, no gradients.
 
 #### INT-MR-27 · Help & support
 ```
+Role: internal RetailOps staff — any signed-in user, internal or seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile help screen for RetailOps, an internal B2B e-commerce
 operations app.
 Top app bar: back arrow, title "Help and support". Bottom navigation with 5 items — Home, Catalog,
@@ -491,7 +579,11 @@ margins, no gradients.
 ---
 
 #### SYS-01 · No access (403) ★ critical
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile permission-denied screen for RetailOps, a B2B
 e-commerce operations app.
 Centred content on a plain background: a shield icon in a soft grey circle, a headline "You don't
@@ -503,7 +595,11 @@ user is being routed away. Flat, calm, no gradients, no illustrations.
 ```
 
 #### SYS-02 · You're offline
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile offline screen for RetailOps, a B2B e-commerce operations
 app, shown when there is no connection and no cached data.
 Centred content: a cloud-off icon in a soft grey circle, a headline "You're offline" in 22sp, and
@@ -515,7 +611,11 @@ no gradients.
 ```
 
 #### SYS-03 · Maintenance
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile maintenance screen for RetailOps, a B2B e-commerce
 operations app.
 Centred content: a wrench or settings icon in a soft amber circle, a headline "RetailOps is under
@@ -526,7 +626,11 @@ figures. At the bottom, a full-width outlined button "Check again" and a caption
 ```
 
 #### SYS-04 · Update required
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile forced-update screen for RetailOps, a B2B e-commerce
 operations app.
 Centred content: an upward arrow icon in a soft blue circle, a headline "Update required" in 22sp,
@@ -537,7 +641,11 @@ text button "What's new". No navigation bar, no way to dismiss. Flat, no gradien
 ```
 
 #### SYS-05 · Rate limited (429)
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile inline error card for RetailOps, a B2B e-commerce
 operations app, shown when a request is rate limited.
 The card sits inside a list screen, above the existing content which remains visible and dimmed.
@@ -548,7 +656,11 @@ screen behind keeps its app bar and bottom navigation with 5 items intact. Flat,
 ```
 
 #### SYS-06 · Something went wrong
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile error screen for RetailOps, a B2B e-commerce operations
 app.
 Centred content: a warning icon in a soft red circle, a headline "Something went wrong" in 22sp,
@@ -559,7 +671,11 @@ gradients, no navigation bar.
 ```
 
 #### SYS-07 · Sync failed
+`kind: state screen`
 ```
+Role: both surfaces — any signed-in user.
+Kind: state screen — this screen is itself a state. Do not design additional state variants.
+
 Design a single Android Material 3 mobile inline banner for RetailOps, a B2B e-commerce operations
 app, shown when a data sync fails.
 The banner spans the full width directly under the app bar, with a light red background, a

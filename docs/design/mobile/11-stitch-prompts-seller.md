@@ -22,6 +22,9 @@
 
 #### SEL-HM-01 · Home — snapshot ★ critical
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: dashboard_view.
+Required states: empty-true, offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile home screen for RetailOps Seller, a merchant app where
 an Amazon seller tracks their own account.
 Top app bar: the seller name "Seller A" in 16sp medium with a small teal chip beneath reading
@@ -54,6 +57,9 @@ with hairline borders, 12dp radius, 16dp margins. No gradients, no imagery.
 
 #### SEL-HM-02 · What changed
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: dashboard_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile "what changed" screen for RetailOps Seller, a merchant
 app for Amazon sellers.
 Top app bar: back arrow, title "What changed", and a date range chip "Last 7 days" on the right.
@@ -70,6 +76,9 @@ Flat cards, 16dp margins, no gradients.
 
 #### SEL-HM-03 · Needs your input
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile "needs your input" screen for RetailOps Seller, a
 merchant app for Amazon sellers.
 Top app bar: back arrow, title "Needs your input", and a "2 waiting" chip on the right. Bottom
@@ -91,6 +100,9 @@ Flat cards, 16dp margins, no gradients.
 
 #### SEL-PF-01 · Performance overview ★ critical
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: dashboard_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile performance overview screen for RetailOps Seller, a
 merchant app for Amazon sellers.
 Top app bar: title "Performance", with a rounded chip "Seller A" and a small amber chip
@@ -113,6 +125,9 @@ Use Indian currency grouping and tabular figures. Calm, airy, plain language. Fl
 
 #### SEL-PF-02 · Sales / GMS
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: gms_tracker_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile sales detail screen for RetailOps Seller, a merchant app
 for Amazon sellers.
 Top app bar: back arrow, title "Sales", and an export icon. Bottom navigation with 5 items — Home,
@@ -128,6 +143,9 @@ section header "By category" above 4 similar rows. Flat cards, 16dp margins, no 
 
 #### SEL-PF-03 · Advertising
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: adsreport_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile advertising screen for RetailOps Seller, a merchant app
 for Amazon sellers.
 Top app bar: title "Advertising", with a small amber chip "Updated 1 day ago" beneath it. Bottom
@@ -145,6 +163,9 @@ teal accents, no gradients.
 
 #### SEL-PF-04 · Campaign detail
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: adsreport_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile campaign detail screen for RetailOps Seller, a merchant
 app for Amazon sellers.
 Top app bar: back arrow, a two-line title — "Advertising" in 12sp grey above "Yoga mats — Auto" in
@@ -161,6 +182,9 @@ small return value. Flat cards, 16dp margins, no gradients.
 
 #### SEL-PF-05 · Target vs achievement
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: targets_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile target screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, title "Target", and a month selector row "October 2026" with left and
@@ -179,6 +203,9 @@ margins, teal accents, no gradients.
 
 #### SEL-PF-06 · Reports library
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: skureport_view etc..
+Required states: empty-true.
+
 Design a single Android Material 3 mobile reports library screen for RetailOps Seller, a merchant
 app for Amazon sellers.
 Top app bar: title "Reports", with a rounded chip "Seller A" beneath it. Bottom navigation with
@@ -196,6 +223,9 @@ download icon button. Flat cards, 16dp margins, no gradients.
 #### SEL-PF-07 · Report viewer
 `states: offline, stale`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: per report.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile report viewer screen for RetailOps Seller, a merchant app
 for Amazon sellers, showing the "Sales by product" report.
 Top app bar: back arrow, a two-line title — "Reports" in 12sp grey above "Sales by product" in 16sp
@@ -214,6 +244,9 @@ the list, and a "Load more" text button sits at the end. Flat cards, 16dp margin
 #### SEL-PF-08 · Report export
 `states: download progress`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: *_export.
+Required states: upload-download.
+
 Design a single Android Material 3 mobile export screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, title "Download report". Bottom navigation with 5 items — Home,
@@ -237,6 +270,9 @@ already running, show it above the button as a card with a file icon, a progress
 #### SEL-PR-01 · My Products — list
 `states: empty, filtered-empty, offline, stale`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: asinmanager_view.
+Required states: empty-true, empty-filtered, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile product list screen for RetailOps Seller, a merchant app
 for Amazon sellers.
 Top app bar: title "My Products", with a rounded chip "Seller A" and a caption "1,248 products"
@@ -256,6 +292,9 @@ floating action button.
 #### SEL-PR-02 · Product detail
 `states: offline, stale, error`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: asinmanager_view.
+Required states: offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile product detail screen for RetailOps Seller, a merchant
 app for Amazon sellers.
 Top app bar: back arrow, title "Product", and a share icon. Bottom navigation with 5 items — Home,
@@ -278,6 +317,9 @@ Flat cards, 16dp margins, teal accents, plain merchant language, no internal jar
 
 #### SEL-PR-03 · Listing quality
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: asinmanager_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile listing quality screen for RetailOps Seller, a merchant
 app for Amazon sellers.
 Top app bar: back arrow, title "Listing quality", and a filter icon. Bottom navigation with 5 items
@@ -295,6 +337,9 @@ how often they appear in search." Flat cards, 16dp margins, no gradients.
 #### SEL-PR-04 · Price & rank history
 `states: offline, stale`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: asintracker_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile history screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, a two-line title — "My Products" in 12sp grey above "Nike Air Zoom
@@ -312,6 +357,9 @@ relative date. Flat cards, 16dp margins, no gradients.
 #### SEL-PR-05 · Keyword visibility
 `states: empty, filtered-empty, offline`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: keywords_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile keyword screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, title "Search terms", with a caption "Where your products appear" beneath
@@ -335,6 +383,9 @@ list. Flat rows with dividers, 16dp margins, teal accents, no gradients.
 #### SEL-RQ-01 · Requests — open
 `states: empty, filtered-empty, offline`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile requests list screen for RetailOps Seller, a merchant app
 for Amazon sellers.
 Top app bar: title "Requests", with a rounded chip "Seller A" beneath it, and a filter icon.
@@ -354,6 +405,9 @@ no gradients.
 #### SEL-RQ-02 · Request detail
 `states: offline, conflict, error`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.
+Required states: offline-cached, conflict, error-recovery.
+
 Design a single Android Material 3 mobile request detail screen for RetailOps Seller, a merchant
 app for Amazon sellers.
 Top app bar: back arrow, a two-line title — "Requests" in 12sp grey above "REQ-2081" in 16sp
@@ -374,6 +428,9 @@ gradients.
 #### SEL-RQ-03 · Raise a request
 `states: conflict, upload`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.
+Required states: conflict, upload-download.
+
 Design a single Android Material 3 mobile form screen for RetailOps Seller, a merchant app for
 Amazon sellers, for asking their account team for help.
 Top app bar: a close icon, title "New request", and a text button "Send". Bottom navigation with
@@ -393,6 +450,9 @@ teal accents, no gradients.
 #### SEL-RQ-04 · Waiting on you (approvals)
 `states: empty, filtered-empty`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.
+Required states: empty-true, empty-filtered.
+
 Design a single Android Material 3 mobile approvals screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, title "Waiting on you", and a chip showing "2 items". Bottom navigation
@@ -410,6 +470,9 @@ plus a text button "Ask a question". Flat cards, 16dp margins, no gradients.
 #### SEL-RQ-05 · Completed requests
 `states: empty, filtered-empty, offline`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: tasks_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile completed-requests screen for RetailOps Seller, a
 merchant app for Amazon sellers.
 Top app bar: back arrow, title "Completed", and a filter icon. Bottom navigation with 5 items —
@@ -432,11 +495,16 @@ dividers, 16dp margins, no gradients.
 #### SEL-MR-01 · Chat with account team ★ critical
 `states: empty, offline, conflict, upload`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own. Permission: chat_view.
+Required states: empty-true, offline-cached, conflict, upload-download.
+
 Design a single Android Material 3 mobile chat screen for RetailOps Seller, a merchant app for
 Amazon sellers, showing a conversation with the account team.
 Top app bar: back arrow, a contact avatar, a two-line title — "Priya Sharma" in 16sp medium above
 "Your account manager · Online" in 12sp with a small green dot — plus a call icon and an overflow
 menu.
+Bottom navigation bar with 5 items: Home, Performance, My Products, Requests, More — show More
+selected.
 Body: a scrollable message thread on a very light grey background, with incoming messages as white
 bubbles on the left and outgoing messages as teal-tinted bubbles on the right, both with 12dp
 radius. Show a "Today" day separator chip. Include: a friendly opening message from the account
@@ -452,6 +520,9 @@ Warm and approachable, plenty of whitespace. No gradients.
 #### SEL-MR-02 · Account manager
 `states: empty`
 ```
+Role: seller client (paying merchant) — Seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile account team screen for RetailOps Seller, a merchant app
 for Amazon sellers.
 Top app bar: back arrow, title "Your account team". Bottom navigation with 5 items — Home,
@@ -468,6 +539,9 @@ above a card with the days and times "Monday to Friday, 9:30 AM – 6:30 PM IST"
 
 #### SEL-MR-03 · Account & preferences
 ```
+Role: seller client (paying merchant) — Seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile account screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, title "Account". Bottom navigation with 5 items — Home, Performance, My
@@ -486,6 +560,9 @@ gradients.
 
 #### SEL-MR-04 · Help & support
 ```
+Role: seller client (paying merchant) — Seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile help screen for RetailOps Seller, a merchant app for
 Amazon sellers.
 Top app bar: back arrow, title "Help". Bottom navigation with 5 items — Home, Performance, My
@@ -502,6 +579,9 @@ cards, 16dp margins, no gradients.
 
 #### SEL-MR-05 · Onboarding checklist
 ```
+Role: seller client (paying merchant) — Seller. Scope: own.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile onboarding checklist screen for RetailOps Seller, a
 merchant app for Amazon sellers, shown to a new seller.
 Top app bar: back arrow, title "Get started". Bottom navigation with 5 items — Home, Performance,

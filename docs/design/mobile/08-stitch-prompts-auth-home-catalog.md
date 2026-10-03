@@ -20,6 +20,9 @@ project only regenerate `AUTH-02` and `AUTH-10` (the two that visibly differ).
 `states: loading, error` · no app bar, no nav
 
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: loading-first, error-recovery.
+
 Design a single Android Material 3 mobile splash screen for RetailOps, an internal B2B
 e-commerce operations app. Centred vertically on a plain white background: the BrandCentral
 logo mark and the wordmark "RetailOps" beneath it in 22sp, a one-line caption "E-commerce
@@ -32,6 +35,9 @@ uncluttered. Flat design, no gradients, no shadows.
 `states: idle, submitting, invalid, locked, rate-limited, offline`
 
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: idle, submitting, invalid, locked, rate-limited, offline-cached.
+
 Design a single Android Material 3 mobile sign-in screen for RetailOps, an internal B2B
 e-commerce operations app. Top area: the BrandCentral logo mark and the wordmark "RetailOps",
 with a small rounded chip beneath reading "Internal workspace". Middle: a filled text field
@@ -47,6 +53,9 @@ Flat, calm, enterprise. No gradients, no illustrations.
 `states: idle, submitting, wrong code, expired, resent`
 
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: idle, submitting, invalid, expired, resent.
+
 Design a single Android Material 3 mobile one-time-code screen for RetailOps, an internal B2B
 e-commerce operations app. Top: a back arrow in the app bar. A heading "Enter the 6-digit code"
 in 22sp, with supporting text "We sent a code to r•••@brandcentral.in" in 14sp grey. Below:
@@ -60,17 +69,23 @@ phone". No navigation bar. Flat, no gradients.
 
 #### AUTH-04 · Forgot password
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, for requesting a password reset. App bar with a back arrow and the title
 "Reset password". Heading in 22sp: "Forgot your password?" with supporting text "Enter your work
 email and we'll send you a reset link." One filled text field labelled "Email". A full-width
 filled button "Send reset link" at the bottom, and a centred text button "Back to sign in"
 beneath it. Include a subtle inline note with an info icon reading "For security, we always show
-the same message whether or not the email exists." 16dp margins, no navigation bar, flat design.
+the same message whether or not the email exists." 16dp margins, no navigation bar, flat design. No gradients.
 ```
 
 #### AUTH-05 · Reset password
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, for setting a new password from an emailed link. App bar with a back arrow and
 title "New password". Two filled text fields: "New password" and "Confirm password", both with
@@ -78,11 +93,15 @@ visibility toggles. Below them a password strength meter — a thin 4-segment pr
 3 of 4 segments filled in green with the label "Strong". Under that, a checklist with green check
 icons on "At least 12 characters", "One number", "One symbol" and a grey hollow circle on
 "Not a previous password". Full-width filled button "Update password" at the bottom. No navigation
-bar, flat design, 16dp margins.
+bar, flat design, 16dp margins. No gradients.
 ```
 
 #### AUTH-06 · Set password (first login)
+`states: idle, submitting, invalid, error` · first-login flow, no back navigation
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: idle, submitting, invalid, error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, shown on a user's first login. A small step indicator at the top reading
 "Step 1 of 1". Heading "Create your password" in 22sp and supporting text "This replaces the
@@ -93,7 +112,11 @@ bar, no skip option. Flat, calm, secure-feeling. No gradients.
 ```
 
 #### AUTH-07 · Security policy consent
+`states: idle, submitting, error` · blocks the session until accepted
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: idle, submitting, error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, for accepting a security policy. App bar with the title "Security policy".
 Body: a scrollable white card with 14sp body text containing three short policy sections with
@@ -107,6 +130,9 @@ navigation bar. Flat design, no gradients.
 #### AUTH-08 · Trusted devices
 `states: empty, error`
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: empty-true, error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, listing trusted devices. App bar with a back arrow, title "Trusted devices" and
 an overflow menu. Below the app bar, a one-line description "Devices that can sign in without a
@@ -121,6 +147,9 @@ flat cards, no gradients.
 #### AUTH-09 · Setup wizard
 `perm: settings_manage`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Permission: settings_manage.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile setup wizard screen for RetailOps, an internal B2B
 e-commerce operations app, for first-time system configuration. A horizontal stepper at the top
 with 4 steps — "Organisation", "Marketplaces", "Team", "Data sync" — showing step 2 active in
@@ -129,12 +158,15 @@ primary colour and step 1 completed with a checkmark. Heading "Connect your mark
 checkboxes — "Amazon India" (checked, with the Amazon mark), "Ajio" (unchecked) and "Flipkart"
 (unchecked) — each with a secondary line of descriptive text. A section header "Sync schedule"
 above a segmented control with options "Hourly", "Daily", "Manual", with "Daily" selected. At
-the bottom: a text button "Back" and a filled button "Continue". Flat cards, 16dp margins.
+the bottom: a text button "Back" and a filled button "Continue". Flat cards, 16dp margins. No gradients.
 ```
 
 #### AUTH-10 · Welcome / onboarding (seller)
-`surface: seller · shown once`
+`surface: seller · shown once` · `states: default, dismissed`
 ```
+Role: internal RetailOps staff — Seller.
+Required states: default, dismissed.
+
 Design a single Android Material 3 mobile onboarding screen for RetailOps Seller, a merchant
 app where Amazon sellers track their own account performance. Centred content: a simple outlined
 illustration area, a headline in 24sp reading "Your account, in your pocket", and two lines of
@@ -147,6 +179,9 @@ no gradients, no stock photography.
 
 #### AUTH-11 · Biometric unlock
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, prompting biometric unlock. Body: a large fingerprint icon in a circular soft
 blue container, a heading "Unlock RetailOps" in 22sp, and supporting text "Use your fingerprint
@@ -156,7 +191,11 @@ representing the scan target, with a caption "Touch the sensor". At the bottom, 
 ```
 
 #### AUTH-12 · Session expired
+`states: idle, re-authenticating, error` · modal over a frozen screen
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: idle, re-authenticating, error-recovery.
+
 Design a single Android Material 3 mobile alert dialog over a dimmed dashboard background.
 The dialog has a 28dp radius and contains: a lock icon, a title "Session expired", body text
 "For your security you were signed out after 30 minutes of inactivity. Your place has been
@@ -166,7 +205,11 @@ No gradients, flat surfaces.
 ```
 
 #### AUTH-13 · Account locked
+`states: locked, error` · terminal until the lock expires
 ```
+Role: both surfaces — any signed-in user, internal or seller.
+Required states: locked, error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, shown when an account is locked. Centred content: a warning icon in a soft amber
 circle, a headline "Account temporarily locked" in 22sp, supporting text "Too many failed sign-in
@@ -185,6 +228,9 @@ button "Try again". No app bar, no navigation bar. Flat, calm, no gradients.
 `perm: dashboard_view or targets_view` · `scope: all | assigned`
 
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view or targets_view.
+Required states: empty-true, offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile dashboard screen for RetailOps, an internal B2B
 e-commerce operations app used by Amazon marketplace teams.
 Top app bar: a rounded chip reading "All sellers" with a dropdown caret on the left, a search
@@ -209,6 +255,9 @@ gradients, no floating action button.
 #### INT-HM-02 · Alerts inbox
 `states: empty, filtered-empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: alert perms.
+Required states: empty-true, empty-filtered, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile alerts inbox screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a rounded "All sellers" chip with a caret, a search icon, and an overflow menu.
@@ -224,6 +273,9 @@ line "Seller A · Amazon · 2 h ago", and a right-aligned chevron. Include a gro
 
 #### INT-HM-03 · Alert detail
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: alert perms.
+Required states: offline-cached, error-recovery.
+
 Design a single Android Material 3 mobile alert detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Alert", overflow menu. Bottom navigation with 5 items —
@@ -240,6 +292,9 @@ headline in 16sp medium, and rows of label–value pairs: "ASIN B0XXXXXXXXXX" (m
 
 #### INT-HM-04 · Alert rules
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: rules_view.
+Required states: empty-true, error-recovery.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, listing alert rules.
 Top app bar: back arrow, title "Alert rules", a plus icon on the right. Bottom navigation with
@@ -254,6 +309,9 @@ and off for one, and an overflow menu. Above the list, a search field with the l
 
 #### INT-HM-05 · Alert rule editor
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: rules_manage.
+Required states: conflict, error-recovery.
+
 Design a single Android Material 3 mobile form screen for RetailOps, an internal B2B e-commerce
 operations app, for editing an alert rule.
 Top app bar: a close icon on the left, title "Edit rule", and a text button "Save" on the right.
@@ -274,6 +332,9 @@ Flat fields, 16dp margins, no gradients.
 #### INT-HM-06 · Notifications centre
 `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile notifications screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Notifications", and a text button "Mark all read" on the right.
@@ -289,6 +350,9 @@ dividers, 16dp margins, no gradients.
 
 #### INT-HM-07 · Global search
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned.
+Required states: empty-filtered, empty-true.
+
 Design a single Android Material 3 mobile search screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top: a search bar in the app bar containing the query "pegasus" with a back arrow and a clear
@@ -305,6 +369,9 @@ the list is otherwise empty. Flat, 16dp margins, no gradients, no navigation bar
 
 #### INT-HM-08 · Seller switcher
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned.
+Required states: empty-true, empty-filtered.
+
 Design a single Android Material 3 mobile bottom sheet over a dimmed dashboard for RetailOps,
 an internal B2B e-commerce operations app, for switching the active seller scope.
 The sheet has a 28dp top radius and a 32×4dp grab handle. Contents: a title "Switch seller"
@@ -319,6 +386,9 @@ dimmed dashboard visible behind. Flat, no gradients.
 
 #### INT-HM-09 · Customise dashboard
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: own. Permission: dashboard_view.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile screen for RetailOps, an internal B2B e-commerce
 operations app, for rearranging dashboard widgets.
 Top app bar: a close icon, title "Customise dashboard", and a text button "Reset" on the right.
@@ -334,6 +404,9 @@ Flat, 16dp margins, no gradients.
 #### INT-HM-10 · KPI detail / metric drilldown
 `states: stale, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: dashboard_view.
+Required states: stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile metric detail screen for RetailOps, an internal B2B
 e-commerce operations app, opened from the Revenue KPI card.
 Top app bar: back arrow, a two-line title — "Revenue" in 16sp medium with a subtitle
@@ -359,6 +432,9 @@ nav only. No gradients.
 `perm: asinmanager_view` · `states: empty, filtered-empty, selection, offline, stale`
 
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.
+Required states: empty-true, empty-filtered, selection-bulk, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile product list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "ASIN Manager", and an overflow menu on the right.
@@ -387,6 +463,9 @@ gradients, no floating action button.
 `states: offline, stale, error`
 
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.
+Required states: offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile product detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "ASIN Manager" in 12sp grey above "B0XXXXXXXXXX" in
@@ -411,6 +490,9 @@ Use tabular figures and Indian grouping. Flat cards, 16dp margins, no gradients.
 #### INT-CT-03 · ASIN edit
 `perm: asinmanager_manage`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: asinmanager_manage.
+Required states: conflict, error-recovery.
+
 Design a single Android Material 3 mobile edit form screen for RetailOps, an internal B2B
 e-commerce operations app, for one product.
 Top app bar: a close icon, title "Edit product", and a text button "Save" on the right.
@@ -428,6 +510,9 @@ products." Flat fields, 16dp margins, no gradients.
 #### INT-CT-04 · ASIN import
 `perm: asinmanager_import` · `states: upload progress, conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all/assigned. Permission: asinmanager_import.
+Required states: upload-download, conflict.
+
 Design a single Android Material 3 mobile import screen for RetailOps, an internal B2B
 e-commerce operations app, for uploading a product spreadsheet.
 Top app bar: back arrow, title "Import ASINs". Bottom navigation with 5 items — Home, Catalog,
@@ -445,6 +530,9 @@ filled button "Continue". Flat cards, 16dp margins, no gradients.
 #### INT-CT-05 · ASIN export
 `perm: asinmanager_export` · `states: download progress`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_export.
+Required states: upload-download.
+
 Design a single Android Material 3 mobile export screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Export ASINs". Bottom navigation with 5 items — Home, Catalog,
@@ -461,6 +549,9 @@ reading "Large exports can take a few minutes." Flat cards, 16dp margins, no gra
 #### INT-CT-06 · Bulk action sheet
 `states: selection mode`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_manage.
+Required states: selection-bulk.
+
 Design a single Android Material 3 mobile bottom sheet over a dimmed product list for RetailOps,
 an internal B2B e-commerce operations app, for bulk actions on 240 selected products.
 The sheet has a 28dp top radius and a grab handle. At the top, a title "240 products selected"
@@ -474,6 +565,9 @@ Flat, no gradients.
 
 #### INT-CT-07 · Filter & sort sheet
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Permission: asinmanager_view.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile bottom sheet over a dimmed product list for RetailOps,
 an internal B2B e-commerce operations app, containing filters and sorting.
 The sheet has a 28dp top radius, a grab handle, and a header row with "Filters" in 16sp medium
@@ -490,6 +584,9 @@ no gradients.
 #### INT-CT-08 · ASIN Tracker list
 `perm: asintracker_view` · `states: empty, filtered-empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asintracker_view.
+Required states: empty-true, empty-filtered, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile tracker list screen for RetailOps, an internal B2B
 e-commerce operations app, for monitoring price and rank changes.
 Top app bar: back arrow, title "ASIN Tracker", overflow menu. Bottom navigation with 5 items —
@@ -506,6 +603,9 @@ not needed. Flat rows with dividers, 16dp margins, no gradients.
 #### INT-CT-09 · ASIN Tracker history
 `states: offline, stale, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asintracker_view.
+Required states: offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile history screen for RetailOps, an internal B2B
 e-commerce operations app, for one product's price and rank over time.
 Top app bar: back arrow, a two-line title — "ASIN Tracker" in 12sp grey above "B0XXXXXXXXXX" in
@@ -523,6 +623,9 @@ relative timestamp. Flat cards, 16dp margins, no gradients.
 #### INT-CT-10 · Listing Quality list
 `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile listing-quality list screen for RetailOps, an internal
 B2B e-commerce operations app.
 Top app bar: back arrow, title "Listing Quality", overflow menu. Bottom navigation with 5 items —
@@ -539,6 +642,9 @@ the ASIN in monospace, and a right-aligned amber chip showing the weakest area s
 #### INT-CT-11 · Listing Quality audit
 `states: offline, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: asinmanager_view.
+Required states: offline-cached, error-recovery.
+
 Design a single Android Material 3 mobile listing audit screen for RetailOps, an internal B2B
 e-commerce operations app, for one product.
 Top app bar: back arrow, a two-line title — "Listing Quality" above "B0XXXXXXXXXX" in monospace —
@@ -556,6 +662,9 @@ outlined button "Re-run analysis". Flat cards, 16dp margins, no gradients.
 
 #### INT-CT-12 · Keyword Research search
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_view.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile keyword research screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Keyword Research", overflow menu. Bottom navigation with 5 items
@@ -572,6 +681,9 @@ Flat, 16dp margins, no gradients, no floating action button.
 #### INT-CT-13 · Keyword results
 `states: empty, filtered-empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_view.
+Required states: empty-true, empty-filtered, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile keyword results screen for RetailOps, an internal B2B
 e-commerce operations app, for the query "yoga mat".
 Top app bar: back arrow, title "yoga mat", and a filter icon on the right. Bottom navigation with
@@ -587,6 +699,9 @@ dividers, 16dp margins, no gradients.
 
 #### INT-CT-14 · Keyword set detail
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile saved-keyword-set screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Yoga mats — Q4 set", overflow menu. Bottom navigation with 5
@@ -602,6 +717,9 @@ in monospace and a rank chip. Flat cards, 16dp margins, no gradients.
 #### INT-CT-15 · Keyword export
 `perm: keywords_export` · `states: download progress`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: keywords_export.
+Required states: upload-download.
+
 Design a single Android Material 3 mobile export confirmation screen for RetailOps, an internal
 B2B e-commerce operations app, for keyword data.
 Top app bar: back arrow, title "Export keywords". Bottom navigation with 5 items — Home, Catalog,

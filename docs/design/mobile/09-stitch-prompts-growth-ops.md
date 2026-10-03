@@ -17,6 +17,9 @@
 `perm: adsreport_view` · `states: empty, offline, stale, error`
 
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.
+Required states: empty-true, offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile advertising overview screen for RetailOps, an internal
 B2B e-commerce operations app.
 Top app bar: a rounded "All sellers" chip with a caret, a search icon, and an overflow menu.
@@ -42,6 +45,9 @@ No gradients, no floating action button.
 #### INT-GR-02 · Ads — trend series
 `states: offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile trend screen for RetailOps, an internal B2B e-commerce
 operations app, showing advertising metrics over time.
 Top app bar: back arrow, title "Ad trends", overflow menu. Bottom navigation with 5 items —
@@ -58,6 +64,9 @@ selected, followed by 3 summary rows: "Average 5.49x", "Best day 7.12x on 18 Sep
 #### INT-GR-03 · Ads — campaign table
 `states: empty, filtered-empty, selection, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.
+Required states: empty-true, empty-filtered, selection-bulk, offline-cached.
+
 Design a single Android Material 3 mobile campaign list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Campaigns", a filter icon and an overflow menu.
@@ -76,6 +85,9 @@ selected with a 2dp primary border and a filled checkbox, and a contextual botto
 #### INT-GR-04 · Ads — AI review
 `states: empty, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_view.
+Required states: empty-true, error-recovery.
+
 Design a single Android Material 3 mobile AI review screen for RetailOps, an internal B2B
 e-commerce operations app, showing generated advertising recommendations.
 Top app bar: back arrow, title "AI review", an overflow menu and a small "Re-run" text button.
@@ -92,6 +104,9 @@ full-width tonal button "Export recommendations". Flat cards, 16dp margins, no g
 #### INT-GR-05 · Ads — import workbook
 `perm: adsreport_import` · `states: upload, conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all/assigned. Permission: adsreport_import.
+Required states: upload-download, conflict.
+
 Design a single Android Material 3 mobile upload screen for RetailOps, an internal B2B e-commerce
 operations app, for a daily advertising workbook.
 Top app bar: back arrow, title "Import ads data". Bottom navigation with 5 items — Home, Catalog,
@@ -109,6 +124,9 @@ text button "Cancel". Flat cards, 16dp margins, no gradients.
 #### INT-GR-06 · Ads — report / export
 `perm: adsreport_export` · `states: download progress`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: adsreport_export.
+Required states: upload-download.
+
 Design a single Android Material 3 mobile export screen for RetailOps, an internal B2B e-commerce
 operations app, for advertising data.
 Top app bar: back arrow, title "Export ads report". Bottom navigation with 5 items — Home, Catalog,
@@ -125,6 +143,9 @@ ready." Flat cards, 16dp margins, no gradients.
 #### INT-GR-07 · Targets — dashboard
 `perm: targets_view` · `states: empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: targets_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile targets dashboard for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a rounded "All sellers" chip with a caret, and an overflow menu. Bottom navigation
@@ -142,6 +163,9 @@ gradients.
 #### INT-GR-08 · Target detail vs achievement
 `states: offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: targets_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile target detail screen for RetailOps, an internal B2B
 e-commerce operations app, for one seller and month.
 Top app bar: back arrow, a two-line title — "Targets" in 12sp grey above "Seller A · October 2026"
@@ -153,12 +177,16 @@ target as a dashed line, with a legend above and gridlines. Below that, a sectio
 "Month to date" with four label–value rows in tabular figures: "Revenue ₹42,10,300 · 84% of
 target", "Units 8,420 · 88% of target", "ACoS 18.30% · target under 20%", "Avg. selling price
 ₹4,999 · 98% of target". Each row has a small status dot in green or amber. At the bottom, an
-outlined button "Adjust target" shown only to permitted users. Flat cards, 16dp margins.
+outlined button "Adjust target" shown only to permitted users. Flat cards, 16dp margins. No
+gradients, no heavy shadows, no floating action button over the navigation bar.
 ```
 
 #### INT-GR-09 · Target create / edit
 `perm: targets_create | targets_edit`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager. Scope: all/assigned. Permission: targets_create | targets_edit.
+Required states: conflict, error-recovery.
+
 Design a single Android Material 3 mobile form screen for RetailOps, an internal B2B e-commerce
 operations app, for creating a sales target.
 Top app bar: a close icon, title "New target", and a text button "Save". Bottom navigation with
@@ -175,6 +203,9 @@ bar with an outlined "Cancel" and a filled "Save target". Flat fields, 16dp marg
 #### INT-GR-10 · GMS Tracker
 `perm: gms_tracker_view` · `states: empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: gms_tracker_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile GMS tracker screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "GMS Tracker", a filter icon and an overflow menu. Bottom
@@ -191,6 +222,9 @@ small amber chip "Not synced" on one row. At the bottom of the list, a centred t
 #### INT-GR-11 · GMS import
 `perm: gms_tracker_import`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all/assigned. Permission: gms_tracker_import.
+Required states: upload-download, error-recovery.
+
 Design a single Android Material 3 mobile import screen for RetailOps, an internal B2B
 e-commerce operations app, for GMS data.
 Top app bar: back arrow, title "Import GMS". Bottom navigation with 5 items — Home, Catalog,
@@ -208,6 +242,9 @@ September will be replaced." Flat cards, 16dp margins, no gradients.
 #### INT-GR-12 · Reports hub
 `states: empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: any *report_view.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile reports hub screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a rounded "All sellers" chip with a caret, and a search icon. Bottom navigation with
@@ -225,6 +262,9 @@ a small "Updated 2 h ago" caption. Flat cards, 16dp margins, no gradients.
 #### INT-GR-13 · SKU report
 `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: skureport_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile data report screen for RetailOps, an internal B2B
 e-commerce operations app, showing SKU-level performance.
 Top app bar: back arrow, title "SKU report", an export icon and an overflow menu. Bottom
@@ -242,6 +282,9 @@ Flat cards, 16dp margins, no gradients.
 #### INT-GR-14 · Parent ASIN report
 `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: parentreport_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile report screen for RetailOps, an internal B2B e-commerce
 operations app, showing parent ASIN family performance.
 Top app bar: back arrow, title "Parent ASIN", an export icon and an overflow menu. Bottom
@@ -258,6 +301,9 @@ hairline borders, 16dp margins, no gradients.
 #### INT-GR-15 · Monthly trends
 `states: empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: monthlyreport_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile trends screen for RetailOps, an internal B2B e-commerce
 operations app.
 Top app bar: back arrow, title "Monthly trends", an export icon and an overflow menu. Bottom
@@ -274,6 +320,9 @@ figures and a coloured percentage delta with an arrow. One row is marked with a 
 #### INT-GR-16 · P&L report
 `states: empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: pnlreport_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile profit-and-loss screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "P&L", an export icon and an overflow menu. Bottom navigation with
@@ -290,6 +339,9 @@ the breakdown switches "30d / 90d / 1y". Flat cards, 16dp margins, no gradients.
 #### INT-GR-17 · Inventory report
 `states: empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: inventoryreport_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile inventory report screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Inventory", an export icon and an overflow menu. Bottom navigation
@@ -306,6 +358,9 @@ gradients.
 #### INT-GR-18 · Goals report
 `perm: goalsreport_view` · `states: empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: goalsreport_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile goals screen for RetailOps, an internal B2B e-commerce
 operations app.
 Top app bar: back arrow, title "Goals", an overflow menu. Bottom navigation with 5 items — Home,
@@ -322,6 +377,9 @@ action button over the nav bar.
 #### INT-GR-19 · Revenue calculator
 `perm: calculator_view`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: calculator_view.
+Required states: empty-true, error-recovery.
+
 Design a single Android Material 3 mobile calculator screen for RetailOps, an internal B2B
 e-commerce operations app, for marketplace fee and margin estimation.
 Top app bar: back arrow, title "Revenue calculator", an overflow menu with "Save" and "Reset".
@@ -341,6 +399,9 @@ tabular, then three label–value rows in tabular figures — "Amazon fees ₹78
 #### INT-GR-20 · Report viewer (generic) ★ critical
 `states: offline, stale, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: per report.
+Required states: offline-cached, stale-partial, error-recovery.
+
 Design a single Android Material 3 mobile report viewer screen for RetailOps, an internal B2B
 e-commerce operations app. It is a generic container used by every report.
 Top app bar: back arrow, a two-line title — "Reports" in 12sp grey above the report name "SKU
@@ -365,6 +426,9 @@ button.
 #### INT-GR-21 · Report export
 `perm: per report _export` · `states: download progress`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: per report _export.
+Required states: upload-download.
+
 Design a single Android Material 3 mobile export screen for RetailOps, an internal B2B e-commerce
 operations app, for the currently open report.
 Top app bar: back arrow, title "Export report". Bottom navigation with 5 items — Home, Catalog,
@@ -388,6 +452,9 @@ minutes — we'll notify you." Flat cards, 16dp margins, no gradients.
 `perm: tasks_view` · `states: empty, filtered-empty, selection, offline`
 
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.
+Required states: empty-true, empty-filtered, selection-bulk, offline-cached.
+
 Design a single Android Material 3 mobile task list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a rounded "All sellers" chip with a caret, a search icon, and an overflow menu.
@@ -414,6 +481,9 @@ borders, 16dp margins. No gradients.
 `perm: tasks_view` · `states: offline, conflict, error`
 
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.
+Required states: offline-cached, conflict, error-recovery.
+
 Design a single Android Material 3 mobile task detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Tasks" in 12sp grey above "TI-10482" in 16sp medium
@@ -441,6 +511,9 @@ At the bottom, a sticky action bar with an outlined button "Add comment" and a f
 #### INT-OP-03 · Task create
 `perm: tasks_manage`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_manage.
+Required states: conflict, error-recovery.
+
 Design a single Android Material 3 mobile task creation form for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: a close icon, title "New task", and a text button "Save". Bottom navigation with
@@ -459,6 +532,9 @@ Flat fields, 16dp margins, no gradients.
 #### INT-OP-04 · Task comments & activity
 `states: empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile comments screen for RetailOps, an internal B2B
 e-commerce operations app, for one task.
 Top app bar: back arrow, a two-line title — "TI-10482" above "Comments and activity" — with an
@@ -476,6 +552,9 @@ entries, no gradients.
 #### INT-OP-05 · Task templates
 `perm: templates_manage` · `states: empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: templates_manage.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile template list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Task templates", a plus icon. Bottom navigation with 5 items —
@@ -492,6 +571,9 @@ button over the nav bar.
 #### INT-OP-06 · Task template detail
 `perm: templates_manage` · `states: conflict`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: templates_manage.
+Required states: conflict.
+
 Design a single Android Material 3 mobile template detail and edit screen for RetailOps, an
 internal B2B e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Templates" above "TPL-0001" in monospace — and an
@@ -508,6 +590,9 @@ with 2 rows describing conditions and a chevron. Flat cards, 16dp margins, no gr
 #### INT-OP-07 · Approval queue
 `states: empty, filtered-empty`
 ```
+Role: internal RetailOps staff — Reviewer, Admin / Super Admin. Scope: all/assigned. Permission: tasks_manage.
+Required states: empty-true, empty-filtered.
+
 Design a single Android Material 3 mobile approval queue screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Approvals", and a filter icon. Bottom navigation with 5 items —
@@ -525,6 +610,9 @@ One card is expanded to show a small before/after comparison table with three ro
 #### INT-OP-08 · Escalations
 `states: empty, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: tasks_view.
+Required states: empty-true, stale-partial.
+
 Design a single Android Material 3 mobile escalations screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Escalations", a filter icon. Bottom navigation with 5 items —
@@ -540,6 +628,9 @@ ago", and a right-aligned chevron. Flat cards, 16dp margins, no gradients.
 #### INT-OP-09 · SLA policies
 `perm: tasks_manage` · `states: empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin. Scope: all. Permission: tasks_manage.
+Required states: empty-true.
+
 Design a single Android Material 3 mobile SLA policy list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "SLA policies", a plus icon. Bottom navigation with 5 items — Home,
@@ -555,6 +646,9 @@ inactive and dimmed with a grey chip. Flat cards, 16dp margins, no gradients.
 #### INT-OP-10 · PEMS daily routine
 `states: empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: tasks_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile daily routine screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Daily routine", and a "Generate" text button. Bottom navigation
@@ -571,6 +665,9 @@ At the bottom, an outlined button "Re-assign unassigned" and a caption "Routine 
 #### INT-OP-11 · Scorecards
 `states: empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager. Scope: all. Permission: tasks_view.
+Required states: empty-true, offline-cached.
+
 Design a single Android Material 3 mobile scorecard screen for RetailOps, an internal B2B
 e-commerce operations app, showing team performance.
 Top app bar: back arrow, title "Scorecards", and a date range chip. Bottom navigation with 5 items
@@ -587,6 +684,9 @@ horizontal bar under each row shows relative score. One row is marked with an am
 #### INT-OP-12 · Action Center list
 `perm: actions_view` · `states: empty, filtered-empty, selection`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: actions_view.
+Required states: empty-true, empty-filtered, selection-bulk.
+
 Design a single Android Material 3 mobile action center screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Action Center", a search icon and an overflow menu. Bottom
@@ -603,6 +703,9 @@ and a checkbox. Flat cards, 16dp margins, no gradients.
 #### INT-OP-13 · Action detail
 `states: offline, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all/assigned. Permission: actions_view.
+Required states: offline-cached, error-recovery.
+
 Design a single Android Material 3 mobile action detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Action Center" above "ACT-2081" in monospace — with
@@ -621,6 +724,9 @@ outlined "Snooze" and a filled "Mark step done". Flat cards, 16dp margins, no gr
 #### INT-OP-14 · Rulesets list
 `perm: rules_view` · `states: empty, filtered-empty`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: rules_view.
+Required states: empty-true, empty-filtered.
+
 Design a single Android Material 3 mobile ruleset list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Rulesets", a search icon and a filter icon. Bottom navigation with
@@ -636,6 +742,9 @@ on for four cards and off for one. Flat cards, 16dp margins, no gradients.
 #### INT-OP-15 · Ruleset detail
 `states: offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: rules_view.
+Required states: offline-cached.
+
 Design a single Android Material 3 mobile ruleset detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Rulesets" above "Pricing guardrails" — with an
@@ -654,6 +763,9 @@ summary such as "148 actions across 42 ASINs" and a small green or amber status 
 #### INT-OP-16 · Ruleset run summary
 `states: empty, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: rules_view.
+Required states: empty-true, stale-partial.
+
 Design a single Android Material 3 mobile run summary screen for RetailOps, an internal B2B
 e-commerce operations app, for one ruleset execution.
 Top app bar: back arrow, title "Run · 12 min ago", and an overflow menu. Bottom navigation with
@@ -670,6 +782,9 @@ gradients.
 #### INT-OP-17 · Scheduled runs
 `perm: scraping_view` · `states: empty, filtered-empty, offline`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.
+Required states: empty-true, empty-filtered, offline-cached.
+
 Design a single Android Material 3 mobile scheduled runs screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Scheduled runs", a filter icon and an overflow menu. Bottom
@@ -686,6 +801,9 @@ text button. Flat rows with dividers, 16dp margins, no gradients.
 #### INT-OP-18 · Run detail & logs
 `states: offline, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.
+Required states: offline-cached, error-recovery.
+
 Design a single Android Material 3 mobile run detail screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Scheduled runs" above "Octoparse price sync" — with
@@ -703,6 +821,9 @@ cards, 16dp margins, no gradients.
 #### INT-OP-19 · Scraper tasks
 `states: empty, offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.
+Required states: empty-true, offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile scraper task list screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Scraper tasks", a filter icon and an overflow menu. Bottom
@@ -718,6 +839,9 @@ cards, 16dp margins, no gradients.
 #### INT-OP-20 · Scraper task detail
 `states: offline, error`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.
+Required states: offline-cached, error-recovery.
+
 Design a single Android Material 3 mobile scraper task detail screen for RetailOps, an internal
 B2B e-commerce operations app.
 Top app bar: back arrow, a two-line title — "Scraper tasks" above "Amazon BSR — Seller A" — with an
@@ -735,6 +859,9 @@ and a filled button "Retry now". Flat cards, 16dp margins, no gradients.
 #### INT-OP-21 · Live sync monitor
 `states: offline, stale`
 ```
+Role: internal RetailOps staff — Admin / Super Admin, Operational Manager, Brand Manager, Catalog Manager, Listing Team, Reviewer, Viewer. Scope: all. Permission: scraping_view.
+Required states: offline-cached, stale-partial.
+
 Design a single Android Material 3 mobile live sync monitor screen for RetailOps, an internal B2B
 e-commerce operations app.
 Top app bar: back arrow, title "Live sync", and a small "Auto-refresh on" chip. Bottom navigation

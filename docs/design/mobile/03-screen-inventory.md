@@ -19,6 +19,11 @@ This is the work breakdown for wireframes and the traceability list for QA.
 | **Scope** | `all` · `assigned` · `own` — the data scope the screen must request |
 | **States** | Which of the nine states from §11 apply. `B` = loading/empty/error/offline apply by default (baseline); letters below add specific ones |
 
+**Auth screens (`AUTH-*`) use a flow vocabulary** — `idle`, `submitting`, `invalid`, `error`,
+`locked`, `rate-limited`, `expired`, `resent` — rather than the letter codes below, because their
+states are flow states, not data states. `agents/tools/build-registry.mjs` normalises both
+vocabularies into one canonical list.
+
 **State letters:** `L` loading-only variant matters · `E` true-empty needs teaching copy · `F` filtered-empty · `N` no-permission · `O` offline-cached · `S` stale/partial data · `X` error-recovery critical · `C` conflict · `B` bulk/selection mode · `U` upload/download progress
 
 **Screen totals (unique IDs):** 13 auth · 10 internal Home · 15 Catalog · 21 Growth · 21 Ops ·
@@ -40,14 +45,14 @@ Shared by both surfaces; the visual accent and the post-login landing differ.
 | AUTH-03 | Verify code (OTP) | both | Σ | — | X | `tempToken`, masked `destination`, resend countdown, "trust this device" |
 | AUTH-04 | Forgot password | both | Σ | — | X | Sends reset; always shows a neutral success (no account enumeration) |
 | AUTH-05 | Reset password | both | Σ | — | X | Token from deep link; live strength meter; policy checklist |
-| AUTH-06 | Set password (first login) | both | Σ | — | — | When `MustChangePassword` / `IsFirstLogin` |
-| AUTH-07 | Security policy consent | both | Σ | — | — | When `SecurityPolicyAccepted = 0`; blocks the session until accepted |
+| AUTH-06 | Set password (first login) | both | Σ | — | idle, submitting, invalid, error | When `MustChangePassword` / `IsFirstLogin` |
+| AUTH-07 | Security policy consent | both | Σ | — | idle, submitting, error | When `SecurityPolicyAccepted = 0`; blocks the session until accepted |
 | AUTH-08 | Trusted devices | both | Σ | — | E, X | List, revoke, revoke-all. Ties to `TrustedDevices` |
 | AUTH-09 | Setup wizard | int | admin | `settings_manage` | E | When `SetupCompletedAt` is null |
-| AUTH-10 | Welcome / onboarding | sel | seller_client | — | — | 3-slide value tour + "what we need from you"; skippable, shown once |
+| AUTH-10 | Welcome / onboarding | sel | seller_client | — | default, dismissed | 3-slide value tour + "what we need from you"; skippable, shown once |
 | AUTH-11 | Biometric unlock | both | Σ | — | X | Opt-in; falls back to device credential; never a hard lockout |
-| AUTH-12 | Session expired | both | Σ | — | — | Modal over the frozen screen; re-auth preserves the deep link |
-| AUTH-13 | Account locked | both | Σ | — | — | `LockUntil` set; shows unlock time and support contact |
+| AUTH-12 | Session expired | both | Σ | — | idle, re-authenticating, error | Modal over the frozen screen; re-auth preserves the deep link |
+| AUTH-13 | Account locked | both | Σ | — | locked, error | `LockUntil` set; shows unlock time and support contact |
 
 ## 2. Internal — Home (`INT-HM`)
 
@@ -215,8 +220,17 @@ Shared by both surfaces; the visual accent and the post-login landing differ.
 
 ## Critical screen specifications
 
-Ten screens that carry the product. Each defines layout, components, actions, states,
-permissions, endpoints, and accessibility. Everything else is a variation of these.
+Twelve screens carry the product — they are marked **★ critical** in the prompt files and are
+generated and validated first (wave 0/1 in `07-stitch-setup-and-workflow.md` §5):
+
+`AUTH-02` Sign in · `INT-HM-01` Dashboard · `INT-CT-01` ASIN Manager list ·
+`INT-GR-01` Ads overview · `INT-GR-20` Report viewer · `INT-OP-01` Tasks hub ·
+`INT-OP-02` Task detail · `INT-MR-07` Conversation · `SYS-01` No access ·
+`SEL-HM-01` Seller Home · `SEL-PF-01` Performance overview · `SEL-MR-01` Seller chat
+
+Ten of them are specified in detail below. The other two — `INT-GR-01` and `SEL-MR-01` — are
+covered by their prompts in files `09` and `11` and by the component library. Everything else
+is a variation of these.
 
 ---
 
