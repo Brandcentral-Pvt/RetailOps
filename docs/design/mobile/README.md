@@ -18,7 +18,25 @@ Start with `01-design-schema.md`. Everything else is a companion to it.
 | **04** | [`04-component-library.md`](./04-component-library.md) | Component contract: mandatory components, M3 base defaults, domain components (KpiCard, SlaPill, MetricDelta, AsinCard, ScopeIndicator…), states, governance | When designing or building UI |
 | **05** | [`05-role-ui-matrix.md`](./05-role-ui-matrix.md) | Module × role matrix, resulting navigation per persona, the **blocker report** on current permission sets, the proposed `seller_client` role, and enforcement rules | When wiring permissions or planning a role rollout |
 | **06** | [`06-api-screen-mapping.md`](./06-api-screen-mapping.md) | Screen → endpoint map, request/response contracts, the realtime event contract, and 15 backend gaps with sizing | When planning backend work or starting a screen |
+| **07** | [`07-stitch-setup-and-workflow.md`](./07-stitch-setup-and-workflow.md) | **Stitch operating manual:** `DESIGN.md` design system, shared shell blocks, generation order, state-variant templates, iteration playbook, per-screen QA, handoff | **Before generating any screen in Stitch** |
+| **08** | [`08-stitch-prompts-auth-home-catalog.md`](./08-stitch-prompts-auth-home-catalog.md) | 38 ready-to-paste prompts: auth, internal Home, Catalog | Wave 0–2 generation |
+| **09** | [`09-stitch-prompts-growth-ops.md`](./09-stitch-prompts-growth-ops.md) | 42 prompts: internal Growth, Ops | Wave 2–3 generation |
+| **10** | [`10-stitch-prompts-more-system.md`](./10-stitch-prompts-more-system.md) | 35 prompts: More menu, People/Admin/Account, system states | Wave 3–4 generation |
+| **11** | [`11-stitch-prompts-seller.md`](./11-stitch-prompts-seller.md) | 26 prompts: the seller surface, plus the plain-language glossary | Wave 2 onwards, separate project |
 | — | [`tools/contrast-audit.mjs`](./tools/contrast-audit.mjs) | Re-runs the contrast audit. `node docs/design/mobile/tools/contrast-audit.mjs` | In CI, after token edits |
+
+### Two entry points, depending on what you need
+
+- **Designing in Stitch?** Start at [`07-stitch-setup-and-workflow.md`](./07-stitch-setup-and-workflow.md),
+  then open the prompt file for the batch you are generating. Every prompt is written to be
+  pasted as-is.
+- **Implementing in the app?** Start at [`01-design-schema.md`](./01-design-schema.md), then
+  [`04-component-library.md`](./04-component-library.md) and
+  [`02-design-tokens.json`](./02-design-tokens.json).
+
+**141 prompts ↔ 140 screens, one-to-one.** Every prompt is headed with its screen ID from
+`03-screen-inventory.md`, and the ID is verified against the inventory, so a Stitch screen and
+a spec screen can never drift apart.
 
 ---
 
@@ -67,6 +85,18 @@ because several schema decisions change the visuals (icon set, dynamic colour, s
 3. Confirm the dependencies in `01-design-schema.md` §16 and the 15 gaps in
    `06-api-screen-mapping.md` §4 — each needs an owner.
 
-**Suggested next deliverables**, in order: wireframes for the 10 critical screens in
-`03-screen-inventory.md` → Figma component library matching `04-component-library.md` →
-clickable prototype for the seller onboarding path.
+**Suggested next deliverables**, in order: generate the 10 critical screens in Stitch using
+the Wave 0 prompts in `07-stitch-setup-and-workflow.md` §5 → export to Figma and build the
+component library matching `04-component-library.md` → clickable prototype for the seller
+onboarding path.
+
+---
+
+## Generating screens in Stitch — the short version
+
+1. Create two projects: `RetailOps Internal` and `RetailOps Seller` (Mobile + Standard mode).
+2. Paste the `DESIGN.md` from doc 07 §3 into both; the seller project uses the **teal** accent.
+3. Generate in waves: 3 ignition screens → 10 critical → lists → details → admin → states.
+4. One screen per prompt, pasted verbatim from docs 08–11. Refine in chat; never regenerate.
+5. Every 5 screens, diff the new one against `INT-HM-01` for app bar, card, chip and type drift.
+6. Export each screen to Figma, named `<ID> <Name>`.
