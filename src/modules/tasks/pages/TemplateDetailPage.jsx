@@ -33,7 +33,7 @@ const CATEGORY_META = {
 export default function TemplateDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const [template, setTemplate] = useState(null);
   const [analytics, setAnalytics] = useState({});
   const [assignmentRules, setAssignmentRules] = useState(null);
@@ -58,7 +58,28 @@ export default function TemplateDetailPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    let mounted = true;
+    const doLoad = async () => {
+      setLoading(true);
+      try {
+        const [detail, recentRes] = await Promise.all([
+          tasksApi.getTemplateDetail(id),
+          tasksApi.getInstances({ templateId: id, limit: 10 }).catch(() => ({ success: false })),
+        ]);
+        if (!mounted) return;
+        if (detail.success) {
+          setTemplate(detail.data);
+          setAnalytics(detail.data.analytics || {});
+          setAssignmentRules(detail.data.assignmentRules);
+        }
+        if (recentRes.success) setInstances(recentRes.instances || []);
+      } catch (err) { console.error(err); }
+      finally { if (mounted) setLoading(false); }
+    };
+    doLoad();
+    return () => { mounted = false; };
+  }, [id]);
 
   const subTasks = useMemo(() => template?.SubTaskDefinitions || [], [template]);
   const totalActivities = useMemo(() => subTasks.reduce((s, st) => s + (st.activities?.length || 0), 0), [subTasks]);

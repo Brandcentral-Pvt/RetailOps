@@ -55,7 +55,7 @@ function parseJsonArray(v) {
   try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch { return []; }
 }
 
-function AffectedASINsPanel({ task, taskId, loadTask, message }) {
+function AffectedASINsPanel({ taskId, message }) {
   const [asinData, setAsinData] = useState(null);
   const [loadingAsins, setLoadingAsins] = useState(true);
   const [activeSeller, setActiveSeller] = useState(null);
@@ -633,7 +633,8 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     finally { if (!opts.silent) setLoading(false); }
   }, [taskId]);
 
-  useEffect(() => { loadTask(); }, [loadTask]);
+  // Load task when taskId changes
+  useEffect(() => { loadTask(); }, [taskId]);
 
   // Reset per-task working state so nothing leaks from the previously opened task
   useEffect(() => {
@@ -643,11 +644,13 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
     setTask(null);
     setActiveTab('overview');
   }, [taskId]);
+
+  // Update active tab when task loads (avoid exhaustive-deps warning)
   const taskLoadedId = task?.Id;
   useEffect(() => {
     if (!taskLoadedId) return;
     setActiveTab(task?.Source === 'RULESET' || task?.IsRuleTask ? 'resolve' : 'overview');
-  }, [taskLoadedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [taskLoadedId, task?.Source, task?.IsRuleTask]);
 
   const notifyTransition = useCallback(async (toStatus) => {
     try {

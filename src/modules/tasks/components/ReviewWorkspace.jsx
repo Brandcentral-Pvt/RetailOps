@@ -109,15 +109,23 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh, queu
     finally { if (!silent) setLoading(false); }
   }, [taskId]);
 
+  // Load task when taskId changes
+  useEffect(() => { loadTask(); }, [taskId, loadTask]);
+
   // Reset per-task state whenever we move to another task.
-  useEffect(() => {
-    if (!open || !taskId) return;
+  const resetTaskState = useCallback(() => {
     setTask(null); setTab('summary'); setFeedback(''); setFeedbackError(false); setCommentText('');
     setScores({ accuracy: 0, completeness: 0, evidence: 0, compliance: 0 });
     setVerify({ loading: false, status: null, message: '', checkedAt: null });
     openedAt.current = Date.now();
+    // Note: loadTask is called separately in the effect below to avoid circular dependency
+  }, []);
+
+  useEffect(() => {
+    if (!open || !taskId) return;
+    resetTaskState();
     loadTask();
-  }, [open, taskId, loadTask]);
+  }, [open, taskId, resetTaskState, loadTask]);
 
   useEffect(() => {
     if (!open) return;
@@ -133,7 +141,7 @@ export default function ReviewWorkspace({ open, onClose, taskId, onRefresh, queu
     }));
   }, [task]);
 
-  const subTasks = task?.subTasks || [];
+  const subTasks = useMemo(() => task?.subTasks || [], [task]);
   const isRuleTask = !!task && (task.Source === 'RULESET' || task.IsRuleTask);
   const asins = task ? parseArr(task.Asins) : [];
   const checks = useMemo(() => (task ? buildChecks(task, subTasks, verify) : []), [task, subTasks, verify]);
