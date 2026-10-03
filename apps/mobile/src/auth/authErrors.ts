@@ -48,7 +48,7 @@ export function authErrorFor(error: unknown, operation: 'login' | 'otp' | 'resen
     return { code, message: COPY[code], retryAfter: null };
   }
   if (error.status >= 500) return { code: 'server', message: COPY.server, retryAfter: null };
-  if (error.status === 423) return { code: 'account-locked', message: COPY['account-locked'], retryAfter: null };
+  if (error.status === 423) return { code: 'account-locked', message: COPY['account-locked'], retryAfter };
   if (error.status === 429) return { code: 'rate-limited', message: COPY['rate-limited'], retryAfter };
   if (error.status === 403) return { code: 'access-restricted', message: COPY['access-restricted'], retryAfter: null };
 

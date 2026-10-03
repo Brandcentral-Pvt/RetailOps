@@ -88,7 +88,7 @@ export function SignInScreen({ navigation, route }: Props) {
     } catch (error) {
       const mapped = authErrorFor(error, 'login');
       if (mapped.code === 'account-locked') {
-        navigation.navigate('AccountLocked', { email: normalizedEmail });
+        navigation.navigate('AccountLocked', { email: normalizedEmail, retryAfter: mapped.retryAfter });
         return;
       }
       setAuthError(mapped);

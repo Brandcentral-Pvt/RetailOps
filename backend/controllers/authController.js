@@ -187,6 +187,7 @@ exports.login = async (req, res) => {
         description: `Locked login attempt: ${email}`,
         metadata: { ip: clientIp }
       });
+      res.set('Retry-After', String(Math.max(1, Math.ceil((new Date(user.LockUntil).getTime() - Date.now()) / 1000))));
       return res.status(423).json({ success: false, message: GENERIC_BLOCK });
     }
 
@@ -225,6 +226,10 @@ exports.login = async (req, res) => {
       const failCount = await recordFailedAttempt(email, clientIp);
       console.warn(`[LOGIN] Progressive failure count for ${email}: ${failCount}/${5}`);
 
+      if (attempts >= 5) {
+        res.set('Retry-After', String(15 * 60));
+        return res.status(423).json({ success: false, message: GENERIC_BLOCK });
+      }
       return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
 
@@ -632,12 +637,21 @@ exports.forgotPassword = async (req, res) => {
     const result = await passwordResetService.generateResetToken(email);
     
     if (result.success) {
-      const resetUrl = `${config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in'}/reset-password?token=${result.token}`;
+      const dashboardUrl = config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in';
+      const webResetUrl = `${dashboardUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(result.token)}`;
+      // Deployments that ship the managed app can opt into a verified universal
+      // link or the `retailops://reset-password` scheme. Keep the web route as
+      // a fallback so a reset email remains usable from desktop clients.
+      const mobileBase = process.env.MOBILE_RESET_URL?.trim();
+      const mobileResetUrl = mobileBase
+        ? `${mobileBase}${mobileBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(result.token)}`
+        : null;
       const ipAddress = getClientIp(req);
       
       const html = passwordResetTemplate({
         userName: result.user.firstName,
-        resetUrl,
+        resetUrl: mobileResetUrl || webResetUrl,
+        fallbackResetUrl: mobileResetUrl ? webResetUrl : null,
         expiresInMinutes: 60,
         ipAddress
       });
@@ -680,7 +694,9 @@ exports.resetPassword = async (req, res) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Token and new password are required' });
 
-    if (newPassword.length < 8) return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    const { passwordPolicyError } = require('../lib/passwordPolicy');
+    const policyError = passwordPolicyError(newPassword);
+    if (policyError) return res.status(400).json({ success: false, message: policyError });
 
     const passwordResetService = require('../services/passwordResetService');
     const result = await passwordResetService.resetPassword(token, newPassword);

@@ -25,7 +25,7 @@ router.get('/me', authenticate, authController.getMe);
 router.put('/profile', authenticate, authController.updateProfile);
 router.post('/request-password-change', authenticate, authController.requestPasswordChange);
 router.put('/change-password', authenticate, validate('changePassword'), authController.changePassword);
-router.put('/change-password-with-otp', authenticate, authController.changePasswordWithOtp);
+router.put('/change-password-with-otp', authenticate, validate('changePasswordWithOtp'), authController.changePasswordWithOtp);
 
 // Password Reset (unauthenticated)
 router.post('/forgot-password', authController.forgotPassword);

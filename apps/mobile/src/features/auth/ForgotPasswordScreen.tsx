@@ -53,6 +53,7 @@ export function ForgotPasswordScreen({ navigation, route }: Props) {
       subtitle="Enter your work email and we’ll send reset instructions if an account is available."
     >
       <View style={{ gap: t.spacing.scale.lg }}>
+        <AuthMessage tone="info" message="For security, we always show the same message whether or not the email exists." />
         {sent ? (
           <AuthMessage
             tone="success"

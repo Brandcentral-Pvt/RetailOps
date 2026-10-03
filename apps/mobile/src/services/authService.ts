@@ -105,6 +105,60 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return api.post('/auth/reset-password', { token, newPassword }, { skipAuthRefresh: true });
 }
 
+export type ResetTokenStatus = { valid: boolean; email?: string; firstName?: string };
+
+export async function validateResetToken(token: string): Promise<ResetTokenStatus> {
+  const result = await api.get<{ success?: boolean; valid?: boolean; email?: string; firstName?: string }>(
+    `/auth/validate-reset-token?token=${encodeURIComponent(token)}`,
+    { skipAuthRefresh: true },
+  );
+  return { valid: Boolean(result.valid), email: result.email, firstName: result.firstName };
+}
+
+export type TrustedDevice = {
+  id: string;
+  name: string;
+  ipAddress: string | null;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  isCurrent: boolean;
+};
+
+export async function getTrustedDevices(): Promise<TrustedDevice[]> {
+  const result = await api.get<{ success?: boolean; devices?: TrustedDevice[] }>('/security/trusted-devices');
+  if (!result.success || !Array.isArray(result.devices)) {
+    throw new ApiError(500, 'The server returned invalid trusted-device data.', '/security/trusted-devices', result);
+  }
+  return result.devices;
+}
+
+export async function revokeTrustedDevice(deviceId: string): Promise<void> {
+  await api.delete(`/security/trusted-devices/${encodeURIComponent(deviceId)}`);
+}
+
+export async function revokeOtherTrustedDevices(): Promise<void> {
+  await api.delete('/security/trusted-devices/others');
+}
+
+export type SystemSchedule = {
+  scheduleTime?: string;
+  ajioScheduleTime?: string;
+  amazonAutomationEnabled?: boolean;
+  ajioAutomationEnabled?: boolean;
+};
+
+export async function getSystemSchedule(): Promise<SystemSchedule> {
+  const result = await api.get<{ success?: boolean; data?: SystemSchedule }>('/settings/schedule-config');
+  if (!result.success || !result.data) {
+    throw new ApiError(500, 'The server returned invalid setup configuration.', '/settings/schedule-config', result);
+  }
+  return result.data;
+}
+
+export async function saveSystemSetup(settings: Record<string, string | boolean>): Promise<void> {
+  await api.post('/settings/update', { group: 'mobile_setup', settings });
+}
+
 export async function logout(): Promise<void> {
   await api.post('/auth/logout', {}, { skipAuthRefresh: true });
 }
@@ -113,6 +167,7 @@ export async function logout(): Promise<void> {
 export type FirstLoginSetupStatus = {
   needsSetup?: boolean;
   completedSteps?: string[];
+  securityAccepted?: boolean;
 };
 
 export async function getFirstLoginSetupStatus(): Promise<FirstLoginSetupStatus> {

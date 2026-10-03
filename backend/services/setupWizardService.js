@@ -1,5 +1,6 @@
 const { getPool, sql } = require('../database/db');
 const bcrypt = require('bcryptjs');
+const { passwordPolicyError } = require('../lib/passwordPolicy');
 
 const WIZARD_STEPS = [
   { id: 'welcome', order: 1, title: 'Welcome to RetailOps!', required: true, skippable: false },
@@ -62,9 +63,9 @@ class SetupWizardService {
   async changePassword(userId, currentPassword, newPassword) {
     // This route is intentionally separate from /auth/change-password, so it
     // cannot rely on that route's Joi middleware for basic password hygiene.
-    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string'
-      || newPassword.length < 8 || newPassword.length > 128 || newPassword.includes('<')) {
-      throw new Error('Password does not meet requirements');
+    const policyError = passwordPolicyError(newPassword);
+    if (typeof currentPassword !== 'string' || policyError) {
+      throw new Error(policyError || 'Current password is required');
     }
 
     const pool = await getPool();
