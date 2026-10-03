@@ -1,6 +1,8 @@
 name: Design System
 
-# Guards the mobile UI/UX design schema and agent prompt pack.
+# Guards the mobile UI/UX design schema, the agent prompt pack, and the app
+# that implements them. The app is generated from the registry, so a change to
+# either side can invalidate the other — that is why this is one workflow.
 # See docs/design/mobile/agents/00-agent-system.md for what these checks enforce.
 
 on:
@@ -8,11 +10,13 @@ on:
     branches: [main, develop]
     paths:
       - 'docs/design/mobile/**'
+      - 'apps/mobile/**'
       - '.github/workflows/design-system.yml'
   pull_request:
     branches: [main, develop]
     paths:
       - 'docs/design/mobile/**'
+      - 'apps/mobile/**'
       - '.github/workflows/design-system.yml'
 
 concurrency:
@@ -22,6 +26,7 @@ concurrency:
 env:
   NODE_VERSION: '20'
   DESIGN_DIR: docs/design/mobile
+  APP_DIR: apps/mobile
 
 jobs:
   validate:
@@ -65,3 +70,67 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/agents/registry/roles.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/agents/registry/screens.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('$DESIGN_DIR/agents/state/progress.json','utf8'))"
+
+  # ─── The app that implements the design system ──────────────────────────
+  mobile:
+    name: Mobile app (iOS + Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci
+
+      # ─── Generated code must match the design system ──────────────────
+      - name: Tokens are compiled from 02-design-tokens.json
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run tokens:check
+
+      - name: All 140 screens are compiled from the registry
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run scaffold:check
+
+      # ─── The app must compile under strict TypeScript ──────────────────
+      - name: Typecheck
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run typecheck
+
+      # ─── Consistency contract over the app's own source ───────────────
+      - name: Consistency contract
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run lint:contract
+
+      # ─── Cross-file wiring, platform ids, committed secrets ───────────
+      - name: Setup doctor
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run doctor
+
+      # ─── It must actually bundle for both platforms ───────────────────
+      - name: Bundle (android)
+        working-directory: ${{ env.APP_DIR }}
+        run: npx expo export --platform android --output-dir dist-ci-android
+
+      - name: Bundle (ios)
+        working-directory: ${{ env.APP_DIR }}
+        run: npx expo export --platform ios --output-dir dist-ci-ios
+
+      # ─── A secret must never reach the bundle ──────────────────────────
+      - name: No secrets committed
+        run: |
+          if git ls-files --error-unmatch "$APP_DIR/google-services.json" \
+             "$APP_DIR/GoogleService-Info.plist" "$APP_DIR/.env" 2>/dev/null; then
+            echo "::error::A secret file is tracked. Remove it and add it to .gitignore."
+            exit 1
+          fi
+          echo "no secret files tracked"
