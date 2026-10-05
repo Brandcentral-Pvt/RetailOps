@@ -42,7 +42,7 @@
     "cursor": "^0.1.5",
     "date-fns": "^4.4.0",
     "dayjs": "^1.11.23",
-    "dompurify": "^3.4.8",
+    "dompurify": "^3.4.16",
     "express": "^5.2.1",
     "framer-motion": "^13.4.3",
     "iconify": "^1.4.0",
