@@ -632,7 +632,10 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
   const loadTask = useCallback(async (opts = {}) => {
     if (!taskId) return;
-    if (!opts.silent) setLoading(true);
+    if (!opts.silent) {
+      // Defer to avoid sync setState in effect
+      setTimeout(() => setLoading(true), 0);
+    }
     try {
       const res = await tasksApi.getInstanceById(taskId);
       if (res.success) setTask(res.data);
