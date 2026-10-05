@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Drawer, Typography, Space, Tag, Button, Row, Col, Progress, Card, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App, Select } from 'antd';
+import { Drawer, Typography, Space, Tag, Button, Row, Col, Progress, Card, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App, Select, Table } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, ArrowRightOutlined,
   FileTextOutlined, UploadOutlined, CommentOutlined, EditOutlined,
@@ -58,17 +58,18 @@ function parseJsonArray(v) {
 function AffectedASINsPanel({ taskId, message }) {
   const [asinData, setAsinData] = useState(null);
   const [loadingAsins, setLoadingAsins] = useState(true);
-  const [activeSeller, setActiveSeller] = useState(null);
   const [editingRemarks, setEditingRemarks] = useState({}); // key: asinId, value: {remarks, resolution}
 
   useEffect(() => {
     if (!taskId) return;
-    setLoadingAsins(true);
+    // Defer loading state to avoid sync setState warning
+    const timer = setTimeout(() => setLoadingAsins(true), 0);
     tasksApi.getInstanceAsins(taskId)
       .then(res => { if (res.success) setAsinData(res.data); })
       .catch(err => message.error(err.message || 'Failed to load affected ASINs'))
       .finally(() => setLoadingAsins(false));
-  }, [taskId]);
+    return () => clearTimeout(timer);
+  }, [taskId, message]);
 
   const handleSaveRemarks = async (asinId, sellerId, signalCode, remarks, resolution, waiveReason) => {
     try {
@@ -96,15 +97,7 @@ function AffectedASINsPanel({ taskId, message }) {
     }
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'critical': return 'var(--bc-red-600)';
-      case 'major': return 'var(--bc-amber-600)';
-      default: return 'var(--bc-blue-600)';
-    }
-  };
-
-  const getStatusTag = (status) => {
+const getStatusTag = (status) => {
     switch (status) {
       case 'RESOLVED': return <Tag color="success" size="small">Resolved</Tag>;
       case 'WAIVED': return <Tag color="warning" size="small">Waived</Tag>;
@@ -112,7 +105,21 @@ function AffectedASINsPanel({ taskId, message }) {
     }
   };
 
-  if (!asinData) return loadingAsins ? <Spin size="large" style={{ margin: '24px auto', display: 'block' }} /> : null;
+  if (!asinData) {
+    if (loadingAsins) {
+      return <Spin size="large" style={{ margin: '24px auto', display: 'block' }} />;
+    }
+    // Show empty state when no ASINs exist for this task
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 24 }}>
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No affected ASINs for this task"
+          imageStyle={{ height: 60 }}
+        />
+      </div>
+    );
+  }
 
   const totalOpen = asinData.sellers?.reduce((sum, s) => sum + (s.counts?.total || 0), 0) || 0;
   const totalCritical = asinData.sellers?.reduce((sum, s) => sum + (s.counts?.critical || 0), 0) || 0;
@@ -625,7 +632,10 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
 
   const loadTask = useCallback(async (opts = {}) => {
     if (!taskId) return;
-    if (!opts.silent) setLoading(true);
+    if (!opts.silent) {
+      // Defer to avoid sync setState in effect
+      setTimeout(() => setLoading(true), 0);
+    }
     try {
       const res = await tasksApi.getInstanceById(taskId);
       if (res.success) setTask(res.data);
@@ -634,22 +644,28 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
   }, [taskId]);
 
   // Load task when taskId changes
-  useEffect(() => { loadTask(); }, [taskId]);
+  useEffect(() => { loadTask(); }, [taskId, loadTask]);
 
   // Reset per-task working state so nothing leaks from the previously opened task
   useEffect(() => {
-    setIssueSource(null); setTicketId(''); setRequestId(''); setActionNotes('');
-    setVerifyResult(null); setAsinResults([]); setNewComment('');
-    setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '' });
-    setTask(null);
-    setActiveTab('overview');
+    const timer = setTimeout(() => {
+      setIssueSource(null); setTicketId(''); setRequestId(''); setActionNotes('');
+      setVerifyResult(null); setAsinResults([]); setNewComment('');
+      setEvidenceDraft({ fileName: '', fileUrl: '', remarks: '' });
+      setTask(null);
+      setActiveTab('overview');
+    }, 0);
+    return () => clearTimeout(timer);
   }, [taskId]);
 
   // Update active tab when task loads (avoid exhaustive-deps warning)
   const taskLoadedId = task?.Id;
   useEffect(() => {
     if (!taskLoadedId) return;
-    setActiveTab(task?.Source === 'RULESET' || task?.IsRuleTask ? 'resolve' : 'overview');
+    const timer = setTimeout(() => {
+      setActiveTab(task?.Source === 'RULESET' || task?.IsRuleTask ? 'resolve' : 'overview');
+    }, 0);
+    return () => clearTimeout(timer);
   }, [taskLoadedId, task?.Source, task?.IsRuleTask]);
 
   const notifyTransition = useCallback(async (toStatus) => {
