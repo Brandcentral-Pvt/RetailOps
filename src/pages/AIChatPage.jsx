@@ -1,43 +1,80 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { Button, Input, Tooltip, Avatar, Tag, Dropdown, Modal, Drawer, Slider, Switch, Select, Skeleton } from 'antd';
+import { Button, Input, Tooltip, Dropdown, Modal, Drawer, Slider, Switch, Select, Skeleton, Tag } from 'antd';
 import {
-  SendOutlined,
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  RobotFilled,
-  RobotOutlined,
   DatabaseOutlined,
   ConsoleSqlOutlined,
   LineChartOutlined,
   AppstoreOutlined,
-  SettingOutlined,
-  MenuOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  ThunderboltOutlined,
-  StopOutlined,
-  SearchOutlined,
-  CopyOutlined,
-  CheckOutlined,
-  UserOutlined,
-  StarOutlined,
-  ExperimentOutlined,
-  CloseOutlined,
-  HistoryOutlined,
 } from '@ant-design/icons';
+import {
+  Send,
+  Square,
+  Copy,
+  Check,
+  Plus,
+  Search,
+  Settings,
+  Database,
+  History,
+  Pencil,
+  Trash2,
+  Menu,
+  Sparkles,
+  Bot,
+  User,
+  X,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Clock,
+} from 'lucide-react';
+
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+  MessageActions,
+  MessageAction,
+} from '@/components/ui/message';
+import {
+  ChatContainerRoot,
+  ChatContainerContent,
+  ChatContainerScrollAnchor,
+} from '@/components/ui/chat-container';
+import { ScrollButton } from '@/components/ui/scroll-button';
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputActions,
+  PromptInputAction,
+} from '@/components/ui/prompt-input';
+import { Tool } from '@/components/ui/tool';
+import { Loader } from '@/components/ui/loader';
+import { PromptSuggestion } from '@/components/ui/prompt-suggestion';
+import { cn } from '@/lib/utils';
 
 import { aiChatService } from '../services/aiChatService';
 
 dayjs.extend(relativeTime);
 
 const FALLBACK_MODELS = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', category: 'Free', context: '1048576', weight: '3', notes: 'Fast, general purpose' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', category: 'Subscription', context: '1048576', weight: '12', notes: 'Advanced reasoning' },
-  { id: 'gemini-3-flash', name: 'Gemini 3 Flash', category: 'Free', context: '1048576', weight: '4', notes: 'Latest fast model' },
-  { id: 'gemini-3-pro', name: 'Gemini 3 Pro', category: 'Subscription', context: '1048576', weight: '15', notes: 'Latest premium model' },
+  { id: 'free/gpt-6-luna', name: 'GPT-6 Luna', category: 'Free', context: 1000000, weight: 3, notes: 'Fast general purpose' },
+  { id: 'free/glm-5.3-flash', name: 'GLM-5.3 Flash', category: 'Free', context: 1000000, weight: 3, notes: 'Balanced & fast' },
+  { id: 'free/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', category: 'Free', context: 1000000, weight: 3, notes: 'Reasoning tuned' },
+  { id: 'free/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro', category: 'Free', context: 1000000, weight: 3, notes: 'Advanced reasoning' },
+  { id: 'free/mimo-v2.6-pro', name: 'Mimo V2.6 Pro', category: 'Free', context: 1000000, weight: 2, notes: 'Coding & logic' },
+  { id: 'free/minimax-m3.1', name: 'MiniMax M3.1', category: 'Free', context: 1000000, weight: 2, notes: 'Creative writing' },
+  { id: 'free/minimax-m3', name: 'MiniMax M3', category: 'Free', context: 1000000, weight: 2, notes: 'Creative writing' },
+  { id: 'free/mimo-v2.6-flash', name: 'Mimo V2.6 Flash', category: 'Free', context: 1000000, weight: 2, notes: 'Fast & lightweight' },
+  { id: 'free/claude-sonnet-4.6', name: 'Claude 4.6 Sonnet', category: 'Subscription', context: 1000000, weight: 3, notes: 'Balanced premium' },
+  { id: 'free/hy4', name: 'HY 4', category: 'Subscription', context: 1000000, weight: 2, notes: 'Efficient premium' },
+  { id: 'free/claude-opus-4.6', name: 'Claude 4.6 Opus', category: 'Subscription', context: 1000000, weight: 3, notes: 'Top tier reasoning' },
+  { id: 'free/gemini-3.8-flash', name: 'Gemini 3.8 Flash', category: 'Subscription', context: 1000000, weight: 3, notes: 'Fast Gemini' },
+  { id: 'free/muse-spark-1.3', name: 'Muse Spark 1.3', category: 'Subscription', context: 1000000, weight: 3, notes: 'Creative spark' },
+  { id: 'free/gemini-3.1-pro', name: 'Gemini 3.1 Pro', category: 'Subscription', context: 1000000, weight: 2, notes: 'Premium Gemini' },
+  { id: 'free/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash', category: 'Subscription', context: 1000000, weight: 3, notes: 'Fast DeepSeek' },
+  { id: 'free/qwen-3.8-max', name: 'Qwen 3.8 MAX', category: 'Subscription', context: 1000000, weight: 2, notes: 'Large context' },
 ];
 
 const QUICK_ACTIONS = [
@@ -91,7 +128,7 @@ const DEFAULT_SETTINGS = {
   streaming: true,
 };
 
-const CONTEXT_LABEL = { 1048576: '1M', 128000: '128K', 102400: '100K', 32768: '32K', 65536: '64K' };
+const CONTEXT_LABEL = { 1000000: '1M', 1048576: '1M', 128000: '128K', 102400: '100K', 32768: '32K', 65536: '64K' };
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 920);
@@ -103,6 +140,17 @@ function useIsMobile() {
   return mobile;
 }
 
+function useAppDark() {
+  const [dark, setDark] = useState(() => typeof document !== 'undefined' && document.body.classList.contains('bc-dark'));
+  useEffect(() => {
+    if (typeof MutationObserver === 'undefined') return undefined;
+    const obs = new MutationObserver(() => setDark(document.body.classList.contains('bc-dark')));
+    obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
+}
+
 const formatTokens = (n) => {
   if (n == null || Number.isNaN(Number(n))) return null;
   const v = Number(n);
@@ -112,39 +160,62 @@ const formatTokens = (n) => {
 };
 
 const normalizeModels = (raw) => {
-  if (!Array.isArray(raw)) return FALLBACK_MODELS;
-  return raw.map((m) => ({
-    id: m.id || m.ModelId || m.model || '',
-    name: m.name || m.displayName || m.id || m.model || '',
-    category: (m.category || 'Free').toLowerCase() === 'subscription' ? 'Subscription' : 'Free',
-    context: m.context || m.contextLength || null,
-    weight: m.weight || m.tokenWeight || m.tokensPerDollarMultiplier || null,
-    notes: m.notes || m.description || '',
-  }));
+  if (!Array.isArray(raw) || raw.length === 0) return FALLBACK_MODELS;
+  const toCategory = (m) => {
+    if (m.category && typeof m.category === 'string') {
+      return m.category.toLowerCase() === 'subscription' ? 'Subscription' : 'Free';
+    }
+    return m.subscription === true ? 'Subscription' : 'Free';
+  };
+  return raw
+    .map((m) => ({
+      id: m.id || m.ModelId || m.model || '',
+      name: m.name || m.displayName || m.id || m.model || '',
+      category: toCategory(m),
+      context: m.context || m.contextWindow || m.contextLength || null,
+      weight: m.weight || m.tokenWeight || m.tokensPerDollarMultiplier || null,
+      notes: m.notes || m.description || '',
+    }))
+    .filter((m) => m.id && m.name);
+};
+
+const toToolPart = (tool) => {
+  if (!tool) return null;
+  return {
+    type: 'database_query',
+    state: tool.error ? 'output-error' : 'output-available',
+    input: { sql: tool.sql },
+    output: tool.error ? undefined : { rowCount: tool.rowCount ?? 0 },
+    errorText: tool.error,
+    toolCallId: 'db-query',
+  };
 };
 
 const MessagesSkeleton = () => (
-  <div className="ai-chat-skeleton-wrap">
-    <div className="ai-chat-skeleton-row right">
-      <Skeleton active paragraph={{ rows: 2 }} title={false} />
+  <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-8">
+    <div className="flex justify-end">
+      <div className="w-56 space-y-2">
+        <div className="h-3 w-40 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-56 animate-pulse rounded bg-muted/70" />
+      </div>
     </div>
-    <div className="ai-chat-skeleton-row">
-      <Skeleton active paragraph={{ rows: 4 }} title={false} />
-    </div>
-    <div className="ai-chat-skeleton-row right">
-      <Skeleton active paragraph={{ rows: 1 }} title={false} />
-    </div>
-    <div className="ai-chat-skeleton-row">
-      <Skeleton active paragraph={{ rows: 3 }} title={false} />
+    <div className="flex gap-3">
+      <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+      <div className="w-full max-w-xl space-y-2">
+        <div className="h-3 w-24 animate-pulse rounded bg-muted/70" />
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-3 w-11/12 animate-pulse rounded bg-muted/70" />
+        <div className="h-3 w-4/5 animate-pulse rounded bg-muted/70" />
+      </div>
     </div>
   </div>
 );
 
 const AIChatPage = () => {
   const isMobile = useIsMobile();
+  const isDark = useAppDark();
 
   const [models, setModels] = useState(FALLBACK_MODELS);
-  const [modelsLoading, setModelsLoading] = useState(true);
   const [usage, setUsage] = useState(null);
   const [usageLoading, setUsageLoading] = useState(true);
 
@@ -170,7 +241,6 @@ const AIChatPage = () => {
   const [renameTarget, setRenameTarget] = useState(null);
   const [renameValue, setRenameValue] = useState('');
 
-  const scrollRef = useRef(null);
   const composerRef = useRef(null);
 
   const activeModel = useMemo(() => models.find((m) => m.id === selectedModel) || models[0], [models, selectedModel]);
@@ -178,13 +248,13 @@ const AIChatPage = () => {
     const items = (m) => ({
       key: `model:${m.id}`,
       label: (
-        <div className="ai-model-opt">
-          <span className="ai-model-opt-name">{m.name}</span>
-          <span className="ai-model-opt-badges">
-            {m.context ? <Tag className="ai-tag ai-tag-context">{CONTEXT_LABEL[m.context] || '—'}</Tag> : null}
-            {m.weight ? <Tag className="ai-tag ai-tag-weight">×{m.weight}</Tag> : null}
+        <div className="flex w-72 items-center justify-between gap-3 py-0.5">
+          <span className="min-w-0 truncate text-sm font-medium">{m.name}</span>
+          <span className="flex shrink-0 items-center gap-1">
+            {m.context ? <Tag className="ai-tag">{CONTEXT_LABEL[m.context] || '—'}</Tag> : null}
+            {m.weight ? <Tag className="ai-tag">{'×' + m.weight}</Tag> : null}
           </span>
-          {m.id === selectedModel ? <CheckOutlined className="ai-model-opt-check" /> : null}
+          {m.id === selectedModel ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
         </div>
       ),
     });
@@ -208,26 +278,24 @@ const AIChatPage = () => {
     return Math.min(100, Math.round((used / total) * 100));
   }, [usage]);
 
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
   const loadModels = useCallback(async () => {
-    setModelsLoading(true);
     try {
       const res = await aiChatService.getModels();
-      const list = normalizeModels(res.models || res.data?.models || res.data?.data || res);
-      if (list.length) setModels(list);
+      const rawAll =
+        (Array.isArray(res.data?.all) && res.data.all.length ? res.data.all : null) ||
+        (Array.isArray(res.all) && res.all.length ? res.all : null) ||
+        (Array.isArray(res) && res.length ? res : null) ||
+        (Array.isArray(res.data?.free) || Array.isArray(res.data?.subscription)
+          ? [...(res.data.free || []), ...(res.data.subscription || [])]
+          : null) ||
+        null;
+      const list = normalizeModels(rawAll);
+      if (list.length) {
+        setModels(list);
+        setSelectedModel((prev) => (list.some((m) => m.id === prev) ? prev : list[0].id));
+      }
     } catch (err) {
       setTopError(`Could not load models: ${err.message || 'unknown error'}`);
-    } finally {
-      setModelsLoading(false);
     }
   }, []);
 
@@ -262,18 +330,25 @@ const AIChatPage = () => {
     setMessages([]);
     try {
       const res = await aiChatService.getConversation(id);
-      const conv = res.conversation || res.data?.conversation || null;
-      const list = res.messages || res.data?.messages || res.message;
+      const conv = res.data?.Id ? res.data : res.conversation || res.data?.conversation || null;
+      const list = res.data?.messages || res.messages || res.data || res.message;
       setCurrentConversation((prev) => (prev && prev.Id === id ? prev : conv));
       setMessages(
         Array.isArray(list)
-          ? list.map((m) => ({
-              id: m.Id || m.id || `m-${Date.now()}-${Math.random()}`,
-              role: (m.Role || m.role || '').toLowerCase(),
-              content: m.Content || m.content || '',
-              model: activeModel?.name,
-              createdAt: m.CreatedAt || m.createdAt,
-            }))
+          ? list.map((m) => {
+              let meta = {};
+              try {
+                meta = JSON.parse(m.Metadata || m.metadata || '{}');
+              } catch { /* ignore */ }
+              return {
+                id: m.Id || m.id || `m-${Date.now()}-${Math.random()}`,
+                role: (m.Role || m.role || '').toLowerCase(),
+                content: m.Content || m.content || '',
+                model: activeModel?.name,
+                createdAt: m.CreatedAt || m.createdAt,
+                tool: meta.toolUsed || null,
+              };
+            })
           : [],
       );
     } catch (err) {
@@ -363,26 +438,28 @@ const AIChatPage = () => {
 
       let conv = currentConversation;
       let mid = null;
-      let userMsgId = null;
       try {
         setTopError('');
         if (!conv?.Id) {
-          conv = await aiChatService.createConversation('New Conversation');
+          const created = await aiChatService.createConversation('New Conversation');
+          conv = created?.data || created?.conversation || created;
           setCurrentConversation(conv);
           loadConversations();
         }
 
-        userMsgId = `u-${Date.now()}`;
+        const userMsgId = `u-${Date.now()}`;
         mid = `a-${Date.now()}`;
         const payload = {
           message: text,
           conversationId: conv.Id,
+          modelId: selectedModel,
+          temperature: settings.temperature,
+          maxTokens: settings.maxTokens,
           options: {
             model: selectedModel,
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens,
             includeDatabase: settings.includeDatabase,
             systemPrompt: settings.systemPrompt,
+            allowSubscription: true,
           },
         };
 
@@ -404,6 +481,14 @@ const AIChatPage = () => {
             setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, content: acc } : m)));
           } else if (ev.type === 'complete') {
             usedTokens = ev.tokensUsed || ev.usage?.total_tokens || null;
+          } else if (ev.type === 'tool') {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === mid
+                  ? { ...m, tool: { tool: ev.tool, sql: ev.sql, rowCount: ev.rowCount, error: ev.error } }
+                  : m,
+              ),
+            );
           } else if (ev.type === 'error') {
             throw new Error(ev.error || 'The assistant hit an error while responding.');
           }
@@ -413,7 +498,9 @@ const AIChatPage = () => {
           await aiChatService.streamConversation(conv.Id, payload, onEvent, ac.signal);
         } catch (err) {
           if (err.name === 'AbortError') {
-            setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, content: acc, streaming: false } : m)));
+            setMessages((prev) =>
+              prev.map((m) => (m.id === mid ? { ...m, content: acc, streaming: false, tool: m.tool || null } : m)),
+            );
             return;
           }
           throw err;
@@ -440,13 +527,6 @@ const AIChatPage = () => {
     [input, isStreaming, currentConversation, selectedModel, settings, activeModel, abortRef, loadConversations, loadUsage],
   );
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
   const applyQuickAction = (action) => {
     setInput(action.template);
     requestAnimationFrame(() => {
@@ -468,94 +548,80 @@ const AIChatPage = () => {
     if (id) setSelectedModel(id);
   };
 
-  const renderContent = (content) => {
-    if (!content) return null;
-    const parts = content.split('```');
-    return parts.map((part, i) => {
-      if (i % 2 === 0) {
-        if (!part.trim()) return null;
-        return (
-          <p key={i} className="ai-chat-par">
-            {part}
-          </p>
-        );
-      }
-      return (
-        <pre key={i} className="ai-chat-code">
-          <code>{part}</code>
-        </pre>
-      );
-    });
-  };
+  const renderModelTrigger = (variant = 'topbar') => (
+    <button
+      type="button"
+      onClick={() => {}}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium',
+        variant === 'topbar'
+          ? 'border border-border bg-background text-foreground hover:bg-accent'
+          : 'text-foreground hover:bg-accent w-full justify-start',
+      )}
+    >
+      <Sparkles className="h-4 w-4 text-primary" />
+      {activeModel?.name || 'Select model'}
+    </button>
+  );
 
   const renderTokenUsage = () => {
     const total = Number(usage?.monthlyTokenLimit || usage?.totalTokensLimit || 0);
     const used = Number(usage?.totalTokensUsed || 0);
     const pct = usagePct;
-    const tone = pct > 95 ? 'danger' : pct > 80 ? 'warn' : 'ok';
+    const tone = pct > 95 ? 'bg-destructive' : pct > 80 ? 'bg-orange-500' : 'bg-primary';
     const label = usageLoading ? 'Loading usage…' : `${formatTokens(used) || 0} / ${formatTokens(total) || '—'} tokens`;
     return (
-      <div className="ai-chat-usage">
-        <div className="ai-chat-usage-head">
-          <Tooltip title="Open settings">
-            <button type="button" className="ai-chat-usage-title" onClick={() => setSettingsOpen(true)}>
-              <ThunderboltOutlined /> Token usage
-            </button>
-          </Tooltip>
-          <span className={`ai-chat-usage-pct tone-${tone}`}>{pct}%</span>
+      <button type="button" className="w-full text-left" onClick={() => setSettingsOpen(true)}>
+        <div className="mb-1 flex items-center justify-between text-xs">
+          <span className="font-medium text-foreground">Token usage</span>
+          <span className="text-muted-foreground">{pct}%</span>
         </div>
-        <div className="ai-chat-usage-bar">
-          <span className={`fill tone-${tone}`} style={{ width: `${pct}%` }} />
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <span className={cn('block h-full rounded-full', tone)} style={{ width: `${pct}%` }} />
         </div>
-        <div className="ai-chat-usage-label">{label}</div>
-      </div>
+        <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+      </button>
     );
   };
 
-  const renderModelDropdown = (ghost = false) => (
-    <Dropdown menu={{ items: modelOptions, onClick: handleModelClick }} trigger={['click']} placement="bottomRight">
-      <Button className={ghost ? 'ai-model-trigger ghost' : 'ai-model-trigger'} loading={modelsLoading} icon={<StarOutlined />}>
-        <span className="ai-model-trigger-label">{activeModel?.name || 'Select model'}</span>
-        {activeModel?.context ? <Tag className="ai-tag ai-tag-context">{CONTEXT_LABEL[activeModel.context] || '—'}</Tag> : null}
-      </Button>
-    </Dropdown>
-  );
-
   const renderSidebar = () => (
     <>
-      <div className="ai-chat-brand">
-        <div className="ai-chat-brand-avatar">
-          <RobotFilled />
+      <div className="flex items-center gap-3 px-4 pb-4 pt-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-indigo-600 text-lg text-white shadow-sm">
+          <Bot className="h-5 w-5" />
         </div>
-        <div className="ai-chat-brand-text">
-          <span className="ai-chat-brand-name">RetailOps AI</span>
-          <span className="ai-chat-brand-sub">Intelligent assistant</span>
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold text-foreground">RetailOps AI</div>
+          <div className="text-xs text-muted-foreground">Intelligent assistant · {models.length} models</div>
         </div>
-        <Tag className="ai-tag ai-tag-models">{models.length} models</Tag>
       </div>
 
-      <div className="ai-chat-sidebar-actions">
-        <Button type="primary" block icon={<PlusOutlined />} onClick={startNewConversation} className="ai-new-chat-btn">
+      <div className="space-y-2 px-3 pb-3">
+        <Button className="w-full justify-start gap-2" onClick={startNewConversation}>
+          <Plus className="h-4 w-4" />
           New conversation
         </Button>
-        <Input
-          prefix={<SearchOutlined />}
-          placeholder="Search conversations…"
-          allowClear
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          className="ai-search-input"
-        />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            prefix={null}
+            placeholder="Search conversations…"
+            allowClear
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      <div className="ai-chat-conv-label">
+      <div className="flex items-center justify-between px-4 pb-2 text-xs font-medium text-muted-foreground">
         <span>Recents</span>
-        <span className="ai-chat-conv-count">{conversations.length}</span>
+        <span>{conversations.length}</span>
       </div>
 
-      <div className="ai-chat-conv-list">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {conversationsLoading ? (
-          <div className="ai-chat-conv-skeleton">
+          <div className="space-y-2 px-2">
             {[1, 2, 3, 4].map((n) => (
               <Skeleton key={n} active avatar={{ shape: 'square', size: 36 }} paragraph={{ rows: 1, width: '70%' }} title={false} />
             ))}
@@ -566,7 +632,10 @@ const AIChatPage = () => {
             return (
               <div
                 key={conv.Id}
-                className={`ai-chat-conv-item${active ? ' active' : ''}`}
+                className={cn(
+                  'group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2',
+                  active ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/60',
+                )}
                 role="button"
                 tabIndex={0}
                 onClick={() => selectConversation(conv)}
@@ -574,26 +643,36 @@ const AIChatPage = () => {
                   if (e.key === 'Enter') selectConversation(conv);
                 }}
               >
-                <div className="ai-chat-conv-icon">
-                  <HistoryOutlined />
-                </div>
-                <div className="ai-chat-conv-body">
-                  <div className="ai-chat-conv-title">{conv.Title || 'Untitled'}</div>
-                  <div className="ai-chat-conv-meta">
-                    <span>{conv.UpdatedAt ? dayjs(conv.UpdatedAt).fromNow() : 'now'}</span>
-                    <span className="dot">·</span>
-                    <span>{conv.MessageCount ?? conv.messageCount ?? 0} msgs</span>
+                <History className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{conv.Title || 'Untitled'}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {conv.UpdatedAt ? dayjs(conv.UpdatedAt).fromNow() : ''}
                   </div>
                 </div>
-                <div className="ai-chat-conv-tools">
+                <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
                   <Tooltip title="Rename">
-                    <button type="button" className="ai-round-btn" onClick={(e) => { e.stopPropagation(); handleRename(conv); }}>
-                      <EditOutlined />
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRename(conv);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                   </Tooltip>
                   <Tooltip title="Delete">
-                    <button type="button" className="ai-round-btn danger" onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv); }}>
-                      <DeleteOutlined />
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteConversation(conv);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </Tooltip>
                 </div>
@@ -601,229 +680,263 @@ const AIChatPage = () => {
             );
           })
         ) : (
-          <div className="ai-chat-conv-empty">
-            <RobotOutlined />
+          <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+            <History className="h-5 w-5" />
             <p>{searchText ? 'No conversations match your search.' : 'No conversations yet.'}</p>
           </div>
         )}
       </div>
 
-      <div className="ai-chat-sidebar-footer">{renderTokenUsage()}</div>
+      <div className="border-t border-border p-3">{renderTokenUsage()}</div>
     </>
   );
 
   const renderEmptyState = () => (
-    <div className="ai-chat-empty">
-      <div className="ai-chat-empty-hero">
-        <div className="ai-chat-empty-logo">
-          <RobotFilled />
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-10">
+      <div className="flex max-w-xl flex-col items-center text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-indigo-600 text-2xl text-white shadow-md">
+          <Bot className="h-7 w-7" />
         </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">How can I help you today?</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ask questions about your catalog, listings, pricing and inventory. RetailOps AI can query your database tables with
+          {settings.includeDatabase ? ' database context enabled.' : ' database context off.'}
+        </p>
       </div>
-      <h1 className="ai-chat-empty-title">How can I help you today?</h1>
-      <p className="ai-chat-empty-sub">
-        Ask questions about your catalog, listings, pricing and inventory. RetailOps AI can query your database tables with
-        {settings.includeDatabase ? ' database context enabled.' : ' database context off.'}
-      </p>
 
-      <div className="ai-chat-quick-grid">
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
         {QUICK_ACTIONS.map((action) => (
-          <button type="button" key={action.key} className="ai-quick-card" onClick={() => applyQuickAction(action)}>
-            <div className="ai-quick-icon">{action.icon}</div>
-            <div className="ai-quick-text">
-              <span className="ai-quick-title">{action.title}</span>
-              <span className="ai-quick-desc">{action.desc}</span>
+          <button
+            type="button"
+            key={action.key}
+            className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-accent/50"
+            onClick={() => applyQuickAction(action)}
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-lg text-primary">
+              {action.icon}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">{action.title}</div>
+              <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{action.desc}</div>
             </div>
           </button>
         ))}
       </div>
 
-      <div className="ai-chat-primary-row">
+      <div className="flex max-w-2xl flex-wrap items-center justify-center gap-2">
         {PRIMARY_QUERIES.map((q) => (
-          <Tag key={q} className="ai-query-chip" onClick={() => runPrimaryQuery(q)}>
+          <PromptSuggestion key={q} size="default" onClick={() => runPrimaryQuery(q)}>
             {q}
-          </Tag>
+          </PromptSuggestion>
         ))}
       </div>
     </div>
   );
 
-  const renderMessageBubble = (m) => {
+  const renderMessage = (m) => {
     const isUser = m.role === 'user';
     const isTyping = m.streaming;
-    return (
-      <div key={m.id} className={`ai-msg-row ${isUser ? 'user' : 'assistant'}`}>
-        {!isUser ? (
-          <div className="ai-msg-avatar">
-            <Avatar size={34} icon={<RobotOutlined />} className={m.error ? 'error' : ''} />
+    const toolPart = toToolPart(m.tool);
+
+    if (isUser) {
+      return (
+        <Message key={m.id} className="justify-end px-4">
+          <div className="max-w-[85%] space-y-1">
+            <div className="flex items-center justify-end gap-2 pr-1 text-xs text-muted-foreground">
+              {m.createdAt ? <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{dayjs(m.createdAt).format('HH:mm')}</span> : null}
+            </div>
+            <MessageContent className="rounded-2xl rounded-br-sm bg-primary px-3.5 py-2.5 text-primary-foreground whitespace-pre-wrap">
+              {m.content}
+            </MessageContent>
           </div>
-        ) : null}
-        <div className={`ai-msg-stack ${isUser ? 'user' : 'assistant'}`}>
-          {!isUser ? (
-            <div className="ai-msg-meta">
-              <span className="ai-msg-author">RetailOps AI</span>
-              {m.model ? <Tag className="ai-tag ai-tag-model">{m.model}</Tag> : null}
-              {m.tokensUsed ? <span className="ai-msg-tokens">{formatTokens(m.tokensUsed)} tokens</span> : null}
-              {m.createdAt ? <span className="ai-msg-time">{dayjs(m.createdAt).format('HH:mm')}</span> : null}
+          <MessageAvatar
+            src=""
+            alt="You"
+            fallback="You"
+            className="bg-muted text-muted-foreground"
+          />
+        </Message>
+      );
+    }
+
+    return (
+      <Message key={m.id} className="px-4">
+        <MessageAvatar src="" alt="RetailOps AI" fallback="AI" className="bg-primary text-primary-foreground" />
+        <div className="max-w-[85%] min-w-[240px] space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2 pl-1 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">RetailOps AI</span>
+            {m.model ? <span className="rounded-full bg-muted px-2 py-0.5">{m.model}</span> : null}
+            {m.tokensUsed ? <span>{formatTokens(m.tokensUsed)} tokens</span> : null}
+            {m.createdAt ? <span>{dayjs(m.createdAt).format('HH:mm')}</span> : null}
+          </div>
+
+          {toolPart ? <Tool toolPart={toolPart} /> : null}
+
+          {m.streaming && !m.content ? (
+            <div className="rounded-2xl rounded-bl-sm border border-border bg-secondary px-4 py-3">
+              <Loader variant="typing" size="md" />
+            </div>
+          ) : (
+            <MessageContent
+              markdown
+              id={m.id}
+              className="max-w-none rounded-2xl rounded-bl-sm border border-border bg-secondary px-4 py-3 text-foreground"
+            >
+              {m.content || ' '}
+            </MessageContent>
+          )}
+
+          {m.streaming && m.content ? (
+            <div className="pl-1">
+              <Loader variant="dots" size="sm" />
             </div>
           ) : null}
 
-          <div className={`ai-msg-bubble${isUser ? ' user' : ''}${m.error ? ' error' : ''}`}>
-            {m.error ? (
-              <>
-                <strong>Something went wrong.</strong>
-                <span className="ai-msg-error-text">{m.error}</span>
-              </>
-            ) : (
-              renderContent(m.content)
-            )}
-            {isTyping ? (
-              <span className="ai-typing">
-                <i />
-                <i />
-                <i />
-              </span>
-            ) : null}
-          </div>
-
-          {!isUser && !isTyping ? (
-            <div className="ai-msg-tools">
-              <Tooltip title="Copy response">
-                <button type="button" className="ai-round-btn sm" onClick={() => handleCopy(m.id, m.content)}>
-                  {copiedId === m.id ? <CheckOutlined /> : <CopyOutlined />}
+          {!isTyping ? (
+            <MessageActions className="pl-1">
+              {m.error ? (
+                <span className="text-xs text-destructive">Failed — see message</span>
+              ) : null}
+              <MessageAction tooltip="Copy response">
+                <button
+                  type="button"
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  onClick={() => handleCopy(m.id, m.content)}
+                >
+                  {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
-              </Tooltip>
-              <span className="ai-msg-hint">{m.stopped ? 'Stopped' : null}</span>
-            </div>
+              </MessageAction>
+            </MessageActions>
           ) : null}
         </div>
-        {isUser ? (
-          <div className="ai-msg-avatar user">
-            <Avatar size={34} icon={<UserOutlined />} />
-          </div>
-        ) : null}
-      </div>
+      </Message>
     );
   };
 
   const renderComposer = () => (
-    <div className="ai-chat-composer-wrap">
+    <div className="border-t border-border bg-background/80 px-4 py-3">
       {isStreaming ? (
-        <div className="ai-chat-streaming-note">
-          <span className="ai-typing">
-            <i />
-            <i />
-            <i />
-          </span>
+        <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 text-xs text-muted-foreground">
+          <Loader variant="dots" size="sm" />
           <span>RetailOps AI is responding…</span>
         </div>
       ) : null}
-      <div className="ai-chat-composer">
-        <Input.TextArea
-          ref={composerRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Message RetailOps AI…  (Enter to send, Shift+Enter for a new line)"
-          autoSize={{ minRows: 1, maxRows: 8 }}
-          variant="borderless"
-          disabled={isStreaming}
-        />
-        <div className="ai-chat-composer-actions">
-          <div className="ai-chat-composer-left">
-            <Tooltip title={settings.includeDatabase ? 'Database context is ON' : 'Database context is OFF'}>
-              <button
-                type="button"
-                className={`ai-db-chip${settings.includeDatabase ? ' on' : ''}`}
-                onClick={() => setSettings((s) => ({ ...s, includeDatabase: !s.includeDatabase }))}
-              >
-                <DatabaseOutlined />
-                <span>Database</span>
-              </button>
-            </Tooltip>
-            <span className="ai-composer-model">{activeModel?.name}</span>
-          </div>
-          <div className="ai-chat-composer-right">
+      <PromptInput
+        ref={composerRef}
+        disabled={isStreaming}
+        value={input}
+        onValueChange={setInput}
+        onSubmit={() => handleSend()}
+        className="mx-auto w-full max-w-3xl rounded-2xl shadow-sm"
+      >
+        <PromptInputTextarea placeholder="Message RetailOps AI…  (Enter to send, Shift+Enter for a new line)" />
+        <PromptInputActions>
+          <PromptInputAction tooltip={settings.includeDatabase ? 'Database context is ON — answers are grounded in query results' : 'Database context is OFF'}>
+            <button
+              type="button"
+              onClick={() => setSettings((s) => ({ ...s, includeDatabase: !s.includeDatabase }))}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                settings.includeDatabase
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent',
+              )}
+            >
+              <Database className="h-3.5 w-3.5" />
+              Database
+            </button>
+          </PromptInputAction>
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-primary" />
+            {activeModel?.name}
+          </span>
+          <div className="ml-auto flex items-center gap-1.5">
             {isStreaming ? (
-              <Button type="primary" danger shape="circle" icon={<StopOutlined />} onClick={handleStop} className="ai-send-btn" />
+              <Button size="icon" variant="ghost" aria-label="Stop" onClick={handleStop} className="h-9 w-9 rounded-full">
+                <Square className="h-4 w-4" />
+              </Button>
             ) : (
-              <Button
-                type="primary"
-                shape="circle"
-                icon={<SendOutlined />}
-                onClick={() => handleSend()}
-                disabled={!input.trim()}
-                className="ai-send-btn"
-              />
+              <Button size="icon" aria-label="Send" disabled={!input.trim()} onClick={() => handleSend()} className="h-9 w-9 rounded-full">
+                <Send className="h-4 w-4" />
+              </Button>
             )}
           </div>
-        </div>
-      </div>
-      <div className="ai-chat-composer-foot">
-        <span>RetailOps AI can make mistakes. Verify important data before acting on it.</span>
+        </PromptInputActions>
+      </PromptInput>
+      <div className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
+        RetailOps AI can make mistakes. Verify important data before acting on it.
       </div>
     </div>
   );
 
   return (
-    <div className="ai-chat-page">
+    <div className={cn('ai-chat-page pk-root', isDark && 'dark')}>
       {topError ? (
-        <div className="ai-chat-error-banner">
-          <span className="ai-chat-error-icon">!</span>
-          <span className="ai-chat-error-text">{topError}</span>
-          <button type="button" className="ai-btn-close" onClick={() => setTopError('')}>
-            <CloseOutlined />
+        <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">!</span>
+          <span className="flex-1">{topError}</span>
+          <button type="button" className="rounded p-0.5 hover:bg-destructive/10" onClick={() => setTopError('')}>
+            <X className="h-4 w-4" />
           </button>
         </div>
       ) : null}
 
-      <div className="ai-chat-body">
-        {!isMobile && !sidebarCollapsed ? <aside className="ai-chat-sidebar">{renderSidebar()}</aside> : null}
+      <div className="flex min-h-0 flex-1">
+        {!isMobile && !sidebarCollapsed ? <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-muted/20">{renderSidebar()}</aside> : null}
 
-        <main className="ai-chat-main">
-          <header className="ai-chat-topbar">
-            <div className="ai-chat-topbar-left">
+        <main className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
+            <div className="flex min-w-0 items-center gap-2">
               {isMobile ? (
-                <button type="button" className="ai-round-btn sm" onClick={() => setMobileOpen(true)}>
-                  <MenuOutlined />
+                <button type="button" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => setMobileOpen(true)}>
+                  <Menu className="h-4 w-4" />
                 </button>
               ) : (
                 <Tooltip title={sidebarCollapsed ? 'Show conversations' : 'Hide conversations'}>
                   <button
                     type="button"
-                    className="ai-round-btn sm"
+                    className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
                     onClick={() => setSidebarCollapsed((v) => !v)}
                   >
-                    {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
                   </button>
                 </Tooltip>
               )}
-              <div className="ai-chat-title-block">
-                <span className="ai-chat-title">{currentConversation?.Title || 'New conversation'}</span>
-                <span className="ai-chat-title-meta">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-foreground">{currentConversation?.Title || 'New conversation'}</div>
+                <div className="truncate text-xs text-muted-foreground">
                   {messages.length > 0 ? `${messages.length} messages` : 'Start a conversation below'}
-                </span>
+                </div>
               </div>
             </div>
-            <div className="ai-chat-topbar-right">
-              {renderModelDropdown()}
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Dropdown menu={{ items: modelOptions, onClick: handleModelClick }} trigger={['click']} placement="bottomRight">
+                {renderModelTrigger('topbar')}
+              </Dropdown>
               <Tooltip title="Settings">
-                <button type="button" className="ai-round-btn" onClick={() => setSettingsOpen(true)}>
-                  <SettingOutlined />
+                <button type="button" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => setSettingsOpen(true)}>
+                  <Settings className="h-4 w-4" />
                 </button>
               </Tooltip>
             </div>
           </header>
 
-          <div className="ai-chat-scroll" ref={scrollRef}>
-            <div className="ai-chat-scroll-inner">
-              {messagesLoading ? (
-                <MessagesSkeleton />
-              ) : messages.length ? (
-                messages.map(renderMessageBubble)
-              ) : (
-                renderEmptyState()
-              )}
-            </div>
+          <div className="relative min-h-0 flex-1">
+            <ChatContainerRoot className="h-full">
+              <ChatContainerContent className="min-h-[200px] py-4">
+                {messagesLoading ? (
+                  <MessagesSkeleton />
+                ) : messages.length ? (
+                  messages.map(renderMessage)
+                ) : (
+                  renderEmptyState()
+                )}
+              </ChatContainerContent>
+              <ChatContainerScrollAnchor />
+              <div className="absolute bottom-4 right-4 z-10">
+                <ScrollButton className="border-border text-muted-foreground shadow-md" />
+              </div>
+            </ChatContainerRoot>
           </div>
 
           {renderComposer()}
@@ -831,98 +944,81 @@ const AIChatPage = () => {
       </div>
 
       {isMobile ? (
-        <Drawer
-          placement="left"
-          width={316}
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          closable={false}
-          styles={{ body: { padding: 0 } }}
-          className="ai-chat-mobile-drawer"
-        >
-          <div className="ai-chat-sidebar mobile">{renderSidebar()}</div>
+        <Drawer placement="left" width={316} open={mobileOpen} onClose={() => setMobileOpen(false)} closable={false} styles={{ body: { padding: 0 } }}>
+          <div className="flex h-full flex-col bg-muted/20">{renderSidebar()}</div>
         </Drawer>
       ) : null}
 
-      <Drawer
-        title="AI settings"
-        placement="right"
-        width={380}
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        className="ai-chat-settings"
-      >
-        <div className="ai-settings-section">
-          <h3 className="ai-settings-head">
-            <StarOutlined /> Model
-          </h3>
-          <p className="ai-settings-desc">Choose which Gemini model handles your messages.</p>
-          {renderModelDropdown(true)}
-          {activeModel?.notes ? <p className="ai-settings-note">{activeModel.notes}</p> : null}
-        </div>
+      <Drawer title="AI settings" placement="right" width={380} open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" /> Model
+            </h3>
+            <p className="text-xs text-muted-foreground">Choose which model handles your messages.</p>
+            <Dropdown menu={{ items: modelOptions, onClick: handleModelClick }} trigger={['click']}>
+              {renderModelTrigger('settings')}
+            </Dropdown>
+            {activeModel?.notes ? <p className="text-xs text-muted-foreground">{activeModel.notes}</p> : null}
+          </div>
 
-        <div className="ai-settings-section">
-          <h3 className="ai-settings-head">
-            <ExperimentOutlined /> Response
-          </h3>
-          <div className="ai-settings-field">
-            <div className="ai-settings-field-label">
-              <span>Temperature</span>
-              <Tag className="ai-tag">{settings.temperature.toFixed(1)}</Tag>
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Database className="h-4 w-4 text-primary" /> Response
+            </h3>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-sm text-foreground">Temperature</span>
+                <Tag className="ai-tag">{settings.temperature.toFixed(1)}</Tag>
+              </div>
+              <Slider
+                min={0}
+                max={2}
+                step={0.1}
+                value={settings.temperature}
+                onChange={(v) => setSettings((s) => ({ ...s, temperature: v }))}
+                tooltip={{ open: false }}
+              />
+              <span className="text-xs text-muted-foreground">Lower = precise, higher = creative.</span>
             </div>
-            <Slider
-              min={0}
-              max={2}
-              step={0.1}
-              value={settings.temperature}
-              onChange={(v) => setSettings((s) => ({ ...s, temperature: v }))}
-              tooltip={{ open: false }}
-            />
-            <span className="ai-settings-hint">Lower = precise, higher = creative.</span>
-          </div>
-          <div className="ai-settings-field">
-            <div className="ai-settings-field-label">
-              <span>Max output tokens</span>
+            <div className="space-y-1">
+              <div className="text-sm text-foreground">Max output tokens</div>
+              <Input
+                type="number"
+                min={256}
+                max={8192}
+                step={256}
+                value={settings.maxTokens}
+                onChange={(e) => setSettings((s) => ({ ...s, maxTokens: Number(e.target.value) || 2048 }))}
+              />
             </div>
-            <Input
-              type="number"
-              min={256}
-              max={8192}
-              step={256}
-              value={settings.maxTokens}
-              onChange={(e) => setSettings((s) => ({ ...s, maxTokens: Number(e.target.value) || 2048 }))}
-            />
-          </div>
-          <div className="ai-settings-field">
-            <div className="ai-settings-field-label">
-              <span>Stream responses</span>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-foreground">Stream responses</div>
+                <div className="text-xs text-muted-foreground">Token-by-token answers.</div>
+              </div>
+              <Switch checked={settings.streaming} onChange={(v) => setSettings((s) => ({ ...s, streaming: v }))} />
             </div>
-            <Switch checked={settings.streaming} onChange={(v) => setSettings((s) => ({ ...s, streaming: v }))} />
           </div>
-        </div>
 
-        <div className="ai-settings-section">
-          <h3 className="ai-settings-head">
-            <DatabaseOutlined /> Context
-          </h3>
-          <div className="ai-settings-field row">
-            <div className="ai-settings-field-label">
-              <span>Include database</span>
-              <span className="ai-settings-hint">Let the assistant run SQL over your tables.</span>
+          <div className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Database className="h-4 w-4 text-primary" /> Context
+            </h3>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-foreground">Include database</div>
+                <div className="text-xs text-muted-foreground">Let the assistant run SQL over your tables and answer from query results.</div>
+              </div>
+              <Switch checked={settings.includeDatabase} onChange={(v) => setSettings((s) => ({ ...s, includeDatabase: v }))} />
             </div>
-            <Switch
-              checked={settings.includeDatabase}
-              onChange={(v) => setSettings((s) => ({ ...s, includeDatabase: v }))}
-            />
           </div>
-        </div>
 
-        <div className="ai-settings-section">
-          <h3 className="ai-settings-head">
-            <RobotOutlined /> Assistance
-          </h3>
-          <div className="ai-settings-field">
-            <span className="ai-settings-field-label">System architecture</span>
+          <div className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <User className="h-4 w-4 text-primary" /> Assistance
+            </h3>
+            <div className="text-sm text-foreground">System architecture</div>
             <Select
               style={{ width: '100%' }}
               value={settings.systemPrompt}
@@ -930,10 +1026,8 @@ const AIChatPage = () => {
               options={SYSTEM_PROMPTS}
             />
           </div>
-        </div>
 
-        <div className="ai-settings-actions">
-          <Button block onClick={() => setSettings(DEFAULT_SETTINGS)}>
+          <Button variant="outline" className="w-full" onClick={() => setSettings(DEFAULT_SETTINGS)}>
             Reset defaults
           </Button>
         </div>
@@ -962,386 +1056,28 @@ const AIChatPage = () => {
           height: 100%;
           display: flex;
           flex-direction: column;
-          background: var(--bc-surface-page);
-          color: var(--bc-text-body);
+          background: var(--background);
+          color: var(--foreground);
           overflow: hidden;
         }
-        .ai-chat-error-banner {
-          display: flex;
-          align-items: center;
-          gap: var(--bc-space-3);
-          padding: var(--bc-space-3) var(--bc-space-5);
-          background: var(--bc-red-50);
-          border-bottom: 1px solid var(--bc-red-200);
-          color: var(--bc-red-700);
-          font-size: var(--bc-text-sm);
+        .ai-chat-page * {
+          box-sizing: border-box;
         }
-        body.bc-dark .ai-chat-error-banner { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border-color: var(--bc-red-800); }
-        .ai-chat-error-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 18px; height: 18px;
-          border-radius: var(--bc-radius-full);
-          background: var(--bc-red-500);
-          color: var(--bc-white);
-          font-weight: var(--bc-weight-bold);
-          font-size: 11px;
-          flex-shrink: 0;
+        .ai-tag { border: none; font-size: 11px; line-height: 18px; margin: 0; }
+        .pk-root .prose {
+          max-width: none;
         }
-        .ai-chat-error-text { flex: 1; }
-        .ai-btn-close {
-          border: none;
-          background: transparent;
-          color: inherit;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 4px;
+        .pk-root .prose :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+          margin: 0.5em 0;
         }
-        .ai-chat-body { flex: 1; display: flex; min-height: 0; }
-        .ai-chat-sidebar {
-          width: 304px;
-          flex-shrink: 0;
-          border-right: 1px solid var(--bc-border-subtle);
-          background: var(--bc-surface-card);
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-        }
-        .ai-chat-sidebar.mobile { width: 100%; height: 100%; border-right: none; }
-        .ai-chat-brand {
-          display: flex;
-          align-items: center;
-          gap: var(--bc-space-3);
-          padding: var(--bc-space-5) var(--bc-space-4) var(--bc-space-3);
-        }
-        .ai-chat-brand-avatar {
-          width: 40px; height: 40px;
-          border-radius: var(--bc-radius-xl);
-          background: linear-gradient(135deg, var(--bc-ro-500), var(--bc-primary-600));
-          color: var(--bc-white);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 20px;
-          box-shadow: var(--bc-shadow-sm);
-          flex-shrink: 0;
-        }
-        .ai-chat-brand-text { display: flex; flex-direction: column; min-width: 0; }
-        .ai-chat-brand-name { font-weight: var(--bc-weight-semibold); color: var(--bc-text-heading); font-size: var(--bc-text-base); }
-        .ai-chat-brand-sub { color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
-        .ai-tag { border: none; font-size: 11px; line-height: 18px; }
-        .ai-tag-models { background: var(--bc-primary-50); color: var(--bc-primary-500); margin: 0; }
-        .ai-tag-context { background: var(--bc-slate-100); color: var(--bc-slate-600); margin: 0; }
-        body.bc-dark .ai-tag-context { background: var(--bc-surface-hover); color: var(--bc-text-secondary); }
-        .ai-tag-weight { background: var(--bc-amber-100); color: var(--bc-amber-800); margin: 0; }
-        body.bc-dark .ai-tag-weight { background: rgba(245, 158, 11, 0.18); color: #fbbf24; }
-        .ai-tag-model { background: var(--bc-ro-50); color: var(--bc-ro-700); margin: 0; }
-        body.bc-dark .ai-tag-model { background: rgba(25, 118, 210, 0.18); color: #90caf9; }
-        .ai-chat-sidebar-actions { display: flex; flex-direction: column; gap: var(--bc-space-3); padding: var(--bc-space-2) var(--bc-space-4) var(--bc-space-3); }
-        .ai-new-chat-btn { height: 38px; border-radius: var(--bc-radius-lg); font-weight: var(--bc-weight-medium); }
-        .ai-new-chat-btn.ant-btn-primary { background: var(--bc-primary-500); box-shadow: none; }
-        .ai-new-chat-btn.ant-btn-primary:hover { background: var(--bc-primary-600); }
-        .ai-search-input.ant-input-affix-wrapper { background: var(--bc-surface-page); border-color: var(--bc-border-default); border-radius: var(--bc-radius-lg); }
-        body.bc-dark .ai-search-input.ant-input-affix-wrapper { background: var(--bc-surface-muted); }
-        .ai-search-input .ant-input-prefix { color: var(--bc-text-muted); }
-        .ai-chat-conv-label {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: var(--bc-space-2) var(--bc-space-4);
-          color: var(--bc-text-muted);
-          font-size: var(--bc-text-xs);
-          text-transform: uppercase;
-          letter-spacing: var(--bc-tracking-wide);
-        }
-        .ai-chat-conv-count { background: var(--bc-slate-100); color: var(--bc-slate-600); padding: 0 8px; border-radius: var(--bc-radius-full); font-size: 11px; }
-        body.bc-dark .ai-chat-conv-count { background: var(--bc-surface-hover); color: var(--bc-text-secondary); }
-        .ai-chat-conv-list { flex: 1; overflow-y: auto; padding: 0 var(--bc-space-2); min-height: 0; }
-        .ai-chat-conv-skeleton { padding: var(--bc-space-2) var(--bc-space-2); }
-        .ai-chat-conv-skeleton .ant-skeleton { margin-bottom: var(--bc-space-4); }
-        .ai-chat-conv-item {
-          display: flex; align-items: center; gap: var(--bc-space-3);
-          padding: var(--bc-space-3);
-          border-radius: var(--bc-radius-lg);
-          cursor: pointer;
-          transition: background var(--bc-transition-fast);
-          position: relative;
-        }
-        .ai-chat-conv-item:hover { background: var(--bc-surface-hover); }
-        .ai-chat-conv-item.active { background: var(--bc-primary-50); }
-        body.bc-dark .ai-chat-conv-item.active { background: var(--bc-primary-100); }
-        .ai-chat-conv-item.active::before {
-          content: '';
-          position: absolute; left: -2px; top: 20%; bottom: 20%;
-          width: 3px; border-radius: var(--bc-radius-full);
-          background: var(--bc-primary-500);
-        }
-        .ai-chat-conv-icon {
-          width: 34px; height: 34px; flex-shrink: 0;
-          border-radius: var(--bc-radius-md);
-          background: var(--bc-surface-page);
-          border: 1px solid var(--bc-border-subtle);
-          color: var(--bc-text-secondary);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 14px;
-        }
-        body.bc-dark .ai-chat-conv-icon { background: var(--bc-surface-muted); }
-        .ai-chat-conv-item.active .ai-chat-conv-icon { background: var(--bc-primary-500); border-color: var(--bc-primary-500); color: var(--bc-white); }
-        .ai-chat-conv-body { flex: 1; min-width: 0; }
-        .ai-chat-conv-title { color: var(--bc-text-heading); font-size: var(--bc-text-sm); font-weight: var(--bc-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ai-chat-conv-meta { color: var(--bc-text-muted); font-size: var(--bc-text-xs); margin-top: 2px; }
-        .ai-chat-conv-meta .dot { margin: 0 4px; }
-        .ai-chat-conv-tools { display: none; align-items: center; gap: 2px; flex-shrink: 0; }
-        .ai-chat-conv-item:hover .ai-chat-conv-tools { display: flex; }
-        .ai-round-btn {
-          border: none; background: transparent; cursor: pointer;
-          width: 30px; height: 30px;
-          display: inline-flex; align-items: center; justify-content: center;
-          border-radius: var(--bc-radius-md);
-          color: var(--bc-text-secondary);
-          transition: background var(--bc-transition-fast), color var(--bc-transition-fast);
-          font-size: 14px;
-        }
-        .ai-round-btn:hover { background: var(--bc-surface-hover); color: var(--bc-text-heading); }
-        .ai-round-btn.danger:hover { background: var(--bc-red-50); color: var(--bc-red-600); }
-        body.bc-dark .ai-round-btn.danger:hover { background: rgba(239, 68, 68, 0.15); }
-        .ai-round-btn.sm { width: 28px; height: 28px; font-size: 14px; }
-        .ai-chat-conv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--bc-space-2); padding: var(--bc-space-10) var(--bc-space-4); color: var(--bc-text-muted); font-size: var(--bc-text-sm); text-align: center; }
-        .ai-chat-conv-empty .anticon { font-size: 26px; color: var(--bc-slate-300); }
-        body.bc-dark .ai-chat-conv-empty .anticon { color: var(--bc-slate-600); }
-        .ai-chat-sidebar-footer { padding: var(--bc-space-4); border-top: 1px solid var(--bc-border-subtle); }
-        .ai-chat-usage-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--bc-space-2); }
-        .ai-chat-usage-title { border: none; background: none; cursor: pointer; color: var(--bc-text-secondary); font-size: var(--bc-text-xs); font-weight: var(--bc-weight-medium); display: inline-flex; align-items: center; gap: 6px; padding: 0; }
-        .ai-chat-usage-title:hover { color: var(--bc-text-heading); }
-        .ai-chat-usage-pct { font-size: var(--bc-text-xs); font-weight: var(--bc-weight-semibold); }
-        .ai-chat-usage-pct.tone-ok { color: var(--bc-green-600); }
-        .ai-chat-usage-pct.tone-warn { color: var(--bc-amber-600); }
-        .ai-chat-usage-pct.tone-danger { color: var(--bc-red-600); }
-        .ai-chat-usage-bar { height: 6px; border-radius: var(--bc-radius-full); background: var(--bc-surface-hover); overflow: hidden; }
-        .ai-chat-usage-bar .fill { display: block; height: 100%; border-radius: var(--bc-radius-full); transition: width 0.4s var(--bc-ease-out); }
-        .ai-chat-usage-bar .fill.tone-ok { background: var(--bc-green-500); }
-        .ai-chat-usage-bar .fill.tone-warn { background: var(--bc-amber-500); }
-        .ai-chat-usage-bar .fill.tone-danger { background: var(--bc-red-500); }
-        .ai-chat-usage-label { margin-top: var(--bc-space-2); color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
-
-        .ai-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-        .ai-chat-topbar {
-          display: flex; align-items: center; justify-content: space-between;
-          gap: var(--bc-space-3);
-          padding: var(--bc-space-3) var(--bc-space-5);
-          border-bottom: 1px solid var(--bc-border-subtle);
-          background: var(--bc-surface-page);
-        }
-        .ai-chat-topbar-left { display: flex; align-items: center; gap: var(--bc-space-3); min-width: 0; }
-        .ai-chat-title-block { display: flex; flex-direction: column; min-width: 0; }
-        .ai-chat-title { color: var(--bc-text-heading); font-weight: var(--bc-weight-semibold); font-size: var(--bc-text-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ai-chat-title-meta { color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
-        .ai-chat-topbar-right { display: flex; align-items: center; gap: var(--bc-space-2); }
-        .ai-model-trigger {
-          display: inline-flex; align-items: center; gap: 8px;
-          border-color: var(--bc-border-default);
-          color: var(--bc-text-body);
-          background: var(--bc-surface-card);
-          border-radius: var(--bc-radius-lg);
-          height: 34px;
-          max-width: 260px;
-        }
-        .ai-model-trigger:hover { border-color: var(--bc-primary-500); color: var(--bc-primary-500); }
-        .ai-model-trigger .ai-model-trigger-label { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--bc-text-sm); }
-        .ai-model-trigger .ai-tag { margin-left: auto; }
-        .ai-model-opt { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 220px; }
-        .ai-model-opt-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ai-model-opt-badges { display: flex; gap: 4px; flex-shrink: 0; }
-        .ai-model-opt-check { color: var(--bc-primary-500); flex-shrink: 0; }
-
-        .ai-chat-scroll { flex: 1; overflow-y: auto; min-height: 0; scroll-behavior: smooth; }
-        .ai-chat-scroll-inner { max-width: 860px; margin: 0 auto; padding: var(--bc-space-8) var(--bc-space-5) var(--bc-space-4); display: flex; flex-direction: column; gap: var(--bc-space-6); }
-        .ai-chat-skeleton-wrap { display: flex; flex-direction: column; gap: var(--bc-space-6); }
-        .ai-chat-skeleton-row { max-width: 78%; }
-        .ai-chat-skeleton-row.right { align-self: flex-end; width: 60%; }
-        .ai-chat-skeleton-row .ant-skeleton-paragraph > li, .ai-chat-skeleton-row .ant-skeleton-title {
-          border-radius: var(--bc-radius-md);
-        }
-        .ai-chat-skeleton-row .ant-skeleton-title { border-radius: var(--bc-radius-md); }
-
-        .ai-msg-row { display: flex; gap: var(--bc-space-3); align-items: flex-start; }
-        .ai-msg-row.user { justify-content: flex-end; }
-        .ai-msg-avatar { flex-shrink: 0; margin-top: 2px; }
-        .ai-msg-avatar .ant-avatar { background: var(--bc-surface-hover); color: var(--bc-primary-500); border: 1px solid var(--bc-border-subtle); }
-        .ai-msg-avatar .ant-avatar.error { background: var(--bc-red-50); color: var(--bc-red-600); border-color: var(--bc-red-200); }
-        .ai-msg-avatar.user .ant-avatar { background: var(--bc-primary-500); color: var(--bc-white); border: none; }
-        .ai-msg-stack { display: flex; flex-direction: column; gap: var(--bc-space-2); max-width: 78%; min-width: 0; }
-        .ai-msg-stack.user { align-items: flex-end; }
-        .ai-msg-meta { display: flex; align-items: center; gap: 8px; padding-left: 2px; }
-        .ai-msg-author { font-size: var(--bc-text-xs); font-weight: var(--bc-weight-semibold); color: var(--bc-text-secondary); }
-        .ai-msg-time, .ai-msg-tokens { font-size: var(--bc-text-xs); color: var(--bc-text-muted); }
-        .ai-msg-bubble {
-          background: var(--bc-surface-card);
-          border: 1px solid var(--bc-border-subtle);
-          border-radius: var(--bc-radius-xl);
-          border-top-left-radius: var(--bc-radius-sm);
-          padding: var(--bc-space-4) var(--bc-space-5);
-          box-shadow: var(--bc-shadow-card);
-          color: var(--bc-text-body);
-          font-size: var(--bc-text-sm);
-          line-height: 1.6;
-        }
-        .ai-msg-bubble.user {
-          background: var(--bc-primary-500);
-          border-color: var(--bc-primary-500);
-          border-radius: var(--bc-radius-xl);
-          border-top-right-radius: var(--bc-radius-sm);
-          color: var(--bc-white);
-          box-shadow: var(--bc-shadow-sm);
-        }
-        .ai-msg-bubble.error {
-          background: var(--bc-red-50);
-          border-color: var(--bc-red-200);
-          color: var(--bc-red-700);
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        body.bc-dark .ai-msg-bubble.error { background: rgba(239,68,68,0.12); border-color: var(--bc-red-800); color: #fca5a5; }
-        .ai-msg-error-text { color: inherit; opacity: 0.85; }
-        .ai-msg-bubble.user strong { color: var(--bc-white); }
-        .ai-chat-par { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
-        .ai-chat-par:last-child { margin-bottom: 0; }
-        .ai-chat-code {
-          margin: var(--bc-space-3) 0;
-          padding: var(--bc-space-3) var(--bc-space-4);
-          background: var(--bc-slate-900);
-          color: #e2e8f0;
-          border-radius: var(--bc-radius-md);
-          font-family: var(--bc-font-mono);
-          font-size: var(--bc-text-xs);
+        .pk-root .prose :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+          display: block;
           overflow-x: auto;
-          white-space: pre-wrap;
-          word-break: break-word;
+          font-size: 0.8125rem;
         }
-        .ai-msg-bubble.user .ai-chat-code { background: rgba(0, 0, 0, 0.28); color: #fff; }
-        .ai-typing { display: inline-flex; gap: 4px; align-items: center; padding: 4px 2px; }
-        .ai-typing i { width: 6px; height: 6px; border-radius: var(--bc-radius-full); background: var(--bc-text-muted); animation: ai-blink 1.2s infinite; }
-        .ai-typing i:nth-child(2) { animation-delay: 0.2s; }
-        .ai-typing i:nth-child(3) { animation-delay: 0.4s; }
-        .ai-msg-bubble.user .ai-typing i { background: rgba(255,255,255,0.8); }
-        @keyframes ai-blink { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1); } }
-        .ai-msg-tools { display: flex; align-items: center; gap: 4px; padding-left: 2px; }
-        .ai-msg-hint { font-size: var(--bc-text-xs); color: var(--bc-text-muted); }
-        body.bc-dark .ai-msg-bubble.user { background: var(--bc-primary-600); border-color: var(--bc-primary-600); }
-
-        .ai-chat-composer-wrap { padding: var(--bc-space-3) var(--bc-space-5) var(--bc-space-4); background: var(--bc-surface-page); }
-        .ai-chat-streaming-note { display: flex; align-items: center; gap: 8px; max-width: 860px; margin: 0 auto 8px; color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
-        .ai-chat-composer {
-          max-width: 860px;
-          margin: 0 auto;
-          background: var(--bc-surface-card);
-          border: 1px solid var(--bc-border-default);
-          border-radius: var(--bc-radius-2xl);
-          box-shadow: var(--bc-shadow-card);
-          padding: var(--bc-space-3) var(--bc-space-4) var(--bc-space-2);
-          transition: border-color var(--bc-transition-fast), box-shadow var(--bc-transition-fast);
-        }
-        .ai-chat-composer:focus-within {
-          border-color: var(--bc-primary-500);
-          box-shadow: var(--bc-shadow-focus);
-        }
-        .ai-chat-composer .ant-input { color: var(--bc-text-body); font-size: var(--bc-text-sm); }
-        .ai-chat-composer .ant-input::placeholder { color: var(--bc-text-muted); }
-        .ai-chat-composer-actions { display: flex; align-items: center; justify-content: space-between; margin-top: var(--bc-space-2); }
-        .ai-chat-composer-left { display: flex; align-items: center; gap: var(--bc-space-3); min-width: 0; }
-        .ai-db-chip {
-          display: inline-flex; align-items: center; gap: 6px;
-          border: 1px solid var(--bc-border-default);
-          background: var(--bc-surface-page);
-          color: var(--bc-text-secondary);
-          border-radius: var(--bc-radius-full);
-          padding: 3px 10px;
-          font-size: var(--bc-text-xs);
-          font-weight: var(--bc-weight-medium);
-          cursor: pointer;
-          transition: all var(--bc-transition-fast);
-        }
-        .ai-db-chip:hover { border-color: var(--bc-primary-500); color: var(--bc-primary-500); }
-        .ai-db-chip.on { background: var(--bc-green-50); border-color: var(--bc-green-200); color: var(--bc-green-700); }
-        body.bc-dark .ai-db-chip.on { background: rgba(34,197,94,0.14); border-color: var(--bc-green-800); color: #4ade80; }
-        .ai-composer-model { color: var(--bc-text-muted); font-size: var(--bc-text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ai-send-btn.ant-btn-primary { background: var(--bc-primary-500); box-shadow: none; }
-        .ai-send-btn.ant-btn-primary:hover, .ai-send-btn.ant-btn-primary:focus { background: var(--bc-primary-600); }
-        .ai-send-btn.ant-btn-primary[disabled] { background: var(--bc-slate-200); color: var(--bc-slate-500); }
-        .ai-chat-composer-foot { max-width: 860px; margin: var(--bc-space-2) auto 0; text-align: center; color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
-
-        .ai-chat-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--bc-space-10) var(--bc-space-4) var(--bc-space-6); }
-        .ai-chat-empty-hero { margin-bottom: var(--bc-space-6); }
-        .ai-chat-empty-logo {
-          width: 72px; height: 72px;
-          border-radius: var(--bc-radius-3xl);
-          background: linear-gradient(135deg, var(--bc-ro-500), var(--bc-primary-600));
-          color: var(--bc-white);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 36px;
-          box-shadow: var(--bc-shadow-lg);
-        }
-        .ai-chat-empty-title { color: var(--bc-text-heading); font-size: var(--bc-text-3xl); font-weight: var(--bc-weight-bold); margin: 0 0 var(--bc-space-2); letter-spacing: var(--bc-tracking-tight); }
-        .ai-chat-empty-sub { color: var(--bc-text-muted); font-size: var(--bc-text-sm); max-width: 560px; margin: 0 0 var(--bc-space-8); line-height: 1.6; }
-        .ai-chat-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--bc-space-3); width: 100%; max-width: 640px; }
-        .ai-quick-card {
-          display: flex; align-items: flex-start; gap: var(--bc-space-3);
-          text-align: left;
-          background: var(--bc-surface-card);
-          border: 1px solid var(--bc-border-subtle);
-          border-radius: var(--bc-radius-xl);
-          padding: var(--bc-space-4);
-          cursor: pointer;
-          transition: border-color var(--bc-transition-fast), box-shadow var(--bc-transition-fast), transform var(--bc-transition-fast);
-          font-family: inherit;
-        }
-        .ai-quick-card:hover { border-color: var(--bc-primary-500); box-shadow: var(--bc-shadow-md); transform: translateY(-1px); }
-        .ai-quick-icon {
-          width: 38px; height: 38px; flex-shrink: 0;
-          border-radius: var(--bc-radius-lg);
-          background: var(--bc-primary-50);
-          color: var(--bc-primary-500);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 17px;
-        }
-        body.bc-dark .ai-quick-icon { background: rgba(25,118,210,0.16); color: #90caf9; }
-        .ai-quick-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-        .ai-quick-title { color: var(--bc-text-heading); font-size: var(--bc-text-sm); font-weight: var(--bc-weight-semibold); }
-        .ai-quick-desc { color: var(--bc-text-muted); font-size: var(--bc-text-xs); line-height: 1.5; }
-        .ai-chat-primary-row { display: flex; flex-wrap: wrap; gap: var(--bc-space-2); justify-content: center; max-width: 640px; margin-top: var(--bc-space-6); }
-        .ai-query-chip {
-          border: 1px solid var(--bc-border-default);
-          background: var(--bc-surface-card);
-          color: var(--bc-text-secondary);
-          border-radius: var(--bc-radius-full);
-          padding: 3px 12px;
-          font-size: var(--bc-text-xs);
-          cursor: pointer;
-          transition: all var(--bc-transition-fast);
-          font-weight: var(--bc-weight-medium);
-        }
-        .ai-query-chip:hover { border-color: var(--bc-primary-500); color: var(--bc-primary-500); }
-
-        .ai-settings-section { border: 1px solid var(--bc-border-subtle); border-radius: var(--bc-radius-xl); padding: var(--bc-space-4); margin-bottom: var(--bc-space-4); }
-        .ai-settings-head { display: flex; align-items: center; gap: 8px; color: var(--bc-text-heading); font-size: var(--bc-text-md); font-weight: var(--bc-weight-semibold); margin: 0 0 4px; }
-        .ai-settings-desc, .ai-settings-note { color: var(--bc-text-muted); font-size: var(--bc-text-xs); margin: 0 0 var(--bc-space-3); }
-        .ai-settings-note { margin-top: var(--bc-space-3); margin-bottom: 0; }
-        .ai-settings-field { margin-bottom: var(--bc-space-3); }
-        .ai-settings-field:last-child { margin-bottom: 0; }
-        .ai-settings-field.row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--bc-space-4); }
-        .ai-settings-field-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--bc-text-body); font-size: var(--bc-text-sm); font-weight: var(--bc-weight-medium); margin-bottom: 4px; }
-        .ai-settings-hint { display: block; color: var(--bc-text-muted); font-size: var(--bc-text-xs); font-weight: var(--bc-weight-regular); margin-top: 2px; }
-        .ai-settings-actions { margin-top: var(--bc-space-4); }
-
-        .ai-chat-mobile-drawer .ant-drawer-body { padding: 0; }
-        @media (max-width: 920px) {
-          .ai-chat-quick-grid { grid-template-columns: 1fr; }
-          .ai-chat-scroll-inner { padding: var(--bc-space-6) var(--bc-space-3) var(--bc-space-3); }
-          .ai-chat-composer-wrap, .ai-chat-topbar { padding-left: var(--bc-space-3); padding-right: var(--bc-space-3); }
-          .ai-msg-stack { max-width: 88%; }
-        }
+        .scroll-thin::-webkit-scrollbar { width: 6px; }
+        .scroll-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+        .scroll-thin::-webkit-scrollbar-track { background: transparent; }
       `}</style>
     </div>
   );

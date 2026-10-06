@@ -134,10 +134,10 @@ RULES:
 5. Always use table aliases
 6. Use proper date functions: DATEADD, DATEDIFF, GETDATE()
 7. Handle NULL values with ISNULL/COALESCE
-8. Use proper indexing hints if beneficial
+8. Use ONLY table and column names that appear in DATABASE SCHEMA - never invent names
 9. For relative dates: use DATEADD(day, -N, GETDATE()) pattern
-8. Return ONLY the SQL query - no explanations, no markdown code fences
-9. If the question cannot be answered with SQL, return: -- ERROR: Cannot answer with SQL
+10. Return ONLY the SQL query - no explanations, no markdown code fences
+11. If the question cannot be answered with SQL, return: -- ERROR: Cannot answer with SQL
 
 Examples:
 Q: "Show me total sales by seller for last 30 days"
@@ -153,6 +153,7 @@ A: SELECT TOP 10 p.Name, SUM(oi.Quantity * oi.UnitPrice) as Revenue FROM OrderIt
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
   ], {
+    ...options,
     type: 'object',
     properties: {
       sql: { type: 'string' },

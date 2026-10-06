@@ -221,6 +221,78 @@ Guidelines:
 }
 
 /**
+ * Compact query results for prompt injection - bounds rows, columns, and cell size.
+ */
+function compactResultRows(rows) {
+  const source = Array.isArray(rows) ? rows : [];
+  const trimCell = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return s.length > 140 ? `${s.slice(0, 140)}…` : s;
+  };
+  const trimRow = (row) => {
+    const out = {};
+    Object.entries(row || {}).slice(0, 16).forEach(([k, v]) => {
+      out[k] = trimCell(v);
+    });
+    return out;
+  };
+
+  let rows2 = source.slice(0, 30).map(trimRow);
+  let json = JSON.stringify(rows2);
+  let truncated = source.length > rows2.length;
+  while (json.length > 12000 && rows2.length > 1) {
+    rows2 = rows2.slice(0, Math.floor(rows2.length / 2));
+    json = JSON.stringify(rows2);
+    truncated = true;
+  }
+  return { rows: rows2, truncated, json };
+}
+
+/**
+ * Plan and execute a database query from a natural language message.
+ * Returns null when the question is not SQL-answerable (fall back to normal chat).
+ * Only read-only (SELECT/WITH) single statements are ever executed.
+ */
+async function runDatabaseTool(message, options = {}) {
+  try {
+    const { sql } = await databaseAnalysisService.naturalLanguageToSQL(message, {
+      model: options.modelId,
+      allowSubscription: options.allowSubscription,
+    });
+
+    const clean = String(sql || '')
+      .trim()
+      .replace(/^```(?:sql)?\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim()
+      .replace(/;+$/, '');
+
+    if (!clean || /^\s*--\s*ERROR/i.test(clean)) {
+      return null;
+    }
+
+    // Safety: automatic analysis may only issue a single read-only statement.
+    if (!/^\s*(SELECT|WITH)\b/i.test(clean) || clean.includes(';') || clean.includes('/*') || /\bINTO\b/i.test(clean)) {
+      return {
+        sql: clean,
+        error: 'Only a single read-only SELECT/WITH query is allowed for automatic analysis.',
+      };
+    }
+
+    const result = await databaseAnalysisService.executeQuery(clean);
+    if (!result.success) {
+      return { sql: clean, error: result.error };
+    }
+
+    const { rows, truncated, json } = compactResultRows(result.data);
+    return { sql: clean, data: rows, truncated, json };
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
  * Generate AI response with streaming
  */
 async function* streamChatResponse(conversationId, userId, message, options = {}) {
@@ -234,13 +306,60 @@ async function* streamChatResponse(conversationId, userId, message, options = {}
   const modelId = options.modelId || 'free/gpt-6-luna';
   let fullResponse = '';
   let tokensUsed = 0;
-  
+  let toolUsed = null;
+
   try {
+    // Tool phase: if database context is enabled, plan + execute SQL before answering.
+    let toolResult = null;
+    if (options.includeDatabase) {
+      toolResult = await runDatabaseTool(message, options);
+      if (toolResult) {
+        if (toolResult.error) {
+          toolUsed = { tool: 'database_query', sql: toolResult.sql, error: toolResult.error };
+          yield {
+            type: 'tool',
+            tool: 'database_query',
+            sql: toolResult.sql,
+            rowCount: 0,
+            error: toolResult.error,
+          };
+        } else {
+          toolUsed = { tool: 'database_query', sql: toolResult.sql, rowCount: toolResult.data.length };
+          yield {
+            type: 'tool',
+            tool: 'database_query',
+            sql: toolResult.sql,
+            rowCount: toolResult.data.length,
+          };
+        }
+      }
+    }
+
+    // Build the message set shown to the model for the final answer.
+    let answerMessages = messages;
+    if (toolResult) {
+      const context = toolResult.error
+        ? `You attempted the following SQL query but it failed: ${toolResult.error}\n\nAttempted SQL:\n${toolResult.sql}`
+        : `You queried the database with this SQL:\n${toolResult.sql}\n\nResults (first ${toolResult.data.length} rows${toolResult.truncated ? ', truncated' : ''}):\n${toolResult.json}`;
+      answerMessages = [
+        {
+          role: 'system',
+          content:
+            `${systemPrompt}\n\n` +
+            `A database tool already ran for this conversation turn. ${context}\n\n` +
+            'Answer the user precisely using ONLY the query results. Format numbers cleanly and use a markdown table when it improves readability. Never invent data that is not in the results.',
+        },
+        ...messages.filter((m) => m.role === 'system').slice(1),
+        ...messages.filter((m) => m.role !== 'system'),
+      ];
+    }
+
     // Stream the response
-    for await (const chunk of apinexService.streamChat(messages, {
+    for await (const chunk of apinexService.streamChat(answerMessages, {
       model: options.modelId,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096,
+      allowSubscription: options.allowSubscription,
     })) {
       fullResponse += chunk;
       tokensUsed++;
@@ -251,6 +370,7 @@ async function* streamChatResponse(conversationId, userId, message, options = {}
     await saveMessage(conversationId, 'assistant', fullResponse, {
       modelId,
       tokensUsed,
+      toolUsed,
     });
     
     // Update conversation timestamp
@@ -280,6 +400,7 @@ async function generateChatResponse(conversationId, userId, message, options = {
       model: options.modelId,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096,
+      allowSubscription: options.allowSubscription,
     });
     
     // Save assistant message

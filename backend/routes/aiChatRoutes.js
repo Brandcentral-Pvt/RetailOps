@@ -210,6 +210,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
       temperature,
       maxTokens,
       includeDatabase: options?.includeDatabase,
+      allowSubscription: options?.allowSubscription,
     });
     
     res.json({ success: true, data: result });
@@ -249,6 +250,7 @@ router.post('/conversations/:id/stream', async (req, res) => {
         temperature,
         maxTokens,
         includeDatabase: options?.includeDatabase,
+        allowSubscription: options?.allowSubscription,
       });
       
       for await (const chunk of stream) {
