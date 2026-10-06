@@ -313,22 +313,52 @@ function buildToolContext(systemPrompt, toolResult) {
   const base = `${systemPrompt}\n\n`;
 
   if (toolResult.tool === 'content_priority') {
+    const scope = toolResult.sellerId
+      ? `\nSCOPE: Seller ${toolResult.sellerId} only.\n`
+      : toolResult.sellerMatches
+        ? `\nSCOPE: Ambiguous seller (matches: ${toolResult.sellerMatches.join(', ')}). Present the cross-seller ranking, then ask the user which seller to scope the fix plan to.\n`
+        : '\nSCOPE: All sellers.\n';
+
+    let health = '';
+    if (toolResult.health) {
+      const h = toolResult.health;
+      health =
+        `SELLER HEALTH SNAPSHOT:\n` +
+        `- Total scored listings: ${h.totalListings ?? 'N/A'}\n` +
+        `- Critical (CDQ D/F): ${h.criticalListings ?? 'N/A'}\n` +
+        `- Missing A+ content: ${h.missingAPlus ?? 'N/A'}\n` +
+        `- Avg CDQ: ${h.avgCdq != null ? Number(h.avgCdq).toFixed(1) : 'N/A'}\n` +
+        `- Avg title score: ${h.avgTitleScore != null ? Number(h.avgTitleScore).toFixed(1) : 'N/A'}\n` +
+        `- Poor LQS (D/F): ${h.poorLqs ?? 'N/A'}\n` +
+        `- No Buy Box: ${h.noBuyBox ?? 'N/A'}\n` +
+        `- Thin descriptions (<1000 chars): ${h.thinDescriptions ?? 'N/A'}\n`;
+    }
+
+    const tiers = toolResult.tiers
+      ? `URGENCY TIERS (full scope): critical ${toolResult.tiers.critical}, high ${toolResult.tiers.high}, medium ${toolResult.tiers.medium}, low ${toolResult.tiers.low}.\n`
+      : '';
+
     const detail = toolResult.deepDive
       ? `\n\nDEEP-DIVE ASIN ${toolResult.deepDive.asin} (issues + recommendations):\n${toolResult.deepDiveJson}`
-      : toolResult.deepUnknown
-        ? '\n\nNo ASIN detail could be resolved for this turn.'
-        : '';
+      : '\n\nNo ASIN detail could be resolved for this turn.';
+
     return {
       role: 'system',
       content:
         `${base}` +
-        `A Content Optimization tool already ran for this turn.\n` +
-        `It scored ASINs with the weighted framework (CDQ ${contentOptimizationService.WEIGHTS.cdq}, title ${contentOptimizationService.WEIGHTS.title}, missing A+ ${contentOptimizationService.WEIGHTS.aplus}, LQS ${contentOptimizationService.WEIGHTS.lqs}, thin description ${contentOptimizationService.WEIGHTS.thinDesc}) on a 0-100 UrgencyScore.\n\n` +
-        `RANKED URGENCY (${toolResult.rowCount} listings):\n${toolResult.json}${detail}\n\n` +
-        'Respond with:\n' +
-        '1. A markdown table sorted by rank: Rank | ASIN | Title (short) | CDQ | Title | LQS | A+ | Desc | Urgency (band).\n' +
-        '2. A "Fix order" list grouped by band (🔴 CRITICAL, 🟠 HIGH, 🟡 MEDIUM, 🟢 LOW), most urgent first, naming the section to fix first (title / bullets / images / description / A+) for each ASIN.\n' +
-        '3. For the deep-dive ASIN, a concrete optimization plan: a rewritten title, 2-3 rewritten bullets, and a description outline — grounded ONLY in its Issues and Recommendations.\n' +
+        `A Content Optimization tool already ran for this turn and computed everything — health, tiers, rankings, deep-dive. Do NOT provide SQL or ask the user to run anything; deliver the finished report directly.\n` +
+        `It scored ASINs with the weighted framework (CDQ ${contentOptimizationService.WEIGHTS.cdq}, title ${contentOptimizationService.WEIGHTS.title}, missing A+ ${contentOptimizationService.WEIGHTS.aplus}, LQS ${contentOptimizationService.WEIGHTS.lqs}, thin description ${contentOptimizationService.WEIGHTS.thinDesc}) on a 0-100 UrgencyScore.\n` +
+        scope +
+        '\n' +
+        tiers +
+        health +
+        `\nRANKED URGENCY (${toolResult.rowCount} listings):\n${toolResult.json}${detail}\n\n` +
+        'Respond with the final report:\n' +
+        '1. Heading "Top listings needing content optimization" (+ seller when scoped).\n' +
+        '2. A short health summary line(s) sourced only from the health snapshot.\n' +
+        '3. A markdown table sorted by rank: Rank | ASIN | Title (short) | CDQ | Title | LQS | A+ | Desc | Urgency (band).\n' +
+        '4. A "Fix order" list grouped by band (🔴 CRITICAL, 🟠 HIGH, 🟡 MEDIUM, 🟢 LOW), most urgent first, naming the section to fix first (title / bullets / images / description / A+) for each ASIN.\n' +
+        '5. For the deep-dive ASIN, a concrete optimization plan: a rewritten title, 2-3 rewritten bullets, and a description outline — grounded ONLY in its Issues and Recommendations.\n' +
         'Never invent numbers or fields that are not in the results.',
     };
   }
