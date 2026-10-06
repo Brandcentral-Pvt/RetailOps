@@ -215,8 +215,8 @@ Guidelines:
     messages: [
       { role: 'system', content: systemPrompt },
       ...recentMessages.slice(-MAX_CONTEXT_MESSAGES),
-      { role: 'user', content: currentMessage },
-    ];
+      { role: 'user', content: currentMessage }
+    ]
   };
 }
 

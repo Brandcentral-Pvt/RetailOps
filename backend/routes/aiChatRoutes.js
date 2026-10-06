@@ -19,7 +19,7 @@ const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
 const chatService = require('../services/chatService');
 const apinexService = require('../services/apinexBondService');
-const databaseAnalysisService = require('./databaseAnalysisService');
+const databaseAnalysisService = require('../services/databaseAnalysisService');
 const { generateId } = require('../database/db');
 
 // All routes require authentication
@@ -241,8 +241,7 @@ router.post('/conversations/:id/stream', async (req, res) => {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
     
-    const userId = req.user.Id;
-    const { message: messageText, modelId, temperature, maxTokens, options } = req.body;
+    const messageText = message;
     
     try {
       const stream = chatService.streamChatResponse(req.params.id, userId, messageText, {
