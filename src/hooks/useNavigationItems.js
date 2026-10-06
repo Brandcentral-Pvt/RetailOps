@@ -339,6 +339,16 @@ export function useNavigationItems() {
                     section: 'intelligence',
                 }
             ),
+            guard(
+                isAdmin || isGlobalUser || isBrandManager || hasPermission('dashboard_view'),
+                {
+                    key: 'ai-chat',
+                    label: 'AI Assistant',
+                    path: '/ai-chat',
+                    icon: Bot,
+                    section: 'intelligence',
+                }
+            ),
         ]);
 
         // SECTION: SYSTEM & CONTROL
