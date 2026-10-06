@@ -77,6 +77,7 @@ const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
 const WebhookSettingsPage = lazy(() => import('./pages/WebhookSettingsPage'));
 const SetupWizardPage = lazy(() => import('./pages/SetupWizardPage'));
 const KeywordResearchPage = lazy(() => import('./pages/keywords/KeywordResearchPage'));
+const AIChatPage = lazy(() => import('./pages/AIChatPage'));
 
 // Layout wrapper — flex row: Sidebar takes its own width, content fills the rest
 function AppLayout({ children }) {
@@ -187,6 +188,7 @@ function AppRoutes() {
                   <Route path="/target-achievement" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievement /></ProtectedRoute>} />
                   <Route path="/target-achievement/dashboard" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievementDashboard /></ProtectedRoute>} />
                   <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />
+                  <Route path="/ai-chat" element={<ProtectedRoute permission="dashboard_view"><AIChatPage /></ProtectedRoute>} />
                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
                   <Route path="/tasks" element={<Navigate to="/tasks/tasks" replace />} />
                   <Route path="/tasks/my-day" element={<ProtectedRoute permission="tasks_view"><MyDayPage /></ProtectedRoute>} />
