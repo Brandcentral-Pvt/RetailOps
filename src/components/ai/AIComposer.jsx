@@ -204,7 +204,7 @@ const AIComposer = ({
           value={value}
           disabled={disabled && !isStreaming}
           placeholder="Ask RetailOps AI anything…  Try /analyze, /find, or @sellers"
-          onChange={onValueChange}
+          onChange={(e) => onValueChange(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 120)}
           onKeyDown={onKeyDown}
