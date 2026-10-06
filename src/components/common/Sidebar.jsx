@@ -74,17 +74,17 @@ const Sidebar = () => {
         },
         {
             id: 'CATALOG',
-            label: 'Catalog & Ads',
+            label: 'Catalog & Marketplace',
             items: navItems.catalog || [],
         },
         {
             id: 'AUTOMATION',
-            label: 'Automation & Tasks',
+            label: 'Automation & Operations',
             items: navItems.automation || [],
         },
         {
             id: 'INTELLIGENCE',
-            label: 'Analytics & Finance',
+            label: 'Intelligence',
             items: navItems.intelligence || [],
         },
         {

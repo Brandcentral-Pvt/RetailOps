@@ -1,0 +1,18 @@
+export const FALLBACK_MODELS = [
+  { id: 'free/gpt-6-luna', name: 'GPT-6 Luna', category: 'Free', context: 1000000, notes: 'Fast general purpose' },
+  { id: 'free/glm-5.3-flash', name: 'GLM-5.3 Flash', category: 'Free', context: 1000000, notes: 'Balanced & fast' },
+  { id: 'free/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', category: 'Free', context: 1000000, notes: 'Reasoning tuned' },
+  { id: 'free/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro', category: 'Free', context: 1000000, notes: 'Advanced reasoning' },
+  { id: 'free/mimo-v2.6-pro', name: 'Mimo V2.6 Pro', category: 'Free', context: 1000000, notes: 'Coding & logic' },
+  { id: 'free/minimax-m3.1', name: 'MiniMax M3.1', category: 'Free', context: 1000000, notes: 'Creative writing' },
+  { id: 'free/minimax-m3', name: 'MiniMax M3', category: 'Free', context: 1000000, notes: 'Creative writing' },
+  { id: 'free/mimo-v2.6-flash', name: 'Mimo V2.6 Flash', category: 'Free', context: 1000000, notes: 'Fast & lightweight' },
+  { id: 'free/claude-sonnet-4.6', name: 'Claude 4.6 Sonnet', category: 'Subscription', context: 1000000, notes: 'Balanced premium' },
+  { id: 'free/hy4', name: 'HY 4', category: 'Subscription', context: 1000000, notes: 'Efficient premium' },
+  { id: 'free/claude-opus-4.6', name: 'Claude 4.6 Opus', category: 'Subscription', context: 1000000, notes: 'Top tier reasoning' },
+  { id: 'free/gemini-3.8-flash', name: 'Gemini 3.8 Flash', category: 'Subscription', context: 1000000, notes: 'Fast Gemini' },
+  { id: 'free/muse-spark-1.3', name: 'Muse Spark 1.3', category: 'Subscription', context: 1000000, notes: 'Creative spark' },
+  { id: 'free/gemini-3.1-pro', name: 'Gemini 3.1 Pro', category: 'Subscription', context: 1000000, notes: 'Premium Gemini' },
+  { id: 'free/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash', category: 'Subscription', context: 1000000, notes: 'Fast DeepSeek' },
+  { id: 'free/qwen-3.8-max', name: 'Qwen 3.8 MAX', category: 'Subscription', context: 1000000, notes: 'Large context' },
+];
