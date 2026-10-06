@@ -459,9 +459,4 @@ Return JSON:
   }
 }
 
-const DEFAULT_BASE_URL = 'https://api.apinex.bond/v1';
-const DEFAULT_TIMEOUT_MS = 120_000;
-const MAX_MAX_TOKENS = 32_768;
-const DAILY_TOKEN_LIMIT = 1_000_000;
-
 module.exports = new ApinexBondService();
