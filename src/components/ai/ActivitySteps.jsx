@@ -2,18 +2,30 @@ import { Check, Loader2 } from 'lucide-react';
 
 const STRIP_LEAD = (label) => label.replace(/^[✓●]+\s*/, '').trim();
 
-export const buildSteps = ({ inFlight, receivedTool, firstChunk }) => {
+const TOOL_LABELS = {
+  content_priority: {
+    running: 'Scoring content optimization urgency',
+    done: 'Scored content optimization urgency',
+  },
+  database_query: {
+    running: 'Querying RetailOps database',
+    done: 'Queried RetailOps database',
+  },
+};
+
+export const buildSteps = ({ inFlight, receivedTool, firstChunk, toolName }) => {
   const done = ({ label, detail }) => ({ label: STRIP_LEAD(label), detail, status: 'done' });
+  const labels = TOOL_LABELS[toolName] || TOOL_LABELS.database_query;
 
   const steps = [{ label: 'Understanding request', status: 'done' }];
 
   if (receivedTool) {
     steps.push({
-      label: inFlight ? 'Querying RetailOps database' : 'Queried RetailOps database',
+      label: inFlight ? labels.running : labels.done,
       status: 'done',
     });
   } else if (inFlight) {
-    steps.push({ label: 'Querying RetailOps database', status: 'running' });
+    steps.push({ label: labels.running, status: 'running' });
   }
 
   if (firstChunk) {

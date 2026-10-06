@@ -366,7 +366,7 @@ const AIWorkspace = () => {
             usedTokens = ev.tokensUsed || ev.usage?.total_tokens || null;
             setActivity((a) => (a ? { ...a, done: true } : a));
           } else if (ev.type === 'tool') {
-            setActivity((a) => ({ ...a, receivedTool: true }));
+            setActivity((a) => ({ ...a, receivedTool: ev.tool }));
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === mid
@@ -441,6 +441,7 @@ const AIWorkspace = () => {
             inFlight: !activity.done,
             receivedTool: activity?.receivedTool,
             firstChunk: activity?.firstChunk,
+            toolName: activity?.receivedTool,
           })
         : null,
     [activity],
