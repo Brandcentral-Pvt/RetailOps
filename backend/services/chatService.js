@@ -314,24 +314,27 @@ function buildToolContext(systemPrompt, toolResult) {
 
   if (toolResult.tool === 'content_priority') {
     const scope = toolResult.sellerId
-      ? `\nSCOPE: Seller ${toolResult.sellerId} only.\n`
-      : toolResult.sellerMatches
+      ? `\nSCOPE: Seller ${toolResult.sellerName || toolResult.sellerId}${toolResult.sellerName && toolResult.sellerId && toolResult.sellerName !== toolResult.sellerId ? ` (id ${toolResult.sellerId})` : ''} only.\n`
+      : toolResult.sellerMatches && toolResult.sellerMatches.length
         ? `\nSCOPE: Ambiguous seller (matches: ${toolResult.sellerMatches.join(', ')}). Present the cross-seller ranking, then ask the user which seller to scope the fix plan to.\n`
         : '\nSCOPE: All sellers.\n';
 
+    const dataNotes = toolResult.dataNotes ? `DATA NOTE: ${toolResult.dataNotes}\n` : '';
+    const weights = toolResult.weights && toolResult.weights.length
+      ? `ACTIVE SCORING PILLARS: ${toolResult.weights.map((w) => `${w.label} (${w.weight})`).join(', ')}.\n`
+      : 'ACTIVE SCORING PILLARS: none.\n';
+
     let health = '';
-    if (toolResult.health) {
+    if (toolResult.health && Number(toolResult.health.total) > 0) {
       const h = toolResult.health;
       health =
-        `SELLER HEALTH SNAPSHOT:\n` +
-        `- Total scored listings: ${h.totalListings ?? 'N/A'}\n` +
-        `- Critical (CDQ D/F): ${h.criticalListings ?? 'N/A'}\n` +
-        `- Missing A+ content: ${h.missingAPlus ?? 'N/A'}\n` +
-        `- Avg CDQ: ${h.avgCdq != null ? Number(h.avgCdq).toFixed(1) : 'N/A'}\n` +
-        `- Avg title score: ${h.avgTitleScore != null ? Number(h.avgTitleScore).toFixed(1) : 'N/A'}\n` +
-        `- Poor LQS (D/F): ${h.poorLqs ?? 'N/A'}\n` +
-        `- No Buy Box: ${h.noBuyBox ?? 'N/A'}\n` +
-        `- Thin descriptions (<1000 chars): ${h.thinDescriptions ?? 'N/A'}\n`;
+        `HEALTH & COVERAGE (scope):\n` +
+        `- Total listed ASINs: ${h.total}\n` +
+        `- Scored: title ${h.withTitle}, LQS ${h.withLqs}, bullets ${h.withBullets}, images ${h.withImages}, description ${h.withDescription}, CDQ ${h.withCdq}\n` +
+        `- A+ known: ${h.withAplus} (missing ${h.missingAplus}), full descriptions: ${h.fullDesc}, buy box known: ${h.withBuyBox}\n` +
+        `- Poor LQS (D/F): ${h.poorLqs}, avg title ${h.avgTitle != null ? Number(h.avgTitle).toFixed(1) : 'N/A'}, avg bullets ${h.avgBullets != null ? Number(h.avgBullets).toFixed(1) : 'N/A'}, avg images ${h.avgImages != null ? Number(h.avgImages).toFixed(1) : 'N/A'}, avg description ${h.avgDescription != null ? Number(h.avgDescription).toFixed(1) : 'N/A'}, avg CDQ ${h.avgCdq != null ? Number(h.avgCdq).toFixed(1) : 'N/A'}\n`;
+    } else if (toolResult.health) {
+      health = `HEALTH & COVERAGE: no scored listings found in this scope.\n`;
     }
 
     const tiers = toolResult.tiers
@@ -346,16 +349,18 @@ function buildToolContext(systemPrompt, toolResult) {
       role: 'system',
       content:
         `${base}` +
-        `A Content Optimization tool already ran for this turn and computed everything — health, tiers, rankings, deep-dive. Do NOT provide SQL or ask the user to run anything; deliver the finished report directly.\n` +
-        `It scored ASINs with the weighted framework (CDQ ${contentOptimizationService.WEIGHTS.cdq}, title ${contentOptimizationService.WEIGHTS.title}, missing A+ ${contentOptimizationService.WEIGHTS.aplus}, LQS ${contentOptimizationService.WEIGHTS.lqs}, thin description ${contentOptimizationService.WEIGHTS.thinDesc}) on a 0-100 UrgencyScore.\n` +
+        `A Content Optimization tool already ran for this turn and computed everything — coverage, tiers, rankings, deep-dive. Do NOT provide SQL or ask the user to run anything; deliver the finished report directly.\n` +
+        `It scored ASINs on a 0-100 UrgencyScore built from whichever pillars are populated (weights auto-normalized).\n` +
         scope +
         '\n' +
-        tiers +
+        dataNotes +
+        weights +
+        (tiers || '') +
         health +
         `\nRANKED URGENCY (${toolResult.rowCount} listings):\n${toolResult.json}${detail}\n\n` +
         'Respond with the final report:\n' +
         '1. Heading "Top listings needing content optimization" (+ seller when scoped).\n' +
-        '2. A short health summary line(s) sourced only from the health snapshot.\n' +
+        '2. A short health summary line(s) sourced only from the health & coverage data, and one line stating which pillars were unavailable (from DATA NOTE).\n' +
         '3. A markdown table sorted by rank: Rank | ASIN | Title (short) | CDQ | Title | LQS | A+ | Desc | Urgency (band).\n' +
         '4. A "Fix order" list grouped by band (🔴 CRITICAL, 🟠 HIGH, 🟡 MEDIUM, 🟢 LOW), most urgent first, naming the section to fix first (title / bullets / images / description / A+) for each ASIN.\n' +
         '5. For the deep-dive ASIN, a concrete optimization plan: a rewritten title, 2-3 rewritten bullets, and a description outline — grounded ONLY in its Issues and Recommendations.\n' +
