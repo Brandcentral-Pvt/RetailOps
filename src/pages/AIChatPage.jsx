@@ -1,777 +1,1350 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  Layout,
-  Menu,
-  Input,
-  Button,
-  Select,
-  Card,
-  Avatar,
-  Dropdown,
-  Tooltip,
-  Badge,
-  Spin,
-  Empty,
-  Space,
-  Switch,
-  Tabs,
-  List,
-  Modal,
-  Form,
-  InputNumber,
-  Collapse,
-  Tag,
-  Typography,
-} from 'antd';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import { Button, Input, Tooltip, Avatar, Tag, Dropdown, Modal, Drawer, Slider, Switch, Select, Skeleton } from 'antd';
 import {
   SendOutlined,
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
+  RobotFilled,
   RobotOutlined,
   DatabaseOutlined,
   ConsoleSqlOutlined,
+  LineChartOutlined,
+  AppstoreOutlined,
   SettingOutlined,
-  HistoryOutlined,
-  StarOutlined,
-  BarChartOutlined,
-  AreaChartOutlined,
-  CheckCircleOutlined,
-  LeftOutlined,
-  RightOutlined,
+  MenuOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ThunderboltOutlined,
+  StopOutlined,
+  SearchOutlined,
+  CopyOutlined,
+  CheckOutlined,
   UserOutlined,
-  FileOutlined,
-  LoadingOutlined,
+  StarOutlined,
+  ExperimentOutlined,
+  CloseOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
-const { Title } = Typography;
-import { useNavigate, useLocation } from 'react-router-dom';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import { useAuth } from '../contexts/AuthContext';
+
+import { aiChatService } from '../services/aiChatService';
 
 dayjs.extend(relativeTime);
 
-const { Content, Sider } = Layout;
-const { SubMenu } = Menu;
-const { TextArea } = Input;
-const { Text } = Typography;
-
-const WORKFLOW_STATUSES = {
-  active: { label: 'Active', color: 'green' },
-  pending: { label: 'Pending', color: 'gold' },
-  completed: { label: 'Completed', color: 'blue' },
-  failed: { label: 'Failed', color: 'red' },
-};
-
-const MODEL_CATEGORIES = {
-  free: {
-    label: 'Free Models',
-    icon: <StarOutlined style={{ color: '#f59e0b' }} />,
-    models: [
-      { id: 'free/gpt-6-luna', name: 'GPT-6 Luna', weight: 3, context: '1M' },
-      { id: 'free/glm-5.3-flash', name: 'GLM-5.3 Flash', weight: 3, context: '1M' },
-      { id: 'free/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash', weight: 3, context: '1M' },
-      { id: 'free/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro', weight: 3, context: '1M' },
-      { id: 'free/mimo-v2.6-pro', name: 'Mimo V2.6 Pro', weight: 2, context: '1M' },
-      { id: 'free/minimax-m3.1', name: 'MiniMax M3.1', weight: 2, context: '1M' },
-      { id: 'free/minimax-m3', name: 'MiniMax M3', weight: 2, context: '1M' },
-      { id: 'free/mimo-v2.6-flash', name: 'Mimo V2.6 Flash', weight: 2, context: '1M' },
-    ],
-  },
-  subscription: {
-    label: 'Subscription Models',
-    icon: <StarOutlined style={{ color: '#8b5cf6' }} />,
-    models: [
-      { id: 'free/claude-sonnet-4.6', name: 'Claude 4.6 Sonnet', weight: 3, context: '1M', sub: true },
-      { id: 'free/hy4', name: 'HY 4', weight: 2, context: '1M', sub: true },
-      { id: 'free/claude-opus-4.6', name: 'Claude 4.6 Opus', weight: 3, sub: true },
-      { id: 'free/gemini-3.8-flash', name: 'Gemini 3.8 Flash', weight: 3, sub: true },
-      { id: 'free/muse-spark-1.3', name: 'Muse Spark 1.3', weight: 3, sub: true },
-      { id: 'free/gemini-3.1-pro', name: 'Gemini 3.1 Pro', weight: 2, sub: true },
-      { id: 'free/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash', weight: 3, sub: true },
-      { id: 'free/qwen-3.8-max', name: 'Qwen 3.8 MAX', weight: 2, sub: true },
-    ],
-  },
-};
-
-const SYSTEM_PROMPT_TEMPLATES = {
-  default: 'You are RetailOps AI Assistant - an expert business analyst for e-commerce operations. You help users analyze their data, answer questions, and provide actionable insights.',
-  sql_expert: 'You are an expert SQL analyst. Convert natural language questions into valid, optimized SQL queries. Return ONLY the SQL query with brief explanation.',
-  data_analyst: 'You are a senior data analyst. Analyze the provided data and answer the user\'s question with actionable insights, visualizations, and recommendations.',
-  code_assistant: 'You are an expert code assistant. Help write, debug, and optimize code.',
-};
-
-const QUICK_ACTIONS = [
-  { label: 'Analyze Sales', icon: <BarChartOutlined />, prompt: 'Analyze my sales performance for the last 30 days', category: 'analysis' },
-  { label: 'Top Products', icon: <BarChartOutlined />, prompt: 'Show me top 10 products by revenue', category: 'query' },
-  { label: 'Inventory Health', icon: <DatabaseOutlined />, prompt: 'Check inventory health and low stock alerts', category: 'query' },
-  { label: 'Ad Performance', icon: <AreaChartOutlined />, prompt: 'Analyze advertising ROAS and ACOS trends', category: 'analysis' },
-  { label: 'Write SQL', icon: <ConsoleSqlOutlined />, prompt: 'Write SQL for: ', category: 'sql', fill: true },
-  { label: 'Generate Report', icon: <FileOutlined />, prompt: 'Generate a weekly performance report', category: 'analysis' },
+const FALLBACK_MODELS = [
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', category: 'Free', context: '1048576', weight: '3', notes: 'Fast, general purpose' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', category: 'Subscription', context: '1048576', weight: '12', notes: 'Advanced reasoning' },
+  { id: 'gemini-3-flash', name: 'Gemini 3 Flash', category: 'Free', context: '1048576', weight: '4', notes: 'Latest fast model' },
+  { id: 'gemini-3-pro', name: 'Gemini 3 Pro', category: 'Subscription', context: '1048576', weight: '15', notes: 'Latest premium model' },
 ];
 
-const SIDEBAR_WIDTH = 280;
+const QUICK_ACTIONS = [
+  {
+    key: 'database',
+    icon: <DatabaseOutlined />,
+    title: 'Database analyst',
+    desc: 'Ask questions across your product, listing and sales tables as SQL.',
+    template: 'Analyze the latest 50 products and summarize the most important metrics for me:',
+  },
+  {
+    key: 'listing',
+    icon: <ConsoleSqlOutlined />,
+    title: 'Listing writer',
+    desc: 'Draft listings, A+ copy, bullets and search terms from table data.',
+    template: 'Write a compelling listing title and feature bullets for ',
+  },
+  {
+    key: 'pricing',
+    icon: <LineChartOutlined />,
+    title: 'Price strategist',
+    desc: 'Compare pricing, margins and repricing signals across products.',
+    template: 'Review my products\u2019 pricing versus the competition and flag opportunities:',
+  },
+  {
+    key: 'inventory',
+    icon: <AppstoreOutlined />,
+    title: 'Inventory planner',
+    desc: 'Replenishment, aging stock and forecasting guidance for your catalog.',
+    template: 'Summarize my inventory levels and flag low-stock and overstock items:',
+  },
+];
 
-export default function AIChatPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  // State
-  const [collapsed, setCollapsed] = useState(false);
-  const [currentConversation, setCurrentConversation] = useState(null);
+const PRIMARY_QUERIES = [
+  'Compare margin, price and units across the last 30 days',
+  'Summarize the top 10 products by revenue',
+  'Which ASINs are at risk of going out of stock?',
+];
+
+const SYSTEM_PROMPTS = [
+  { value: 'default', label: 'Standard assistant' },
+  { value: 'brand', label: 'Brand & listing expert' },
+  { value: 'analyst', label: 'Strict data analyst' },
+];
+
+const DEFAULT_SETTINGS = {
+  temperature: 0.7,
+  maxTokens: 2048,
+  includeDatabase: true,
+  systemPrompt: 'default',
+  streaming: true,
+};
+
+const CONTEXT_LABEL = { 1048576: '1M', 128000: '128K', 102400: '100K', 32768: '32K', 65536: '64K' };
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 920);
+  useEffect(() => {
+    const onResize = () => setMobile(window.innerWidth <= 920);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return mobile;
+}
+
+const formatTokens = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return null;
+  const v = Number(n);
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return String(v);
+};
+
+const normalizeModels = (raw) => {
+  if (!Array.isArray(raw)) return FALLBACK_MODELS;
+  return raw.map((m) => ({
+    id: m.id || m.ModelId || m.model || '',
+    name: m.name || m.displayName || m.id || m.model || '',
+    category: (m.category || 'Free').toLowerCase() === 'subscription' ? 'Subscription' : 'Free',
+    context: m.context || m.contextLength || null,
+    weight: m.weight || m.tokenWeight || m.tokensPerDollarMultiplier || null,
+    notes: m.notes || m.description || '',
+  }));
+};
+
+const MessagesSkeleton = () => (
+  <div className="ai-chat-skeleton-wrap">
+    <div className="ai-chat-skeleton-row right">
+      <Skeleton active paragraph={{ rows: 2 }} title={false} />
+    </div>
+    <div className="ai-chat-skeleton-row">
+      <Skeleton active paragraph={{ rows: 4 }} title={false} />
+    </div>
+    <div className="ai-chat-skeleton-row right">
+      <Skeleton active paragraph={{ rows: 1 }} title={false} />
+    </div>
+    <div className="ai-chat-skeleton-row">
+      <Skeleton active paragraph={{ rows: 3 }} title={false} />
+    </div>
+  </div>
+);
+
+const AIChatPage = () => {
+  const isMobile = useIsMobile();
+
+  const [models, setModels] = useState(FALLBACK_MODELS);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [usage, setUsage] = useState(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+
   const [conversations, setConversations] = useState([]);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [currentConversation, setCurrentConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-  const [selectedModel, setSelectedModel] = useState('free/gpt-6-luna');
-  const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT_TEMPLATES.default);
-  const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState(4096);
-  const [streaming, setStreaming] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [includeDatabase, setIncludeDatabase] = useState(true);
-  const [searchConversations, setSearchConversations] = useState('');
-  
-  // Refs
-  const messagesEndRef = useRef(null);
-  const textareaRef = useRef(null);
-  
-  // Token Stats
-  const [availableTokens, setAvailableTokens] = useState(1000000);
-  const [models, setModels] = useState({ free: [], subscription: [] });
+  const [messagesLoading, setMessagesLoading] = useState(false);
 
-  // Calculate Token Usage Stats Safely
-  const TOTAL_TOKENS = 1000000;
-  const usedTokens = Math.max(0, TOTAL_TOKENS - (availableTokens || 0));
-  const usedPercentage = Math.min(100, Math.max(0, (usedTokens / TOTAL_TOKENS) * 100));
+  const [selectedModel, setSelectedModel] = useState(FALLBACK_MODELS[0]?.id);
+  const [input, setInput] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [abortRef] = useState(() => ({ current: null }));
 
-  const getUsageColor = (pct) => {
-    if (pct >= 85) return '#ef4444'; // Red
-    if (pct >= 65) return '#f59e0b'; // Amber
-    return '#10b981'; // Green
-  };
+  const [searchText, setSearchText] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+  const [topError, setTopError] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const scrollRef = useRef(null);
+  const composerRef = useRef(null);
+
+  const activeModel = useMemo(() => models.find((m) => m.id === selectedModel) || models[0], [models, selectedModel]);
+  const modelOptions = useMemo(() => {
+    const items = (m) => ({
+      key: `model:${m.id}`,
+      label: (
+        <div className="ai-model-opt">
+          <span className="ai-model-opt-name">{m.name}</span>
+          <span className="ai-model-opt-badges">
+            {m.context ? <Tag className="ai-tag ai-tag-context">{CONTEXT_LABEL[m.context] || '—'}</Tag> : null}
+            {m.weight ? <Tag className="ai-tag ai-tag-weight">×{m.weight}</Tag> : null}
+          </span>
+          {m.id === selectedModel ? <CheckOutlined className="ai-model-opt-check" /> : null}
+        </div>
+      ),
+    });
+    return [
+      { type: 'group', label: 'Free', children: models.filter((m) => m.category === 'Free').map(items) },
+      { type: 'group', label: 'Subscription', children: models.filter((m) => m.category === 'Subscription').map(items) },
+    ];
+  }, [models, selectedModel]);
+
+  const filteredConversations = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => (c.Title || '').toLowerCase().includes(q));
+  }, [conversations, searchText]);
+
+  const usagePct = useMemo(() => {
+    if (!usage) return 0;
+    const total = Number(usage.monthlyTokenLimit || usage.totalTokensLimit || 0);
+    const used = Number(usage.totalTokensUsed || 0);
+    if (!total) return 0;
+    return Math.min(100, Math.round((used / total) * 100));
+  }, [usage]);
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const loadModels = useCallback(async () => {
+    setModelsLoading(true);
+    try {
+      const res = await aiChatService.getModels();
+      const list = normalizeModels(res.models || res.data?.models || res.data?.data || res);
+      if (list.length) setModels(list);
+    } catch (err) {
+      setTopError(`Could not load models: ${err.message || 'unknown error'}`);
+    } finally {
+      setModelsLoading(false);
+    }
+  }, []);
+
+  const loadUsage = useCallback(async () => {
+    setUsageLoading(true);
+    try {
+      const res = await aiChatService.getUsage();
+      setUsage(res.usage || res.data?.usage || res.data || res);
+    } catch {
+      /* usage is non-critical */
+    } finally {
+      setUsageLoading(false);
+    }
+  }, []);
+
+  const loadConversations = useCallback(async () => {
+    setConversationsLoading(true);
+    try {
+      const res = await aiChatService.listConversations(50);
+      const list = res.conversations || res.data?.conversations || res;
+      setConversations(Array.isArray(list) ? list : []);
+    } catch (err) {
+      if (err.status === 401) setTopError('Your session has expired. Please sign in again.');
+      else setTopError(`Could not load conversations: ${err.message || 'unknown error'}`);
+    } finally {
+      setConversationsLoading(false);
+    }
+  }, []);
+
+  const loadConversation = useCallback(async (id) => {
+    setMessagesLoading(true);
+    setMessages([]);
+    try {
+      const res = await aiChatService.getConversation(id);
+      const conv = res.conversation || res.data?.conversation || null;
+      const list = res.messages || res.data?.messages || res.message;
+      setCurrentConversation((prev) => (prev && prev.Id === id ? prev : conv));
+      setMessages(
+        Array.isArray(list)
+          ? list.map((m) => ({
+              id: m.Id || m.id || `m-${Date.now()}-${Math.random()}`,
+              role: (m.Role || m.role || '').toLowerCase(),
+              content: m.Content || m.content || '',
+              model: activeModel?.name,
+              createdAt: m.CreatedAt || m.createdAt,
+            }))
+          : [],
+      );
+    } catch (err) {
+      setTopError(`Could not load conversation: ${err.message || 'unknown error'}`);
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [activeModel?.name]);
 
   useEffect(() => {
     loadModels();
     loadUsage();
     loadConversations();
+  }, [loadModels, loadUsage, loadConversations]);
+
+  const startNewConversation = useCallback(() => {
+    setCurrentConversation(null);
+    setMessages([]);
+    setTopError('');
+    setMobileOpen(false);
   }, []);
 
-  const loadModels = async () => {
-    try {
-      const res = await fetch('/api/ai/models', { credentials: 'include' });
-      const data = await res.json();
-      if (data.success) {
-        setModels({ free: data.data.free, subscription: data.data.subscription });
-      }
-    } catch (err) {
-      console.error('Failed to load models:', err);
-    }
-  };
+  const selectConversation = useCallback(
+    (conv) => {
+      setCurrentConversation(conv);
+      setMobileOpen(false);
+      loadConversation(conv.Id);
+    },
+    [loadConversation],
+  );
 
-  const loadUsage = async () => {
-    try {
-      const res = await fetch('/api/ai/usage', { credentials: 'include' });
-      const data = await res.json();
-      if (data.success) {
-        setAvailableTokens(data.data.availableTokens || 1000000);
-      }
-    } catch (err) {
-      console.error('Failed to load usage:', err);
-    }
-  };
-
-  const loadConversations = async () => {
-    try {
-      const res = await fetch('/api/ai/chat/conversations?limit=50', { credentials: 'include' });
-      const data = await res.json();
-      if (data.success) {
-        setConversations(data.data.conversations || []);
-      }
-    } catch (err) {
-      console.error('Failed to load conversations:', err);
-    }
-  };
-
-  const loadConversation = async (conversationId) => {
-    try {
-      const res = await fetch(`/api/ai/chat/conversations/${conversationId}?limit=100`, { credentials: 'include' });
-      const data = await res.json();
-      if (data.success) {
-        setCurrentConversation(data.data);
-        setMessages(data.data.messages || []);
-        scrollToBottom();
-      }
-    } catch (err) {
-      console.error('Failed to load conversation:', err);
-    }
-  };
-
-  const createConversation = async () => {
-    try {
-      const res = await fetch('/api/ai/chat/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ title: 'New Conversation' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        await loadConversations();
-        setCurrentConversation(data.data);
-        setMessages([]);
-      }
-    } catch (err) {
-      console.error('Failed to create conversation:', err);
-    }
-  };
-
-  const deleteConversation = async (id) => {
-    if (!window.confirm('Delete this conversation?')) return;
-    try {
-      await fetch(`/api/ai/chat/conversations/${id}`, { method: 'DELETE', credentials: 'include' });
-      await loadConversations();
-      if (currentConversation?.id === id) {
-        setCurrentConversation(null);
-        setMessages([]);
-      }
-    } catch (err) {
-      console.error('Failed to delete conversation:', err);
-    }
-  };
-
-  const sendMessage = useCallback(async (content) => {
-    if (!content.trim() || !currentConversation) return;
-    
-    const userMessage = { role: 'user', content, timestamp: Date.now() };
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setLoading(true);
-    
-    try {
-      const res = await fetch(`/api/ai/chat/conversations/${currentConversation.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          message: content,
-          modelId: selectedModel,
-          temperature,
-          maxTokens,
-          options: { includeDatabase },
-        }),
-      });
-      
-      const data = await res.json();
-      if (data.success) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: data.data.content, 
-          timestamp: Date.now(),
-          model: data.data.model,
-          usage: data.data.usage,
-        }]);
-      }
-    } catch (err) {
-      console.error('Failed to send message:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentConversation, selectedModel, temperature, maxTokens, includeDatabase]);
-
-  const handleStreamMessage = useCallback(async (content) => {
-    if (!content.trim() || !currentConversation) return;
-    
-    const userMessage = { role: 'user', content, timestamp: Date.now() };
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setStreaming(true);
-    
-    try {
-      const res = await fetch(`/api/ai/chat/conversations/${currentConversation.id}/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          message: content,
-          modelId: selectedModel,
-          temperature,
-          maxTokens,
-          options: { includeDatabase },
-        }),
-      });
-      
-      const reader = res.body.getReader();
-      setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: Date.now(), streaming: true }]);
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n\n').filter(l => l.startsWith('data:'));
-        
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line.replace('data: ', ''));
-            if (data.type === 'chunk') {
-              setMessages(prev => {
-                const next = [...prev];
-                const last = next[next.length - 1];
-                if (last && last.role === 'assistant') {
-                  next[next.length - 1] = { ...last, content: last.content + data.content };
-                }
-                return next;
-              });
-            }
-          } catch (e) {
-            console.error('Parse error:', e);
-          }
+  const handleDeleteConversation = (conv) => {
+    Modal.confirm({
+      title: 'Delete conversation?',
+      content: `"${conv.Title || 'Untitled'}" will be permanently removed.`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await aiChatService.deleteConversation(conv.Id);
+          if (currentConversation?.Id === conv.Id) startNewConversation();
+          loadConversations();
+        } catch (err) {
+          setTopError(`Could not delete: ${err.message || 'unknown error'}`);
         }
-      }
+      },
+    });
+  };
+
+  const handleRename = (conv) => {
+    setRenameTarget(conv);
+    setRenameValue(conv.Title || '');
+  };
+
+  const confirmRename = async () => {
+    const title = renameValue.trim();
+    if (!renameTarget || !title) {
+      setRenameTarget(null);
+      return;
+    }
+    try {
+      await aiChatService.updateConversationTitle(renameTarget.Id, title);
+      setCurrentConversation((c) => (c && c.Id === renameTarget.Id ? { ...c, Title: title } : c));
+      loadConversations();
     } catch (err) {
-      console.error('Stream error:', err);
+      setTopError(`Could not rename: ${err.message || 'unknown error'}`);
     } finally {
-      setStreaming(false);
-      setMessages(prev => {
-        const next = [...prev];
-        const last = next[next.length - 1];
-        if (last) last.streaming = false;
-        return next;
-      });
+      setRenameTarget(null);
     }
-  }, [currentConversation, selectedModel, temperature, maxTokens, includeDatabase]);
+  };
 
-  const handleSend = (text) => {
-    const messageToSend = text || inputValue;
-    if (messageToSend.trim()) {
-      if (streaming) {
-        handleStreamMessage(messageToSend);
-      } else {
-        sendMessage(messageToSend);
+  const handleCopy = (mId, content) => {
+    navigator.clipboard?.writeText(content).catch(() => {});
+    setCopiedId(mId);
+    setTimeout(() => setCopiedId((c) => (c === mId ? null : c)), 1400);
+  };
+
+  const handleStop = () => {
+    if (abortRef.current) abortRef.current.abort();
+  };
+
+  const handleSend = useCallback(
+    async (rawText) => {
+      const text = (rawText ?? input).trim();
+      if (!text || isStreaming) return;
+
+      let conv = currentConversation;
+      let mid = null;
+      let userMsgId = null;
+      try {
+        setTopError('');
+        if (!conv?.Id) {
+          conv = await aiChatService.createConversation('New Conversation');
+          setCurrentConversation(conv);
+          loadConversations();
+        }
+
+        userMsgId = `u-${Date.now()}`;
+        mid = `a-${Date.now()}`;
+        const payload = {
+          message: text,
+          conversationId: conv.Id,
+          options: {
+            model: selectedModel,
+            temperature: settings.temperature,
+            maxTokens: settings.maxTokens,
+            includeDatabase: settings.includeDatabase,
+            systemPrompt: settings.systemPrompt,
+          },
+        };
+
+        setInput('');
+        setMessages((prev) => [
+          ...prev,
+          { id: userMsgId, role: 'user', content: text, createdAt: dayjs().toISOString() },
+          { id: mid, role: 'assistant', content: '', streaming: true, createdAt: dayjs().toISOString() },
+        ]);
+        setIsStreaming(true);
+        const ac = new AbortController();
+        abortRef.current = ac;
+
+        let acc = '';
+        let usedTokens = null;
+        const onEvent = (ev) => {
+          if (ev.type === 'chunk') {
+            acc = acc + (ev.content || '');
+            setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, content: acc } : m)));
+          } else if (ev.type === 'complete') {
+            usedTokens = ev.tokensUsed || ev.usage?.total_tokens || null;
+          } else if (ev.type === 'error') {
+            throw new Error(ev.error || 'The assistant hit an error while responding.');
+          }
+        };
+
+        try {
+          await aiChatService.streamConversation(conv.Id, payload, onEvent, ac.signal);
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, content: acc, streaming: false } : m)));
+            return;
+          }
+          throw err;
+        }
+
+        setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, streaming: false, tokensUsed: usedTokens, model: activeModel?.name } : m)));
+
+        const isNew = !currentConversation?.Id || !currentConversation?.Title || currentConversation.Title === 'New Conversation';
+        if (isNew && text.length > 0) {
+          await aiChatService.updateConversationTitle(conv.Id, text.slice(0, 48));
+        }
+        loadConversations();
+        loadUsage();
+      } catch (err) {
+        setTopError(err.message || 'Unexpected error while sending your message.');
+        setMessages((prev) =>
+          prev.map((m) => (mid && m.id === mid ? { ...m, streaming: false, error: err.message || 'Unexpected error', content: '' } : m)),
+        );
+      } finally {
+        setIsStreaming(false);
+        abortRef.current = null;
       }
+    },
+    [input, isStreaming, currentConversation, selectedModel, settings, activeModel, abortRef, loadConversations, loadUsage],
+  );
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streaming]);
-
-  const handleModelChange = (modelId) => {
-    setSelectedModel(modelId);
+  const applyQuickAction = (action) => {
+    setInput(action.template);
+    requestAnimationFrame(() => {
+      const ta = composerRef.current?.querySelector('textarea');
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
   };
 
-  const filteredConversations = useMemo(() => {
-    if (!searchConversations) return conversations;
-    return conversations.filter(c => 
-      c.title?.toLowerCase().includes(searchConversations.toLowerCase()) ||
-      c.InstanceCode?.toLowerCase().includes(searchConversations.toLowerCase())
+  const runPrimaryQuery = (q) => {
+    setInput(q);
+    requestAnimationFrame(() => handleSend(q));
+  };
+
+  const handleModelClick = ({ key }) => {
+    const id = key.startsWith('model:') ? key.slice(6) : key;
+    if (id) setSelectedModel(id);
+  };
+
+  const renderContent = (content) => {
+    if (!content) return null;
+    const parts = content.split('```');
+    return parts.map((part, i) => {
+      if (i % 2 === 0) {
+        if (!part.trim()) return null;
+        return (
+          <p key={i} className="ai-chat-par">
+            {part}
+          </p>
+        );
+      }
+      return (
+        <pre key={i} className="ai-chat-code">
+          <code>{part}</code>
+        </pre>
+      );
+    });
+  };
+
+  const renderTokenUsage = () => {
+    const total = Number(usage?.monthlyTokenLimit || usage?.totalTokensLimit || 0);
+    const used = Number(usage?.totalTokensUsed || 0);
+    const pct = usagePct;
+    const tone = pct > 95 ? 'danger' : pct > 80 ? 'warn' : 'ok';
+    const label = usageLoading ? 'Loading usage…' : `${formatTokens(used) || 0} / ${formatTokens(total) || '—'} tokens`;
+    return (
+      <div className="ai-chat-usage">
+        <div className="ai-chat-usage-head">
+          <Tooltip title="Open settings">
+            <button type="button" className="ai-chat-usage-title" onClick={() => setSettingsOpen(true)}>
+              <ThunderboltOutlined /> Token usage
+            </button>
+          </Tooltip>
+          <span className={`ai-chat-usage-pct tone-${tone}`}>{pct}%</span>
+        </div>
+        <div className="ai-chat-usage-bar">
+          <span className={`fill tone-${tone}`} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="ai-chat-usage-label">{label}</div>
+      </div>
     );
-  }, [conversations, searchConversations]);
+  };
+
+  const renderModelDropdown = (ghost = false) => (
+    <Dropdown menu={{ items: modelOptions, onClick: handleModelClick }} trigger={['click']} placement="bottomRight">
+      <Button className={ghost ? 'ai-model-trigger ghost' : 'ai-model-trigger'} loading={modelsLoading} icon={<StarOutlined />}>
+        <span className="ai-model-trigger-label">{activeModel?.name || 'Select model'}</span>
+        {activeModel?.context ? <Tag className="ai-tag ai-tag-context">{CONTEXT_LABEL[activeModel.context] || '—'}</Tag> : null}
+      </Button>
+    </Dropdown>
+  );
 
   const renderSidebar = () => (
-    <div style={{
-      width: collapsed ? 64 : SIDEBAR_WIDTH,
-      height: '100vh',
-      background: 'var(--bc-surface-card, #fff)',
-      borderRight: '1px solid var(--bc-border-default, #f0f0f0)',
-      display: 'flex',
-      flexDirection: 'column',
-      transition: 'width 0.3s',
-      overflow: 'hidden',
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-    }}>
-      {/* Sidebar Header */}
-      <div style={{ padding: '16px', borderBottom: '1px solid var(--bc-border-default, #f0f0f0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {!collapsed && (
-          <Space>
-            <RobotOutlined style={{ fontSize: 20, color: '#1677ff' }} />
-            <Text strong style={{ fontSize: 16 }}>RetailOps AI</Text>
-          </Space>
-        )}
-        <Button
-          type="text"
-          icon={collapsed ? <RightOutlined /> : <LeftOutlined />}
-          onClick={() => setCollapsed(!collapsed)}
+    <>
+      <div className="ai-chat-brand">
+        <div className="ai-chat-brand-avatar">
+          <RobotFilled />
+        </div>
+        <div className="ai-chat-brand-text">
+          <span className="ai-chat-brand-name">RetailOps AI</span>
+          <span className="ai-chat-brand-sub">Intelligent assistant</span>
+        </div>
+        <Tag className="ai-tag ai-tag-models">{models.length} models</Tag>
+      </div>
+
+      <div className="ai-chat-sidebar-actions">
+        <Button type="primary" block icon={<PlusOutlined />} onClick={startNewConversation} className="ai-new-chat-btn">
+          New conversation
+        </Button>
+        <Input
+          prefix={<SearchOutlined />}
+          placeholder="Search conversations…"
+          allowClear
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          className="ai-search-input"
         />
       </div>
 
-      {/* New Chat Button */}
-      {!collapsed && (
-        <div style={{ padding: '12px 16px' }}>
-          <Button
-            block
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={createConversation}
-            style={{ fontWeight: 600 }}
-          >
-            New Chat
-          </Button>
-        </div>
-      )}
+      <div className="ai-chat-conv-label">
+        <span>Recents</span>
+        <span className="ai-chat-conv-count">{conversations.length}</span>
+      </div>
 
-      {/* Search Input */}
-      {!collapsed && (
-        <div style={{ padding: '0 16px 12px' }}>
-          <Input.Search
-            placeholder="Search conversations..."
-            value={searchConversations}
-            onChange={e => setSearchConversations(e.target.value)}
-            allowClear
-            style={{ width: '100%' }}
-          />
-        </div>
-      )}
-
-      {/* Conversations List */}
-      <div style={{ flex: 1, overflow: 'auto', padding: collapsed ? '8px' : '0 16px' }}>
-        {filteredConversations.length === 0 ? (
-          !collapsed && (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No conversations"
-              style={{ textAlign: 'center', padding: '20px 0' }}
-            >
-              <Button type="primary" onClick={createConversation} size="small">
-                Start Chat
-              </Button>
-            </Empty>
-          )
-        ) : (
-          <List
-            dataSource={filteredConversations}
-            renderItem={(conv) => (
-              <List.Item
-                key={conv.id}
-                onClick={() => loadConversation(conv.id)}
-                style={{
-                  cursor: 'pointer',
-                  background: currentConversation?.id === conv.id ? '#e6f4ff' : 'transparent',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  marginBottom: 4,
+      <div className="ai-chat-conv-list">
+        {conversationsLoading ? (
+          <div className="ai-chat-conv-skeleton">
+            {[1, 2, 3, 4].map((n) => (
+              <Skeleton key={n} active avatar={{ shape: 'square', size: 36 }} paragraph={{ rows: 1, width: '70%' }} title={false} />
+            ))}
+          </div>
+        ) : filteredConversations.length ? (
+          filteredConversations.map((conv) => {
+            const active = currentConversation?.Id === conv.Id;
+            return (
+              <div
+                key={conv.Id}
+                className={`ai-chat-conv-item${active ? ' active' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => selectConversation(conv)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') selectConversation(conv);
                 }}
-                actions={!collapsed ? [
-                  <Button 
-                    key="del" 
-                    type="text" 
-                    icon={<DeleteOutlined />} 
-                    danger 
-                    size="small" 
-                    onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }} 
-                  />,
-                ] : []}
               >
-                {!collapsed && (
-                  <List.Item.Meta
-                    title={
-                      <Text strong style={{ fontSize: 13, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {conv.title || 'Untitled'}
-                      </Text>
-                    }
-                    description={
-                      <Text style={{ fontSize: 11, color: '#8c8c8c' }}>
-                        {dayjs(conv.UpdatedAt || Date.now()).fromNow()}
-                      </Text>
-                    }
-                  />
-                )}
-              </List.Item>
-            )}
-          />
+                <div className="ai-chat-conv-icon">
+                  <HistoryOutlined />
+                </div>
+                <div className="ai-chat-conv-body">
+                  <div className="ai-chat-conv-title">{conv.Title || 'Untitled'}</div>
+                  <div className="ai-chat-conv-meta">
+                    <span>{conv.UpdatedAt ? dayjs(conv.UpdatedAt).fromNow() : 'now'}</span>
+                    <span className="dot">·</span>
+                    <span>{conv.MessageCount ?? conv.messageCount ?? 0} msgs</span>
+                  </div>
+                </div>
+                <div className="ai-chat-conv-tools">
+                  <Tooltip title="Rename">
+                    <button type="button" className="ai-round-btn" onClick={(e) => { e.stopPropagation(); handleRename(conv); }}>
+                      <EditOutlined />
+                    </button>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <button type="button" className="ai-round-btn danger" onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv); }}>
+                      <DeleteOutlined />
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="ai-chat-conv-empty">
+            <RobotOutlined />
+            <p>{searchText ? 'No conversations match your search.' : 'No conversations yet.'}</p>
+          </div>
         )}
       </div>
 
-      {/* Token Usage Widget */}
-      {!collapsed && (
-        <div style={{ padding: '16px', borderTop: '1px solid var(--bc-border-default, #f0f0f0)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text strong style={{ fontSize: 12 }}>Daily Token Usage</Text>
-            <Badge 
-              count={`${Math.round(usedPercentage)}%`} 
-              style={{ backgroundColor: getUsageColor(usedPercentage) }} 
-            />
-          </div>
-          <div style={{ height: 6, background: '#f0f0f0', borderRadius: 3, overflow: 'hidden' }}>
-            <div 
-              style={{ 
-                width: `${usedPercentage}%`, 
-                height: '100%', 
-                backgroundColor: getUsageColor(usedPercentage),
-                borderRadius: 3,
-                transition: 'width 0.3s ease, background-color 0.3s ease',
-              }} 
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#8c8c8c' }}>
-            <span>{usedPercentage.toFixed(1)}% used</span>
-            <span>{Math.max(0, Math.floor((availableTokens || 0) / 1000))}K remaining</span>
-          </div>
+      <div className="ai-chat-sidebar-footer">{renderTokenUsage()}</div>
+    </>
+  );
+
+  const renderEmptyState = () => (
+    <div className="ai-chat-empty">
+      <div className="ai-chat-empty-hero">
+        <div className="ai-chat-empty-logo">
+          <RobotFilled />
         </div>
-      )}
+      </div>
+      <h1 className="ai-chat-empty-title">How can I help you today?</h1>
+      <p className="ai-chat-empty-sub">
+        Ask questions about your catalog, listings, pricing and inventory. RetailOps AI can query your database tables with
+        {settings.includeDatabase ? ' database context enabled.' : ' database context off.'}
+      </p>
+
+      <div className="ai-chat-quick-grid">
+        {QUICK_ACTIONS.map((action) => (
+          <button type="button" key={action.key} className="ai-quick-card" onClick={() => applyQuickAction(action)}>
+            <div className="ai-quick-icon">{action.icon}</div>
+            <div className="ai-quick-text">
+              <span className="ai-quick-title">{action.title}</span>
+              <span className="ai-quick-desc">{action.desc}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="ai-chat-primary-row">
+        {PRIMARY_QUERIES.map((q) => (
+          <Tag key={q} className="ai-query-chip" onClick={() => runPrimaryQuery(q)}>
+            {q}
+          </Tag>
+        ))}
+      </div>
     </div>
   );
 
-  const renderChatArea = () => (
-    <Content style={{ 
-      flex: 1, 
-      display: 'flex', 
-      flexDirection: 'column', 
-      background: '#f8fafc', 
-      height: '100vh',
-      position: 'relative'
-    }}>
-      
-      {/* 1. TOP HEADER (Fixed Title & Model Selector) */}
-      <div style={{ 
-        padding: '16px 24px', 
-        borderBottom: '1px solid #e2e8f0',
-        background: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-        zIndex: 10
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Text strong style={{ fontSize: 18, color: '#0f172a' }}>
-            {currentConversation?.title || 'RetailOps AI Assistant'}
-          </Text>
-        </div>
-        
-        <Space size={12}>
-          {/* Model Selector Pill */}
-          <Dropdown trigger={['click']} overlay={
-            <Menu style={{ width: 280 }}>
-              <SubMenu key="free" title={<Space><StarOutlined style={{ color: '#f59e0b' }} /> Free Models</Space>}>
-                {MODEL_CATEGORIES.free.models.map(m => (
-                  <Menu.Item key={m.id} onClick={() => handleModelChange(m.id)}>
-                    <Space>
-                      <Text strong>{m.name}</Text>
-                      {selectedModel === m.id && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
-                    </Space>
-                  </Menu.Item>
-                ))}
-              </SubMenu>
-              <SubMenu key="subscription" title={<Space><StarOutlined style={{ color: '#8b5cf6' }} /> Subscription Models</Space>}>
-                {MODEL_CATEGORIES.subscription.models.map(m => (
-                  <Menu.Item key={m.id} onClick={() => handleModelChange(m.id)}>
-                    <Space>
-                      <Text strong>{m.name}</Text>
-                      {selectedModel === m.id && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
-                    </Space>
-                  </Menu.Item>
-                ))}
-              </SubMenu>
-            </Menu>
-          }
-          >
-            <Button style={{ 
-              borderRadius: '20px', 
-              background: '#f1f5f9', 
-              border: 'none', 
-              fontWeight: 500 
-            }} icon={<RobotOutlined style={{ color: '#3b82f6' }} />}>
-              {MODEL_CATEGORIES.free.models.find(m => m.id === selectedModel)?.name || 
-               MODEL_CATEGORIES.subscription.models.find(m => m.id === selectedModel)?.name || 
-               'Select Model'}
-            </Button>
-          </Dropdown>
-          
-          <Button type="text" icon={<SettingOutlined />} onClick={() => setShowSettings(!showSettings)} />
-        </Space>
-      </div>
-
-      {/* 2. CHAT HISTORY / EMPTY STATE */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        padding: '24px', 
-        display: 'flex', 
-        flexDirection: 'column',
-        alignItems: 'center'
-      }}>
-        
-        {/* Container to restrict chat width for better readability */}
-        <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column' }}>
-          
-          {messages.length === 0 ? (
-            // ENHANCED EMPTY STATE
-            <div style={{ marginTop: '10vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <div style={{ padding: '20px', background: '#eff6ff', borderRadius: '50%', marginBottom: 8 }}>
-                <RobotOutlined style={{ fontSize: 48, color: '#3b82f6' }} />
-              </div>
-              <Title level={3} style={{ margin: 0, color: '#0f172a' }}>How can I help you today?</Title>
-              <Text type="secondary" style={{ fontSize: 15 }}>Select a quick action below or type a message to start.</Text>
-              
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', 
-                gap: 12, 
-                marginTop: 32, 
-                width: '100%' 
-              }}>
-                {QUICK_ACTIONS.map((action, i) => (
-                  <Card
-                    key={i}
-                    hoverable
-                    onClick={() => handleSend(action.prompt)}
-                    style={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: 'none' }}
-                    bodyStyle={{ padding: '16px' }}
-                  >
-                    <Space align="start">
-                      <div style={{ color: '#3b82f6', fontSize: 18 }}>{action.icon}</div>
-                      <Text style={{ fontWeight: 500, color: '#334155' }}>{action.label}</Text>
-                    </Space>
-                  </Card>
-                ))}
-              </div>
+  const renderMessageBubble = (m) => {
+    const isUser = m.role === 'user';
+    const isTyping = m.streaming;
+    return (
+      <div key={m.id} className={`ai-msg-row ${isUser ? 'user' : 'assistant'}`}>
+        {!isUser ? (
+          <div className="ai-msg-avatar">
+            <Avatar size={34} icon={<RobotOutlined />} className={m.error ? 'error' : ''} />
+          </div>
+        ) : null}
+        <div className={`ai-msg-stack ${isUser ? 'user' : 'assistant'}`}>
+          {!isUser ? (
+            <div className="ai-msg-meta">
+              <span className="ai-msg-author">RetailOps AI</span>
+              {m.model ? <Tag className="ai-tag ai-tag-model">{m.model}</Tag> : null}
+              {m.tokensUsed ? <span className="ai-msg-tokens">{formatTokens(m.tokensUsed)} tokens</span> : null}
+              {m.createdAt ? <span className="ai-msg-time">{dayjs(m.createdAt).format('HH:mm')}</span> : null}
             </div>
-          ) : (
-            // YOUR EXISTING MESSAGES MAP GOES HERE
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: '40px' }}>
-              {messages.map((msg, i) => (
-                <div key={i} style={{ 
-                  display: 'flex', 
-                  gap: 12, 
-                  alignItems: 'flex-start',
-                  maxWidth: '85%',
-                  marginLeft: msg.role === 'user' ? 'auto' : 0,
-                  marginRight: msg.role === 'user' ? 0 : 'auto',
-                }}>
-                  <Avatar 
-                    size={32} 
-                    icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                    style={{ 
-                      background: msg.role === 'user' ? '#1677ff' : '#e6f4ff',
-                      color: msg.role === 'user' ? '#fff' : '#1677ff',
-                      flexShrink: 0,
-                      marginTop: 4,
-                    }}
-                  />
-                  <div style={{ maxWidth: '100%', minWidth: 100 }}>
-                    <div style={{ 
-                      padding: '10px 14px', 
-                      borderRadius: 12,
-                      background: msg.role === 'user' ? '#1677ff' : '#fff',
-                      color: msg.role === 'user' ? '#fff' : 'inherit',
-                      border: '1px solid #f0f0f0',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                    }}>
-                      <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap', fontSize: 14 }}>
-                        {msg.content}
-                      </div>
-                      {msg.usage && (
-                        <div style={{ marginTop: 8, display: 'flex', gap: 12, fontSize: 10, opacity: 0.7 }}>
-                          <span>Tokens: {msg.usage.total_tokens || msg.usage.totalTokens || 'N/A'}</span>
-                        </div>
-                      )}
-                    </div>
-                    {msg.streaming && <Spin size="small" style={{ marginTop: 6 }} />}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
+          ) : null}
+
+          <div className={`ai-msg-bubble${isUser ? ' user' : ''}${m.error ? ' error' : ''}`}>
+            {m.error ? (
+              <>
+                <strong>Something went wrong.</strong>
+                <span className="ai-msg-error-text">{m.error}</span>
+              </>
+            ) : (
+              renderContent(m.content)
+            )}
+            {isTyping ? (
+              <span className="ai-typing">
+                <i />
+                <i />
+                <i />
+              </span>
+            ) : null}
+          </div>
+
+          {!isUser && !isTyping ? (
+            <div className="ai-msg-tools">
+              <Tooltip title="Copy response">
+                <button type="button" className="ai-round-btn sm" onClick={() => handleCopy(m.id, m.content)}>
+                  {copiedId === m.id ? <CheckOutlined /> : <CopyOutlined />}
+                </button>
+              </Tooltip>
+              <span className="ai-msg-hint">{m.stopped ? 'Stopped' : null}</span>
             </div>
-          )}
+          ) : null}
         </div>
+        {isUser ? (
+          <div className="ai-msg-avatar user">
+            <Avatar size={34} icon={<UserOutlined />} />
+          </div>
+        ) : null}
       </div>
+    );
+  };
 
-      {/* 3. REDESIGNED CHAT INPUT AREA (ChatGPT Style) */}
-      <div style={{ 
-        padding: '0 24px 24px 24px', 
-        background: 'linear-gradient(180deg, transparent, #f8fafc 20%)',
-        display: 'flex',
-        justifyContent: 'center'
-      }}>
-        <div style={{ 
-          width: '100%', 
-          maxWidth: '800px', 
-          background: '#ffffff', 
-          border: '1px solid #cbd5e1', 
-          borderRadius: '16px',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
-          overflow: 'hidden',
-          transition: 'border-color 0.2s',
-        }}>
-          <TextArea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onPressEnter={e => { if (!e.shiftKey) { e.preventDefault(); handleSend(inputValue); }}}
-            placeholder="Ask RetailOps AI anything... (Shift+Enter for new line)"
-            autoSize={{ minRows: 1, maxRows: 8 }}
-            bordered={false}
-            style={{ 
-              padding: '16px', 
-              fontSize: 15, 
-              boxShadow: 'none',
-              resize: 'none',
-              border: 'none',
-            }}
-          />
-          
-          {/* Footer of the input box containing settings & send button */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            padding: '8px 12px',
-            background: '#f8fafc',
-            borderTop: '1px solid #f1f5f9'
-          }}>
-            <Space size={16}>
-              <Tooltip title="Include Database Context">
-                <Space size={6}>
-                  <DatabaseOutlined style={{ color: includeDatabase ? '#3b82f6' : '#94a3b8' }} />
-                  <Switch checked={includeDatabase} onChange={setIncludeDatabase} size="small" />
-                </Space>
-              </Tooltip>
-              <Tooltip title="Model Creativity (Temperature)">
-                <Space size={6}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Temp:</Text>
-                  <InputNumber 
-                    min={0} max={2} step={0.1} size="small"
-                    value={temperature} onChange={setTemperature}
-                    style={{ width: 60, fontSize: 12 }} 
-                  />
-                </Space>
-              </Tooltip>
-            </Space>
-
-            <Button
-              type="primary"
-              shape="circle"
-              icon={streaming ? <LoadingOutlined /> : <SendOutlined />}
-              onClick={() => handleSend(inputValue)}
-              disabled={!inputValue.trim() || streaming || loading}
-              style={{ 
-                background: inputValue.trim() ? '#1677ff' : '#e2e8f0', 
-                color: inputValue.trim() ? '#fff' : '#94a3b8',
-                border: 'none'
-              }}
-            />
+  const renderComposer = () => (
+    <div className="ai-chat-composer-wrap">
+      {isStreaming ? (
+        <div className="ai-chat-streaming-note">
+          <span className="ai-typing">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>RetailOps AI is responding…</span>
+        </div>
+      ) : null}
+      <div className="ai-chat-composer">
+        <Input.TextArea
+          ref={composerRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Message RetailOps AI…  (Enter to send, Shift+Enter for a new line)"
+          autoSize={{ minRows: 1, maxRows: 8 }}
+          variant="borderless"
+          disabled={isStreaming}
+        />
+        <div className="ai-chat-composer-actions">
+          <div className="ai-chat-composer-left">
+            <Tooltip title={settings.includeDatabase ? 'Database context is ON' : 'Database context is OFF'}>
+              <button
+                type="button"
+                className={`ai-db-chip${settings.includeDatabase ? ' on' : ''}`}
+                onClick={() => setSettings((s) => ({ ...s, includeDatabase: !s.includeDatabase }))}
+              >
+                <DatabaseOutlined />
+                <span>Database</span>
+              </button>
+            </Tooltip>
+            <span className="ai-composer-model">{activeModel?.name}</span>
+          </div>
+          <div className="ai-chat-composer-right">
+            {isStreaming ? (
+              <Button type="primary" danger shape="circle" icon={<StopOutlined />} onClick={handleStop} className="ai-send-btn" />
+            ) : (
+              <Button
+                type="primary"
+                shape="circle"
+                icon={<SendOutlined />}
+                onClick={() => handleSend()}
+                disabled={!input.trim()}
+                className="ai-send-btn"
+              />
+            )}
           </div>
         </div>
       </div>
-
-    </Content>
+      <div className="ai-chat-composer-foot">
+        <span>RetailOps AI can make mistakes. Verify important data before acting on it.</span>
+      </div>
+    </div>
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {sidebarOpen && <Sider collapsible collapsed={collapsed} trigger={null} style={{ width: SIDEBAR_WIDTH }}>{renderSidebar()}</Sider>}
-      {renderChatArea()}
-    </Layout>
+    <div className="ai-chat-page">
+      {topError ? (
+        <div className="ai-chat-error-banner">
+          <span className="ai-chat-error-icon">!</span>
+          <span className="ai-chat-error-text">{topError}</span>
+          <button type="button" className="ai-btn-close" onClick={() => setTopError('')}>
+            <CloseOutlined />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="ai-chat-body">
+        {!isMobile && !sidebarCollapsed ? <aside className="ai-chat-sidebar">{renderSidebar()}</aside> : null}
+
+        <main className="ai-chat-main">
+          <header className="ai-chat-topbar">
+            <div className="ai-chat-topbar-left">
+              {isMobile ? (
+                <button type="button" className="ai-round-btn sm" onClick={() => setMobileOpen(true)}>
+                  <MenuOutlined />
+                </button>
+              ) : (
+                <Tooltip title={sidebarCollapsed ? 'Show conversations' : 'Hide conversations'}>
+                  <button
+                    type="button"
+                    className="ai-round-btn sm"
+                    onClick={() => setSidebarCollapsed((v) => !v)}
+                  >
+                    {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                  </button>
+                </Tooltip>
+              )}
+              <div className="ai-chat-title-block">
+                <span className="ai-chat-title">{currentConversation?.Title || 'New conversation'}</span>
+                <span className="ai-chat-title-meta">
+                  {messages.length > 0 ? `${messages.length} messages` : 'Start a conversation below'}
+                </span>
+              </div>
+            </div>
+            <div className="ai-chat-topbar-right">
+              {renderModelDropdown()}
+              <Tooltip title="Settings">
+                <button type="button" className="ai-round-btn" onClick={() => setSettingsOpen(true)}>
+                  <SettingOutlined />
+                </button>
+              </Tooltip>
+            </div>
+          </header>
+
+          <div className="ai-chat-scroll" ref={scrollRef}>
+            <div className="ai-chat-scroll-inner">
+              {messagesLoading ? (
+                <MessagesSkeleton />
+              ) : messages.length ? (
+                messages.map(renderMessageBubble)
+              ) : (
+                renderEmptyState()
+              )}
+            </div>
+          </div>
+
+          {renderComposer()}
+        </main>
+      </div>
+
+      {isMobile ? (
+        <Drawer
+          placement="left"
+          width={316}
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          closable={false}
+          styles={{ body: { padding: 0 } }}
+          className="ai-chat-mobile-drawer"
+        >
+          <div className="ai-chat-sidebar mobile">{renderSidebar()}</div>
+        </Drawer>
+      ) : null}
+
+      <Drawer
+        title="AI settings"
+        placement="right"
+        width={380}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        className="ai-chat-settings"
+      >
+        <div className="ai-settings-section">
+          <h3 className="ai-settings-head">
+            <StarOutlined /> Model
+          </h3>
+          <p className="ai-settings-desc">Choose which Gemini model handles your messages.</p>
+          {renderModelDropdown(true)}
+          {activeModel?.notes ? <p className="ai-settings-note">{activeModel.notes}</p> : null}
+        </div>
+
+        <div className="ai-settings-section">
+          <h3 className="ai-settings-head">
+            <ExperimentOutlined /> Response
+          </h3>
+          <div className="ai-settings-field">
+            <div className="ai-settings-field-label">
+              <span>Temperature</span>
+              <Tag className="ai-tag">{settings.temperature.toFixed(1)}</Tag>
+            </div>
+            <Slider
+              min={0}
+              max={2}
+              step={0.1}
+              value={settings.temperature}
+              onChange={(v) => setSettings((s) => ({ ...s, temperature: v }))}
+              tooltip={{ open: false }}
+            />
+            <span className="ai-settings-hint">Lower = precise, higher = creative.</span>
+          </div>
+          <div className="ai-settings-field">
+            <div className="ai-settings-field-label">
+              <span>Max output tokens</span>
+            </div>
+            <Input
+              type="number"
+              min={256}
+              max={8192}
+              step={256}
+              value={settings.maxTokens}
+              onChange={(e) => setSettings((s) => ({ ...s, maxTokens: Number(e.target.value) || 2048 }))}
+            />
+          </div>
+          <div className="ai-settings-field">
+            <div className="ai-settings-field-label">
+              <span>Stream responses</span>
+            </div>
+            <Switch checked={settings.streaming} onChange={(v) => setSettings((s) => ({ ...s, streaming: v }))} />
+          </div>
+        </div>
+
+        <div className="ai-settings-section">
+          <h3 className="ai-settings-head">
+            <DatabaseOutlined /> Context
+          </h3>
+          <div className="ai-settings-field row">
+            <div className="ai-settings-field-label">
+              <span>Include database</span>
+              <span className="ai-settings-hint">Let the assistant run SQL over your tables.</span>
+            </div>
+            <Switch
+              checked={settings.includeDatabase}
+              onChange={(v) => setSettings((s) => ({ ...s, includeDatabase: v }))}
+            />
+          </div>
+        </div>
+
+        <div className="ai-settings-section">
+          <h3 className="ai-settings-head">
+            <RobotOutlined /> Assistance
+          </h3>
+          <div className="ai-settings-field">
+            <span className="ai-settings-field-label">System architecture</span>
+            <Select
+              style={{ width: '100%' }}
+              value={settings.systemPrompt}
+              onChange={(v) => setSettings((s) => ({ ...s, systemPrompt: v }))}
+              options={SYSTEM_PROMPTS}
+            />
+          </div>
+        </div>
+
+        <div className="ai-settings-actions">
+          <Button block onClick={() => setSettings(DEFAULT_SETTINGS)}>
+            Reset defaults
+          </Button>
+        </div>
+      </Drawer>
+
+      <Modal
+        title="Rename conversation"
+        open={!!renameTarget}
+        onOk={confirmRename}
+        onCancel={() => setRenameTarget(null)}
+        okText="Save"
+        cancelText="Cancel"
+        destroyOnClose
+      >
+        <Input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onPressEnter={confirmRename}
+          placeholder="Conversation title"
+          autoFocus
+        />
+      </Modal>
+
+      <style>{`
+        .ai-chat-page {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          background: var(--bc-surface-page);
+          color: var(--bc-text-body);
+          overflow: hidden;
+        }
+        .ai-chat-error-banner {
+          display: flex;
+          align-items: center;
+          gap: var(--bc-space-3);
+          padding: var(--bc-space-3) var(--bc-space-5);
+          background: var(--bc-red-50);
+          border-bottom: 1px solid var(--bc-red-200);
+          color: var(--bc-red-700);
+          font-size: var(--bc-text-sm);
+        }
+        body.bc-dark .ai-chat-error-banner { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border-color: var(--bc-red-800); }
+        .ai-chat-error-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px; height: 18px;
+          border-radius: var(--bc-radius-full);
+          background: var(--bc-red-500);
+          color: var(--bc-white);
+          font-weight: var(--bc-weight-bold);
+          font-size: 11px;
+          flex-shrink: 0;
+        }
+        .ai-chat-error-text { flex: 1; }
+        .ai-btn-close {
+          border: none;
+          background: transparent;
+          color: inherit;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+        }
+        .ai-chat-body { flex: 1; display: flex; min-height: 0; }
+        .ai-chat-sidebar {
+          width: 304px;
+          flex-shrink: 0;
+          border-right: 1px solid var(--bc-border-subtle);
+          background: var(--bc-surface-card);
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        .ai-chat-sidebar.mobile { width: 100%; height: 100%; border-right: none; }
+        .ai-chat-brand {
+          display: flex;
+          align-items: center;
+          gap: var(--bc-space-3);
+          padding: var(--bc-space-5) var(--bc-space-4) var(--bc-space-3);
+        }
+        .ai-chat-brand-avatar {
+          width: 40px; height: 40px;
+          border-radius: var(--bc-radius-xl);
+          background: linear-gradient(135deg, var(--bc-ro-500), var(--bc-primary-600));
+          color: var(--bc-white);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          box-shadow: var(--bc-shadow-sm);
+          flex-shrink: 0;
+        }
+        .ai-chat-brand-text { display: flex; flex-direction: column; min-width: 0; }
+        .ai-chat-brand-name { font-weight: var(--bc-weight-semibold); color: var(--bc-text-heading); font-size: var(--bc-text-base); }
+        .ai-chat-brand-sub { color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
+        .ai-tag { border: none; font-size: 11px; line-height: 18px; }
+        .ai-tag-models { background: var(--bc-primary-50); color: var(--bc-primary-500); margin: 0; }
+        .ai-tag-context { background: var(--bc-slate-100); color: var(--bc-slate-600); margin: 0; }
+        body.bc-dark .ai-tag-context { background: var(--bc-surface-hover); color: var(--bc-text-secondary); }
+        .ai-tag-weight { background: var(--bc-amber-100); color: var(--bc-amber-800); margin: 0; }
+        body.bc-dark .ai-tag-weight { background: rgba(245, 158, 11, 0.18); color: #fbbf24; }
+        .ai-tag-model { background: var(--bc-ro-50); color: var(--bc-ro-700); margin: 0; }
+        body.bc-dark .ai-tag-model { background: rgba(25, 118, 210, 0.18); color: #90caf9; }
+        .ai-chat-sidebar-actions { display: flex; flex-direction: column; gap: var(--bc-space-3); padding: var(--bc-space-2) var(--bc-space-4) var(--bc-space-3); }
+        .ai-new-chat-btn { height: 38px; border-radius: var(--bc-radius-lg); font-weight: var(--bc-weight-medium); }
+        .ai-new-chat-btn.ant-btn-primary { background: var(--bc-primary-500); box-shadow: none; }
+        .ai-new-chat-btn.ant-btn-primary:hover { background: var(--bc-primary-600); }
+        .ai-search-input.ant-input-affix-wrapper { background: var(--bc-surface-page); border-color: var(--bc-border-default); border-radius: var(--bc-radius-lg); }
+        body.bc-dark .ai-search-input.ant-input-affix-wrapper { background: var(--bc-surface-muted); }
+        .ai-search-input .ant-input-prefix { color: var(--bc-text-muted); }
+        .ai-chat-conv-label {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: var(--bc-space-2) var(--bc-space-4);
+          color: var(--bc-text-muted);
+          font-size: var(--bc-text-xs);
+          text-transform: uppercase;
+          letter-spacing: var(--bc-tracking-wide);
+        }
+        .ai-chat-conv-count { background: var(--bc-slate-100); color: var(--bc-slate-600); padding: 0 8px; border-radius: var(--bc-radius-full); font-size: 11px; }
+        body.bc-dark .ai-chat-conv-count { background: var(--bc-surface-hover); color: var(--bc-text-secondary); }
+        .ai-chat-conv-list { flex: 1; overflow-y: auto; padding: 0 var(--bc-space-2); min-height: 0; }
+        .ai-chat-conv-skeleton { padding: var(--bc-space-2) var(--bc-space-2); }
+        .ai-chat-conv-skeleton .ant-skeleton { margin-bottom: var(--bc-space-4); }
+        .ai-chat-conv-item {
+          display: flex; align-items: center; gap: var(--bc-space-3);
+          padding: var(--bc-space-3);
+          border-radius: var(--bc-radius-lg);
+          cursor: pointer;
+          transition: background var(--bc-transition-fast);
+          position: relative;
+        }
+        .ai-chat-conv-item:hover { background: var(--bc-surface-hover); }
+        .ai-chat-conv-item.active { background: var(--bc-primary-50); }
+        body.bc-dark .ai-chat-conv-item.active { background: var(--bc-primary-100); }
+        .ai-chat-conv-item.active::before {
+          content: '';
+          position: absolute; left: -2px; top: 20%; bottom: 20%;
+          width: 3px; border-radius: var(--bc-radius-full);
+          background: var(--bc-primary-500);
+        }
+        .ai-chat-conv-icon {
+          width: 34px; height: 34px; flex-shrink: 0;
+          border-radius: var(--bc-radius-md);
+          background: var(--bc-surface-page);
+          border: 1px solid var(--bc-border-subtle);
+          color: var(--bc-text-secondary);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px;
+        }
+        body.bc-dark .ai-chat-conv-icon { background: var(--bc-surface-muted); }
+        .ai-chat-conv-item.active .ai-chat-conv-icon { background: var(--bc-primary-500); border-color: var(--bc-primary-500); color: var(--bc-white); }
+        .ai-chat-conv-body { flex: 1; min-width: 0; }
+        .ai-chat-conv-title { color: var(--bc-text-heading); font-size: var(--bc-text-sm); font-weight: var(--bc-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ai-chat-conv-meta { color: var(--bc-text-muted); font-size: var(--bc-text-xs); margin-top: 2px; }
+        .ai-chat-conv-meta .dot { margin: 0 4px; }
+        .ai-chat-conv-tools { display: none; align-items: center; gap: 2px; flex-shrink: 0; }
+        .ai-chat-conv-item:hover .ai-chat-conv-tools { display: flex; }
+        .ai-round-btn {
+          border: none; background: transparent; cursor: pointer;
+          width: 30px; height: 30px;
+          display: inline-flex; align-items: center; justify-content: center;
+          border-radius: var(--bc-radius-md);
+          color: var(--bc-text-secondary);
+          transition: background var(--bc-transition-fast), color var(--bc-transition-fast);
+          font-size: 14px;
+        }
+        .ai-round-btn:hover { background: var(--bc-surface-hover); color: var(--bc-text-heading); }
+        .ai-round-btn.danger:hover { background: var(--bc-red-50); color: var(--bc-red-600); }
+        body.bc-dark .ai-round-btn.danger:hover { background: rgba(239, 68, 68, 0.15); }
+        .ai-round-btn.sm { width: 28px; height: 28px; font-size: 14px; }
+        .ai-chat-conv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--bc-space-2); padding: var(--bc-space-10) var(--bc-space-4); color: var(--bc-text-muted); font-size: var(--bc-text-sm); text-align: center; }
+        .ai-chat-conv-empty .anticon { font-size: 26px; color: var(--bc-slate-300); }
+        body.bc-dark .ai-chat-conv-empty .anticon { color: var(--bc-slate-600); }
+        .ai-chat-sidebar-footer { padding: var(--bc-space-4); border-top: 1px solid var(--bc-border-subtle); }
+        .ai-chat-usage-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--bc-space-2); }
+        .ai-chat-usage-title { border: none; background: none; cursor: pointer; color: var(--bc-text-secondary); font-size: var(--bc-text-xs); font-weight: var(--bc-weight-medium); display: inline-flex; align-items: center; gap: 6px; padding: 0; }
+        .ai-chat-usage-title:hover { color: var(--bc-text-heading); }
+        .ai-chat-usage-pct { font-size: var(--bc-text-xs); font-weight: var(--bc-weight-semibold); }
+        .ai-chat-usage-pct.tone-ok { color: var(--bc-green-600); }
+        .ai-chat-usage-pct.tone-warn { color: var(--bc-amber-600); }
+        .ai-chat-usage-pct.tone-danger { color: var(--bc-red-600); }
+        .ai-chat-usage-bar { height: 6px; border-radius: var(--bc-radius-full); background: var(--bc-surface-hover); overflow: hidden; }
+        .ai-chat-usage-bar .fill { display: block; height: 100%; border-radius: var(--bc-radius-full); transition: width 0.4s var(--bc-ease-out); }
+        .ai-chat-usage-bar .fill.tone-ok { background: var(--bc-green-500); }
+        .ai-chat-usage-bar .fill.tone-warn { background: var(--bc-amber-500); }
+        .ai-chat-usage-bar .fill.tone-danger { background: var(--bc-red-500); }
+        .ai-chat-usage-label { margin-top: var(--bc-space-2); color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
+
+        .ai-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+        .ai-chat-topbar {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: var(--bc-space-3);
+          padding: var(--bc-space-3) var(--bc-space-5);
+          border-bottom: 1px solid var(--bc-border-subtle);
+          background: var(--bc-surface-page);
+        }
+        .ai-chat-topbar-left { display: flex; align-items: center; gap: var(--bc-space-3); min-width: 0; }
+        .ai-chat-title-block { display: flex; flex-direction: column; min-width: 0; }
+        .ai-chat-title { color: var(--bc-text-heading); font-weight: var(--bc-weight-semibold); font-size: var(--bc-text-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ai-chat-title-meta { color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
+        .ai-chat-topbar-right { display: flex; align-items: center; gap: var(--bc-space-2); }
+        .ai-model-trigger {
+          display: inline-flex; align-items: center; gap: 8px;
+          border-color: var(--bc-border-default);
+          color: var(--bc-text-body);
+          background: var(--bc-surface-card);
+          border-radius: var(--bc-radius-lg);
+          height: 34px;
+          max-width: 260px;
+        }
+        .ai-model-trigger:hover { border-color: var(--bc-primary-500); color: var(--bc-primary-500); }
+        .ai-model-trigger .ai-model-trigger-label { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--bc-text-sm); }
+        .ai-model-trigger .ai-tag { margin-left: auto; }
+        .ai-model-opt { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 220px; }
+        .ai-model-opt-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ai-model-opt-badges { display: flex; gap: 4px; flex-shrink: 0; }
+        .ai-model-opt-check { color: var(--bc-primary-500); flex-shrink: 0; }
+
+        .ai-chat-scroll { flex: 1; overflow-y: auto; min-height: 0; scroll-behavior: smooth; }
+        .ai-chat-scroll-inner { max-width: 860px; margin: 0 auto; padding: var(--bc-space-8) var(--bc-space-5) var(--bc-space-4); display: flex; flex-direction: column; gap: var(--bc-space-6); }
+        .ai-chat-skeleton-wrap { display: flex; flex-direction: column; gap: var(--bc-space-6); }
+        .ai-chat-skeleton-row { max-width: 78%; }
+        .ai-chat-skeleton-row.right { align-self: flex-end; width: 60%; }
+        .ai-chat-skeleton-row .ant-skeleton-paragraph > li, .ai-chat-skeleton-row .ant-skeleton-title {
+          border-radius: var(--bc-radius-md);
+        }
+        .ai-chat-skeleton-row .ant-skeleton-title { border-radius: var(--bc-radius-md); }
+
+        .ai-msg-row { display: flex; gap: var(--bc-space-3); align-items: flex-start; }
+        .ai-msg-row.user { justify-content: flex-end; }
+        .ai-msg-avatar { flex-shrink: 0; margin-top: 2px; }
+        .ai-msg-avatar .ant-avatar { background: var(--bc-surface-hover); color: var(--bc-primary-500); border: 1px solid var(--bc-border-subtle); }
+        .ai-msg-avatar .ant-avatar.error { background: var(--bc-red-50); color: var(--bc-red-600); border-color: var(--bc-red-200); }
+        .ai-msg-avatar.user .ant-avatar { background: var(--bc-primary-500); color: var(--bc-white); border: none; }
+        .ai-msg-stack { display: flex; flex-direction: column; gap: var(--bc-space-2); max-width: 78%; min-width: 0; }
+        .ai-msg-stack.user { align-items: flex-end; }
+        .ai-msg-meta { display: flex; align-items: center; gap: 8px; padding-left: 2px; }
+        .ai-msg-author { font-size: var(--bc-text-xs); font-weight: var(--bc-weight-semibold); color: var(--bc-text-secondary); }
+        .ai-msg-time, .ai-msg-tokens { font-size: var(--bc-text-xs); color: var(--bc-text-muted); }
+        .ai-msg-bubble {
+          background: var(--bc-surface-card);
+          border: 1px solid var(--bc-border-subtle);
+          border-radius: var(--bc-radius-xl);
+          border-top-left-radius: var(--bc-radius-sm);
+          padding: var(--bc-space-4) var(--bc-space-5);
+          box-shadow: var(--bc-shadow-card);
+          color: var(--bc-text-body);
+          font-size: var(--bc-text-sm);
+          line-height: 1.6;
+        }
+        .ai-msg-bubble.user {
+          background: var(--bc-primary-500);
+          border-color: var(--bc-primary-500);
+          border-radius: var(--bc-radius-xl);
+          border-top-right-radius: var(--bc-radius-sm);
+          color: var(--bc-white);
+          box-shadow: var(--bc-shadow-sm);
+        }
+        .ai-msg-bubble.error {
+          background: var(--bc-red-50);
+          border-color: var(--bc-red-200);
+          color: var(--bc-red-700);
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        body.bc-dark .ai-msg-bubble.error { background: rgba(239,68,68,0.12); border-color: var(--bc-red-800); color: #fca5a5; }
+        .ai-msg-error-text { color: inherit; opacity: 0.85; }
+        .ai-msg-bubble.user strong { color: var(--bc-white); }
+        .ai-chat-par { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .ai-chat-par:last-child { margin-bottom: 0; }
+        .ai-chat-code {
+          margin: var(--bc-space-3) 0;
+          padding: var(--bc-space-3) var(--bc-space-4);
+          background: var(--bc-slate-900);
+          color: #e2e8f0;
+          border-radius: var(--bc-radius-md);
+          font-family: var(--bc-font-mono);
+          font-size: var(--bc-text-xs);
+          overflow-x: auto;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        .ai-msg-bubble.user .ai-chat-code { background: rgba(0, 0, 0, 0.28); color: #fff; }
+        .ai-typing { display: inline-flex; gap: 4px; align-items: center; padding: 4px 2px; }
+        .ai-typing i { width: 6px; height: 6px; border-radius: var(--bc-radius-full); background: var(--bc-text-muted); animation: ai-blink 1.2s infinite; }
+        .ai-typing i:nth-child(2) { animation-delay: 0.2s; }
+        .ai-typing i:nth-child(3) { animation-delay: 0.4s; }
+        .ai-msg-bubble.user .ai-typing i { background: rgba(255,255,255,0.8); }
+        @keyframes ai-blink { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1); } }
+        .ai-msg-tools { display: flex; align-items: center; gap: 4px; padding-left: 2px; }
+        .ai-msg-hint { font-size: var(--bc-text-xs); color: var(--bc-text-muted); }
+        body.bc-dark .ai-msg-bubble.user { background: var(--bc-primary-600); border-color: var(--bc-primary-600); }
+
+        .ai-chat-composer-wrap { padding: var(--bc-space-3) var(--bc-space-5) var(--bc-space-4); background: var(--bc-surface-page); }
+        .ai-chat-streaming-note { display: flex; align-items: center; gap: 8px; max-width: 860px; margin: 0 auto 8px; color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
+        .ai-chat-composer {
+          max-width: 860px;
+          margin: 0 auto;
+          background: var(--bc-surface-card);
+          border: 1px solid var(--bc-border-default);
+          border-radius: var(--bc-radius-2xl);
+          box-shadow: var(--bc-shadow-card);
+          padding: var(--bc-space-3) var(--bc-space-4) var(--bc-space-2);
+          transition: border-color var(--bc-transition-fast), box-shadow var(--bc-transition-fast);
+        }
+        .ai-chat-composer:focus-within {
+          border-color: var(--bc-primary-500);
+          box-shadow: var(--bc-shadow-focus);
+        }
+        .ai-chat-composer .ant-input { color: var(--bc-text-body); font-size: var(--bc-text-sm); }
+        .ai-chat-composer .ant-input::placeholder { color: var(--bc-text-muted); }
+        .ai-chat-composer-actions { display: flex; align-items: center; justify-content: space-between; margin-top: var(--bc-space-2); }
+        .ai-chat-composer-left { display: flex; align-items: center; gap: var(--bc-space-3); min-width: 0; }
+        .ai-db-chip {
+          display: inline-flex; align-items: center; gap: 6px;
+          border: 1px solid var(--bc-border-default);
+          background: var(--bc-surface-page);
+          color: var(--bc-text-secondary);
+          border-radius: var(--bc-radius-full);
+          padding: 3px 10px;
+          font-size: var(--bc-text-xs);
+          font-weight: var(--bc-weight-medium);
+          cursor: pointer;
+          transition: all var(--bc-transition-fast);
+        }
+        .ai-db-chip:hover { border-color: var(--bc-primary-500); color: var(--bc-primary-500); }
+        .ai-db-chip.on { background: var(--bc-green-50); border-color: var(--bc-green-200); color: var(--bc-green-700); }
+        body.bc-dark .ai-db-chip.on { background: rgba(34,197,94,0.14); border-color: var(--bc-green-800); color: #4ade80; }
+        .ai-composer-model { color: var(--bc-text-muted); font-size: var(--bc-text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ai-send-btn.ant-btn-primary { background: var(--bc-primary-500); box-shadow: none; }
+        .ai-send-btn.ant-btn-primary:hover, .ai-send-btn.ant-btn-primary:focus { background: var(--bc-primary-600); }
+        .ai-send-btn.ant-btn-primary[disabled] { background: var(--bc-slate-200); color: var(--bc-slate-500); }
+        .ai-chat-composer-foot { max-width: 860px; margin: var(--bc-space-2) auto 0; text-align: center; color: var(--bc-text-muted); font-size: var(--bc-text-xs); }
+
+        .ai-chat-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--bc-space-10) var(--bc-space-4) var(--bc-space-6); }
+        .ai-chat-empty-hero { margin-bottom: var(--bc-space-6); }
+        .ai-chat-empty-logo {
+          width: 72px; height: 72px;
+          border-radius: var(--bc-radius-3xl);
+          background: linear-gradient(135deg, var(--bc-ro-500), var(--bc-primary-600));
+          color: var(--bc-white);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 36px;
+          box-shadow: var(--bc-shadow-lg);
+        }
+        .ai-chat-empty-title { color: var(--bc-text-heading); font-size: var(--bc-text-3xl); font-weight: var(--bc-weight-bold); margin: 0 0 var(--bc-space-2); letter-spacing: var(--bc-tracking-tight); }
+        .ai-chat-empty-sub { color: var(--bc-text-muted); font-size: var(--bc-text-sm); max-width: 560px; margin: 0 0 var(--bc-space-8); line-height: 1.6; }
+        .ai-chat-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--bc-space-3); width: 100%; max-width: 640px; }
+        .ai-quick-card {
+          display: flex; align-items: flex-start; gap: var(--bc-space-3);
+          text-align: left;
+          background: var(--bc-surface-card);
+          border: 1px solid var(--bc-border-subtle);
+          border-radius: var(--bc-radius-xl);
+          padding: var(--bc-space-4);
+          cursor: pointer;
+          transition: border-color var(--bc-transition-fast), box-shadow var(--bc-transition-fast), transform var(--bc-transition-fast);
+          font-family: inherit;
+        }
+        .ai-quick-card:hover { border-color: var(--bc-primary-500); box-shadow: var(--bc-shadow-md); transform: translateY(-1px); }
+        .ai-quick-icon {
+          width: 38px; height: 38px; flex-shrink: 0;
+          border-radius: var(--bc-radius-lg);
+          background: var(--bc-primary-50);
+          color: var(--bc-primary-500);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 17px;
+        }
+        body.bc-dark .ai-quick-icon { background: rgba(25,118,210,0.16); color: #90caf9; }
+        .ai-quick-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .ai-quick-title { color: var(--bc-text-heading); font-size: var(--bc-text-sm); font-weight: var(--bc-weight-semibold); }
+        .ai-quick-desc { color: var(--bc-text-muted); font-size: var(--bc-text-xs); line-height: 1.5; }
+        .ai-chat-primary-row { display: flex; flex-wrap: wrap; gap: var(--bc-space-2); justify-content: center; max-width: 640px; margin-top: var(--bc-space-6); }
+        .ai-query-chip {
+          border: 1px solid var(--bc-border-default);
+          background: var(--bc-surface-card);
+          color: var(--bc-text-secondary);
+          border-radius: var(--bc-radius-full);
+          padding: 3px 12px;
+          font-size: var(--bc-text-xs);
+          cursor: pointer;
+          transition: all var(--bc-transition-fast);
+          font-weight: var(--bc-weight-medium);
+        }
+        .ai-query-chip:hover { border-color: var(--bc-primary-500); color: var(--bc-primary-500); }
+
+        .ai-settings-section { border: 1px solid var(--bc-border-subtle); border-radius: var(--bc-radius-xl); padding: var(--bc-space-4); margin-bottom: var(--bc-space-4); }
+        .ai-settings-head { display: flex; align-items: center; gap: 8px; color: var(--bc-text-heading); font-size: var(--bc-text-md); font-weight: var(--bc-weight-semibold); margin: 0 0 4px; }
+        .ai-settings-desc, .ai-settings-note { color: var(--bc-text-muted); font-size: var(--bc-text-xs); margin: 0 0 var(--bc-space-3); }
+        .ai-settings-note { margin-top: var(--bc-space-3); margin-bottom: 0; }
+        .ai-settings-field { margin-bottom: var(--bc-space-3); }
+        .ai-settings-field:last-child { margin-bottom: 0; }
+        .ai-settings-field.row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--bc-space-4); }
+        .ai-settings-field-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--bc-text-body); font-size: var(--bc-text-sm); font-weight: var(--bc-weight-medium); margin-bottom: 4px; }
+        .ai-settings-hint { display: block; color: var(--bc-text-muted); font-size: var(--bc-text-xs); font-weight: var(--bc-weight-regular); margin-top: 2px; }
+        .ai-settings-actions { margin-top: var(--bc-space-4); }
+
+        .ai-chat-mobile-drawer .ant-drawer-body { padding: 0; }
+        @media (max-width: 920px) {
+          .ai-chat-quick-grid { grid-template-columns: 1fr; }
+          .ai-chat-scroll-inner { padding: var(--bc-space-6) var(--bc-space-3) var(--bc-space-3); }
+          .ai-chat-composer-wrap, .ai-chat-topbar { padding-left: var(--bc-space-3); padding-right: var(--bc-space-3); }
+          .ai-msg-stack { max-width: 88%; }
+        }
+      `}</style>
+    </div>
   );
-}
+};
+
+export default AIChatPage;
