@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Copy, ChevronDown, ChevronRight, Database, Clock } from 'lucide-react';
+import { Check, Copy, ChevronDown, ChevronRight, Database, Clock, Sparkles } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Markdown } from '@/components/ui/markdown';
 import ActivitySteps from './ActivitySteps';
@@ -10,6 +10,7 @@ const ToolChip = ({ tool }) => {
   const [open, setOpen] = useState(false);
   const isErr = !!tool?.error;
   const rowCount = tool?.rowCount;
+  const isContent = tool?.tool === 'content_priority';
 
   return (
     <div>
@@ -19,8 +20,14 @@ const ToolChip = ({ tool }) => {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        <Database size={12} />
-        {isErr ? 'Data query failed' : `Data query · ${rowCount ?? 0} rows`}
+        {isContent ? <Sparkles size={12} /> : <Database size={12} />}
+        {isErr
+          ? isContent
+            ? 'Content optimization failed'
+            : 'Data query failed'
+          : isContent
+            ? `Content optimization · ${rowCount ?? 0} listings`
+            : `Data query · ${rowCount ?? 0} rows`}
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
       </button>
       {open ? (

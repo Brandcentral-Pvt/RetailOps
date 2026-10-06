@@ -1,8 +1,9 @@
 import { Drawer, Switch } from 'antd';
-import { Database, Globe, Megaphone, Search, Users, ListChecks, FileText, Radio } from 'lucide-react';
+import { Database, Globe, Megaphone, Search, Users, ListChecks, FileText, Radio, Sparkles } from 'lucide-react';
 
 export const DEFAULT_TOOLS = [
   { key: 'database', label: 'RetailOps Database', desc: 'Run approved read-only queries over business tables', icon: Database, on: true },
+  { key: 'content', label: 'Content Optimization', desc: 'Score listing urgency and generate concrete fixes', icon: Sparkles, on: true },
   { key: 'marketplace', label: 'Marketplace Data', desc: 'Amazon, Ajio, Myntra, Flipkart performance', icon: Radio, on: true },
   { key: 'ads', label: 'Advertising Intelligence', desc: 'Campaigns, ad spend, ROAS, trends', icon: Megaphone, on: true },
   { key: 'keywords', label: 'Keyword Research', desc: 'Search term and keyword opportunities', icon: Search, on: false },

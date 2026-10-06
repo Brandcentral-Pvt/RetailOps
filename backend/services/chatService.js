@@ -10,6 +10,7 @@
 
 const apinexService = require('./apinexBondService');
 const databaseAnalysisService = require('./databaseAnalysisService');
+const contentOptimizationService = require('./contentOptimizationService');
 const { sql, getPool } = require('../database/db');
 
 const MAX_CONTEXT_MESSAGES = 20;
@@ -202,6 +203,7 @@ Your capabilities:
 3. Generate reports and visualizations
 4. Help with task management and operations
 5. Multi-model AI responses with model selection
+6. Run the Content Optimization tool to prioritize listings by content-quality urgency (CDQ grade, title grade, LQS grade, A+ presence, description length) and produce fix plans with concrete rewrites
 
 Guidelines:
 - Be concise but thorough
@@ -293,6 +295,61 @@ async function runDatabaseTool(message, options = {}) {
 }
 
 /**
+ * Route a user turn to the right tool, then fall back to normal chat.
+ *  - content-optimization intent  -> deterministic Content Optimization tool
+ *  - otherwise                     -> generic read-only text-to-SQL tool
+ */
+async function runTurnTool(message, options) {
+  if (contentOptimizationService.detectContentIntent(message)) {
+    return contentOptimizationService.runContentPriorityTool(message);
+  }
+  return runDatabaseTool(message, options);
+}
+
+/**
+ * Build the context wrapper shown to the model after a tool has run.
+ */
+function buildToolContext(systemPrompt, toolResult) {
+  const base = `${systemPrompt}\n\n`;
+
+  if (toolResult.tool === 'content_priority') {
+    const detail = toolResult.deepDive
+      ? `\n\nDEEP-DIVE ASIN ${toolResult.deepDive.asin} (issues + recommendations):\n${toolResult.deepDiveJson}`
+      : toolResult.deepUnknown
+        ? '\n\nNo ASIN detail could be resolved for this turn.'
+        : '';
+    return {
+      role: 'system',
+      content:
+        `${base}` +
+        `A Content Optimization tool already ran for this turn.\n` +
+        `It scored ASINs with the weighted framework (CDQ ${contentOptimizationService.WEIGHTS.cdq}, title ${contentOptimizationService.WEIGHTS.title}, missing A+ ${contentOptimizationService.WEIGHTS.aplus}, LQS ${contentOptimizationService.WEIGHTS.lqs}, thin description ${contentOptimizationService.WEIGHTS.thinDesc}) on a 0-100 UrgencyScore.\n\n` +
+        `RANKED URGENCY (${toolResult.rowCount} listings):\n${toolResult.json}${detail}\n\n` +
+        'Respond with:\n' +
+        '1. A markdown table sorted by rank: Rank | ASIN | Title (short) | CDQ | Title | LQS | A+ | Desc | Urgency (band).\n' +
+        '2. A "Fix order" list grouped by band (🔴 CRITICAL, 🟠 HIGH, 🟡 MEDIUM, 🟢 LOW), most urgent first, naming the section to fix first (title / bullets / images / description / A+) for each ASIN.\n' +
+        '3. For the deep-dive ASIN, a concrete optimization plan: a rewritten title, 2-3 rewritten bullets, and a description outline — grounded ONLY in its Issues and Recommendations.\n' +
+        'Never invent numbers or fields that are not in the results.',
+    };
+  }
+
+  const context = toolResult.error
+    ? `You attempted the following SQL query but it failed: ${toolResult.error}\n\nAttempted SQL:\n${toolResult.sql}`
+    : `You queried the database with this SQL:\n${toolResult.sql}` +
+      (toolResult.data
+        ? `\n\nResults (first ${toolResult.data.length} rows${toolResult.truncated ? ', truncated' : ''}):\n${toolResult.json}`
+        : '');
+
+  return {
+    role: 'system',
+    content:
+      `${base}` +
+      `A database tool already ran for this conversation turn. ${context}\n\n` +
+      'Answer the user precisely using ONLY the query results. Format numbers cleanly and use a markdown table when it improves readability. Never invent data that is not in the results.',
+  };
+}
+
+/**
  * Generate AI response with streaming
  */
 async function* streamChatResponse(conversationId, userId, message, options = {}) {
@@ -306,49 +363,29 @@ async function* streamChatResponse(conversationId, userId, message, options = {}
   const modelId = options.modelId || 'free/gpt-6-luna';
   let fullResponse = '';
   let tokensUsed = 0;
-  let toolUsed = null;
 
-  try {
-    // Tool phase: if database context is enabled, plan + execute SQL before answering.
+try {
+    // Tool phase: if database context is enabled, route + run a tool before answering.
     let toolResult = null;
     if (options.includeDatabase) {
-      toolResult = await runDatabaseTool(message, options);
+      toolResult = await runTurnTool(message, options);
       if (toolResult) {
-        if (toolResult.error) {
-          toolUsed = { tool: 'database_query', sql: toolResult.sql, error: toolResult.error };
-          yield {
-            type: 'tool',
-            tool: 'database_query',
-            sql: toolResult.sql,
-            rowCount: 0,
-            error: toolResult.error,
-          };
-        } else {
-          toolUsed = { tool: 'database_query', sql: toolResult.sql, rowCount: toolResult.data.length };
-          yield {
-            type: 'tool',
-            tool: 'database_query',
-            sql: toolResult.sql,
-            rowCount: toolResult.data.length,
-          };
-        }
+        yield {
+          type: 'tool',
+          tool: toolResult.tool,
+          sql: toolResult.sql,
+          rowCount: toolResult.error ? 0 : toolResult.rowCount || toolResult.data?.length || 0,
+          error: toolResult.error,
+        };
       }
     }
 
     // Build the message set shown to the model for the final answer.
     let answerMessages = messages;
     if (toolResult) {
-      const context = toolResult.error
-        ? `You attempted the following SQL query but it failed: ${toolResult.error}\n\nAttempted SQL:\n${toolResult.sql}`
-        : `You queried the database with this SQL:\n${toolResult.sql}\n\nResults (first ${toolResult.data.length} rows${toolResult.truncated ? ', truncated' : ''}):\n${toolResult.json}`;
+      const toolContext = buildToolContext(systemPrompt, toolResult);
       answerMessages = [
-        {
-          role: 'system',
-          content:
-            `${systemPrompt}\n\n` +
-            `A database tool already ran for this conversation turn. ${context}\n\n` +
-            'Answer the user precisely using ONLY the query results. Format numbers cleanly and use a markdown table when it improves readability. Never invent data that is not in the results.',
-        },
+        toolContext,
         ...messages.filter((m) => m.role === 'system').slice(1),
         ...messages.filter((m) => m.role !== 'system'),
       ];
@@ -370,7 +407,9 @@ async function* streamChatResponse(conversationId, userId, message, options = {}
     await saveMessage(conversationId, 'assistant', fullResponse, {
       modelId,
       tokensUsed,
-      toolUsed,
+      toolUsed: toolResult
+        ? { tool: toolResult.tool, rowCount: toolResult.error ? 0 : toolResult.rowCount || toolResult.data?.length || 0, error: toolResult.error }
+        : null,
     });
     
     // Update conversation timestamp
