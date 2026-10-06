@@ -30,10 +30,9 @@ import {
   EditOutlined,
   RobotOutlined,
   DatabaseOutlined,
-  TerminalOutlined,
+  ConsoleSqlOutlined,
   SettingOutlined,
   HistoryOutlined,
-  TrashOutlined,
   StarOutlined,
   BarChartOutlined,
   AreaChartOutlined,
@@ -44,6 +43,7 @@ import {
   FileOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
+const { Title } = Typography;
 import { useNavigate, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -106,7 +106,7 @@ const QUICK_ACTIONS = [
   { label: 'Top Products', icon: <BarChartOutlined />, prompt: 'Show me top 10 products by revenue', category: 'query' },
   { label: 'Inventory Health', icon: <DatabaseOutlined />, prompt: 'Check inventory health and low stock alerts', category: 'query' },
   { label: 'Ad Performance', icon: <AreaChartOutlined />, prompt: 'Analyze advertising ROAS and ACOS trends', category: 'analysis' },
-  { label: 'Write SQL', icon: <TerminalOutlined />, prompt: 'Write SQL for: ', category: 'sql', fill: true },
+  { label: 'Write SQL', icon: <ConsoleSqlOutlined />, prompt: 'Write SQL for: ', category: 'sql', fill: true },
   { label: 'Generate Report', icon: <FileOutlined />, prompt: 'Generate a weekly performance report', category: 'analysis' },
 ];
 
@@ -465,7 +465,7 @@ export default function AIChatPage() {
                   <Button 
                     key="del" 
                     type="text" 
-                    icon={<TrashOutlined />} 
+                    icon={<DeleteOutlined />} 
                     danger 
                     size="small" 
                     onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }} 
@@ -523,191 +523,248 @@ export default function AIChatPage() {
   );
 
   const renderChatArea = () => (
-    <Content style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#fafafa', height: '100vh' }}>
-      {/* Top Header */}
+    <Content style={{ 
+      flex: 1, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      background: '#f8fafc', 
+      height: '100vh',
+      position: 'relative'
+    }}>
+      
+      {/* 1. TOP HEADER (Fixed Title & Model Selector) */}
       <div style={{ 
         padding: '16px 24px', 
-        borderBottom: '1px solid #f0f0f0',
-        background: '#fff',
+        borderBottom: '1px solid #e2e8f0',
+        background: '#ffffff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+        zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Text strong style={{ fontSize: 18 }}>
-            {currentConversation?.title || 'Select or start a conversation'}
+          <Text strong style={{ fontSize: 18, color: '#0f172a' }}>
+            {currentConversation?.title || 'RetailOps AI Assistant'}
           </Text>
-          {currentConversation?.Status && (
-            <Tag color={WORKFLOW_STATUSES[currentConversation.Status]?.color || 'default'}>
-              {WORKFLOW_STATUSES[currentConversation.Status]?.label || currentConversation.Status}
-            </Tag>
-          )}
         </div>
         
-        <Space size={8}>
-          <Dropdown
-            trigger={['click']}
-            overlay={
-              <Menu style={{ width: 280 }}>
-                <SubMenu key="free" title={<Space><StarOutlined style={{ color: '#f59e0b' }} /> Free Models</Space>}>
-                  {MODEL_CATEGORIES.free.models.map(m => (
-                    <Menu.Item key={m.id} onClick={() => handleModelChange(m.id)}>
-                      <Space>
-                        <Text strong>{m.name}</Text>
-                        {selectedModel === m.id && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
-                      </Space>
-                    </Menu.Item>
-                  ))}
-                </SubMenu>
-                <SubMenu key="subscription" title={<Space><StarOutlined style={{ color: '#8b5cf6' }} /> Subscription Models</Space>}>
-                  {MODEL_CATEGORIES.subscription.models.map(m => (
-                    <Menu.Item key={m.id} onClick={() => handleModelChange(m.id)}>
-                      <Space>
-                        <Text strong>{m.name}</Text>
-                        {selectedModel === m.id && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
-                      </Space>
-                    </Menu.Item>
-                  ))}
-                </SubMenu>
-              </Menu>
-            }
+        <Space size={12}>
+          {/* Model Selector Pill */}
+          <Dropdown trigger={['click']} overlay={
+            <Menu style={{ width: 280 }}>
+              <SubMenu key="free" title={<Space><StarOutlined style={{ color: '#f59e0b' }} /> Free Models</Space>}>
+                {MODEL_CATEGORIES.free.models.map(m => (
+                  <Menu.Item key={m.id} onClick={() => handleModelChange(m.id)}>
+                    <Space>
+                      <Text strong>{m.name}</Text>
+                      {selectedModel === m.id && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
+                    </Space>
+                  </Menu.Item>
+                ))}
+              </SubMenu>
+              <SubMenu key="subscription" title={<Space><StarOutlined style={{ color: '#8b5cf6' }} /> Subscription Models</Space>}>
+                {MODEL_CATEGORIES.subscription.models.map(m => (
+                  <Menu.Item key={m.id} onClick={() => handleModelChange(m.id)}>
+                    <Space>
+                      <Text strong>{m.name}</Text>
+                      {selectedModel === m.id && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
+                    </Space>
+                  </Menu.Item>
+                ))}
+              </SubMenu>
+            </Menu>
+          }
           >
-            <Button icon={<RobotOutlined />}>
+            <Button style={{ 
+              borderRadius: '20px', 
+              background: '#f1f5f9', 
+              border: 'none', 
+              fontWeight: 500 
+            }} icon={<RobotOutlined style={{ color: '#3b82f6' }} />}>
               {MODEL_CATEGORIES.free.models.find(m => m.id === selectedModel)?.name || 
                MODEL_CATEGORIES.subscription.models.find(m => m.id === selectedModel)?.name || 
                'Select Model'}
             </Button>
           </Dropdown>
-
-          <Dropdown
-            trigger={['click']}
-            overlay={
-              <Menu>
-                <Menu.Item key="settings" icon={<SettingOutlined />} onClick={() => setShowSettings(!showSettings)}>
-                  Settings
-                </Menu.Item>
-                <Menu.Item key="clear" icon={<DeleteOutlined />} danger onClick={() => setMessages([])}>
-                  Clear View
-                </Menu.Item>
-              </Menu>
-            }
-          >
-            <Button icon={<SettingOutlined />} />
-          </Dropdown>
+          
+          <Button type="text" icon={<SettingOutlined />} onClick={() => setShowSettings(!showSettings)} />
         </Space>
       </div>
 
-      {/* Message History */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px', display: 'flex', flexDirection: 'column' }}>
-        {messages.length === 0 ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-            <RobotOutlined style={{ fontSize: 56, color: '#91caff' }} />
-            <Text strong style={{ fontSize: 20 }}>Welcome to RetailOps AI</Text>
-            <Text type="secondary">Select a quick action below or type a message to start.</Text>
-            
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 16, maxWidth: 600 }}>
-              {QUICK_ACTIONS.map((action, i) => (
-                <Button
-                  key={i}
-                  icon={action.icon}
-                  onClick={() => {
-                    if (action.fill) {
-                      setInputValue(action.prompt);
-                    } else {
-                      handleSend(action.prompt);
-                    }
-                  }}
-                >
-                  {action.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{ 
-                display: 'flex', 
-                gap: 12, 
-                alignItems: 'flex-start',
-                maxWidth: '85%',
-                marginLeft: msg.role === 'user' ? 'auto' : 0,
-                marginRight: msg.role === 'user' ? 0 : 'auto',
-              }}>
-                <Avatar 
-                  size={32} 
-                  icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                  style={{ 
-                    background: msg.role === 'user' ? '#1677ff' : '#e6f4ff',
-                    color: msg.role === 'user' ? '#fff' : '#1677ff',
-                    flexShrink: 0,
-                    marginTop: 4,
-                  }}
-                />
-                <div style={{ maxWidth: '100%', minWidth: 100 }}>
-                  <div style={{ 
-                    padding: '10px 14px', 
-                    borderRadius: 12,
-                    background: msg.role === 'user' ? '#1677ff' : '#fff',
-                    color: msg.role === 'user' ? '#fff' : 'inherit',
-                    border: '1px solid #f0f0f0',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  }}>
-                    <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap', fontSize: 14 }}>
-                      {msg.content}
-                    </div>
-                    {msg.usage && (
-                      <div style={{ marginTop: 8, display: 'flex', gap: 12, fontSize: 10, opacity: 0.7 }}>
-                        <span>Tokens: {msg.usage.total_tokens || msg.usage.totalTokens || 'N/A'}</span>
-                      </div>
-                    )}
-                  </div>
-                  {msg.streaming && <Spin size="small" style={{ marginTop: 6 }} />}
-                </div>
+      {/* 2. CHAT HISTORY / EMPTY STATE */}
+      <div style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        padding: '24px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}>
+        
+        {/* Container to restrict chat width for better readability */}
+        <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column' }}>
+          
+          {messages.length === 0 ? (
+            // ENHANCED EMPTY STATE
+            <div style={{ marginTop: '10vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <div style={{ padding: '20px', background: '#eff6ff', borderRadius: '50%', marginBottom: 8 }}>
+                <RobotOutlined style={{ fontSize: 48, color: '#3b82f6' }} />
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+              <Title level={3} style={{ margin: 0, color: '#0f172a' }}>How can I help you today?</Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>Select a quick action below or type a message to start.</Text>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: 12, 
+                marginTop: 32, 
+                width: '100%' 
+              }}>
+                {QUICK_ACTIONS.map((action, i) => (
+                  <Card
+                    key={i}
+                    hoverable
+                    onClick={() => handleSend(action.prompt)}
+                    style={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: 'none' }}
+                    bodyStyle={{ padding: '16px' }}
+                  >
+                    <Space align="start">
+                      <div style={{ color: '#3b82f6', fontSize: 18 }}>{action.icon}</div>
+                      <Text style={{ fontWeight: 500, color: '#334155' }}>{action.label}</Text>
+                    </Space>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : (
+            // YOUR EXISTING MESSAGES MAP GOES HERE
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: '40px' }}>
+              {messages.map((msg, i) => (
+                <div key={i} style={{ 
+                  display: 'flex', 
+                  gap: 12, 
+                  alignItems: 'flex-start',
+                  maxWidth: '85%',
+                  marginLeft: msg.role === 'user' ? 'auto' : 0,
+                  marginRight: msg.role === 'user' ? 0 : 'auto',
+                }}>
+                  <Avatar 
+                    size={32} 
+                    icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+                    style={{ 
+                      background: msg.role === 'user' ? '#1677ff' : '#e6f4ff',
+                      color: msg.role === 'user' ? '#fff' : '#1677ff',
+                      flexShrink: 0,
+                      marginTop: 4,
+                    }}
+                  />
+                  <div style={{ maxWidth: '100%', minWidth: 100 }}>
+                    <div style={{ 
+                      padding: '10px 14px', 
+                      borderRadius: 12,
+                      background: msg.role === 'user' ? '#1677ff' : '#fff',
+                      color: msg.role === 'user' ? '#fff' : 'inherit',
+                      border: '1px solid #f0f0f0',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    }}>
+                      <div style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap', fontSize: 14 }}>
+                        {msg.content}
+                      </div>
+                      {msg.usage && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 12, fontSize: 10, opacity: 0.7 }}>
+                          <span>Tokens: {msg.usage.total_tokens || msg.usage.totalTokens || 'N/A'}</span>
+                        </div>
+                      )}
+                    </div>
+                    {msg.streaming && <Spin size="small" style={{ marginTop: 6 }} />}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Input Section */}
-      <div style={{ padding: '16px 24px', borderTop: '1px solid #f0f0f0', background: '#fff' }}>
-        <Form onFinish={() => handleSend(inputValue)} layout="inline">
-          <Space style={{ width: '100%', alignItems: 'flex-end' }}>
-            <TextArea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={e => setInputValue(e.target.value)}
-              onPressEnter={e => { if (!e.shiftKey) { e.preventDefault(); handleSend(inputValue); }}}
-              placeholder="Ask me anything... (Shift+Enter for new line)"
-              rows={1}
-              autoSize={{ minRows: 1, maxRows: 6 }}
-              style={{ flex: 1, minWidth: 300 }}
-            />
-            <Space size={8}>
-              <Tooltip title="Include DB Context">
-                <Switch checked={includeDatabase} onChange={setIncludeDatabase} size="small" />
+      {/* 3. REDESIGNED CHAT INPUT AREA (ChatGPT Style) */}
+      <div style={{ 
+        padding: '0 24px 24px 24px', 
+        background: 'linear-gradient(180deg, transparent, #f8fafc 20%)',
+        display: 'flex',
+        justifyContent: 'center'
+      }}>
+        <div style={{ 
+          width: '100%', 
+          maxWidth: '800px', 
+          background: '#ffffff', 
+          border: '1px solid #cbd5e1', 
+          borderRadius: '16px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+          overflow: 'hidden',
+          transition: 'border-color 0.2s',
+        }}>
+          <TextArea
+            ref={textareaRef}
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onPressEnter={e => { if (!e.shiftKey) { e.preventDefault(); handleSend(inputValue); }}}
+            placeholder="Ask RetailOps AI anything... (Shift+Enter for new line)"
+            autoSize={{ minRows: 1, maxRows: 8 }}
+            bordered={false}
+            style={{ 
+              padding: '16px', 
+              fontSize: 15, 
+              boxShadow: 'none',
+              resize: 'none',
+              border: 'none',
+            }}
+          />
+          
+          {/* Footer of the input box containing settings & send button */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            padding: '8px 12px',
+            background: '#f8fafc',
+            borderTop: '1px solid #f1f5f9'
+          }}>
+            <Space size={16}>
+              <Tooltip title="Include Database Context">
+                <Space size={6}>
+                  <DatabaseOutlined style={{ color: includeDatabase ? '#3b82f6' : '#94a3b8' }} />
+                  <Switch checked={includeDatabase} onChange={setIncludeDatabase} size="small" />
+                </Space>
               </Tooltip>
-              <Tooltip title="Temperature">
-                <InputNumber
-                  min={0} max={2} step={0.1} style={{ width: 70 }}
-                  value={temperature} onChange={setTemperature}
-                />
+              <Tooltip title="Model Creativity (Temperature)">
+                <Space size={6}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Temp:</Text>
+                  <InputNumber 
+                    min={0} max={2} step={0.1} size="small"
+                    value={temperature} onChange={setTemperature}
+                    style={{ width: 60, fontSize: 12 }} 
+                  />
+                </Space>
               </Tooltip>
-              <Button
-                type="primary"
-                icon={streaming ? <LoadingOutlined /> : <SendOutlined />}
-                loading={streaming || loading}
-                onClick={() => handleSend(inputValue)}
-                disabled={!inputValue.trim() || streaming || loading}
-              >
-                Send
-              </Button>
             </Space>
-          </Space>
-        </Form>
+
+            <Button
+              type="primary"
+              shape="circle"
+              icon={streaming ? <LoadingOutlined /> : <SendOutlined />}
+              onClick={() => handleSend(inputValue)}
+              disabled={!inputValue.trim() || streaming || loading}
+              style={{ 
+                background: inputValue.trim() ? '#1677ff' : '#e2e8f0', 
+                color: inputValue.trim() ? '#fff' : '#94a3b8',
+                border: 'none'
+              }}
+            />
+          </div>
+        </div>
       </div>
+
     </Content>
   );
 
