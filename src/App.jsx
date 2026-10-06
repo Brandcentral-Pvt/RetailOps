@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
 import retailOpsTheme from './theme/antdTheme';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SidebarProvider, useSidebar } from './contexts/SidebarContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 import { PageTitleProvider } from './contexts/PageTitleContext';
 import { DateRangeProvider } from './contexts/DateRangeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -14,6 +14,7 @@ import RouteProgress from './components/ui/RouteProgress';
 import ModuleFallback from './components/ui/ModuleFallback';
 import Sidebar from './components/common/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
+import OpenAIShortcut from './components/ai/OpenAIShortcut';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
@@ -83,6 +84,7 @@ const AIChatPage = lazy(() => import('./pages/AIChatPage'));
 function AppLayout({ children }) {
   return (
     <HeaderProvider>
+      <OpenAIShortcut />
       <div className="app-shell">
         <Sidebar />
         <div className="content-wrapper">
@@ -120,7 +122,7 @@ function HomeRoute() {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, loading, bootstrapping } = useAuth();
+  const { loading } = useAuth();
   const { showWizard, isLoading: onboardingLoading } = useOnboarding();
 
   if (loading || onboardingLoading) return <PageLoading message="Checking authentication..." />;

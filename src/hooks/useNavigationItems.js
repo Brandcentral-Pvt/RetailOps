@@ -344,7 +344,7 @@ export function useNavigationItems() {
                 isAdmin || isGlobalUser || isBrandManager || hasPermission('dashboard_view'),
                 {
                     key: 'ai-chat',
-                    label: 'AI Assistant',
+                    label: 'RetailOps AI',
                     path: '/ai-chat',
                     icon: Bot,
                     section: 'intelligence',
