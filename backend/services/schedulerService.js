@@ -196,30 +196,88 @@ class SchedulerService {
                 logger.info('Cron triggering Playwright Scraper Sync');
                 try {
                     const scraperRunner = require('./playwrightScraperRunner');
+                    const asinCompletenessService = require('./asinCompletenessService');
                     const maxAsinsPerSeller = parseInt(process.env.SCRAPER_CRON_MAX_ASINS_PER_SELLER || '500', 10);
+                    const maxAttemptsPerSeller = parseInt(process.env.SCRAPER_CRON_MAX_ATTEMPTS_PER_SELLER || '3', 10);
                     const pool = await getPool();
+
+                    // Worst-first: sellers with the most incomplete ASINs go first,
+                    // so a shortened run still fixes the biggest gaps.
                     const sellersResult = await pool.request()
                         .query("SELECT Id FROM Sellers WHERE IsActive = 1 AND LOWER(Marketplace) = 'amazon.in'");
                     const sellerIds = sellersResult.recordset.map(s => s.Id);
+                    const ordered = await asinCompletenessService.getSellersOrderedByIncompleteness({ marketplace: 'amazon.in' });
+                    const orderedMap = new Map(ordered.map(s => [s.id, s]));
+                    const sortedSellerIds = sellerIds.slice().sort((a, b) => {
+                        const ia = orderedMap.get(a)?.incompleteAsins || 0;
+                        const ib = orderedMap.get(b)?.incompleteAsins || 0;
+                        return ib - ia;
+                    });
 
-                    for (const sellerId of sellerIds) {
+                    let totals = { sellers: 0, sellersIncomplete: 0, jobs: 0, asinsScraped: 0 };
+
+                    for (const sellerId of sortedSellerIds) {
                         try {
-                            const allAsins = await scraperRunner.getSellerAsins(sellerId);
-                            const asins = allAsins.slice(0, maxAsinsPerSeller);
-                            if (!asins.length) {
-                                logger.info(`Scraper sync: no ASINs to scrape for seller ${sellerId}`);
-                                continue;
+                            let sellerDone = false;
+                            let priorProgress = -1;
+                            let attempt = 0;
+                            const sellerInfo = orderedMap.get(sellerId) || {};
+                            totals.sellers++;
+
+                            while (attempt < maxAttemptsPerSeller && !sellerDone) {
+                                attempt++;
+                                const canMoveOn = async (asins) => {
+                                    if (!asins.length) {
+                                        logger.info(`Scraper sync: no ASINs to scrape for seller ${sellerId}`);
+                                        return true;
+                                    }
+                                    const result = await scraperRunner.startJob({ sellerId, asins, userId: null });
+                                    logger.info(`Scraper sync seller ${sellerId} attempt ${attempt}: job ${result.jobId} (${asins.length} ASINs)`);
+                                    totals.jobs++;
+                                    const final = await scraperRunner.waitForJob(result.jobId, { timeoutMs: 60 * 60 * 1000 });
+                                    logger.info(`Scraper sync seller ${sellerId} attempt ${attempt}: job ${result.jobId} ended ${final.status} (${final.completedAsins || 0} ok, ${final.failedAsins || 0} failed)`);
+                                    totals.asinsScraped += final.completedAsins || 0;
+                                    return true;
+                                };
+
+                                if (attempt === 1) {
+                                    // First wave: the seller's full active list (capped).
+                                    const allAsins = await scraperRunner.getSellerAsins(sellerId);
+                                    const scoped = allAsins.slice(0, maxAsinsPerSeller);
+                                    await canMoveOn(scoped);
+                                } else {
+                                    // Later waves: ONLY the still-incomplete ASINs.
+                                    const incomplete = await asinCompletenessService.listIncompleteAsins(sellerId, { limit: maxAsinsPerSeller });
+                                    await canMoveOn(incomplete.map((a) => a.AsinCode));
+                                }
+
+                                const completeness = await asinCompletenessService.getSellerCompleteness(sellerId);
+                                if (completeness.incomplete === 0) {
+                                    sellerDone = true;
+                                    logger.info(`Scraper sync seller ${sellerId} COMPLETE: ${completeness.complete}/${completeness.total} ASINs (${completeness.percent}%) after ${attempt} attempt(s)`);
+                                } else {
+                                    if (completeness.incomplete === priorProgress && attempt < maxAttemptsPerSeller) {
+                                        logger.warn(`Scraper sync seller ${sellerId}: no progress (${completeness.incomplete} still incomplete) — moving on to avoid infinite loop`);
+                                        sellerDone = true;
+                                    }
+                                    priorProgress = completeness.incomplete;
+                                }
                             }
-                            const result = await scraperRunner.startJob({
-                                sellerId,
-                                asins,
-                                userId: null,
-                            });
-                            logger.info(`Scraper sync started for seller ${sellerId}: job ${result.jobId} (${asins.length}/${allAsins.length} ASINs)`);
+
+                            const finalCompleteness = await asinCompletenessService.getSellerCompleteness(sellerId);
+                            if (finalCompleteness.incomplete > 0) {
+                                totals.sellersIncomplete++;
+                                const missing = await asinCompletenessService.getMissingFieldBreakdown(sellerId);
+                                logger.warn(`Scraper sync seller ${sellerId} STILL INCOMPLETE — missing ${JSON.stringify(missing)}`);
+                            }
+                            logger.info(`Scraper sync seller ${sellerId}: ${finalCompleteness.complete}/${finalCompleteness.total} ASINs complete (${finalCompleteness.percent}%)`);
+                            if (sellerInfo.totalAsins) logger.info(`   (started day at ${sellerInfo.completeAsins}/${sellerInfo.totalAsins} ASINs complete)`);
                         } catch (err) {
                             logger.error(`Scraper sync failed for seller ${sellerId}:`, err.message);
                         }
                     }
+
+                    logger.info(`Playwright Scraper Sync complete: ${totals.sellers} sellers (${totals.sellersIncomplete} still incomplete), ${totals.jobs} jobs, ${totals.asinsScraped} ASINs scraped`);
                 } catch (err) {
                     logger.error('Playwright Scraper Sync cron failed:', err.message);
                 }

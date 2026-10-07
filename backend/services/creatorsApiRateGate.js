@@ -42,6 +42,12 @@ class CreatorsApiRateGate {
         this._lastPerAccount = new Map();
         this._dailyCounters = new Map(); // {account:date} -> count (fallback only)
         this._dbAvailable = true;
+        // Account-wide 429 cooldown circuit: ALL credentials behind one Amazon
+        // account share the SAME rpm, so a 429 throttles the account, not a token.
+        // Callers poke this after any 429 and waitForTps() honours it globally.
+        this._accountCooldownUntil = new Map(); // accountKey -> timestamp
+        // In-process lock fallback (used only when Redis is unreachable)
+        this._localLocks = new Map(); // lockKey -> { owner, expiresAt }
     }
 
     getEffectiveTpdLimit() {
@@ -121,19 +127,130 @@ class CreatorsApiRateGate {
     }
 
     /**
-     * Wait until a TPS slot is free. Bounded by `maxWaitMs` (default 1s) so a
-     * server-propagated rate change can't stall a batch forever.
+     * Wait until a TPS slot is free — and truly WAIT. Previously this gave up
+     * after maxWaitMs (1000ms < the 1100ms interval) and let the caller fire
+     * anyway, which is exactly what caused account-wide 429 cascades. Now it
+     * also honours any account-wide 429 cooldown set via cooldownAfter429().
+     * Only after the overall safety cap elapses does it throw
+     * CREATORS_THROTTLED instead of firing a request.
      */
     async waitForTps(accountKey = DEFAULT_ACCOUNT_KEY) {
-        const maxWaitMs = parseInt(process.env.CREATORS_RATE_MAX_WAIT_MS || '1000', 10);
-        const budget = Date.now() + maxWaitMs;
+        const maxWaitMs = parseInt(process.env.CREATORS_RATE_MAX_WAIT_MS || '60000', 10);
+        const deadline = Date.now() + maxWaitMs;
         for (;;) {
+            const cooldown = this.getCooldownMs(accountKey);
+            if (cooldown > 0) {
+                const capped = Math.min(cooldown, Math.max(0, deadline - Date.now()));
+                if (capped <= 0) {
+                    throw Object.assign(new Error(`Creators API account '${accountKey}' still cooling down after 429`), { code: 'CREATORS_THROTTLED' });
+                }
+                await new Promise((r) => setTimeout(r, capped));
+                continue;
+            }
             const sleepFor = await this._acquireTpsSlot(accountKey);
             if (sleepFor <= 0) return;
-            const capped = Math.min(sleepFor, Math.max(0, budget - Date.now()));
-            if (capped <= 0) return; // give up waiting, caller's 429 handling will absorb it
+            const capped = Math.min(sleepFor, Math.max(0, deadline - Date.now()));
+            if (capped <= 0) {
+                // No free slot before our deadline — DO NOT fire a request.
+                throw Object.assign(new Error(`Creators API rate slot for '${accountKey}' busy beyond ${maxWaitMs}ms`), { code: 'CREATORS_THROTTLED' });
+            }
             await new Promise((r) => setTimeout(r, capped));
         }
+    }
+
+    // ── Account-wide 429 cooldown circuit ───────────────────────────────
+
+    /**
+     * Record an account-wide cooldown after a 429 so EVERY caller (legacy sync,
+     * v2 controller, keyword research, all PM2 workers) backs off instead of
+     * hammering the same Amazon account from multiple code paths.
+     */
+    cooldownAfter429(accountKey = DEFAULT_ACCOUNT_KEY, retryMs) {
+        // Monotonic: never shorten an existing cooldown (callers may align on
+        // different backoff sizes; the longest backoff should win).
+        const until = Math.max(
+            this._accountCooldownUntil.get(accountKey) || 0,
+            Date.now() + Math.max(1000, Number(retryMs) || 10000),
+        );
+        this._accountCooldownUntil.set(accountKey, until);
+        logger.warn(`[CreatorsGate] Account '${accountKey}' cooling down ${((until - Date.now()) / 1000).toFixed(0)}s after 429`);
+        return until;
+    }
+
+    /** Remaining cooldown (ms) before the account may be called again. 0 = clear. */
+    getCooldownMs(accountKey = DEFAULT_ACCOUNT_KEY) {
+        const until = this._accountCooldownUntil.get(accountKey);
+        if (!until) return 0;
+        const rem = until - Date.now();
+        return rem > 0 ? rem : 0;
+    }
+
+    clearCooldown(accountKey = DEFAULT_ACCOUNT_KEY) {
+        this._accountCooldownUntil.delete(accountKey);
+    }
+
+    // ── Distributed locks (cross-PM2-instance dedup) ────────────────────
+
+    /**
+     * Try to hold a named lock. Returns { owner, released:false } on success,
+     * or null if it could not be acquired within maxWaitMs. Uses Redis SET NX EX
+     * so only ONE PM2 instance can sync a given seller / run a global sync.
+     */
+    async acquireLock(lockKey, { ttlMs = 60000, retryMs = 1000, maxWaitMs = 5000 } = {}) {
+        const owner = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const key = `${PREFIX}:lock:${lockKey}`;
+        const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
+        const deadline = Date.now() + maxWaitMs;
+
+        for (;;) {
+            let acquired = false;
+            if (this._redisReady()) {
+                try {
+                    acquired = (await this._redis.set(key, owner, 'EX', ttlSec, 'NX')) === 'OK';
+                } catch (err) {
+                    acquired = false;
+                }
+            } else {
+                acquired = this._acquireLocalLock(lockKey, owner, ttlMs);
+            }
+            if (acquired) return { owner, released: false };
+            const remaining = Math.max(0, deadline - Date.now());
+            if (remaining <= 0) return null;
+            await new Promise((r) => setTimeout(r, Math.min(retryMs, remaining)));
+        }
+    }
+
+    /** Release a lock previously returned by acquireLock (owner-token guarded). */
+    async releaseLock(lockKey, lock) {
+        if (!lock || !lock.owner || lock.released) return;
+        const key = `${PREFIX}:lock:${lockKey}`;
+        if (this._redisReady()) {
+            try {
+                await this._redis.eval(
+                    `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`,
+                    1,
+                    key,
+                    lock.owner,
+                );
+                lock.released = true;
+                return;
+            } catch (err) { /* fall through to local */ }
+        }
+        this._releaseLocalLock(lockKey, lock.owner);
+        lock.released = true;
+    }
+
+    _acquireLocalLock(lockKey, owner, ttlMs) {
+        const now = Date.now();
+        const cur = this._localLocks.get(lockKey);
+        if (cur && cur.expiresAt > now && cur.owner !== owner) return false;
+        this._localLocks.set(lockKey, { owner, expiresAt: now + ttlMs });
+        return true;
+    }
+
+    _releaseLocalLock(lockKey, owner) {
+        const cur = this._localLocks.get(lockKey);
+        if (cur && cur.owner === owner) this._localLocks.delete(lockKey);
     }
 
     // ── TPD ledger --------------------------------------------------------
@@ -240,7 +357,8 @@ class CreatorsApiRateGate {
         const limit = parseFloat((headers || {})['x-amzn-ratelimit-limit']);
         if (!limit || !(limit > 0) || limit >= this.policyTps) return;
         this.policyTps = limit;
-        this.intervalMs = Math.ceil(1000 / limit) + 100;
+        // Clamp so a bad/lowered header can never speed us up or stall us forever.
+        this.intervalMs = Math.min(8000, Math.max(1100, Math.ceil(1000 / limit) + 100));
     }
 
     getStatus() {

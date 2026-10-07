@@ -116,6 +116,7 @@ const API_RESOURCES = [
 ];
 
 const CreatorsApiCredentials = require('../../services/creatorsApiCredentials');
+const creatorsApiRateGate = require('../../services/creatorsApiRateGate');
 const TOKEN_CACHE = new Map(); // credId -> { token, expiry }
 
 // ── Per-credential rate limiter (token bucket) ─────────────────────────
@@ -158,6 +159,20 @@ function getBucket(credId) {
  * when multiple fetches / upload jobs are running at the same time.
  */
 async function throttledCall(credId, fn) {
+    // Shared account-wide gate (Redis). RPM is ACCOUNT-scoped (both Live Sync
+    // creds share the same partner tag), so every caller must pass through the
+    // same gate — the local token bucket alone cannot see other workers' load.
+    // The gate honors any account-wide 429 cooldown and the min request gap;
+    // it throws CREATORS_THROTTLED if no slot can be acquired within the cap.
+    try {
+        await creatorsApiRateGate.waitForTps('primary');
+    } catch (err) {
+        if (err.code === 'CREATORS_THROTTLED') {
+            console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
+            throw err;
+        }
+        throw err;
+    }
     await getBucket(credId).take();
     const prev = credChains.get(credId) || Promise.resolve();
     const run = prev.then(() => fn());
@@ -257,10 +272,15 @@ async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
             lastErr = err;
             const status = err.response?.status;
 
-            if (status === 429) {
+            if (status === 429 || err.code === 'CREATORS_THROTTLED') {
                 const retryAfter = parseInt(err.response?.headers?.['retry-after'] || '0');
-                const waitMs = Math.max(retryAfter * 1000, RATE_LIMIT_DELAY);
+                const waitMs = status === 429
+                    ? Math.max(retryAfter * 1000, RATE_LIMIT_DELAY)
+                    : RATE_LIMIT_DELAY;
                 console.log(`[LiveData] Rate limited (429) on ${credId}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${Math.round(waitMs / 1000)}s...`);
+                // Poke the shared account cooldown so EVERY pipeline (live sync,
+                // scraper, other PM2 instances) backs off the same account too.
+                creatorsApiRateGate.cooldownAfter429('primary', waitMs);
                 TOKEN_CACHE.clear();
                 if (refreshToken) { try { token = await refreshToken(); } catch { } }
                 await sleep(waitMs);

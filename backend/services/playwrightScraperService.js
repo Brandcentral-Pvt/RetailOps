@@ -562,6 +562,23 @@ class PlaywrightScraperService {
             if (hrMatch) bsr = this._parseInt(hrMatch[1]);
         }
 
+        // Bullet points — the main feature bullets list
+        let bulletPoints = [];
+        const bulletCount = await count('#feature-bullets li');
+        for (let i = 0; i < bulletCount; i++) {
+            const t = (await page.locator('#feature-bullets li').nth(i).evaluate((n) => n.textContent || '', null, { timeout: 5000 }).catch(() => '')).trim();
+            if (t && t.length > 3) bulletPoints.push(t);
+        }
+
+        // Description — prefers the classic /#productDescription/, falls back to
+        // the A+ style expander, then the A+ content block as a last resort.
+        let description = '';
+        const descSelectors = ['#productDescription', '#productDescription_feature_div .a-expander-content', '#aplus'];
+        for (const sel of descSelectors) {
+            const t = (await textContent(sel)).trim();
+            if (t && t.length > description.length) description = t;
+        }
+
         return {
             title,
             currentPrice,
@@ -582,6 +599,9 @@ class PlaywrightScraperService {
             bsr,
             subBsr,
             subBsrCategory,
+            bulletPoints,
+            bulletPointsText: bulletPoints.join('\n• '),
+            description,
             url: page.url(),
         };
     }
