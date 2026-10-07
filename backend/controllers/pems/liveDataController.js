@@ -207,12 +207,19 @@ async function withJobSlot(fn) {
 /**
  * Partner tag + marketplace to attach to API calls. Version-aware so each
  * credential set (v1–v6) can bind its own partner tag / marketplace.
- * Falls back to rotation for unknown/null credId.
+ * Credentialed pages (v2–v6) are PINNED to their own key — never rotated.
+ * Only the legacy v1 path (null/absent credId) may rotate.
  */
 function getCreds(credId) {
-    const cred = credId
-        ? (CreatorsApiCredentials.getById(credId) || CreatorsApiCredentials.get())
-        : CreatorsApiCredentials.get();
+    let cred;
+    if (credId) {
+        cred = CreatorsApiCredentials.getById(credId);
+        if (!cred) {
+            throw new Error(`API credential '${credId}' is not configured. Add CREATORS_API_CLIENT_ID_${credId.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credId.replace(/^v/, '')} to the environment.`);
+        }
+    } else {
+        cred = CreatorsApiCredentials.get();
+    }
     return {
         pt: cred.partnerTag,
         mk: cred.marketplace,
