@@ -317,6 +317,53 @@ class PlaywrightScraperRunner {
         return result.recordset;
     }
 
+    // Current job header row (status + counters). Live in-memory state wins for
+    // accuracy, falling back to the persisted ScrapeJobHistory row.
+    async getJobStatus(jobId) {
+        const memory = this.activeJobs.get(jobId);
+        if (memory) {
+            return {
+                jobId,
+                status: memory.status,
+                totalAsins: memory.totalAsins || 0,
+                completedAsins: memory.completedAsins || 0,
+                failedAsins: memory.failedAsins || 0,
+                live: true,
+            };
+        }
+        if (this.resuming.has(jobId)) {
+            return { jobId, status: 'RUNNING', live: true };
+        }
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('id', sql.VarChar, jobId)
+            .query(`SELECT * FROM ScrapeJobHistory WHERE Id = @id`);
+        const row = result.recordset[0];
+        if (!row) return { jobId, status: 'NOT_FOUND' };
+        return {
+            jobId,
+            status: row.Status,
+            totalAsins: row.TotalAsins || 0,
+            completedAsins: row.CompletedAsins || 0,
+            failedAsins: row.FailedAsins || 0,
+            live: false,
+        };
+    }
+
+    // Blocks until a job leaves QUEUED/RUNNING (COMPLETED/PARTIAL/FAILED/
+    // CANCELLED) or the timeout elapses. Returns the final getJobStatus().
+    async waitForJob(jobId, { timeoutMs = 45 * 60 * 1000, pollMs = 5000 } = {}) {
+        const deadline = Date.now() + timeoutMs;
+        for (;;) {
+            const status = await this.getJobStatus(jobId);
+            if (!['QUEUED', 'RUNNING'].includes(status.status)) return status;
+            if (Date.now() > deadline) {
+                throw new Error(`Scrape job ${jobId} still ${status.status} after ${(timeoutMs / 60000).toFixed(0)}min`);
+            }
+            await new Promise((resolve) => setTimeout(resolve, pollMs));
+        }
+    }
+
     async getStats() {
         const pool = await getPool();
 
