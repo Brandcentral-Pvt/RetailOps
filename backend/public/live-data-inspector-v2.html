@@ -662,8 +662,13 @@ async function pollProgress() {
     } else if (d.status === 'failed' || d.status === 'cancelled') {
       clearInterval(progressInterval); progressInterval = null;
       document.getElementById('progressBar').classList.add('error');
-      document.getElementById('progressLabel').textContent = d.status === 'cancelled' ? 'Cancelled' : 'Failed: ' + (d.error || 'Unknown error');
+      document.getElementById('progressLabel').textContent = d.status === 'cancelled' ? 'Cancelled — partial results ready' : 'Failed: ' + (d.error || 'Unknown error');
       document.getElementById('progressActions').style.display = 'none';
+      if (d.status === 'cancelled') {
+        // Keep whatever was already processed: download stays available.
+        document.getElementById('downloadActions').style.display = '';
+        document.getElementById('exportBtn').style.display = ''; document.getElementById('csvBtn').style.display = '';
+      }
     }
   } catch (e) { /* keep polling */ }
 }
