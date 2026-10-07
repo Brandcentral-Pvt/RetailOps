@@ -152,16 +152,20 @@ function getBucket(credId) {
 }
 
 /**
- * Rate budget = one bucket per Amazon Associates account. Versioned pages
- * (v2–v6) are pinned to their own dedicated API key, so each gets its own
- * account bucket → those keys run in parallel instead of all sharing the
- * legacy single 'primary' gate. Set CREATORS_RATE_SHARE_ACCOUNT=true to force
- * every credential back onto one shared bucket (only if the keys actually
- * belong to the same Amazon account).
+ * Rate budget = RPM is bound to the Amazon ACCOUNT, not to the API key.
+ * All these keys (v1–v6) sit behind one Amazon Associates account, so they
+ * share ONE bucket — giving each key its own bucket made the pages fire in
+ * parallel at the same account and trip its account-wide 429 limit (every
+ * page then stalled in cooldown: "no call, no data"). Per-version KEYS are
+ * still pinned for tokens/partner tags; only the rate gate is shared.
+ * Set CREATORS_RATE_PER_ACCOUNT_BUCKETS=true ONLY if a version's key truly
+ * belongs to a DIFFERENT Amazon account.
  */
-function accountKeyFor(credId) {
-    if (process.env.CREATORS_RATE_SHARE_ACCOUNT === 'true') return 'primary';
-    return credId && credId !== 'primary' ? `acct_${credId}` : 'primary';
+function accountKeyFor() {
+    if (process.env.CREATORS_RATE_PER_ACCOUNT_BUCKETS === 'true') {
+        return (arguments[0] && arguments[0] !== 'primary') ? `acct_${arguments[0]}` : 'primary';
+    }
+    return 'primary';
 }
 
 /**
@@ -172,11 +176,12 @@ function accountKeyFor(credId) {
  * when multiple fetches / upload jobs are running at the same time.
  */
 async function throttledCall(credId, fn) {
-    // Account-wide gate (Redis): RPM is ACCOUNT-scoped. Each pinned versioned
-    // key (v2–v6) gets its own bucket so dedicated keys run in parallel; the
-    // legacy v1 credential stays on the 'primary' bucket. The gate honors any
-    // account-wide 429 cooldown and the min request gap; it throws
-    // CREATORS_THROTTLED if no slot can be acquired within the cap.
+    // Account-wide gate (Redis): RPM is ACCOUNT-scoped. All versioned keys
+    // (v1–v6) sit behind one Amazon account, so they share the 'primary'
+    // bucket — this serializes the pages back under the account's RPM limit
+    // and stops the 429 cooldown storm (parallel buckets broke every page).
+    // The gate honors any account-wide 429 cooldown and the min request gap;
+    // it throws CREATORS_THROTTLED if no slot can be acquired within the cap.
     try {
         await creatorsApiRateGate.waitForTps(accountKeyFor(credId));
     } catch (err) {
