@@ -152,6 +152,19 @@ function getBucket(credId) {
 }
 
 /**
+ * Rate budget = one bucket per Amazon Associates account. Versioned pages
+ * (v2–v6) are pinned to their own dedicated API key, so each gets its own
+ * account bucket → those keys run in parallel instead of all sharing the
+ * legacy single 'primary' gate. Set CREATORS_RATE_SHARE_ACCOUNT=true to force
+ * every credential back onto one shared bucket (only if the keys actually
+ * belong to the same Amazon account).
+ */
+function accountKeyFor(credId) {
+    if (process.env.CREATORS_RATE_SHARE_ACCOUNT === 'true') return 'primary';
+    return credId && credId !== 'primary' ? `acct_${credId}` : 'primary';
+}
+
+/**
  * Run a single Creators API request on a credential.
  * 1) Waits for a rate-limit token (token bucket per credential).
  * 2) Chains onto the per-credential serial queue so calls never overlap.
@@ -159,13 +172,13 @@ function getBucket(credId) {
  * when multiple fetches / upload jobs are running at the same time.
  */
 async function throttledCall(credId, fn) {
-    // Shared account-wide gate (Redis). RPM is ACCOUNT-scoped (both Live Sync
-    // creds share the same partner tag), so every caller must pass through the
-    // same gate — the local token bucket alone cannot see other workers' load.
-    // The gate honors any account-wide 429 cooldown and the min request gap;
-    // it throws CREATORS_THROTTLED if no slot can be acquired within the cap.
+    // Account-wide gate (Redis): RPM is ACCOUNT-scoped. Each pinned versioned
+    // key (v2–v6) gets its own bucket so dedicated keys run in parallel; the
+    // legacy v1 credential stays on the 'primary' bucket. The gate honors any
+    // account-wide 429 cooldown and the min request gap; it throws
+    // CREATORS_THROTTLED if no slot can be acquired within the cap.
     try {
-        await creatorsApiRateGate.waitForTps('primary');
+        await creatorsApiRateGate.waitForTps(accountKeyFor(credId));
     } catch (err) {
         if (err.code === 'CREATORS_THROTTLED') {
             console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
@@ -301,7 +314,7 @@ async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
                 console.log(`[LiveData] Rate limited (429) on ${credId}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${Math.round(waitMs / 1000)}s...`);
                 // Poke the shared account cooldown so EVERY pipeline (live sync,
                 // scraper, other PM2 instances) backs off the same account too.
-                creatorsApiRateGate.cooldownAfter429('primary', waitMs);
+                creatorsApiRateGate.cooldownAfter429(accountKeyFor(credId), waitMs);
                 TOKEN_CACHE.clear();
                 if (refreshToken) { try { token = await refreshToken(); } catch { } }
                 await sleep(waitMs);
@@ -1032,7 +1045,9 @@ exports.getResults = async (req, res) => {
 exports.downloadResults = async (req, res) => {
     const job = await loadJob(req.params.jobId);
     if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
-    if (job.status !== 'completed') return res.status(400).json({ success: false, error: 'Job not completed yet' });
+    // Completed AND cancelled jobs produce a file — a cancelled job keeps
+    // whatever rows were already processed so no work is thrown away.
+    if (job.status !== 'completed' && job.status !== 'cancelled') return res.status(400).json({ success: false, error: 'Job not completed yet' });
     if (job.results.length === 0) return res.status(400).json({ success: false, error: 'No results to download' });
 
     const ws = XLSX.utils.json_to_sheet(job.results);
@@ -1058,6 +1073,7 @@ exports.cancelJob = async (req, res) => {
     const job = await loadJob(req.params.jobId);
     if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
     job.status = 'cancelled';
+    job.completedAt = new Date().toISOString();
     await saveJob(job);
     res.json({ success: true });
 
@@ -1199,6 +1215,11 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
         }
 
         // ── Scraper-backed metrics for upload jobs ─────────────────────
+        // If the job was cancelled while fetching, don't burn a minute on
+        // Playwright scrapes — the partial file is already saved.
+        const cancelledJob = await loadJob(jobId);
+        if (cancelledJob && cancelledJob.status === 'cancelled') return;
+
         const needsScrape = selectedMetrics.some(k => SCRAPE_METRICS.includes(k));
         if (needsScrape && results.length > 0) {
             const scrapeTargets = results.slice(0, SCRAPE_MAX).map(r => r.asin);

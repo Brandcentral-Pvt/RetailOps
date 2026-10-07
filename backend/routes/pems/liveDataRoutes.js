@@ -7,6 +7,15 @@ const CreatorsApiCredentials = require('../../services/creatorsApiCredentials');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+// Live-data responses must never be cached (progress is polled every few
+// seconds). Without this, Express auto-ETags the JSON and browsers revalidate,
+// producing the noisy `304 Not Modified` lines in the logs every poll.
+function noStore(req, res, next) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    next();
+}
+
 // V1 API is disabled by default. Set LIVE_DATA_V1_ENABLED=true to re-enable.
 const V1_ENABLED = process.env.LIVE_DATA_V1_ENABLED === 'true';
 
@@ -16,9 +25,9 @@ if (V1_ENABLED) {
     // V1 — legacy endpoints
     router.post('/fetch', auth, ctrl.fetchLiveData);
     router.post('/upload', auth, upload.single('file'), ctrl.uploadAndProcess);
-    router.get('/progress/:jobId', auth, ctrl.getProgress);
-    router.get('/results/:jobId', auth, ctrl.getResults);
-    router.get('/download/:jobId', auth, ctrl.downloadResults);
+    router.get('/progress/:jobId', auth, noStore, ctrl.getProgress);
+    router.get('/results/:jobId', auth, noStore, ctrl.getResults);
+    router.get('/download/:jobId', auth, noStore, ctrl.downloadResults);
     router.post('/cancel/:jobId', auth, ctrl.cancelJob);
 } else {
     // V1 — disabled, respond with a clear "use v2" message
@@ -38,9 +47,9 @@ router.get('/credentials', auth, ctrl.getCredentials);
 // V2 — locked to secondary credential only
 router.post('/v2/fetch', auth, ctrl.fetchLiveDataV2);
 router.post('/v2/upload', auth, upload.single('file'), ctrl.uploadAndProcessV2);
-router.get('/v2/progress/:jobId', auth, ctrl.getProgressV2);
-router.get('/v2/results/:jobId', auth, ctrl.getResultsV2);
-router.get('/v2/download/:jobId', auth, ctrl.downloadResultsV2);
+router.get('/v2/progress/:jobId', auth, noStore, ctrl.getProgressV2);
+router.get('/v2/results/:jobId', auth, noStore, ctrl.getResultsV2);
+router.get('/v2/download/:jobId', auth, noStore, ctrl.downloadResultsV2);
 router.post('/v2/cancel/:jobId', auth, ctrl.cancelJobV2);
 
 // V3–V6 — one page + endpoint set per dedicated API credential.
@@ -50,9 +59,9 @@ for (const ver of ['v3', 'v4', 'v5', 'v6']) {
     const uploadName = `uploadAndProcess${ver.toUpperCase()}`;
     router.post(`/${ver}/fetch`, auth, ctrl[fetchName]);
     router.post(`/${ver}/upload`, auth, upload.single('file'), ctrl[uploadName]);
-    router.get(`/${ver}/progress/:jobId`, auth, ctrl.getProgress);
-    router.get(`/${ver}/results/:jobId`, auth, ctrl.getResults);
-    router.get(`/${ver}/download/:jobId`, auth, ctrl.downloadResults);
+    router.get(`/${ver}/progress/:jobId`, auth, noStore, ctrl.getProgress);
+    router.get(`/${ver}/results/:jobId`, auth, noStore, ctrl.getResults);
+    router.get(`/${ver}/download/:jobId`, auth, noStore, ctrl.downloadResults);
     router.post(`/${ver}/cancel/:jobId`, auth, ctrl.cancelJob);
 }
 
