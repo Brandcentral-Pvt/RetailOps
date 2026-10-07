@@ -204,17 +204,31 @@ async function withJobSlot(fn) {
 }
 
 // ── Token management ───────────────────────────────────────────────────
-function getCreds() {
+/**
+ * Partner tag + marketplace to attach to API calls. Version-aware so each
+ * credential set (v1–v6) can bind its own partner tag / marketplace.
+ * Falls back to rotation for unknown/null credId.
+ */
+function getCreds(credId) {
+    const cred = credId
+        ? (CreatorsApiCredentials.getById(credId) || CreatorsApiCredentials.get())
+        : CreatorsApiCredentials.get();
     return {
-        pt: process.env.LIVE_SYNC_PARTNER_TAG,
-        mk: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
+        pt: cred.partnerTag,
+        mk: cred.marketplace,
     };
 }
 
 async function getTokenInfo(credId) {
-    const cred = credId
-        ? CreatorsApiCredentials.credentials.find(c => c.id === credId) || CreatorsApiCredentials.get()
-        : CreatorsApiCredentials.get();
+    let cred;
+    if (credId) {
+        cred = CreatorsApiCredentials.getById(credId);
+        if (!cred) {
+            throw new Error(`API credential '${credId}' is not configured. Add CREATORS_API_CLIENT_ID_${credId.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credId.replace(/^v/, '')} to the environment.`);
+        }
+    } else {
+        cred = CreatorsApiCredentials.get();
+    }
     const cacheKey = cred.id;
     const cached = TOKEN_CACHE.get(cacheKey);
     if (cached && Date.now() < cached.expiry) return { token: cached.token, credId: cred.id };
@@ -823,7 +837,7 @@ exports.fetchLiveData = async (req, res) => {
         if (CreatorsApiCredentials.count === 0)
             return res.status(500).json({ success: false, error: 'Live Sync credentials not configured on server' });
 
-        const creds = getCreds();
+        const creds = getCreds(targetCredId);
 
         // ── Shared batch processor (rate-limited + queued) ───────────
         async function processBatches(credId, token, asinList, selectedMetrics) {
@@ -1052,7 +1066,7 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
     if (CreatorsApiCredentials.count === 0) throw new Error('Live Sync credentials not configured');
 
     await withJobSlot(async () => {
-        const creds = getCreds();
+        const creds = getCreds(credId);
         let token = await getToken(credId);
         let tokenExpiry = Date.now() + 3600000;
         let results = [];
@@ -1219,6 +1233,17 @@ function requireSecondaryCred() {
     return cred;
 }
 
+/**
+ * Full v1–v6 credential overview for the versioned inspector pages.
+ * Read-only: credentials themselves live in the environment.
+ */
+exports.getCredentials = (req, res) => {
+    if (CreatorsApiCredentials.count === 0) {
+        return res.status(500).json({ success: false, error: 'No Creators API credentials configured on server' });
+    }
+    res.json({ success: true, data: CreatorsApiCredentials.getVersions() });
+};
+
 // ── V2: Locked to secondary credential only ──────────────────────────
 exports.fetchLiveDataV2 = async (req, res) => {
     if (!requireSecondaryCred())
@@ -1233,6 +1258,39 @@ exports.uploadAndProcessV2 = async (req, res) => {
     req.body._credId = 'secondary';
     return exports.uploadAndProcess(req, res);
 };
+
+// ── V3–V6: One distinct page + endpoint set per dedicated API credential.
+// Each version pins its own credId; progress/results/download/cancel are
+// jobId-based and reused across all versions.
+function pinFetch(credKey) {
+    return async (req, res) => {
+        const cred = CreatorsApiCredentials.getById(credKey);
+        if (!cred)
+            return res.status(500).json({ success: false, error: `${credKey.toUpperCase()} requires its own Creators API credential (CREATORS_API_CLIENT_ID_${credKey.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credKey.replace(/^v/, '')}).` });
+        req.body.credId = credKey;
+        return exports.fetchLiveData(req, res);
+    };
+}
+
+function pinUpload(credKey) {
+    return async (req, res) => {
+        const cred = CreatorsApiCredentials.getById(credKey);
+        if (!cred)
+            return res.status(500).json({ success: false, error: `${credKey.toUpperCase()} requires its own Creators API credential (CREATORS_API_CLIENT_ID_${credKey.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credKey.replace(/^v/, '')}).` });
+        req.body._credId = credKey;
+        return exports.uploadAndProcess(req, res);
+    };
+}
+
+exports.fetchLiveDataV3 = pinFetch('v3');
+exports.fetchLiveDataV4 = pinFetch('v4');
+exports.fetchLiveDataV5 = pinFetch('v5');
+exports.fetchLiveDataV6 = pinFetch('v6');
+
+exports.uploadAndProcessV3 = pinUpload('v3');
+exports.uploadAndProcessV4 = pinUpload('v4');
+exports.uploadAndProcessV5 = pinUpload('v5');
+exports.uploadAndProcessV6 = pinUpload('v6');
 
 exports.getProgressV2 = (req, res) => exports.getProgress(req, res);
 exports.getResultsV2 = (req, res) => exports.getResults(req, res);
