@@ -6,6 +6,7 @@ const AutoTagService = require('./autoTagService');
 const logger = require('../utils/logger').service('scheduler');
 const WebhookService = require('./WebhookService');
 const queueService = require('./queueService');
+const creatorsApiRateGate = require('./creatorsApiRateGate');
 const { QUEUES } = require('../jobs/queueDefinitions');
 
 /**
@@ -18,6 +19,26 @@ class SchedulerService {
         this.ensureTablesExist().catch(err => {
             logger.error('❌ ScheduledRuns table verification failed on startup:', err.message);
         });
+    }
+
+    /**
+     * Run a scheduled callback exactly once ACROSS ALL PM2 instances. Every
+     * instance has its own copy of node-cron, so without a Redis lock each cron
+     * tick would execute on every worker → N× the load against one account.
+     * With maxWaitMs:0, a worker that finds the lock held simply skips the tick.
+     */
+    async _runExclusive(jobKey, ttlMs, fn) {
+        const lock = await creatorsApiRateGate.acquireLock(jobKey, { ttlMs, maxWaitMs: 0, retryMs: 500 });
+        if (!lock) {
+            logger.info(`[Scheduler] ${jobKey} is already running on another instance — skipping this tick`);
+            return false;
+        }
+        try {
+            await fn();
+            return true;
+        } finally {
+            await creatorsApiRateGate.releaseLock(jobKey, lock);
+        }
     }
 
     /**
@@ -171,8 +192,10 @@ class SchedulerService {
             }
             
             this.jobs.liveDataSync = cron.schedule(liveSyncCronExpr, async () => {
-                logger.info('Cron triggering Live Data Sync');
-                await queueService.add(QUEUES.MARKET_SYNC, { type: 'live', sellerId: '*', options: { concurrency: 1, maxRetries: 2 } });
+                await this._runExclusive('cron:liveDataSync', 30 * 60 * 1000, async () => {
+                    logger.info('Cron triggering Live Data Sync');
+                    await queueService.add(QUEUES.MARKET_SYNC, { type: 'live', sellerId: '*', options: { concurrency: 1, maxRetries: 2 } });
+                });
             }, cronOptions);
             logger.info(`Live Data Sync scheduled at ${liveSyncTime} in ${automationTimezone}`);
         } else {
@@ -193,6 +216,10 @@ class SchedulerService {
             }
             
             this.jobs.playwrightScraperSync = cron.schedule(scraperCronExpr, async () => {
+                // Whole sweep is exclusive: only ONE instance runs it. The lock TTL
+                // (12h) exceeds the longest possible day-1 sweep (every seller needs
+                // completion passes) so two instances can never overlap a sweep.
+                await this._runExclusive('cron:playwrightScraperSync', 12 * 60 * 60 * 1000, async () => {
                 logger.info('Cron triggering Playwright Scraper Sync');
                 try {
                     const scraperRunner = require('./playwrightScraperRunner');
@@ -281,6 +308,7 @@ class SchedulerService {
                 } catch (err) {
                     logger.error('Playwright Scraper Sync cron failed:', err.message);
                 }
+                });
             }, cronOptions);
             logger.info(`Playwright Scraper Sync scheduled at ${scraperTime} in ${automationTimezone}`);
         } else {
