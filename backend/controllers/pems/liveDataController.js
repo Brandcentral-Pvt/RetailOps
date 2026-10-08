@@ -144,7 +144,25 @@ class TokenBucket {
 }
 
 const buckets = new Map();    // credId -> TokenBucket
-const credChains = new Map(); // credId -> Promise chain (serializes API calls)
+
+/**
+ * Global single-flight queue for Creators API requests. Every request runs
+ * through this so exactly ONE Creators API HTTP call is ever in flight in
+ * this process — no chance to exceed the limit, no matter how many pages,
+ * upload jobs, or dual-key halves are fetching concurrently. Combined with
+ * the shared Redis gate (1 req / intervalMs account-wide across every PM2
+ * worker) the account limit can never be hit.
+ */
+const apiQueue = (() => {
+    let tail = Promise.resolve();
+    return {
+        run(fn) {
+            const job = tail.then(fn);
+            tail = job.then(() => {}, () => {});
+            return job;
+        },
+    };
+})();
 
 function getBucket(credId) {
     if (!buckets.has(credId)) buckets.set(credId, new TokenBucket(CONFIG.rateLimitPerSec, CONFIG.rateLimitBurst));
@@ -169,33 +187,32 @@ function accountKeyFor() {
 }
 
 /**
- * Run a single Creators API request on a credential.
- * 1) Waits for a rate-limit token (token bucket per credential).
- * 2) Chains onto the per-credential serial queue so calls never overlap.
- * This guarantees we never exceed the configured requests-per-second even
- * when multiple fetches / upload jobs are running at the same time.
+ * Run a single Creators API request on a credential — STRICTLY one at a time.
+ * 1) Waits on the global single-flight queue so at most ONE API request is
+ *    ever in flight (batch fetches, upload jobs, dual-key halves all queue).
+ * 2) Inside the slot: waits for the account-wide gate (holds cooldowns and the
+ *    1-request-per-interval pacing across ALL PM2 workers), then the
+ *    per-credential token bucket.
+ * This guarantees we never exceed the account limit — one request, no burst.
  */
 async function throttledCall(credId, fn) {
-    // Account-wide gate (Redis): RPM is ACCOUNT-scoped. All versioned keys
-    // (v1–v6) sit behind one Amazon account, so they share the 'primary'
-    // bucket — this serializes the pages back under the account's RPM limit
-    // and stops the 429 cooldown storm (parallel buckets broke every page).
-    // The gate honors any account-wide 429 cooldown and the min request gap;
-    // it throws CREATORS_THROTTLED if no slot can be acquired within the cap.
-    try {
-        await creatorsApiRateGate.waitForTps(accountKeyFor(credId));
-    } catch (err) {
-        if (err.code === 'CREATORS_THROTTLED') {
-            console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
+    return apiQueue.run(async () => {
+        // Account-wide gate (Redis): RPM is ACCOUNT-scoped. All versioned keys
+        // (v1–v6) sit behind one Amazon account, so they share the 'primary'
+        // bucket. Honours any account-wide 429 cooldown and the min request gap;
+        // throws CREATORS_THROTTLED if no slot can be acquired within the cap.
+        try {
+            await creatorsApiRateGate.waitForTps(accountKeyFor(credId));
+        } catch (err) {
+            if (err.code === 'CREATORS_THROTTLED') {
+                console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
+                throw err;
+            }
             throw err;
         }
-        throw err;
-    }
-    await getBucket(credId).take();
-    const prev = credChains.get(credId) || Promise.resolve();
-    const run = prev.then(() => fn());
-    credChains.set(credId, run.then(() => {}, () => {}));
-    return run;
+        await getBucket(credId).take();
+        return fn();
+    });
 }
 
 // ── Global job concurrency (FIFO, bounded) ─────────────────────────────
