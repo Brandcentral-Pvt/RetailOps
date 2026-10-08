@@ -81,7 +81,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // ── Config (env-driven, sensible defaults) ──────────────────────────────
 const CONFIG = {
-    batchSize: Math.min(10, Math.max(1, parseInt(process.env.LIVE_SYNC_BATCH_SIZE || '10', 10))),
+    batchSize: Math.max(1, parseInt(process.env.LIVE_SYNC_BATCH_SIZE || '10', 10)),
     batchDelayMs: Math.max(0, parseInt(process.env.LIVE_SYNC_BATCH_DELAY_MS || '1200', 10)),
     rateLimitPerSec: Math.max(0.05, parseFloat(process.env.LIVE_SYNC_RATE_LIMIT_RPS || '1')),
     rateLimitBurst: Math.max(1, parseInt(process.env.LIVE_SYNC_RATE_LIMIT_BURST || '3', 10)),
@@ -144,25 +144,7 @@ class TokenBucket {
 }
 
 const buckets = new Map();    // credId -> TokenBucket
-
-/**
- * Global single-flight queue for Creators API requests. Every request runs
- * through this so exactly ONE Creators API HTTP call is ever in flight in
- * this process — no chance to exceed the limit, no matter how many pages,
- * upload jobs, or dual-key halves are fetching concurrently. Combined with
- * the shared Redis gate (1 req / intervalMs account-wide across every PM2
- * worker) the account limit can never be hit.
- */
-const apiQueue = (() => {
-    let tail = Promise.resolve();
-    return {
-        run(fn) {
-            const job = tail.then(fn);
-            tail = job.then(() => {}, () => {});
-            return job;
-        },
-    };
-})();
+const credChains = new Map(); // credId -> Promise chain (serializes API calls)
 
 function getBucket(credId) {
     if (!buckets.has(credId)) buckets.set(credId, new TokenBucket(CONFIG.rateLimitPerSec, CONFIG.rateLimitBurst));
@@ -170,48 +152,32 @@ function getBucket(credId) {
 }
 
 /**
- * Rate bucket = one INDEPENDENT budget per version/credential. Each inspector
- * page (v1–v6) gets its own limit that it never shares with the others, so one
- * version cannot starve or cooldown another. Parallelism across versions is
- * kept in check by the global single-flight queue in throttledCall — requests
- * from every version run strictly one at a time ("second request only after the
- * first completes") — so the buckets never actually collide, and even if one
- * version trips its own 429, the others keep their untouched budgets.
- * Set CREATORS_RATE_PER_ACCOUNT_BUCKETS=false only to force all versions to
- * share a single 'primary' budget.
- */
-function accountKeyFor() {
-    if (process.env.CREATORS_RATE_PER_ACCOUNT_BUCKETS === 'false') return 'primary';
-    return (arguments[0] && arguments[0] !== 'primary') ? `acct_${arguments[0]}` : 'primary';
-}
-
-/**
- * Run a single Creators API request on a credential — STRICTLY one at a time.
- * 1) Waits on the global single-flight queue so at most ONE API request is
- *    ever in flight (batch fetches, upload jobs, dual-key halves all queue).
- * 2) Inside the slot: waits for the account-wide gate (holds cooldowns and the
- *    1-request-per-interval pacing across ALL PM2 workers), then the
- *    per-credential token bucket.
- * This guarantees we never exceed the account limit — one request, no burst.
+ * Run a single Creators API request on a credential.
+ * 1) Waits for a rate-limit token (token bucket per credential).
+ * 2) Chains onto the per-credential serial queue so calls never overlap.
+ * This guarantees we never exceed the configured requests-per-second even
+ * when multiple fetches / upload jobs are running at the same time.
  */
 async function throttledCall(credId, fn) {
-    return apiQueue.run(async () => {
-        // Account-wide gate (Redis): RPM is ACCOUNT-scoped. All versioned keys
-        // (v1–v6) sit behind one Amazon account, so they share the 'primary'
-        // bucket. Honours any account-wide 429 cooldown and the min request gap;
-        // throws CREATORS_THROTTLED if no slot can be acquired within the cap.
-        try {
-            await creatorsApiRateGate.waitForTps(accountKeyFor(credId));
-        } catch (err) {
-            if (err.code === 'CREATORS_THROTTLED') {
-                console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
-                throw err;
-            }
+    // Shared account-wide gate (Redis). RPM is ACCOUNT-scoped (both Live Sync
+    // creds share the same partner tag), so every caller must pass through the
+    // same gate — the local token bucket alone cannot see other workers' load.
+    // The gate honors any account-wide 429 cooldown and the min request gap;
+    // it throws CREATORS_THROTTLED if no slot can be acquired within the cap.
+    try {
+        await creatorsApiRateGate.waitForTps('primary');
+    } catch (err) {
+        if (err.code === 'CREATORS_THROTTLED') {
+            console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
             throw err;
         }
-        await getBucket(credId).take();
-        return fn();
-    });
+        throw err;
+    }
+    await getBucket(credId).take();
+    const prev = credChains.get(credId) || Promise.resolve();
+    const run = prev.then(() => fn());
+    credChains.set(credId, run.then(() => {}, () => {}));
+    return run;
 }
 
 // ── Global job concurrency (FIFO, bounded) ─────────────────────────────
@@ -238,38 +204,17 @@ async function withJobSlot(fn) {
 }
 
 // ── Token management ───────────────────────────────────────────────────
-/**
- * Partner tag + marketplace to attach to API calls. Version-aware so each
- * credential set (v1–v6) can bind its own partner tag / marketplace.
- * Credentialed pages (v2–v6) are PINNED to their own key — never rotated.
- * Only the legacy v1 path (null/absent credId) may rotate.
- */
-function getCreds(credId) {
-    let cred;
-    if (credId) {
-        cred = CreatorsApiCredentials.getById(credId);
-        if (!cred) {
-            throw new Error(`API credential '${credId}' is not configured. Add CREATORS_API_CLIENT_ID_${credId.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credId.replace(/^v/, '')} to the environment.`);
-        }
-    } else {
-        cred = CreatorsApiCredentials.get();
-    }
+function getCreds() {
     return {
-        pt: cred.partnerTag,
-        mk: cred.marketplace,
+        pt: process.env.LIVE_SYNC_PARTNER_TAG,
+        mk: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
     };
 }
 
 async function getTokenInfo(credId) {
-    let cred;
-    if (credId) {
-        cred = CreatorsApiCredentials.getById(credId);
-        if (!cred) {
-            throw new Error(`API credential '${credId}' is not configured. Add CREATORS_API_CLIENT_ID_${credId.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credId.replace(/^v/, '')} to the environment.`);
-        }
-    } else {
-        cred = CreatorsApiCredentials.get();
-    }
+    const cred = credId
+        ? CreatorsApiCredentials.credentials.find(c => c.id === credId) || CreatorsApiCredentials.get()
+        : CreatorsApiCredentials.get();
     const cacheKey = cred.id;
     const cached = TOKEN_CACHE.get(cacheKey);
     if (cached && Date.now() < cached.expiry) return { token: cached.token, credId: cred.id };
@@ -335,7 +280,7 @@ async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
                 console.log(`[LiveData] Rate limited (429) on ${credId}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${Math.round(waitMs / 1000)}s...`);
                 // Poke the shared account cooldown so EVERY pipeline (live sync,
                 // scraper, other PM2 instances) backs off the same account too.
-                creatorsApiRateGate.cooldownAfter429(accountKeyFor(credId), waitMs);
+                creatorsApiRateGate.cooldownAfter429('primary', waitMs);
                 TOKEN_CACHE.clear();
                 if (refreshToken) { try { token = await refreshToken(); } catch { } }
                 await sleep(waitMs);
@@ -878,7 +823,7 @@ exports.fetchLiveData = async (req, res) => {
         if (CreatorsApiCredentials.count === 0)
             return res.status(500).json({ success: false, error: 'Live Sync credentials not configured on server' });
 
-        const creds = getCreds(targetCredId);
+        const creds = getCreds();
 
         // ── Shared batch processor (rate-limited + queued) ───────────
         async function processBatches(credId, token, asinList, selectedMetrics) {
@@ -1015,20 +960,23 @@ exports.uploadAndProcess = async (req, res) => {
         if (asinList.length > CONFIG.maxUploadAsins) return res.status(400).json({ success: false, error: `Maximum ${CONFIG.maxUploadAsins} ASINs per upload` });
 
         const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const targetCredId = req.body._credId || req.body.credId || null;
-        const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
-        // Two-step flow: upload only STAGES the file (all ASINs stored), it does
-        // NOT start processing. The user clicks "Start" (POST /start) to begin.
         const job = {
-            id: jobId, status: 'ready', totalAsins: asinList.length,
+            id: jobId, status: 'processing', totalAsins: asinList.length,
             processed: 0, found: 0, notFound: 0, failed: 0,
             metrics: selectedMetrics, results: [], notFoundList: [],
-            asins: asinList, _credId: targetCredId, ai: aiFlag,
-            startedAt: null, completedAt: null, error: null,
+            startedAt: new Date().toISOString(), completedAt: null, error: null,
         };
         await saveJob(job);
 
-        res.json({ success: true, jobId, totalAsins: asinList.length, staged: true, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
+        const targetCredId = req.body._credId || req.body.credId || null;
+        const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
+        processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag).catch(async (err) => {
+            console.error(`Job ${jobId} failed:`, err.message);
+            const j = await loadJob(jobId);
+            if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
+        });
+
+        res.json({ success: true, jobId, totalAsins: asinList.length, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
 
         logActivity('LIVE_DATA_UPLOAD', `File upload: ${asinList.length} ASINs from ${req.file.originalname} — metrics: ${selectedMetrics.join(', ')}`, {
             ip: getClientIp(req), jobId, asinCount: asinList.length,
@@ -1036,40 +984,6 @@ exports.uploadAndProcess = async (req, res) => {
         });
     } catch (err) {
         console.error('Upload error:', err.message);
-        res.status(500).json({ success: false, error: err.message });
-    }
-};
-
-exports.startJob = async (req, res) => {
-    try {
-        const { jobId } = req.body || {};
-        if (!jobId) return res.status(400).json({ success: false, error: 'jobId is required' });
-
-        const job = await loadJob(jobId);
-        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
-        if (job.status === 'processing' || job.status === 'completed' || job.status === 'cancelled') {
-            return res.status(400).json({ success: false, error: `Job is already ${job.status}` });
-        }
-        if (!job.asins || job.asins.length === 0) return res.status(400).json({ success: false, error: 'Job has no ASINs to process' });
-
-        job.status = 'processing';
-        job.startedAt = new Date().toISOString();
-        job.error = null;
-        await saveJob(job);
-
-        processJob(job.id, job.asins, job.metrics || [], job._credId || null, job.ai !== false).catch(async (err) => {
-            console.error(`Job ${job.id} failed:`, err.message);
-            const j = await loadJob(job.id);
-            if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
-        });
-
-        res.json({ success: true, jobId: job.id, totalAsins: job.totalAsins, estimatedMinutes: Math.ceil((job.totalAsins / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
-
-        logActivity('LIVE_DATA_START', `Started job ${job.id}: ${job.totalAsins} ASINs — metrics: ${(job.metrics || []).join(', ')}`, {
-            ip: getClientIp(req), jobId: job.id, asinCount: job.totalAsins, credId: job._credId || 'primary',
-        });
-    } catch (err) {
-        console.error('Start job error:', err.message);
         res.status(500).json({ success: false, error: err.message });
     }
 };
@@ -1097,9 +1011,7 @@ exports.getResults = async (req, res) => {
 exports.downloadResults = async (req, res) => {
     const job = await loadJob(req.params.jobId);
     if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
-    // Completed AND cancelled jobs produce a file — a cancelled job keeps
-    // whatever rows were already processed so no work is thrown away.
-    if (job.status !== 'completed' && job.status !== 'cancelled') return res.status(400).json({ success: false, error: 'Job not completed yet' });
+    if (job.status !== 'completed') return res.status(400).json({ success: false, error: 'Job not completed yet' });
     if (job.results.length === 0) return res.status(400).json({ success: false, error: 'No results to download' });
 
     const ws = XLSX.utils.json_to_sheet(job.results);
@@ -1125,7 +1037,6 @@ exports.cancelJob = async (req, res) => {
     const job = await loadJob(req.params.jobId);
     if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
     job.status = 'cancelled';
-    job.completedAt = new Date().toISOString();
     await saveJob(job);
     res.json({ success: true });
 
@@ -1141,7 +1052,7 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
     if (CreatorsApiCredentials.count === 0) throw new Error('Live Sync credentials not configured');
 
     await withJobSlot(async () => {
-        const creds = getCreds(credId);
+        const creds = getCreds();
         let token = await getToken(credId);
         let tokenExpiry = Date.now() + 3600000;
         let results = [];
@@ -1267,11 +1178,6 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
         }
 
         // ── Scraper-backed metrics for upload jobs ─────────────────────
-        // If the job was cancelled while fetching, don't burn a minute on
-        // Playwright scrapes — the partial file is already saved.
-        const cancelledJob = await loadJob(jobId);
-        if (cancelledJob && cancelledJob.status === 'cancelled') return;
-
         const needsScrape = selectedMetrics.some(k => SCRAPE_METRICS.includes(k));
         if (needsScrape && results.length > 0) {
             const scrapeTargets = results.slice(0, SCRAPE_MAX).map(r => r.asin);
@@ -1313,17 +1219,6 @@ function requireSecondaryCred() {
     return cred;
 }
 
-/**
- * Full v1–v6 credential overview for the versioned inspector pages.
- * Read-only: credentials themselves live in the environment.
- */
-exports.getCredentials = (req, res) => {
-    if (CreatorsApiCredentials.count === 0) {
-        return res.status(500).json({ success: false, error: 'No Creators API credentials configured on server' });
-    }
-    res.json({ success: true, data: CreatorsApiCredentials.getVersions() });
-};
-
 // ── V2: Locked to secondary credential only ──────────────────────────
 exports.fetchLiveDataV2 = async (req, res) => {
     if (!requireSecondaryCred())
@@ -1338,58 +1233,6 @@ exports.uploadAndProcessV2 = async (req, res) => {
     req.body._credId = 'secondary';
     return exports.uploadAndProcess(req, res);
 };
-
-exports.startJobV2 = async (req, res) => {
-    if (!requireSecondaryCred())
-        return res.status(500).json({ success: false, error: 'V2 requires the secondary Creators API credential (CREATORS_API_CLIENT_ID_2 / CREATORS_API_CLIENT_SECRET_2).' });
-    return exports.startJob(req, res);
-};
-
-// ── V3–V6: One distinct page + endpoint set per dedicated API credential.
-// Each version pins its own credId; progress/results/download/cancel are
-// jobId-based and reused across all versions.
-function pinFetch(credKey) {
-    return async (req, res) => {
-        const cred = CreatorsApiCredentials.getById(credKey);
-        if (!cred)
-            return res.status(500).json({ success: false, error: `${credKey.toUpperCase()} requires its own Creators API credential (CREATORS_API_CLIENT_ID_${credKey.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credKey.replace(/^v/, '')}).` });
-        req.body.credId = credKey;
-        return exports.fetchLiveData(req, res);
-    };
-}
-
-function pinUpload(credKey) {
-    return async (req, res) => {
-        const cred = CreatorsApiCredentials.getById(credKey);
-        if (!cred)
-            return res.status(500).json({ success: false, error: `${credKey.toUpperCase()} requires its own Creators API credential (CREATORS_API_CLIENT_ID_${credKey.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credKey.replace(/^v/, '')}).` });
-        req.body._credId = credKey;
-        return exports.uploadAndProcess(req, res);
-    };
-}
-
-function pinStart(credKey) {
-    return async (req, res) => {
-        const cred = CreatorsApiCredentials.getById(credKey);
-        if (!cred)
-            return res.status(500).json({ success: false, error: `${credKey.toUpperCase()} requires its own Creators API credential (CREATORS_API_CLIENT_ID_${credKey.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credKey.replace(/^v/, '')}).` });
-        return exports.startJob(req, res);
-    };
-}
-
-exports.fetchLiveDataV3 = pinFetch('v3');
-exports.fetchLiveDataV4 = pinFetch('v4');
-exports.fetchLiveDataV5 = pinFetch('v5');
-exports.fetchLiveDataV6 = pinFetch('v6');
-exports.startJobV3 = pinStart('v3');
-exports.startJobV4 = pinStart('v4');
-exports.startJobV5 = pinStart('v5');
-exports.startJobV6 = pinStart('v6');
-
-exports.uploadAndProcessV3 = pinUpload('v3');
-exports.uploadAndProcessV4 = pinUpload('v4');
-exports.uploadAndProcessV5 = pinUpload('v5');
-exports.uploadAndProcessV6 = pinUpload('v6');
 
 exports.getProgressV2 = (req, res) => exports.getProgress(req, res);
 exports.getResultsV2 = (req, res) => exports.getResults(req, res);
