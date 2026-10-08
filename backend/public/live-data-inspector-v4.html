@@ -277,7 +277,11 @@
                 <span><span class="ps-val" id="psFound" style="color:var(--success)">0</span> found</span>
                 <span><span class="ps-val" id="psNotFound" style="color:var(--warning)">0</span> not found</span>
               </div>
-              <div class="progress-actions" id="progressActions">
+              <div class="progress-actions" id="startActions" style="display:none">
+                <button class="btn btn-primary btn-sm" onclick="startJob()" id="startBtn">Start Processing</button>
+                <button class="btn btn-outline btn-sm" onclick="cancelJob()" id="cancelStartBtn">Cancel</button>
+              </div>
+              <div class="progress-actions" id="progressActions" style="display:none">
                 <button class="btn btn-outline btn-sm" onclick="cancelJob()" id="cancelBtn">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Cancel
                 </button>
@@ -616,6 +620,8 @@ async function fetchData() {
 }
 
 // ── File upload + batch processing ──────────────
+// Two-step flow: upload stages the whole file (nothing processed yet), then a
+// Start button kicks off the job. Progress is polled only after Start.
 async function uploadFile() {
   if (!selectedFile) return toast('Select a file first', 'warning');
   if (!selectedKeys.length) return toast('Select at least one metric', 'warning');
@@ -624,15 +630,44 @@ async function uploadFile() {
     const r = await fetch(API + '/live-data/v4/upload', { method: 'POST', headers: authHeaders(), body: fd }).then(r => r.json());
     if (r.success) {
       currentJobId = r.jobId;
+      document.getElementById('uploadZone').classList.add('has-file');
+      document.getElementById('uzSub').textContent = `${(selectedFile.size / 1024).toFixed(1)} KB \u2022 Uploaded`;
       document.getElementById('progressSection').classList.add('active');
-      document.getElementById('progressActions').style.display = '';
-      document.getElementById('downloadActions').style.display = 'none';
+      document.getElementById('progressBar').classList.remove('complete', 'error');
       document.getElementById('psTotal').textContent = r.totalAsins.toLocaleString();
-      document.getElementById('progressLabel').textContent = `Processing ${r.totalAsins.toLocaleString()} ASINs...`;
-      toast(`Job started: ${r.totalAsins.toLocaleString()} ASINs (~${r.estimatedMinutes} min)`, 'success');
-      startProgressPolling();
+      setStagedState(r.totalAsins);
+      toast(`File uploaded: ${r.totalAsins.toLocaleString()} ASINs staged`, 'success');
     } else toast(r.error || 'Upload failed', 'error');
   } catch (e) { toast('Upload error: ' + e.message, 'error'); }
+}
+
+function setStagedState(totalAsins) {
+  document.getElementById('startActions').style.display = '';
+  document.getElementById('progressActions').style.display = 'none';
+  document.getElementById('downloadActions').style.display = 'none';
+  document.getElementById('progressPercent').textContent = '0%';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('psProcessed').textContent = '0';
+  document.getElementById('psFound').textContent = '0';
+  document.getElementById('psNotFound').textContent = '0';
+  document.getElementById('progressLabel').textContent = `File uploaded — ${(totalAsins || 0).toLocaleString()} ASINs ready. Click Start Processing.`;
+  const btn = document.getElementById('startBtn');
+  btn.disabled = false; btn.classList.remove('loading');
+}
+
+async function startJob() {
+  if (!currentJobId) return;
+  const btn = document.getElementById('startBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  try {
+    const r = await fetch(API + '/live-data/v4/start', { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ jobId: currentJobId }) }).then(r => r.json());
+    if (!r.success) { toast(r.error || 'Failed to start', 'error'); btn.disabled = false; btn.classList.remove('loading'); return; }
+    document.getElementById('startActions').style.display = 'none';
+    document.getElementById('progressActions').style.display = '';
+    document.getElementById('progressLabel').textContent = `Processing ${r.totalAsins.toLocaleString()} ASINs...`;
+    toast('Processing started', 'success');
+    startProgressPolling();
+  } catch (e) { toast('Start error: ' + e.message, 'error'); btn.disabled = false; btn.classList.remove('loading'); }
 }
 
 function startProgressPolling() {
@@ -652,7 +687,10 @@ async function pollProgress() {
     document.getElementById('psProcessed').textContent = d.processed.toLocaleString();
     document.getElementById('psFound').textContent = d.found.toLocaleString();
     document.getElementById('psNotFound').textContent = d.notFound.toLocaleString();
-    if (d.status === 'completed') {
+    if (d.status === 'ready') {
+      clearInterval(progressInterval); progressInterval = null;
+      setStagedState(d.totalAsins);
+    } else if (d.status === 'completed') {
       clearInterval(progressInterval); progressInterval = null;
       document.getElementById('progressBar').classList.add('complete');
       document.getElementById('progressLabel').textContent = 'Completed!';
@@ -665,6 +703,7 @@ async function pollProgress() {
       document.getElementById('progressBar').classList.add('error');
       document.getElementById('progressLabel').textContent = d.status === 'cancelled' ? 'Cancelled — partial results ready' : 'Failed: ' + (d.error || 'Unknown error');
       document.getElementById('progressActions').style.display = 'none';
+      document.getElementById('startActions').style.display = 'none';
       if (d.status === 'cancelled') {
         // Keep whatever was already processed: download stays available.
         document.getElementById('downloadActions').style.display = '';
@@ -676,8 +715,17 @@ async function pollProgress() {
 
 async function cancelJob() {
   if (!currentJobId) return;
-  await fetch(API + `/live-data/v4/cancel/${currentJobId}`, { method: 'POST', headers: authHeaders() });
-  toast('Job cancelled', 'warning');
+  try {
+    const r = await fetch(API + `/live-data/v4/cancel/${currentJobId}`, { method: 'POST', headers: authHeaders() });
+    if (r.ok) {
+      const s = document.getElementById('startActions');
+      if (s && s.style.display !== 'none') {
+        s.style.display = 'none';
+        document.getElementById('progressLabel').textContent = 'Staged job cancelled';
+      }
+    }
+    toast('Job cancelled', 'warning');
+  } catch (e) { toast('Cancel error: ' + e.message, 'error'); }
 }
 
 async function downloadJobResults() {

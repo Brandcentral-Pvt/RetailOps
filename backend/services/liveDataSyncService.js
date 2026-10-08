@@ -1091,10 +1091,10 @@ class LiveDataSyncService extends EventEmitter {
                     UPDATE Asins SET
                         Title = @title,
                         ParentAsin = @parentAsin,
-                        CurrentPrice = @currentPrice,
-                        Mrp = @mrp,
-                        Category = @mainCategory,
-                        Brand = @brand,
+                        CurrentPrice = ISNULL(NULLIF(@currentPrice, 0), CurrentPrice),
+                        Mrp = ISNULL(@mrp, Mrp),
+                        Category = ISNULL(@mainCategory, Category),
+                        Brand = ISNULL(@brand, Brand),
                         BSR = ISNULL(@mainBSR, BSR),
                         SubBSR = ISNULL(@subBSR, SubBSR),
                         SubBSRCategory = ISNULL(@subBSRCategory, SubBSRCategory),
@@ -1107,30 +1107,30 @@ class LiveDataSyncService extends EventEmitter {
                         BulletPoints = @bulletPointCount,
                         BulletPointsText = @bulletPoints,
 
-                        SoldBy = @soldBy,
-                        SoldBySec = @soldBySec,
-                        BuyBoxWin = @buyBoxWin,
+                        SoldBy = ISNULL(@soldBy, SoldBy),
+                        SoldBySec = ISNULL(@soldBySec, SoldBySec),
+                        BuyBoxWin = ISNULL(@buyBoxWin, BuyBoxWin),
                         AllOffers = @allOffersJson,
-                        SellerExternalId = @sellerId,
-                        CategoryPath = @categoryPath,
+                        SellerExternalId = ISNULL(@sellerId, SellerExternalId),
+                        CategoryPath = ISNULL(@categoryPath, CategoryPath),
                         VariantImages = @variantImages,
                         Dimensions = @dimensions,
                         BuyBoxes = @buyBoxes,
-                        HasDeal = @hasDeal,
-                        DealBadge = @dealType,
-                        DealType = @dealType,
-                        DealStartTime = @dealStartTime,
-                        DealEndTime = @dealEndTime,
+                        HasDeal = ISNULL(@hasDeal, HasDeal),
+                        DealBadge = ISNULL(@dealType, DealBadge),
+                        DealType = ISNULL(@dealType, DealType),
+                        DealStartTime = ISNULL(@dealStartTime, DealStartTime),
+                        DealEndTime = ISNULL(@dealEndTime, DealEndTime),
                         DealAccessType = @dealAccessType,
-                        DealPercentClaimed = @dealPercentClaimed,
-                        Manufacturer = @manufacturer,
+                        DealPercentClaimed = ISNULL(@dealPercentClaimed, DealPercentClaimed),
+                        Manufacturer = ISNULL(@manufacturer, Manufacturer),
                         PriceDispute = @priceDispute,
-                        DiscountPercentage = @discount,
+                        DiscountPercentage = ISNULL(@discount, DiscountPercentage),
                         LastScrapedAt = dbo.GetEnvDate(),
                         LastSyncSource = 'LIVE',
                         Status = 'Active',
                         UpdatedAt = dbo.GetEnvDate(),
-                        AvailabilityStatus = @availability
+                        AvailabilityStatus = ISNULL(@availability, AvailabilityStatus)
                     WHERE Id = @asinId
                 `);
 
@@ -1255,7 +1255,7 @@ class LiveDataSyncService extends EventEmitter {
             || null;
 
         // ── Deal details with dates ──────────────────────────────────
-        const dealBadge = (activeDeal?.badge || activeDeal?.type || activeDeal?.dealType || activeDeal?.dealBadge || null);
+        const dealBadge = (activeDeal?.badge || activeDeal?.type || activeDeal?.dealType || activeDeal?.dealBadge || itemDeal?.badge || null);
 
         let dealStartTime = null;
         let dealEndTime = null;
