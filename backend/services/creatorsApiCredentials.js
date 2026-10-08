@@ -1,20 +1,6 @@
 /**
  * CreatorsAPI Credential Rotation Service
- * Manages multiple versioned credential sets (v1–v6) and rotates them randomly
- * for higher request throughput.
- *
- * Env layout (all optional except v1):
- *   v1: LIVE_SYNC_CLIENT_ID / LIVE_SYNC_CLIENT_SECRET        (id: 'primary')
- *   v2: CREATORS_API_CLIENT_ID_2 / CREATORS_API_CLIENT_SECRET_2  (id: 'secondary')
- *   v3: CREATORS_API_CLIENT_ID_3 / CREATORS_API_CLIENT_SECRET_3   (id: 'v3')
- *   v4: CREATORS_API_CLIENT_ID_4 / CREATORS_API_CLIENT_SECRET_4   (id: 'v4')
- *   v5: CREATORS_API_CLIENT_ID_5 / CREATORS_API_CLIENT_SECRET_5   (id: 'v5')
- *   v6: CREATORS_API_CLIENT_ID_6 / CREATORS_API_CLIENT_SECRET_6   (id: 'v6')
- *
- * Per-version overrides (fall back to the global LIVE_SYNC_* values):
- *   CREATORS_API_PARTNER_TAG_<N>  — partner tag bound to that version's client
- *   CREATORS_API_MARKETPLACE_<N>  — marketplace (default 'www.amazon.in')
- *   CREATORS_API_CLIENT_VERSION_<N> — CreatorsAPI client version (default LIVE_SYNC_CLIENT_VERSION)
+ * Manages multiple credential sets and rotates them randomly for higher request throughput
  */
 class CreatorsApiCredentials {
     constructor() {
@@ -23,59 +9,48 @@ class CreatorsApiCredentials {
         this._loadFromEnv();
     }
 
-    // Static definition list so unconfigured versions still appear in the UI
-    // (configured: false) and getById() can validate incoming credIds.
-    static get VERSION_DEFS() {
-        return [
-            { id: 'primary', label: 'V1', envId: 'LIVE_SYNC_CLIENT_ID', envSecret: 'LIVE_SYNC_CLIENT_SECRET', num: 1 },
-            { id: 'secondary', label: 'V2', envId: 'CREATORS_API_CLIENT_ID_2', envSecret: 'CREATORS_API_CLIENT_SECRET_2', num: 2 },
-            { id: 'v3', label: 'V3', envId: 'CREATORS_API_CLIENT_ID_3', envSecret: 'CREATORS_API_CLIENT_SECRET_3', num: 3 },
-            { id: 'v4', label: 'V4', envId: 'CREATORS_API_CLIENT_ID_4', envSecret: 'CREATORS_API_CLIENT_SECRET_4', num: 4 },
-            { id: 'v5', label: 'V5', envId: 'CREATORS_API_CLIENT_ID_5', envSecret: 'CREATORS_API_CLIENT_SECRET_5', num: 5 },
-            { id: 'v6', label: 'V6', envId: 'CREATORS_API_CLIENT_ID_6', envSecret: 'CREATORS_API_CLIENT_SECRET_6', num: 6 },
-        ];
-    }
-
     _loadFromEnv() {
         const apiVersion = process.env.LIVE_SYNC_CLIENT_VERSION || '3.2';
 
-        this.credentials = [];
-        for (const def of CreatorsApiCredentials.VERSION_DEFS) {
-            const clientId = process.env[def.envId];
-            const clientSecret = process.env[def.envSecret];
-            if (!clientId || !clientSecret) continue;
+        // Primary credentials (always loaded)
+        const primary = {
+            id: 'primary',
+            clientId: process.env.LIVE_SYNC_CLIENT_ID,
+            clientSecret: process.env.LIVE_SYNC_CLIENT_SECRET,
+            version: apiVersion,
+            partnerTag: process.env.LIVE_SYNC_PARTNER_TAG,
+            marketplace: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
+            successCount: 0,
+            failCount: 0,
+            lastUsed: 0,
+            lastError: null,
+            consecutiveErrors: 0,
+        };
 
-            const num = def.num;
-            this.credentials.push({
-                id: def.id,
-                label: def.label,
-                clientId,
-                clientSecret,
-                version: process.env[`CREATORS_API_CLIENT_VERSION_${num}`] || apiVersion,
-                partnerTag: process.env[`CREATORS_API_PARTNER_TAG_${num}`] || process.env.LIVE_SYNC_PARTNER_TAG,
-                marketplace: process.env[`CREATORS_API_MARKETPLACE_${num}`] || process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
-                successCount: 0,
-                failCount: 0,
-                lastUsed: 0,
-                lastError: null,
-                consecutiveErrors: 0,
-            });
-        }
+        // Secondary credentials (from new env vars)
+        const secondary = {
+            id: 'secondary',
+            clientId: process.env.CREATORS_API_CLIENT_ID_2,
+            clientSecret: process.env.CREATORS_API_CLIENT_SECRET_2,
+            version: apiVersion,
+            partnerTag: process.env.LIVE_SYNC_PARTNER_TAG,
+            marketplace: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
+            successCount: 0,
+            failCount: 0,
+            lastUsed: 0,
+            lastError: null,
+            consecutiveErrors: 0,
+        };
+
+        this.credentials = [];
+        if (primary.clientId && primary.clientSecret) this.credentials.push(primary);
+        if (secondary.clientId && secondary.clientSecret) this.credentials.push(secondary);
 
         if (this.credentials.length === 0) {
             console.error('[Credentials] No Creators API credentials found in environment!');
         } else {
-            console.log(`[Credentials] Loaded ${this.credentials.length} credential set(s): ${this.credentials.map(c => c.label).join(', ')}`);
+            console.log(`[Credentials] Loaded ${this.credentials.length} credential set(s)`);
         }
-    }
-
-    /**
-     * Resolve one credential set by its id ('primary'/'secondary'/'v3'..'v6').
-     * Returns the credential or null when the id is unknown/not configured.
-     */
-    getById(credId) {
-        if (!credId) return null;
-        return this.credentials.find(c => c.id === credId) || null;
     }
 
     /**
@@ -126,35 +101,12 @@ class CreatorsApiCredentials {
     }
 
     /**
-     * Full v1–v6 overview (configured or not) for UI display.
-     */
-    getVersions() {
-        return CreatorsApiCredentials.VERSION_DEFS.map(def => {
-            const live = this.getById(def.id);
-            return {
-                id: def.id,
-                label: def.label,
-                configured: !!live,
-                clientId: live ? `${live.clientId.slice(0, 8)}...${live.clientId.slice(-4)}` : null,
-                version: live ? live.version : null,
-                partnerTag: live ? live.partnerTag : null,
-                marketplace: live ? live.marketplace : null,
-                successCount: live ? live.successCount : 0,
-                failCount: live ? live.failCount : 0,
-                consecutiveErrors: live ? live.consecutiveErrors : 0,
-                healthy: !!live && live.consecutiveErrors < 5,
-            };
-        });
-    }
-
-    /**
-     * Get stats for configured credentials (legacy shape used by /creds-stats).
+     * Get stats for all credentials
      */
     getStats() {
         return this.credentials.map(c => ({
             id: c.id,
-            label: c.label,
-            clientId: c.clientId ? `${c.clientId.slice(0, 8)}...${c.clientId.slice(-4)}` : 'NOT SET',
+            clientId: c.clientId ? c.clientId.slice(0, 30) + '...' : 'NOT SET',
             successCount: c.successCount,
             failCount: c.failCount,
             consecutiveErrors: c.consecutiveErrors,
