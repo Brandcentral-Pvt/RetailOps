@@ -33,9 +33,15 @@ async function getRedis() {
 const JOB_PREFIX = 'ldi:job:';
 const JOB_RESULTS_PREFIX = 'ldi:results:';
 const JOB_TTL = 7200; // 2 hours
+// A 'processing' job with no heartbeat for this long is considered crashed
+// (server restart / PM2 kill). Live jobs heartbeat every 60s, so the default
+// gives 3 missed heartbeats before marking the job failed so its partial
+// data can be downloaded instead of staying stuck at 'processing' forever.
+const JOB_STALE_MS = Math.max(60000, parseInt(process.env.LIVE_SYNC_JOB_STALE_MS || '180000', 10));
 
 async function saveJob(job) {
     const r = await getRedis();
+    job.updatedAt = new Date().toISOString();
     const { results, notFoundList, ...meta } = job;
     if (r) {
         await r.setex(JOB_PREFIX + job.id, JOB_TTL, JSON.stringify(meta));
@@ -51,6 +57,37 @@ async function saveJob(job) {
     }
 }
 
+// Heartbeat: refresh only the job metadata (keeps a live job from being
+// stale-marked while it waits for a slot, backs off, or scrapes).
+async function touchJob(jobId) {
+    const r = await getRedis();
+    if (r) {
+        const metaStr = await r.get(JOB_PREFIX + jobId);
+        if (!metaStr) return;
+        const meta = JSON.parse(metaStr);
+        meta.updatedAt = new Date().toISOString();
+        await r.setex(JOB_PREFIX + jobId, JOB_TTL, JSON.stringify(meta));
+    } else {
+        const fp = path.join(UPLOADS_DIR, jobId + '.json');
+        if (!fs.existsSync(fp)) return;
+        try {
+            const data = JSON.parse(fs.readFileSync(fp, 'utf8'));
+            data.meta.updatedAt = new Date().toISOString();
+            fs.writeFileSync(fp, JSON.stringify(data));
+        } catch { }
+    }
+}
+
+// Mark a job failed because its worker is gone (crash / restart), then
+// generate the partial data file from whatever was collected so far.
+async function markJobInterrupted(job) {
+    job.status = 'failed';
+    job.error = 'Job interrupted (server restart or crash) — partial data available';
+    job.completedAt = new Date().toISOString();
+    await saveJob(job);
+    writeJobFile(job).catch(() => { });
+}
+
 async function loadJob(jobId) {
     const r = await getRedis();
     if (r) {
@@ -59,12 +96,20 @@ async function loadJob(jobId) {
         const meta = JSON.parse(metaStr);
         const dataStr = await r.get(JOB_RESULTS_PREFIX + jobId + ':data');
         const nfStr = await r.get(JOB_RESULTS_PREFIX + jobId + ':nf');
-        return { ...meta, results: dataStr ? JSON.parse(dataStr) : [], notFoundList: nfStr ? JSON.parse(nfStr) : [] };
+        const job = { ...meta, results: dataStr ? JSON.parse(dataStr) : [], notFoundList: nfStr ? JSON.parse(nfStr) : [] };
+        if (job.status === 'processing' && (!job.updatedAt || Date.now() - Date.parse(job.updatedAt) > JOB_STALE_MS)) {
+            await markJobInterrupted(job);
+        }
+        return job;
     } else {
         const filePath = path.join(UPLOADS_DIR, jobId + '.json');
         if (!fs.existsSync(filePath)) return null;
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        return { ...data.meta, results: data.results || [], notFoundList: data.notFoundList || [] };
+        const job = { ...data.meta, results: data.results || [], notFoundList: data.notFoundList || [] };
+        if (job.status === 'processing' && (!job.updatedAt || Date.now() - Date.parse(job.updatedAt) > JOB_STALE_MS)) {
+            await markJobInterrupted(job);
+        }
+        return job;
     }
 }
 
@@ -75,6 +120,33 @@ async function deleteJob(jobId) {
     } else {
         try { fs.unlinkSync(path.join(UPLOADS_DIR, jobId + '.json')); } catch { }
     }
+}
+
+// ── Partial / final data files ────────────────────────────────────────
+// The XLSX artifact is written on completion, cancel, failure and on
+// crash-detection (stale mark), so a data file always exists for whatever
+// was collected — even if the job never reaches 'completed'.
+function buildJobWorkbook(job, partial) {
+    const ws = XLSX.utils.json_to_sheet(job.results || []);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Live Data');
+    if (job.notFoundList && job.notFoundList.length > 0) {
+        const nfWs = XLSX.utils.json_to_sheet(job.notFoundList);
+        XLSX.utils.book_append_sheet(wb, nfWs, 'Not Found');
+    }
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const filename = `live_data_${jobId_safe(job.id)}${partial ? '_partial' : ''}.xlsx`;
+    return { buf, filename };
+}
+
+async function writeJobFile(job) {
+    if (!job || !job.results || job.results.length === 0) return null;
+    const partial = job.status !== 'completed';
+    const { buf, filename } = buildJobWorkbook(job, partial);
+    const fp = path.join(UPLOADS_DIR, filename);
+    await fs.promises.writeFile(fp, buf);
+    console.log(`[Inspector] Generated ${partial ? 'partial ' : ''}data file for job ${job.id} (${job.results.length} rows) → ${filename}`);
+    return fp;
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -204,7 +276,13 @@ async function withJobSlot(fn) {
 }
 
 // ── Token management ───────────────────────────────────────────────────
-function getCreds() {
+function getCreds(credId) {
+    if (credId === 'v3') {
+        return {
+            pt: process.env.CREATORS_API_PARTNER_TAG_3 || process.env.LIVE_SYNC_PARTNER_TAG,
+            mk: process.env.CREATORS_API_MARKETPLACE_3 || process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
+        };
+    }
     return {
         pt: process.env.LIVE_SYNC_PARTNER_TAG,
         mk: process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
@@ -213,21 +291,26 @@ function getCreds() {
 
 async function getTokenInfo(credId) {
     const cred = credId
-        ? CreatorsApiCredentials.credentials.find(c => c.id === credId) || CreatorsApiCredentials.get()
-        : CreatorsApiCredentials.get();
-    const cacheKey = cred.id;
+        ? CreatorsApiCredentials.credentials.find(c => c.id === credId)
+        : null;
+    if (credId && !cred) {
+        if (credId === 'v3') throw new Error('V3 credential not configured (CREATORS_API_CLIENT_ID_3 / CREATORS_API_CLIENT_SECRET_3)');
+        // legacy ids fall back to rotation
+    }
+    const chosen = cred || CreatorsApiCredentials.get();
+    const cacheKey = chosen.id;
     const cached = TOKEN_CACHE.get(cacheKey);
-    if (cached && Date.now() < cached.expiry) return { token: cached.token, credId: cred.id };
+    if (cached && Date.now() < cached.expiry) return { token: cached.token, credId: chosen.id };
 
     const r = await axios.post('https://api.amazon.co.uk/auth/o2/token', new URLSearchParams({
-        grant_type: 'client_credentials', client_id: cred.clientId,
-        client_secret: cred.clientSecret, scope: 'creatorsapi::default',
+        grant_type: 'client_credentials', client_id: chosen.clientId,
+        client_secret: chosen.clientSecret, scope: 'creatorsapi::default',
     }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 });
 
     const token = r.data.access_token;
     TOKEN_CACHE.set(cacheKey, { token, expiry: Date.now() + (r.data.expires_in * 1000) - 120000 });
-    CreatorsApiCredentials.markSuccess(cred);
-    return { token, credId: cred.id };
+    CreatorsApiCredentials.markSuccess(chosen);
+    return { token, credId: chosen.id };
 }
 
 async function getToken(credId) {
@@ -823,7 +906,7 @@ exports.fetchLiveData = async (req, res) => {
         if (CreatorsApiCredentials.count === 0)
             return res.status(500).json({ success: false, error: 'Live Sync credentials not configured on server' });
 
-        const creds = getCreds();
+        const creds = getCreds(targetCredId);
 
         // ── Shared batch processor (rate-limited + queued) ───────────
         async function processBatches(credId, token, asinList, selectedMetrics) {
@@ -959,7 +1042,7 @@ exports.uploadAndProcess = async (req, res) => {
         if (asinList.length === 0) return res.status(400).json({ success: false, error: 'No valid ASINs found in file.' });
         if (asinList.length > CONFIG.maxUploadAsins) return res.status(400).json({ success: false, error: `Maximum ${CONFIG.maxUploadAsins} ASINs per upload` });
 
-        const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const jobId = `${req.body._jobPrefix || 'job_'}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const job = {
             id: jobId, status: 'processing', totalAsins: asinList.length,
             processed: 0, found: 0, notFound: 0, failed: 0,
@@ -973,10 +1056,18 @@ exports.uploadAndProcess = async (req, res) => {
         processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag).catch(async (err) => {
             console.error(`Job ${jobId} failed:`, err.message);
             const j = await loadJob(jobId);
-            if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
+            if (j && j.status === 'processing') {
+                j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString();
+                await saveJob(j);
+            }
+            // Generate the partial data file from whatever was collected
+            if (j) writeJobFile(j).catch(() => { });
         });
 
-        res.json({ success: true, jobId, totalAsins: asinList.length, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
+        // ~1 request/sec at 10 ASINs per request, plus inter-batch delay
+        const secsPerBatch = 1000 / CONFIG.rateLimitPerSec + BATCH_DELAY_MS;
+        const estimatedMinutes = Math.max(1, Math.ceil((asinList.length / BATCH_SIZE) * secsPerBatch / 60000));
+        res.json({ success: true, jobId, totalAsins: asinList.length, estimatedMinutes });
 
         logActivity('LIVE_DATA_UPLOAD', `File upload: ${asinList.length} ASINs from ${req.file.originalname} — metrics: ${selectedMetrics.join(', ')}`, {
             ip: getClientIp(req), jobId, asinCount: asinList.length,
@@ -1010,35 +1101,50 @@ exports.getResults = async (req, res) => {
 
 exports.downloadResults = async (req, res) => {
     const job = await loadJob(req.params.jobId);
-    if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
-    if (job.status !== 'completed') return res.status(400).json({ success: false, error: 'Job not completed yet' });
-    if (job.results.length === 0) return res.status(400).json({ success: false, error: 'No results to download' });
-
-    const ws = XLSX.utils.json_to_sheet(job.results);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Live Data');
-    if (job.notFoundList.length > 0) {
-        const nfWs = XLSX.utils.json_to_sheet(job.notFoundList);
-        XLSX.utils.book_append_sheet(wb, nfWs, 'Not Found');
+    if (!job) {
+        // Job record expired/lost — fall back to the generated data file on disk
+        const safeId = jobId_safe(req.params.jobId);
+        const candidates = [
+            path.join(UPLOADS_DIR, `live_data_${safeId}.xlsx`),
+            path.join(UPLOADS_DIR, `live_data_${safeId}_partial.xlsx`),
+        ];
+        const onDisk = candidates.find(fp => fs.existsSync(fp));
+        if (onDisk) {
+            const buf = await fs.promises.readFile(onDisk);
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="live_data_${safeId}.xlsx"`);
+            return res.send(buf);
+        }
+        return res.status(404).json({ success: false, error: 'Job not found' });
     }
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    const filename = `live_data_${jobId_safe(job.id)}.xlsx`;
+    if (job.status === 'processing') return res.status(400).json({ success: false, error: 'Job still processing' });
+    if (job.results.length === 0 && job.notFoundList.length === 0)
+        return res.status(400).json({ success: false, error: 'No results collected yet' });
+
+    // Works for completed, cancelled and failed/interrupted jobs — anything
+    // with data produces a file (partial when not completed).
+    const partial = job.status !== 'completed';
+    const { buf, filename } = buildJobWorkbook(job, partial);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buf);
 
-    logActivity('LIVE_DATA_DOWNLOAD', `Downloaded XLSX: ${job.results.length} ASINs from job ${job.id}`, {
+    logActivity('LIVE_DATA_DOWNLOAD', `Downloaded ${partial ? 'partial ' : ''}XLSX: ${job.results.length} ASINs from job ${job.id} (${job.status})`, {
         ip: getClientIp(req), jobId: job.id, resultCount: job.results.length,
-        notFoundCount: job.notFoundList.length,
+        notFoundCount: job.notFoundList.length, status: job.status,
     });
 };
 
 exports.cancelJob = async (req, res) => {
     const job = await loadJob(req.params.jobId);
     if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+    if (job.status === 'completed') return res.json({ success: true, alreadyCompleted: true });
     job.status = 'cancelled';
+    job.completedAt = job.completedAt || new Date().toISOString();
     await saveJob(job);
-    res.json({ success: true });
+    // Generate the partial data file immediately on cancel
+    writeJobFile(job).catch(() => { });
+    res.json({ success: true, partialAvailable: job.results.length > 0 });
 
     logActivity('LIVE_DATA_CANCEL', `Cancelled job ${job.id} at ${job.processed}/${job.totalAsins} ASINs`, {
         ip: getClientIp(req), jobId: job.id, processed: job.processed, total: job.totalAsins,
@@ -1048,101 +1154,40 @@ exports.cancelJob = async (req, res) => {
 // ── Background job processor ────────────────────────────────────────────
 // Runs inside the global job-slot pool (bounded concurrency) and every API
 // call goes through the per-credential rate limiter + serial queue.
+// A heartbeat keeps the job's updatedAt fresh so the stale-mark logic in
+// loadJob only fires when the worker is actually gone (crash/restart).
 async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
     if (CreatorsApiCredentials.count === 0) throw new Error('Live Sync credentials not configured');
 
-    await withJobSlot(async () => {
-        const creds = getCreds();
-        let token = await getToken(credId);
-        let tokenExpiry = Date.now() + 3600000;
-        let results = [];
-        let notFoundList = [];
-        let processed = 0, found = 0, notFound = 0;
-        let consecutiveErrors = 0;
+    const heartbeat = setInterval(() => { touchJob(jobId).catch(() => { }); }, 60000);
+    try {
+        await withJobSlot(async () => {
+            const creds = getCreds(credId);
+            let token = await getToken(credId);
+            let tokenExpiry = Date.now() + 3600000;
+            let results = [];
+            let notFoundList = [];
+            let processed = 0, found = 0, notFound = 0;
+            let consecutiveErrors = 0;
 
-        const refreshToken = async () => {
-            const t = await getToken(credId);
-            tokenExpiry = Date.now() + 3600000;
-            return t;
-        };
+            const refreshToken = async () => {
+                const t = await getToken(credId);
+                tokenExpiry = Date.now() + 3600000;
+                return t;
+            };
 
-        for (let i = 0; i < asinList.length; i += BATCH_SIZE) {
-            const job = await loadJob(jobId);
-            if (!job || job.status === 'cancelled') break;
-
-            const batch = asinList.slice(i, i + BATCH_SIZE);
-
-            // Refresh token if expired or about to expire
-            if (Date.now() > tokenExpiry - 120000) {
-                try { token = await refreshToken(); consecutiveErrors = 0; } catch { }
-            }
-
-            try {
-                const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
-                const items = apiData?.itemsResult?.items || [];
-                const errorMap = parseApiErrors(apiData?.errors || []);
-                await enrichWithAi(items, selectedMetrics, asinList.length, aiFlag);
-
-                for (const asinCode of batch) {
-                    const item = items.find(it => it.asin === asinCode);
-                    if (!item) {
-                        notFoundList.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not returned by API' });
-                        notFound++;
-                    } else {
-                        const row = { asin: asinCode, seller: extractMetricValue('seller', item) };
-                        for (const key of selectedMetrics) row[key] = extractMetricValue(key, item);
-                        results.push(row);
-                        found++;
-                    }
-                    processed++;
-                }
-                consecutiveErrors = 0;
-
-            } catch (batchErr) {
-                consecutiveErrors++;
-                // If all retries failed — queue failed ASINs for the retry pass
-                for (const a of batch) { notFoundList.push({ asin: a, reason: 'API error after all retries' }); notFound++; processed++; }
-                console.warn(`Batch ${i / BATCH_SIZE + 1} FAILED after ${MAX_BATCH_RETRIES} retries — ${batch.length} ASINs queued for retry`);
-            }
-
-            // Save progress to Redis every batch
-            job.processed = processed; job.found = found; job.notFound = notFound;
-            job.results = results; job.notFoundList = notFoundList;
-            await saveJob(job);
-
-            // Delay between batches — longer after errors
-            if (i + BATCH_SIZE < asinList.length) {
-                const delay = consecutiveErrors > 0
-                    ? Math.min(STALE_DELAY * consecutiveErrors, 30000) // scale up on consecutive errors, max 30s
-                    : BATCH_DELAY_MS;
-                await sleep(delay);
-            }
-        }
-
-        // ── RETRY PASS 2: Re-fetch all failed ASINs with fresh token ──
-        const failedAsins = notFoundList.map(n => n.asin);
-        if (failedAsins.length > 0 && failedAsins.length <= 5000) {
-            console.log(`Retry pass 2: re-fetching ${failedAsins.length} failed ASINs...`);
-            // Clear not-found list and re-process
-            notFoundList = [];
-            notFound = 0;
-            const retryResults = [];
-            let retryFound = 0;
-
-            // Get fresh token
-            try { token = await refreshToken(); } catch { }
-
-            for (let i = 0; i < failedAsins.length; i += BATCH_SIZE) {
+            for (let i = 0; i < asinList.length; i += BATCH_SIZE) {
                 const job = await loadJob(jobId);
-                if (!job || job.status === 'cancelled') break;
+                if (!job || job.status !== 'processing') break;
 
-                const batch = failedAsins.slice(i, i + BATCH_SIZE);
-                let retryBatchOk = false;
+                const batch = asinList.slice(i, i + BATCH_SIZE);
+
+                // Refresh token if expired or about to expire
+                if (Date.now() > tokenExpiry - 120000) {
+                    try { token = await refreshToken(); consecutiveErrors = 0; } catch { }
+                }
 
                 try {
-                    if (Date.now() > tokenExpiry - 120000) {
-                        try { token = await refreshToken(); } catch { }
-                    }
                     const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
                     const items = apiData?.itemsResult?.items || [];
                     const errorMap = parseApiErrors(apiData?.errors || []);
@@ -1151,62 +1196,151 @@ async function processJob(jobId, asinList, selectedMetrics, credId, aiFlag) {
                     for (const asinCode of batch) {
                         const item = items.find(it => it.asin === asinCode);
                         if (!item) {
-                            notFoundList.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not accessible' });
+                            notFoundList.push({ asin: asinCode, reason: errorMap.get(asinCode) || 'Not returned by API' });
                             notFound++;
                         } else {
                             const row = { asin: asinCode, seller: extractMetricValue('seller', item) };
                             for (const key of selectedMetrics) row[key] = extractMetricValue(key, item);
-                            retryResults.push(row);
-                            retryFound++;
+                            results.push(row);
+                            found++;
+                        }
+                        processed++;
+                    }
+                    consecutiveErrors = 0;
+
+                } catch (batchErr) {
+                    consecutiveErrors++;
+                    // If all retries failed — queue failed ASINs for the retry pass
+                    for (const a of batch) { notFoundList.push({ asin: a, reason: 'API error after all retries' }); notFound++; processed++; }
+                    console.warn(`Batch ${i / BATCH_SIZE + 1} FAILED after ${MAX_BATCH_RETRIES} retries — ${batch.length} ASINs queued for retry`);
+                }
+
+                // Save progress to Redis every batch (also the crash-detection heartbeat)
+                job.processed = processed; job.found = found; job.notFound = notFound;
+                job.results = results; job.notFoundList = notFoundList;
+                await saveJob(job);
+
+                // Delay between batches — longer after errors
+                if (i + BATCH_SIZE < asinList.length) {
+                    const delay = consecutiveErrors > 0
+                        ? Math.min(STALE_DELAY * consecutiveErrors, 30000) // scale up on consecutive errors, max 30s
+                        : BATCH_DELAY_MS;
+                    await sleep(delay);
+                }
+            }
+
+            // ── RETRY PASS 2: Re-fetch all failed ASINs with fresh token ──
+            // Failed ASINs stay in notFoundList until their retry resolves, so
+            // every intermediate saveJob keeps a complete, downloadable partial.
+            let preRetry = await loadJob(jobId);
+            const failedAsins = notFoundList.map(n => n.asin);
+            if (preRetry && preRetry.status === 'processing' && failedAsins.length > 0 && failedAsins.length <= 5000) {
+                console.log(`Retry pass 2: re-fetching ${failedAsins.length} failed ASINs...`);
+                const byAsin = new Map(notFoundList.map(n => [n.asin, n]));
+
+                // Get fresh token
+                try { token = await refreshToken(); } catch { }
+
+                for (let i = 0; i < failedAsins.length; i += BATCH_SIZE) {
+                    const job = await loadJob(jobId);
+                    if (!job || job.status !== 'processing') break;
+
+                    const batch = failedAsins.slice(i, i + BATCH_SIZE);
+                    let items = [];
+                    let errorMap = new Map();
+                    let retryBatchOk = false;
+
+                    try {
+                        if (Date.now() > tokenExpiry - 120000) {
+                            try { token = await refreshToken(); } catch { }
+                        }
+                        const apiData = await fetchBatchWithRetry(credId, token, batch, creds, refreshToken);
+                        items = apiData?.itemsResult?.items || [];
+                        errorMap = parseApiErrors(apiData?.errors || []);
+                        await enrichWithAi(items, selectedMetrics, asinList.length, aiFlag);
+                        retryBatchOk = true;
+                    } catch (err) {
+                        console.warn(`Retry batch ${i / BATCH_SIZE + 1} failed:`, err.message);
+                    }
+
+                    for (const asinCode of batch) {
+                        const item = retryBatchOk ? items.find(it => it.asin === asinCode) : null;
+                        const entry = byAsin.get(asinCode);
+                        if (item) {
+                            const row = { asin: asinCode, seller: extractMetricValue('seller', item) };
+                            for (const key of selectedMetrics) row[key] = extractMetricValue(key, item);
+                            results.push(row);
+                            found++;
+                            if (entry) {
+                                const idx = notFoundList.indexOf(entry);
+                                if (idx !== -1) notFoundList.splice(idx, 1);
+                            }
+                        } else if (entry) {
+                            entry.reason = errorMap.get(asinCode) || 'Not accessible after retries';
                         }
                     }
-                    retryBatchOk = true;
-                } catch (err) {
-                    console.warn(`Retry batch ${i / BATCH_SIZE + 1} failed:`, err.message);
-                }
+                    notFound = notFoundList.length;
 
-                if (!retryBatchOk) {
-                    for (const a of batch) { notFoundList.push({ asin: a, reason: 'Not accessible after retries' }); notFound++; }
-                }
+                    // Persist every retry batch — partial data + heartbeat
+                    job.processed = processed; job.found = found; job.notFound = notFound;
+                    job.results = results; job.notFoundList = notFoundList;
+                    await saveJob(job);
 
-                if (i + BATCH_SIZE < failedAsins.length) await sleep(BATCH_DELAY_MS * 2);
-            }
-
-            // Merge retry results
-            results = [...results, ...retryResults];
-            found += retryFound;
-        }
-
-        // ── Scraper-backed metrics for upload jobs ─────────────────────
-        const needsScrape = selectedMetrics.some(k => SCRAPE_METRICS.includes(k));
-        if (needsScrape && results.length > 0) {
-            const scrapeTargets = results.slice(0, SCRAPE_MAX).map(r => r.asin);
-            console.log(`[Inspector] Upload job: scraping ${scrapeTargets.length} of ${results.length} ASINs for scraper metrics`);
-            const scraped = await getInspectScrapeData(scrapeTargets);
-            for (const row of results.slice(0, SCRAPE_MAX)) {
-                const data = scraped.get(row.asin.toUpperCase());
-                if (data) {
-                    if (selectedMetrics.includes('hasAplus')) row.hasAplus = data.hasAplus ? 'Yes' : 'No';
-                    if (selectedMetrics.includes('rating') && data.rating > 0) row.rating = data.rating;
-                    if (selectedMetrics.includes('reviewCount') && data.reviewCount > 0) row.reviewCount = data.reviewCount;
+                    if (i + BATCH_SIZE < failedAsins.length) await sleep(BATCH_DELAY_MS);
                 }
             }
-            // Persistence of freshly-scraped ASINs is handled inside getInspectScrapeData.
-        }
 
-        const finalJob = await loadJob(jobId);
-        if (finalJob && finalJob.status !== 'cancelled') {
-            finalJob.status = 'completed';
-            finalJob.completedAt = new Date().toISOString();
-            await saveJob(finalJob);
+            // ── Scraper-backed metrics for upload jobs ─────────────────────
+            const needsScrape = selectedMetrics.some(k => SCRAPE_METRICS.includes(k));
+            const midJob = await loadJob(jobId);
+            if (midJob && midJob.status === 'processing' && needsScrape && results.length > 0) {
+                const scrapeTargets = results.slice(0, SCRAPE_MAX).map(r => r.asin);
+                console.log(`[Inspector] Upload job: scraping ${scrapeTargets.length} of ${results.length} ASINs for scraper metrics`);
+                const scraped = await getInspectScrapeData(scrapeTargets);
+                for (const row of results.slice(0, SCRAPE_MAX)) {
+                    const data = scraped.get(row.asin.toUpperCase());
+                    if (data) {
+                        if (selectedMetrics.includes('hasAplus')) row.hasAplus = data.hasAplus ? 'Yes' : 'No';
+                        if (selectedMetrics.includes('rating') && data.rating > 0) row.rating = data.rating;
+                        if (selectedMetrics.includes('reviewCount') && data.reviewCount > 0) row.reviewCount = data.reviewCount;
+                    }
+                }
+                // Persistence of freshly-scraped ASINs is handled inside getInspectScrapeData.
+            }
 
-            logActivity('LIVE_DATA_COMPLETE', `Job completed: ${finalJob.found}/${finalJob.totalAsins} ASINs found, ${finalJob.notFound} not found`, {
-                jobId, foundCount: finalJob.found, notFoundCount: finalJob.notFound,
-                totalAsins: finalJob.totalAsins, metrics: finalJob.metrics,
-                duration: finalJob.completedAt ? Math.round((new Date(finalJob.completedAt) - new Date(finalJob.startedAt)) / 1000) + 's' : 'unknown',
-            });
-        }
-    });
+            // ── Finalize: sync whatever we collected into the job record and
+            // always generate the data file for terminal states ────────────
+            const finalJob = await loadJob(jobId);
+            if (!finalJob) return;
+            if (finalJob.status === 'cancelled' || finalJob.status === 'failed') {
+                // Partial: keep latest rows so the file/endpoint sees everything
+                finalJob.results = results;
+                finalJob.notFoundList = notFoundList;
+                finalJob.found = found;
+                finalJob.notFound = notFoundList.length;
+                finalJob.completedAt = finalJob.completedAt || new Date().toISOString();
+                await saveJob(finalJob);
+                writeJobFile(finalJob).catch(() => { });
+            } else if (finalJob.status === 'processing') {
+                finalJob.status = 'completed';
+                finalJob.completedAt = new Date().toISOString();
+                finalJob.results = results;
+                finalJob.notFoundList = notFoundList;
+                finalJob.found = found;
+                finalJob.notFound = notFoundList.length;
+                await saveJob(finalJob);
+                writeJobFile(finalJob).catch(() => { });
+
+                logActivity('LIVE_DATA_COMPLETE', `Job completed: ${finalJob.found}/${finalJob.totalAsins} ASINs found, ${finalJob.notFound} not found`, {
+                    jobId, foundCount: finalJob.found, notFoundCount: finalJob.notFound,
+                    totalAsins: finalJob.totalAsins, metrics: finalJob.metrics,
+                    duration: finalJob.completedAt ? Math.round((new Date(finalJob.completedAt) - new Date(finalJob.startedAt)) / 1000) + 's' : 'unknown',
+                });
+            }
+        });
+    } finally {
+        clearInterval(heartbeat);
+    }
 }
 
 function jobId_safe(id) { return id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40); }
@@ -1238,3 +1372,42 @@ exports.getProgressV2 = (req, res) => exports.getProgress(req, res);
 exports.getResultsV2 = (req, res) => exports.getResults(req, res);
 exports.downloadResultsV2 = (req, res) => exports.downloadResults(req, res);
 exports.cancelJobV2 = (req, res) => exports.cancelJob(req, res);
+
+// ── V3: No auth, locked to the tertiary (.env) credential ─────────────
+function requireV3Cred() {
+    const cred = CreatorsApiCredentials.credentials.find(c => c.id === 'v3');
+    if (!cred || !cred.clientId || !cred.clientSecret) {
+        return null;
+    }
+    return cred;
+}
+
+// V3 job ids carry a distinct prefix so the unauthenticated v3 endpoints
+// can never serve v1/v2 jobs (those are only reachable behind auth).
+function assertV3Job(req, res) {
+    if (!String(req.params.jobId || '').startsWith('v3job_')) {
+        res.status(404).json({ success: false, error: 'Job not found' });
+        return false;
+    }
+    return true;
+}
+
+exports.fetchLiveDataV3 = async (req, res) => {
+    if (!requireV3Cred())
+        return res.status(500).json({ success: false, error: 'V3 requires the tertiary Creators API credential (CREATORS_API_CLIENT_ID_3 / CREATORS_API_CLIENT_SECRET_3).' });
+    req.body.credId = 'v3';
+    return exports.fetchLiveData(req, res);
+};
+
+exports.uploadAndProcessV3 = async (req, res) => {
+    if (!requireV3Cred())
+        return res.status(500).json({ success: false, error: 'V3 requires the tertiary Creators API credential (CREATORS_API_CLIENT_ID_3 / CREATORS_API_CLIENT_SECRET_3).' });
+    req.body._credId = 'v3';
+    req.body._jobPrefix = 'v3job_';
+    return exports.uploadAndProcess(req, res);
+};
+
+exports.getProgressV3 = (req, res) => assertV3Job(req, res) && exports.getProgress(req, res);
+exports.getResultsV3 = (req, res) => assertV3Job(req, res) && exports.getResults(req, res);
+exports.downloadResultsV3 = (req, res) => assertV3Job(req, res) && exports.downloadResults(req, res);
+exports.cancelJobV3 = (req, res) => assertV3Job(req, res) && exports.cancelJob(req, res);

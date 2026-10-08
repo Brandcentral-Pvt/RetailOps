@@ -40,4 +40,14 @@ router.get('/v2/results/:jobId', auth, ctrl.getResultsV2);
 router.get('/v2/download/:jobId', auth, ctrl.downloadResultsV2);
 router.post('/v2/cancel/:jobId', auth, ctrl.cancelJobV2);
 
+// V3 — no auth required; uses the tertiary credential from .env
+// (CREATORS_API_CLIENT_ID_3 / CREATORS_API_CLIENT_SECRET_3).
+router.get('/v3/metrics', ctrl.getMetrics);
+router.post('/v3/fetch', ctrl.fetchLiveDataV3);
+router.post('/v3/upload', upload.single('file'), ctrl.uploadAndProcessV3);
+router.get('/v3/progress/:jobId', ctrl.getProgressV3);
+router.get('/v3/results/:jobId', ctrl.getResultsV3);
+router.get('/v3/download/:jobId', ctrl.downloadResultsV3);
+router.post('/v3/cancel/:jobId', ctrl.cancelJobV3);
+
 module.exports = router;
