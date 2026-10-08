@@ -81,7 +81,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // ── Config (env-driven, sensible defaults) ──────────────────────────────
 const CONFIG = {
-    batchSize: Math.max(1, parseInt(process.env.LIVE_SYNC_BATCH_SIZE || '10', 10)),
+    batchSize: Math.min(10, Math.max(1, parseInt(process.env.LIVE_SYNC_BATCH_SIZE || '10', 10))),
     batchDelayMs: Math.max(0, parseInt(process.env.LIVE_SYNC_BATCH_DELAY_MS || '1200', 10)),
     rateLimitPerSec: Math.max(0.05, parseFloat(process.env.LIVE_SYNC_RATE_LIMIT_RPS || '1')),
     rateLimitBurst: Math.max(1, parseInt(process.env.LIVE_SYNC_RATE_LIMIT_BURST || '3', 10)),
@@ -170,20 +170,19 @@ function getBucket(credId) {
 }
 
 /**
- * Rate budget = RPM is bound to the Amazon ACCOUNT, not to the API key.
- * All these keys (v1–v6) sit behind one Amazon Associates account, so they
- * share ONE bucket — giving each key its own bucket made the pages fire in
- * parallel at the same account and trip its account-wide 429 limit (every
- * page then stalled in cooldown: "no call, no data"). Per-version KEYS are
- * still pinned for tokens/partner tags; only the rate gate is shared.
- * Set CREATORS_RATE_PER_ACCOUNT_BUCKETS=true ONLY if a version's key truly
- * belongs to a DIFFERENT Amazon account.
+ * Rate bucket = one INDEPENDENT budget per version/credential. Each inspector
+ * page (v1–v6) gets its own limit that it never shares with the others, so one
+ * version cannot starve or cooldown another. Parallelism across versions is
+ * kept in check by the global single-flight queue in throttledCall — requests
+ * from every version run strictly one at a time ("second request only after the
+ * first completes") — so the buckets never actually collide, and even if one
+ * version trips its own 429, the others keep their untouched budgets.
+ * Set CREATORS_RATE_PER_ACCOUNT_BUCKETS=false only to force all versions to
+ * share a single 'primary' budget.
  */
 function accountKeyFor() {
-    if (process.env.CREATORS_RATE_PER_ACCOUNT_BUCKETS === 'true') {
-        return (arguments[0] && arguments[0] !== 'primary') ? `acct_${arguments[0]}` : 'primary';
-    }
-    return 'primary';
+    if (process.env.CREATORS_RATE_PER_ACCOUNT_BUCKETS === 'false') return 'primary';
+    return (arguments[0] && arguments[0] !== 'primary') ? `acct_${arguments[0]}` : 'primary';
 }
 
 /**
@@ -1016,23 +1015,20 @@ exports.uploadAndProcess = async (req, res) => {
         if (asinList.length > CONFIG.maxUploadAsins) return res.status(400).json({ success: false, error: `Maximum ${CONFIG.maxUploadAsins} ASINs per upload` });
 
         const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const targetCredId = req.body._credId || req.body.credId || null;
+        const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
+        // Two-step flow: upload only STAGES the file (all ASINs stored), it does
+        // NOT start processing. The user clicks "Start" (POST /start) to begin.
         const job = {
-            id: jobId, status: 'processing', totalAsins: asinList.length,
+            id: jobId, status: 'ready', totalAsins: asinList.length,
             processed: 0, found: 0, notFound: 0, failed: 0,
             metrics: selectedMetrics, results: [], notFoundList: [],
-            startedAt: new Date().toISOString(), completedAt: null, error: null,
+            asins: asinList, _credId: targetCredId, ai: aiFlag,
+            startedAt: null, completedAt: null, error: null,
         };
         await saveJob(job);
 
-        const targetCredId = req.body._credId || req.body.credId || null;
-        const aiFlag = !(req.body.ai === false || req.body.ai === 'false' || req.body.ai === '0');
-        processJob(jobId, asinList, selectedMetrics, targetCredId, aiFlag).catch(async (err) => {
-            console.error(`Job ${jobId} failed:`, err.message);
-            const j = await loadJob(jobId);
-            if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
-        });
-
-        res.json({ success: true, jobId, totalAsins: asinList.length, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
+        res.json({ success: true, jobId, totalAsins: asinList.length, staged: true, estimatedMinutes: Math.ceil((asinList.length / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
 
         logActivity('LIVE_DATA_UPLOAD', `File upload: ${asinList.length} ASINs from ${req.file.originalname} — metrics: ${selectedMetrics.join(', ')}`, {
             ip: getClientIp(req), jobId, asinCount: asinList.length,
@@ -1040,6 +1036,40 @@ exports.uploadAndProcess = async (req, res) => {
         });
     } catch (err) {
         console.error('Upload error:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+exports.startJob = async (req, res) => {
+    try {
+        const { jobId } = req.body || {};
+        if (!jobId) return res.status(400).json({ success: false, error: 'jobId is required' });
+
+        const job = await loadJob(jobId);
+        if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
+        if (job.status === 'processing' || job.status === 'completed' || job.status === 'cancelled') {
+            return res.status(400).json({ success: false, error: `Job is already ${job.status}` });
+        }
+        if (!job.asins || job.asins.length === 0) return res.status(400).json({ success: false, error: 'Job has no ASINs to process' });
+
+        job.status = 'processing';
+        job.startedAt = new Date().toISOString();
+        job.error = null;
+        await saveJob(job);
+
+        processJob(job.id, job.asins, job.metrics || [], job._credId || null, job.ai !== false).catch(async (err) => {
+            console.error(`Job ${job.id} failed:`, err.message);
+            const j = await loadJob(job.id);
+            if (j) { j.status = 'failed'; j.error = err.message; j.completedAt = new Date().toISOString(); await saveJob(j); }
+        });
+
+        res.json({ success: true, jobId: job.id, totalAsins: job.totalAsins, estimatedMinutes: Math.ceil((job.totalAsins / BATCH_SIZE) * BATCH_DELAY_MS / 60000) });
+
+        logActivity('LIVE_DATA_START', `Started job ${job.id}: ${job.totalAsins} ASINs — metrics: ${(job.metrics || []).join(', ')}`, {
+            ip: getClientIp(req), jobId: job.id, asinCount: job.totalAsins, credId: job._credId || 'primary',
+        });
+    } catch (err) {
+        console.error('Start job error:', err.message);
         res.status(500).json({ success: false, error: err.message });
     }
 };
@@ -1309,6 +1339,12 @@ exports.uploadAndProcessV2 = async (req, res) => {
     return exports.uploadAndProcess(req, res);
 };
 
+exports.startJobV2 = async (req, res) => {
+    if (!requireSecondaryCred())
+        return res.status(500).json({ success: false, error: 'V2 requires the secondary Creators API credential (CREATORS_API_CLIENT_ID_2 / CREATORS_API_CLIENT_SECRET_2).' });
+    return exports.startJob(req, res);
+};
+
 // ── V3–V6: One distinct page + endpoint set per dedicated API credential.
 // Each version pins its own credId; progress/results/download/cancel are
 // jobId-based and reused across all versions.
@@ -1332,10 +1368,23 @@ function pinUpload(credKey) {
     };
 }
 
+function pinStart(credKey) {
+    return async (req, res) => {
+        const cred = CreatorsApiCredentials.getById(credKey);
+        if (!cred)
+            return res.status(500).json({ success: false, error: `${credKey.toUpperCase()} requires its own Creators API credential (CREATORS_API_CLIENT_ID_${credKey.replace(/^v/, '')} / CREATORS_API_CLIENT_SECRET_${credKey.replace(/^v/, '')}).` });
+        return exports.startJob(req, res);
+    };
+}
+
 exports.fetchLiveDataV3 = pinFetch('v3');
 exports.fetchLiveDataV4 = pinFetch('v4');
 exports.fetchLiveDataV5 = pinFetch('v5');
 exports.fetchLiveDataV6 = pinFetch('v6');
+exports.startJobV3 = pinStart('v3');
+exports.startJobV4 = pinStart('v4');
+exports.startJobV5 = pinStart('v5');
+exports.startJobV6 = pinStart('v6');
 
 exports.uploadAndProcessV3 = pinUpload('v3');
 exports.uploadAndProcessV4 = pinUpload('v4');
