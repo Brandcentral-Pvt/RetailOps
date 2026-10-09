@@ -1,0 +1,12 @@
+{
+  "name": "asin-scraper",
+  "version": "1.0.0",
+  "description": "LOCAL-ONLY ASIN scraper exe (built from scripts/local-scrape-asins.js). Never committed.",
+  "bin": "entry.js",
+  "pkg": {
+    "assets": [
+      "../node_modules/playwright-core/browsers.json",
+      "../node_modules/playwright/browsers.json"
+    ]
+  }
+}

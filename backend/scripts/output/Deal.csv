@@ -1,0 +1,1069 @@
+asin,status,error,title,currentPrice,mrp,discountPercentage,rating,reviewCount,hasAplus,imageUrl,imagesCount,brand,category,availability,soldBy,dealBadge,dealPrice,savingsAmount,bsr,subBsr,subBsrCategory,bulletPointsText,description,url,scrapedAt
+"B0FP99TYDH","OK","","DEELMO Men's Casual Cotton Shorts with Multiple Pockets | Comfortable Breathable Fabric | Stylish & Durable Design | for Outdoor Activities, Travel, Sports & Everyday Wear","0","1899","71","3.5","8","YES","https://m.media-amazon.com/images/I/41Z2NHWRjrL._SX679_.jpg","7","DEELMO","Shorts","Only 4 left in stock.","Cocoblu Retail","","0","0","0","0","","",".aplus-v2 .aplus-content-wrapper {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .aplus-v2 .container-with-background-image {
+        width: 100%;
+        height: 100%;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    .aplus-v2 .aplus-module-csa-wrapper {
+        display: flow-root;
+    }
+
+  
+    function logShoppableMetrics(moduleName, showsAddToCart) {
+        if (window.ue && window.ue.count) {
+            window.ue.count(""aplus:shoppable:"" + moduleName + "":addToCart"", showsAddToCart ? 1 : 0);
+        }
+    }
+
+
+                                                  From the brand   
+    
+            
+    /*
+     * Used when device = desktop
+     * Configured in: configuration/brazil-config/global/brand-story.cfg
+     */
+
+    /* Because the carousel is implemented as an ol list,
+       any lists in the card text will have a secondary list style (letters).
+       This will give an incorrect appearance to viewers,
+       so we set all lists to the primary list style (numbers). */
+    .aplus-brand-story-card ol li {
+        list-style: decimal;
+    }
+
+    /* Top level containers */
+    .aplus-module .apm-brand-story-hero {
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      width: 1464px;
+      height: 625px;
+      background-color: #fff;
+    }
+
+    .aplus-module .apm-brand-story-card {
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      width: 362px;
+      height: 453px;
+      background-color: var(--aok-sfs-color-page-primary-normal-bg, #fff);
+    }
+
+    .apm-brand-story-hero,
+    .apm-brand-story-card {
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      float: none;
+    }
+
+    .aplus-module.brand-story-card-1-four-asin .apm-brand-story-card {
+      /* Only 12px to account for image cell border */
+      padding: 12px;
+    }
+
+    /* Full background image (Hero 1 & Card 2) */
+    .aplus-module .apm-brand-story-background-image {
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      overflow: hidden;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    .aplus-module .apm-brand-story-background-image img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Card 1 small images */
+    .aplus-module .apm-brand-story-image-grid {
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      padding: 0px;
+      margin: auto;
+      display: flex;
+      flex-flow: row wrap;
+    }
+
+    .aplus-module .apm-brand-story-image-grid .apm-brand-story-image-grid-item {
+      /* Use content-box to ensure image size matches editor schema */
+      -moz-box-sizing: content-box;
+      -webkit-box-sizing: content-box;
+      box-sizing: content-box;
+      padding: 0px;
+      margin: 2px;
+      width: 162px;
+      height: 185px;
+      border: 1px solid var(--aok-sfs-color-page-inverse-normal-border, #fff);
+    }
+
+    .aplus-module .apm-brand-story-image-grid .apm-brand-story-image-grid-item .apm-brand-story-image-link {
+      display: block;
+      width: 100%;
+      height: 100%;
+      padding: 2px;
+    }
+
+    .aplus-module .apm-brand-story-image-grid .apm-brand-story-image-grid-item .apm-brand-story-image-link .apm-brand-story-image-img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Card 3 logo image */
+    .aplus-module .apm-brand-story-logo-image {
+        -moz-box-sizing: content-box;
+        -webkit-box-sizing: content-box;
+        box-sizing: content-box;
+        height: 145px;
+        margin: 0px 4px;
+        padding: 20px;
+        padding-bottom: 0px;
+    }
+
+    /* Text overlays */
+    .aplus-module .apm-brand-story-text-bottom {
+      -moz-box-sizing: border-box;
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      position: absolute;
+      bottom: 13px;
+      left: 13px;
+    }
+
+    .aplus-module .apm-brand-story-hero .apm-brand-story-text-bottom {
+        background-color: rgba(0,0,0,0.6);
+        color: #fff;
+        padding: 13px 65px 13px 13px; /* accounts for overlap of first card */
+        width: 437px;
+    }
+
+    .aplus-module.brand-story-card-2-media-asset .apm-brand-story-text-bottom {
+        background-color: rgba(255,255,255,0.6);
+        color: #000;
+        padding: 13px;
+        width: 336px;
+    }
+
+    .aplus-module.brand-story-card-1-four-asin .apm-brand-story-text {
+        margin-top: 8px;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    .aplus-module.brand-story-card-1-four-asin .apm-brand-story-text.apm-brand-story-text-single {
+        margin-top: 20px;
+    }
+
+    .aplus-module.brand-story-card-1-four-asin .apm-brand-story-text h3 {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .aplus-module .apm-brand-story-slogan-text {
+        -moz-box-sizing: content-box;
+        -webkit-box-sizing: content-box;
+        box-sizing: content-box;
+        margin: 0px 4px;
+        padding: 20px;
+    }
+
+    .aplus-module .apm-brand-story-faq {
+        -moz-box-sizing: content-box;
+        -webkit-box-sizing: content-box;
+        box-sizing: content-box;
+        padding-top: 10px;
+    }
+
+    .aplus-module .apm-brand-story-faq-block {
+        margin: 0px 10px;
+        padding: 10px;
+    }
+
+    
+                                                        
+    .aplus-v2 .apm-brand-story-carousel-container {
+        position: relative;
+    }
+
+    .aplus-v2 .apm-brand-story-carousel-hero-container,
+    .aplus-v2 .apm-brand-story-carousel-hero-container > div {
+        position: absolute;
+        width: 100%;
+    }
+
+
+    
+        /*
+          Ensuring the carousel takes only the space it needs.
+          The sizes need to be set again on the absolutely positioned elements so they can take up space.
+        */
+        .aplus-v2 .apm-brand-story-carousel-container,
+        .aplus-v2 .apm-brand-story-carousel-hero-container {
+            height: 625px;
+            width: 100%;
+            max-width: 1464px;
+            margin-left: auto;
+            margin-right: auto;
+            overflow: hidden;
+        }
+
+        .aplus-v2 .apm-brand-story-carousel-hero-container,
+        .aplus-v2 .apm-brand-story-carousel-hero-container > div {
+            height: 625px;
+        }
+    
+   
+        .aplus-v2 .apm-brand-story-carousel.a-carousel-container {
+            padding: 0px;
+        }
+
+        /*
+          This centers the carousel vertically on top of the hero image container and after the logo area (125px).
+          Margin-top = (heroHeight - cardHeight - logoAreaHeight) / 2 + logoAreaHeight
+        */
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-row-inner {
+            margin-top: 149px;
+        }
+
+        /*
+          Cards need to have a width set, otherwise they default to 50px or so.
+          All cards must have the same width. The carousel will resize itself so all cards take the width of the largest card.
+          The left margin is for leaving a space between each card.
+        */
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-card {
+            width: 362px;
+            margin-left: 30px !important;
+        }
+
+        /* styling the navigation buttons so they are taller, flush with the sides, and have a clean white background */
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-left,
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-right {
+            padding: 0px;
+        }
+
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-left .a-button-image,
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-right .a-button-image {
+            border: none;
+            margin: 0px;
+        }
+
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-left .a-button-image .a-button-inner,
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-right .a-button-image .a-button-inner {
+            background: #fff;
+            padding: 20px 6px;
+        }
+
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-left .a-button-image .a-button-inner {
+            border-radius: 0px 4px 4px 0px;
+        }
+
+        .aplus-v2 .apm-brand-story-carousel .a-carousel-col.a-carousel-right .a-button-image .a-button-inner {
+            border-radius: 4px 0px 0px 4px;
+        }
+    
+  
+        
+                 
+                             
+             
+    
+                                              <img alt="""" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/3d84efaa-5061-4e46-a5db-c777def2cd5b.__CR0,0,1464,625_PT0_SX1464_V1___.png""/>  
+
+     
+                                                     Entire Collection of Mens Wear                                        ""Celebrate the Festival of Savings – Shop at Deelmo for Great Deals!""     
+     
+
+   
+                     
+
+                     Previous page                      
+             
+    
+                                              <img alt=""shirts"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/7d58edeb-d7b4-4480-8aea-92b3d2e7ec52.__CR0,61,494,618_PT0_SX362_V1___.jpg""/>  
+
+     
+
+   
+                
+             
+    
+                                              <img alt=""shirt"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/8a257979-f8bb-4af9-bdf1-4c03712fd39e.__CR0,17,565,707_PT0_SX362_V1___.png""/>  
+
+     
+
+   
+                
+             
+    
+                                              <img alt=""cargo pants"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/8b719969-ca86-4606-a50d-1cf967cc28c2.__CR0,23,556,696_PT0_SX362_V1___.jpg""/>  
+
+     
+
+   
+                
+             
+    
+                                              <img alt=""shirt"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/a3faa45b-7b63-47c2-8af9-ec32d34eefbb.__CR0,23,556,696_PT0_SX362_V1___.jpg""/>  
+
+     
+
+   
+                
+             
+    
+                                              <img alt=""shirt"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/06c091d5-e20d-4def-b856-0fd9f1549118.__CR0,17,565,707_PT0_SX362_V1___.png""/>  
+
+     
+
+   
+                
+                  
+    
+         
+                                                       <img alt=""DEELMO Men&amp;#39;s Button Down Shirts Shirt Casual Long Sleeve Work Shirt Jackets Trucker Jacket Shirt ..."" src=""https://m.media-amazon.com/images/I/413JP3J87eL.__AC_SR166,182___.jpg""/>   
+         
+                                                       <img alt=""DEELMO Mens Casual Button Down Shirt Summer Beach Shirts Long Sleeve Cuban Collared Tropical Text..."" src=""https://m.media-amazon.com/images/I/41xzP3IjO3L.__AC_SR166,182___.jpg""/>   
+         
+                                                       <img alt=""kurta"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/f993a8e7-78dc-4a27-a913-9d934e540809.__CR30,0,619,679_PT0_SX166_V1___.jpg""/>   
+         
+                                                       <img alt=""kurta"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/15ee98d7-efd1-4268-8cba-d49ad0a88d90.__CR0,74,541,593_PT0_SX166_V1___.jpg""/>   
+         
+
+      
+                                                       Exclusive Collection       
+     
+
+   
+                
+                  
+    
+         
+                                                       <img alt=""DEELMO Combo of Men&amp;#39;s Casual Button Down Shirts Long Sleeve Linen Shirt Fashion Textured Summer S..."" src=""https://m.media-amazon.com/images/I/51yTfg%2BRo2L.__AC_SR166,182___.jpg""/>   
+         
+                                                       <img alt=""DEELMO Combo of Men&amp;#39;s Cotton Blend Solid Regular Fit Full Sleeve Short Kurta | Men&amp;#39;s Trendy Short..."" src=""https://m.media-amazon.com/images/I/51NJabItWsL.__AC_SR166,182___.jpg""/>   
+         
+                                                       <img alt=""DEELMO Men&amp;#39;s Cotton Blend Mandarin Collar Regular Fit Full Sleeve Casual Short Kurta, White, L Me..."" src=""https://m.media-amazon.com/images/I/41DW4XjAiBL.__AC_SR166,182___.jpg""/>   
+         
+                                                       <img alt=""DEELMO Combo of Men&amp;#39;s Stylish Solid Satin Casual Shirt for Men Full Sleeves| Poly Satin Silk Shir..."" src=""https://m.media-amazon.com/images/I/41RbHl8q-VL.__AC_SR166,182___.jpg""/>   
+         
+
+      
+                                                      Perfect Pairs-Perfect Prices       
+     
+
+   
+    Next page  
+        
+             
+    
+ (function(f) {var _np=(window.P._namespace(""BrandStoryAplusModule""));if(_np.guardFatal){_np.guardFatal(f)(_np);}else{f(_np);}}(function(P) {
+    P.when('brand-story-carousel').execute(""init-brand-story-carousel"", function (init) {
+        init();
+    });
+}));","https://www.amazon.in/dp/B0FP99TYDH?th=1&psc=1","2026-10-07T17:26:50.295Z"
+"B0G823KR7B","OK","","KESUDI Women kurta sets for woman","999","999","0","","","YES","https://m.media-amazon.com/images/I/613X5C8IfOL._SY741_.jpg","7","KESUDI","Kurtas & Kurtis","P.when(""A"", ""load"").execute(""aod-assets-loaded"", function(A){
+        function logAssetsNotLoaded() {
+            if (window.ueLogError) {
+                var customError = { message: 'Failed to load AOD assets for WDG: apparel_display_on_website, Device: web' };
+                var additionalInfo = {
+                    logLevel : 'ERROR',
+                    attribution : 'aod_assets_not_loaded'
+                };
+                ueLogError (customError, additionalInfo);
+            }
+            if (window.ue && window.ue.count) {
+                window.ue.count(""aod-assets-not-loaded"", 1);
+            }
+        }
+
+        function verifyAssetsLoaded() {
+            var assetsLoadedPageState = A.state('aod:assetsLoaded');
+            var logAssetsNotLoadedState = A.state('aod:logAssetsNotLoaded');
+
+            if((assetsLoadedPageState == null || !assetsLoadedPageState.isAodAssetsLoaded)
+                && (logAssetsNotLoadedState == null || !logAssetsNotLoadedState.isAodAssetsNotLoadedLogged)) {
+                A.state('aod:logAssetsNotLoaded', {isAodAssetsNotLoadedLogged: true});
+                logAssetsNotLoaded();
+            }
+        }
+
+        setTimeout(verifyAssetsLoaded, 50000)
+    });
+                     Currently unavailable.                      We don't know when or if this item will be back in stock.","","","0","0","0","0","","",".aplus-v2 .aplus-content-wrapper {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .aplus-v2 .container-with-background-image {
+        width: 100%;
+        height: 100%;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    .aplus-v2 .aplus-module-csa-wrapper {
+        display: flow-root;
+    }
+
+  
+    function logShoppableMetrics(moduleName, showsAddToCart) {
+        if (window.ue && window.ue.count) {
+            window.ue.count(""aplus:shoppable:"" + moduleName + "":addToCart"", showsAddToCart ? 1 : 0);
+        }
+    }
+
+
+                                                  Product Description   
+    
+            
+
+.aplus-v2 .premium-aplus-module-2 .premium-background-wrapper {
+    position: relative;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    top: 0;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.right {
+    left: 50%;
+}
+
+html[dir=""rtl""] .aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.right {
+    left: auto;
+    right: 50%;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.secondary-color {
+    color: #fff;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background {
+    padding: 20px;
+}
+
+.aplus-v2 .premium-aplus-module-2 .aplus-module-2-topic {
+    padding-bottom: 10px;
+}
+
+.aplus-v2 .premium-aplus-module-2 .aplus-module-2-heading {
+    padding-bottom: 20px;
+}
+
+.aplus-v2 .premium-aplus-module-2 .aplus-module-2-description {
+    line-height: 1.5em;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.white-background {
+    background: rgba(255,255,255,0.5);
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background {
+    background: rgba(0,0,0,0.5);
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background,
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background h1,
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background h5,
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background ol,
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background ul,
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background ol .a-list-item,
+.aplus-v2 .premium-aplus-module-2 .premium-intro-background.black-background ul .a-list-item {
+  color: #fff;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-content-container {
+    display: table;
+    height: 100%;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.left .premium-intro-content-container {
+    padding-left: 40px;
+}
+
+html[dir=""rtl""] .aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.left .premium-intro-content-container {
+	padding-left: 0px;
+	padding-right: 40px;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.right .premium-intro-content-container {
+    padding-right: 40px;
+}
+
+html[dir=""rtl""] .aplus-v2 .premium-aplus-module-2 .premium-intro-wrapper.right .premium-intro-content-container {
+    padding-right: 0px;
+    padding-left: 40px;
+}
+
+.aplus-v2 .premium-aplus-module-2 .premium-intro-content-column {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+
+
+       (function(f) {var _np=(window.P._namespace(""PremiumAplusModule""));if(_np.guardFatal){_np.guardFatal(f)(_np);}else{f(_np);}}(function(P) {
+P.now('premium-module-5-comparison-table-scroller').execute('init-premium-module-5-comparison-table', function(init){
+    if (init) {
+        return;
+    }
+    P.register('premium-module-5-comparison-table-scroller', function(){
+        return function() {
+            P.when('jQuery', 'a-popover', 'A', 'ready').execute('premium-5-comparison-table-scroller', function($, popover, A) {
+                function initCompTable(module) {
+                    /**
+                    * Premium comparison table: popover trigger module
+                    */
+                    var comparisonName = $(module).data('comparison-name');
+                    (function() {
+                        var $additionalInfo = $('.aplus-v2 .aplus-popover-trigger');
+                        $additionalInfo.each(function(i, trigger) {
+                            return popover.create(trigger, $(trigger).data());
+                        });
+                        $additionalInfo.hover(
+                            function() {
+                                $(this).focus();
+                            }
+                        );
+                    })();
+                    /**
+                    * Premium comparison table: adjust column width module
+                    */
+                    (function() {
+                        var VISIBLE_COLUMNS = 4.2;  /* How many visible columns on load */
+                        var MIN_WIDTH = 230;
+                        var getWidth = function() {
+                            return $(this).outerWidth();
+                        }
+                        /* cache selectors */
+                        var
+                            $container = $('.aplus-v2 .comparison-table #'+comparisonName),
+                            $header = $('.aplus-v2 .comparison-table #'+comparisonName+' td.attribute'),
+                            $slider = $('.aplus-v2 .comparison-table #'+comparisonName+' .table-slider'),
+                            $columns = $('.aplus-v2 .comparison-table #'+comparisonName+' .aplus-data-column'),
+                            $activeColumn = $('.aplus-v2 .comparison-table #'+comparisonName+' .aplus-data-column.active.active-item');
+
+                        /* Formula for determining desired column width */
+
+                        var calculatedColumnWidth = Math.floor(
+                            ($container.innerWidth() - $header.innerWidth()) / VISIBLE_COLUMNS
+                        );
+
+                        var childWidths = $activeColumn.map(getWidth).get();
+                        var maxChildWidth = Math.max(MIN_WIDTH, Math.max.apply(Math, childWidths));
+                        var minColumnWidth = $columns.innerWidth();
+
+                        /* set the min-width of each column to the calulated width or minWidth */
+                        $columns.css(
+                            'min-width',
+                            Math.max(MIN_WIDTH, (calculatedColumnWidth < minColumnWidth
+                                ? calculatedColumnWidth
+                                : minColumnWidth))
+                        );
+                        $activeColumn.css('width', maxChildWidth);
+
+                        /* show the component */
+                        $container.removeClass('loading');
+                    })();
+
+                    /**
+                     * Premium comparison table: sticky attribute & column
+                     */
+
+                    (function() {
+                        /* cache selectors */
+                        const comparisonTable = document.querySelector('.aplus-v2 .comparison-table #'+comparisonName);
+                        const header = comparisonTable.querySelector('td.attribute');
+                        const fixedColumn = comparisonTable.querySelector('td.active');
+
+                        const attributeColumnObserver = new ResizeObserver((entries) => {
+                            for (let entry of entries) {
+                                const bounds = entry.target.getBoundingClientRect().width;
+                                const activeCellWidth = window.getComputedStyle(fixedColumn).left;
+                                if (bounds + ""px"" !== activeCellWidth) {
+                                    const activeCells = document.querySelectorAll('.aplus-data-column.active');
+                                    activeCells.forEach(cell => cell.style.left = bounds + ""px"");
+
+                                }
+                            }
+
+                        })
+
+                        attributeColumnObserver.observe(header)
+                    })();
+
+                    /**
+                    * Premium comparison table: top scroll bar
+                    */
+                    (function() {
+                        /* cache selectors */
+                        var
+                            $header = $('.aplus-v2 .comparison-table #'+comparisonName+' td.attribute'),
+                            $fixedColumn = $('.aplus-v2 .comparison-table #'+comparisonName+' td.active'),
+                            $scrollWrapperTop = $('.aplus-v2 .comparison-table #'+comparisonName+' .scroll-wrapper-top'),
+                            $scrollWrapperBottom = $('.aplus-v2 .comparison-table #'+comparisonName+' .scroll-wrapper-bottom'),
+                            $scrollWidth = $('.aplus-v2 .comparison-table #'+comparisonName+' .scroll-width'),
+                            $scrollBar = $('.aplus-v2 .comparison-table #'+comparisonName+' .scroll-bar');
+                        /* confirm fixed column exists and can add width to the total width of the scroll bar */
+                        var fixedColumnWidth = $fixedColumn.innerWidth();
+                        if ( fixedColumnWidth === null ) {
+                            fixedColumnWidth = 0;
+                        }
+                        /* set width of scrollBar */
+                        $scrollBar.css('width', $scrollWidth.innerWidth() + fixedColumnWidth + $header.innerWidth());
+                        /* connect scrolls together */
+                        $scrollWrapperTop.scroll(function() {
+                            $scrollWrapperBottom.scrollLeft($scrollWrapperTop.scrollLeft());
+                        });
+                        $scrollWrapperBottom.scroll(function() {
+                            $scrollWrapperTop.scrollLeft($scrollWrapperBottom.scrollLeft());
+                        });
+                    })();
+                }
+
+                $('.aplus-v2 .premium-aplus-module-5 .table-container').each(function(index, module) {
+                    initCompTable(module);
+                });
+            });
+        }
+    });
+});
+}));       
+
+/**
+ * Premium-module 5: Comparision table - scroller
+ */
+
+.aplus-v2 .premium-aplus-module-5 h1 {
+    padding-bottom: 30px;
+}
+
+/* position column-headers relative to this table */
+.aplus-v2 .premium-aplus-module-5 .table-container {
+    position: relative;
+    opacity: 1;
+}
+
+.aplus-v2 .premium-aplus-module-5 .table-container.loading {
+    opacity: 0;
+}
+
+.aplus-v2 .premium-aplus-module-5 .table-slider {
+    overflow-x: scroll;
+    overflow-y: visible;
+    width: 100%;
+}
+
+.aplus-v2 .premium-aplus-module-5 td.attribute {
+    min-width: 300px;
+    top: auto;
+    left: 0;
+    z-index: 100;
+}
+
+html[dir=""rtl""] .aplus-v2 .premium-aplus-module-5 td.attribute {
+    right: 0px;
+    left: auto;
+}
+
+.aplus-v2 .premium-aplus-module-5 td.active-item,
+.aplus-v2 .premium-aplus-module-5 th.active-item {
+    top: auto;
+    left: 300px;
+    z-index: 100;
+}
+
+html[dir=""rtl""]  .premium-aplus-module-5 td.active-item,
+html[dir=""rtl""]  .premium-aplus-module-5 th.active-item {
+    left: auto;
+    right: 300px;
+}
+
+.aplus-v2 .premium-aplus-module-5 .attribute,
+.aplus-v2 .premium-aplus-module-5 .active-item{
+    position: sticky;
+}
+
+.aplus-v2 .premium-aplus-module-5 table.a-bordered td,
+.aplus-v2 .premium-aplus-module-5 table.a-bordered th {
+    background-color: #fff;
+}
+
+.aplus-v2 .premium-aplus-module-5 table.a-bordered td.attribute .aplus-popover-trigger::after {
+    content: ""?"";
+    display: inline-block;
+    font-size: 12px;
+    position: relative;
+    bottom: 5px;
+}
+
+.aplus-v2 .premium-aplus-module-5 .product-title {
+    font-size: 15px;
+    padding: 10px 0;
+}
+
+.aplus-v2 .premium-aplus-module-5 .scroll-width {
+    overflow-x: scroll;
+    overflow-y: visible;
+}
+
+
+.aplus-v2 .premium-aplus-module-5 td.attribute.empty {
+    height: 300px;
+}
+
+.aplus-v2 .premium-aplus-module-5 .header-img {
+    padding-top: 10px;
+}
+
+/* Override default AUI .a-bordered table borders */
+.aplus-v2 .premium-aplus-module-5 table.a-bordered {
+    border-width: 0;
+    border-color: #eaeaea;
+    border-style: solid;
+}
+
+/* Size the top scroller */
+.aplus-v2 .premium-aplus-module-5 .scroll-wrapper-top {
+    width: 100%;
+    height: 20px;
+    overflow-x: scroll;
+    overflow-y: visible;
+}
+
+.aplus-v2 .premium-aplus-module-5 .scroll-bar {
+    height: 1px;
+}
+
+.aplus-v2 .premium-aplus-module-5 .add-to-cart {
+    line-height: 1rem;
+    font-weight: normal;
+}
+
+.aplus-v2 .premium-aplus-module-5 .review {
+    font-size: 14px;
+}
+
+      
+
+/**
+ * Premium modules global styles
+ */
+.aplus-v2.desktop {
+  max-width: 1464px;
+  min-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+/* Undo this for tech-specs because it breaks table layout */
+.aplus-v2.desktop .premium-aplus .aplus-tech-spec-table { word-break: initial; }
+
+.aplus-v2 .premium-aplus,
+.aplus-v2 .premium-aplus .aplus-h1,
+.aplus-v2 .premium-aplus .aplus-h2,
+.aplus-v2 .premium-aplus .aplus-p1,
+.aplus-v2 .premium-aplus .aplus-p2,
+.aplus-v2 .premium-aplus .aplus-p3,
+.aplus-v2 .premium-aplus .aplus-accent1,
+.aplus-v2 .premium-aplus .aplus-accent2
+{ font-family: Arial, sans-serif; }
+
+.aplus-v2 .premium-aplus,
+.aplus-v2 .premium-aplus .aplus-h1,
+.aplus-v2 .premium-aplus .aplus-h2,
+.aplus-v2 .premium-aplus .aplus-p1,
+.aplus-v2 .premium-aplus .aplus-p2,
+.aplus-v2 .premium-aplus .aplus-p3,
+.aplus-v2 .premium-aplus .aplus-accent1,
+.aplus-v2 .premium-aplus .aplus-accent2
+{ font-family: inherit; }
+
+/* type */
+.aplus-v2 .premium-aplus .aplus-h1 { font-size: 32px; line-height: 1.2em; font-weight: 500; }
+.aplus-v2 .premium-aplus .aplus-h2 { font-size: 26px; line-height: 1.25em; font-weight: 500; }
+.aplus-v2 .premium-aplus .aplus-h3 { font-size: 18px; line-height: 1.25em; font-weight: 500; }
+.aplus-v2 .premium-aplus .aplus-p1 { font-size: 20px; line-height: 1.3em; font-weight: 300; }
+.aplus-v2 .premium-aplus .aplus-p2 { font-size: 16px; line-height: 1.4em; font-weight: 300; }
+.aplus-v2 .premium-aplus .aplus-p3 { font-size: 14px; line-height: 1.4em; font-weight: 300; }
+.aplus-v2 .premium-aplus .aplus-accent1 { font-size: 16px; line-height: 1.4em; font-weight: 600; }
+.aplus-v2 .premium-aplus .aplus-accent2 { font-size: 14px; line-height: 1.4em; font-weight: 600; }
+
+/* spacing */
+.aplus-v2 .aplus-container-1 { padding: 40px; }
+.aplus-v2 .aplus-container-1-2 { padding: 40px 80px; }
+.aplus-v2 .aplus-container-2 { padding: 80px; }
+.aplus-v2 .aplus-container-3 { padding: 40px 0; }
+
+/* Display */
+.aplus-v2 .premium-aplus .aplus-display-table { display: table; }
+.aplus-v2 .premium-aplus .aplus-display-table-cell { display: table-cell; }
+.aplus-v2 .premium-aplus .aplus-display-inline-block { display: inline-block; }
+
+/* Aplus display table with min-width 1000px and fill remaining space inside parent */
+.aplus-v2.desktop .premium-aplus .aplus-display-table-width { min-width: 1000px; width: 100% }
+
+/**
+* Padding and margin for element should be 10, 20, 40, or 80 px. Considering mini 10, small 20, medium 40, large 80.
+*/
+
+
+    
+                                
+                                                                                                     
+                                               KESUDI Kurta Set with Dupatta for Women       
+                                                                       KESUDI Dresses for Women       
+                                                            logShoppableMetrics(""premium-module-5-comparison-table-scroller"", false)
+                                                        
+                                                        
+                                                             Buying Options  
+                                                                                                             KESUDI Women Short Dress                            
+                    
+                         Add to Cart  
+                         
+        logShoppableMetrics(""premium-module-5-comparison-table-scroller"", true)
+    
+                                                           KESUDI Shirts for Women                            
+                    
+                         Add to Cart  
+                         
+        logShoppableMetrics(""premium-module-5-comparison-table-scroller"", true)
+    
+                                                           KESUDI Women Short Kurti                            
+                    
+                         Add to Cart  
+                         
+        logShoppableMetrics(""premium-module-5-comparison-table-scroller"", true)
+    
+                                                           KESUDI Women Mini Dress       
+                                                            logShoppableMetrics(""premium-module-5-comparison-table-scroller"", false)
+                                                        
+                                                        
+                                                             Buying Options  
+                                                                          
+                                     Customer Reviews  
+                                                             
+    .aplus-v2 .aplus-review-right-padding {
+        padding-right: 0.1rem;
+    }
+
+
+
+         
+                    3.7 out of 5 stars     509    
+                                                  
+    .aplus-v2 .aplus-review-right-padding {
+        padding-right: 0.1rem;
+    }
+
+
+
+         
+                    3.8 out of 5 stars     131    
+                                                  
+    .aplus-v2 .aplus-review-right-padding {
+        padding-right: 0.1rem;
+    }
+
+
+
+         
+                    4.2 out of 5 stars     17    
+                                                  
+    .aplus-v2 .aplus-review-right-padding {
+        padding-right: 0.1rem;
+    }
+
+
+
+         
+                    3.7 out of 5 stars     54    
+                                                  
+    .aplus-v2 .aplus-review-right-padding {
+        padding-right: 0.1rem;
+    }
+
+
+
+         
+                    4.7 out of 5 stars     5    
+                                 
+                                     Price  
+                                    
+                                                  
+                                                        —    
+                                            
+                                                        ₹999.00₹999.00     
+                                            
+                                                        ₹499.00₹499.00     
+                                            
+                                                        ₹799.00₹799.00     
+                                            
+                                                  
+                                                        —    
+                                                    
+                                     Fabric  
+                                   
+                                                Rayon    
+                                           
+                                                Rayon    
+                                           
+                                                Rayon    
+                                           
+                                                Rayon    
+                                           
+                                                Rayon    
+                                                  
+                                     Item Type  
+                                   
+                                                Western Dress    
+                                           
+                                                Western Dress    
+                                           
+                                                Shirts    
+                                           
+                                                Western Dress    
+                                           
+                                                Western Dress    
+                                                  
+                                     Color  
+                                   
+                                                Light Green    
+                                           
+                                                Sky Blue    
+                                           
+                                                Peach    
+                                           
+                                                Sea Green    
+                                           
+                                                Sky Blue    
+                                                  
+                                     Neck  
+                                   
+                                                V-Neck    
+                                           
+                                                V-Neck    
+                                           
+                                                Round Neck    
+                                           
+                                                V-Neck    
+                                           
+                                                V-Neck    
+                                                  
+                                     Every Occasion  
+                                   
+                                             
+                                                    ✔       
+                                           
+                                             
+                                                    ✔       
+                                           
+                                             
+                                                    ✔       
+                                           
+                                             
+                                                    ✔       
+                                           
+                                             
+                                                    ✔       
+                                                
+         
+ (function(f) {var _np=(window.P._namespace(""PremiumAplusModule""));if(_np.guardFatal){_np.guardFatal(f)(_np);}else{f(_np);}}(function(P) {
+    P.when('premium-module-5-comparison-table-scroller', 'ready').execute('invoke-premium-5-comparison-table', function(init){ init() });
+}));     
+             
+                                                                     KESUDI Kurta Sets for Woman                                            <img alt=""kurta sets for woman women with dupatta cotton suit set kurti pant kurtis latest design piece ethnic"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/0299b399-b938-4c6e-ad8a-ff709e7d3967.__CR0,0,1464,600_PT0_SX1464_V1___.png""/>                                          Crafted for modern Indian women, this kurta set for women blends breathable cotton kurta set with dupatta styling and ethnic kurta set appeal, making it ideal for office wear, daily wear and graceful festive dressing.            
+             
+                                                                                                       <img alt=""kurta sets for woman women with dupatta cotton suit set kurti pant kurtis latest design piece ethnic"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/39953b3b-807f-44fd-aef3-5c053ab4e2b9.__CR0,0,1464,600_PT0_SX1464_V1___.png""/>                                          This 3 piece kurta set for women includes kurta, pant and dupatta, offering a refined kurti pant set with dupatta look that works perfectly as office wear dresses for women and elegant ethnic wear.            
+             
+                                                                                                       <img alt=""kurta sets for woman women with dupatta cotton suit set kurti pant kurtis latest design piece ethnic"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/89035c2d-4adb-4f2f-a6aa-c9f1caedb2f4.__CR0,0,1464,600_PT0_SX1464_V1___.png""/>                                          Designed for all-day comfort, this women kurta set cotton features a relaxed silhouette and soft fabric, making it a perfect daily wear kurta set for women, suitable for office, travel and long hours of wear.            
+             
+                                                                                                       <img alt=""kurta sets for woman women with dupatta cotton suit set kurti pant kurtis latest design piece ethnic"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/b5247d6e-4f4c-4954-8340-345ccd4e5e98.__CR0,0,1464,600_PT0_SX1464_V1___.png""/>                                          Elevated with intricate embroidery and refined patterns, this kurta set for women with dupatta blends traditional craftsmanship with modern style, making it a graceful choice for festive wear, office wear and elegant daily styling.            
+             
+                                                                                                       <img alt=""kurta sets for woman women with dupatta cotton suit set kurti pant kurtis latest design piece ethnic"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/86953561-1631-4ed6-85d4-ef7e1d7b6e5a.__CR0,0,1464,600_PT0_SX1464_V1___.png""/>                                          Designed as a trendy kurta set for women, this cotton kurta set suits office wear, casual outings and festive moments, making it a timeless women ethnic kurta set with dupatta for all seasons.","https://www.amazon.in/dp/B0G823KR7B?th=1&psc=1","2026-10-07T17:26:55.068Z"
+"B0G3XQZTGP","OK","","Combo of Men's Textured Cotton Blend Casual Shirt | Comfortable Regular Fit Shirt with Full Sleeves | Stylish Vertical Crinkle Pattern | Trendy Everyday Wear (Pack of 2)","0","2499","68","3.5","4","YES","https://m.media-amazon.com/images/I/71T8MT57P6L._SX679_.jpg","5","AESTHEOS","Shirts","In stock","Cocoblu Retail","","0","0","0","0","","",".aplus-v2 .aplus-content-wrapper {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .aplus-v2 .container-with-background-image {
+        width: 100%;
+        height: 100%;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    .aplus-v2 .aplus-module-csa-wrapper {
+        display: flow-root;
+    }
+
+  
+    function logShoppableMetrics(moduleName, showsAddToCart) {
+        if (window.ue && window.ue.count) {
+            window.ue.count(""aplus:shoppable:"" + moduleName + "":addToCart"", showsAddToCart ? 1 : 0);
+        }
+    }
+
+
+                                                  Product Description   
+    
+            
+.aplus-v2 {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+.aplus-v2 .aplus-3p-fixed-width {
+    width: 970px;
+}
+.aplus-v2 .aplus-3p-fixed-width.aplus-module-wrapper {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+    
+                                
+                  
+                                            Premium Men's Shirts for Work, Casual & Party Wear                                           <img alt=""Men&amp;#39;s Shirts"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/4ce0ed29-57a4-4711-8b16-dd511062bdfd.__CR0,0,970,600_PT0_SX970_V1___.png""/>                                                                      Crafted from high-quality, breathable fabric, these men's shirts offer exceptional comfort and durability. The soft texture keeps you feeling fresh and comfortable throughout the day.     
+    
+             
+                  
+                                            Modern Fits, Premium Fabrics, Lasting Comfort                                           <img alt=""Formal Shirt for Men"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/30b1a836-26ec-43ed-bfda-ad09012ee16e.__CR0,0,970,600_PT0_SX970_V1___.png""/>                                                                      Designed with a modern fit and timeless style, these shirts effortlessly pair with jeans, chinos, or formal trousers, making them ideal for work, casual outings, and special occasions.     
+    
+             
+                  
+                                            Breathable Comfort, Timeless Style                                           <img alt=""Slim Fit Shirt for Men"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/56f2519e-5f47-4e49-93a4-1c4ec61ab8a3.__CR0,0,970,600_PT0_SX970_V1___.png""/>                                                                      Lightweight and breathable, the fabric allows easy movement while providing a comfortable fit, making it perfect for extended wear in every season.     
+    
+             
+                  
+                                            Stylish Men's Shirts Crafted for Comfort and Durability                                           <img alt=""Office Wear Shirt for Men"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/8cff9a10-c642-4589-85ea-3018af64b38f.__CR0,0,970,600_PT0_SX970_V1___.png""/>                                                                      Expert tailoring and durable stitching ensure a flattering fit and long-lasting performance. The shirts maintain their shape and color even after multiple washes.     
+    
+             
+                  
+                                            Perfect for Work, Weekends & Special Occasions                                           <img alt=""Casual Shirt for Men"" src=""https://m.media-amazon.com/images/S/aplus-media-library-service-media/0efa94d6-e1bd-4beb-a6eb-f1f3dc2b12da.__CR0,0,970,600_PT0_SX970_V1___.png""/>                                                                      Wrinkle-resistant and easy to maintain, these shirts are a practical addition to any wardrobe. Whether for the office, travel, or weekend wear, they deliver effortless style every time.","https://www.amazon.in/dp/B0G3XQZTGP?th=1&psc=1","2026-10-07T17:26:59.850Z"
