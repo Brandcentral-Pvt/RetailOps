@@ -51,7 +51,7 @@
     "iconify": "^1.4.0",
     "lucide-react": "^1.48.0",
     "marked": "^18.1.0",
-    "motion": "^13.4.4",
+    "motion": "^14.0.0",
     "multer": "^2.1.1",
     "mysql2": "^3.24.5",
     "p-queue": "^9.3.3",
