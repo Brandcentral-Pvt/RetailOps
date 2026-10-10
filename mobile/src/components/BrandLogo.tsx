@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function BrandLogo({
-  size = 42,
+  size = 32,
   showWordmark = false,
   wordmarkColor,
   accessible = true,

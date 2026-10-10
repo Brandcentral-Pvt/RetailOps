@@ -6,8 +6,26 @@ const notificationController = require('../controllers/notificationController');
 const listingQualityService = require('./listingQualityService');
 const rulesetEngineService = require('./rulesetEngineService');
 const playwrightScraperService = require('./playwrightScraperService');
+const asinCompletenessService = require('./asinCompletenessService');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
 const EventEmitter = require('events');
+
+// Transient account-level Creators API conditions (TPD exhausted, throttled,
+// no healthy credential). These must NOT count batches as 'failed' — the
+// caller pauses the seller and lets the completeness loop resume it later.
+function creatorsTransient(code, message) {
+    const err = new Error(message);
+    err.code = code;
+    return err;
+}
+
+function omitZero(obj) {
+    const out = {};
+    for (const [k, v] of Object.entries(obj || {})) {
+        if (v > 0) out[k] = v;
+    }
+    return out;
+}
 
 class LiveDataSyncService extends EventEmitter {
     constructor() {
@@ -82,6 +100,20 @@ class LiveDataSyncService extends EventEmitter {
             };
         }
 
+        // Cross-PM2-instance guard: the same seller must never be synced by two
+        // workers at once (that doubles RPM usage against one Amazon account).
+        const sellerLock = await creatorsApiRateGate.acquireLock(`syncseller:${sellerIdStr}`, {
+            ttlMs: 8 * 60 * 60 * 1000,
+            maxWaitMs: 3000,
+            retryMs: 800,
+        });
+        if (!sellerLock) {
+            return {
+                error: 'Live sync already in progress for this seller (another instance)',
+                status: 'IN_PROGRESS'
+            };
+        }
+
         const stats = {
             sellerId: sellerIdStr,
             syncType: 'LIVE',
@@ -89,6 +121,9 @@ class LiveDataSyncService extends EventEmitter {
             successCount: 0,
             failedCount: 0,
             failedAsinCodes: [],
+            pendingAsinCodes: [],
+            pausedReason: null,
+            pausedMessage: null,
             errors: [],
             duration: 0
         };
@@ -111,9 +146,17 @@ class LiveDataSyncService extends EventEmitter {
                 `);
 
             const allAsins = asinsResult.recordset;
-            stats.totalAsins = allAsins.length;
 
-            if (allAsins.length === 0) {
+            // Optional scope: re-sync ONLY the passed-in ASIN codes (used by the
+            // completeness loop to finish the gaps instead of re-doing the seller).
+            const { asinCodes } = options;
+            const scopedAsins = (asinCodes && asinCodes.length)
+                ? allAsins.filter((a) => asinCodes.includes(a.AsinCode))
+                : allAsins;
+
+            stats.totalAsins = scopedAsins.length;
+
+            if (scopedAsins.length === 0) {
                 throw new Error('No active ASINs found for this seller');
             }
 
@@ -135,11 +178,14 @@ class LiveDataSyncService extends EventEmitter {
                 totalAsins: allAsins.length
             });
 
-            // 2. Create batches
-            const batches = this._createBatches(allAsins, this._config.maxPerRequest);
+            // 2. Create batches (from the scoped set when this is a completeness pass)
+            const batches = this._createBatches(scopedAsins, this._config.maxPerRequest);
             const totalBatches = batches.length;
 
-            // 3. Process batches SEQUENTIALLY (Amazon API: 1 TPS per account)
+            // 3. Process batches SEQUENTIALLY (Amazon API: 1 TPS per account).
+            //    Account-level transients (TPD exhausted / throttled / no credential)
+            //    PAUSE the seller instead of burning its ASINs as 'failed' — the
+            //    completeness loop picks the remaining ASINs up on the next attempt.
             let completedCount = 0;
 
             for (const batch of batches) {
@@ -148,11 +194,12 @@ class LiveDataSyncService extends EventEmitter {
                 const credId = this._selectBestCred();
                 if (!credId) {
                     console.error(`⛔ No available credential (all throttled or TPD exhausted)`);
+                    stats.pausedReason = 'NO_CREDENTIAL';
+                    stats.pausedMessage = 'No available credential (all throttled or TPD exhausted)';
                     for (const asinRecord of batch) {
-                        stats.failedCount++;
-                        stats.failedAsinCodes.push(asinRecord.AsinCode);
+                        stats.pendingAsinCodes.push(asinRecord.AsinCode);
                     }
-                    continue;
+                    break;
                 }
 
                 try {
@@ -167,6 +214,15 @@ class LiveDataSyncService extends EventEmitter {
                         total: totalBatches
                     });
                 } catch (e) {
+                    if (e.code === 'CREATORS_TPD' || e.code === 'CREATORS_THROTTLED') {
+                        stats.pausedReason = e.code;
+                        stats.pausedMessage = e.message;
+                        for (const asinRecord of batch) {
+                            stats.pendingAsinCodes.push(asinRecord.AsinCode);
+                        }
+                        console.log(`  ⏸️ Pausing seller ${sellerIdStr} sync (${e.code}): ${e.message}. ${stats.pendingAsinCodes.length} ASIN(s) deferred.`);
+                        break;
+                    }
                     stats.errors.push({ batch: completedCount, error: e.message });
                     for (const asinRecord of batch) {
                         stats.failedCount++;
@@ -186,11 +242,15 @@ class LiveDataSyncService extends EventEmitter {
 
             stats.duration = Date.now() - startTime;
 
-            console.log(`Live sync complete: Seller ${sellerIdStr}`, {
-                success: stats.successCount,
-                failed: stats.failedCount,
-                duration: `${(stats.duration / 1000).toFixed(2)}s`
-            });
+            if (stats.pausedReason) {
+                console.log(`Live sync PAUSED: Seller ${sellerIdStr} ({ stats }), ${stats.pendingAsinCodes.length} ASINs deferred until account recovers`);
+            } else {
+                console.log(`Live sync complete: Seller ${sellerIdStr}`, {
+                    success: stats.successCount,
+                    failed: stats.failedCount,
+                    duration: `${(stats.duration / 1000).toFixed(2)}s`
+                });
+            }
 
             // 5. Post-sync actions (may take time for LQS analysis)
             try {
@@ -225,8 +285,10 @@ class LiveDataSyncService extends EventEmitter {
                 }
             } catch (e) { console.error('Socket emission error:', e.message); }
 
-            // 8. If there are failed ASINs, schedule auto-retry after 10s (was 30s)
-            if (stats.failedAsinCodes.length > 0) {
+            // 8. If there are failed ASINs (real/per-ASIN failures), schedule auto-retry.
+            //    Skip when the run was paused for TPD/throttle — retrying mid-cooldown
+            //    is what caused the 429 cascade; the completeness loop resumes later.
+            if (stats.failedAsinCodes.length > 0 && !stats.pausedReason) {
                 const failedCodes = [...stats.failedAsinCodes];
                 console.log(`🔄 Scheduling re-sync for ${failedCodes.length} failed ASINs in 10s...`);
 
@@ -237,6 +299,8 @@ class LiveDataSyncService extends EventEmitter {
                         console.error(`Re-sync of failed ASINs error:`, reSyncErr.message);
                     }
                 }, 10000);
+            } else if (stats.pausedReason) {
+                console.log(`⏸️ Skipping failed-ASIN re-sync (paused: ${stats.pausedReason}).`);
             }
 
             // 9. Notify users about sync results
@@ -247,12 +311,16 @@ class LiveDataSyncService extends EventEmitter {
             this.emit('liveSync:completed', stats);
 
             return {
-                success: true,
+                success: stats.pausedReason ? false : true,
                 sellerId: sellerIdStr,
                 totalAsins: stats.totalAsins,
                 updatedAsins: stats.successCount,
                 failedAsins: stats.failedCount,
                 failedAsinCodes: stats.failedAsinCodes,
+                pendingAsinsCount: stats.pendingAsinCodes.length,
+                pendingAsinCodes: stats.pendingAsinCodes,
+                pausedReason: stats.pausedReason || null,
+                pausedMessage: stats.pausedMessage || null,
                 duration: stats.duration,
                 completedAt: stats.completedAt
             };
@@ -269,6 +337,7 @@ class LiveDataSyncService extends EventEmitter {
         } finally {
             // Always clean up after ALL operations complete (success or failure)
             this.activeSyncs.delete(sellerIdStr);
+            await creatorsApiRateGate.releaseLock(`syncseller:${sellerIdStr}`, sellerLock);
         }
     }
 
@@ -284,11 +353,23 @@ class LiveDataSyncService extends EventEmitter {
         } = options;
         const startTime = Date.now();
 
-        // Prevent duplicate global sync
+        // Prevent duplicate global sync (in-process).
         if (this._globalSyncRunning) {
             return { error: 'Global live sync already in progress', status: 'IN_PROGRESS' };
         }
         this._globalSyncRunning = true;
+
+        // Cross-PM2-instance guard: only ONE worker may run the global sync —
+        // otherwise every PM2 instance runs the same seller list -> N× RPM.
+        const globalLock = await creatorsApiRateGate.acquireLock('syncAllSellers', {
+            ttlMs: 90 * 60 * 1000,
+            maxWaitMs: 3000,
+            retryMs: 1000,
+        });
+        if (!globalLock) {
+            this._globalSyncRunning = false;
+            return { error: 'Global live sync already in progress (another instance)', status: 'IN_PROGRESS' };
+        }
 
         // Global progress tracking (for status endpoint)
         this._globalSyncProgress = {
@@ -308,9 +389,15 @@ class LiveDataSyncService extends EventEmitter {
         try {
             const pool = await getPool();
 
-            // Get all active sellers with Amazon ASINs
+            // Get all active sellers with Amazon ASINs, ordered by how many ASINs are
+            // still incomplete (worst first) so an interrupted run resumes the
+            // sellers that need the most work — and a fully-done seller is never
+            // touched before an incomplete one.
+            const hardPredicate = asinCompletenessService.buildHardPredicate();
             let sellersQuery = `
-                SELECT DISTINCT s.Id, s.Name, COUNT(a.Id) as AsinCount
+                SELECT s.Id, s.Name,
+                       COUNT(a.Id) as AsinCount,
+                       COUNT(a.Id) - ISNULL(SUM(CASE WHEN (${hardPredicate}) THEN 1 ELSE 0 END), 0) AS IncompleteCount
                 FROM Sellers s
                 JOIN Asins a ON a.SellerId = s.Id
                 WHERE s.IsActive = 1 AND a.Status = 'Active' AND a.AsinCode LIKE 'B0%'
@@ -322,6 +409,9 @@ class LiveDataSyncService extends EventEmitter {
                 sellersQuery += ` AND s.Id IN (${sellerIds.map((_, i) => `@sellerId${i}`).join(',')})`;
                 sellerIds.forEach((id, i) => request.input(`sellerId${i}`, sql.VarChar, id));
             }
+            sellersQuery += `
+                ORDER BY (COUNT(a.Id) - ISNULL(SUM(CASE WHEN (${hardPredicate}) THEN 1 ELSE 0 END), 0)) DESC, s.Name
+            `;
 
             const sellersResult = await request.query(sellersQuery);
             const sellers = sellersResult.recordset;
@@ -335,63 +425,116 @@ class LiveDataSyncService extends EventEmitter {
 
             const results = [];
 
-            // Parallel seller processing with concurrency limiter
-            const processOneSeller = async (seller, index) => {
-                const progress = `[${index + 1}/${sellers.length}]`;
-                let lastError = null;
-                let attempt = 0;
+            // ── One seller at a time, COMPLETENESS-GATED ───────────────────
+            // Each seller is synced until every active ASIN meets the completeness
+            // predicate (or the bounded per-seller attempt cap is hit), and only
+            // then do we move to the next seller. Concurrency is forced to 1
+            // (config default) so RPM is never multiplied across sellers.
+            const maxSellerAttempts = parseInt(process.env.LIVE_SYNC_MAX_SELLER_ATTEMPTS || '2', 10);
+            const sellerDelay = this._config.sellerDelay;
+            const hardCapReached = globalTimeoutMs ? startTime + globalTimeoutMs : null;
 
+            let processedSellers = 0;
+            for (const seller of sellers) {
+                if (this._globalSyncAborted) {
+                    console.warn('⚡ Global sync aborted — stopping seller loop');
+                    break;
+                }
+                if (hardCapReached && Date.now() > hardCapReached) {
+                    console.warn(`⚡ Global sync timeout (${(globalTimeoutMs / 60000).toFixed(0)}min) reached — stopping seller loop`);
+                    break;
+                }
+
+                if (processedSellers > 0) {
+                    await this._delay(sellerDelay); // 2s breathing room between sellers
+                }
+
+                processedSellers++;
+                const progress = `[${processedSellers}/${sellers.length}]`;
+                this._globalSyncProgress.processedSellers = processedSellers;
                 this._globalSyncProgress.currentSeller = { name: seller.Name, id: seller.Id, asinCount: seller.AsinCount, attempt: 0 };
 
-                while (attempt <= maxRetries) {
+                // 1) The main live sync pass (with retry-on-fatal).
+                let sellerResult = null;
+                let lastError = null;
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
                     try {
                         if (attempt > 0) {
                             console.log(`  ${progress} 🔄 ${seller.Name} — retry ${attempt}/${maxRetries}`);
                             this._globalSyncProgress.currentSeller.attempt = attempt;
                             await this._delay(this._config.retryDelay);
                         }
-                        const result = await this.syncSellerLiveData(seller.Id);
-                        results.push({
-                            sellerId: seller.Id, name: seller.Name,
-                            status: result.success ? 'SUCCESS' : 'PARTIAL',
-                            updated: result.updatedAsins || 0, failed: result.failedAsins || 0,
-                            duration: result.duration || 0
-                        });
-                        console.log(`  ${progress} ✅ ${seller.Name}: ${result.updatedAsins || 0} updated, ${result.failedAsins || 0} failed (${((result.duration || 0) / 1000).toFixed(1)}s)`);
-                        return;
+                        sellerResult = await this.syncSellerLiveData(seller.Id);
+                        break;
                     } catch (err) {
                         lastError = err;
-                        attempt++;
-                        console.warn(`  ${progress} ⚠️  ${seller.Name}: attempt ${attempt}/${maxRetries} failed — ${err.message}`);
+                        console.warn(`  ${progress} ⚠️  ${seller.Name}: attempt ${attempt + 1}/${maxRetries} failed — ${err.message}`);
                     }
                 }
-                results.push({ sellerId: seller.Id, name: seller.Name, status: 'FAILED', error: lastError?.message, retries: maxRetries });
-            };
 
-            // Process with concurrency limiter
-            const queue = [...sellers];
-            const running = new Set();
-            let processed = 0;
+                if (!sellerResult) {
+                    results.push({ sellerId: seller.Id, name: seller.Name, status: 'FAILED', error: lastError?.message, retries: maxRetries });
+                    continue;
+                }
 
-            while (queue.length > 0 || running.size > 0) {
-                if (this._globalSyncAborted) {
-                    console.warn('⚡ Global sync aborted — stopping queue');
-                    break;
+                // TPD is permanent for the day — don't waste completeness retries.
+                if (sellerResult.pausedReason === 'CREATORS_TPD') {
+                    console.log(`  ${progress} ⏸️  ${seller.Name}: TPD exhausted, deferring remaining ${sellerResult.pendingAsinsCount || 0} ASIN(s) to a later run.`);
+                    results.push({
+                        sellerId: seller.Id, name: seller.Name,
+                        status: 'PARTIAL', pausedReason: 'CREATORS_TPD',
+                        updated: sellerResult.updatedAsins || 0, failed: sellerResult.failedAsins || 0,
+                        pending: sellerResult.pendingAsinsCount || 0,
+                        duration: sellerResult.duration || 0
+                    });
+                    continue;
                 }
-                while (running.size < concurrency && queue.length > 0) {
-                    const seller = queue.shift();
-                    const idx = processed++;
-                    this._globalSyncProgress.processedSellers = processed;
-                    const p = processOneSeller(seller, idx);
-                    running.add(p);
-                    p.finally(() => running.delete(p));
+
+                // 2) Completeness gate: keep refining THIS seller (only its gaps)
+                //    until complete or the attempt cap is exhausted.
+                let completeness = await asinCompletenessService.getSellerCompleteness(seller.Id);
+                let completenessAttempt = 0;
+                while (completeness.incomplete > 0 && completenessAttempt < maxSellerAttempts) {
+                    if (this._globalSyncAborted) break;
+                    if (hardCapReached && Date.now() > hardCapReached) break;
+                    completenessAttempt++;
+                    this._globalSyncProgress.currentSeller.attempt = maxRetries + completenessAttempt;
+
+                    const incompleteAsins = await asinCompletenessService.listIncompleteAsins(seller.Id, { limit: 500 });
+                    if (incompleteAsins.length === 0) break;
+
+                    console.log(`  ${progress} 🔁 ${seller.Name} — completeness pass ${completenessAttempt}/${maxSellerAttempts}: re-syncing ${incompleteAsins.length} incomplete ASIN(s)`);
+                    try {
+                        await this.syncSellerLiveData(seller.Id, { asinCodes: incompleteAsins.map((a) => a.AsinCode) });
+                    } catch (err) {
+                        console.warn(`  ${progress} ⚠️  ${seller.Name} completeness pass ${completenessAttempt} failed: ${err.message}`);
+                    }
+                    completeness = await asinCompletenessService.getSellerCompleteness(seller.Id);
                 }
-                if (running.size > 0) {
-                    await Promise.race(running);
-                }
+
+                const missing = await asinCompletenessService.getMissingFieldBreakdown(seller.Id);
+                console.log(`  ${progress} ${completeness.incomplete === 0 ? '✅' : '⚠️'} ${seller.Name}: ${completeness.complete}/${completeness.total} ASINs complete (${completeness.percent}%)${completeness.incomplete > 0 ? `, ${completeness.incomplete} still incomplete; missing ${JSON.stringify(omitZero(missing))}` : ''} in ${((sellerResult.duration || 0) / 1000).toFixed(1)}s`);
+
+                results.push({
+                    sellerId: seller.Id,
+                    name: seller.Name,
+                    status: completeness.incomplete > 0 ? 'PARTIAL' : 'SUCCESS',
+                    updated: sellerResult.updatedAsins || 0,
+                    failed: sellerResult.failedAsins || 0,
+                    pending: sellerResult.pendingAsinsCount || 0,
+                    pausedReason: sellerResult.pausedReason || null,
+                    completeAsins: completeness.complete,
+                    totalAsins: completeness.total,
+                    incompleteAsins: completeness.incomplete,
+                    completePercent: completeness.percent,
+                    missingFields: missing,
+                    duration: sellerResult.duration || 0
+                });
             }
 
             const totalDuration = Date.now() - startTime;
+            const totalAsinsAll = results.reduce((sum, r) => sum + (r.totalAsins || 0), 0);
+            const completeAsinsAll = results.reduce((sum, r) => sum + (r.completeAsins || 0), 0);
             const summary = {
                 totalSellers: sellers.length,
                 success: results.filter(r => r.status === 'SUCCESS').length,
@@ -399,11 +542,14 @@ class LiveDataSyncService extends EventEmitter {
                 failed: results.filter(r => r.status === 'FAILED').length,
                 skipped: results.filter(r => r.status === 'SKIPPED').length,
                 totalAsinsUpdated: results.reduce((sum, r) => sum + (r.updated || 0), 0),
+                totalAsins: totalAsinsAll,
+                totalAsinsComplete: completeAsinsAll,
+                completenessPercent: totalAsinsAll > 0 ? +((completeAsinsAll / totalAsinsAll) * 100).toFixed(1) : 100,
                 duration: totalDuration,
                 completedAt: new Date().toISOString()
             };
 
-            console.log(`⚡ Live sync complete: ${summary.success}/${summary.totalSellers} success, ${summary.partial} partial, ${summary.failed} failed, ${summary.totalAsinsUpdated} ASINs in ${(totalDuration / 1000).toFixed(1)}s`);
+            console.log(`⚡ Live sync complete: ${summary.success}/${summary.totalSellers} sellers complete, ${summary.partial} partial, ${summary.failed} failed, ${completeAsinsAll}/${totalAsinsAll} ASINs complete (${summary.completenessPercent}%), ${summary.totalAsinsUpdated} updated in ${(totalDuration / 1000).toFixed(1)}s`);
             this.emit('liveSyncAll:completed', summary);
 
             // Emit socket event for real-time UI updates
@@ -421,6 +567,7 @@ class LiveDataSyncService extends EventEmitter {
             clearTimeout(globalTimeout);
             this._globalSyncRunning = false;
             this._globalSyncAborted = false;
+            await creatorsApiRateGate.releaseLock('syncAllSellers', globalLock);
             this._globalSyncProgress = {
                 ...this._globalSyncProgress,
                 status: 'COMPLETED',
@@ -517,7 +664,7 @@ class LiveDataSyncService extends EventEmitter {
     // clobbering API-provided fields.
     // ============================================
     async _applyScrapeEnrichment(results) {
-        if (!results || results.size === 0) return;
+        if (!(results instanceof Map) || results.size === 0) return;
         for (const [code, d] of results) {
             try {
                 const pool = await getPool();
@@ -559,7 +706,7 @@ class LiveDataSyncService extends EventEmitter {
     // Internal: Write FULL scraped product data (API-inaccessible ASINs)
     // ============================================
     async _applyFullScrape(results) {
-        if (!results || results.size === 0) return;
+        if (!(results instanceof Map) || results.size === 0) return;
         for (const [code, d] of results) {
             try {
                 const pool = await getPool();
@@ -591,6 +738,9 @@ class LiveDataSyncService extends EventEmitter {
                     .input('mainBSR', sql.Int, d.bsr)
                     .input('subBSR', sql.Int, d.subBsr)
                     .input('subBSRCategory', sql.NVarChar(255), d.subBsrCategory)
+                    .input('bulletPointCount', sql.Int, Array.isArray(d.bulletPoints) ? d.bulletPoints.length : 0)
+                    .input('bulletPoints', sql.NVarChar(sql.MAX), Array.isArray(d.bulletPoints) ? JSON.stringify(d.bulletPoints) : (d.bulletPointsText || null))
+                    .input('description', sql.NVarChar(sql.MAX), d.description || null)
                     .query(`
                         UPDATE Asins SET
                             Title = ISNULL(@title, Title),
@@ -612,6 +762,9 @@ class LiveDataSyncService extends EventEmitter {
                             BSR = ISNULL(NULLIF(@mainBSR, 0), BSR),
                             SubBSR = ISNULL(NULLIF(@subBSR, 0), SubBSR),
                             SubBSRCategory = ISNULL(@subBSRCategory, SubBSRCategory),
+                            BulletPoints = ISNULL(NULLIF(@bulletPointCount, 0), BulletPoints),
+                            BulletPointsText = ISNULL(@bulletPoints, BulletPointsText),
+                            ProductDescription = ISNULL(NULLIF(@description, ''), ProductDescription),
                             ScrapeStatus = 'COMPLETED',
                             LastScrapeStatus = 'COMPLETED',
                             LastScrapedAt = dbo.GetEnvDate(),
@@ -693,7 +846,7 @@ class LiveDataSyncService extends EventEmitter {
                 const tpdRemaining = await creatorsApiRateGate.getRemaining('primary');
                 if (tpdRemaining <= 0) {
                     console.warn(`⛔ Creators API daily TPD quota reached (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
-                    throw new Error('Creators API daily TPD quota reached');
+                    throw creatorsTransient('CREATORS_TPD', 'Creators API daily TPD quota reached');
                 }
 
                 const credInfo = this._getCredInfo(credId);
@@ -711,7 +864,7 @@ class LiveDataSyncService extends EventEmitter {
                 const reserved = await creatorsApiRateGate.recordRequest('primary');
                 if (!reserved) {
                     console.warn(`⛔ Creators API daily TPD quota reached (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
-                    throw new Error('Creators API daily TPD quota reached');
+                    throw creatorsTransient('CREATORS_TPD', 'Creators API daily TPD quota reached');
                 }
 
                 const { GetItemsRequestContent } = CreatorsApiSdk;
@@ -759,7 +912,7 @@ class LiveDataSyncService extends EventEmitter {
                 // API write completes (guaranteed ordering → scraped values win).
                 if (scrapePromise) {
                     const apply = scrapePromise
-                        .then((results) => this._applyScrapeEnrichment(results))
+                        .then(({ results }) => this._applyScrapeEnrichment(results))
                         .catch((e) => console.warn(`  ⚠ Scraper enrichment apply failed: ${e.message}`));
                     this._pendingScrapes.add(apply);
                     apply.finally(() => this._pendingScrapes.delete(apply));
@@ -806,27 +959,31 @@ class LiveDataSyncService extends EventEmitter {
                     console.error(`❌ [LiveSync] API ${status} for batch [${codes?.slice(0, 3).join(', ')}...]: ${body}`);
                 }
 
-                // 429: Throttle this credential, try the other one
-                if (status === 429) {
+                // 429: The ACCOUNT is rate-limited (both credentials share the same Amazon
+                // partner tag/account — a 429 is NOT a token problem). Set an
+                // account-wide cooldown on the gate (seen by every caller + every
+                // PM2 worker) and retry the SAME credential after backoff. NEVER
+                // flip credentials on 429 — flipping just burns the other token's
+                // budget into the same throttle and resets the attempt counter.
+                if (status === 429 || error.code === 'CREATORS_THROTTLED') {
                     const retryAfterSec = parseInt((resp.headers || {})['retry-after'] || '0', 10);
                     const backoffMs = retryAfterSec > 0
                         ? retryAfterSec * 1000
                         : Math.min(10000 * Math.pow(2, attempt), 80000);
 
                     this._credThrottledUntil.set(credId, Date.now() + backoffMs);
-                    console.warn(`⏳ [429] Throttled '${credId}' for ${(backoffMs / 1000).toFixed(0)}s (attempt ${attempt + 1})`);
+                    creatorsApiRateGate.cooldownAfter429('primary', backoffMs);
+                    console.warn(`⏳ [429] Account cooled down for ${(backoffMs / 1000).toFixed(0)}s (attempt ${attempt + 1}/${this._config.maxRetries + 1})`);
 
-                    const fallbackCred = this._selectBestCred();
-                    if (fallbackCred && fallbackCred !== credId) {
-                        console.log(`   Switching to '${fallbackCred}' for retry`);
-                        await this._delay(2000);
-                        return this._processBatch(sellerId, batch, fallbackCred, stats, sellerName);
+                    // Wait out the cooldown + min-gap (both honored by the gate).
+                    // If the gate still can't grant a slot (long cooldown), it throws
+                    // CREATORS_THROTTLED which lands back here with attempt++.
+                    try {
+                        await this._rateLimit();
+                    } catch (cooldownErr) {
+                        if (cooldownErr.code === 'CREATORS_THROTTLED') continue;
+                        throw cooldownErr;
                     }
-                    // All credentials throttled — wait for the shortest throttle to expire
-                    const minUntil = Math.min(...Array.from(this._credThrottledUntil.values()).filter(t => t !== Infinity));
-                    const wait = Math.min(Math.max(minUntil - Date.now(), 1000), 120000);
-                    console.log(`   All credentials throttled, waiting ${(wait / 1000).toFixed(0)}s...`);
-                    await this._delay(wait);
                     continue;
                 }
 
@@ -934,10 +1091,10 @@ class LiveDataSyncService extends EventEmitter {
                     UPDATE Asins SET
                         Title = @title,
                         ParentAsin = @parentAsin,
-                        CurrentPrice = @currentPrice,
-                        Mrp = @mrp,
-                        Category = @mainCategory,
-                        Brand = @brand,
+                        CurrentPrice = ISNULL(NULLIF(@currentPrice, 0), CurrentPrice),
+                        Mrp = ISNULL(@mrp, Mrp),
+                        Category = ISNULL(@mainCategory, Category),
+                        Brand = ISNULL(@brand, Brand),
                         BSR = ISNULL(@mainBSR, BSR),
                         SubBSR = ISNULL(@subBSR, SubBSR),
                         SubBSRCategory = ISNULL(@subBSRCategory, SubBSRCategory),
@@ -950,30 +1107,30 @@ class LiveDataSyncService extends EventEmitter {
                         BulletPoints = @bulletPointCount,
                         BulletPointsText = @bulletPoints,
 
-                        SoldBy = @soldBy,
-                        SoldBySec = @soldBySec,
-                        BuyBoxWin = @buyBoxWin,
+                        SoldBy = ISNULL(@soldBy, SoldBy),
+                        SoldBySec = ISNULL(@soldBySec, SoldBySec),
+                        BuyBoxWin = ISNULL(@buyBoxWin, BuyBoxWin),
                         AllOffers = @allOffersJson,
-                        SellerExternalId = @sellerId,
-                        CategoryPath = @categoryPath,
+                        SellerExternalId = ISNULL(@sellerId, SellerExternalId),
+                        CategoryPath = ISNULL(@categoryPath, CategoryPath),
                         VariantImages = @variantImages,
                         Dimensions = @dimensions,
                         BuyBoxes = @buyBoxes,
-                        HasDeal = @hasDeal,
-                        DealBadge = @dealType,
-                        DealType = @dealType,
-                        DealStartTime = @dealStartTime,
-                        DealEndTime = @dealEndTime,
+                        HasDeal = ISNULL(@hasDeal, HasDeal),
+                        DealBadge = ISNULL(@dealType, DealBadge),
+                        DealType = ISNULL(@dealType, DealType),
+                        DealStartTime = ISNULL(@dealStartTime, DealStartTime),
+                        DealEndTime = ISNULL(@dealEndTime, DealEndTime),
                         DealAccessType = @dealAccessType,
-                        DealPercentClaimed = @dealPercentClaimed,
-                        Manufacturer = @manufacturer,
+                        DealPercentClaimed = ISNULL(@dealPercentClaimed, DealPercentClaimed),
+                        Manufacturer = ISNULL(@manufacturer, Manufacturer),
                         PriceDispute = @priceDispute,
-                        DiscountPercentage = @discount,
+                        DiscountPercentage = ISNULL(@discount, DiscountPercentage),
                         LastScrapedAt = dbo.GetEnvDate(),
                         LastSyncSource = 'LIVE',
                         Status = 'Active',
                         UpdatedAt = dbo.GetEnvDate(),
-                        AvailabilityStatus = @availability
+                        AvailabilityStatus = ISNULL(@availability, AvailabilityStatus)
                     WHERE Id = @asinId
                 `);
 
@@ -1098,7 +1255,7 @@ class LiveDataSyncService extends EventEmitter {
             || null;
 
         // ── Deal details with dates ──────────────────────────────────
-        const dealBadge = (activeDeal?.badge || activeDeal?.type || activeDeal?.dealType || activeDeal?.dealBadge || null);
+        const dealBadge = (activeDeal?.badge || activeDeal?.type || activeDeal?.dealType || activeDeal?.dealBadge || itemDeal?.badge || null);
 
         let dealStartTime = null;
         let dealEndTime = null;

@@ -175,6 +175,7 @@ const securityRoutes = require('./routes/securityRoutes');
 const setupWizardRoutes = require('./routes/setupWizardRoutes');
 const systemSettingRoutes = require('./routes/systemSettingRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const aiChatRoutes = require('./routes/aiChatRoutes');
 const sellerAsinTrackerRoutes = require('./routes/sellerAsinTrackerRoutes');
 const revenueRoutes = require('./routes/revenueRoutes');
 const goalRoutes = require('./routes/goalRoutes');
@@ -230,7 +231,13 @@ app.use('/api/logs', systemLogRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/setup-wizard', setupWizardRoutes);
 app.use('/api/settings', systemSettingRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/strategy', aiRoutes);
+app.use('/api/ai/chat', aiChatRoutes);
+// AI chat router also owns the top-level /api/ai/models, /api/ai/usage and
+// /api/ai/stats endpoints (see the router's header docs). Mounting it here as
+// well keeps the documented paths working while /api/ai/chat/* stays canonical.
+app.use('/api/ai', aiChatRoutes);
 app.use('/api/seller-tracker', sellerAsinTrackerRoutes);
 app.use('/api/revenue-engine', revenueRoutes);
 app.use('/api/goals', goalRoutes);

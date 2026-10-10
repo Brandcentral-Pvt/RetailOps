@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { sql, getPool } = require('../database/db');
+const { passwordPolicyError } = require('../lib/passwordPolicy');
 
 class PasswordResetService {
   constructor() {
@@ -71,6 +72,8 @@ class PasswordResetService {
 
   async resetPassword(token, newPassword) {
     const pool = await getPool();
+    const policyError = passwordPolicyError(newPassword);
+    if (policyError) return { success: false, message: policyError };
     
     const validation = await this.validateResetToken(token);
     if (!validation.valid) {
@@ -78,6 +81,22 @@ class PasswordResetService {
     }
 
     const bcrypt = require('bcryptjs');
+    const current = await pool.request()
+      .input('userId', sql.VarChar, validation.userId)
+      .query('SELECT Password FROM Users WHERE Id = @userId');
+    const user = current.recordset[0];
+    if (!user) return { success: false, message: 'Account is no longer available.' };
+    if (await bcrypt.compare(newPassword, user.Password)) {
+      return { success: false, message: 'New password must differ from current password' };
+    }
+    const history = await pool.request()
+      .input('userId', sql.VarChar, validation.userId)
+      .query('SELECT TOP 5 PasswordHash FROM PasswordHistory WHERE UserId = @userId ORDER BY ChangedAt DESC');
+    for (const row of history.recordset) {
+      if (await bcrypt.compare(newPassword, row.PasswordHash)) {
+        return { success: false, message: 'Cannot reuse last 5 passwords' };
+      }
+    }
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     await pool.request()
@@ -93,6 +112,13 @@ class PasswordResetService {
           UpdatedAt = dbo.GetEnvDate()
         WHERE Id = @userId
       `);
+
+    const historyId = crypto.randomBytes(12).toString('hex');
+    await pool.request()
+      .input('id', sql.VarChar, historyId)
+      .input('userId', sql.VarChar, validation.userId)
+      .input('passwordHash', sql.NVarChar, user.Password)
+      .query('INSERT INTO PasswordHistory (Id, UserId, PasswordHash, ChangedAt) VALUES (@id, @userId, @passwordHash, dbo.GetEnvDate())');
 
     await pool.request()
       .input('token', sql.NVarChar, token)
