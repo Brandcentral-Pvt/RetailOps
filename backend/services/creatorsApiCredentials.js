@@ -42,9 +42,27 @@ class CreatorsApiCredentials {
             consecutiveErrors: 0,
         };
 
+        // V3 credentials (open/no-auth inspector) — excluded from rotation so
+        // v1/v2 flows never pick them up; only v3 handlers use these.
+        const v3 = {
+            id: 'v3',
+            clientId: process.env.CREATORS_API_CLIENT_ID_3,
+            clientSecret: process.env.CREATORS_API_CLIENT_SECRET_3,
+            version: apiVersion,
+            partnerTag: process.env.CREATORS_API_PARTNER_TAG_3 || process.env.LIVE_SYNC_PARTNER_TAG,
+            marketplace: process.env.CREATORS_API_MARKETPLACE_3 || process.env.LIVE_SYNC_MARKETPLACE || 'www.amazon.in',
+            excludeFromRotation: true,
+            successCount: 0,
+            failCount: 0,
+            lastUsed: 0,
+            lastError: null,
+            consecutiveErrors: 0,
+        };
+
         this.credentials = [];
         if (primary.clientId && primary.clientSecret) this.credentials.push(primary);
         if (secondary.clientId && secondary.clientSecret) this.credentials.push(secondary);
+        if (v3.clientId && v3.clientSecret) this.credentials.push(v3);
 
         if (this.credentials.length === 0) {
             console.error('[Credentials] No Creators API credentials found in environment!');
@@ -60,12 +78,13 @@ class CreatorsApiCredentials {
      * 3. Least-recently-used preference
      */
     get() {
-        const healthy = this.credentials.filter(c => c.consecutiveErrors < 5);
+        const rotatable = this.credentials.filter(c => !c.excludeFromRotation);
+        const healthy = rotatable.filter(c => c.consecutiveErrors < 5);
         if (healthy.length === 0) {
             // All credentials are failing — reset and use any
             console.warn('[Credentials] All credential sets have consecutive errors, resetting...');
-            this.credentials.forEach(c => { c.consecutiveErrors = 0; });
-            return this.credentials[0];
+            rotatable.forEach(c => { c.consecutiveErrors = 0; });
+            return rotatable[0];
         }
 
         // Pick random healthy credential, preferring least recently used
