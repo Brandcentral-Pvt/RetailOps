@@ -470,6 +470,16 @@ class AsinDataParser {
         const results = [];
         const updatedAsinCodes = [];
 
+        // Announce the batch so the client can show live sync progress.
+        const batchIo = SocketService.getIo();
+        if (batchIo) {
+            batchIo.emit('scrape_batch_start', {
+                sellerId,
+                total: rawDataArray.length,
+                timestamp: new Date()
+            });
+        }
+
         // Fetch seller name once for the batch (used for BuyBox winner logic)
         let sellerName = sellerId;
         try {

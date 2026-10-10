@@ -16,9 +16,34 @@ const generateTokens = (userId, fingerprint) => {
   return { accessToken, refreshToken };
 };
 
-// Never spread a SQL Users row into an HTTP response. In addition to making
-// session data consistent with route middleware, this strips Password,
-// RefreshToken and raw permission-override fields from every auth response.
+const AUTH_COOKIE_BASE = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'Strict',
+};
+const ACCESS_COOKIE_MAX_AGE = 2 * 60 * 60 * 1000;
+const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+// Must match the refresh route (POST /api/auth/refresh-token) or the browser
+// will not send the cookie back and every refresh fails.
+const REFRESH_COOKIE_PATH = '/api/auth/refresh-token';
+
+const setAuthCookies = (res, tokens) => {
+  res.cookie('accessToken', tokens.accessToken, {
+    ...AUTH_COOKIE_BASE,
+    maxAge: ACCESS_COOKIE_MAX_AGE,
+  });
+  res.cookie('refreshToken', tokens.refreshToken, {
+    ...AUTH_COOKIE_BASE,
+    maxAge: REFRESH_COOKIE_MAX_AGE,
+    path: REFRESH_COOKIE_PATH,
+  });
+};
+
+const clearAuthCookies = (res) => {
+  res.clearCookie('accessToken', { ...AUTH_COOKIE_BASE });
+  res.clearCookie('refreshToken', { ...AUTH_COOKIE_BASE, path: REFRESH_COOKIE_PATH });
+};
+
 const getResolvedUserResponse = async (user, pool) => {
   const access = await resolveAccessProfile(user, pool, { includeSellers: true });
   return toPublicUser(user, access);
@@ -107,54 +132,8 @@ exports.requestOtp = async (req, res) => {
   }
 };
 
-exports.register_disabled = async (req, res) => {
-  try {
-    const { email, password, firstName, lastName } = req.body;
-    const pool = await getPool();
-
-    // Check if user exists
-    const existing = await pool.request().input('email', sql.NVarChar, email).query('SELECT Id FROM Users WHERE Email = @email');
-    if (existing.recordset.length > 0) return res.status(400).json({ success: false, message: 'Email already registered' });
-
-    // Get role
-    let roleId;
-    if (req.body.role) {
-      const roleResult = await pool.request().input('name', sql.NVarChar, req.body.role).query('SELECT Id FROM Roles WHERE Name = @name');
-      if (roleResult.recordset.length > 0) roleId = roleResult.recordset[0].Id;
-    }
-    if (!roleId) {
-      const viewerRole = await pool.request().query("SELECT Id FROM Roles WHERE Name = 'viewer'");
-      roleId = viewerRole.recordset[0]?.Id;
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const userId = generateId();
-
-    await pool.request()
-      .input('id', sql.VarChar, userId)
-      .input('email', sql.NVarChar, email)
-      .input('password', sql.NVarChar, hashedPassword)
-      .input('firstName', sql.NVarChar, firstName)
-      .input('lastName', sql.NVarChar, lastName)
-      .input('roleId', sql.VarChar, roleId)
-      .query(`
-        INSERT INTO Users (Id, Email, Password, FirstName, LastName, RoleId, IsActive, CreatedAt, UpdatedAt)
-        VALUES (@id, @email, @password, @firstName, @lastName, @roleId, 1, dbo.GetEnvDate(), dbo.GetEnvDate())
-      `);
-
-    const { accessToken, refreshToken } = generateTokens(userId);
-    await pool.request()
-      .input('id', sql.VarChar, userId)
-      .input('token', sql.NVarChar, refreshToken)
-      .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
-
-    const user = (await pool.request().input('id', sql.VarChar, userId).query('SELECT * FROM Users WHERE Id = @id')).recordset[0];
-    const resolvedUser = await getResolvedUserResponse(user, pool);
-
-    res.status(201).json({ success: true, data: { user: resolvedUser, accessToken, refreshToken } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+exports.register = async (req, res) => {
+  return res.status(403).json({ success: false, message: 'Registration is currently disabled.' });
 };
 
 exports.login = async (req, res) => {
@@ -256,12 +235,13 @@ exports.login = async (req, res) => {
 
     if (isTrustedDevice) {
       // Direct login from trusted device
-      const { accessToken, refreshToken } = generateTokens(user.Id, fingerprint);
-      await pool.request().input('id', sql.VarChar, user.Id).input('token', sql.NVarChar, refreshToken)
+      const tokens = generateTokens(user.Id, fingerprint);
+      setAuthCookies(res, tokens);
+      await pool.request().input('id', sql.NVarChar, user.Id).input('token', sql.NVarChar, tokens.refreshToken)
         .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
       const resolvedUser = await getResolvedUserResponse(user, pool);
       await SystemLogService.log({ type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id, entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id, description: `${resolvedUser.FirstName} logged in (trusted device)`, metadata: { ip: clientIp } });
-      return res.json({ success: true, data: { user: resolvedUser, accessToken, refreshToken }, trustedDevice: true, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
+      return res.json({ success: true, data: { user: resolvedUser }, trustedDevice: true, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
     }
 
     // OTP REQUIRED — Generate temp token and send OTP
@@ -280,15 +260,15 @@ exports.login = async (req, res) => {
 
 exports.refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    // Cookie is the browser path; body stays supported for API clients.
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     if (!refreshToken) return res.status(400).json({ success: false, message: 'Token required' });
 
-    // Refresh tokens are signed with a dedicated key. Verifying them with the
-    // access-token key made every mobile 401 refresh fail in deployments where
-    // JWT_REFRESH_SECRET is configured (and accepted a refresh token as an
-    // access token when the two keys happened to match).
-    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
-    if (decoded.type !== 'refresh') return res.status(401).json({ success: false, message: 'Invalid token' });
+    try {
+      const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+    } catch (e) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
     const pool = await getPool();
 
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT * FROM Users WHERE Id = @id');
@@ -304,6 +284,8 @@ exports.refreshToken = async (req, res) => {
       .input('token', sql.NVarChar, tokens.refreshToken)
       .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
 
+    setAuthCookies(res, tokens);
+
     res.json({ success: true, data: tokens });
   } catch (error) {
     res.status(401).json({ success: false, message: 'Invalid token' });
@@ -314,11 +296,16 @@ exports.logout = async (req, res) => {
   try {
     const pool = await getPool();
     await pool.request().input('id', sql.VarChar, req.userId).query('UPDATE Users SET RefreshToken = NULL WHERE Id = @id');
-    
+
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      await tokenBlacklist.blacklist(authHeader.split(' ')[1]);
+    const accessToken =
+      req.cookies?.accessToken ||
+      (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
+    if (accessToken) {
+      await tokenBlacklist.blacklist(accessToken);
     }
+
+    clearAuthCookies(res);
     
     // Log Logout
     if (req.userId) {
@@ -584,15 +571,18 @@ exports.verifyOtp = async (req, res) => {
     }
 
     // Complete login — generate tokens
-    const { accessToken, refreshToken } = generateTokens(user.Id, fingerprint);
-    await pool.request().input('id', sql.VarChar, user.Id).input('token', sql.NVarChar, refreshToken)
+    const tokens = generateTokens(user.Id, fingerprint);
+
+    setAuthCookies(res, tokens);
+
+    await pool.request().input('id', sql.VarChar, user.Id).input('token', sql.NVarChar, tokens.refreshToken)
       .query('UPDATE Users SET RefreshToken = @token WHERE Id = @id');
 
     const resolvedUser = await getResolvedUserResponse(user, pool);
     await SystemLogService.log({ type: 'AUTH_SUCCESS', entityType: 'USER', entityId: user.Id, entityTitle: resolvedUser.FirstName + ' ' + resolvedUser.LastName, user: user.Id, description: `${resolvedUser.FirstName} logged in (OTP verified)`, metadata: { ip: clientIp } });
 
     const needsPasswordReset = !!(user.ForcePasswordReset) || (user.PasswordExpiresAt && new Date(user.PasswordExpiresAt) < new Date());
-    res.json({ success: true, data: { user: resolvedUser, accessToken, refreshToken }, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
+    res.json({ success: true, data: { user: resolvedUser }, requiresSetup: !!(user.IsFirstLogin) && !user.SetupCompletedAt, needsPasswordReset });
   } catch (error) {
     if (error.message && error.message.includes('OTP')) {
       return res.status(401).json({ success: false, message: error.message });
