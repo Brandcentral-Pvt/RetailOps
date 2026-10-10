@@ -71,11 +71,11 @@ Built by **BrandCentral** for managing complex, multi-seller Amazon operations a
 - Visual campaign performance dashboards
 
 ### Automated Data Pipeline
-- Octoparse OpenAPI v1.0 integration for cloud-based marketplace scraping
-- Scheduled cron jobs for nightly data extraction
-- Live data sync via Amazon Creators API with credential rotation
-- Self-healing scrape loops with anomaly detection
-- Proxy support (SOCKS5/HTTPS) for reliable data extraction
+- **In-house Playwright Engine**: High-performance marketplace scraping using Chromium with stealth plugins
+- **Adaptive Concurrency**: Dynamic request throttling based on success/failure rates to prevent bot detection
+- **Self-healing Scrape Loops**: Automatic retry mechanisms with exponential backoff and jitter
+- **Live data sync**: Integration with Amazon Creators API with credential rotation
+- **Proxy Support**: SOCKS5/HTTPS proxy integration for reliable data extraction
 
 ### AI-Powered Strategy
 - **OKR Engine**: LLM-driven decomposition of business goals into 4-week execution plans

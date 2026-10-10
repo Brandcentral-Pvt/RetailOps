@@ -67,10 +67,16 @@ class AsinTableService {
         const idParams = asinIds.map((_, i) => `@id${i}`).join(', ');
         
         const historyResult = await historyRequest.query(`
-          SELECT AsinId, Price, BSR, Rating, Date 
-          FROM AsinHistory 
-          WHERE AsinId IN (${idParams})
-          ORDER BY Date ASC
+          SELECT a.Id as AsinId, h.Price, h.BSR, h.Rating, h.Date 
+          FROM Asins a
+          CROSS APPLY (
+            SELECT TOP 8 Price, BSR, Rating, Date 
+            FROM AsinHistory 
+            WHERE AsinId = a.Id 
+            ORDER BY Date DESC
+          ) h
+          WHERE a.Id IN (${idParams})
+          ORDER BY a.Id, h.Date ASC
         `);
 
         historyMap = historyResult.recordset.reduce((acc, row) => {

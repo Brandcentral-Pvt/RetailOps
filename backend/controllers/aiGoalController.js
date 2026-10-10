@@ -16,7 +16,14 @@ class AIGoalController {
       const { intent } = req.body;
       if (!intent) return responseHandler.error(res, 'Intent is required', 400);
 
-      const preview = await aiGoalService.generatePreview(intent);
+      // Resolve sellerId from authenticated user
+      const pool = await getPool();
+      const sellerResult = await pool.request()
+        .input('userId', sql.VarChar, req.userId)
+        .query('SELECT TOP 1 SellerId FROM UserSellers WHERE UserId = @userId');
+      const sellerId = sellerResult.recordset[0]?.SellerId;
+
+      const preview = await aiGoalService.generatePreview(intent, sellerId);
       return responseHandler.success(res, preview, 'AI Goal preview generated successfully');
     } catch (error) {
       console.error('[AI Goal Controller] Preview Error:', error);
@@ -65,7 +72,7 @@ class AIGoalController {
       };
 
       // 3. Generate the 4-week execution plan via AI
-      const plan = await aiGoalService.generatePlan(goal);
+      const plan = await aiGoalService.generatePlan(goal, sellerId);
       
       const createdTasks = [];
       

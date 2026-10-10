@@ -31,12 +31,17 @@ exports.authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   try {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Access token comes from the httpOnly cookie set at login. The Bearer
+    // header stays supported for non-browser clients (mobile, integrations,
+    // socket handshakes) that cannot rely on the cookie jar.
+    const cookieToken = req.cookies?.accessToken;
+    const headerToken =
+      authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+    const token = cookieToken || headerToken;
+
+    if (!token) {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
-
-    const token = authHeader.slice('Bearer '.length).trim();
-    if (!token) return res.status(401).json({ success: false, message: 'Authentication required' });
 
     if (await tokenBlacklist.isBlacklisted(token)) {
       return res.status(401).json({ success: false, message: 'Token revoked' });
@@ -48,6 +53,10 @@ exports.authenticate = async (req, res, next) => {
     // deployment.
     if (decoded.type !== 'access') {
       return res.status(401).json({ success: false, message: 'Invalid access token' });
+    }
+
+    if (decoded.type !== 'access') {
+      return res.status(401).json({ success: false, message: 'Invalid token type' });
     }
 
     if (await tokenBlacklist.isUserBlacklisted(decoded.userId, decoded.iat)) {

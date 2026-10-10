@@ -36,27 +36,23 @@ export const AuthProvider = ({ children }) => {
     // ----- Restore session on mount -----
     useEffect(() => {
         const initAuth = async () => {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                try {
-                    const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    if (response.ok) {
-                        const result = await response.json();
-                        if (result.success && result.data) {
-                            const normalized = normalizeUser(result.data);
-                            setUser(normalized);
-                            localStorage.setItem('user', JSON.stringify(normalized));
-                        } else throw new Error('Invalid user data');
-                    } else throw new Error('Session expired');
-                } catch (err) {
-                    console.warn('Auth initialization warning:', err.message);
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('user');
-                    setUser(null);
-                }
-            } else {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
+                    headers: {
+                        // Token is now sent automatically via httpOnly cookie
+                    },
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        const normalized = normalizeUser(result.data);
+                        setUser(normalized);
+                        localStorage.setItem('user', JSON.stringify(normalized));
+                    } else throw new Error('Invalid user data');
+                } else throw new Error('Session expired');
+            } catch (err) {
+                console.warn('Auth initialization warning:', err.message);
+                localStorage.removeItem('user');
                 setUser(null);
             }
             setLoading(false);
@@ -95,19 +91,17 @@ export const AuthProvider = ({ children }) => {
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message || 'Registration failed');
 
-            const { user: rawUser, accessToken } = result.data;
+            const { user: rawUser } = result.data;
             let normalized = normalizeUser(rawUser);
             if (normalized.permissions && normalized.permissions.length > 0) {
                 setUser(normalized);
-                localStorage.setItem('authToken', accessToken);
                 localStorage.setItem('user', JSON.stringify(normalized));
             } else {
                 setUser(normalized);
-                localStorage.setItem('authToken', accessToken);
                 setLoadingPermissions(true);
                 try {
                     const meRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                        headers: { Authorization: `Bearer ${accessToken}` },
+                        credentials: 'same-origin',
                     });
                     if (meRes.ok) {
                         const meResult = await meRes.json();
@@ -129,10 +123,9 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
         setUser(null);
         setError(null);
+        localStorage.removeItem('user');
         if (window.location.pathname !== '/login') {
             window.location.href = '/login';
         }
@@ -187,16 +180,15 @@ export const AuthProvider = ({ children }) => {
     // ----- Complete Login (after OTP verification) -----
     const completeLogin = async (loginData) => {
         try {
-            const { user: rawUser, accessToken, refreshToken } = loginData.data || loginData;
-            if (!rawUser || !accessToken) throw new AuthRequestError('SERVER_ERROR');
+            const { user: rawUser } = loginData.data || loginData;
+            if (!rawUser) throw new AuthRequestError('SERVER_ERROR');
             const normalized = normalizeUser(rawUser);
 
-            // Store tokens
-            localStorage.setItem('authToken', accessToken);
-            if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-            else localStorage.removeItem('refreshToken');
-            localStorage.setItem('user', JSON.stringify(normalized));
             setUser(normalized);
+            localStorage.setItem('user', JSON.stringify(normalized));
+
+            // Tokens are now handled by httpOnly cookies
+
 
             // Check if setup wizard is needed
             if (loginData.requiresSetup || loginData.data?.requiresSetup) {
@@ -207,7 +199,7 @@ export const AuthProvider = ({ children }) => {
             if (!normalized.permissions || normalized.permissions.length === 0) {
                 try {
                     const meRes = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/me`, {
-                        headers: { Authorization: `Bearer ${accessToken}` },
+                        credentials: 'same-origin',
                     });
                     if (meRes.ok) {
                         const meResult = await meRes.json();

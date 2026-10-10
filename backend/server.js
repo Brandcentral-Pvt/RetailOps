@@ -4,6 +4,7 @@ process.env.TZ = globalTimezone;
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { getPool, sql } = require('./database/db');
@@ -96,6 +97,8 @@ const bulkLimiter = createLimiter('BULK');
 // 1000 users support: Shrink payload limit to save Memory
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// Populates req.cookies for the httpOnly accessToken/refreshToken cookies.
+app.use(cookieParser());
 app.use(apiCallLogger);
 const path = require('path');
 const requestGuard = require('./middleware/requestGuard');

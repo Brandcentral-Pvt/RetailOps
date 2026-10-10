@@ -20,6 +20,7 @@
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",
     "bull": "^4.16.5",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "cron-parser": "^5.10.1",
     "date-fns": "^4.4.0",

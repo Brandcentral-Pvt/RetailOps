@@ -64,15 +64,17 @@ function responseError(response, data, operation) {
   return new AuthRequestError(code, { status: response.status, retryAfter });
 }
 
+// Tokens now live in httpOnly cookies, so the only proof of a session is the
+// user payload plus the success flag. Legacy localStorage tokens are cleared
+// on this path so an old browser session cannot keep sending a stale Bearer.
 export function hasAuthSession(result) {
-  return Boolean(result?.success && result.data?.user && typeof result.data.accessToken === 'string' && result.data.accessToken);
+  return Boolean(result?.success && result.data?.user);
 }
 
 export function storeAuthSession(result) {
   if (!hasAuthSession(result)) throw new AuthRequestError('SERVER_ERROR');
-  localStorage.setItem('authToken', result.data.accessToken);
-  if (result.data.refreshToken) localStorage.setItem('refreshToken', result.data.refreshToken);
-  else localStorage.removeItem('refreshToken');
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('refreshToken');
   localStorage.setItem('user', JSON.stringify(result.data.user));
 }
 
