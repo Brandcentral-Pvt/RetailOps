@@ -421,18 +421,40 @@ class PlaywrightScraperService {
         // Title — also serves as page-validity guard
         const title = await textContent('#productTitle');
 
-        // Price — buybox first, then wide fallbacks
-        const priceSelectors = [
-            '.apexPriceToPay .a-offscreen',
-            'span.a-price span.a-offscreen',
-            '#priceblock_ourprice',
-            '#priceblock_dealprice',
-            '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
-        ];
+        // Price — buybox first, then wide fallbacks. The buy-box value is
+        // read from several layouts because Amazon increasingly renders a
+        // bare/empty `.a-offscreen` next to the value (visible text is in an
+        // aria-hidden span) and some pages only carry it in the "₹545.00 with
+        // 71 percent savings" accessibility label (#apex-pricetopay-accessibility-label).
+        const rupee = (t) => { const m = String(t).match(/₹\s*([\d,]+(?:\.\d{1,2})?)/); return m ? this._parsePrice(m[1]) : 0; };
+        const firstPrice = async (selectors) => {
+            for (const sel of selectors) {
+                const texts = await collectTexts(sel);
+                for (const t of texts) {
+                    const p = this._parsePrice(t);
+                    if (p > 0) return p;
+                }
+            }
+            return 0;
+        };
         let currentPrice = 0;
-        for (const sel of priceSelectors) {
-            currentPrice = this._parsePrice(await textContent(sel));
-            if (currentPrice > 0) break;
+
+        // 1) Accessibility label: "₹545.00 with 71 percent savings"
+        currentPrice = rupee(await textContent('#apex-pricetopay-accessibility-label'));
+
+        // 2) Visible priceToPay / price-to-pay value text ("₹545.00")
+        if (!currentPrice) {
+            currentPrice = rupee(await textContent('#corePriceDisplay_desktop_feature_div .priceToPay, .apexPriceToPay, .priceToPay'));
+        }
+
+        // 3) Any non-empty offscreen outside the MRP (.a-text-price) blocks
+        if (!currentPrice) {
+            currentPrice = await firstPrice([
+                '.apexPriceToPay .a-offscreen',
+                'span.a-price:not(.a-text-price) span.a-offscreen',
+                '#priceblock_ourprice',
+                '#priceblock_dealprice',
+            ]);
         }
 
         // MRP — label "M.R.P.: ₹X" in the core price display (avoids the
@@ -504,12 +526,19 @@ class PlaywrightScraperService {
             category = crumbs[crumbs.length - 1]?.trim() || '';
         }
 
-        // Availability
+        // Availability — prefer explicit status spans; skip script-wrapped nodes
+        // ("P.when(...)") and oversized grab-bags.
         let availability = '';
-        const availOpts = ['#availability span.a-color-success', '#availability span', '#availability', '#outOfStock > div'];
+        const availOpts = [
+            '#availability span.a-color-success',
+            '#availability span.a-color-price',
+            '#availability .a-size-medium',
+            '#availability',
+            '#outOfStock > div',
+        ];
         for (const sel of availOpts) {
-            const t = await textContent(sel);
-            if (t) { availability = t; break; }
+            const t = (await textContent(sel)).replace(/\s+/g, ' ').trim();
+            if (t && t.length > 3 && t.length < 200 && !/^P\.when/i.test(t)) { availability = t; break; }
         }
 
         // SoldBy — buybox merchant
@@ -526,10 +555,15 @@ class PlaywrightScraperService {
         }
         if (!soldBy && /sold by amazon/i.test(await textContent('#buybox'))) soldBy = 'Amazon';
 
-        // Deal badge
+        // Deal badge — explicit badges first, then the "-71%" savings badge
+        // that deal-style prices render inside the core price display.
         let dealBadge = '';
         const dealText = (await textContent('#dealBadgeSupportingText, span[data-hook="deal-badge"], .a-color-price .dealText, #dealBadge_feature_div span[class*="deal"]')).replace(/\s+/g, ' ').trim();
         if (/deal/i.test(dealText)) dealBadge = dealText;
+        if (!dealBadge) {
+            const savingsBadge = (await textContent('#corePriceDisplay_desktop_feature_div .savingsPercentage, #corePriceDisplay_desktop_feature_div .apex-savings-percent, .savingsPercentage')).replace(/\s+/g, ' ').trim();
+            if (/^[-−]?\d{1,3}%/.test(savingsBadge)) dealBadge = savingsBadge;
+        }
 
         let dealPrice = 0;
         const dealPriceRaw = await textContent('.apexPriceToPay .a-offscreen, #priceblock_dealprice, .priceToPay .a-offscreen');
@@ -562,6 +596,23 @@ class PlaywrightScraperService {
             if (hrMatch) bsr = this._parseInt(hrMatch[1]);
         }
 
+        // Bullet points — the main feature bullets list
+        let bulletPoints = [];
+        const bulletCount = await count('#feature-bullets li');
+        for (let i = 0; i < bulletCount; i++) {
+            const t = (await page.locator('#feature-bullets li').nth(i).evaluate((n) => n.textContent || '', null, { timeout: 5000 }).catch(() => '')).trim();
+            if (t && t.length > 3) bulletPoints.push(t);
+        }
+
+        // Description — prefers the classic /#productDescription/, falls back to
+        // the A+ style expander, then the A+ content block as a last resort.
+        let description = '';
+        const descSelectors = ['#productDescription', '#productDescription_feature_div .a-expander-content', '#aplus'];
+        for (const sel of descSelectors) {
+            const t = (await textContent(sel)).trim();
+            if (t && t.length > description.length) description = t;
+        }
+
         return {
             title,
             currentPrice,
@@ -582,6 +633,9 @@ class PlaywrightScraperService {
             bsr,
             subBsr,
             subBsrCategory,
+            bulletPoints,
+            bulletPointsText: bulletPoints.join('\n• '),
+            description,
             url: page.url(),
         };
     }

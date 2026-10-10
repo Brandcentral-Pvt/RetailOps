@@ -176,7 +176,7 @@ function TemplateCard({ tpl, onView, onEdit, onClone, onDelete, onCreate }) {
    Main Page
    ────────────────────────────────────────────────── */
 export default function TaskTemplatesPage() {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [templates, setTemplates] = useState([]);
@@ -232,11 +232,11 @@ export default function TaskTemplatesPage() {
         let list = res.templates || [];
         if (activeOnly) list = list.filter(t => t.IsActive);
         setTemplates(list);
-        setPagination(res.pagination || { ...pagination, total: list.length });
+        setPagination(p => res.pagination || { ...p, total: list.length });
       }
     } catch { message.error('Failed to load templates'); }
     finally { setLoading(false); }
-  }, [debouncedSearch, catFilter, freqFilter, activeOnly]);
+  }, [debouncedSearch, catFilter, freqFilter, activeOnly, pagination]);
 
   useEffect(() => { loadTemplates(1); }, [loadTemplates]);
 

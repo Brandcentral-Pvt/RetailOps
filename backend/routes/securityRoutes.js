@@ -3,6 +3,7 @@ const router = express.Router();
 const { sql, getPool } = require('../database/db');
 const { authenticate } = require('../middleware/auth');
 const trustedDeviceService = require('../services/trustedDeviceService');
+const { deviceFingerprint } = require('../utils/requestFingerprint');
 
 // OTP Audit Log (paginated)
 router.get('/otp-logs', authenticate, async (req, res) => {
@@ -58,23 +59,58 @@ router.get('/otp-logs', authenticate, async (req, res) => {
 // Trusted Devices
 router.get('/trusted-devices', authenticate, async (req, res) => {
   try {
+    const currentFingerprint = deviceFingerprint(req);
     const devices = await trustedDeviceService.getUserDevices(req.user.Id || req.user._id);
-    res.json({ success: true, devices });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+    // Never return the fingerprint itself; it is only used locally to flag the
+    // current installation so the app can offer "remove other devices" safely.
+    res.json({
+      success: true,
+      devices: devices.map((device) => ({
+        id: device.Id,
+        name: device.DeviceName || 'Unknown device',
+        ipAddress: device.IpAddress || null,
+        lastUsedAt: device.LastUsedAt || null,
+        expiresAt: device.ExpiresAt || null,
+        isCurrent: Boolean(currentFingerprint && device.DeviceFingerprint === currentFingerprint),
+      })),
+    });
+  } catch (e) {
+    console.error('[SECURITY] Trusted device list failed:', e.message);
+    res.status(500).json({ success: false, message: 'Unable to load trusted devices' });
+  }
+});
+
+router.delete('/trusted-devices/others', authenticate, async (req, res) => {
+  try {
+    const result = await trustedDeviceService.revokeOthers(req.user.Id || req.user._id, deviceFingerprint(req));
+    if (!result.currentFound) {
+      return res.status(409).json({ success: false, message: 'Unable to identify this trusted device' });
+    }
+    res.json({ success: true, message: 'Other trusted devices revoked' });
+  } catch (e) {
+    console.error('[SECURITY] Trusted-device revocation failed:', e.message);
+    res.status(500).json({ success: false, message: 'Unable to revoke trusted devices' });
+  }
 });
 
 router.delete('/trusted-devices/all', authenticate, async (req, res) => {
   try {
     await trustedDeviceService.revokeAll(req.user.Id || req.user._id);
     res.json({ success: true, message: 'All trusted devices revoked' });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+  } catch (e) {
+    console.error('[SECURITY] Trusted-device revocation failed:', e.message);
+    res.status(500).json({ success: false, message: 'Unable to revoke trusted devices' });
+  }
 });
 
 router.delete('/trusted-devices/:deviceId', authenticate, async (req, res) => {
   try {
     await trustedDeviceService.revoke(req.user.Id || req.user._id, req.params.deviceId);
     res.json({ success: true, message: 'Device revoked' });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+  } catch (e) {
+    console.error('[SECURITY] Trusted-device revocation failed:', e.message);
+    res.status(500).json({ success: false, message: 'Unable to revoke device' });
+  }
 });
 
 module.exports = router;

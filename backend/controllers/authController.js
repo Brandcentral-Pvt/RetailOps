@@ -6,6 +6,8 @@ const SystemLogService = require('../services/SystemLogService');
 const otpService = require('../services/otpService');
 const trustedDeviceService = require('../services/trustedDeviceService');
 const tokenBlacklist = require('../services/tokenBlacklistService');
+const { resolveAccessProfile, toPublicUser } = require('../services/accessProfileService');
+const { clientIp: getClientIp, deviceFingerprint } = require('../utils/requestFingerprint');
 const { recordFailedAttempt, recordSuccessfulLogin, GENERIC_BLOCK } = require('../middleware/loginRateLimiter');
 
 const generateTokens = (userId, fingerprint) => {
@@ -43,32 +45,8 @@ const clearAuthCookies = (res) => {
 };
 
 const getResolvedUserResponse = async (user, pool) => {
-  // Fetch role details
-  const roleResult = await pool.request()
-    .input('roleId', sql.VarChar, user.RoleId)
-    .query('SELECT Name, DisplayName FROM Roles WHERE Id = @roleId');
-  
-  const roleInfo = roleResult.recordset[0] || { Name: 'viewer', DisplayName: 'Viewer' };
-
-  // Fetch permissions
-  const permsResult = await pool.request()
-    .input('roleId', sql.VarChar, user.RoleId)
-    .query(`
-      SELECT P.Name FROM Permissions P
-      JOIN RolePermissions RP ON P.Id = RP.PermissionId
-      WHERE RP.RoleId = @roleId
-    `);
-  
-  return {
-    ...user,
-    _id: user.Id,
-    id: user.Id,
-    role: {
-      Name: roleInfo.Name,
-      DisplayName: roleInfo.DisplayName
-    },
-    permissions: permsResult.recordset.map(p => p.Name)
-  };
+  const access = await resolveAccessProfile(user, pool, { includeSellers: true });
+  return toPublicUser(user, access);
 };
 
 exports.register = async (req, res) => {
@@ -126,7 +104,7 @@ exports.requestOtp = async (req, res) => {
 
     // Send OTP
     try {
-      const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const clientIp = getClientIp(req);
       const otpResult = await otpService.sendOtp(
         user.Id,
         user.Email,
@@ -162,7 +140,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const pool = await getPool();
-    const clientIp = req._authMetadata?.clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = req._authMetadata?.clientIp || getClientIp(req);
 
     const result = await pool.request()
       .input('email', sql.NVarChar, email)
@@ -188,6 +166,7 @@ exports.login = async (req, res) => {
         description: `Locked login attempt: ${email}`,
         metadata: { ip: clientIp }
       });
+      res.set('Retry-After', String(Math.max(1, Math.ceil((new Date(user.LockUntil).getTime() - Date.now()) / 1000))));
       return res.status(423).json({ success: false, message: GENERIC_BLOCK });
     }
 
@@ -226,6 +205,10 @@ exports.login = async (req, res) => {
       const failCount = await recordFailedAttempt(email, clientIp);
       console.warn(`[LOGIN] Progressive failure count for ${email}: ${failCount}/${5}`);
 
+      if (attempts >= 5) {
+        res.set('Retry-After', String(15 * 60));
+        return res.status(423).json({ success: false, message: GENERIC_BLOCK });
+      }
       return res.status(401).json({ success: false, message: GENERIC_BLOCK });
     }
 
@@ -247,7 +230,7 @@ exports.login = async (req, res) => {
     const needsPasswordReset = !!(user.ForcePasswordReset) || (user.PasswordExpiresAt && new Date(user.PasswordExpiresAt) < new Date());
 
     // Check trusted device — skip OTP if trusted
-    const fingerprint = Buffer.from(`${req.headers['user-agent'] || ''}|${clientIp}`).toString('base64').slice(0, 32);
+    const fingerprint = deviceFingerprint(req);
     const isTrustedDevice = await trustedDeviceService.isTrusted(user.Id, fingerprint);
 
     if (isTrustedDevice) {
@@ -294,7 +277,8 @@ exports.refreshToken = async (req, res) => {
     if (!user || user.RefreshToken !== refreshToken) return res.status(401).json({ success: false, message: 'Invalid token' });
     if (!user.IsActive) return res.status(403).json({ success: false, message: 'Deactivated' });
 
-    const tokens = generateTokens(user.Id);
+    // Preserve the original device binding through token rotation.
+    const tokens = generateTokens(user.Id, decoded.fp ?? null);
     await pool.request()
       .input('id', sql.VarChar, user.Id)
       .input('token', sql.NVarChar, tokens.refreshToken)
@@ -346,31 +330,13 @@ exports.getMe = async (req, res) => {
     const pool = await getPool();
     const result = await pool.request().input('id', sql.VarChar, req.userId).query('SELECT * FROM Users WHERE Id = @id');
     if (result.recordset.length === 0) return res.status(404).json({ success: false });
-    const user = result.recordset[0];
 
-    // Fetch assigned sellers with full details
-    let sellers = [];
-    try {
-      const sellersResult = await pool.request()
-        .input('userId', sql.VarChar, req.userId)
-        .query(`
-          SELECT S.Id, S.Name, S.Marketplace, S.SellerId, S.IsActive, S.[Plan],
-                 S.PartnerTag, S.CreatedAt
-          FROM Sellers S
-          JOIN UserSellers US ON S.Id = US.SellerId
-          WHERE US.UserId = @userId AND S.IsActive = 1
-        `);
-      sellers = sellersResult.recordset;
-    } catch (e) {
-      console.error('[AUTH] Failed to fetch sellers:', e.message);
-    }
-
-    const resolvedUser = await getResolvedUserResponse(user, pool);
-    resolvedUser.sellers = sellers;
-    resolvedUser.assignedSellers = sellers.map(s => s.Id);
-
+    // Re-resolve rather than echoing req.user so profile data, assigned sellers
+    // and per-user permission overrides are authoritative at this exact point.
+    const resolvedUser = await getResolvedUserResponse(result.recordset[0], pool);
     res.json({ success: true, data: resolvedUser });
   } catch (error) {
+    console.error('[AUTH] Failed to resolve current user:', error.message);
     res.status(500).json({ success: false });
   }
 };
@@ -393,7 +359,8 @@ exports.updateProfile = async (req, res) => {
       `);
 
     const result = await pool.request().input('id', sql.VarChar, req.userId).query('SELECT * FROM Users WHERE Id = @id');
-    res.json({ success: true, data: result.recordset[0] });
+    if (result.recordset.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, data: await getResolvedUserResponse(result.recordset[0], pool) });
   } catch (error) {
     res.status(500).json({ success: false });
   }
@@ -418,7 +385,7 @@ exports.requestPasswordChange = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     const otpResult = await otpService.sendOtp(
@@ -450,7 +417,7 @@ exports.requestPasswordChange = async (req, res) => {
 exports.changePasswordWithOtp = async (req, res) => {
   try {
     const { tempToken, otp, newPassword } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     if (!tempToken || !otp || !newPassword) {
@@ -478,6 +445,9 @@ exports.changePasswordWithOtp = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (await bcrypt.compare(newPassword, user.Password)) {
+      return res.status(400).json({ success: false, message: 'New password must differ from current password' });
     }
 
     const historyResult = await pool.request()
@@ -528,6 +498,9 @@ exports.changePassword = async (req, res) => {
 
     const isMatch = await bcrypt.compare(currentPassword, user.Password);
     if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
+    if (await bcrypt.compare(newPassword, user.Password)) {
+      return res.status(400).json({ success: false, message: 'New password must differ from current password' });
+    }
 
     const historyResult = await pool.request()
       .input('id', sql.VarChar, req.userId)
@@ -567,7 +540,7 @@ exports.changePassword = async (req, res) => {
 exports.verifyOtp = async (req, res) => {
   try {
     const { tempToken, otp, trustDevice } = req.body;
-    const clientIp = (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) || req.socket.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
     if (!tempToken || !otp) return res.status(400).json({ success: false, message: 'Token and OTP are required' });
@@ -592,7 +565,7 @@ exports.verifyOtp = async (req, res) => {
     await otpService.verifyOtp(user.Id, otp, 'LOGIN', { ipAddress: clientIp, userAgent });
 
     // Trust device if requested
-    const fingerprint = Buffer.from(`${userAgent || ''}|${clientIp}`).toString('base64').slice(0, 32);
+    const fingerprint = deviceFingerprint(req);
     if (trustDevice) {
       await trustedDeviceService.trust(user.Id, fingerprint, { ipAddress: clientIp, userAgent });
     }
@@ -625,13 +598,16 @@ exports.resendOtp = async (req, res) => {
 
     let decoded;
     try { decoded = jwt.verify(tempToken, config.jwt.secret); } catch (e) { return res.status(401).json({ success: false, message: 'Session expired' }); }
+    if (decoded.purpose !== 'OTP_VERIFICATION' || decoded.step !== 'PASSWORD_VERIFIED') {
+      return res.status(401).json({ success: false, message: 'Invalid session token' });
+    }
 
     const pool = await getPool();
     const result = await pool.request().input('id', sql.VarChar, decoded.userId).query('SELECT Email FROM Users WHERE Id = @id AND IsActive = 1');
     const user = result.recordset[0];
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
-    const otpResult = await otpService.resendOtp(decoded.userId, user.Email, 'LOGIN', { ipAddress: req.headers['x-forwarded-for'] || req.socket.remoteAddress, userAgent: req.headers['user-agent'] });
+    const otpResult = await otpService.resendOtp(decoded.userId, user.Email, 'LOGIN', { ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] });
 
     res.json({ success: true, destination: otpResult.destination, expiresIn: otpResult.expiresIn, message: `New code sent to ${otpResult.destination}` });
   } catch (error) {
@@ -651,12 +627,21 @@ exports.forgotPassword = async (req, res) => {
     const result = await passwordResetService.generateResetToken(email);
     
     if (result.success) {
-      const resetUrl = `${config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in'}/reset-password?token=${result.token}`;
-      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const dashboardUrl = config.brand?.dashboardUrl || process.env.DASHBOARD_URL || 'https://data.brandcentral.in';
+      const webResetUrl = `${dashboardUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(result.token)}`;
+      // Deployments that ship the managed app can opt into a verified universal
+      // link or the `retailops://reset-password` scheme. Keep the web route as
+      // a fallback so a reset email remains usable from desktop clients.
+      const mobileBase = process.env.MOBILE_RESET_URL?.trim();
+      const mobileResetUrl = mobileBase
+        ? `${mobileBase}${mobileBase.includes('?') ? '&' : '?'}token=${encodeURIComponent(result.token)}`
+        : null;
+      const ipAddress = getClientIp(req);
       
       const html = passwordResetTemplate({
         userName: result.user.firstName,
-        resetUrl,
+        resetUrl: mobileResetUrl || webResetUrl,
+        fallbackResetUrl: mobileResetUrl ? webResetUrl : null,
         expiresInMinutes: 60,
         ipAddress
       });
@@ -699,7 +684,9 @@ exports.resetPassword = async (req, res) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Token and new password are required' });
 
-    if (newPassword.length < 8) return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    const { passwordPolicyError } = require('../lib/passwordPolicy');
+    const policyError = passwordPolicyError(newPassword);
+    if (policyError) return res.status(400).json({ success: false, message: policyError });
 
     const passwordResetService = require('../services/passwordResetService');
     const result = await passwordResetService.resetPassword(token, newPassword);

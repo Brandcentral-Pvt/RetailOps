@@ -378,15 +378,17 @@ export default function PremiumTaskRow({ task, selected, onSelect, onView, onRef
   const handleTransition = async (toStatus, remarks = '') => {
     if (!checkGate(toStatus)) return;
     setTransitioning(toStatus);
-    try {
+try {
       await tasksApi.transitionStatus(task.Id, toStatus, remarks);
-      message.success(`${WORKFLOW_STATUSES[toStatus]?.label} — done`);
+      message.success(`${WORKFLOW_STATUSES[toStatus]?.label} �?" done`);
       setSubmitModal(null);
       setSubmitRemarks('');
       try {
         const { default: notificationApi } = await import('../../../services/notificationCenter');
-        notificationApi?.notify?.({ type: 'task_transition', taskId: task.Id, message: `Task ${task.InstanceCode} → ${toStatus}`, data: { to: toStatus } });
-      } catch (_) {}
+        notificationApi?.notify?.({ type: 'task_transition', taskId: task.Id, message: `Task ${task.InstanceCode} �+' ${toStatus}`, data: { to: toStatus } });
+      } catch {
+        // notification center unavailable — skip
+      }
       if (onRefresh) onRefresh();
     } catch (err) {
       message.error(`Failed: ${err.message}`);

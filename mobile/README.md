@@ -86,3 +86,19 @@ real-time socket wiring.
 
 Placeholders (next): ASIN Manager, Ads Intelligence, Tasks (PEMS) — these reuse
 the existing backend endpoints and will follow the same service/store pattern.
+
+## Design
+
+The UI/UX design schema for this app — audiences, role-based navigation, tokens,
+screen inventory, component library, and the API mapping — lives in
+[`docs/design/mobile/`](../docs/design/mobile/README.md).
+
+Start with [`01-design-schema.md`](../docs/design/mobile/01-design-schema.md).
+It defines a **single app with two surfaces** (internal staff + seller clients),
+so new screens must resolve visibility from `surface × permission × scope` rather
+than from role names, and must consume tokens from
+[`02-design-tokens.json`](../docs/design/mobile/02-design-tokens.json).
+
+Note: that schema proposes moving the brand seed from `#2563EB` to the RetailOps
+brand blue `#1976D2` (`--bc-ro-500` in `src/styles/tokens.css`), which the seller
+surface and the app icon already imply. Do not mix the two blues in a screen.

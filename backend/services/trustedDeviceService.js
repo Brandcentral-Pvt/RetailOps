@@ -58,6 +58,29 @@ class TrustedDeviceService {
     await pool.request().input('userId', sql.NVarChar, userId).query(`UPDATE TrustedDevices SET IsRevoked = 1 WHERE UserId = @userId AND IsRevoked = 0`);
   }
 
+  /** Revoke every trusted installation except the one presenting this request. */
+  async revokeOthers(userId, currentFingerprint) {
+    // A missing/changed proxy header must never turn "other devices" into
+    // "every device". Confirm the request device is an active trusted record
+    // before issuing a destructive broad update.
+    if (!currentFingerprint) return { currentFound: false, revoked: 0 };
+    const pool = await getPool();
+    const current = await pool.request()
+      .input('userId', sql.NVarChar, userId)
+      .input('fingerprint', sql.NVarChar, currentFingerprint)
+      .query(`SELECT TOP 1 Id FROM TrustedDevices
+        WHERE UserId = @userId AND DeviceFingerprint = @fingerprint
+          AND IsRevoked = 0 AND ExpiresAt > GETDATE()`);
+    if (!current.recordset[0]) return { currentFound: false, revoked: 0 };
+
+    const result = await pool.request()
+      .input('userId', sql.NVarChar, userId)
+      .input('fingerprint', sql.NVarChar, currentFingerprint)
+      .query(`UPDATE TrustedDevices SET IsRevoked = 1
+        WHERE UserId = @userId AND IsRevoked = 0 AND DeviceFingerprint <> @fingerprint`);
+    return { currentFound: true, revoked: result.rowsAffected?.[0] || 0 };
+  }
+
   async revoke(userId, deviceId) {
     const pool = await getPool();
     await pool.request()
@@ -68,7 +91,12 @@ class TrustedDeviceService {
 
   async getUserDevices(userId) {
     const pool = await getPool();
-    const result = await pool.request().input('userId', sql.NVarChar, userId).query(`SELECT Id, DeviceName, IpAddress, LastUsedAt, ExpiresAt FROM TrustedDevices WHERE UserId = @userId AND IsRevoked = 0 AND ExpiresAt > GETDATE() ORDER BY LastUsedAt DESC`);
+    const result = await pool.request().input('userId', sql.NVarChar, userId).query(`
+      SELECT Id, DeviceFingerprint, DeviceName, IpAddress, LastUsedAt, ExpiresAt
+      FROM TrustedDevices
+      WHERE UserId = @userId AND IsRevoked = 0 AND ExpiresAt > GETDATE()
+      ORDER BY LastUsedAt DESC
+    `);
     return result.recordset;
   }
 

@@ -158,6 +158,7 @@ async function accountLockoutCheck(req, res, next) {
         if (remainingMs > 0) {
             const remainingMin = Math.ceil(remainingMs / 60000);
             console.warn(`[LOCKOUT] ${normalizedEmail} is locked. ${remainingMin}min remaining. IP: ${clientIp}`);
+            res.set('Retry-After', String(Math.ceil(remainingMs / 1000)));
             return res.status(423).json({
                 success: false,
                 message: GENERIC_BLOCK

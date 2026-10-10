@@ -3,7 +3,7 @@ const Joi = require('joi');
 /**
  * Reusable auth field validators
  * Email: valid format, max 255, trimmed, lowercased
- * Password: 8-128 chars, no HTML/script injection
+ * Password: 12-128 chars with upper/lower/number/symbol, no HTML injection
  * Name: 2-50 chars, letters/spaces/hyphens only, no HTML
  */
 
@@ -15,13 +15,18 @@ const emailField = Joi.string()
   .required();
 
 const passwordField = Joi.string()
-  .min(8)
+  .min(12)
   .max(128)
   .regex(/^(?!.*<)/, 'no HTML tags')
+  .pattern(/[A-Z]/, 'uppercase letter')
+  .pattern(/[a-z]/, 'lowercase letter')
+  .pattern(/[0-9]/, 'number')
+  .pattern(/[^A-Za-z0-9]/, 'symbol')
   .required()
   .messages({
-    'string.min': 'Password must be at least 8 characters',
+    'string.min': 'Password must be at least 12 characters',
     'string.max': 'Password must be at most 128 characters',
+    'string.pattern.name': 'Password must include a {#name}',
   });
 
 const nameField = Joi.string()
@@ -81,7 +86,7 @@ const schemas = {
 
   createUser: Joi.object({
     email: emailField,
-    password: Joi.string().min(8).max(128).optional(),
+    password: passwordField.optional(),
     firstName: nameField,
     lastName: nameField,
     phone: Joi.string().pattern(/^\+?[0-9\s\-]{7,15}$/).optional().allow('', null),

@@ -1,40 +1,40 @@
-const GLOBAL_ROLES = ['admin', 'operational_manager', 'Listing Manager'];
+const { isGlobalUserRole, GLOBAL_ROLES } = require('../utils/roleUtils');
 const { buildInClause } = require('../utils/sqlHelpers');
-const { sql, getPool } = require('../database/db');
+const { getPool } = require('../database/db');
 
 function getUserRoleName(user) {
-    return user?.role?.name || user?.role || '';
+  return user?.role?.Name || user?.role?.name || user?.role || '';
 }
 
 module.exports = {
-    GLOBAL_ROLES,
+  GLOBAL_ROLES,
 
-    getUserRoleName,
+  getUserRoleName,
 
-    isGlobalUser(user) {
-        return GLOBAL_ROLES.includes(getUserRoleName(user));
-    },
+  isGlobalUser(user) {
+    return isGlobalUserRole(getUserRoleName(user));
+  },
 
-    async buildSellerFilter(user, tableAlias = 'a') {
-        const alias = tableAlias ? `${tableAlias}.` : '';
-        if (this.isGlobalUser(user)) {
-            return '';
-        }
-        const assignedIds = user?.assignedSellers || [];
-        if (assignedIds.length === 0) {
-            return ` AND ${alias}SellerId = '000000000000000000000000'`;
-        }
-        const pool = await getPool();
-        const req = pool.request();
-        const placeholders = buildInClause(req, 'sellerId', assignedIds);
-        return { filter: ` AND ${alias}SellerId IN (${placeholders})`, request: req };
-    },
-
-    getAccessibleSellerIds(user) {
-        if (this.isGlobalUser(user)) {
-            return null;
-        }
-        const assignedIds = user?.assignedSellers || [];
-        return assignedIds.length > 0 ? assignedIds : [];
+  async buildSellerFilter(user, tableAlias = 'a') {
+    const alias = tableAlias ? `${tableAlias}.` : '';
+    if (this.isGlobalUser(user)) {
+      return '';
     }
+    const assignedIds = user?.assignedSellers || [];
+    if (assignedIds.length === 0) {
+      return ` AND ${alias}SellerId = '000000000000000000000000'`;
+    }
+    const pool = await getPool();
+    const req = pool.request();
+    const placeholders = buildInClause(req, 'sellerId', assignedIds);
+    return { filter: ` AND ${alias}SellerId IN (${placeholders})`, request: req };
+  },
+
+  getAccessibleSellerIds(user) {
+    if (this.isGlobalUser(user)) {
+      return null;
+    }
+    const assignedIds = user?.assignedSellers || [];
+    return assignedIds.length > 0 ? assignedIds : [];
+  },
 };

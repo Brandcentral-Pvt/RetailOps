@@ -273,8 +273,12 @@ exports.getPermissions = async (req, res) => {
 };
 
 const defaultPermissions = [
+  // Wildcard permission for admin/super_admin — grants all access
+  { name: '*', displayName: 'Full Access (Wildcard)', description: 'Grants all permissions; held only by admin/super_admin', category: 'System', action: 'wildcard' },
+
   // Dashboard
   { name: 'dashboard_view', displayName: 'Dashboard: View Overview', description: 'Access to main dashboard overview and analytics', category: 'Analytics', action: 'view' },
+  { name: 'alerts_view', displayName: 'Alerts: View', description: 'View own alerts without full dashboard access', category: 'Analytics', action: 'view' },
   { name: 'activitylogs_view', displayName: 'Activity Logs: View', description: 'View system-wide activity and audit logs', category: 'Analytics', action: 'view' },
 
   // Reports (Page-wise)
@@ -327,6 +331,8 @@ const defaultPermissions = [
   { name: 'templates_manage', displayName: 'Templates: Manage', description: 'Manage scraping and data templates', category: 'Automation', action: 'manage' },
   { name: 'tasks_view', displayName: 'Optimization Tasks: View', description: 'Access to the Optimization Tasks Hub', category: 'Automation', action: 'view' },
   { name: 'tasks_manage', displayName: 'Optimization Tasks: Manage', description: 'Create and edit optimization tasks', category: 'Automation', action: 'manage' },
+  { name: 'tasks_submit', displayName: 'Optimization Tasks: Submit', description: 'Raise a new task/request (seller-facing)', category: 'Automation', action: 'submit' },
+  { name: 'tasks_approve', displayName: 'Optimization Tasks: Approve', description: 'Approve/reject tasks assigned to seller', category: 'Automation', action: 'approve' },
   { name: 'calculator_view', displayName: 'Revenue Calculator: View', description: 'Access the revenue and fee calculator', category: 'Marketplace', action: 'view' },
   { name: 'calculator_manage', displayName: 'Revenue Calculator: Manage', description: 'Configure fee structures and cost variables', category: 'Marketplace', action: 'manage' },
 
@@ -402,6 +408,14 @@ const defaultRoles = [
     level: 25,
     color: '#10B981', // Emerald-500
   },
+  {
+    name: 'seller_client',
+    displayName: 'Seller',
+    description: 'External seller account holder. Scoped to their own seller account: performance, products, requests, chat. No internal operations.',
+    isSystem: true,
+    level: 20,
+    color: '#0E7490', // Teal-600
+  },
 ];
 
 exports.seedRolesAndPermissions = async (req, res) => {
@@ -445,9 +459,13 @@ exports.seedRolesAndPermissions = async (req, res) => {
     const permissionSets = {
       admin: allPermissions.map(p => p.Id),
       operational_manager: getPermIds(p => !['settings_manage', 'users_view', 'users_manage', 'roles_view', 'roles_manage', 'apikeys_manage'].includes(p.Name)),
-      'brand_manager': getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view', 'gms_tracker_import', 'gms_tracker_export'].includes(p.Name)),
-      catalog_manager: getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view'].includes(p.Name)),
-      listing_team: getPermIds(p => ['seller_view', 'asinmanager_view', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view'].includes(p.Name)),
+      'Brand Manager': getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asinmanager_import', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'targets_create', 'targets_edit', 'gms_tracker_view', 'gms_tracker_import', 'gms_tracker_export', 'dashboard_view', 'alerts_view', 'chat_view', 'adsreport_view', 'adsreport_export', 'actions_view', 'skureport_view', 'parentreport_view', 'monthlyreport_view', 'inventoryreport_view'].includes(p.Name)),
+      // Older databases use this spelling. Keep its baseline in sync until a
+      // role-taxonomy migration can consolidate the two rows safely.
+      brand_manager: getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asinmanager_import', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'targets_create', 'targets_edit', 'gms_tracker_view', 'gms_tracker_import', 'gms_tracker_export', 'dashboard_view', 'alerts_view', 'chat_view', 'adsreport_view', 'adsreport_export', 'actions_view', 'skureport_view', 'parentreport_view', 'monthlyreport_view', 'inventoryreport_view'].includes(p.Name)),
+      catalog_manager: getPermIds(p => ['seller_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view', 'dashboard_view', 'alerts_view', 'chat_view', 'inventoryreport_view'].includes(p.Name)),
+      listing_team: getPermIds(p => ['seller_view', 'asinmanager_view', 'asintracker_view', 'keywords_view', 'keywords_export', 'tasks_view', 'tasks_manage', 'targets_view', 'gms_tracker_view', 'dashboard_view', 'alerts_view', 'chat_view', 'actions_view'].includes(p.Name)),
+      seller_client: getPermIds(p => ['dashboard_view', 'alerts_view', 'asinmanager_view', 'asinmanager_export', 'asintracker_view', 'keywords_view', 'adsreport_view', 'adsreport_export', 'gms_tracker_view', 'gms_tracker_export', 'skureport_view', 'parentreport_view', 'monthlyreport_view', 'inventoryreport_view', 'targets_view', 'tasks_view', 'tasks_submit', 'tasks_approve', 'chat_view'].includes(p.Name)),
     };
 
     for (const roleData of defaultRoles) {
