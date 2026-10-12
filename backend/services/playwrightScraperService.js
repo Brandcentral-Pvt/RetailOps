@@ -21,6 +21,10 @@ class PlaywrightScraperService {
         const defaultCap = Math.max(2, cpuCount);
         const rawCap = parseInt(process.env.SCRAPER_BASE_CONCURRENT_PAGES || process.env.SCRAPER_CONCURRENT_PAGES || String(defaultCap), 10);
         this.baseConcurrentPages = Math.min(Math.max(1, rawCap), parseInt(process.env.SCRAPER_MAX_CONCURRENT_PAGES || String(Math.max(2, cpuCount * 2)), 10));
+
+        // Adaptive concurrency bounds (hard floor/ceiling)
+        this.minConcurrentPages = parseInt(process.env.SCRAPER_MIN_CONCURRENT_PAGES || '1', 10);
+        this.maxConcurrentPages = parseInt(process.env.SCRAPER_MAX_CONCURRENT_PAGES || String(Math.max(2, cpuCount * 2)), 10);
         this.proxyUrl = process.env.PROXY_URL || null;
 
         this.browser = null;
@@ -144,43 +148,68 @@ class PlaywrightScraperService {
     }
 
     release(token) {
-        if (token !== undefined && token !== null) {
-            this.activePages.delete(token);
-        }
-        this.busy = Math.max(0, this.busy - 1);
-        // Periodic cleanup of stale/abandoned slots
-        this._cleanupOldPages();
-    }
-
-    _calculateAdaptiveConcurrency() {
-        // Base concurrency
-        let concurrency = this.baseConcurrentPages;
-
-        // If we've had many recent failures, reduce concurrency
-        const timeSinceLastSuccess = Date.now() - this.lastSuccessTime;
-        const failureRate = this.failureCount > 0 ? this.successCount / (this.successCount + this.failureCount) : 1;
-
-        // Reduce concurrency if:
-        // - Recent failure rate is low (< 70% success)
-        // - Or many consecutive failures
-        if (failureRate < 0.7 || this.consecutiveFailures >= this.maxConsecutiveFailuresBeforeReduce) {
-            concurrency = Math.max(1, this.baseConcurrentPages - 3);
-            // Exponential reduction if really struggling
-            if (this.consecutiveFailures >= this.maxConsecutiveFailuresBeforeReduce * 2) {
-                concurrency = Math.max(1, Math.floor(this.baseConcurrentPages / 2));
+            if (token !== undefined && token !== null) {
+                this.activePages.delete(token);
             }
-        } else if (failureRate > 0.9 && timeSinceLastSuccess > 30000) {
-            // Good recovery - gradually increase
-            concurrency = Math.min(
-                this.baseConcurrentPages + 1,
-                this.baseConcurrentPages + 3
-            );
+            this.busy = Math.max(0, this.busy - 1);
+            // Periodic cleanup of stale/abandoned slots
+            this._cleanupOldPages();
         }
 
-        return concurrency;
-    }
+        /** Current adaptive concurrency value (for telemetry/observability). */
+        getCurrentConcurrency() {
+            return this._calculateAdaptiveConcurrency();
+        }
 
-    _cleanupOldPages() {
+        /** Current failure/success stats for telemetry. */
+        getAdaptiveStats() {
+            const total = this.successCount + this.failureCount;
+            return {
+                baseConcurrentPages: this.baseConcurrentPages,
+                currentConcurrency: this._calculateAdaptiveConcurrency(),
+                successCount: this.successCount,
+                failureCount: this.failureCount,
+                failureRate: total > 0 ? this.failureCount / total : 0,
+                consecutiveFailures: this.consecutiveFailures,
+                maxConsecutiveFailuresBeforeReduce: this.maxConsecutiveFailuresBeforeReduce,
+                activePages: this.activePages.size,
+                busy: this.busy,
+                circuitBreakerEntries: this.asinFailureMap.size,
+                minConcurrentPages: this.minConcurrentPages,
+                maxConcurrentPages: this.maxConcurrentPages,
+            };
+        }
+
+        _calculateAdaptiveConcurrency() {
+            // Base concurrency
+            let concurrency = this.baseConcurrentPages;
+
+            // If we've had many recent failures, reduce concurrency
+            const timeSinceLastSuccess = Date.now() - this.lastSuccessTime;
+            const failureRate = this.failureCount > 0 ? this.successCount / (this.successCount + this.failureCount) : 1;
+
+            // Reduce concurrency if:
+            // - Recent failure rate is low (< 70% success)
+            // - Or many consecutive failures
+            if (failureRate < 0.7 || this.consecutiveFailures >= this.maxConsecutiveFailuresBeforeReduce) {
+                concurrency = Math.max(this.minConcurrentPages, this.baseConcurrentPages - 3);
+                // Exponential reduction if really struggling
+                if (this.consecutiveFailures >= this.maxConsecutiveFailuresBeforeReduce * 2) {
+                    concurrency = Math.max(this.minConcurrentPages, Math.floor(this.baseConcurrentPages / 2));
+                }
+            } else if (failureRate > 0.9 && timeSinceLastSuccess > 30000) {
+                // Good recovery - gradually increase
+                concurrency = Math.min(
+                    this.maxConcurrentPages,
+                    this.baseConcurrentPages + 3
+                );
+            }
+
+            // Clamp to hard bounds
+            return Math.min(this.maxConcurrentPages, Math.max(this.minConcurrentPages, concurrency));
+        }
+
+        _cleanupOldPages() {
         const now = Date.now();
         for (const [key, info] of this.activePages) {
             if (now - info.createdAt > this.maxPageAgeMs) {

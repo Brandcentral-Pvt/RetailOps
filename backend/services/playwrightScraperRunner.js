@@ -14,13 +14,17 @@ class PlaywrightScraperRunner {
     constructor() {
         this.activeJobs = new Map(); // jobId -> live job state
         this.resuming = new Set();   // jobIds currently being reattached
-        this.concurrency = parseInt(process.env.SCRAPER_MAX_CONCURRENT_ASINS || '5', 10);
         this.batchSize = parseInt(process.env.SCRAPER_BATCH_SIZE || '30', 10);
         this.batchDelay = parseInt(process.env.SCRAPER_BATCH_DELAY || '3000', 10);
         this.interBatchDelay = parseInt(process.env.SCRAPER_INTER_BATCH_DELAY || '8000', 10);
         this.interChunkDelay = parseInt(process.env.SCRAPER_INTER_CHUNK_DELAY || '2000', 10);
         this.maxConcurrentJobs = parseInt(process.env.SCRAPER_MAX_CONCURRENT_JOBS || '2', 10);
         this._runningJobs = 0;
+    }
+
+    /** Get current adaptive concurrency from the scraper service. */
+    _getAdaptiveConcurrency() {
+        return playwrightScraperService.getCurrentConcurrency();
     }
 
     /**
@@ -365,29 +369,30 @@ class PlaywrightScraperRunner {
     }
 
     async getStats() {
-        const pool = await getPool();
+            const pool = await getPool();
 
-        const [totalJobs, totalScraped, totalFailed, lastJob, asinsScraped] = await Promise.all([
-            pool.request().query(`SELECT COUNT(*) AS c FROM ScrapeJobHistory`),
-            pool.request().query(`SELECT ISNULL(SUM(CompletedAsins), 0) AS c FROM ScrapeJobHistory`),
-            pool.request().query(`SELECT ISNULL(SUM(FailedAsins), 0) AS c FROM ScrapeJobHistory`),
-            pool.request().query(`SELECT TOP 1 * FROM ScrapeJobHistory ORDER BY CreatedAt DESC`),
-            pool.request().query(`
-                SELECT COUNT(*) AS c FROM Asins
-                WHERE ScrapeStatus = 'COMPLETED' OR LastScrapeStatus = 'COMPLETED'
-            `),
-        ]);
+            const [totalJobs, totalScraped, totalFailed, lastJob, asinsScraped] = await Promise.all([
+                pool.request().query(`SELECT COUNT(*) AS c FROM ScrapeJobHistory`),
+                pool.request().query(`SELECT ISNULL(SUM(CompletedAsins), 0) AS c FROM ScrapeJobHistory`),
+                pool.request().query(`SELECT ISNULL(SUM(FailedAsins), 0) AS c FROM ScrapeJobHistory`),
+                pool.request().query(`SELECT TOP 1 * FROM ScrapeJobHistory ORDER BY CreatedAt DESC`),
+                pool.request().query(`
+                    SELECT COUNT(*) AS c FROM Asins
+                    WHERE ScrapeStatus = 'COMPLETED' OR LastScrapeStatus = 'COMPLETED'
+                `),
+            ]);
 
-        return {
-            totalJobs: totalJobs.recordset[0].c,
-            totalScraped: totalScraped.recordset[0].c,
-            totalFailed: totalFailed.recordset[0].c,
-            asinsScraped: asinsScraped.recordset[0].c,
-            lastJob: lastJob.recordset[0] || null,
-            activeJobs: this.activeJobs.size,
-            running: Array.from(this.activeJobs.values()).filter(j => j.status === 'RUNNING').length,
-        };
-    }
+            return {
+                totalJobs: totalJobs.recordset[0].c,
+                totalScraped: totalScraped.recordset[0].c,
+                totalFailed: totalFailed.recordset[0].c,
+                asinsScraped: asinsScraped.recordset[0].c,
+                lastJob: lastJob.recordset[0] || null,
+                activeJobs: this.activeJobs.size,
+                running: Array.from(this.activeJobs.values()).filter(j => j.status === 'RUNNING').length,
+                adaptiveConcurrency: playwrightScraperService.getAdaptiveStats(),
+            };
+        }
 
     async getSellerSummary() {
         const pool = await getPool();
@@ -433,20 +438,20 @@ class PlaywrightScraperRunner {
         this._emit(job.jobId, 'scraper_job_started', this._publicJob(job));
 
         for (let b = 0; b < asins.length && !job.cancelRequested; b += this.batchSize) {
-            const batch = asins.slice(b, b + this.batchSize);
+                    const batch = asins.slice(b, b + this.batchSize);
 
-            for (let i = 0; i < batch.length && !job.cancelRequested; i += this.concurrency) {
-                const chunk = batch.slice(i, i + this.concurrency);
-                await Promise.all(chunk.map(asinRow => this._scrapeOne(job, asinRow)));
-                if (job.cancelRequested) break;
-                if (this.interChunkDelay) await new Promise(r => setTimeout(r, this.interChunkDelay));
-            }
+                    for (let i = 0; i < batch.length && !job.cancelRequested; i += this._getAdaptiveConcurrency()) {
+                        const chunk = batch.slice(i, i + this._getAdaptiveConcurrency());
+                        await Promise.all(chunk.map(asinRow => this._scrapeOne(job, asinRow)));
+                        if (job.cancelRequested) break;
+                        if (this.interChunkDelay) await new Promise(r => setTimeout(r, this.interChunkDelay));
+                    }
 
-            if (job.cancelRequested) break;
-            if (this.interBatchDelay && b + this.batchSize < asins.length) {
-                await new Promise(r => setTimeout(r, this.interBatchDelay));
-            }
-        }
+                    if (job.cancelRequested) break;
+                    if (this.interBatchDelay && b + this.batchSize < asins.length) {
+                        await new Promise(r => setTimeout(r, this.interBatchDelay));
+                    }
+                }
 
         job.status = job.cancelRequested ? 'CANCELLED' : 'COMPLETED';
         job.finishedAt = new Date();

@@ -2308,10 +2308,18 @@ export const scraperApi = {
   },
 
   getSyncStatus: async (sellerId) => {
-    const res = await fetch(`${API_BASE}/scraper/sync-status/${sellerId}`, {
-      headers: { ...getAuthHeader() },
-    });
-    if (!res.ok) throw new Error('Failed to fetch sync status');
-    return res.json();
-  },
-};
+      const res = await fetch(`${API_BASE}/scraper/sync-status/${sellerId}`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error('Failed to fetch sync status');
+      return res.json();
+    },
+
+    getAdaptiveConcurrency: async () => {
+      const res = await fetch(`${API_BASE}/scraper/adaptive-concurrency`, {
+        headers: { ...getAuthHeader() },
+      });
+      if (!res.ok) throw new Error('Failed to fetch adaptive concurrency stats');
+      return res.json();
+    },
+  };

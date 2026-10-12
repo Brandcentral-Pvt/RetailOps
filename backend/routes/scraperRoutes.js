@@ -202,6 +202,16 @@ router.get('/stats', authenticate, requirePermission('scraping_view'), async (re
     }
 });
 
+// Adaptive concurrency telemetry — live view of dynamic throttling state
+router.get('/adaptive-concurrency', authenticate, requirePermission('scraping_view'), async (req, res) => {
+    try {
+        const adaptiveStats = playwrightScraperService.getAdaptiveStats();
+        res.json({ success: true, adaptive: adaptiveStats });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Seller scrape summary
 router.get('/sellers/summary', authenticate, requirePermission('scraping_view'), async (req, res) => {
     try {
