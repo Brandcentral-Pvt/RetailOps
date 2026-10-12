@@ -9,9 +9,9 @@
  * - DELETE /api/ai/chat/conversations/:id    - Delete conversation
  * - POST   /api/ai/chat/conversations/:id/messages - Send message (non-streaming)
  * - POST   /api/ai/chat/conversations/:id/stream   - Stream chat response
- * - POST   /api/ai/chat/query                - Direct database query
  * - GET    /api/ai/models                    - List available models
  * - GET    /api/ai/usage                     - Get token usage stats
+ * - GET    /api/ai/stats                     - Get chat statistics
  */
 
 const express = require('express');
@@ -19,7 +19,6 @@ const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
 const chatService = require('../services/chatService');
 const apinexService = require('../services/apinexBondService');
-const databaseAnalysisService = require('../services/databaseAnalysisService');
 const { generateId } = require('../database/db');
 
 // All routes require authentication
@@ -209,7 +208,6 @@ router.post('/conversations/:id/messages', async (req, res) => {
       modelId,
       temperature,
       maxTokens,
-      includeDatabase: options?.includeDatabase,
       allowSubscription: options?.allowSubscription,
     });
     
@@ -249,7 +247,6 @@ router.post('/conversations/:id/stream', async (req, res) => {
         modelId,
         temperature,
         maxTokens,
-        includeDatabase: options?.includeDatabase,
         allowSubscription: options?.allowSubscription,
       });
       
@@ -263,147 +260,6 @@ router.post('/conversations/:id/stream', async (req, res) => {
       sendEvent({ type: 'error', error: error.message });
       res.end();
     }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ============ DATABASE QUERY ============
-
-/**
- * POST /api/ai/chat/query
- * Direct database query with natural language
- */
-router.post('/query', async (req, res) => {
-  try {
-    const { question, options } = req.body;
-    
-    if (!question) {
-      return res.status(400).json({ success: false, error: 'Question is required' });
-    }
-    
-    const result = await databaseAnalysisService.queryDatabase(question, {
-      generateInsights: options?.generateInsights,
-      model: options?.model,
-    });
-    
-    res.json({ success: true, data: result });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /api/ai/chat/analyze
- * Analyze data with AI
- */
-router.post('/analyze', async (req, res) => {
-  try {
-    const { data, question, options } = req.body;
-    
-    if (!data || !question) {
-      return res.status(400).json({ success: false, error: 'Data and question are required' });
-    }
-    
-    const result = await databaseAnalysisService.generateDataInsights(data, question, options);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /api/ai/chat/insights
- * Generate business insights from data
- */
-router.post('/insights', async (req, res) => {
-  try {
-    const { data, context, options } = req.body;
-    
-    if (!data) {
-      return res.status(400).json({ success: false, error: 'Data is required' });
-    }
-    
-    const result = await databaseAnalysisService.generateBusinessInsights(data, context, options);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /api/ai/chat/sql
- * Generate SQL from natural language
- */
-router.post('/sql', async (req, res) => {
-  try {
-    const { question, options } = req.body;
-    
-    if (!question) {
-      return res.status(400).json({ success: false, error: 'Question is required' });
-    }
-    
-    const result = await databaseAnalysisService.naturalLanguageToSQL(question, options);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /api/ai/chat/execute
- * Execute SQL query
- */
-router.post('/execute', async (req, res) => {
-  try {
-    const { sql, params } = req.body;
-    
-    if (!sql) {
-      return res.status(400).json({ success: false, error: 'SQL is required' });
-    }
-    
-    const result = await databaseAnalysisService.executeQuery(sql, params);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * GET /api/ai/schema
- * Get database schema
- */
-router.get('/schema', async (req, res) => {
-  try {
-    const schemaInfo = await databaseAnalysisService.getSchemaInfo();
-    res.json({ success: true, data: schemaInfo });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * GET /api/ai/tables/:name/sample
- * Get sample data from a table
- */
-router.get('/tables/:name/sample', async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 10;
-    const data = await databaseAnalysisService.getTableSample(req.params.name, limit);
-    res.json({ success: true, data });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * GET /api/ai/tables/:name/analyze
- * Analyze table statistics
- */
-router.get('/tables/:name/analyze', async (req, res) => {
-  try {
-    const analysis = await databaseAnalysisService.analyzeTable(req.params.name);
-    res.json({ success: true, data: analysis });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

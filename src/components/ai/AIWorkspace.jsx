@@ -1,34 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Drawer, App as AntdApp, Input } from 'antd';
+import { Modal, Drawer, Input } from 'antd';
 import { ArrowDown, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDateRange } from '@/contexts/DateRangeContext';
-import { format } from 'date-fns';
 import { aiChatService } from '@/services/aiChatService';
 
 import AIHeader from './AIHeader';
 import ConversationSidebar from './ConversationSidebar';
-import ContextPanel from './ContextPanel';
-import { DEFAULT_TOOLS } from './ToolSelector';
-import ToolSelector from './ToolSelector';
-import AISettingsPanel from './AISettingsPanel';
 import AIComposer from './AIComposer';
 import AIMessage from './AIMessage';
 import EmptyState from './EmptyState';
-import ConfirmationDialog from './ConfirmationDialog';
-import { buildSteps } from './ActivitySteps';
 import { normalizeModels } from './aiUtils';
 import { FALLBACK_MODELS } from '../../pages/aiModels';
 import './index.css';
 
-const DEFAULT_SETTINGS = {
-  temperature: 0.7,
-  maxTokens: 2048,
-  includeDatabase: true,
-  systemPrompt: 'default',
-  streaming: true,
-};
+const TITLE_CHAR_LIMIT = 48;
 
 const PIN_KEY = 'ai.pinned.v1';
 
@@ -42,8 +28,6 @@ const loadPinned = () => {
 
 const AIWorkspace = () => {
   const { user } = useAuth();
-  const { startDate, endDate } = useDateRange();
-  const { message: antdMessage } = AntdApp.useApp();
 
   const [models, setModels] = useState(FALLBACK_MODELS);
   const [modelId, setModelId] = useState(FALLBACK_MODELS[0]?.id);
@@ -59,20 +43,10 @@ const AIWorkspace = () => {
 
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [mode, setMode] = useState('ask');
-  const [tools, setTools] = useState(DEFAULT_TOOLS);
-  const [contextEntities, setContextEntities] = useState([]);
 
   const [convHidden, setConvHidden] = useState(false);
-  const [contextHidden, setContextHidden] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1280);
   const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 920);
   const [mobileConvOpen, setMobileConvOpen] = useState(false);
-  const [mobileCtxOpen, setMobileCtxOpen] = useState(false);
-
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [abortRef] = useState(() => ({ current: null }));
@@ -80,10 +54,7 @@ const AIWorkspace = () => {
   const [copiedId, setCopiedId] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
   const [renameValue, setRenameValue] = useState('');
-  const [pendingSend, setPendingSend] = useState(null);
 
-  const [activity, setActivity] = useState(null);
-  const startedAt = useRef(0);
   const scrollRef = useRef(null);
   const [atBottom, setAtBottom] = useState(true);
 
@@ -91,11 +62,7 @@ const AIWorkspace = () => {
 
   /* ── Layout ─────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    const onResize = () => {
-      setMobile(window.innerWidth <= 920);
-      if (window.innerWidth >= 1280) setContextHidden(false);
-      if (window.innerWidth <= 1279) setContextHidden(true);
-    };
+    const onResize = () => setMobile(window.innerWidth <= 920);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -173,20 +140,13 @@ const AIWorkspace = () => {
       setCurrentConv((prev) => (prev && prev.Id === id ? prev : conv));
       setMessages(
         Array.isArray(list)
-          ? list.map((m) => {
-              let meta = {};
-              try {
-                meta = JSON.parse(m.Metadata || m.metadata || '{}');
-              } catch { /* ignore */ }
-              return {
-                id: m.Id || m.id || `m-${Date.now()}-${Math.random()}`,
-                role: (m.Role || m.role || '').toLowerCase(),
-                content: m.Content || m.content || '',
-                model: activeModel?.name,
-                createdAt: m.CreatedAt || m.createdAt,
-                tool: meta.toolUsed || null,
-              };
-            })
+          ? list.map((m) => ({
+              id: m.Id || m.id || `m-${Date.now()}-${Math.random()}`,
+              role: (m.Role || m.role || '').toLowerCase(),
+              content: m.Content || m.content || '',
+              model: activeModel?.name,
+              createdAt: m.CreatedAt || m.createdAt,
+            }))
           : [],
       );
     } catch (err) {
@@ -208,7 +168,7 @@ const AIWorkspace = () => {
       const el = scrollRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     }
-  }, [messages, activity, atBottom]);
+  }, [messages, atBottom]);
 
   const onScroll = (e) => {
     const el = e.target;
@@ -228,7 +188,6 @@ const AIWorkspace = () => {
     setCurrentConv(null);
     setMessages([]);
     setTopError('');
-    setActivity(null);
     setMobileConvOpen(false);
   }, []);
 
@@ -291,20 +250,13 @@ const AIWorkspace = () => {
     });
   };
 
-  const handleArchive = (conv) => {
-    setConversations((prev) => prev.filter((c) => c.Id !== conv.Id));
-  };
-
   const handleClear = () => {
     Modal.confirm({
       title: 'Clear this conversation?',
       content: 'Messages will be cleared from this view.',
       okText: 'Clear',
       cancelText: 'Cancel',
-      onOk: () => {
-        setMessages([]);
-        setActivity(null);
-      },
+      onOk: () => setMessages([]),
     });
   };
 
@@ -316,8 +268,6 @@ const AIWorkspace = () => {
 
       let conv = currentConv;
       let mid = null;
-      const started = Date.now();
-      startedAt.current = started;
       try {
         setTopError('');
         if (!conv?.Id) {
@@ -333,15 +283,9 @@ const AIWorkspace = () => {
           message: content,
           conversationId: conv.Id,
           modelId,
-          temperature: settings.temperature,
-          maxTokens: settings.maxTokens,
-          options: {
-            model: modelId,
-            includeDatabase: settings.includeDatabase,
-            systemPrompt: settings.systemPrompt,
-            allowSubscription: true,
-            ...(contextEntities.length ? { context: contextEntities } : {}),
-          },
+          temperature: 0.7,
+          maxTokens: 4096,
+          options: { model: modelId, allowSubscription: true },
         };
 
         setInput('');
@@ -351,7 +295,6 @@ const AIWorkspace = () => {
           { id: mid, role: 'assistant', content: '', streaming: true, createdAt: dayjs().toISOString() },
         ]);
         setIsStreaming(true);
-        setActivity({ done: [], receivedTool: false, firstChunk: false });
         const ac = new AbortController();
         abortRef.current = ac;
 
@@ -360,20 +303,9 @@ const AIWorkspace = () => {
         const onEvent = (ev) => {
           if (ev.type === 'chunk') {
             acc = acc + (ev.content || '');
-            setActivity((a) => (a && !a.firstChunk ? { ...a, firstChunk: true } : a));
             setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, content: acc } : m)));
           } else if (ev.type === 'complete') {
             usedTokens = ev.tokensUsed || ev.usage?.total_tokens || null;
-            setActivity((a) => (a ? { ...a, done: true } : a));
-          } else if (ev.type === 'tool') {
-            setActivity((a) => ({ ...a, receivedTool: ev.tool }));
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === mid
-                  ? { ...m, tool: { tool: ev.tool, sql: ev.sql, rowCount: ev.rowCount, error: ev.error } }
-                  : m,
-              ),
-            );
           } else if (ev.type === 'error') {
             throw new Error(ev.error || 'The assistant hit an error while responding.');
           }
@@ -383,7 +315,6 @@ const AIWorkspace = () => {
           await aiChatService.streamConversation(conv.Id, payload, onEvent, ac.signal);
         } catch (err) {
           if (err.name === 'AbortError') {
-            setActivity((a) => (a ? { ...a, done: true } : a));
             setMessages((prev) =>
               prev.map((m) => (m.id === mid ? { ...m, content: acc, streaming: false } : m)),
             );
@@ -392,15 +323,13 @@ const AIWorkspace = () => {
           throw err;
         }
 
-        const seconds = (Date.now() - started) / 1000;
         setMessages((prev) =>
           prev.map((m) => (m.id === mid ? { ...m, streaming: false, tokensUsed: usedTokens, model: activeModel?.name } : m)),
         );
-        setActivity((a) => (a ? { ...a, done: true, duration: seconds } : a));
 
         const isNew = !currentConv?.Id || !currentConv?.Title || currentConv.Title === 'New Conversation';
         if (isNew) {
-          await aiChatService.updateConversationTitle(conv.Id, content.slice(0, 48));
+          await aiChatService.updateConversationTitle(conv.Id, content.slice(0, TITLE_CHAR_LIMIT));
         }
         loadConversations();
         loadUsage();
@@ -416,17 +345,12 @@ const AIWorkspace = () => {
       } finally {
         setIsStreaming(false);
         abortRef.current = null;
-        setTimeout(() => {
-          setActivity((a) => (a && a.done ? null : a));
-        }, 4000);
       }
     },
     [
       isStreaming,
       currentConv,
       modelId,
-      settings,
-      contextEntities,
       activeModel?.name,
       abortRef,
       loadConversations,
@@ -434,180 +358,17 @@ const AIWorkspace = () => {
     ],
   );
 
-  const steps = useMemo(
-    () =>
-      activity
-        ? buildSteps({
-            inFlight: !activity.done,
-            receivedTool: activity?.receivedTool,
-            firstChunk: activity?.firstChunk,
-            toolName: activity?.receivedTool,
-          })
-        : null,
-    [activity],
-  );
-
-  const handleSend = useCallback(
-    (text) => {
-      if (mode === 'execute' && !confirmOpen) {
-        setPendingSend(text);
-        setConfirmOpen(true);
-        return;
-      }
-      doSend(text);
-    },
-    [mode, confirmOpen, doSend],
-  );
-
-  const confirmExecute = () => {
-    setConfirmOpen(false);
-    if (pendingSend) doSend(pendingSend);
-    setPendingSend(null);
-  };
-
-  const cancelExecute = () => {
-    setConfirmOpen(false);
-    setPendingSend(null);
-  };
-
   const handleStop = () => {
     if (abortRef.current) abortRef.current.abort();
   };
 
-  /* ── Header scope / formats ─────────────────────────────────────────────── */
-  const dateLabel = `${format(startDate, 'dd MMM')} – ${format(endDate, 'dd MMM')}`;
-
-  const lastTool = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      if (messages[i].tool) return messages[i].tool;
-    }
-    return null;
-  }, [messages]);
-
-  const scopeChips = useMemo(() => {
-    const chips = [
-      { label: dateLabel, accent: true, show: !mobile },
-      { label: 'Amazon', show: !mobile },
-      ...contextEntities.map((c) => ({
-        label: c.label,
-        accent: true,
-        show: true,
-      })),
-    ];
-    if (lastTool && lastTool.rowCount != null) {
-      chips.push({ label: `${lastTool.rowCount} rows analysed`, accent: true, show: true });
-    }
-    return chips;
-  }, [dateLabel, contextEntities, lastTool, mobile]);
-
-  const conversationTitle = currentConv?.Title || (messages.length ? (messages[0].content || '').slice(0, 48) : '');
-
-  const toolStates = useMemo(
-    () =>
-      tools.map((t) => ({
-        key: t.key,
-        label: t.label,
-        state: t.on ? 'connected' : 'off',
-      })),
-    [tools],
-  );
-
-  const session = useMemo(
-    () => ({
-      messages: messages.filter((m) => !m.streaming).length,
-      toolsUsed: messages.filter((m) => m.tool).length,
-      dataSources: tools.filter((t) => t.on).length,
-    }),
-    [messages, tools],
-  );
-
-  const insights = useMemo(() => {
-    const out = [];
-    const errors = messages.filter((m) => m.tool?.error).length;
-    if (errors) out.push({ type: 'critical', label: 'Failed queries', count: errors });
-    const recs = messages.filter((m) => m.structured?.recommendations?.length).length;
-    if (recs) out.push({ type: 'ok', label: 'Recommendations', count: recs });
-    if (lastTool && !lastTool.error) out.push({ type: 'ok', label: 'Data grounded', count: 1 });
-    if (!out.length) out.push({ type: 'info', label: 'Session healthy', count: 0 });
-    return out;
-  }, [messages, lastTool]);
-
-  /* ── Export / share ─────────────────────────────────────────────────────── */
   const handleCopy = (m) => {
     navigator.clipboard?.writeText(m.content).catch(() => {});
     setCopiedId(m.id);
     setTimeout(() => setCopiedId((c) => (c === m.id ? null : c)), 1400);
   };
 
-  const buildTranscript = () =>
-    messages
-      .filter((m) => !m.streaming)
-      .map((m) => `${m.role.toUpperCase()}\n${m.content}`)
-      .join('\n\n---\n\n');
-
-  const download = (name, body, type) => {
-    const blob = new Blob([body], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleExport = (type) => {
-    const title = (currentConv?.Title || 'RetailOps-AI').replace(/[^\w\- ]+/g, '').trim();
-    const stamp = dayjs().format('YYYYMMDD-HHmm');
-    if (type === 'copy') {
-      navigator.clipboard?.writeText(buildTranscript()).then(
-        () => antdMessage?.success('Transcript copied'),
-        () => antdMessage?.error('Could not copy'),
-      );
-      return;
-    }
-    if (type === 'md') download(`${title}-${stamp}.md`, `# ${title}\n\n${buildTranscript()}`, 'text/markdown');
-    if (type === 'json') download(`${title}-${stamp}.json`, JSON.stringify(messages.filter((m) => !m.streaming), null, 2), 'application/json');
-    if (type === 'csv') {
-      const rows = ['role,createdAt,content'];
-      messages.forEach((m) => {
-        if (m.streaming) return;
-        rows.push(`${m.role},"${String(m.content).replaceAll('"', '""')}"`);
-      });
-      download(`${title}-${stamp}.csv`, rows.join('\n'), 'text/csv');
-    }
-    antdMessage?.success(`Exported ${type.toUpperCase()}`);
-  };
-
-  const handleShare = () => {
-    navigator.clipboard
-      ?.writeText(window.location.href)
-      .then(() => antdMessage?.success('Share link copied'))
-      .catch(() => antdMessage?.error('Could not copy link'));
-  };
-
-  /* ── Confirmation summary ───────────────────────────────────────────────── */
-  const confirmActions = useMemo(() => {
-    if (!pendingSend) return [];
-    const text = pendingSend.toLowerCase();
-    const isTask = text.includes('task') || text.startsWith('/create-task');
-    return [
-      {
-        label: isTask ? 'Create operational tasks' : 'Run investigation',
-        detail: pendingSend.length > 40 ? `${pendingSend.slice(0, 40)}…` : pendingSend,
-      },
-      ...(lastTool?.rowCount ? [{ label: 'Affected records', detail: `${lastTool.rowCount} rows` }] : []),
-    ];
-  }, [pendingSend, lastTool]);
-
-  const confirmScope = useMemo(
-    () => [
-      dateLabel,
-      ...contextEntities.map((c) => c.label),
-      lastTool?.rowCount ? `${lastTool.rowCount} records` : null,
-      settings.includeDatabase ? 'Database connected' : 'Database off',
-    ].filter(Boolean),
-    [dateLabel, contextEntities, lastTool, settings.includeDatabase],
-  );
+  const conversationTitle = currentConv?.Title || (messages.length ? (messages[0].content || '').slice(0, 48) : '');
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
   return (
@@ -634,15 +395,11 @@ const AIWorkspace = () => {
 
       <AIHeader
         conversationTitle={conversationTitle}
-        scopeChips={scopeChips}
-        onShare={handleShare}
-        onExport={handleExport}
         onRename={() => currentConv && handleRename(currentConv)}
         onClear={handleClear}
+        onDelete={() => currentConv && handleDelete(currentConv)}
         onToggleConv={() => (mobile ? setMobileConvOpen((v) => !v) : setConvHidden((v) => !v))}
-        onToggleContext={() => (mobile ? setMobileCtxOpen((v) => !v) : setContextHidden((v) => !v))}
         convHidden={convHidden}
-        contextHidden={contextHidden}
         isMobile={mobile}
       />
 
@@ -658,7 +415,6 @@ const AIWorkspace = () => {
             onSelect={selectConv}
             onNew={startNew}
             onPin={togglePin}
-            onArchive={handleArchive}
             onDelete={handleDelete}
             onRename={handleRename}
             usage={usage}
@@ -676,28 +432,17 @@ const AIWorkspace = () => {
                     Loading conversation…
                   </div>
                 ) : messages.length ? (
-                  messages.map((m) => {
-                    const active = activity && messages[messages.length - 1]?.id === m.id && m.streaming;
-                    return (
-                      <AIMessage
-                        key={m.id}
-                        message={m}
-                        modelName={activeModel?.name}
-                        copied={copiedId === m.id}
-                        onCopy={handleCopy}
-                        activity={active ? steps : null}
-                        activitySeconds={activity?.duration}
-                      />
-                    );
-                  })
+                  messages.map((m) => (
+                    <AIMessage
+                      key={m.id}
+                      message={m}
+                      modelName={activeModel?.name}
+                      copied={copiedId === m.id}
+                      onCopy={handleCopy}
+                    />
+                  ))
                 ) : (
-                  <EmptyState
-                    firstName={user?.firstName}
-                    onCreatePrompt={(text, modeName) => {
-                      setInput((prev) => (prev ? `${prev}\n${text}` : text));
-                      setMode(modeName === 'execute' ? 'execute' : modeName === 'analyze' ? 'analyze' : 'ask');
-                    }}
-                  />
+                  <EmptyState firstName={user?.firstName} onFill={setInput} />
                 )}
               </div>
 
@@ -721,127 +466,41 @@ const AIWorkspace = () => {
               <AIComposer
                 value={input}
                 onChange={setInput}
-                onSend={handleSend}
+                onSend={doSend}
                 onStop={handleStop}
                 isStreaming={isStreaming}
                 disabled={messagesLoading}
-                mode={mode}
-                onModeChange={setMode}
                 models={models}
                 modelId={modelId}
                 onModelChange={setModelId}
-                databaseOn={settings.includeDatabase}
-                onToggleDatabase={() => setSettings((s) => ({ ...s, includeDatabase: !s.includeDatabase }))}
-                onOpenTools={() => setToolsOpen(true)}
-                onUseMention={(ent) =>
-                  setContextEntities((prev) => {
-                    const exists = prev.some((c) => c.type === ent.id);
-                    if (exists) return prev;
-                    return [...prev, { type: ent.id, label: entriesLabel(ent.id), unit: ent.id }];
-                  })
-                }
               />
             </div>
           </div>
         </main>
-
-        {!mobile && !contextHidden ? (
-          <ContextPanel
-            scope={[
-              { label: dateLabel, accent: true },
-              { label: 'Amazon' },
-            ]}
-            tools={toolStates}
-            session={session}
-            insights={insights}
-            contextEntities={contextEntities}
-            onAddContext={(c) =>
-              setContextEntities((prev) =>
-                prev.some((e) => e.type === c.type && e.label === c.label) ? prev : [...prev, c],
-              )
-            }
-            onRemoveContext={(c) => setContextEntities((prev) => prev.filter((e) => !(e.type === c.type && e.label === c.label)))}
-          />
-        ) : null}
-
-        {!mobile && contextHidden ? (
-          <button
-            type="button"
-            className="ai-ws__ctx-pill"
-            onClick={() => setContextHidden(false)}
-            aria-label="Open context panel"
-          >
-            Context ›
-          </button>
-        ) : null}
       </div>
 
       {mobile ? (
-        <>
-          <Drawer placement="left" width={300} open={mobileConvOpen} onClose={() => setMobileConvOpen(false)} closable={false} styles={{ body: { padding: 0 } }}>
-            <div style={{ height: '100%' }}>
-              <ConversationSidebar
-                conversations={conversations}
-                pinned={pinned}
-                currentId={currentConv?.Id}
-                loading={convLoading}
-                search={search}
-                onSearch={setSearch}
-                onSelect={selectConv}
-                onNew={startNew}
-                onPin={togglePin}
-                onArchive={handleArchive}
-                onDelete={handleDelete}
-                onRename={handleRename}
-                usage={usage}
-                usageLoading={usageLoading}
-                modelCount={models.length}
-              />
-            </div>
-          </Drawer>
-          <Drawer placement="right" width={300} open={mobileCtxOpen} onClose={() => setMobileCtxOpen(false)} styles={{ body: { padding: 0 } }}>
-            <ContextPanel
-              scope={[{ label: dateLabel, accent: true }, { label: 'Amazon' }]}
-              tools={toolStates}
-              session={session}
-              insights={insights}
-              contextEntities={contextEntities}
-              onAddContext={(c) => setContextEntities((prev) => [...prev, c])}
-              onRemoveContext={(c) => setContextEntities((prev) => prev.filter((e) => !(e.type === c.type && e.label === c.label)))}
+        <Drawer placement="left" width={300} open={mobileConvOpen} onClose={() => setMobileConvOpen(false)} closable={false} styles={{ body: { padding: 0 } }}>
+          <div style={{ height: '100%' }}>
+            <ConversationSidebar
+              conversations={conversations}
+              pinned={pinned}
+              currentId={currentConv?.Id}
+              loading={convLoading}
+              search={search}
+              onSearch={setSearch}
+              onSelect={selectConv}
+              onNew={startNew}
+              onPin={togglePin}
+              onDelete={handleDelete}
+              onRename={handleRename}
+              usage={usage}
+              usageLoading={usageLoading}
+              modelCount={models.length}
             />
-          </Drawer>
-        </>
+          </div>
+        </Drawer>
       ) : null}
-
-      <ToolSelector
-        open={toolsOpen}
-        onClose={() => setToolsOpen(false)}
-        tools={tools}
-        onToggle={(key) => {
-          setTools((prev) => prev.map((t) => (t.key === key ? { ...t, on: !t.on } : t)));
-          if (key === 'database') setSettings((s) => ({ ...s, includeDatabase: !s.includeDatabase }));
-        }}
-      />
-
-      <AISettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={settings}
-        onUpdate={(patch) => setSettings((s) => ({ ...s, ...patch }))}
-        onReset={() => setSettings(DEFAULT_SETTINGS)}
-        models={models}
-        modelId={modelId}
-        onModelChange={setModelId}
-      />
-
-      <ConfirmationDialog
-        open={confirmOpen}
-        onCancel={cancelExecute}
-        onConfirm={confirmExecute}
-        actions={confirmActions}
-        scope={confirmScope}
-        intensity={lastTool?.rowCount > 50 ? 'high' : 'medium'}
-      />
 
       <Modal
         title="Rename conversation"
@@ -862,17 +521,6 @@ const AIWorkspace = () => {
       </Modal>
     </div>
   );
-};
-
-const entriesLabel = (type) => {
-  const map = {
-    seller: '@ Seller',
-    asin: '@ ASIN/SKU',
-    campaign: '@ Campaign',
-    task: '@ Task',
-    marketplace: '@ Marketplace',
-  };
-  return map[type] || `@${type}`;
 };
 
 export default AIWorkspace;

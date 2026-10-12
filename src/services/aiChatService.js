@@ -61,17 +61,6 @@ export const aiChatApi = {
 
   sendMessage: (id, payload) =>
     request(`/ai/chat/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify(payload) }),
-
-  queryDatabase: (question, options = {}) =>
-    request('/ai/chat/query', { method: 'POST', body: JSON.stringify({ question, options }) }),
-
-  toSql: (question, options = {}) =>
-    request('/ai/chat/sql', { method: 'POST', body: JSON.stringify({ question, options }) }),
-
-  executeSql: (sql, params = []) =>
-    request('/ai/chat/execute', { method: 'POST', body: JSON.stringify({ sql, params }) }),
-
-  getSchema: () => request('/ai/schema'),
 };
 
 export async function streamConversation(id, payload, onEvent, signal) {
@@ -136,10 +125,6 @@ export const aiChatService = {
   updateConversationTitle: aiChatApi.updateConversationTitle,
   deleteConversation: aiChatApi.deleteConversation,
   sendMessage: aiChatApi.sendMessage,
-  queryDatabase: aiChatApi.queryDatabase,
-  toSql: aiChatApi.toSql,
-  executeSql: aiChatApi.executeSql,
-  getSchema: aiChatApi.getSchema,
   streamConversation,
 };
 
