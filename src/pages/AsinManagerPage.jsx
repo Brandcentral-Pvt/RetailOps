@@ -80,6 +80,8 @@ import ColumnVisibilityPanel from '../components/asins/ColumnVisibilityPanel';
 import AppliedFilterBadges from '../components/asins/AppliedFilterBadges';
 import { useAsinData } from '../hooks/useAsinData';
 import { useParentChildren } from '../hooks/useParentChildren';
+import { useAsinFilters, useSearchQuerySync } from '../hooks/useAsinFilters';
+import FilterDrawer from '../components/asinManager/FilterDrawer';
 import {
   generateHistoryStructureFromDates,
   normalizeDateStr,
@@ -120,7 +122,7 @@ const AsinManagerPage = () => {
     const [taskDescription, setTaskDescription] = useState('');
     const [taskPriority, setTaskPriority] = useState('MEDIUM');
     const [taskCategory, setTaskCategory] = useState('GENERAL_OPTIMIZATION');
-const [sortBy, setSortBy] = useState('lastLiveSyncAt');
+  const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [_scrapingIds, setScrapingIds] = useState(new Set());
   const { setPageMeta } = useHeader();
@@ -137,7 +139,6 @@ const [sortBy, setSortBy] = useState('lastLiveSyncAt');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedAsinForPrice, setSelectedAsinForPrice] = useState(null);
   const [rowDensity, setRowDensity] = useState(() => {
     try {
@@ -197,6 +198,23 @@ const [sortBy, setSortBy] = useState('lastLiveSyncAt');
     ? marketplaceFilter
     : 'all';
 
+  // Replace all local filter state with the new hook
+  const {
+    filters,
+    appliedFilters,
+    appliedSearchQuery,
+    searchQuery,
+    setSearchQuery,
+    filterTrigger,
+    activeFilterCount,
+    hasUnsavedChanges,
+    updateFilter,
+    updateFilters,
+    applyFilters,
+    resetFilters,
+    clearFilter,
+  } = useAsinFilters({ selectedSeller, marketplaceFilter });
+
   useEffect(() => {
     if (!canAccessAmazon && !canAccessMyntra && canAccessAjio && marketplaceFilter !== 'ajio') {
       setMarketplaceFilter('ajio');
@@ -211,87 +229,28 @@ const [repairStatus, setRepairStatus] = useState(null);
     const [showExportModal, setShowExportModal] = useState(false);
     const [activeEditAsin, setActiveEditAsin] = useState(null);
     const isFirstRenderRef = useRef(true);
-    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const {
-    visibleColumns,
-    isVisible: baseIsVisible,
-    updateVisibleColumns,
-    allColumns,
-    columnCategories
-  } = useColumnVisibility();
+      const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+      const {
+        visibleColumns,
+        isVisible: baseIsVisible,
+        updateVisibleColumns,
+        allColumns,
+        columnCategories
+      } = useColumnVisibility();
 
-  const isVisible = useCallback((key) => {
-    // Removed restriction for marketplaceFilter === 'ajio' to ensure parity with Amazon datatable.
+      const isVisible = useCallback((key) => {
+        // Removed restriction for marketplaceFilter === 'ajio' to ensure parity with Amazon datatable.
 
-    // For Amazon/General datatables: Show Deal Badge, but hide Discount Percentage as requested.
-    // For Ajio: show the Discount % column since scraped discounts are core data there.
-    if (key === 'discountPercentage') return marketplaceFilter === 'ajio';
-    if (key === 'dealBadge') return true;
+        // For Amazon/General datatables: Show Deal Badge, but hide Discount Percentage as requested.
+        // For Ajio: show the Discount % column since scraped discounts are core data there.
+        if (key === 'discountPercentage') return marketplaceFilter === 'ajio';
+        if (key === 'dealBadge') return true;
 
-    return baseIsVisible(key);
-  }, [baseIsVisible, marketplaceFilter]);
+        return baseIsVisible(key);
+      }, [baseIsVisible, marketplaceFilter]);
 
-const [showColumnPanel, setShowColumnPanel] = useState(false);
-    const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
-
-    const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({
-    status: '',
-    category: '',
-    brand: '',
-    scrapeStatus: '',
-    parentAsin: '',
-    tag: '',
-    sku: '',
-    minPrice: '',
-    maxPrice: '',
-    minBSR: '',
-    maxBSR: '',
-    minRating: '',
-    maxRating: '',
-    minReviewCount: '',
-    maxReviewCount: '',
-    minImagesCount: '',
-    maxImagesCount: '',
-    minBulletPoints: '',
-    maxBulletPoints: '',
-    subBsrCategory: '',
-    buyBoxWin: '',
-    hasAplus: '',
-    hasVideo: '',
-    hasDeal: '',
-    ageFilter: '',
-    selectedTags: [],
-    minReleaseDate: '',
-    maxReleaseDate: '',
-    priceDispute: '',
-    bsrTrend: '',
-    ratingTrend: '',
-    historyDays: '',
-    ads: '',
-    availabilityStatus: '',
-    manufacturer: '',
-    dealAccessType: ''
-  });
-  const {
-    asins, setAsins,
-    globalHistoryDates,
-    availableMonths, setAvailableMonths,
-    loading, setLoading,
-    error,
-    stats,
-    pagination, setPagination,
-    initialLoadComplete,
-    loadData, retry
-  } = useAsinData({
-    selectedSeller,
-    marketplaceFilter,
-    appliedSearchQuery,
-    appliedFilters,
-    sortBy,
-    sortOrder,
-    limit: 25
-  });
+    const [showColumnPanel, setShowColumnPanel] = useState(false);
+        const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
 
   useEffect(() => {
     setPageMeta({
@@ -386,58 +345,21 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
   const [parentData, setParentData] = useState([]);
   const [parentPagination, setParentPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
   const {
-    expandedParents,
-    expandedCount,
-    loadingParents,
-    toggleParentExpand,
-    collapseAll,
-    withExpandedChildren
-  } = useParentChildren();
-  const [filters, setFilters] = useState({
-    category: '',
-    brand: '',
-    scrapeStatus: '',
-    parentAsin: '',
-    tag: '',
-    sku: '',
-    minPrice: '',
-    maxPrice: '',
-    minBSR: '',
-    maxBSR: '',
-    minRating: '',
-    maxRating: '',
-    minReviewCount: '',
-    maxReviewCount: '',
-    minImagesCount: '',
-    maxImagesCount: '',
-    minBulletPoints: '',
-    maxBulletPoints: '',
-    subBsrCategory: '',
-    buyBoxWin: '',
-    hasAplus: '',
-    hasVideo: '',
-    hasDeal: '',
-    ageFilter: '',
-    selectedTags: [],
-    minReleaseDate: '',
-    maxReleaseDate: '',
-    priceDispute: '',
-    bsrTrend: '',
-    ratingTrend: '',
-    historyDays: '',
-    ads: '',
-    availabilityStatus: '',
-    manufacturer: '',
-    dealAccessType: ''
-  });
-
-  const [filterOptions, setFilterOptions] = useState({
-    categories: [],
-    brands: [],
-    scrapeStatuses: [],
-    statuses: [],
-    tags: []
-  });
+      expandedParents,
+      expandedCount,
+      loadingParents,
+      toggleParentExpand,
+      collapseAll,
+      withExpandedChildren
+    } = useParentChildren();
+  
+    const [filterOptions, setFilterOptions] = useState({
+      categories: [],
+      brands: [],
+      scrapeStatuses: [],
+      statuses: [],
+      tags: []
+    });
 
   // Explicit Apply Handlers
   const handleApplySearch = () => {
@@ -1067,8 +989,8 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
   }, [marketplaceFilter]);
 
   const appliedFilterCount = Object.values(appliedFilters).filter(v =>
-    v !== '' && (!Array.isArray(v) || v.length > 0)
-  ).length;
+      v !== '' && (!Array.isArray(v) || v.length > 0)
+    ).length + (appliedSearchQuery ? 1 : 0) + (selectedSeller ? 1 : 0);
 
   const kpis = useMemo(() => {
     if (stats) {
@@ -1520,234 +1442,22 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
       )}
 
       {/* [Filter Sidebar/Drawer Overlay] — PREMIUM FULL-HEIGHT DRAWER */}
-      <Drawer
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
-            <div style={{ background: 'var(--bg-active)', padding: 7, borderRadius: "var(--radius-md)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <SlidersHorizontal size={16} style={{ color: '#3f3f46' }} />
-            </div>
-            <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--text-primary)' }}>Filters</span>
-          </div>
-        }
-        placement="right"
-        onClose={() => setFilterPanelOpen(false)}
-        open={filterPanelOpen}
-        width={400}
-        styles={{
-          header: { borderBottom: '1px solid var(--bg-active)', padding: '12px 20px' },
-          body: { padding: 0, display: 'flex', flexDirection: 'column', background: '#fff' }
-        }}
-        extra={
-          <Button type="link" size="small" onClick={resetAllFilters} style={{ fontSize: 12, color: 'var(--text-danger)', fontWeight: 600, padding: 0 }}>
-            Reset All
-          </Button>
-        }
-      >
-        {/* Content - Scrollable */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
-
-          {/* SEARCH & BASIC */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Identity & Search</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>SKU</div>
-                <Input size="small" placeholder="Enter SKU..." value={filters.sku} onChange={(e) => setFilters({ ...filters, sku: e.target.value })} allowClear style={{ borderRadius: "var(--radius-md)" }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Parent ASIN</div>
-                <Input size="small" placeholder="Enter Parent ASIN..." value={filters.parentAsin} onChange={(e) => setFilters({ ...filters, parentAsin: e.target.value })} allowClear style={{ borderRadius: "var(--radius-md)" }} />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
-
-          {/* ATTRIBUTES */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Product Attributes</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Scrape Status</div>
-                <Select size="small" placeholder="All Statuses" value={filters.scrapeStatus || undefined} onChange={(v) => setFilters({ ...filters, scrapeStatus: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={(filterOptions.scrapeStatuses || []).map(s => ({ value: s, label: s }))} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Brand</div>
-                <Select size="small" placeholder="All Brands" value={filters.brand || undefined} onChange={(v) => setFilters({ ...filters, brand: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={filterOptions.brands.map(b => ({ value: b, label: b }))} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Category</div>
-                <Select size="small" placeholder="All Categories" value={filters.category || undefined} onChange={(v) => setFilters({ ...filters, category: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={filterOptions.categories.map(c => ({ value: c, label: c }))} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Sub BSR Category</div>
-                <Select size="small" placeholder="All Sub BSR Categories" value={filters.subBsrCategory || undefined} onChange={(v) => setFilters({ ...filters, subBsrCategory: v || '' })} allowClear showSearch optionFilterProp="label" style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={(filterOptions.subBsrCategories || []).map(s => ({ value: s, label: s }))} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Manufacturer</div>
-                <Input size="small" placeholder="Search manufacturer..." value={filters.manufacturer} onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })} allowClear style={{ borderRadius: "var(--radius-md)" }} />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
-
-          {/* QUICK FLAGS */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Quick Flags</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BuyBox</div>
-                <Select size="small" placeholder="All" value={filters.buyBoxWin || undefined} onChange={(v) => setFilters({ ...filters, buyBoxWin: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Won (Own)' }, { value: 'false', label: 'Lost (Other)' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>A+ Content</div>
-                <Select size="small" placeholder="All" value={filters.hasAplus || undefined} onChange={(v) => setFilters({ ...filters, hasAplus: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Video</div>
-                <Select size="small" placeholder="All" value={filters.hasVideo || undefined} onChange={(v) => setFilters({ ...filters, hasVideo: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Active Deal</div>
-                <Select size="small" placeholder="All" value={filters.hasDeal || undefined} onChange={(v) => setFilters({ ...filters, hasDeal: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Ads Active</div>
-                <Select size="small" placeholder="All" value={filters.ads || undefined} onChange={(v) => setFilters({ ...filters, ads: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Availability</div>
-                <Select size="small" placeholder="All" value={filters.availabilityStatus || undefined} onChange={(v) => setFilters({ ...filters, availabilityStatus: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'In Stock', label: 'In Stock' }, { value: 'Out of Stock', label: 'Out of Stock' }, { value: 'ADD TO BAG', label: 'Add to Bag' }, { value: 'ADD TO CART', label: 'Add to Cart' }, { value: 'OUT OF STOCK', label: 'Out of Stock label' }, { value: 'SOLD OUT', label: 'Sold Out' }, { value: 'NOTIFY ME', label: 'Notify Me' }, { value: 'Available', label: 'Available' }, { value: 'Currently unavailable.', label: 'Unavailable' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Deal Type</div>
-                <Select size="small" placeholder="All" value={filters.dealAccessType || undefined} onChange={(v) => setFilters({ ...filters, dealAccessType: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'ALL', label: 'ALL' }, { value: 'PRIME', label: 'PRIME' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Dispute</div>
-                <Select size="small" placeholder="All ASINs" value={filters.priceDispute || undefined} onChange={(v) => setFilters({ ...filters, priceDispute: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'true', label: 'Disputed Only' }, { value: 'false', label: 'Non-Disputed' }]} />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
-
-          {/* TRENDS & HISTORY */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Performance Trends</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Trend</div>
-                <Select size="small" placeholder="All Trends" value={filters.bsrTrend || undefined} onChange={(v) => setFilters({ ...filters, bsrTrend: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'Grow', label: 'Growing' }, { value: 'Down', label: 'Down' }, { value: 'Stable', label: 'Stable' }]} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Rating Trend</div>
-                <Select size="small" placeholder="All Trends" value={filters.ratingTrend || undefined} onChange={(v) => setFilters({ ...filters, ratingTrend: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: 'Grow', label: 'Growing' }, { value: 'Down', label: 'Down' }, { value: 'Stable', label: 'Stable' }]} />
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>History Data Range</div>
-              <Select size="small" placeholder="Default: 14 Days" value={filters.historyDays || undefined} onChange={(v) => setFilters({ ...filters, historyDays: v || '' })} allowClear style={{ width: '100%', borderRadius: "var(--radius-md)" }} options={[{ value: '1', label: 'Today Only' }, { value: '7', label: 'Last 7 Days' }, { value: '14', label: 'Last 14 Days' }, { value: '30', label: 'Last 30 Days' }, { value: '90', label: 'Last 90 Days' }]} />
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
-
-          {/* RANGES */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Metrics & Ranges</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Price Range (₹)</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Input size="small" type="number" placeholder="Min" value={filters.minPrice} onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                  <Input size="small" type="number" placeholder="Max" value={filters.maxPrice} onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>BSR Range</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Input size="small" type="number" placeholder="Min" value={filters.minBSR} onChange={(e) => setFilters({ ...filters, minBSR: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                  <Input size="small" type="number" placeholder="Max" value={filters.maxBSR} onChange={(e) => setFilters({ ...filters, maxBSR: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Rating Range</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Input size="small" type="number" step="0.1" placeholder="Min" value={filters.minRating} onChange={(e) => setFilters({ ...filters, minRating: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                  <Input size="small" type="number" step="0.1" placeholder="Max" value={filters.maxRating} onChange={(e) => setFilters({ ...filters, maxRating: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
-
-          {/* TAGS */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tags</div>
-            <Input.Search size="small" placeholder="Search tags..." value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} style={{ borderRadius: "var(--radius-md)", marginBottom: 10 }} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {filterOptions.tags
-                .filter(t => typeof t === 'string' && t.toLowerCase().includes(tagSearch.toLowerCase()))
-                .map(tag => {
-                  const active = filters.selectedTags.includes(tag);
-                  return (
-                    <Tag
-                      key={tag}
-                      style={{ cursor: 'pointer', borderRadius: 100, fontSize: 10, fontWeight: 600, padding: '2px 10px', margin: 0, border: active ? '1px solid var(--text-primary)' : '1px solid var(--border-light)', background: active ? 'var(--text-primary)' : 'var(--bg-active)', color: active ? '#fff' : '#52525b' }}
-                      onClick={() => {
-                        const newTags = active ? filters.selectedTags.filter(t => t !== tag) : [...filters.selectedTags, tag];
-                        setFilters({ ...filters, selectedTags: newTags });
-                      }}
-                    >
-                      {tag}
-                    </Tag>
-                  );
-                })}
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: 'var(--bg-active)', margin: '0 -20px 24px' }} />
-
-          {/* AGE FILTER */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Listing Age</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-              {[
-                { label: 'New (<30D)', value: '30' },
-                { label: '30-60D', value: '60' },
-                { label: '60-90D', value: '90' },
-                { label: '90-180D', value: '180' },
-                { label: '180-365D', value: '365' },
-                { label: '365+ Days', value: '365+' }
-              ].map(opt => (
-                <Tag
-                  key={opt.value}
-                  style={{ cursor: 'pointer', borderRadius: 100, fontSize: 10, fontWeight: 600, padding: '2px 10px', margin: 0, border: filters.ageFilter === opt.value ? '1px solid var(--text-primary)' : '1px solid var(--border-light)', background: filters.ageFilter === opt.value ? 'var(--text-primary)' : 'var(--bg-active)', color: filters.ageFilter === opt.value ? '#fff' : '#52525b' }}
-                  onClick={() => setFilters({ ...filters, ageFilter: filters.ageFilter === opt.value ? '' : opt.value })}
-                >
-                  {opt.label}
-                </Tag>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#52525b', marginBottom: 4 }}>Release Date Range</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Input size="small" type="date" value={filters.minReleaseDate} onChange={(e) => setFilters({ ...filters, minReleaseDate: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-                <Input size="small" type="date" value={filters.maxReleaseDate} onChange={(e) => setFilters({ ...filters, maxReleaseDate: e.target.value })} style={{ borderRadius: "var(--radius-md)", flex: 1 }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--bg-active)', background: '#fafafa', display: 'flex', gap: 8, flexShrink: 0 }}>
-          <Button size="small" block onClick={resetAllFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32 }}>Reset</Button>
-          <Button size="small" type="primary" block onClick={handleApplyFilters} style={{ borderRadius: "var(--radius-md)", fontWeight: 600, height: 32, background: 'var(--text-primary)', borderColor: 'var(--text-primary)' }}>Apply Filters</Button>
-        </div>
-      </Drawer>
+            <FilterDrawer
+              filterPanelOpen={filterPanelOpen}
+              setFilterPanelOpen={setFilterPanelOpen}
+              filters={filters}
+              setFilters={updateFilters}
+              appliedFilters={appliedFilters}
+              filterOptions={filterOptions}
+              tagSearch={tagSearch}
+              setTagSearch={setTagSearch}
+              selectedSeller={selectedSeller}
+              sellers={sellers}
+              marketplaceFilter={marketplaceFilter}
+              resetAllFilters={resetAllFilters}
+              handleApplyFilters={handleApplyFilters}
+              hasPermission={hasPermission}
+            />
 
       {/* Relocated header actions to Table Toolbar for dense view UI */}
 
@@ -2702,982 +2412,52 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                 </tr>
 
               </thead>
-              <tbody>
-                {filteredAsins.length === 0 ? (
-                  <tr>
-                      <td colSpan={56} style={{ padding: '60px 0' }}>
-                      <EmptyState
-                        icon={Package}
-                        title="No ASINs Found"
-                        description="There are no ASINs matching the current filters or seller selection."
-                        action={hasPermission('asinmanager_manage') ? { label: 'Add ASINs', onClick: () => setShowAddModal(true) } : null}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredAsins.map((asin, idx) => {
-                    const historyMap = {};
-                    asin.history?.forEach(h => historyMap[normalizeDateStr(h.date)] = h);
-
-                    const weekHistoryMap = {};
-                    asin.weekHistory?.forEach(w => weekHistoryMap[normalizeDateStr(w.date)] = w);
-
-                    const subBsrHistoryMap = {};
-                    asin.subBsrHistory?.forEach(h => subBsrHistoryMap[normalizeDateStr(h.date)] = h);
-
-                    const rowClass = [
-                      'asin-grid__row',
-                      isUnavailableStatus(asin) ? 'asin-grid__row--unavailable' : '',
-                      asin._isChild ? 'asin-row--child' : '',
-                      selectedIds.has(asin._id) ? 'is-selected' : ''
-                    ].filter(Boolean).join(' ');
-
-                    return (
-                      <tr key={asin._id || idx} className={rowClass}>
-                        {isVisible('checkbox') && (
-                          <td className="asin-grid__sticky asin-grid__sticky--select" style={{
-                            ...tdStyle,
-                            width: '40px',
-                            position: 'sticky',
-                            left: 0,
-                            zIndex: 6,
-                            textAlign: 'center',
-                            padding: 0
-                          }}>
-                            {asin._isChildLoading ? (
-                              <span className="asin-inline-spinner" aria-hidden="true" />
-                            ) : asin._isChild ? null : (
-                              <>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedIds.has(asin._id)}
-                                  onChange={() => handleToggleSelectRow(asin._id)}
-                                  aria-label={`Select ASIN ${asin.asinCode}`}
-                                  style={{ cursor: 'pointer', verticalAlign: 'middle', width: '13px', height: '13px' }}
-                                />
-                                {asin._isParent && (
-                                  <span
-                                    aria-hidden="true"
-                                    title={`${asin.childCount || 0} child ASINs`}
-                                    style={{
-                                      display: 'inline-block',
-                                      marginTop: 1,
-                                      fontSize: '8px',
-                                      lineHeight: 1.2,
-                                      color: 'var(--text-muted)'
-                                    }}
-                                  >
-                                    {asin.childCount || 0}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </td>
-                        )}
-                        {isVisible('asinCode') && (
-                          <td
-                            className={`asin-grid__sticky ${isVisible('checkbox') ? 'asin-grid__sticky--asin' : 'asin-grid__sticky--select-only'}`}
-                            style={{
-                              ...tdStyle,
-                              fontWeight: 600,
-                              color: 'var(--text-brand)',
-                              position: 'sticky',
-                              width: '110px',
-                              left: isVisible('checkbox') ? '40px' : '0px',
-                              zIndex: 5,
-                              borderRight: '2px solid var(--border-light)',
-                              paddingLeft: asin._isChild ? '18px' : undefined
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
-                                {asin._isParent && (
-                                  <button
-                                    type="button"
-                                    onClick={e => { e.stopPropagation(); toggleParentExpand(asin.asinCode); }}
-                                    aria-expanded={expandedParents.has(asin.asinCode)}
-                                    aria-label={`${expandedParents.has(asin.asinCode) ? 'Collapse' : 'Expand'} children of ${asin.asinCode}`}
-                                    title={`${asin.childCount || 0} child ASINs`}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flex: 'none',
-                                      width: 16,
-                                      height: 16,
-                                      padding: 0,
-                                      border: '1px solid var(--border-light)',
-                                      borderRadius: '3px',
-                                      background: 'var(--bg-secondary)',
-                                      color: 'var(--text-secondary)',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {loadingParents.has(asin.asinCode)
-                                      ? <span className="asin-inline-spinner" aria-hidden="true" />
-                                      : expandedParents.has(asin.asinCode)
-                                        ? <ChevronDown size={11} strokeWidth={3} />
-                                        : <ChevronRight size={11} strokeWidth={3} />}
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleViewAsin(asin)}
-                                  title="View ASIN detail"
-                                  style={{
-                                    border: 0,
-                                    background: 'transparent',
-                                    padding: 0,
-                                    font: 'inherit',
-                                    fontWeight: 600,
-                                    color: 'inherit',
-                                    cursor: 'pointer',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  {asin.asinCode}
-                                </button>
-                              </span>
-                              <a
-                                href={(asin.marketplace === 'ajio' || marketplaceFilter === 'ajio') ? (asin.pageUrl || `https://www.ajio.com/p/${asin.asinCode}`) : (asin.marketplace === 'myntra' || marketplaceFilter === 'myntra') ? (asin.pageUrl || 'https://www.myntra.com') : `https://www.amazon.in/dp/${asin.asinCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={asin.marketplace === 'ajio' || marketplaceFilter === 'ajio' ? "Open on Ajio" : "Open on Amazon"}
-                                style={{
-                                  color: 'var(--text-muted)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  marginLeft: '4px',
-                                  transition: 'color 0.2s'
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-brand)'}
-                                onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-                              >
-                                <ExternalLink size={13} />
-                              </a>
-                            </div>
-                          </td>
-                        )}
-                        {/* ===== RELEASE DATE ===== */}
-                        {isVisible('releaseDate') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.releaseDate ? (
-                              <div className="d-flex align-items-center justify-content-center gap-2" style={{ whiteSpace: 'nowrap' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 600 }}>
-                                  {new Date(asin.releaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                                </span>
-                                <span className="badge bg-light text-zinc-500 border border-light" style={{ fontSize: '8px', padding: '2px 4px' }}>
-                                  {(() => {
-                                    const days = Math.floor((Date.now() - new Date(asin.releaseDate)) / (1000 * 60 * 60 * 24));
-                                    if (days <= 30) return `${days}d`;
-                                    if (days <= 60) return `${days}d⚡`;
-                                    return `${Math.floor(days / 30)}m`;
-                                  })()}
-                                </span>
-                              </div>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>
-                            )}
-                          </td>
-                        )}
-                        {/* ===== PARENT ASIN ===== */}
-                        {isVisible('parentAsin') && (
-                          <td style={tdStyle}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                              {(() => {
-                                const pAsin = asin.parentAsin || asin.ParentAsin;
-                                if (!pAsin) return <span style={{ color: '#d1d5db' }}>-</span>;
-                                return (
-                                  <>
-                                    <span style={{ fontWeight: 600, color: 'var(--text-brand)' }}>{pAsin}</span>
-                                    <a
-                                      href={(asin.marketplace === 'ajio' || marketplaceFilter === 'ajio') ? `https://www.ajio.com/p/${pAsin}` : (asin.marketplace === 'myntra' || marketplaceFilter === 'myntra') ? 'https://www.myntra.com' : `https://www.amazon.in/dp/${pAsin}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      title={asin.marketplace === 'ajio' || marketplaceFilter === 'ajio' ? "Open Parent on Ajio" : "Open Parent on Amazon"}
-                                      style={{
-                                        color: 'var(--text-muted)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        marginLeft: '4px',
-                                        transition: 'color 0.2s'
-                                      }}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-brand)'}
-                                      onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-                                    >
-                                      <ExternalLink size={13} />
-                                    </a>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('sellerBrand') && (
-                          <td style={tdStyle}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                {asin.seller?.name || asin.seller || 'Global'}
-                              </span>
-                              {asin.soldBy && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>• {asin.soldBy}</span>}
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('sku') && <td style={tdStyle}>{asin.sku || '-'}</td>}
-                        {isVisible('title') && (
-                          <td style={{ ...tdStyle, width: '220px', maxWidth: '220px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                              {asin.imageUrl && (
-                                <img src={asin.imageUrl} alt="" style={{ width: 18, height: 18, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                              )}
-                              <span style={{
-                                display: 'inline-block',
-                                whiteSpace: 'nowrap',
-                                textOverflow: 'ellipsis',
-                                overflow: 'hidden',
-                                fontSize: '10.5px',
-                                cursor: 'pointer',
-                                maxWidth: '180px',
-                                fontWeight: 500
-                              }} onClick={() => handleViewAsin(asin)} title={asin.title}>
-                                {asin.title}
-                              </span>
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('category') && (
-                          <td style={tdStyle}>
-                            <div className="d-flex flex-column" style={{ overflow: 'hidden' }}>
-                              <span style={{
-                                fontWeight: 500,
-                                color: 'var(--text-secondary)',
-                                fontSize: '10.5px',
-                                whiteSpace: 'nowrap',
-                                textOverflow: 'ellipsis',
-                                overflow: 'hidden'
-                              }} title={asin.category?.replace(/&amp;/g, '&')}>
-                                {(asin.category || '').replace(/&amp;/g, '&').split(/[›>]/).pop()?.trim() || '-'}
-                              </span>
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('tags') && (
-                          <td style={tdStyle}>
-                            <TagsCell asin={asin} onRefresh={loadData} />
-                          </td>
-                        )}
-                        {isVisible('manufacturer') && (
-                          <td style={{ ...tdStyle, textAlign: 'left' }}>
-                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', maxWidth: '110px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={asin.manufacturer || ''}>
-                              {asin.manufacturer || <span style={{ color: 'var(--text-muted)' }}>-</span>}
-                            </span>
-                          </td>
-                        )}
-                        {isVisible('availabilityStatus') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.availabilityStatus ? (
-                              (() => {
-                                const s = (asin.availabilityStatus || '').toLowerCase();
-                                // The Ajio scraper writes the buy button text
-                                // ("ADD TO BAG") while Amazon-style values are
-                                // canonical tokens ("InStock"), so match both
-                                // spellings — the no-space form matched neither
-                                // branch before and rendered as a neutral chip.
-                                const isUnavailable = s.includes('unavailable') || s.includes('out of stock') || s.includes('out_of_stock') || s.includes('outofstock') || s.includes('sold out') || s.includes('notify me');
-                                const isInStock = s.includes('in stock') || s.includes('instock') || s.includes('add to bag') || s.includes('add to cart') || s === 'available';
-                                const bgColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bg-success-subtle)' : 'var(--bg-secondary)';
-                                const textColor = isUnavailable ? 'var(--text-danger)' : isInStock ? 'var(--text-success)' : 'var(--text-secondary)';
-                                const borderColor = isUnavailable ? 'var(--bg-danger-subtle)' : isInStock ? 'var(--bc-border-success)' : 'var(--border-light)';
-                                return (
-                                  <Tooltip title={asin.availabilityStatus} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
-                                    <span className="badge" style={{
-                                      backgroundColor: bgColor,
-                                      color: textColor,
-                                      border: `1px solid ${borderColor}`,
-                                      fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 'var(--radius-sm)', maxWidth: '90px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'default'
-                                    }}>
-                                      {asin.availabilityStatus}
-                                    </span>
-                                  </Tooltip>
-                                );
-                              })()
-                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
-                          </td>
-                        )}
-
-                        {isVisible('ads') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.Ads ? (
-                              <div className="d-flex align-items-center justify-content-center gap-1" title="Advertising Active">
-                                <span className="badge d-flex align-items-center gap-1 shadow-sm" style={{ backgroundColor: 'var(--bg-success-subtle)', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
-                                  <Megaphone size={10} />
-                                  YES
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-zinc-300" style={{ fontSize: '10px' }}>—</span>
-                            )}
-                          </td>
-                        )}
-                        {isVisible('ads') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.hasGms ? (
-                              <span className="badge d-flex align-items-center justify-content-center gap-1 shadow-sm" style={{ backgroundColor: 'var(--bg-success-subtle)', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 800, borderRadius: 'var(--radius-sm)' }}>
-                                YES
-                              </span>
-                            ) : (
-                              <span className="text-zinc-300" style={{ fontSize: '10px' }}>—</span>
-                            )}
-                          </td>
-                        )}
-                        {/* Orders Monthly Cells */}
-                        {isVisible('totalOrders') && ordersExpanded && availableMonths.map((month, mIdx) => {
-                          const monthOrders = asin.monthlyOrders ? asin.monthlyOrders[month] : 0;
-                          return (
-                            <td key={`ord-c-${mIdx}`} style={{
-                              ...tdStyle,
-                              ...getTransitionStyle(ordersExpanded, mIdx, availableMonths.length + 1, '70px'),
-                              textAlign: 'center'
-                            }}>
-                              <div style={{
-                                width: ordersExpanded ? 'auto' : '0px',
-                                overflow: 'hidden',
-                                transition: 'all 0.3s ease'
-                              }}>
-                                {monthOrders > 0 ? (
-                                  <span className="text-zinc-600" style={{ fontSize: 'var(--font-size-xs)' }}>
-                                    {monthOrders.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <span className="text-zinc-300" style={{ fontSize: '10px' }}>—</span>
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        {/* Orders Total Cell */}
-                        {isVisible('totalOrders') && (
-                          <td style={{
-                            ...tdStyle,
-                            ...getTransitionStyle(ordersExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
-                            textAlign: 'center',
-                            background: ordersExpanded ? 'var(--bg-secondary)' : 'transparent'
-                          }}>
-                            <div style={{
-                              width: 'auto',
-                              overflow: 'hidden',
-                              transition: 'all 0.3s ease'
-                            }}>
-                              {asin.totalOrders !== undefined && asin.totalOrders > 0 ? (
-                                <span className="fw-bold text-zinc-700" style={{ fontSize: 'var(--font-size-xs)' }}>
-                                  {asin.totalOrders.toLocaleString()}
-                                </span>
-                              ) : (
-                                <span className="text-zinc-300" style={{ fontSize: '10px' }}>—</span>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                        {/* GMS Revenue Monthly Cells */}
-                        {gmsRevenueExpanded && availableMonths.map((month, mIdx) => {
-                          const gmsData = asin.monthlyGmsRevenue?.[month] || {};
-                          const monthRevenue = gmsData.revenue || asin.monthlyGmsRevenue?.[month] || 0;
-                          // Handle both flat numbers and objects with .revenue
-                          const revenue = typeof monthRevenue === 'object' ? (monthRevenue.revenue || 0) : monthRevenue;
-                          return (
-                      <td className="asin-grid__cell--trend-revenue" key={`gms-c-${mIdx}`} style={{
-                        ...tdStyle,
-                        ...getTransitionStyle(gmsRevenueExpanded, mIdx, availableMonths.length + 1, '70px'),
-                        textAlign: 'center'
-                      }}>
-                              <div style={{
-                                width: gmsRevenueExpanded ? 'auto' : '0px',
-                                overflow: 'hidden',
-                                transition: 'all 0.3s ease'
-                              }}>
-                                {revenue > 0 ? (
-                                  <span style={{ fontSize: '10px', fontWeight: 600, color: '#059669' }}>
-                                    ₹{revenue.toLocaleString('en-IN')}
-                                  </span>
-                                ) : (
-                                  <span className="text-zinc-300" style={{ fontSize: '10px' }}>—</span>
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        {/* GMS Revenue Total Cell */}
-                        {gmsRevenueExpanded && (
-                      <td className="asin-grid__cell--trend-revenue-total" style={{
-                        ...tdStyle,
-                        ...getTransitionStyle(gmsRevenueExpanded, availableMonths.length, availableMonths.length + 1, '70px'),
-                        textAlign: 'center',
-                        fontWeight: 600
-                      }}>
-                            <div style={{
-                              width: 'auto',
-                              overflow: 'hidden',
-                              transition: 'all 0.3s ease'
-                            }}>
-                              {(asin.totalOrders || 0) > 0 ? (
-                                <span className="fw-bold" style={{ fontSize: 'var(--font-size-xs)', color: '#065f46' }}>
-                                  ₹{(asin.totalOrders || 0).toLocaleString('en-IN')}
-                                </span>
-                              ) : (
-                                <span className="text-zinc-300" style={{ fontSize: '10px' }}>—</span>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('dealBadge') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.dealBadge && asin.dealBadge !== 'No deal found' && asin.dealBadge !== '' && asin.dealStartTime && asin.dealEndTime && isDealActive(asin) ? (
-                              <Tooltip title={`${asin.dealBadge} — ${new Date(asin.dealStartTime).toLocaleDateString('en-IN')} to ${new Date(asin.dealEndTime).toLocaleDateString('en-IN')}`} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
-                                <span
-                                  className="badge"
-                                  style={{
-                                    backgroundColor: 'var(--bg-danger-subtle)',
-                                    color: 'var(--text-danger)',
-                                    border: '1px solid var(--bg-danger-subtle)',
-                                    fontWeight: 600,
-                                    fontSize: '0.65rem',
-                                    padding: '2px 6px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    display: 'inline-block',
-                                    maxWidth: '75px',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    cursor: 'default'
-                                  }}
-                                >
-                                  {asin.dealBadge}
-                                </span>
-                              </Tooltip>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>
-                            )}
-                          </td>
-                        )}
-                        {isVisible('dealStartTime') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.dealStartTime ? (
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                                {new Date(asin.dealStartTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                              </span>
-                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
-                          </td>
-                        )}
-                        {isVisible('dealEndTime') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.dealEndTime ? (
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                                {new Date(asin.dealEndTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                              </span>
-                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
-                          </td>
-                        )}
-                        {isVisible('dealAccessType') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.dealAccessType ? (
-                              <span className="badge" style={{
-                                backgroundColor: asin.dealAccessType === 'ALL' ? 'var(--bg-success-subtle)' : '#eff6ff',
-                                color: asin.dealAccessType === 'ALL' ? 'var(--text-success)' : 'var(--text-brand)',
-                                border: `1px solid ${asin.dealAccessType === 'ALL' ? '#a7f3d0' : '#bfdbfe'}`,
-                                fontWeight: 600, fontSize: '0.6rem', padding: '2px 5px', borderRadius: 'var(--radius-sm)'
-                              }}>
-                                {asin.dealAccessType}
-                              </span>
-                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>-</span>}
-                          </td>
-                        )}
-                        {/* ===== CURRENT BUYBOX ===== */}
-                        {isVisible('currentBuybox') && (
-                          <td style={{ ...tdStyle, width: '110px', padding: '4px 8px' }}>
-                            {(() => {
-                              const buyBoxes = asin.buyBoxes || [];
-                              const winner = buyBoxes.find(b => b.isBuyBoxWinner) || buyBoxes[0];
-                              const seller = winner?.seller || asin.soldBy || null;
-                              const price = winner?.priceAmount || 0;
-                              const mrp = winner?.mrpAmount || 0;
-                              const savings = winner?.savingsAmount || 0;
-                              const savingsPct = winner?.savingsPercentage || 0;
-                              const condition = winner?.condition?.value || '';
-                              const availability = winner?.availability || '';
-
-                              if (!seller && !price) return <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>-</span>;
-
-                              return (
-                                <Tooltip title={
-                                  <div style={{ fontSize: 'var(--font-size-xs)' }}>
-                                    <div><b>Seller:</b> {seller || 'Unknown'}</div>
-                                    <div><b>Price:</b> ₹{price.toLocaleString()}</div>
-                                    {mrp > 0 && <div><b>MRP:</b> ₹{mrp.toLocaleString()}</div>}
-                                    {savings > 0 && <div><b>Savings:</b> ₹{savings.toLocaleString()} ({savingsPct}% OFF)</div>}
-                                    {condition && <div><b>Condition:</b> {condition}</div>}
-                                    {availability && <div><b>Avail:</b> {availability}</div>}
-                                  </div>
-                                } placement="left" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
-                                  <div className="d-flex flex-column gap-1">
-                                    <span className="fw-bold text-zinc-800 text-truncate" style={{ fontSize: '10px' }} title={seller || 'Unknown'}>
-                                      {seller || 'Unknown'}
-                                    </span>
-                                    <span className="fw-bold text-indigo-600" style={{ fontSize: 'var(--font-size-xs)' }}>
-                                      ₹{price.toLocaleString()}
-                                    </span>
-                                    {savings > 0 && (
-                                      <span style={{ fontSize: '8px', color: 'var(--text-success)', fontWeight: 600 }}>
-                                        {savingsPct}% OFF
-                                      </span>
-                                    )}
-                                  </div>
-                                </Tooltip>
-                              );
-                            })()}
-                          </td>
-                        )}
-
-                        {isVisible('mrp') && (
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '10.5px' }}>
-                            ₹{(asin.mrp || 0).toLocaleString()}
-                          </td>
-                        )}
-                        {isVisible('price') && (
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, cursor: 'pointer' }}
-                            onClick={(e) => handleViewPrice(asin, e)}
-                            title="View Price Trend Matrix">
-                            <div className="d-flex flex-column align-items-end">
-                              {(() => {
-                                const isDisputed = computeDynamicDispute(asin);
-                                // Price column: uploaded channel price when present, else the
-                                // scraped discounted price (Ajio), else MRP as a last resort.
-                                const uploadedPrice = asin.uploadedPrice || 0;
-                                const displayedPrice = uploadedPrice > 0
-                                  ? uploadedPrice
-                                  : (asin.currentPrice > 0 ? asin.currentPrice : (asin.mrp || 0));
-                                return (
-                                  <>
-                                    <span style={{ color: isDisputed ? 'var(--text-danger)' : 'var(--text-success)' }}>
-                                      ₹{displayedPrice.toLocaleString()}
-                                    </span>
-                                    {isDisputed && (
-                                      <span className="badge mt-1 shadow-sm" style={{
-                                        fontSize: '8px',
-                                        padding: '2px 6px',
-                                        fontWeight: 800,
-                                        backgroundColor: 'var(--text-danger)',
-                                        color: '#fff',
-                                        borderRadius: 'var(--radius-sm)',
-                                        textTransform: 'uppercase'
-                                      }}>
-                                        PRICE DISPUTE
-                                      </span>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('discountPercentage') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            <span className="badge bg-danger bg-opacity-10 text-danger" style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
-                              {asin.discountPercentage ? `${asin.discountPercentage}% OFF` : '-'}
-                            </span>
-                          </td>
-                        )}
-                        {isVisible('priceDispute') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {(() => {
-                              const isDisputed = computeDynamicDispute(asin);
-                              return (
-                                <Tooltip title={isDisputed ? 'Channel price differs from current price by >₹5' : 'No price dispute'} placement="top" styles={{ root: { fontSize: 'var(--font-size-xs)' } }}>
-                                  <span className="badge" style={{
-                                    backgroundColor: isDisputed ? 'var(--bg-danger-subtle)' : 'var(--bg-success-subtle)',
-                                    color: isDisputed ? 'var(--text-danger)' : 'var(--text-success)',
-                                    border: `1px solid ${isDisputed ? 'var(--bg-danger-subtle)' : '#a7f3d0'}`,
-                                    fontWeight: 600, fontSize: '0.65rem', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
-                                    cursor: 'default'
-                                  }}>
-                                    {isDisputed ? 'DISPUTED' : 'No Dispute'}
-                                  </span>
-                                </Tooltip>
-                              );
-                            })()}
-                          </td>
-                        )}
-                        {isVisible('priceTrend') && historyStructure.map(week => (
-                          week.dates.map((date, dIdx) => {
-                            const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
-                            const currentOrUploadedPrice = asin.currentPrice;
-                            let priceVal = (wData && wData.price !== undefined && wData.price !== null && wData.price !== 0)
-                              ? wData.price
-                              : null;
-
-                            // Fallback removed to expose data integrity gaps
-
-                            return (
-                                <td className="asin-grid__cell--trend-bsr" key={`p-${week.label}-${dIdx}`}
-                                onClick={(e) => handleViewPrice(asin, e)}
-                                title="View Price Trend Matrix"
-                                style={{
-                                  ...tdStyle,
-                                  ...getTransitionStyle(priceTrendExpanded, dIdx, week.dates.length),
-                                  textAlign: 'center',
-                                  cursor: 'pointer'
-                                }}>
-                                <div style={{
-                                  width: (priceTrendExpanded || dIdx === week.dates.length - 1) ? 'auto' : '0px',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s ease'
-                                }}>
-                                  {priceVal ? getWeekHistoryBadge(priceVal, 'price', currentOrUploadedPrice) : '-'}
-                                </div>
-                              </td>
-                            );
-                          })
-                        ))}
-                        {isVisible('mainBsr') && (
-                          <td className="asin-grid__cell--trend-bsr" style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
-                            onClick={(e) => handleViewBsr(asin, e)}>
-                            <div className="d-flex flex-column align-items-center">
-                              <div style={{ fontWeight: 600, color: 'var(--color-secondary)', fontSize: 'var(--font-size-xs)' }}>
-                                {asin.bsr ? `#${asin.bsr.toLocaleString()}` : '-'}
-                              </div>
-                              {asin.bsr && asin.category && (
-                                <span className="text-zinc-400 text-truncate" style={{ fontSize: '8px', maxWidth: '75px' }} title={asin.category}>
-                                  in {asin.category}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        )}
-
-                        {isVisible('subBsr') && (
-                          <td style={{ ...tdStyle, width: '120px' }}>
-                            {(() => {
-                              const subBsrValue = (asin.subBsr && asin.subBsr !== '0' && asin.subBsr !== 0) ? asin.subBsr : ((Array.isArray(asin.subBSRs) && asin.subBSRs[0]) || '');
-                              const hasMultiple = Array.isArray(asin.subBSRs) && asin.subBSRs.length > 1;
-                              let rank = subBsrValue;
-                              let category = '';
-                              if (typeof subBsrValue === 'string' && subBsrValue.includes(' in ')) {
-                                const parts = subBsrValue.split(' in ');
-                                rank = parts[0];
-                                category = parts.slice(1).join(' in ');
-                              }
-
-                              return subBsrValue && subBsrValue !== '0' ? (
-                                <div className="d-flex flex-column gap-1">
-                                  <div className="d-flex align-items-center gap-1">
-                                    <span style={{
-                                      fontSize: '10px',
-                                      color: 'var(--text-secondary)',
-                                      fontWeight: 600,
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      maxWidth: hasMultiple ? '85px' : '110px'
-                                    }} title={rank}>
-                                      {rank}
-                                    </span>
-                                    {hasMultiple && (
-                                      <span
-                                        className="badge rounded-pill bg-zinc-100 text-zinc-500 border border-zinc-200"
-                                        style={{ fontSize: '8px', padding: '1px 4px' }}
-                                        title={asin.subBSRs.slice(1).join('\n')}
-                                      >
-                                        +{asin.subBSRs.length - 1}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {category && (
-                                    <span style={{
-                                      fontSize: '9px',
-                                      color: 'var(--text-secondary)',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      maxWidth: '110px'
-                                    }} title={category}>
-                                      {category}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span style={{ color: 'var(--text-muted)' }}>-</span>
-                              );
-                            })()}
-                          </td>
-                        )}
-                        {isVisible('bsrTrendStatus') && (
-                          <td
-                            style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
-                            onClick={() => handleViewTrends(asin, 'bsr')}
-                          >
-                            <TrendBadge status={asin.bsrTrend} />
-                          </td>
-                        )}
-                        {isVisible('bsrTrend') && historyStructure.map(week => (
-                          week.dates.map((date, dIdx) => {
-                            const hDate = date.raw;
-                            const subBsrPoint = subBsrHistoryMap[hDate];
-                            const displayVal = subBsrPoint?.rank ?? asin.subBsr;
-                            return (
-                              <td className="asin-grid__cell--trend-bsr" key={`b-${week.label}-${dIdx}`}
-                                onClick={(e) => handleViewBsr(asin, e)}
-                                style={{
-                                  ...tdStyle,
-                                  ...getTransitionStyle(bsrTrendExpanded, dIdx, week.dates.length),
-                                  textAlign: 'center',
-                                  cursor: 'pointer'
-                                }}>
-                                <div style={{
-                                  width: (bsrTrendExpanded || dIdx === week.dates.length - 1) ? 'auto' : '0px',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s ease'
-                                }}>
-                                  {displayVal ? getWeekHistoryBadge(displayVal, 'subBsr') : '-'}
-                                </div>
-                              </td>
-                            );
-                          })
-                        ))}
-                        {isVisible('rating') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
-                            onClick={(e) => handleViewRating(asin, e)}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                              <Star size={10} className="text-warning fill-warning" />
-                              <span style={{ fontWeight: 600 }}>
-                                {typeof asin.rating === 'number' ? asin.rating.toFixed(1) : (asin.rating || '-')}
-                              </span>
-                            </div>
-                          </td>
-                        )}
-                        {isVisible('reviewCount') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            {asin.reviewCount !== null && asin.reviewCount !== undefined ? asin.reviewCount.toLocaleString() : '-'}
-                          </td>
-                        )}
-                        {isVisible('ratingBreakdown') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', padding: '4px 6px' }}>
-                            {renderRatingBreakdown(asin.ratingBreakdown)}
-                          </td>
-                        )}
-                        {isVisible('ratingTrendStatus') && (
-                          <td
-                            style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
-                            onClick={() => handleViewTrends(asin, 'rating')}
-                          >
-                            <TrendBadge status={asin.ratingTrend} />
-                          </td>
-                        )}
-                        {isVisible('ratingTrend') && historyStructure.map(week => (
-                          week.dates.map((date, dIdx) => {
-                            const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
-                            const ratingVal = (wData && wData.rating !== undefined && wData.rating !== null) ? wData.rating : asin.rating;
-                            return (
-                              <td className="asin-grid__cell--trend-rating" key={`r-${week.label}-${dIdx}`}
-                                onClick={(e) => handleViewRating(asin, e)}
-                                style={{
-                                  ...tdStyle,
-                                  ...getTransitionStyle(ratingTrendExpanded, dIdx, week.dates.length),
-                                  textAlign: 'center',
-                                  cursor: 'pointer'
-                                }}>
-                                <div style={{
-                                  width: (ratingTrendExpanded || dIdx === week.dates.length - 1) ? 'auto' : '0px',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s ease'
-                                }}>
-                                  {(ratingVal !== undefined && ratingVal !== null && ratingVal !== '') ? getWeekHistoryBadge(ratingVal, 'rating') : '-'}
-                                </div>
-                              </td>
-                            );
-                          })
-                        ))}
-                        {isVisible('reviewCount') && (
-                          <td
-                            style={{ ...tdStyle, textAlign: 'center', cursor: 'pointer' }}
-                            onClick={() => handleViewTrends(asin, 'reviews')}
-                          >
-                            <TrendBadge status={getReviewTrendStatus(asin)} />
-                          </td>
-                        )}
-                        {isVisible('reviewTrend') && historyStructure.map(week => (
-                          week.dates.map((date, dIdx) => {
-                            const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
-                            const reviewsVal = (wData && wData.reviews !== undefined && wData.reviews !== null) ? wData.reviews : (wData?.reviewCount !== undefined && wData?.reviewCount !== null ? wData.reviewCount : asin.reviewCount);
-                            return (
-                              <td className="asin-grid__cell--trend-rating" key={`rev-${week.label}-${dIdx}`}
-                                onClick={(e) => handleViewRating(asin, e)}
-                                style={{
-                                  ...tdStyle,
-                                  ...getTransitionStyle(reviewTrendExpanded, dIdx, week.dates.length),
-                                  textAlign: 'center',
-                                  cursor: 'pointer'
-                                }}>
-                                <div style={{
-                                  width: (reviewTrendExpanded || dIdx === week.dates.length - 1) ? 'auto' : '0px',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s ease'
-                                }}>
-                                  {(reviewsVal !== undefined && reviewsVal !== null && reviewsVal !== '') ? <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>{reviewsVal.toLocaleString()}</span> : '-'}
-                                </div>
-                              </td>
-                            );
-                          })
-                        ))}
-                        {isVisible('video') && (
-                          <td style={{ ...tdStyle, width: '50px', textAlign: 'center' }}>
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: asin.videoCount > 0 ? 'var(--text-success)' : '#6b7280',
-                                color: '#fff',
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                              }}
-                            >
-                              {asin.videoCount > 0 ? 'Yes' : 'No'}
-                            </span>
-                          </td>
-                        )}
-                        {isVisible('imagesCount') && <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>{asin.imagesCount || 0}</td>}
-
-                        {isVisible('imageTrend') && historyStructure.map(week => (
-                          week.dates.map((date, dIdx) => {
-                            const wData = weekHistoryMap[date.raw] || historyMap[date.raw];
-                            return (
-                                <td className="asin-grid__cell--trend-visual" key={`i-${week.label}-${dIdx}`}
-                                  style={{
-                                    ...tdStyle,
-                                    ...getTransitionStyle(imageTrendExpanded, dIdx, week.dates.length),
-                                    textAlign: 'center'
-                                  }}>
-                                <div style={{
-                                  width: (imageTrendExpanded || dIdx === week.dates.length - 1) ? 'auto' : '0px',
-                                  overflow: 'hidden',
-                                  transition: 'all 0.3s ease'
-                                }}>
-                                  <span style={{ fontSize: '10px', color: '#db2777', fontWeight: 600 }}>
-                                    {wData?.imageCount !== undefined ? wData.imageCount : (asin.imagesCount || '-')}
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          })
-                        ))}
-
-                        {isVisible('bulletPoints') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>
-                            {asin.bulletPoints || asin.bulletPointsText?.length || 0}
-                          </td>
-                        )}
-
-                        {isVisible('hasAplus') && (
-                          <td style={{ ...tdStyle, textAlign: 'center' }}>
-                            {asin.status === 'Scraping' ? (
-                              <span style={{ color: 'var(--text-muted)' }}>-</span>
-                            ) : (
-                              <span
-                                className="badge"
-                                style={{
-                                  backgroundColor: asin.hasAplus ? 'var(--text-success)' : '#6b7280',
-                                  color: '#fff',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem'
-                                }}
-                              >
-                                {asin.hasAplus ? 'Yes' : 'No'}
-                              </span>
-                            )}
-                          </td>
-                        )}
-
-                        {isVisible('aplusDays') && (
-                          <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: 'var(--text-danger)' }}>
-                            {asin.aplusAbsentSince && !asin.hasAplus
-                              ? Math.floor((Date.now() - new Date(asin.aplusAbsentSince)) / (1000 * 60 * 60 * 24))
-                              : '-'}
-                          </td>
-                        )}
-                        {/* ===== ROW ACTIONS ===== */}
-                        <td className="asin-grid__sticky asin-grid__sticky--actions" style={{
-                          ...tdStyle,
-                          width: '60px',
-                          textAlign: 'center',
-                          position: 'sticky',
-                          right: 0,
-                          zIndex: 6,
-                          borderLeft: '1px solid var(--border-light)',
-                          padding: '4px'
-                        }}>
-                          <Dropdown
-                            menu={{
-                              items: [
-                                {
-                                  key: 'view',
-                                  label: 'View Details',
-                                  icon: <Eye size={14} className="text-blue-500" />,
-                                  onClick: () => handleViewAsin(asin)
-                                },
-                                {
-                                  key: 'trends',
-                                  label: 'View Trends',
-                                  icon: <TrendingUp size={14} className="text-indigo-500" />,
-                                  onClick: () => handleViewTrends(asin)
-                                },
-                                {
-                                  key: 'sync',
-                                  label: 'Sync Marketplace',
-                                  icon: <RefreshCw size={14} className="text-emerald-500" />,
-                                    onClick: () => handleIndividualScrape(asin._id)
-                                },
-                                {
-                                    key: 'edit',
-                                    label: 'Edit ASIN',
-                                    icon: <Edit3 size={14} className="text-amber-500" />,
-                                    onClick: () => {
-                                        setActiveEditAsin(asin);
-                                    }
-                                },
-                                {
-                                  key: 'toggle',
-                                  label: asin.status === 'Active' ? 'Deactivate' : 'Activate',
-                                  icon: asin.status === 'Active' ? <PauseCircle size={14} className="text-zinc-500" /> : <PlayCircle size={14} className="text-emerald-500" />,
-                                  onClick: () => handleToggleAsinStatus(asin._id, asin.status)
-                                },
-                                isAdmin ? { type: 'divider' } : null,
-                                isAdmin ? {
-                                  key: 'delete',
-                                  label: 'Delete ASIN',
-                                  icon: <Trash2 size={14} className="text-rose-500" />,
-                                  danger: true,
-                                  onClick: () => handleDeleteAsin(asin._id)
-                                } : null
-                              ].filter(Boolean)
-                            }}
-                            trigger={['click']}
-                            placement="bottomRight"
-                          >
-                            <Button
-                              type="text"
-                              size="small"
-                              icon={<MoreHorizontal size={16} color="var(--text-muted)" />}
-                              className="hover-bg-zinc-100 rounded-circle"
-                              style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            />
-                          </Dropdown>
-                        </td>
-                      </tr>
-                    );
-                  }))}
-              </tbody>
-            </table>
+              <VirtualizedTableBody
+                ref={tableBodyRef}
+                filteredAsins={filteredAsins}
+                selectableRows={selectableRows}
+                selectedIds={selectedIds}
+                isVisible={isVisible}
+                viewMode={viewMode}
+                marketplaceFilter={marketplaceFilter}
+                historyStructure={historyStructure}
+                expandedParents={expandedParents}
+                toggleParentExpand={toggleParentExpand}
+                withExpandedChildren={withExpandedChildren}
+                handleToggleSelectRow={handleToggleSelectRow}
+                handleViewAsin={handleViewAsin}
+                handleViewTrends={handleViewTrends}
+                handleViewPrice={handleViewPrice}
+                handleViewBsr={handleViewBsr}
+                handleViewRating={handleViewRating}
+                handleIndividualScrape={handleIndividualScrape}
+                handleDeleteAsin={handleDeleteAsin}
+                handleToggleAsinStatus={handleToggleAsinStatus}
+                scrapingIds={scrapingIds}
+                handleBulkSyncSelected={handleBulkSyncSelected}
+                setShowBulkTagsModal={setShowBulkTagsModal}
+                handleBulkPriceDispute={handleBulkPriceDispute}
+                handleRunRulesets={handleRunRulesets}
+                handleOpenTaskModal={handleOpenTaskModal}
+                handleSelectedCreateActions={handleSelectedCreateActions}
+                handleAiListingAnalysis={handleAiListingAnalysis}
+                clearSelection={clearSelection}
+                aiAnalysisLoading={aiAnalysisLoading}
+                syncing={syncing}
+                loading={loading}
+                priceTrendExpanded={priceTrendExpanded}
+                bsrTrendExpanded={bsrTrendExpanded}
+                ratingTrendExpanded={ratingTrendExpanded}
+                reviewTrendExpanded={reviewTrendExpanded}
+                imageTrendExpanded={imageTrendExpanded}
+                ordersExpanded={ordersExpanded}
+                gmsRevenueExpanded={gmsRevenueExpanded}
+                availableMonths={availableMonths}
+                visibleHistoryCols={visibleHistoryCols}
+                formatMonthHeader={formatMonthHeader}
+                getTransitionStyle={getTransitionStyle}
+              />
+</table>
           </div>
 
           {/* [F] Pagination Footer */}

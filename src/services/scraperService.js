@@ -55,6 +55,10 @@ export const getSyncStatus = async (sellerId) => {
   return await scraperApi.getSyncStatus(sellerId);
 };
 
+export const getAdaptiveConcurrency = async () => {
+  return await scraperApi.getAdaptiveConcurrency();
+};
+
 export default {
   healthcheck,
   testScrape,
@@ -69,4 +73,5 @@ export default {
   getSellersSummary,
   syncSeller,
   getSyncStatus,
+  getAdaptiveConcurrency,
 };
