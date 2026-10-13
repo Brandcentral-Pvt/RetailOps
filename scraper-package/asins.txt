@@ -1,0 +1,5 @@
+# One Amazon.in ASIN per line. Lines starting with # are ignored.
+# Replace these samples with your list before running.
+B0HBQVNZYW
+B0HBQR4M3L
+B0HBR1BH9Z

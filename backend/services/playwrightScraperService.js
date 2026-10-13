@@ -584,11 +584,37 @@ class PlaywrightScraperService {
         }
         if (!soldBy && /sold by amazon/i.test(await textContent('#buybox'))) soldBy = 'Amazon';
 
-        // Deal badge — explicit badges first, then the "-71%" savings badge
-        // that deal-style prices render inside the core price display.
+        // Deal badge — prefer the real deal label (Lightning Deal, Deal of the
+        // Day, Limited time deal) from the badge container, stripping the live
+        // countdown ("Deal ends in 03:12:59") and lone savings pieces. Only
+        // fall back to the "-71%" savings badge when no explicit deal text is
+        // rendered so the badge keeps a real deal label, not just a number.
         let dealBadge = '';
-        const dealText = (await textContent('#dealBadgeSupportingText, span[data-hook="deal-badge"], .a-color-price .dealText, #dealBadge_feature_div span[class*="deal"]')).replace(/\s+/g, ' ').trim();
-        if (/deal/i.test(dealText)) dealBadge = dealText;
+        const badgeContainer = (await textContent('#dealBadge_feature_div')).replace(/\s+/g, ' ').trim();
+        const badgeHooks = (await textContent('span[data-hook="deal-badge"], #dealBadgeSupportingText, .a-color-price .dealText')).replace(/\s+/g, ' ').trim();
+        // Strip only the noise (embedded CSS blocks, Amazon's unreplaced
+        // "NO_OF_HOURS..." countdown placeholders, live timers, bare savings
+        // pieces) so the real deal label survives, and collapse repeated
+        // label phrases into one.
+        const cleanBadgeText = (text) => text
+            .replace(/\{[\s\S]*?\}/g, ' ')
+            .replace(/\.\w+(?=\s|$)/g, ' ')
+            .replace(/NO_OF_[A-Z]+\s+[a-z]+/gi, ' ')
+            .replace(/\b(?:hours?|minutes?|seconds?)\b/gi, ' ')
+            .replace(/deal\s+ends?[^;,]{0,40}/gi, ' ')
+            .replace(/\bends?\s+in\b[^;,]{0,40}/gi, ' ')
+            .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, ' ')
+            .replace(/[-−]\s?\d{1,3}\s*%/g, ' ')
+            .replace(/[|•·;,]\s*$/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/^(.*?)(?:\s+\1)+$/, '$1')
+            .trim();
+        // Full badge container first (label + countdown), then the smaller
+        // hooks (just "Deal") when the container had nothing but a countdown.
+        let candidate = cleanBadgeText(badgeContainer);
+        if (!candidate) candidate = cleanBadgeText(badgeHooks);
+        if (candidate) dealBadge = candidate;
         if (!dealBadge) {
             const savingsBadge = (await textContent('#corePriceDisplay_desktop_feature_div .savingsPercentage, #corePriceDisplay_desktop_feature_div .apex-savings-percent, .savingsPercentage')).replace(/\s+/g, ' ').trim();
             if (/^[-−]?\d{1,3}%/.test(savingsBadge)) dealBadge = savingsBadge;
