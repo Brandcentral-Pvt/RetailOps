@@ -14,7 +14,7 @@ import RouteProgress from './components/ui/RouteProgress';
 import ModuleFallback from './components/ui/ModuleFallback';
 import Sidebar from './components/common/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
-import OpenAIShortcut from './components/ai/OpenAIShortcut';
+// import OpenAIShortcut from './components/ai/OpenAIShortcut'; // Disabled: RetailOps AI
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
@@ -78,13 +78,13 @@ const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
 const WebhookSettingsPage = lazy(() => import('./pages/WebhookSettingsPage'));
 const SetupWizardPage = lazy(() => import('./pages/SetupWizardPage'));
 const KeywordResearchPage = lazy(() => import('./pages/keywords/KeywordResearchPage'));
-const AIChatPage = lazy(() => import('./pages/AIChatPage'));
+// const AIChatPage = lazy(() => import('./pages/AIChatPage')); // Disabled: RetailOps AI
 
 // Layout wrapper — flex row: Sidebar takes its own width, content fills the rest
 function AppLayout({ children }) {
   return (
     <HeaderProvider>
-      <OpenAIShortcut />
+      {/* <OpenAIShortcut /> */} {/* Disabled: RetailOps AI */}
       <div className="app-shell">
         <Sidebar />
         <div className="content-wrapper">
@@ -190,7 +190,8 @@ function AppRoutes() {
                   <Route path="/target-achievement" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievement /></ProtectedRoute>} />
                   <Route path="/target-achievement/dashboard" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievementDashboard /></ProtectedRoute>} />
                   <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />
-                  <Route path="/ai-chat" element={<ProtectedRoute permission="dashboard_view"><AIChatPage /></ProtectedRoute>} />
+                  {/* Disabled: RetailOps AI */}
+                  {/* <Route path="/ai-chat" element={<ProtectedRoute permission="dashboard_view"><AIChatPage /></ProtectedRoute>} /> */}
                   <Route path="/revenue-calculator" element={<ProtectedRoute permission="calculator_view"><RevenueCalculatorPage /></ProtectedRoute>} />
                   <Route path="/tasks" element={<Navigate to="/tasks/tasks" replace />} />
                   <Route path="/tasks/my-day" element={<ProtectedRoute permission="tasks_view"><MyDayPage /></ProtectedRoute>} />

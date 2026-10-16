@@ -9,7 +9,7 @@ import {
     ShoppingBag, Zap, Bell, FolderOpen,
     ChevronRight, Store, KeyRound, Database, Map, ListTodo, GitBranch, LayoutTemplate, Clock, BarChart2, ScanSearch, Warehouse, Webhook, ClipboardList, CheckSquare, UserCheck, LineChart, RefreshCcw, Search
 } from '../icons/fluent';
-import { Bot } from 'lucide-react';
+// import { Bot } from 'lucide-react';
 
 export function useNavigationItems() {
     const { user, isAdmin, isGlobalUser, hasPermission } = useAuth();
@@ -340,16 +340,17 @@ export function useNavigationItems() {
                     section: 'intelligence',
                 }
             ),
-            guard(
-                isAdmin || isGlobalUser || isBrandManager || hasPermission('dashboard_view'),
-                {
-                    key: 'ai-chat',
-                    label: 'RetailOps AI',
-                    path: '/ai-chat',
-                    icon: Bot,
-                    section: 'intelligence',
-                }
-            ),
+            // Disabled: RetailOps AI (commented out for now)
+            // guard(
+            //     isAdmin || isGlobalUser || isBrandManager || hasPermission('dashboard_view'),
+            //     {
+            //         key: 'ai-chat',
+            //         label: 'RetailOps AI',
+            //         path: '/ai-chat',
+            //         icon: Bot,
+            //         section: 'intelligence',
+            //     }
+            // ),
         ]);
 
         // SECTION: SYSTEM & CONTROL
