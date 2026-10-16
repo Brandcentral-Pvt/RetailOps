@@ -51,7 +51,7 @@
     "socket.io": "^4.8.3",
     "socks-proxy-agent": "^10.1.0",
     "superagent": "^10.4.1",
-    "uuid": "^14.0.2",
+    "uuid": "^14.0.3",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
     "xlsx": "^0.18.5",
