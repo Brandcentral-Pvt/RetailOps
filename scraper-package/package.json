@@ -1,0 +1,20 @@
+{
+  "name": "amazon-in-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Amazon.in product-page scraper — file output only, no database. Safe on completion, Ctrl+C, or crash.",
+  "main": "amazon-scraper.js",
+  "scripts": {
+    "scrape": "node amazon-scraper.js",
+    "install:browser": "playwright install chromium",
+    "install:browser:linux": "playwright install --with-deps chromium"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "playwright": "^1.63.0"
+  }
+}
