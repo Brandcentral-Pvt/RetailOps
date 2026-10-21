@@ -5,6 +5,8 @@ export const SelectionBar = memo(function SelectionBar({
   selectedIds,
   selectableRows,
   syncing,
+  liveSyncing,
+  handleLiveSyncSelected,
   handleToggleSelectAll,
   handleBulkSyncSelected,
   handleBulkPriceDispute,
@@ -46,6 +48,15 @@ export const SelectionBar = memo(function SelectionBar({
           style={{ fontSize: 'var(--font-size-xs)' }}
         >
           {syncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12 }} aria-hidden="true" /> : <RefreshCw size={12} />} Sync
+        </button>
+        <button
+          className="btn btn-sm btn-white border shadow-sm fw-bold rounded-2 d-flex align-items-center gap-1.5"
+          onClick={handleLiveSyncSelected}
+          disabled={liveSyncing || syncing}
+          title="Refresh price, BSR, rating and stock from the Amazon Creators API"
+          style={{ fontSize: 'var(--font-size-xs)', borderColor: '#a7f3d0', color: '#047857', backgroundColor: '#ecfdf5' }}
+        >
+          {liveSyncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12 }} aria-hidden="true" /> : <Zap size={12} />} Live Sync
         </button>
         <button
           className="btn btn-sm btn-white border border-indigo-100 shadow-sm text-indigo-700 fw-bold rounded-2 d-flex align-items-center gap-1.5"
