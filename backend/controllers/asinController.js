@@ -9,6 +9,7 @@ const fs = require('fs');
 const AsinDataParser = require('../services/asinDataParser');
 const LQS = require('../utils/lqs');
 const SystemLogService = require('../services/SystemLogService');
+const { isUsableAsinCode } = require('../utils/asinUtils');
 
 // Lightweight short-lived in-memory cache for ASIN stats to protect database CPU
 const asinStatsCache = new Map();
@@ -1385,6 +1386,15 @@ exports.createAsin = async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized to create ASIN for this seller' });
     }
 
+    // Amazon sellers require a real ASIN — reject titles/EANs at the API edge.
+    const sellerMpResult = await pool.request()
+      .input('sellerId', sql.VarChar, seller)
+      .query('SELECT Marketplace FROM Sellers WHERE Id = @sellerId');
+    const sellerMarketplace = sellerMpResult.recordset[0]?.Marketplace || 'amazon.in';
+    if (/^amazon/i.test(sellerMarketplace) && !isUsableAsinCode((asinCode || '').toString().trim().toUpperCase())) {
+      return res.status(400).json({ error: 'Invalid ASIN format' });
+    }
+
     await pool.request()
       .input('id', sql.VarChar, id)
       .input('asinCode', sql.VarChar, asinCode)
@@ -1832,6 +1842,7 @@ exports.importFromCsv = async (req, res) => {
       .input('sellerId', sql.VarChar, sellerId)
       .query('SELECT Marketplace FROM Sellers WHERE Id = @sellerId');
     const marketplace = sellerResult.recordset[0]?.Marketplace || 'amazon.in';
+    const isAmazonSeller = /^amazon/i.test(marketplace || '');
 
     const identifiers = [...new Set(data
       .map(row => (getValue(row, idAliases) || '').toString().trim().toUpperCase())
@@ -1859,12 +1870,20 @@ exports.importFromCsv = async (req, res) => {
     try {
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        const identifier = normalizeAsin((getValue(row, idAliases) || '').toString().trim()) || (getValue(row, idAliases) || '').toString().trim().toUpperCase();
+        const identifier = (getValue(row, idAliases) || '').toString().trim().toUpperCase();
         const sku = (getValue(row, skuAliases) || '').toString().trim();
         const mrpRaw = getValue(row, priceAliases);
         const mrp = parseFloat(mrpRaw) || 0;
 
         if (!identifier || identifier.length < 3) continue;
+
+        // Amazon sellers must have real ASINs. Reject non-ASIN identifiers
+        // (product titles, EANs, scientific notation) so they can never reach
+        // the Creators API live sync. Non-Amazon (e.g. Ajio) codes are allowed.
+        if (isAmazonSeller && !isUsableAsinCode(identifier)) {
+          errors.push({ row: i + 1, asin: identifier, error: 'Invalid ASIN format' });
+          continue;
+        }
 
         const rawStatus = (getValue(row, ['Status', 'ASIN Status', 'State', 'status']) || '').toString().trim();
         let status = 'Active';
@@ -1965,10 +1984,12 @@ exports.bulkUploadAllSellers = async (req, res) => {
         const pool = await getPool();
         
         // 1. Fetch all sellers for mapping
-        const sellersResult = await pool.request().query('SELECT Id, Name FROM Sellers');
+        const sellersResult = await pool.request().query('SELECT Id, Name, Marketplace FROM Sellers');
         const sellerMap = {}; // Name -> Id
+        const amazonSellerIds = new Set(); // Sellers whose codes must be real ASINs
         sellersResult.recordset.forEach(s => {
             if (s.Name) sellerMap[s.Name.toLowerCase().trim()] = s.Id;
+            if (/^amazon/i.test(s.Marketplace || '')) amazonSellerIds.add(s.Id);
         });
 
         // 2. Read file
@@ -2031,6 +2052,12 @@ exports.bulkUploadAllSellers = async (req, res) => {
                     if (!sellerId) {
                         if (i === 0) console.log(`Seller not found mapping: "${sellerName.toLowerCase().trim()}" against keys:`, Object.keys(sellerMap).slice(0, 5));
                         errors.push(`Seller not found: "${sellerName}" for ASIN: ${asin}`);
+                        continue;
+                    }
+
+                    // Amazon sellers must have real ASINs — reject titles/EANs.
+                    if (amazonSellerIds.has(sellerId) && !isUsableAsinCode(asin)) {
+                        errors.push(`Invalid ASIN format "${asin}" for seller "${sellerName}"`);
                         continue;
                     }
 
@@ -2267,11 +2294,22 @@ exports.createAsins = async (req, res) => {
     if (!asins || !Array.isArray(asins)) return res.status(400).json({ error: 'ASINs array required' });
 
     const pool = await getPool();
+
+    // Amazon sellers require real ASINs — drop titles/EANs before insert.
+    const sellerMpResult = await pool.request()
+      .input('sellerId', sql.VarChar, sellerId)
+      .query('SELECT Marketplace FROM Sellers WHERE Id = @sellerId');
+    const sellerMarketplace = sellerMpResult.recordset[0]?.Marketplace || 'amazon.in';
+    const isAmazonSeller = /^amazon/i.test(sellerMarketplace);
+    const validAsins = isAmazonSeller
+      ? asins.filter((item) => isUsableAsinCode((item?.asinCode || '').toString().trim().toUpperCase()))
+      : asins;
+
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
     try {
-      for (const item of asins) {
+      for (const item of validAsins) {
          const id = generateId();
         await transaction.request()
           .input('id', sql.VarChar, id)
@@ -2290,7 +2328,7 @@ exports.createAsins = async (req, res) => {
     }
 
     await updateSellerAsinCount(sellerId, req.app.get('io'));
-    res.json({ success: true, createdCount: asins.length });
+    res.json({ success: true, createdCount: validAsins.length, skipped: asins.length - validAsins.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

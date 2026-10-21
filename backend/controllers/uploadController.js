@@ -5,6 +5,7 @@ const { buildInClause } = require('../utils/sqlHelpers');
 const marketDataSyncService = require("../services/marketDataSyncService");
 const SystemLogService = require('../services/SystemLogService');
 const { resolveSellerScope } = require('../utils/sellerScope');
+const { asinUsableSqlFor } = require('../utils/asinUtils');
 
 // Helper: find a value in row by possible keys
 const findValue = (row, fields) => {
@@ -417,6 +418,12 @@ exports.uploadAdsData = async (req, res) => {
 
       // Auto-create skeleton rows in Asins for any advertised ASINs not in master table
       if (targetSellerId) {
+        // Amazon sellers: only create skeletons for real ASINs (never titles/EANs).
+        const mpLookup = await pool.request()
+          .input('sellerId', sql.VarChar, targetSellerId)
+          .query('SELECT Marketplace FROM Sellers WHERE Id = @sellerId');
+        const isAmazonSeller = /^amazon/i.test(mpLookup.recordset[0]?.Marketplace || '');
+        const asinFilter = isAmazonSeller ? `AND ${asinUsableSqlFor('t.AsinCode')}` : '';
         await pool.request()
           .input('sellerId', sql.VarChar, targetSellerId)
           .query(`
@@ -435,6 +442,7 @@ exports.uploadAdsData = async (req, res) => {
             ) t
             LEFT JOIN Asins existing ON t.AsinCode = existing.AsinCode
             WHERE existing.AsinCode IS NULL
+            ${asinFilter}
           `);
       }
 

@@ -3,6 +3,7 @@ const { sql, getPool, generateId } = require('../database/db');
 const { getSellerAsins, getTokenStatus, getDomainId, isValidSellerId } = require('../services/keepaService');
 const MarketSyncService = require('../services/marketDataSyncService');
 const SystemLogService = require('../services/SystemLogService');
+const { isUsableAsinCode } = require('../utils/asinUtils');
 
 
 /**
@@ -149,7 +150,7 @@ const syncSellerFromKeepa = async (seller) => {
 
     const existing = existingResult.recordset;
     const existingCodes = new Set(existing.map(a => a.AsinCode.toUpperCase()));
-    const newCodes = keepaAsins.filter(code => !existingCodes.has(code.toUpperCase()));
+    const newCodes = keepaAsins.filter(code => isUsableAsinCode(code.toUpperCase()) && !existingCodes.has(code.toUpperCase()));
 
     let newAsins = [];
     if (newCodes.length > 0) {

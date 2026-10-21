@@ -53,6 +53,7 @@ const SocketService = require('./socketService');
 const nvidiaAiService = require('./nvidiaAiService');
 const { MemorySafeProcessor, clearArray } = require('../utils/memorySafe');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
+const { isUsableAsinCode } = require('../utils/asinUtils');
 const { calculateLQS, getGrade } = require('../utils/lqs');
 const listingQualityService = require('./listingQualityService');
 const SystemLogService = require('./SystemLogService');
@@ -2612,6 +2613,14 @@ class MarketDataSyncService {
                     }
 
                     const normalizedCode = code.toUpperCase();
+
+                    // Amazon sellers must have real ASINs — never auto-create
+                    // skeleton rows for titles/EANs pulled from raw data.
+                    if (allowCreation && /^amazon/i.test(sellerInfo.sellerMarketplace || '') && !isUsableAsinCode(normalizedCode)) {
+                        skippedNoCode++;
+                        return;
+                    }
+
                     let asin = asinMap.get(normalizedCode);
 
                     if (!asin) {
