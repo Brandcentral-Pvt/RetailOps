@@ -156,7 +156,6 @@ const CONFIG = {
     batchSize: Math.max(1, parseInt(process.env.LIVE_SYNC_BATCH_SIZE || '10', 10)),
     batchDelayMs: Math.max(0, parseInt(process.env.LIVE_SYNC_BATCH_DELAY_MS || '1200', 10)),
     rateLimitPerSec: Math.max(0.05, parseFloat(process.env.LIVE_SYNC_RATE_LIMIT_RPS || '1')),
-    rateLimitBurst: Math.max(1, parseInt(process.env.LIVE_SYNC_RATE_LIMIT_BURST || '3', 10)),
     maxConcurrentJobs: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_CONCURRENT_JOBS || '2', 10)),
     maxFetchAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_FETCH_ASINS || '100', 10)),
     maxUploadAsins: Math.max(1, parseInt(process.env.LIVE_SYNC_MAX_UPLOAD_ASINS || '50000', 10)),
@@ -191,64 +190,59 @@ const CreatorsApiCredentials = require('../../services/creatorsApiCredentials');
 const creatorsApiRateGate = require('../../services/creatorsApiRateGate');
 const TOKEN_CACHE = new Map(); // credId -> { token, expiry }
 
-// ── Per-credential rate limiter (token bucket) ─────────────────────────
-class TokenBucket {
-    constructor(rate, capacity) {
-        this.rate = rate;
-        this.capacity = capacity;
-        this.tokens = capacity;
-        this.last = Date.now();
-    }
-    _refill() {
-        const now = Date.now();
-        this.tokens = Math.min(this.capacity, this.tokens + ((now - this.last) / 1000) * this.rate);
-        this.last = now;
-    }
-    // Consumes one token. Returns a promise that resolves once a token is available.
-    async take() {
-        for (;;) {
-            this._refill();
-            if (this.tokens >= 1) { this.tokens -= 1; return; }
-            const waitMs = Math.max(10, Math.ceil(((1 - this.tokens) / this.rate) * 1000));
-            await sleep(waitMs);
-        }
-    }
-}
-
-const buckets = new Map();    // credId -> TokenBucket
-const credChains = new Map(); // credId -> Promise chain (serializes API calls)
-
-function getBucket(credId) {
-    if (!buckets.has(credId)) buckets.set(credId, new TokenBucket(CONFIG.rateLimitPerSec, CONFIG.rateLimitBurst));
-    return buckets.get(credId);
-}
+// ── Account-wide serial queue ──────────────────────────────────────────
+// Budgets are ACCOUNT-scoped, not credential-scoped. Two credential sets can
+// share one Amazon account (see CREATORS_RATE_SHARE_ACCOUNT) or belong to
+// completely separate accounts with independent quotas (v3, whose partner tag
+// differs). So both the gate account key and the serial queue are derived
+// from the credential via accountKeyFor() — keying everything on a hardcoded
+// 'primary' would charge v3's separate quota against primary's ledger and
+// throttle it with primary's 429 cooldowns.
+//
+// The local TokenBucket that used to live here has been removed: it ran
+// AFTER the account gate and could delay a request past its granted slot,
+// letting the next caller fire a few hundred ms later — i.e. a burst that
+// exceeds the real short-window RPM and trips 429. The gate is the single
+// source of truth for pacing.
+const accountChains = new Map(); // accountKey -> Promise chain (serializes API calls)
 
 /**
  * Run a single Creators API request on a credential.
- * 1) Waits for a rate-limit token (token bucket per credential).
- * 2) Chains onto the per-credential serial queue so calls never overlap.
- * This guarantees we never exceed the configured requests-per-second even
- * when multiple fetches / upload jobs are running at the same time.
+ * 1) Waits for a slot on the shared account-wide gate (Redis token bucket).
+ * 2) Books the request against the durable daily TPD ledger.
+ * 3) Chains onto the per-ACCOUNT serial queue so calls never overlap.
+ *
+ * Booking the request is essential: without recordRequest() the daily quota
+ * in CreatorsApiQuota is under-counted, getRemaining() reports budget that
+ * has already been spent, and the whole fleet keeps firing until Amazon
+ * returns 429.
  */
 async function throttledCall(credId, fn) {
-    // Shared account-wide gate (Redis). RPM is ACCOUNT-scoped (both Live Sync
-    // creds share the same partner tag), so every caller must pass through the
-    // same gate — the local token bucket alone cannot see other workers' load.
-    // The gate honors any account-wide 429 cooldown and the min request gap;
-    // it throws CREATORS_THROTTLED if no slot can be acquired within the cap.
+    const accountKey = creatorsApiRateGate.accountKeyFor(credId);
     try {
-        await creatorsApiRateGate.waitForTps('primary');
+        await creatorsApiRateGate.waitForTps(accountKey);
     } catch (err) {
         if (err.code === 'CREATORS_THROTTLED') {
-            console.log(`[LiveData] Gate cooldown active — awaiting slot failed (${err.message})`);
-            throw err;
+            console.log(`[LiveData] Gate cooldown active on '${accountKey}' — awaiting slot failed (${err.message})`);
         }
         throw err;
     }
-    await getBucket(credId).take();
-    const prev = credChains.get(credId) || Promise.resolve();
+
+    // Reserve against the durable daily quota BEFORE the call. A false return
+    // means the day's TPD budget is gone — surface it as a transient so the
+    // caller backs off instead of hammering Amazon into a 429.
+    const reserved = await creatorsApiRateGate.recordRequest(accountKey);
+    if (!reserved) {
+        console.warn(`[LiveData] Creators API daily TPD quota reached for '${accountKey}' (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
+        throw Object.assign(
+            new Error('Creators API daily TPD quota reached'),
+            { code: 'CREATORS_THROTTLED' },
+        );
+    }
+
+    const prev = accountChains.get(accountKey) || Promise.resolve();
     const run = prev.then(() => fn());
-    credChains.set(credId, run.then(() => {}, () => {}));
+    accountChains.set(accountKey, run.then(() => {}, () => {}));
     return run;
 }
 
@@ -356,14 +350,26 @@ async function fetchBatchWithRetry(credId, token, batch, creds, refreshToken) {
             const status = err.response?.status;
 
             if (status === 429 || err.code === 'CREATORS_THROTTLED') {
+                // TPD exhausted for the day — retrying cannot help, and sleeping
+                // 30s five times just holds the job slot. Fail fast; the caller
+                // marks the batch as failed/partial and the job can be resumed
+                // tomorrow (or after the quota resets).
+                if (err.code === 'CREATORS_THROTTLED' && /TPD quota/i.test(err.message || '')) {
+                    console.warn(`[LiveData] Daily TPD quota exhausted on ${credId} — aborting batch (no retry)`);
+                    throw err;
+                }
+
                 const retryAfter = parseInt(err.response?.headers?.['retry-after'] || '0');
                 const waitMs = status === 429
                     ? Math.max(retryAfter * 1000, RATE_LIMIT_DELAY)
                     : RATE_LIMIT_DELAY;
                 console.log(`[LiveData] Rate limited (429) on ${credId}, attempt ${attempt + 1}/${MAX_BATCH_RETRIES}, waiting ${Math.round(waitMs / 1000)}s...`);
-                // Poke the shared account cooldown so EVERY pipeline (live sync,
-                // scraper, other PM2 instances) backs off the same account too.
-                creatorsApiRateGate.cooldownAfter429('primary', waitMs);
+                // Poke the shared account cooldown so EVERY pipeline on the SAME
+                // Amazon account (live sync, scraper, other PM2 instances) backs
+                // off too. Must use this credential's account key — cooling down
+                // 'primary' for a v3 429 would both miss v3's own callers and
+                // needlessly stall the unrelated primary account.
+                creatorsApiRateGate.cooldownAfter429(creatorsApiRateGate.accountKeyFor(credId), waitMs);
                 TOKEN_CACHE.clear();
                 if (refreshToken) { try { token = await refreshToken(); } catch { } }
                 await sleep(waitMs);

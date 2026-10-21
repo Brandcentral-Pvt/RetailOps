@@ -384,14 +384,21 @@ describe('keywordResearchService cache', () => {
 });
 
 describe('keywordResearchService batch scheduling', () => {
-    test('keeps upstream starts 1.1s apart while overlapping requests (parallel-safe)', async () => {
-        const originalDelay = research._config.requestDelay;
+    test('paces upstream calls through the shared gate, not per-keyword timers', async () => {
+        // Pacing is owned by creatorsApiRateGate (one request per intervalMs
+        // ACCOUNT-wide, shared with live sync). The service no longer keeps its
+        // own timer — two concurrent callers used to compute the same wait and
+        // fire together. Shorten the gate interval so the test stays fast, and
+        // hold each call open longer than the interval to prove the pacing does
+        // NOT serialise the in-flight requests.
+        const gate = require('../../services/creatorsApiRateGate');
+        const originalInterval = gate.intervalMs;
         const originalApi = research._getSdkApi;
         const starts = [];
         let inFlight = 0;
         let maxInFlight = 0;
 
-        research._config.requestDelay = 60;          // keep the test fast, same code path
+        gate.intervalMs = 60;
         research.clearCache();
         research._getSdkApi = () => ({
             searchItems: async () => {
@@ -413,13 +420,16 @@ describe('keywordResearchService batch scheduling', () => {
             expect(result.meta).toMatchObject({ requested: 3, failed: 0, concurrency: 3 });
             expect(starts).toHaveLength(3);
 
+            // Gate-enforced spacing: consecutive starts are at least one interval
+            // apart (allow a few ms of timer slop).
             const gaps = starts.slice(1).map((t, i) => t - starts[i]);
-            gaps.forEach((gap) => expect(gap).toBeGreaterThanOrEqual(55));
+            gaps.forEach((gap) => expect(gap).toBeGreaterThanOrEqual(gate.intervalMs - 10));
 
-            expect(maxInFlight).toBeGreaterThanOrEqual(2);       // latency was actually overlapped
-            expect(elapsed).toBeLessThan(3 * (60 + 150));        // faster than strictly sequential
+            // Pacing must not block the caller while a request is in flight.
+            expect(maxInFlight).toBeGreaterThanOrEqual(2);
+            expect(elapsed).toBeLessThan(3 * (60 + 150));
         } finally {
-            research._config.requestDelay = originalDelay;
+            gate.intervalMs = originalInterval;
             research._getSdkApi = originalApi;
         }
     });
