@@ -114,6 +114,7 @@ const AsinManagerPage = () => {
     const [showDashboard, setShowDashboard] = useState(true);
     const [newAsin, setNewAsin] = useState('');
     const [syncing, setSyncing] = useState(false);
+    const [liveSyncing, setLiveSyncing] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showManualTaskModal, setShowManualTaskModal] = useState(false);
     const [taskTitle, setTaskTitle] = useState('');
@@ -727,14 +728,19 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
         sellerId: sellerId
       };
 
-      const res = await db.createAction(payload);
-      if (res && (res.success || res.data)) {
-        message.success(`✅ Successfully created task for ${selectedAsinCodes.length} ASIN(s)!`);
-        setSelectedIds(new Set());
-        setShowManualTaskModal(false);
-      } else {
-        message.error('Failed to create task: ' + (res?.message || 'Unknown error'));
-      }
+      // DISABLED (2026-10-21): legacy Actions module removed — POST /api/actions
+      // (db.createAction) no longer exists.
+      // const res = await db.createAction(payload);
+      // if (res && (res.success || res.data)) {
+      //   message.success(`✅ Successfully created task for ${selectedAsinCodes.length} ASIN(s)!`);
+      //   setSelectedIds(new Set());
+      //   setShowManualTaskModal(false);
+      // } else {
+      //   message.error('Failed to create task: ' + (res?.message || 'Unknown error'));
+      // }
+      console.warn('[Actions] Task creation is disabled — the legacy Actions module was removed.');
+      message.info('Task creation is disabled.');
+      void payload;
     } catch (err) {
       console.error('Task creation error:', err);
       message.error('Error creating task: ' + err.message);
@@ -1281,14 +1287,16 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
       if (!confirmed) return;
 
       setSyncing(true);
-      const res = await db.createBulkActionsFromAnalysis();
-      if (res && res.count > 0) {
-        message.success(`✅ Successfully generated ${res.count} bulk optimization tasks!`);
-      } else if (res && res.success === false) {
-        message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
-      } else {
-        message.info('Analysis complete. All ASINs look good! No optimization actions needed.');
-      }
+      // DISABLED (2026-10-21): legacy Actions module removed.
+      // const res = await db.createBulkActionsFromAnalysis();
+      // if (res && res.count > 0) {
+      //   message.success(`✅ Successfully generated ${res.count} bulk optimization tasks!`);
+      // } else if (res && res.success === false) {
+      //   message.error(`❌ Error: ${res.message || 'Failed to create tasks'}`);
+      // } else {
+      //   message.info('Analysis complete. All ASINs look good! No optimization actions needed.');
+      // }
+      message.info('Bulk optimization is disabled.');
     } catch (err) {
       console.error('Bulk task creation failed:', err);
       message.error('Failed to create bulk tasks: ' + err.message);
@@ -1336,6 +1344,11 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
   const [showAiAnalysisModal, setShowAiAnalysisModal] = useState(false);
 
   const handleAiListingAnalysis = async () => {
+    // DISABLED (2026-10-21): legacy Actions module removed — the AI listing analysis
+    // endpoint (/api/actions/ai-listing-analysis, db.analyzeListing) no longer exists.
+    message.info('AI listing analysis is disabled.');
+    return;
+    /* eslint-disable no-unreachable */
     const selectedAsinIds = Array.from(selectedIds);
     if (selectedAsinIds.length === 0) { message.warning('Please select ASINs first.'); return; }
     if (selectedAsinIds.length > 5) { message.warning('AI analysis supports max 5 ASINs at a time for quality results.'); return; }
@@ -1362,6 +1375,10 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
   };
 
   const handleAiCreateTasks = async (asinId) => {
+    // DISABLED (2026-10-21): legacy Actions module removed — db.analyzeListing no longer exists.
+    message.info('Task creation is disabled.');
+    return;
+    /* eslint-disable no-unreachable */
     try {
       setSyncing(true);
       const res = await db.analyzeListing(asinId, true);
@@ -1407,6 +1424,62 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
       setSyncing(false);
       setScrapingIds(new Set());
     }
+  };
+
+  /**
+   * Live Sync (Amazon Creators API) for an explicit set of ASINs.
+   *
+   * This is different from the scraper "Sync": it pulls structured catalog data
+   * (price, BSR, rating, availability, ...) straight from the Amazon Creators
+   * API, paced account-wide by the shared rate gate. It's fire-and-forget on
+   * the server; results land via the `liveSync:completed` socket event, which
+   * this page already listens to.
+   */
+  const runLiveSync = async (asinIds, label) => {
+    if (!asinIds.length) {
+      message.warning('Please select at least one ASIN.');
+      return;
+    }
+
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({
+        title: 'Live Sync',
+        content: `Live-sync ${asinIds.length} ASIN(s) ${label} from the Amazon Creators API? This runs in the background and updates price, BSR, rating and stock.`,
+        okText: 'Start Live Sync',
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!confirmed) return;
+
+    try {
+      setLiveSyncing(true);
+      const res = await marketSyncApi.syncAsinsLive(asinIds);
+      const skipped = res?.skipped || {};
+      const skippedTotal = (skipped.unauthorized || 0) + (skipped.notAmazon || 0) + (skipped.missingAsinCode || 0);
+
+      message.success({
+        content: `✅ Live Sync started for ${res?.syncing ?? asinIds.length} ASIN(s) across ${res?.sellers ?? 1} seller(s).` +
+          (skippedTotal ? ` ${skippedTotal} skipped (${skipped.notAmazon || 0} not Amazon, ${skipped.unauthorized || 0} not permitted).` : ''),
+        duration: 5,
+      });
+      if (label === 'selected') clearSelection();
+    } catch (err) {
+      console.error('Live sync failed:', err);
+      message.error('❌ Live Sync failed: ' + err.message);
+    } finally {
+      setLiveSyncing(false);
+    }
+  };
+
+  const handleLiveSyncSelected = () => {
+    runLiveSync(Array.from(selectedIds), 'selected');
+  };
+
+  const handleLiveSyncAll = () => {
+    // Live sync operates on the ASIN ids currently rendered in the grid.
+    const ids = asins.map(a => a._id || a.Id).filter(Boolean);
+    runLiveSync(ids, 'shown in this view');
   };
 
   const renderRatingBreakdown = (breakdown) => {
@@ -2030,6 +2103,18 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   <span className={styles.btnLabel}>Sync</span>
                 </Button>
 
+                <Tooltip title="Live Sync (Amazon Creators API): refresh price, BSR, rating and stock for the ASINs shown">
+                  <Button
+                    icon={liveSyncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 14 }} aria-hidden="true" /> : <Zap size={14} />}
+                    onClick={handleLiveSyncAll}
+                    disabled={liveSyncing || syncing}
+                    aria-label="Live sync ASINs via the Amazon Creators API"
+                    className={`${styles.toolbarButton} d-flex align-items-center gap-2 shadow-sm`}
+                  >
+                    <span className={styles.btnLabel}>Live Sync</span>
+                  </Button>
+                </Tooltip>
+
                 {hasPermission('asinmanager_manage') && (
                   <Tooltip title="Auto-tag: Pareto 80/20, Top 20 By GMS, Price Dispute, Age tags">
                     <Button
@@ -2113,6 +2198,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
 
                 <div className={`${styles.toolbarDivider} vr mx-1 text-secondary opacity-25`} style={{ height: '20px' }} />
 
+                {/* DISABLED (2026-10-21): legacy Actions module removed — bulk optimization retired.
                 {hasPermission('asinmanager_manage') && (
                   <Tooltip title="Bulk Optimization">
                     <Button
@@ -2123,7 +2209,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                       className={`${styles.iconButton} d-flex align-items-center justify-content-center shadow-sm`}
                     />
                   </Tooltip>
-                )}
+                )} */}
 
                 {hasPermission('asinmanager_export') && (
                   <Tooltip title="Export">
@@ -2210,6 +2296,16 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   {syncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12 }} aria-hidden="true" /> : <RefreshCw size={12} />} Sync
                 </button>
                 <button
+                  className="btn btn-sm btn-white border shadow-sm fw-bold rounded-2 d-flex align-items-center gap-1.5"
+                  onClick={handleLiveSyncSelected}
+                  disabled={liveSyncing || syncing}
+                  title="Refresh price, BSR, rating and stock from the Amazon Creators API"
+                  style={{ fontSize: 'var(--font-size-xs)', borderColor: '#a7f3d0', color: '#047857', backgroundColor: '#ecfdf5' }}
+                >
+                  {liveSyncing ? <span className="icon-[svg-spinners--eclipse]" style={{ fontSize: 12 }} aria-hidden="true" /> : <Zap size={12} />} Live Sync
+                </button>
+                {/* DISABLED (2026-10-21): legacy Actions module removed — "Tasks" + "AI Analyze" retired.
+                <button
                   className="btn btn-sm btn-white border border-indigo-100 shadow-sm text-indigo-700 fw-bold rounded-2 d-flex align-items-center gap-1.5"
                   onClick={handleSelectedCreateActions}
                   style={{ fontSize: 'var(--font-size-xs)' }}
@@ -2223,7 +2319,7 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                   style={{ fontSize: 'var(--font-size-xs)', borderColor: '#c4b5fd', color: '#6d28d9', backgroundColor: '#f5f3ff' }}
                 >
                   <Sparkles size={12} /> {aiAnalysisLoading ? 'Analyzing...' : 'AI Analyze'}
-                </button>
+                </button> */}
               </div>
               <button
                 className="btn btn-link text-indigo-600 fw-bold text-decoration-none ms-auto p-0"
@@ -4046,11 +4142,12 @@ const [showColumnPanel, setShowColumnPanel] = useState(false);
                           <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>Score: {result.overallScore}/100</span>
                           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginLeft: 8 }}>{result.summary}</span>
                         </div>
+                        {/* DISABLED (2026-10-21): legacy Actions module removed — backend create-from-analysis retired.
                         <button onClick={() => handleAiCreateTasks(result.asinId)}
                           disabled={syncing}
                           style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, padding: '4px 12px', borderRadius: 6, background: 'var(--text-primary)', color: '#fff', border: 'none', cursor: 'pointer' }}>
                           {syncing ? 'Creating...' : 'Create Tasks'}
-                        </button>
+                        </button> */}
                       </div>
                       {result.issues?.length > 0 && (
                         <div style={{ padding: 12 }}>
