@@ -20,6 +20,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+# Runtime log directory — also holds PM2 *.json audit files, which the
+# `*.log` pattern above does not cover.
+backend/logs/
 
 # IDE/Editor
 .idea/
