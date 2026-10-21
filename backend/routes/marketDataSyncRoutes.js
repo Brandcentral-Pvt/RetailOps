@@ -72,6 +72,10 @@ router.post('/repair', authenticate, requirePermission('scraping_manage'), marke
 // Global Live Sync - sync all sellers via Amazon Creators API
 router.post('/sync-all-live', authenticate, requirePermission('scraping_manage'), marketSyncController.syncAllLiveSync);
 router.get('/sync-all-live/status', authenticate, requirePermission('scraping_manage'), marketSyncController.getGlobalLiveSyncStatus);
+router.post('/sync-all-live/abort', authenticate, requirePermission('scraping_manage'), marketSyncController.abortGlobalLiveSync);
+
+// Live Sync an explicit set of ASINs (ASIN Manager selection) via the Creators API
+router.post('/sync-asins-live', authenticate, requirePermission('scraping_manage'), marketSyncController.syncAsinsLive);
 
 // Creators API rate gate status + live daily quota remaining
 router.get('/creators-rate/status', authenticate, requirePermission('scraping_view'), marketSyncController.getCreatorsRateStatus);

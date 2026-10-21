@@ -9,12 +9,12 @@ import { sellerApi, userApi, asinApi, marketSyncApi } from '../services/api';
 import {
   Table, Button, Space,
   Tag, Typography, Tooltip, Avatar, Empty,
-  Badge, Card, Popconfirm
+  Badge, Card, Popconfirm, Modal
 } from 'antd';
 import {
   Package, FileUp,
   Clock, Trash2, Play, Pause,
-  RefreshCw, Edit3, Star, Zap
+  RefreshCw, Edit3, Star, Zap, Square
 } from 'lucide-react';
 import { LoadingIndicator } from '@/components/application/loading-indicator/loading-indicator';
 import { LoadError } from '@/components/LoadError';
@@ -129,6 +129,10 @@ const SellersPage = () => {
   // Stable toast ref
   const toastRef = useRef(addToast);
   useEffect(() => { toastRef.current = addToast; }, [addToast]);
+
+  // True while a GLOBAL live sync is in flight — suppresses the per-seller
+  // completion toast so a 200-seller run doesn't raise 200 toasts.
+  const globalSyncActiveRef = useRef(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
@@ -262,11 +266,21 @@ const SellersPage = () => {
       void loadSellersRef.current({ ...filterStateRef.current, silent: true });
     };
     const handleLiveSyncCompleted = (data) => {
+      // During a GLOBAL run every seller emits its own completion event; showing
+      // a toast per seller floods the screen (200 sellers = 200 toasts). The
+      // aggregate liveSyncAll:completed toast covers the run.
+      if (globalSyncActiveRef.current) return;
       toastRef.current(`Live sync complete: ${data.updatedAsins} ASINs updated in ${(data.duration / 1000).toFixed(1)}s`, 'success');
     };
     const handleLiveSyncAllCompleted = (data) => {
-      toastRef.current(`Global sync complete: ${data.success} sellers, ${data.totalAsinsUpdated} ASINs in ${(data.duration / 1000).toFixed(1)}s`, 'success');
+      globalSyncActiveRef.current = false;
+      if (globalSyncPollRef.current) { clearInterval(globalSyncPollRef.current); globalSyncPollRef.current = null; }
       setGlobalSyncing(false);
+      if (data?.aborted) {
+        toastRef.current(`Global sync stopped after ${data.sellersProcessed ?? 0} of ${data.totalSellers} sellers.`, 'warning');
+      } else {
+        toastRef.current(`Global sync complete: ${data.success} sellers, ${data.totalAsinsUpdated} ASINs in ${(data.duration / 1000).toFixed(1)}s`, 'success');
+      }
     };
     socket.on('ASINS_UPDATED', handleAsinsUpdated);
     socket.on('liveSync:completed', handleLiveSyncCompleted);
@@ -659,6 +673,7 @@ const SellersPage = () => {
 
   // ── Global Live Sync All ──────────────────────────────────────────────
   const [globalSyncing, setGlobalSyncing] = useState(false);
+  const [globalAborting, setGlobalAborting] = useState(false);
   const [globalSyncProgress, setGlobalSyncProgress] = useState(null);
   const globalSyncPollRef = useRef(null);
 
@@ -688,6 +703,39 @@ const SellersPage = () => {
     }
   }, [page, limit, activeTab, marketplaceFilter, managerFilter, statusFilter, debouncedSearch, loadSellers]);
 
+  // Poll the global-sync status every 10s until the run finishes. Extracted so
+  // both "start" and "re-attach after reload" share one implementation.
+  const attachGlobalSyncPoll = useCallback(() => {
+    if (globalSyncPollRef.current) clearInterval(globalSyncPollRef.current);
+    globalSyncActiveRef.current = true;
+    setGlobalSyncing(true);
+    globalSyncPollRef.current = setInterval(async () => {
+      try {
+        const status = await marketSyncApi.getLiveSyncAllStatus();
+        const gp = status.globalProgress || {};
+        setGlobalSyncProgress({
+          status: status.isRunning ? 'RUNNING' : 'COMPLETE',
+          activeSyncs: status.activeSyncs || 0,
+          syncs: status.syncs || [],
+          abortRequested: !!status.abortRequested,
+          progressText: gp.totalSellers
+            ? `${gp.processedSellers || 0}/${gp.totalSellers} sellers${gp.currentSeller?.name ? ` — ${gp.currentSeller.name}` : ''}`
+            : null,
+        });
+        if (!status.isRunning && status.activeSyncs === 0) {
+          clearInterval(globalSyncPollRef.current);
+          globalSyncPollRef.current = null;
+          globalSyncActiveRef.current = false;
+          setGlobalSyncing(false);
+          toastRef.current('Global live sync completed!', 'success');
+          void loadSellersRef.current({ ...filterStateRef.current, silent: true });
+        }
+      } catch (e) {
+        console.error('Global sync poll error:', e);
+      }
+    }, 10000);
+  }, []);
+
   const handleGlobalLiveSync = useCallback(async () => {
     setGlobalSyncing(true);
     setGlobalSyncProgress({ status: 'STARTING', sellers: 0, asins: 0 });
@@ -695,36 +743,50 @@ const SellersPage = () => {
       const res = await marketSyncApi.triggerLiveSyncAll();
       if (res.success) {
         toastRef.current('Global live sync started for all brands', 'success');
-        // Start polling for status
-        if (globalSyncPollRef.current) clearInterval(globalSyncPollRef.current);
-        globalSyncPollRef.current = setInterval(async () => {
-          try {
-            const status = await marketSyncApi.getLiveSyncAllStatus();
-            setGlobalSyncProgress({
-              status: status.isRunning ? 'RUNNING' : 'COMPLETE',
-              activeSyncs: status.activeSyncs || 0,
-              syncs: status.syncs || []
-            });
-            if (!status.isRunning && status.activeSyncs === 0) {
-              clearInterval(globalSyncPollRef.current);
-              setGlobalSyncing(false);
-              toastRef.current('Global live sync completed!', 'success');
-              void loadSellersRef.current({ ...filterStateRef.current, silent: true });
-            }
-          } catch (e) {
-            console.error('Global sync poll error:', e);
-          }
-        }, 10000);
+        attachGlobalSyncPoll();
       } else {
         toastRef.current(res.error || 'Failed to start global sync', 'error');
         setGlobalSyncing(false);
       }
     } catch (error) {
       console.error('Failed to start global live sync:', error);
-      toastRef.current(error.message, 'error');
-      setGlobalSyncing(false);
+      // 409 = another run (possibly another instance) owns the sync: not an
+      // error the user can act on — tell them it is already running and attach
+      // to the status poll instead of pretending the start failed.
+      if (error?.status === 409 || /already in progress/i.test(error?.message || '')) {
+        toastRef.current('A global live sync is already running. Showing progress...', 'info');
+        attachGlobalSyncPoll();
+      } else {
+        toastRef.current(error.message, 'error');
+        setGlobalSyncing(false);
+      }
     }
-  }, []); // uses refs + setState only
+  }, [attachGlobalSyncPoll]); // uses refs + setState only
+
+  const handleAbortGlobalLiveSync = useCallback(async () => {
+    const confirmed = await new Promise(resolve => {
+      Modal.confirm({
+        title: 'Stop global live sync?',
+        content: 'The sync stops after the current seller finishes. Already-synced sellers keep their data.',
+        okText: 'Stop sync',
+        okButtonProps: { danger: true },
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!confirmed) return;
+
+    try {
+      setGlobalAborting(true);
+      await marketSyncApi.abortLiveSyncAll('Cancelled by user');
+      toastRef.current('Stop requested — finishing the current seller…', 'info');
+    } catch (err) {
+      console.error('Abort global live sync failed:', err);
+      toastRef.current(err.message || 'Failed to stop the sync', 'error');
+    } finally {
+      setGlobalAborting(false);
+    }
+  }, []);
 
   // Cleanup poll on unmount
   useEffect(() => {
@@ -732,6 +794,33 @@ const SellersPage = () => {
       if (globalSyncPollRef.current) clearInterval(globalSyncPollRef.current);
     };
   }, []);
+
+  // Re-attach to an in-flight global sync after a page load/reload: the run
+  // lives on the server for many minutes, and without this the UI would show
+  // "idle" and the user could fire a second, conflicting start.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await marketSyncApi.getLiveSyncAllStatus();
+        if (cancelled) return;
+        if (status?.isRunning) {
+          const gp = status.globalProgress || {};
+          setGlobalSyncProgress({
+            status: 'RUNNING',
+            activeSyncs: status.activeSyncs || 0,
+            syncs: status.syncs || [],
+            abortRequested: !!status.abortRequested,
+            progressText: gp.totalSellers
+              ? `${gp.processedSellers || 0}/${gp.totalSellers} sellers${gp.currentSeller?.name ? ` — ${gp.currentSeller.name}` : ''}`
+              : null,
+          });
+          attachGlobalSyncPoll();
+        }
+      } catch (e) { /* nothing running / not permitted — stay idle */ }
+    })();
+    return () => { cancelled = true; };
+  }, [attachGlobalSyncPoll]);
 
   const handleIngestAll = useCallback(async () => {
     setLoading(true);
@@ -1096,9 +1185,26 @@ const SellersPage = () => {
           {globalSyncProgress.activeSyncs > 0 && (
             <Tag color="red">{globalSyncProgress.activeSyncs} sellers syncing</Tag>
           )}
+          {globalSyncProgress.progressText && (
+            <Text style={{ color: 'var(--text-secondary, #64748b)', fontSize: 'var(--font-size-xs)' }}>
+              {globalSyncProgress.progressText}
+            </Text>
+          )}
+          <div style={{ flex: 1 }} />
           <Text style={{ color: 'var(--text-muted, #94a3b8)', fontSize: 'var(--font-size-xs)' }}>
             Updates appear within minutes. You can continue using the app.
           </Text>
+          <Button
+            size="small"
+            danger
+            icon={<Square size={12} />}
+            loading={globalAborting}
+            disabled={globalAborting}
+            onClick={handleAbortGlobalLiveSync}
+            style={{ borderRadius: 'var(--radius-md, 8px)', fontWeight: 600 }}
+          >
+            Stop Sync
+          </Button>
         </div>
       )}
 
