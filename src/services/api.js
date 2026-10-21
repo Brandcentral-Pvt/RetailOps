@@ -11,6 +11,7 @@ const handleResponse = async (res, defaultErrorMsg = 'Request failed') => {
   if (res.ok) {
     return res.json();
   }
+  const status = res.status;
   let errorMsg = defaultErrorMsg;
   try {
     const contentType = res.headers.get('content-type');
@@ -24,7 +25,11 @@ const handleResponse = async (res, defaultErrorMsg = 'Request failed') => {
   } catch (e) {
     errorMsg = `HTTP Error ${res.status}: ${res.statusText}`;
   }
-  throw new Error(errorMsg);
+  // Preserve the HTTP status on the error so callers can distinguish
+  // "conflict / already in progress" (409) from a real failure.
+  const err = new Error(errorMsg);
+  err.status = status;
+  throw err;
 };
 
 // Auth API
@@ -448,11 +453,30 @@ export const marketSyncApi = {
     return handleResponse(res, 'Failed to trigger global live sync');
   },
 
+  // Live-sync specific ASINs (ASIN Manager selection) via the Creators API.
+  syncAsinsLive: async (asinIds = []) => {
+    const res = await fetch(`${API_BASE}/market-sync/sync-asins-live`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ asinIds }),
+    });
+    return handleResponse(res, 'Failed to trigger live sync');
+  },
+
   getLiveSyncAllStatus: async () => {
     const res = await fetch(`${API_BASE}/market-sync/sync-all-live/status`, {
       headers: { ...getAuthHeader() },
     });
     return handleResponse(res, 'Failed to fetch global sync status');
+  },
+
+  abortLiveSyncAll: async (reason) => {
+    const res = await fetch(`${API_BASE}/market-sync/sync-all-live/abort`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ reason }),
+    });
+    return handleResponse(res, 'Failed to abort global live sync');
   },
 
   restartAllOctoparse: async () => {

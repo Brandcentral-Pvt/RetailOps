@@ -765,12 +765,16 @@ exports.getSellerSyncStatus = async (req, res) => {
 
         const activeLiveSync = liveDataSyncService.activeSyncs.get(sellerId.toString());
         
+        // SystemLogs.EntityId holds the seller id (see _logSync), which is what
+        // we must filter on — the old `Description LIKE '%seller <id>%'` never
+        // matched, because the description is the seller NAME, so `lastRun`/
+        // `lastResult` were permanently null.
         const logResult = await pool.request()
-            .input('sellerIdPattern', sql.VarChar, `%seller ${sellerId}%`)
+            .input('sellerId', sql.VarChar, sellerId.toString())
             .query(`
                 SELECT TOP 1 CreatedAt, Metadata
                 FROM SystemLogs
-                WHERE Type = 'LIVE_SYNC' AND Description LIKE @sellerIdPattern
+                WHERE Type = 'LIVE_SYNC' AND EntityId = @sellerId
                 ORDER BY CreatedAt DESC
             `);
             
@@ -898,6 +902,118 @@ exports.triggerLiveSync = async (req, res) => {
             success: false,
             error: error.message 
         });
+    }
+};
+
+/**
+ * Live-sync an explicit set of ASINs via the Amazon Creators API.
+ *
+ * ASIN Manager works on individual rows and its selection can span several
+ * sellers, while the sync engine (LiveDataSyncService) is seller-scoped. So we
+ * resolve the requested ASIN ids to their owning sellers, then run the normal
+ * seller sync once per seller with `asinCodes` scoping it to just those ASINs.
+ * That reuses the existing rate gate, per-seller lock, batching and completeness
+ * handling instead of duplicating any of it.
+ *
+ * Runs in the background; progress/completion arrive over Socket.IO
+ * (`liveSync:started` / `liveSync:progress` / `liveSync:completed`).
+ */
+exports.syncAsinsLive = async (req, res) => {
+    try {
+        const rawIds = Array.isArray(req.body?.asinIds) ? req.body.asinIds : [];
+        const asinIds = [...new Set(rawIds.filter((v) => v != null && String(v).trim() !== ''))]
+            .map((v) => String(v));
+
+        if (asinIds.length === 0) {
+            return res.status(400).json({ success: false, error: 'asinIds array is required' });
+        }
+
+        // Cap the fan-out so one request can't queue the whole table by accident.
+        const maxAsins = parseInt(process.env.LIVE_SYNC_MAX_LIVE_ASINS_PER_REQUEST || '500', 10);
+        if (asinIds.length > maxAsins) {
+            return res.status(400).json({
+                success: false,
+                error: `Too many ASINs (${asinIds.length}). Maximum ${maxAsins} per live sync request.`,
+            });
+        }
+
+        const pool = await getPool();
+        const request = pool.request();
+        const placeholders = asinIds.map((_, i) => `@id${i}`).join(',');
+        asinIds.forEach((id, i) => request.input(`id${i}`, sql.VarChar, id));
+
+        const found = await request.query(`
+            SELECT Id, AsinCode, SellerId, Status, Marketplace
+            FROM Asins
+            WHERE Id IN (${placeholders})
+        `);
+
+        const rows = found.recordset;
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'No matching ASINs found' });
+        }
+
+        // Seller-scope guard: a non-global user may only live-sync ASINs that
+        // belong to sellers assigned to them.
+        const roleName = req.user?.role?.Name || req.user?.role?.name || req.user?.role;
+        const isGlobalUser = isGlobalUserRole(roleName);
+        const assigned = new Set(req.user?.assignedSellers || []);
+        const allowed = isGlobalUser ? rows : rows.filter((r) => assigned.has(r.SellerId));
+
+        if (allowed.length === 0) {
+            return res.status(403).json({ success: false, error: 'Unauthorized access to live sync for these ASINs' });
+        }
+
+        // Creators API covers Amazon only — Ajio rows are scraped in-house.
+        const isAmazon = (r) => String(r.Marketplace || '').toLowerCase() !== 'ajio';
+        const syncable = allowed.filter(isAmazon);
+        const skippedMarketplace = allowed.length - syncable.length;
+
+        // Group by seller: the sync engine is seller-scoped.
+        const bySeller = new Map();
+        for (const r of syncable) {
+            if (!r.SellerId || !r.AsinCode) continue;
+            if (!bySeller.has(r.SellerId)) bySeller.set(r.SellerId, []);
+            bySeller.get(r.SellerId).push(r.AsinCode);
+        }
+
+        const skippedNoAsin = syncable.length - [...bySeller.values()].reduce((s, v) => s + v.length, 0);
+
+        if (bySeller.size === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'None of the selected ASINs can be live-synced (missing ASIN code or marketplace not supported by the Creators API)',
+            });
+        }
+
+        // Fire and forget — the client polls status / listens on Socket.IO.
+        const sellers = [...bySeller.entries()];
+        (async () => {
+            for (const [sellerId, asinCodes] of sellers) {
+                try {
+                    await liveDataSyncService.syncSellerLiveData(sellerId, { asinCodes });
+                } catch (e) {
+                    console.error(`[live-asins] Live sync failed for seller ${sellerId}:`, e.message);
+                }
+            }
+        })().catch((e) => console.error('[live-asins] Live sync runner crashed:', e.message));
+
+        return res.json({
+            success: true,
+            message: `Live sync started for ${syncable.length} ASIN(s) across ${bySeller.size} seller(s).`,
+            requested: asinIds.length,
+            matched: rows.length,
+            syncing: syncable.length,
+            sellers: bySeller.size,
+            skipped: {
+                unauthorized: rows.length - allowed.length,
+                notAmazon: skippedMarketplace,
+                missingAsinCode: skippedNoAsin,
+            },
+        });
+    } catch (error) {
+        console.error('[live-asins] Failed to start live sync:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
     }
 };
 
@@ -1216,28 +1332,60 @@ exports.triggerRepair = async (req, res) => {
  */
 exports.syncAllLiveSync = async (req, res) => {
     try {
-        const { sellerIds, concurrency } = req.body || {};
-        
-        // Start sync in background
-        liveDataSyncService.syncAllSellers({ 
-            concurrency: concurrency || 3,
-            sellerIds: sellerIds || null
-        })
-            .then(result => {
-                console.log('Global live sync completed:', result.summary);
-            })
-            .catch(e => {
-                console.error('Global live sync failed:', e.message);
+        const { sellerIds } = req.body || {};
+
+        // The sync engine is the single source of truth for whether a run can
+        // start (in-process flag + cross-PM2 lock). Await just the START — the
+        // engine returns quickly once it claims the lock and then keeps running
+        // in the background — so we can report the truth instead of always
+        // claiming success while another instance already owns the run.
+        const started = await liveDataSyncService.startGlobalSync({
+            sellerIds: sellerIds || null,
+        });
+
+        if (!started.accepted) {
+            // 409: the request was understood but conflicts with the current run.
+            return res.status(409).json({
+                success: false,
+                status: started.status || 'IN_PROGRESS',
+                error: started.error || 'Global live sync already in progress',
+                isRunning: true,
             });
-        
-        res.json({
+        }
+
+        return res.json({
             success: true,
             message: 'Global live sync started. All sellers with Amazon ASINs will be synced.',
-            estimatedTime: 'Usually completes in 5-15 minutes depending on seller count'
+            estimatedTime: 'Usually completes in 5-15 minutes depending on seller count',
         });
     } catch (error) {
         console.error('Global Live Sync Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
+        return res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
+ * Abort the running global live sync from ANY worker.
+ */
+exports.abortGlobalLiveSync = async (req, res) => {
+    try {
+        const result = await liveDataSyncService.requestGlobalSyncAbort(
+            req.body?.reason || 'Cancelled by user',
+        );
+        if (!result.accepted) {
+            return res.status(409).json({
+                success: false,
+                error: result.error || 'No global live sync is running',
+            });
+        }
+        return res.json({
+            success: true,
+            message: 'Abort requested. The sync stops after the current seller finishes.',
+            reason: result.reason,
+        });
+    } catch (error) {
+        console.error('Abort Global Live Sync Error:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
     }
 };
 
@@ -1246,22 +1394,8 @@ exports.syncAllLiveSync = async (req, res) => {
  */
 exports.getGlobalLiveSyncStatus = async (req, res) => {
     try {
-        const isRunning = liveDataSyncService._globalSyncRunning;
-        const activeCount = liveDataSyncService.activeSyncs.size;
-        const globalProgress = liveDataSyncService._globalSyncProgress || null;
-        
-        res.json({
-            success: true,
-            isRunning,
-            activeSyncs: activeCount,
-            syncs: Array.from(liveDataSyncService.activeSyncs.values()).map(s => ({
-                sellerId: s.sellerId,
-                status: s.status || 'RUNNING',
-                processed: s.successCount,
-                total: s.totalAsins
-            })),
-            globalProgress
-        });
+        const status = await liveDataSyncService.getGlobalSyncStatus();
+        res.json({ success: true, ...status });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

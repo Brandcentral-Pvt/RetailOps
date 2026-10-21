@@ -61,13 +61,88 @@ class LiveDataSyncService extends EventEmitter {
         this._globalSyncRunning = false;
         this._globalSyncProgress = null;       // progress tracking for global sync
         this._globalSyncAborted = false;       // abort flag for global sync
+        this._globalSyncAbortReason = null;    // why the run was stopped, if aborted
+        this._abortCheckAt = 0;                // throttle clock for the shared abort poll
+        this._lastGlobalSummary = null;        // summary of the last finished global run
         this._pendingScrapes = new Set();   // in-flight scraper enrichment / full-scrape promises
     }
 
     // Rate limiter — 1 req/sec per account, coordinated across ALL processes
     // and callers by the shared creatorsApiRateGate (Redis token bucket).
-    async _rateLimit() {
-        await creatorsApiRateGate.waitForTps('primary');
+    // Keyed by the credential's ACCOUNT, so a credential that belongs to a
+    // separate Amazon account (v3) is not charged against primary's budget.
+    async _rateLimit(credId) {
+        await creatorsApiRateGate.waitForTps(creatorsApiRateGate.accountKeyFor(credId));
+    }
+
+    /**
+     * Publish the current global-sync snapshot to Redis so any PM2 worker can
+     * answer the status endpoint. Fire-and-forget: a Redis hiccup must never
+     * break the sync itself, and the in-process fields remain the fallback.
+     */
+    _publishGlobalSyncState(ttlSeconds = 4 * 60 * 60) {
+        if (!this._globalSyncProgress) return;
+        const snapshot = {
+            ...this._globalSyncProgress,
+            running: this._globalSyncRunning,
+            activeSyncs: this.activeSyncs.size,
+            owner: this._globalSyncProgress.owner || process.pid,
+            updatedAt: new Date().toISOString(),
+        };
+        Promise.resolve(creatorsApiRateGate.setGlobalSyncState(snapshot, ttlSeconds))
+            .catch(() => { /* best effort */ });
+    }
+
+    /**
+     * Request an abort of the running global sync from ANY worker.
+     *
+     * Sets the local flag immediately (so the owner stops at its next check)
+     * and publishes the request to Redis so it reaches whichever worker owns
+     * the run. Returns false when nothing is running to abort.
+     */
+    async requestGlobalSyncAbort(reason = 'Cancelled by user') {
+        if (!this._globalSyncRunning && !this._globalSyncProgress?.running) {
+            // No local run — but another worker may own one, so still publish.
+            const shared = await creatorsApiRateGate.getGlobalSyncState();
+            if (!shared?.running) {
+                return { accepted: false, error: 'No global live sync is running' };
+            }
+        }
+
+        this._globalSyncAborted = true;
+        this._globalSyncAbortReason = reason;
+        await creatorsApiRateGate.requestGlobalSyncAbort(reason);
+
+        this._globalSyncProgress = {
+            ...this._globalSyncProgress,
+            abortRequested: true,
+            abortReason: reason,
+        };
+        this._publishGlobalSyncState();
+        console.warn(`[liveDataSync] Global sync abort requested: ${reason}`);
+        return { accepted: true, reason };
+    }
+
+    /**
+     * Has the run been aborted? Local flag short-circuits (no Redis round-trip);
+     * otherwise the shared abort signal is polled at most once per second so a
+     * remote request is honoured promptly without hammering Redis per batch.
+     */
+    async _isGlobalSyncAborted() {
+        if (this._globalSyncAborted) return true;
+
+        const now = Date.now();
+        if (now < this._abortCheckAt) return false;
+        this._abortCheckAt = now + 1000;
+
+        const signal = await creatorsApiRateGate.getGlobalSyncAbort();
+        if (signal) {
+            this._globalSyncAborted = true;
+            this._globalSyncAbortReason = signal.reason || 'Cancelled remotely';
+            console.warn(`[liveDataSync] Global sync aborted remotely: ${this._globalSyncAbortReason}`);
+            return true;
+        }
+        return false;
     }
 
     // Track TPD in the durable daily ledger and adapt TPS if API lowers it
@@ -203,7 +278,7 @@ class LiveDataSyncService extends EventEmitter {
             let completedCount = 0;
 
             for (const batch of batches) {
-                if (this._globalSyncAborted) break;
+                if (await this._isGlobalSyncAborted()) break;
 
                 const credId = this._selectBestCred();
                 if (!credId) {
@@ -358,6 +433,48 @@ class LiveDataSyncService extends EventEmitter {
     // ============================================
     // GLOBAL: Sync All Sellers (parallel batching)
     // ============================================
+    /**
+     * Non-blocking entry point for the global live sync.
+     *
+     * Returns as soon as the run is CLAIMED (so the HTTP handler can answer
+     * truthfully), then keeps syncing in the background. Distinguishes
+     * "started" from "already running" without waiting hours for completion.
+     */
+    async startGlobalSync(options = {}) {
+        if (this._globalSyncRunning) {
+            return { accepted: false, status: 'IN_PROGRESS', error: 'Global live sync already in progress' };
+        }
+
+        // Cross-worker claim: only one instance may own the global run. Cheap
+        // probe lock; syncAllSellers re-acquires it for the whole run.
+        const probe = await creatorsApiRateGate.acquireLock('syncAllSellers', {
+            ttlMs: 60 * 1000,
+            maxWaitMs: 0,
+            retryMs: 0,
+        });
+        if (!probe) {
+            return { accepted: false, status: 'IN_PROGRESS', error: 'Global live sync already in progress (another instance)' };
+        }
+        await creatorsApiRateGate.releaseLock('syncAllSellers', probe);
+
+        const promise = this.syncAllSellers(options);
+        // Detach — the request must not wait for a multi-hour run.
+        Promise.resolve(promise)
+            .then((result) => {
+                if (result?.error) {
+                    console.warn('[liveDataSync] Global sync not started:', result.error);
+                } else {
+                    console.log('Global live sync completed:', result?.summary);
+                }
+            })
+            .catch((e) => console.error('Global live sync failed:', e.message));
+
+        // Give the engine a tick to flip its in-process flag so an immediate
+        // status poll reflects RUNNING rather than a race-y idle.
+        await this._delay(10);
+        return { accepted: true, status: 'STARTED' };
+    }
+
     async syncAllSellers(options = {}) {
         const { 
             concurrency = this._config.maxConcurrency, 
@@ -375,8 +492,10 @@ class LiveDataSyncService extends EventEmitter {
 
         // Cross-PM2-instance guard: only ONE worker may run the global sync —
         // otherwise every PM2 instance runs the same seller list -> N× RPM.
+        // The lock MUST outlive the run: a TTL shorter than globalTimeoutMs would
+        // silently expire mid-run and let a second worker start a concurrent sync.
         const globalLock = await creatorsApiRateGate.acquireLock('syncAllSellers', {
-            ttlMs: 90 * 60 * 1000,
+            ttlMs: globalTimeoutMs + 5 * 60 * 1000,
             maxWaitMs: 3000,
             retryMs: 1000,
         });
@@ -385,19 +504,30 @@ class LiveDataSyncService extends EventEmitter {
             return { error: 'Global live sync already in progress (another instance)', status: 'IN_PROGRESS' };
         }
 
-        // Global progress tracking (for status endpoint)
+        // Global progress tracking (for status endpoint). Published to Redis so
+        // EVERY PM2 worker can serve it — the process that answers /status is
+        // usually not the one running the sync.
         this._globalSyncProgress = {
             totalSellers: 0,
             processedSellers: 0,
             currentSeller: null,
             startTime,
             status: 'STARTING',
+            owner: process.pid,
         };
+        this._publishGlobalSyncState();
 
-        // Global timeout safety net
+        // Global timeout safety net. Must stay referenced until the run ends —
+        // a GC'd timeout would silently stop working. Cleared in finally.
         let globalTimeout = setTimeout(() => {
             console.error('⚡ Global live sync TIMEOUT — aborting');
             this._globalSyncAborted = true;
+            this._globalSyncProgress = {
+                ...this._globalSyncProgress,
+                status: 'TIMEOUT',
+                timedOut: true,
+            };
+            this._publishGlobalSyncState();
         }, globalTimeoutMs);
 
         try {
@@ -450,7 +580,7 @@ class LiveDataSyncService extends EventEmitter {
 
             let processedSellers = 0;
             for (const seller of sellers) {
-                if (this._globalSyncAborted) {
+                if (await this._isGlobalSyncAborted()) {
                     console.warn('⚡ Global sync aborted — stopping seller loop');
                     break;
                 }
@@ -467,6 +597,7 @@ class LiveDataSyncService extends EventEmitter {
                 const progress = `[${processedSellers}/${sellers.length}]`;
                 this._globalSyncProgress.processedSellers = processedSellers;
                 this._globalSyncProgress.currentSeller = { name: seller.Name, id: seller.Id, asinCount: seller.AsinCount, attempt: 0 };
+                this._publishGlobalSyncState();
 
                 // 1) The main live sync pass (with retry-on-fatal).
                 let sellerResult = null;
@@ -509,7 +640,7 @@ class LiveDataSyncService extends EventEmitter {
                 let completeness = await asinCompletenessService.getSellerCompleteness(seller.Id);
                 let completenessAttempt = 0;
                 while (completeness.incomplete > 0 && completenessAttempt < maxSellerAttempts) {
-                    if (this._globalSyncAborted) break;
+                    if (await this._isGlobalSyncAborted()) break;
                     if (hardCapReached && Date.now() > hardCapReached) break;
                     completenessAttempt++;
                     this._globalSyncProgress.currentSeller.attempt = maxRetries + completenessAttempt;
@@ -560,11 +691,27 @@ class LiveDataSyncService extends EventEmitter {
                 totalAsinsComplete: completeAsinsAll,
                 completenessPercent: totalAsinsAll > 0 ? +((completeAsinsAll / totalAsinsAll) * 100).toFixed(1) : 100,
                 duration: totalDuration,
+                // A stopped run must be reported as stopped — otherwise the UI
+                // shows a clean "complete" for a run the user cancelled.
+                aborted: this._globalSyncAborted,
+                abortReason: this._globalSyncAborted ? this._globalSyncAbortReason : null,
+                sellersProcessed: results.length,
                 completedAt: new Date().toISOString()
             };
 
-            console.log(`⚡ Live sync complete: ${summary.success}/${summary.totalSellers} sellers complete, ${summary.partial} partial, ${summary.failed} failed, ${completeAsinsAll}/${totalAsinsAll} ASINs complete (${summary.completenessPercent}%), ${summary.totalAsinsUpdated} updated in ${(totalDuration / 1000).toFixed(1)}s`);
+            console.log(`${summary.aborted ? '⛔ Live sync ABORTED' : '⚡ Live sync complete'}: ${summary.success}/${summary.totalSellers} sellers complete, ${summary.partial} partial, ${summary.failed} failed, ${completeAsinsAll}/${totalAsinsAll} ASINs complete (${summary.completenessPercent}%), ${summary.totalAsinsUpdated} updated in ${(totalDuration / 1000).toFixed(1)}s`);
+
+            if (summary.aborted) {
+                try {
+                    const SocketService = require('./socketService');
+                    const io = SocketService.getIo();
+                    if (io) io.emit('liveSyncAll:aborted', summary);
+                } catch (e) { /* socket not critical */ }
+            }
+
             this.emit('liveSyncAll:completed', summary);
+
+            this._lastGlobalSummary = summary;
 
             // Emit socket event for real-time UI updates
             try {
@@ -580,15 +727,78 @@ class LiveDataSyncService extends EventEmitter {
         } finally {
             clearTimeout(globalTimeout);
             this._globalSyncRunning = false;
+            const wasAborted = this._globalSyncAborted;
             this._globalSyncAborted = false;
+            this._globalSyncAbortReason = null;
+            this._abortCheckAt = 0;
+            // Clear the shared abort signal so it cannot leak into a later run.
+            await creatorsApiRateGate.clearGlobalSyncAbort().catch(() => {});
             await creatorsApiRateGate.releaseLock('syncAllSellers', globalLock);
             this._globalSyncProgress = {
                 ...this._globalSyncProgress,
-                status: 'COMPLETED',
+                status: this._globalSyncProgress?.status === 'TIMEOUT'
+                    ? 'TIMEOUT'
+                    : (wasAborted ? 'ABORTED' : 'COMPLETED'),
+                running: false,
+                abortRequested: false,
                 currentSeller: null,
-                completedAt: new Date().toISOString()
+                completedAt: new Date().toISOString(),
             };
+            // Keep the terminal snapshot readable by every worker for a while so a
+            // late poll still sees "finished" instead of "never ran".
+            this._publishGlobalSyncState(30 * 60);
         }
+    }
+
+    /**
+     * Status snapshot for the global live sync, safe to call from ANY worker.
+     *
+     * Reads the Redis-published snapshot first (written by the worker that owns
+     * the run) and falls back to local fields when Redis is unavailable. Local
+     * values are always authoritative for the running worker itself.
+     */
+    async getGlobalSyncStatus() {
+        let shared = null;
+        try {
+            shared = await creatorsApiRateGate.getGlobalSyncState();
+        } catch (e) { /* fall through to local */ }
+
+        const localRunning = this._globalSyncRunning;
+        const localProgress = this._globalSyncProgress;
+        // Prefer whichever view says "running" — a running worker must never be
+        // reported as idle just because its state write failed or expired.
+        const isRunning = localRunning || !!(shared && shared.running);
+        const progress = (localProgress || shared) || null;
+
+        const syncs = Array.from(this.activeSyncs.values()).map(s => ({
+            sellerId: s.sellerId,
+            status: s.status || 'RUNNING',
+            processed: s.successCount,
+            total: s.totalAsins,
+        }));
+        // Other workers know how many sellers are in flight, not which ones.
+        const activeSyncs = Math.max(this.activeSyncs.size, shared?.activeSyncs || 0);
+
+        // Abort state must be visible from any worker: the local flag covers the
+        // owner, the shared signal covers everyone else (and races where the
+        // progress snapshot hasn't caught up yet).
+        let abortRequested = !!(this._globalSyncAborted || progress?.abortRequested);
+        if (!abortRequested && isRunning) {
+            try {
+                abortRequested = !!(await creatorsApiRateGate.getGlobalSyncAbort());
+            } catch (e) { /* best effort */ }
+        }
+
+        return {
+            isRunning,
+            activeSyncs,
+            syncs,
+            globalProgress: progress,
+            abortRequested,
+            abortReason: this._globalSyncAbortReason || progress?.abortReason || null,
+            lastSummary: this._lastGlobalSummary || shared?.summary || null,
+            stale: !!(shared && shared.running && !localRunning && progress?.status === 'COMPLETED'),
+        };
     }
 
     _getAvailableCredIds() {
@@ -889,10 +1099,11 @@ class LiveDataSyncService extends EventEmitter {
 
                 // Strict 1 req/s rate limit (shared account-wide), then record
                 // this attempt against the durable daily quota.
-                await this._rateLimit();
-                const reserved = await creatorsApiRateGate.recordRequest('primary');
+                await this._rateLimit(credId);
+                const accountKey = creatorsApiRateGate.accountKeyFor(credId);
+                const reserved = await creatorsApiRateGate.recordRequest(accountKey);
                 if (!reserved) {
-                    console.warn(`⛔ Creators API daily TPD quota reached (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
+                    console.warn(`⛔ Creators API daily TPD quota reached for '${accountKey}' (${creatorsApiRateGate.getEffectiveTpdLimit()}/day)`);
                     throw creatorsTransient('CREATORS_TPD', 'Creators API daily TPD quota reached');
                 }
 
@@ -1001,14 +1212,14 @@ class LiveDataSyncService extends EventEmitter {
                         : Math.min(10000 * Math.pow(2, attempt), 80000);
 
                     this._credThrottledUntil.set(credId, Date.now() + backoffMs);
-                    creatorsApiRateGate.cooldownAfter429('primary', backoffMs);
+                    creatorsApiRateGate.cooldownAfter429(creatorsApiRateGate.accountKeyFor(credId), backoffMs);
                     console.warn(`⏳ [429] Account cooled down for ${(backoffMs / 1000).toFixed(0)}s (attempt ${attempt + 1}/${this._config.maxRetries + 1})`);
 
                     // Wait out the cooldown + min-gap (both honored by the gate).
                     // If the gate still can't grant a slot (long cooldown), it throws
                     // CREATORS_THROTTLED which lands back here with attempt++.
                     try {
-                        await this._rateLimit();
+                        await this._rateLimit(credId);
                     } catch (cooldownErr) {
                         if (cooldownErr.code === 'CREATORS_THROTTLED') continue;
                         throw cooldownErr;

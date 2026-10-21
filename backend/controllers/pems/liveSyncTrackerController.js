@@ -248,11 +248,20 @@ exports.triggerSync = async (req, res) => {
         .query('UPDATE Sellers SET LiveSyncEnabled = 1, UpdatedAt = dbo.GetEnvDate() WHERE Id = @sid');
     }
 
-    // Trigger sync via existing service
+    // Trigger sync via existing service. `sellerIds` (not `targetSellers`) is the
+    // option syncAllSellers understands — passing `targetSellers` silently
+    // synced EVERY seller instead of the selected ones.
     const liveSyncService = require('../liveDataSyncService');
-    liveSyncService.syncAllSellers({ targetSellers: sellerIds }).catch(err => {
-      console.error('Live sync trigger error:', err.message);
-    });
+    const started = await liveSyncService.startGlobalSync({ sellerIds });
+
+    if (!started.accepted) {
+      return res.status(409).json({
+        success: false,
+        status: started.status || 'IN_PROGRESS',
+        error: started.error || 'Global live sync already in progress',
+        sellerIds,
+      });
+    }
 
     res.json({ success: true, message: `Live sync triggered for ${sellerIds.length} sellers`, sellerIds });
   } catch (err) {
