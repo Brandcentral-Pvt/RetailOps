@@ -348,6 +348,7 @@ export const Toolbar = memo(function Toolbar({
 
           <div className="toolbarDivider vr mx-1 text-secondary opacity-25" style={{ height: '20px' }} />
 
+          {/* DISABLED (2026-10-21): legacy Actions module removed — bulk optimization retired.
           {hasPermission('asinmanager_manage') && (
             <Tooltip title="Bulk Optimization">
               <Button
@@ -386,7 +387,7 @@ export const Toolbar = memo(function Toolbar({
                 className="iconButton d-flex align-items-center justify-content-center shadow-sm"
               />
             </Tooltip>
-          )}
+          )} */}
 
           {hasPermission('asinmanager_export') && (
             <Tooltip title="Export">

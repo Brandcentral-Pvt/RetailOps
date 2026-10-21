@@ -34,7 +34,8 @@ const CommandPalette = ({ open, onClose }) => {
     { id: 'inventory', label: 'Inventory', path: '/inventory', category: 'Finance', icon: '📦' },
     { id: 'target', label: 'Target vs Achievement', path: '/target-achievement', category: 'Finance', icon: '🎯' },
     { id: 'monthly', label: 'Monthly Recap', path: '/month-wise-report', category: 'Finance', icon: '📅' },
-    { id: 'performance', label: 'Performance', path: '/actions/achievement-report', category: 'Finance', icon: '📊' },
+    // DISABLED (2026-10-21): legacy Actions module removed — /actions/achievement-report route retired.
+    // { id: 'performance', label: 'Performance', path: '/actions/achievement-report', category: 'Finance', icon: '📊' },
     { id: 'users', label: 'Users', path: '/users', category: 'System', icon: '👥' },
     { id: 'roles', label: 'Roles & Permissions', path: '/roles', category: 'System', icon: '🔐' },
     { id: 'settings', label: 'Settings', path: '/settings', category: 'System', icon: '⚙️' },

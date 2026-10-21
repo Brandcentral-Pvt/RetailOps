@@ -1,3 +1,9 @@
+// ============================================================================
+// DISABLED (2026-10-21): Legacy Actions module — CONTROLLER NO LONGER REACHABLE.
+// Its only consumer was routes/actionRoutes.js, which is unmounted in server.js.
+// Kept as reference only. Other features (taskController, sellerAsinTrackerController,
+// tasksPageController, PEMS) access the Actions table directly and are unaffected.
+// ============================================================================
 const { sql, getPool, generateId } = require('../database/db');
 const { createNotification } = require('../controllers/notificationController');
 const SocketService = require('../services/socketService');

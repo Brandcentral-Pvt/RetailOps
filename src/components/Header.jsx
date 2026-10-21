@@ -396,7 +396,9 @@ const Header = () => {
         if (item.type === 'ALERT' || item.type === 'SYSTEM') {
             navigate('/alerts');
         } else if (item.type === 'ACTION_ASSIGNED' || item.type === 'CHAT_MENTION') {
-            navigate(item.referenceId ? `/actions?id=${item.referenceId}` : '/actions');
+            // DISABLED (2026-10-21): legacy Actions module removed — /actions route no longer exists.
+            // navigate(item.referenceId ? `/actions?id=${item.referenceId}` : '/actions');
+            navigate('/tasks');
         } else if (item.type === 'CHAT_MESSAGE') {
             navigate(item.referenceId ? `/chat?userId=${item.referenceId}` : '/chat');
         }

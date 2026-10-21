@@ -383,65 +383,70 @@ class DatabaseService {
   }
 
   // --- Actions ---
+  // ============================================================================
+  // DISABLED (2026-10-21): Legacy Actions module removed — /api/actions is
+  // unmounted in backend/server.js. All client methods below are dead code,
+  // kept as reference only.
+  // ============================================================================
 
-  /**
-   * Get all actions
-   * @returns {Promise<Action[]>}
-   */
-  async getActions() {
-    return this.request('/actions', {}, []);
-  }
+  // /**
+  //  * Get all actions
+  //  * @returns {Promise<Action[]>}
+  //  */
+  // async getActions() {
+  //   return this.request('/actions', {}, []);
+  // }
 
-  /**
-   * Create a new action
-   * @param {Partial<Action>} action
-   */
-  async createAction(action) {
-    return this.request('/actions', { method: 'POST', body: JSON.stringify(action) }, null);
-  }
+  // /**
+  //  * Create a new action
+  //  * @param {Partial<Action>} action
+  //  */
+  // async createAction(action) {
+  //   return this.request('/actions', { method: 'POST', body: JSON.stringify(action) }, null);
+  // }
 
-  /**
-   * Update an action
-   * @param {string} id
-   * @param {Partial<Action>} updates
-   */
-  async updateAction(id, updates) {
-    return this.request(`/actions/${id}`, { method: 'PUT', body: JSON.stringify(updates) }, null);
-  }
+  // /**
+  //  * Update an action
+  //  * @param {string} id
+  //  * @param {Partial<Action>} updates
+  //  */
+  // async updateAction(id, updates) {
+  //   return this.request(`/actions/${id}`, { method: 'PUT', body: JSON.stringify(updates) }, null);
+  // }
 
-  /**
-   * Generate bulk auto-tasks from ASIN analysis
-   */
-  async generateBulkActions(options = {}) {
-    return this.request('/actions/bulk-from-analysis', { 
-      method: 'POST', 
-      body: JSON.stringify(options) 
-    }, null);
-  }
+  // /**
+  //  * Generate bulk auto-tasks from ASIN analysis
+  //  */
+  // async generateBulkActions(options = {}) {
+  //   return this.request('/actions/bulk-from-analysis', { 
+  //     method: 'POST', 
+  //     body: JSON.stringify(options) 
+  //   }, null);
+  // }
 
-  /**
-   * Delete an action
-   * @param {string} id
-   */
-  async deleteAction(id) {
-    return this.request(`/actions/${id}`, { method: 'DELETE' }, null);
-  }
+  // /**
+  //  * Delete an action
+  //  * @param {string} id
+  //  */
+  // async deleteAction(id) {
+  //   return this.request(`/actions/${id}`, { method: 'DELETE' }, null);
+  // }
 
-  /**
-   * Get action instructions (AI generated)
-   */
-  async getActionInstructions(id) {
-    return this.request(`/actions/${id}/instructions`, { method: 'GET' }, null);
-  }
+  // /**
+  //  * Get action instructions (AI generated)
+  //  */
+  // async getActionInstructions(id) {
+  //   return this.request(`/actions/${id}/instructions`, { method: 'GET' }, null);
+  // }
 
-  /**
-   * Add a message to an action
-   * @param {string} actionId
-   * @param {string} content
-   */
-  async addMessage(actionId, content) {
-    return this.request(`/actions/${actionId}/messages`, { method: 'POST', body: JSON.stringify({ content }) }, null);
-  }
+  // /**
+  //  * Add a message to an action
+  //  * @param {string} actionId
+  //  * @param {string} content
+  //  */
+  // async addMessage(actionId, content) {
+  //   return this.request(`/actions/${actionId}/messages`, { method: 'POST', body: JSON.stringify({ content }) }, null);
+  // }
 
   /**
    * Get all users (for assignment)
@@ -460,162 +465,167 @@ class DatabaseService {
   }
 
   // --- NEW: Workflow Actions ---
+  // DISABLED (2026-10-21): part of the removed legacy Actions module.
 
-  /**
-   * Start a task
-   * @param {string} actionId
-   */
-  async startAction(actionId) {
-    return this.request(`/actions/${actionId}/start`, { method: 'POST' }, null);
-  }
+  // /**
+  //  * Start a task
+  //  * @param {string} actionId
+  //  */
+  // async startAction(actionId) {
+  //   return this.request(`/actions/${actionId}/start`, { method: 'POST' }, null);
+  // }
 
-  /**
-   * Complete a task
-   * @param {string} actionId
-   * @param {object} completionData - { remarks, stage, recurring, audioTranscript }
-   */
-  async completeAction(actionId, completionData) {
-    return this.request(`/actions/${actionId}/complete`, {
-      method: 'POST',
-      body: JSON.stringify(completionData)
-    }, null);
-  }
+  // /**
+  //  * Complete a task
+  //  * @param {string} actionId
+  //  * @param {object} completionData - { remarks, stage, recurring, audioTranscript }
+  //  */
+  // async completeAction(actionId, completionData) {
+  //   return this.request(`/actions/${actionId}/complete`, {
+  //     method: 'POST',
+  //     body: JSON.stringify(completionData)
+  //   }, null);
+  // }
 
-  async toggleSubTask(actionId, subIdx) {
-    return this.request(`/actions/${actionId}/subtasks/${subIdx}/complete`, {
-      method: 'POST',
-    }, null);
-  }
+  // async toggleSubTask(actionId, subIdx) {
+  //   return this.request(`/actions/${actionId}/subtasks/${subIdx}/complete`, {
+  //     method: 'POST',
+  //   }, null);
+  // }
 
-  /**
-   * Upload audio for task completion
-   * @param {string} actionId
-   * @param {Blob} audioBlob
-   * @param {string} transcript
-   */
-  async uploadAudio(actionId, audioBlob, transcript) {
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.webm');
-    if (transcript) {
-      formData.append('transcript', transcript);
-    }
+  // /**
+  //  * Upload audio for task completion
+  //  * @param {string} actionId
+  //  * @param {Blob} audioBlob
+  //  * @param {string} transcript
+  //  */
+  // async uploadAudio(actionId, audioBlob, transcript) {
+  //   const formData = new FormData();
+  //   formData.append('audio', audioBlob, 'recording.webm');
+  //   if (transcript) {
+  //     formData.append('transcript', transcript);
+  //   }
 
-    try {
-      const res = await fetch(`${API_BASE}/actions/${actionId}/upload-audio`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (error) {
-      console.error(`[DB] Audio upload failed:`, error);
-      return null;
-    }
-  }
+  //   try {
+  //     const res = await fetch(`${API_BASE}/actions/${actionId}/upload-audio`, {
+  //       method: 'POST',
+  //       body: formData,
+  //     });
+  //     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  //     return await res.json();
+  //   } catch (error) {
+  //     console.error(`[DB] Audio upload failed:`, error);
+  //     return null;
+  //   }
+  // }
 
-  /**
-   * Get action history (stage transitions)
-   * @param {string} actionId
-   */
-  async getActionHistory(actionId) {
-    return this.request(`/actions/${actionId}/history`, {}, null);
-  }
+  // /**
+  //  * Get action history (stage transitions)
+  //  * @param {string} actionId
+  //  */
+  // async getActionHistory(actionId) {
+  //   return this.request(`/actions/${actionId}/history`, {}, null);
+  // }
 
-  /**
-   * Analyze ASIN and get suggested actions
-   * @param {string} asinId
-   */
-  async analyzeAsin(asinId) {
-    return this.request(`/actions/analyze-asin/${asinId}`, { method: 'POST' }, null);
-  }
+  // DISABLED (2026-10-21): ASIN/action analysis endpoints removed with the
+  // legacy Actions module.
 
-  /**
-   * Create actions from ASIN analysis
-   * @param {string} asinId
-   */
-  async createActionsFromAnalysis(asinId) {
-    return this.request(`/actions/create-from-analysis/${asinId}`, { method: 'POST' }, null);
-  }
+  // /**
+  //  * Analyze ASIN and get suggested actions
+  //  * @param {string} asinId
+  //  */
+  // async analyzeAsin(asinId) {
+  //   return this.request(`/actions/analyze-asin/${asinId}`, { method: 'POST' }, null);
+  // }
 
-  /**
-   * Bulk create grouped actions from ASIN analysis
-   */
-  async createBulkActionsFromAnalysis(asinIds = []) {
-    return this.request('/actions/bulk-create-from-analysis', { 
-      method: 'POST', 
-      body: JSON.stringify({ asinIds }) 
-    }, null);
-  }
+  // /**
+  //  * Create actions from ASIN analysis
+  //  * @param {string} asinId
+  //  */
+  // async createActionsFromAnalysis(asinId) {
+  //   return this.request(`/actions/create-from-analysis/${asinId}`, { method: 'POST' }, null);
+  // }
 
-  /**
-   * Get overdue actions
-   */
-  async getOverdueActions() {
-    return this.request('/actions/reports/overdue', {}, []);
-  }
+  // /**
+  //  * Bulk create grouped actions from ASIN analysis
+  //  */
+  // async createBulkActionsFromAnalysis(asinIds = []) {
+  //   return this.request('/actions/bulk-create-from-analysis', { 
+  //     method: 'POST', 
+  //     body: JSON.stringify({ asinIds }) 
+  //   }, null);
+  // }
 
-  /**
-   * Get Goal vs Achievement report
-   */
-  async getGoalAchievementReport(timeframe = '30', startDate = null, endDate = null) {
-    let url = '/actions/reports/goal-achievement';
-    const params = new URLSearchParams();
-    if (startDate && endDate) {
-      params.append('startDate', startDate);
-      params.append('endDate', endDate);
-    } else if (timeframe) {
-      params.append('timeframe', timeframe);
-    }
-    const query = params.toString();
-    return this.request(`${url}${query ? `?${query}` : ''}`, {}, null);
-  }
+  // /**
+  //  * Get overdue actions
+  //  */
+  // async getOverdueActions() {
+  //   return this.request('/actions/reports/overdue', {}, []);
+  // }
+
+  // /**
+  //  * Get Goal vs Achievement report
+  //  */
+  // async getGoalAchievementReport(timeframe = '30', startDate = null, endDate = null) {
+  //   let url = '/actions/reports/goal-achievement';
+  //   const params = new URLSearchParams();
+  //   if (startDate && endDate) {
+  //     params.append('startDate', startDate);
+  //     params.append('endDate', endDate);
+  //   } else if (timeframe) {
+  //     params.append('timeframe', timeframe);
+  //   }
+  //   const query = params.toString();
+  //   return this.request(`${url}${query ? `?${query}` : ''}`, {}, null);
+  // }
 
   // --- Action Review Workflow ---
+  // DISABLED (2026-10-21): part of the removed legacy Actions module.
 
-  async startAction(id) {
-    return this.request(`/actions/${id}/start`, { method: 'POST' }, null);
-  }
+  // async startAction(id) {
+  //   return this.request(`/actions/${id}/start`, { method: 'POST' }, null);
+  // }
 
-  async submitActionForReview(id, formData) {
-    // Check if formData is instance of FormData (for audio uploads)
-    const isFormData = formData instanceof FormData;
+  // async submitActionForReview(id, formData) {
+  //   // Check if formData is instance of FormData (for audio uploads)
+  //   const isFormData = formData instanceof FormData;
 
-    const options = {
-      method: 'POST',
-      body: isFormData ? formData : JSON.stringify(formData)
-    };
+  //   const options = {
+  //     method: 'POST',
+  //     body: isFormData ? formData : JSON.stringify(formData)
+  //   };
 
-    // If it's FormData, let the browser set the boundary header
-    if (isFormData) {
-      const token = localStorage.getItem('authToken');
-      options.headers = {
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      };
-      // Important: Remove default Content-Type to let fetch set it with boundary
-      return fetch(`${API_BASE}/actions/${id}/submit-review`, options)
-        .then(res => res.json())
-        .catch(err => {
-          console.error('[DB] Submit for review failed:', err);
-          return null;
-        });
-    }
+  //   // If it's FormData, let the browser set the boundary header
+  //   if (isFormData) {
+  //     const token = localStorage.getItem('authToken');
+  //     options.headers = {
+  //       ...(token && { 'Authorization': `Bearer ${token}` })
+  //     };
+  //     // Important: Remove default Content-Type to let fetch set it with boundary
+  //     return fetch(`${API_BASE}/actions/${id}/submit-review`, options)
+  //       .then(res => res.json())
+  //       .catch(err => {
+  //         console.error('[DB] Submit for review failed:', err);
+  //         return null;
+  //       });
+  //   }
 
-    return this.request(`/actions/${id}/submit-review`, options, null);
-  }
+  //   return this.request(`/actions/${id}/submit-review`, options, null);
+  // }
 
-  async reviewAction(id, decisionOrData, comments) {
-    let payload;
-    if (typeof decisionOrData === 'object' && decisionOrData !== null) {
-      payload = decisionOrData;
-    } else {
-      payload = { decision: decisionOrData, comments };
-    }
+  // async reviewAction(id, decisionOrData, comments) {
+  //   let payload;
+  //   if (typeof decisionOrData === 'object' && decisionOrData !== null) {
+  //     payload = decisionOrData;
+  //   } else {
+  //     payload = { decision: decisionOrData, comments };
+  //   }
 
-    return this.request(`/actions/${id}/review-action`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }, null);
-  }
+  //   return this.request(`/actions/${id}/review-action`, {
+  //     method: 'POST',
+  //     body: JSON.stringify(payload)
+  //   }, null);
+  // }
 
   // --- OKR Methods ---
 
@@ -648,75 +658,80 @@ class DatabaseService {
     return this.request('/goals', { method: 'POST', body: JSON.stringify(goalData) }, null);
   }
 
-  /**
-   * Get all task templates
-   */
-  async getTaskTemplates() {
-    return this.request('/actions/templates', {}, []);
-  }
+  // --- Action Templates ---
+  // DISABLED (2026-10-21): removed with the legacy Actions module (/api/actions/templates).
+  // NOTE: PEMS task templates are a separate, active system — see modules/tasks/services/tasksApi.js.
 
-  /**
-   * Create a new task template
-   * @param {object} template
-   */
-  async createTemplate(template) {
-    return this.request('/actions/templates', { method: 'POST', body: JSON.stringify(template) }, null);
-  }
+  // /**
+  //  * Get all task templates
+  //  */
+  // async getTaskTemplates() {
+  //   return this.request('/actions/templates', {}, []);
+  // }
 
-  async analyzeListing(asinId, autoCreate = false) {
-    return this.request(`/actions/ai-listing-analysis/${asinId}`, { method: 'POST', body: JSON.stringify({ autoCreate }) }, null);
-  }
+  // /**
+  //  * Create a new task template
+  //  * @param {object} template
+  //  */
+  // async createTemplate(template) {
+  //   return this.request('/actions/templates', { method: 'POST', body: JSON.stringify(template) }, null);
+  // }
 
-  /**
-   * Update a task template
-   * @param {string} id
-   * @param {object} updates
-   */
-  async updateTemplate(id, updates) {
-    return this.request(`/actions/templates/${id}`, { method: 'PUT', body: JSON.stringify(updates) }, null);
-  }
+  // async analyzeListing(asinId, autoCreate = false) {
+  //   return this.request(`/actions/ai-listing-analysis/${asinId}`, { method: 'POST', body: JSON.stringify({ autoCreate }) }, null);
+  // }
 
-  /**
-   * Delete a task template
-   * @param {string} id
-   */
-  async deleteTemplate(id) {
-    return this.request(`/actions/templates/${id}`, { method: 'DELETE' }, null);
-  }
+  // /**
+  //  * Update a task template
+  //  * @param {string} id
+  //  * @param {object} updates
+  //  */
+  // async updateTemplate(id, updates) {
+  //   return this.request(`/actions/templates/${id}`, { method: 'PUT', body: JSON.stringify(updates) }, null);
+  // }
+
+  // /**
+  //  * Delete a task template
+  //  * @param {string} id
+  //  */
+  // async deleteTemplate(id) {
+  //   return this.request(`/actions/templates/${id}`, { method: 'DELETE' }, null);
+  // }
 
   // --- Goal Templates Methods ---
+  // DISABLED (2026-10-21): removed with the legacy Actions module (/api/actions/goal-templates).
 
-  /**
-   * Get all goal templates
-   */
-  async getGoalTemplates() {
-    return this.request('/actions/goal-templates', {}, []);
-  }
+  // /**
+  //  * Get all goal templates
+  //  */
+  // async getGoalTemplates() {
+  //   return this.request('/actions/goal-templates', {}, []);
+  // }
 
-  /**
-   * Create a new goal template
-   * @param {object} template
-   */
-  async createGoalTemplate(template) {
-    return this.request('/actions/goal-templates', { method: 'POST', body: JSON.stringify(template) }, null);
-  }
+  // /**
+  //  * Create a new goal template
+  //  * @param {object} template
+  //  */
+  // async createGoalTemplate(template) {
+  //   return this.request('/actions/goal-templates', { method: 'POST', body: JSON.stringify(template) }, null);
+  // }
 
-  /**
-   * Update a goal template
-   * @param {string} id
-   * @param {object} updates
-   */
-  async updateGoalTemplate(id, updates) {
-    return this.request(`/actions/goal-templates/${id}`, { method: 'PUT', body: JSON.stringify(updates) }, null);
-  }
+  // /**
+  //  * Update a goal template
+  //  * @param {string} id
+  //  * @param {object} updates
+  //  */
+  // async updateGoalTemplate(id, updates) {
+  //   return this.request(`/actions/goal-templates/${id}`, { method: 'PUT', body: JSON.stringify(updates) }, null);
+  // }
 
-  /**
-   * Delete a goal template
-   * @param {string} id
-   */
-  async deleteGoalTemplate(id) {
-    return this.request(`/actions/goal-templates/${id}`, { method: 'DELETE' }, null);
-  }
+  // /**
+  //  * Delete a goal template
+  //  * @param {string} id
+  //  */
+  // async deleteGoalTemplate(id) {
+  //   return this.request(`/actions/goal-templates/${id}`, { method: 'DELETE' }, null);
+  // }
 
   /**
    * Create a new objective
@@ -769,19 +784,21 @@ class DatabaseService {
     return this.request(`/objectives/key-results/${id}/sync`, { method: 'POST' }, null);
   }
 
-  /**
-   * Delete an action (task) by ID
-   */
-  async deleteAction(id) {
-    return this.request(`/actions/${id}`, { method: 'DELETE' }, null);
-  }
+  // /**
+  //  * Delete an action (task) by ID
+  //  */
+  // DISABLED (2026-10-21): removed with the legacy Actions module.
+  // async deleteAction(id) {
+  //   return this.request(`/actions/${id}`, { method: 'DELETE' }, null);
+  // }
 
-  /**
-   * Delete ALL actions (admin only)
-   */
-  async deleteAllActions() {
-    return this.request(`/actions/bulk-delete-all`, { method: 'DELETE' }, null);
-  }
+  // /**
+  //  * Delete ALL actions (admin only)
+  //  */
+  // DISABLED (2026-10-21): removed with the legacy Actions module.
+  // async deleteAllActions() {
+  //   return this.request(`/actions/bulk-delete-all`, { method: 'DELETE' }, null);
+  // }
 
   /**
    * Delete ALL objectives, key results, and actions (admin only)

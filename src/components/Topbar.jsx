@@ -121,11 +121,12 @@ const Topbar = ({ toggleSidebar }) => {
     if (notification.type === 'ALERT' || notification.type === 'SYSTEM') {
       navigate('/alerts');
     } else if (notification.type === 'ACTION_ASSIGNED' || notification.type === 'CHAT_MENTION') {
-      if (notification.referenceId) {
-        navigate(`/actions?id=${notification.referenceId}`);
-      } else {
+      // DISABLED (2026-10-21): legacy Actions module removed — /actions route no longer exists.
+      // if (notification.referenceId) {
+      //   navigate(`/actions?id=${notification.referenceId}`);
+      // } else {
         navigate('/tasks');
-      }
+      // }
     } else if (notification.type === 'CHAT_MESSAGE') {
       if (notification.referenceId) {
         navigate(`/chat?userId=${notification.referenceId}`);
@@ -158,7 +159,8 @@ const Topbar = ({ toggleSidebar }) => {
               { label: "User reports", href: "#" },
             ],
           },
-          { label: "Projects", href: "/actions" },
+          // DISABLED (2026-10-21): legacy Actions module removed — /actions route no longer exists.
+          // { label: "Projects", href: "/actions" },
           { label: "Inventory", href: "/inventory" },
           { label: "Sellers", href: "/sellers" },
           { label: "Users", href: "/users" },

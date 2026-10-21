@@ -158,7 +158,10 @@ const userRoutes = require('./routes/userRoutes');
 const roleRoutes = require('./routes/roleRoutes');
 const seedRoutes = require('./routes/seedRoutes');
 const revenueCalculatorRoutes = require('./routes/revenueCalculatorRoutes');
-const actionRoutes = require('./routes/actionRoutes');
+// DISABLED (2026-10-21): Legacy Actions module removed from the app.
+// The /api/actions routes (incl. action templates & goal templates) are unmounted.
+// Files kept in place for reference: routes/actionRoutes.js, controllers/actionController.js.
+// const actionRoutes = require('./routes/actionRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const apiKeyRoutes = require('./routes/apiKeyRoutes');
 const teamRoutes = require('./routes/teamRoutes');
@@ -215,7 +218,9 @@ app.use('/api/users', strictLimiter, userRoutes);
 app.use('/api/roles', strictLimiter, roleRoutes);
 app.use('/api/seed', seedRoutes);
 app.use('/api/revenue', revenueCalculatorRoutes);
-app.use('/api/actions', actionRoutes);
+// DISABLED (2026-10-21): Legacy Actions module unmounted (actions, action templates,
+// goal templates, workflow/review endpoints, analysis endpoints, reports, SSE stream).
+// app.use('/api/actions', actionRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/keys', apiKeyRoutes);
 app.use('/api/teams', teamRoutes);
