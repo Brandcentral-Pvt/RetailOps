@@ -27,6 +27,15 @@ function omitZero(obj) {
     return out;
 }
 
+// Amazon Creators API `itemIds` members must match:
+//   [0-9]{9}[0-9X]  (ISBN-10 style)  OR  [A-Z][A-Z0-9]{9}  (ASIN)
+// A single bad value (e.g. a product title accidentally stored in
+// AsinCode) fails the WHOLE batch with a 400 ValidationException.
+const ASIN_CODE_REGEX = /^(?:[0-9]{9}[0-9X]|[A-Z][A-Z0-9]{9})$/;
+function isValidAsinCode(code) {
+    return typeof code === 'string' && ASIN_CODE_REGEX.test(code);
+}
+
 class LiveDataSyncService extends EventEmitter {
     constructor() {
         super();
@@ -828,6 +837,21 @@ class LiveDataSyncService extends EventEmitter {
     // Internal: Process Batch
     // ============================================
     async _processBatch(sellerId, batch, credId, stats, sellerName = null) {
+        // Drop ASIN codes that Amazon will reject. One invalid member fails the
+        // entire GetItems request (400 FieldValidationFailed), so filter them
+        // out before building the payload and record them as failed.
+        const invalidAsins = batch.filter(a => !isValidAsinCode(a.AsinCode));
+        if (invalidAsins.length > 0) {
+            for (const a of invalidAsins) {
+                stats.failedCount++;
+                stats.failedAsinCodes.push(a.AsinCode);
+                stats.errors.push({ asin: a.AsinCode, error: 'Invalid ASIN format' });
+            }
+            console.warn(`⚠️ [LiveSync] Skipped ${invalidAsins.length} invalid ASIN code(s): ${invalidAsins.slice(0, 5).map(a => a.AsinCode).join(', ')}${invalidAsins.length > 5 ? '…' : ''}`);
+            batch = batch.filter(a => isValidAsinCode(a.AsinCode));
+            if (batch.length === 0) return;
+        }
+
         const codes = batch.map(a => a.AsinCode);
         let lastError = null;
 
