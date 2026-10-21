@@ -12,7 +12,9 @@ const routeMeta = {
   '/gms-tracker': { title: 'GMS Tracker', breadcrumbs: [{ label: 'Workspace' }, { label: 'GMS Tracker' }] },
   '/profit-loss': { title: 'Profit & Loss', breadcrumbs: [{ label: 'Workspace' }, { label: 'Profit & Loss' }] },
   '/inventory': { title: 'Inventory', breadcrumbs: [{ label: 'Workspace' }, { label: 'Inventory' }] },
-  '/actions': { title: 'Workflows', breadcrumbs: [{ label: 'Workspace' }, { label: 'Workflows' }] },
+  // DISABLED (2026-10-21): legacy Actions module removed — /actions/achievement-report
+  // route no longer exists (Go-to Performance entry retired).
+  // '/actions': { title: 'Workflows', breadcrumbs: [{ label: 'Workspace' }, { label: 'Workflows' }] },
   '/sku-report': { title: 'SKU Report', breadcrumbs: [{ label: 'Workspace' }, { label: 'SKU Report' }] },
   '/parent-asin-report': { title: 'Parent Trends', breadcrumbs: [{ label: 'Workspace' }, { label: 'Parent Trends' }] },
   '/month-wise-report': { title: 'Monthly Intelligence', breadcrumbs: [{ label: 'Workspace' }, { label: 'Monthly Intelligence' }] },

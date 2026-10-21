@@ -57,11 +57,12 @@ const GlobalNotificationListener = () => {
                 message: notification.message,
                 type: 'info',
                 onClick: () => {
-                    if (notification.referenceModel === 'Action') {
-                        navigate(`/actions?id=${notification.referenceId}`);
-                    } else {
+                    // DISABLED (2026-10-21): legacy Actions module removed — /actions route no longer exists.
+                    // if (notification.referenceModel === 'Action') {
+                    //     navigate(`/actions?id=${notification.referenceId}`);
+                    // } else {
                         navigate('/alerts');
-                    }
+                    // }
                 }
             });
         };

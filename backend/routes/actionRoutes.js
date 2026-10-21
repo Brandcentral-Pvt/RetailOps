@@ -1,3 +1,11 @@
+// ============================================================================
+// DISABLED (2026-10-21): Legacy Actions module — ROUTES UNMOUNTED.
+// This router is no longer mounted in server.js (app.use('/api/actions', ...) is
+// commented out), so every endpoint below is dead: action CRUD, task/goal
+// templates, workflow (start/complete/review), analysis, reports and SSE stream.
+// Kept as reference only — re-enable by uncommenting the two lines in server.js.
+// The Actions DB table is intentionally untouched: Tasks/PEMS still write to it.
+// ============================================================================
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');

@@ -52,12 +52,14 @@ const ScraperDashboardPage = lazy(() => import('./pages/ScraperDashboardPage'));
 const SellersPage = lazy(() => import('./pages/SellersPage'));
 const ScheduledRunsPage = lazy(() => import('./pages/ScheduledRunsPage'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
-const GoalAchievementReport = lazy(() => import('./pages/GoalAchievementReport'));
+// DISABLED (2026-10-21): legacy Actions module removed — page kept for reference only.
+// const GoalAchievementReport = lazy(() => import('./pages/GoalAchievementReport'));
 const TargetVsAchievement = lazy(() => import('./pages/TargetVsAchievement'));
 const TargetVsAchievementDashboard = lazy(() => import('./pages/TargetVsAchievementDashboard'));
 const TargetCreationPage = lazy(() => import('./pages/TargetCreationPage'));
 const RevenueCalculatorPage = lazy(() => import('./pages/RevenueCalculatorPage'));
-const TemplateManagerPage = lazy(() => import('./pages/TemplateManagerPage'));
+// DISABLED (2026-10-21): legacy Actions module removed — page kept for reference only.
+// const TemplateManagerPage = lazy(() => import('./pages/TemplateManagerPage'));
 
 const TaskPerformanceDashboard = lazy(() => import('./modules/tasks/pages/TaskPerformanceDashboard'));
 const TaskTemplatesPage = lazy(() => import('./modules/tasks/pages/TaskTemplatesPage'));
@@ -185,8 +187,9 @@ function AppRoutes() {
                   <Route path="/seller-tracker" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/seller-tracker/:sellerId" element={<ProtectedRoute permission="asintracker_view"><ErrorBoundary><SellerAsinTrackerPage /></ErrorBoundary></ProtectedRoute>} />
                   <Route path="/activity-log" element={<ProtectedRoute permission="activitylogs_view"><ActivityLog /></ProtectedRoute>} />
-                  <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
-                  <Route path="/actions/achievement-report" element={<ProtectedRoute permission="monthlyreport_view"><GoalAchievementReport /></ProtectedRoute>} />
+                  {/* DISABLED (2026-10-21): legacy Actions module removed.
+                      <Route path="/actions/templates" element={<ProtectedRoute permission="actions_manage"><TemplateManagerPage /></ProtectedRoute>} />
+                      <Route path="/actions/achievement-report" element={<ProtectedRoute permission="monthlyreport_view"><GoalAchievementReport /></ProtectedRoute>} /> */}
                   <Route path="/target-achievement" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievement /></ProtectedRoute>} />
                   <Route path="/target-achievement/dashboard" element={<ProtectedRoute permission="monthlyreport_view"><TargetVsAchievementDashboard /></ProtectedRoute>} />
                   <Route path="/target-achievement/create" element={<ProtectedRoute permission="monthlyreport_edit"><TargetCreationPage /></ProtectedRoute>} />

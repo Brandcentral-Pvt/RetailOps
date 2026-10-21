@@ -340,7 +340,8 @@ export default function TaskInstancesPage() {
     try {
       const [objRes, actRes, sellRes, userRes] = await Promise.allSettled([
         db.getObjectives(),
-        db.getActions(),
+        // DISABLED (2026-10-21): legacy Actions module removed — db.getActions() is gone.
+        Promise.resolve([]),
         db.getSellers(),
         db.getUsers(),
       ]);

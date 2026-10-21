@@ -211,19 +211,21 @@ export async function updateTaskStatus(
   }
 }
 
-export async function executeAction(actionType: string, payload: any): Promise<any> {
-  try {
-    const response = await apiClient.post('/actions/execute', {
-      actionType,
-      payload,
-      executedAt: new Date().toISOString(),
-    });
-    return response.data;
-  } catch (error) {
-    console.error('[Dashboard API] Failed to execute action:', error);
-    throw error;
-  }
-}
+// DISABLED (2026-10-21): legacy Actions module removed — POST /actions/execute never
+// existed on the backend and this helper had no callers. Kept as reference only.
+// export async function executeAction(actionType: string, payload: any): Promise<any> {
+//   try {
+//     const response = await apiClient.post('/actions/execute', {
+//       actionType,
+//       payload,
+//       executedAt: new Date().toISOString(),
+//     });
+//     return response.data;
+//   } catch (error) {
+//     console.error('[Dashboard API] Failed to execute action:', error);
+//     throw error;
+//   }
+// }
 
 // =====================================================
 // REAL-TIME SUBSCRIPTION (WebSocket/SSE)

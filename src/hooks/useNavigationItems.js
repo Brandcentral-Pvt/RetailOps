@@ -274,16 +274,18 @@ export function useNavigationItems() {
                     section: 'automation',
                 }
             ),
-            guard(
-                isAdmin || isGlobalUser || hasPermission('actions_view'),
-                {
-                    key: 'templates',
-                    label: 'Templates',
-                    path: '/actions/templates',
-                    icon: LayoutTemplate,
-                    section: 'automation',
-                }
-            ),
+            // DISABLED (2026-10-21): legacy Actions module removed — Templates nav entry retired.
+            // The PEMS task templates live at /tasks/templates and are untouched.
+            // guard(
+            //     isAdmin || isGlobalUser || hasPermission('actions_view'),
+            //     {
+            //         key: 'templates',
+            //         label: 'Templates',
+            //         path: '/actions/templates',
+            //         icon: LayoutTemplate,
+            //         section: 'automation',
+            //     }
+            // ),
         ]);
 
         // SECTION: ANALYTICS & FINANCE
@@ -330,16 +332,18 @@ export function useNavigationItems() {
                     section: 'intelligence',
                 }
             ),
-            guard(
-                isAdmin || isGlobalUser || isBrandManager || hasPermission('monthlyreport_view'),
-                {
-                    key: 'performance',
-                    label: 'Performance',
-                    path: '/actions/achievement-report',
-                    icon: BarChart2,
-                    section: 'intelligence',
-                }
-            ),
+            // DISABLED (2026-10-21): legacy Actions module removed — Performance report
+            // (/actions/achievement-report) retired with the Actions module.
+            // guard(
+            //     isAdmin || isGlobalUser || isBrandManager || hasPermission('monthlyreport_view'),
+            //     {
+            //         key: 'performance',
+            //         label: 'Performance',
+            //         path: '/actions/achievement-report',
+            //         icon: BarChart2,
+            //         section: 'intelligence',
+            //     }
+            // ),
             // Disabled: RetailOps AI (commented out for now)
             // guard(
             //     isAdmin || isGlobalUser || isBrandManager || hasPermission('dashboard_view'),
