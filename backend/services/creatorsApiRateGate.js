@@ -30,6 +30,16 @@ const PREFIX = process.env.QUEUE_PREFIX || 'retailops:queue';
 // when credentials belong to the same Associate account.
 const DEFAULT_ACCOUNT_KEY = process.env.CREATORS_RATE_ACCOUNT || 'primary';
 
+// Credential id -> the numeric suffix used by its env vars. The credentials
+// service names ids 'primary'/'secondary'/'v3' while the env vars are suffixed
+// _1/_2/_3, so overrides are resolved from this map instead of being guessed
+// from the id (which would look for CREATORS_RATE_ACCOUNT_V3, not _3).
+const CREDENTIAL_ENV_SUFFIX = {
+    primary: 1,
+    secondary: 2,
+    v3: 3,
+};
+
 class CreatorsApiRateGate {
     constructor() {
         this.intervalMs = parseInt(process.env.CREATORS_RATE_INTERVAL_MS || '1100', 10);
@@ -52,6 +62,44 @@ class CreatorsApiRateGate {
 
     getEffectiveTpdLimit() {
         return Math.max(1, this.tpdLimit - this.tpdBuffer);
+    }
+
+    /**
+     * Map a credential id to its account key (the TPS/TPD/cooldown bucket).
+     *
+     * Budgets are ACCOUNT-scoped, not credential-scoped:
+     *  - CREATORS_RATE_SHARE_ACCOUNT=true (default) collapses every credential
+     *    onto ONE bucket. Correct when credentials are really the same Amazon
+     *    account — e.g. primary and secondary here, whose client IDs are
+     *    identical, so rotation buys no extra throughput and both must share
+     *    one 1 req/s and one 8640/day.
+     *  - Otherwise each credential keeps its own bucket, so a genuinely
+     *    separate account (v3, different partner tag) gets its own quota and
+     *    its own 429 cooldown instead of being charged against primary's.
+     *
+     * CREATORS_RATE_ACCOUNT_<N> overrides the key for a specific credential,
+     * where <N> is the credential's env suffix (1 = primary, 2 = secondary,
+     * 3 = v3) — e.g. CREATORS_RATE_ACCOUNT_3=v3. An id-based spelling
+     * (CREATORS_RATE_ACCOUNT_V3) is also accepted. Overrides take precedence
+     * over both rules above.
+     */
+    accountKeyFor(credId) {
+        if (credId) {
+            // Accept both the env suffix (CREATORS_RATE_ACCOUNT_3) and the
+            // credential id (CREATORS_RATE_ACCOUNT_V3 / _PRIMARY) so callers
+            // can spell the override whichever way reads better.
+            const suffix = CREDENTIAL_ENV_SUFFIX[credId];
+            const candidates = [
+                suffix != null ? `CREATORS_RATE_ACCOUNT_${suffix}` : null,
+                `CREATORS_RATE_ACCOUNT_${String(credId).toUpperCase()}`,
+            ].filter(Boolean);
+            for (const key of candidates) {
+                const specific = process.env[key];
+                if (specific) return specific;
+            }
+        }
+        if (process.env.CREATORS_RATE_SHARE_ACCOUNT === 'true') return DEFAULT_ACCOUNT_KEY;
+        return credId || DEFAULT_ACCOUNT_KEY;
     }
 
     // ── Redis -----------------------------------------------------------
@@ -137,6 +185,7 @@ class CreatorsApiRateGate {
     async waitForTps(accountKey = DEFAULT_ACCOUNT_KEY) {
         const maxWaitMs = parseInt(process.env.CREATORS_RATE_MAX_WAIT_MS || '60000', 10);
         const deadline = Date.now() + maxWaitMs;
+        let warnedDegraded = false;
         for (;;) {
             const cooldown = this.getCooldownMs(accountKey);
             if (cooldown > 0) {
@@ -147,6 +196,25 @@ class CreatorsApiRateGate {
                 await new Promise((r) => setTimeout(r, capped));
                 continue;
             }
+
+            // Degraded mode: Redis is down, so the shared token bucket is
+            // unavailable and we fall back to an in-process limiter. That
+            // fallback is per-PROCESS, so N PM2 workers each rate-limit
+            // themselves to 1 req/s and the account sees N req/s — the classic
+            // cause of "we set 1 req/s but still get 429". Warn once per wait
+            // so this is visible in the logs instead of silently overspending.
+            if (!this._redisReady() && !warnedDegraded) {
+                warnedDegraded = true;
+                const strict = process.env.CREATORS_RATE_REQUIRE_REDIS === 'true';
+                if (strict) {
+                    throw Object.assign(
+                        new Error(`Creators API gate degraded: Redis unavailable and CREATORS_RATE_REQUIRE_REDIS=true — refusing to rate-limit per-process`),
+                        { code: 'CREATORS_THROTTLED' },
+                    );
+                }
+                logger.warn(`[CreatorsGate] Redis unavailable — falling back to PER-PROCESS rate limiting for account '${accountKey}'. With multiple PM2 workers the account will see more than the configured TPS. Set CREATORS_RATE_REQUIRE_REDIS=true to fail closed instead.`);
+            }
+
             const sleepFor = await this._acquireTpsSlot(accountKey);
             if (sleepFor <= 0) return;
             const capped = Math.min(sleepFor, Math.max(0, deadline - Date.now()));
@@ -253,6 +321,100 @@ class CreatorsApiRateGate {
         if (cur && cur.owner === owner) this._localLocks.delete(lockKey);
     }
 
+    // ── Shared global sync state (cross-PM2-instance) ──────────────────
+    // PM2 cluster runs multiple workers; all in-process maps/flags are per-worker.
+    // Global live sync state is written by the owner worker and read by any worker
+    // so the status endpoint and UI polling work regardless of which instance answers.
+
+    _globalSyncKey() {
+        return `${PREFIX}:creators:global-sync:state`;
+    }
+
+    async getGlobalSyncState() {
+        if (!this._redisReady()) {
+            return null;
+        }
+        try {
+            const raw = await this._redis.get(this._globalSyncKey());
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch (err) {
+            return null;
+        }
+    }
+
+    async setGlobalSyncState(state, ttlSeconds = 3600) {
+        if (!this._redisReady()) {
+            return false;
+        }
+        try {
+            await this._redis.set(this._globalSyncKey(), JSON.stringify(state), 'EX', Math.max(60, ttlSeconds));
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async clearGlobalSyncState() {
+        if (!this._redisReady()) {
+            return false;
+        }
+        try {
+            await this._redis.del(this._globalSyncKey());
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    // ── Cross-PM2-instance abort signal ────────────────────────────────
+    // Kept in its own key (NOT inside the progress snapshot) so that a routine
+    // progress publish can never accidentally clear a pending abort request.
+
+    _globalSyncAbortKey() {
+        return `${PREFIX}:creators:global-sync:abort`;
+    }
+
+    /**
+     * Request an abort of the global sync from ANY worker. The owner worker
+     * observes it at its next loop boundary. TTL-bounded so a stale request can
+     * never poison a later run if the owner crashed before clearing it.
+     */
+    async requestGlobalSyncAbort(reason = 'Cancelled by user', ttlSeconds = 4 * 60 * 60) {
+        if (!this._redisReady()) return false;
+        try {
+            await this._redis.set(
+                this._globalSyncAbortKey(),
+                JSON.stringify({ reason, requestedAt: new Date().toISOString(), by: process.pid }),
+                'EX',
+                Math.max(60, ttlSeconds),
+            );
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async getGlobalSyncAbort() {
+        if (!this._redisReady()) return null;
+        try {
+            const raw = await this._redis.get(this._globalSyncAbortKey());
+            return raw ? JSON.parse(raw) : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    async clearGlobalSyncAbort() {
+        if (!this._redisReady()) return false;
+        try {
+            await this._redis.del(this._globalSyncAbortKey());
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
     // ── TPD ledger --------------------------------------------------------
 
     _usageDate() {
@@ -309,7 +471,7 @@ class CreatorsApiRateGate {
     async recordRequest(accountKey = DEFAULT_ACCOUNT_KEY) {
         const date = this._usageDate();
         try {
-            let { used, quota } = await this._getOrCreateUsage(accountKey, date);
+            const { used, quota } = await this._getOrCreateUsage(accountKey, date);
             if (used >= quota) return false;
 
             const pool = await getPool();
@@ -322,7 +484,20 @@ class CreatorsApiRateGate {
                         UpdatedAt = dbo.GetEnvDate()
                     WHERE AccountKey = @account AND UsageDate = @date AND RequestsUsed < Quota
                 `);
-            return upd.rowsAffected[0] > 0;
+            if (upd.rowsAffected[0] > 0) return true;
+
+            // The row read as within quota, yet the guarded UPDATE touched no
+            // row. That is EITHER a lost race against another worker (which
+            // consumed the last slot) OR a pool that did not actually persist
+            // the create (test doubles, a read replica, a transient write
+            // failure). Returning false here would report "daily quota
+            // exhausted" every time — and previously made every caller abort
+            // the whole sync. Re-read once: if the ledger now shows the budget
+            // is genuinely gone, fail; otherwise fall through to the
+            // in-process counter so one worker still paces correctly.
+            const after = await this._getOrCreateUsage(accountKey, date);
+            if (after.used >= after.quota) return false;
+            return this._recordLocal(accountKey, date);
         } catch (err) {
             logger.warn('[CreatorsGate] TPD ledger write failed, using in-process fallback:', err.message);
             return this._recordLocal(accountKey, date);

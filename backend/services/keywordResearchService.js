@@ -5,7 +5,10 @@ const creatorsApiRateGate = require('./creatorsApiRateGate');
 class KeywordResearchService {
     constructor() {
         this._config = {
-            requestDelay: Number(process.env.KEYWORD_REQUEST_DELAY_MS || 1100),
+            // Request pacing lives in creatorsApiRateGate (account-wide, shared
+            // with live sync) — the old per-service KEYWORD_REQUEST_DELAY_MS
+            // timer was removed because two concurrent callers would read the
+            // same timestamp and fire together.
             maxRetries: 2,
             retryDelay: 3000,
             concurrency: Number(process.env.KEYWORD_BATCH_CONCURRENCY || 4),
@@ -88,27 +91,26 @@ class KeywordResearchService {
     /**
      * Reserve a rate-limit slot.
      *
-     * The upstream limit is one call per `requestDelay` (1.1 s) per account.
-     * The old implementation awaited *after* reading `_lastRequestTime`, so two
-     * concurrent callers computed the same wait and fired together — batch was
-     * therefore written as a strictly sequential loop, and every keyword cost a
-     * full round trip before the next one could start.
-     *
-     * Now handled by the shared creatorsApiRateGate: an atomic Redis token
-     * bucket coordinates TPS across ALL processes and all callers (live sync
-     * included), and the durable CreatorsApiQuota ledger counts every attempt
-     * toward the daily 8640 budget so it survives restarts.
+     * The upstream limit is one call per interval, ACCOUNT-wide. Handled by the
+     * shared creatorsApiRateGate: an atomic Redis token bucket coordinates TPS
+     * across ALL processes and all callers (live sync included), and the
+     * durable CreatorsApiQuota ledger counts every attempt toward the daily
+     * 8640 budget so it survives restarts.
      *
      * Returns true when a slot is granted (still within daily quota), false
      * when the daily TPD budget is exhausted.
      */
-    async _acquireSlot() {
-        await creatorsApiRateGate.waitForTps('primary');
-        return creatorsApiRateGate.recordRequest('primary');
+    async _acquireSlot(credId) {
+        // Uses the rotation pool (primary/secondary), never v3, so the account
+        // key resolves to 'primary' under CREATORS_RATE_SHARE_ACCOUNT — but go
+        // through the helper so all callers derive the key the same way.
+        const accountKey = creatorsApiRateGate.accountKeyFor(credId ?? Credentials.get().id);
+        await creatorsApiRateGate.waitForTps(accountKey);
+        return creatorsApiRateGate.recordRequest(accountKey);
     }
 
-    async _rateLimit() {
-        return this._acquireSlot();
+    async _rateLimit(credId) {
+        return this._acquireSlot(credId);
     }
 
     /** Simple promise-pool so a batch cannot open unbounded sockets. */
