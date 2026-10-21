@@ -9,6 +9,10 @@ const {
     hasAplusContent
 } = require('../utils/marketDataParser');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
+const { isUsableAsinCode } = require('../utils/asinUtils');
+
+// Cache seller -> isAmazon so bulk upserts don't issue a DB hit per row.
+const _amazonSellerCache = new Map();
 
 class AsinDataParser {
     /**
@@ -399,6 +403,22 @@ class AsinDataParser {
     static async upsertAsinFromRaw(rawData, sellerId, sellerName = null) {
         const pool = await getPool();
         const row = this.transformToAsinRow(rawData, sellerId, sellerName);
+
+        // Amazon sellers must store real ASINs — reject titles/EANs. Ajio
+        // (and other marketplaces) keep their own article-code format.
+        if (row.AsinCode && !isUsableAsinCode(String(row.AsinCode).trim().toUpperCase())) {
+            let isAmazon = _amazonSellerCache.get(sellerId);
+            if (isAmazon === undefined) {
+                const mpRes = await pool.request()
+                    .input('id', sql.VarChar, sellerId)
+                    .query('SELECT Marketplace FROM Sellers WHERE Id = @id');
+                isAmazon = /^amazon/i.test(mpRes.recordset[0]?.Marketplace || '');
+                _amazonSellerCache.set(sellerId, isAmazon);
+            }
+            if (isAmazon) {
+                return { skipped: true, reason: 'Invalid ASIN format' };
+            }
+        }
 
         const request = pool.request();
         const columns = [];

@@ -8,6 +8,7 @@ const rulesetEngineService = require('./rulesetEngineService');
 const playwrightScraperService = require('./playwrightScraperService');
 const asinCompletenessService = require('./asinCompletenessService');
 const { isBuyBoxWinner } = require('../utils/buyBoxUtils');
+const { asinUsableSqlFor } = require('../utils/asinUtils');
 const EventEmitter = require('events');
 
 // Transient account-level Creators API conditions (TPD exhausted, throttled,
@@ -142,16 +143,20 @@ class LiveDataSyncService extends EventEmitter {
         try {
             const pool = await getPool();
 
-            // 1. Get ALL active ASINs
+            // 1. Get ALL active ASINs (Amazon-only: this service talks to the
+            //    Amazon Creators API, so Ajio article codes / corrupt codes must
+            //    never be pulled in — they'd poison every batch they land in).
             const asinsResult = await pool.request()
                 .input('sellerId', sql.VarChar, sellerIdStr)
                 .query(`
-                    SELECT Id, AsinCode, UploadedPrice 
-                    FROM Asins 
-                    WHERE SellerId = @sellerId 
-                    AND Status IN ('Active', 'Error', 'Scraping')
-                    AND AsinCode IS NOT NULL
-                    ORDER BY AsinCode
+                    SELECT a.Id, a.AsinCode, a.UploadedPrice
+                    FROM Asins a
+                    WHERE a.SellerId = @sellerId
+                    AND a.Status IN ('Active', 'Error', 'Scraping')
+                    AND a.AsinCode IS NOT NULL
+                    AND (a.Marketplace IS NULL OR LOWER(a.Marketplace) LIKE 'amazon%')
+                    AND ${asinUsableSqlFor('a.AsinCode')}
+                    ORDER BY a.AsinCode
                 `);
 
             const allAsins = asinsResult.recordset;
@@ -1583,10 +1588,12 @@ class LiveDataSyncService extends EventEmitter {
                 .input('sellerId', sql.VarChar, sellerId);
             failedCodes.forEach((code, i) => request.input(`code${i}`, sql.VarChar, code));
             const asinsResult = await request.query(`
-                    SELECT Id, AsinCode, UploadedPrice
-                    FROM Asins 
-                    WHERE SellerId = @sellerId 
-                    AND AsinCode IN (${failedCodes.map((_, i) => `@code${i}`).join(',')})
+                    SELECT a.Id, a.AsinCode, a.UploadedPrice
+                    FROM Asins a
+                    WHERE a.SellerId = @sellerId
+                    AND (a.Marketplace IS NULL OR LOWER(a.Marketplace) LIKE 'amazon%')
+                    AND ${asinUsableSqlFor('a.AsinCode')}
+                    AND a.AsinCode IN (${failedCodes.map((_, i) => `@code${i}`).join(',')})
                 `);
             const asinsToRetry = asinsResult.recordset;
 

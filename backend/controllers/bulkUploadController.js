@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const AutoTagService = require('../services/autoTagService');
 const SystemLogService = require('../services/SystemLogService');
-const { normalizeAsin } = require('../utils/asinUtils');
+const { normalizeAsin, isUsableAsinCode } = require('../utils/asinUtils');
 
 const clearCaches = () => {
     try {
@@ -291,6 +291,14 @@ exports.catalogSync = async (req, res) => {
                         asin: rowLabel, 
                         reason: !childAsin ? 'Missing Identifier (Article Code/ASIN/Item Code).' : 'No target seller found for brand.' 
                     });
+                    continue;
+                }
+
+                // Amazon sellers require real ASINs — reject titles/EANs so they
+                // never reach the Creators API live sync. Ajio codes are allowed.
+                if (/^amazon/i.test(rowMarketplace || '') && !isUsableAsinCode(childAsin)) {
+                    results.skipped++;
+                    results.errors.push({ asin: childAsin, reason: 'Invalid ASIN format for Amazon seller.' });
                     continue;
                 }
 

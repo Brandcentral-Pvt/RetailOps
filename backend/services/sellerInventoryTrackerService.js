@@ -7,6 +7,7 @@
 const { sql, getPool, generateId } = require('../database/db');
 const { getSellerAsins, getTokenStatus, isValidSellerId } = require('./keepaService');
 const marketDataSyncService = require('./marketDataSyncService');
+const { isUsableAsinCode } = require('../utils/asinUtils');
 
 class SellerInventoryTracker {
     constructor() {
@@ -103,7 +104,7 @@ class SellerInventoryTracker {
                 .query('SELECT AsinCode FROM Asins WHERE SellerId = @SellerId');
 
             const existingCodes = new Set(existingResult.recordset.map(a => a.AsinCode.toUpperCase()));
-            const newAsins = keepaAsins.filter(code => !existingCodes.has(code.toUpperCase()));
+            const newAsins = keepaAsins.filter(code => isUsableAsinCode(code.toUpperCase()) && !existingCodes.has(code.toUpperCase()));
 
             let addedCount = 0;
             if (newAsins.length > 0) {
