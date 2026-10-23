@@ -189,6 +189,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const scheduledRunRoutes = require('./routes/scheduledRunRoutes');
 const targetRoutes = require('./routes/targetRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
+const oosRoutes = require('./routes/oosRoutes');
 const pemsRoutes = require('./routes/pems/pemsRoutes');
 const pemsDashboardRoutes = require('./routes/pems/dashboardRoutes');
 const pemsLiveSyncRoutes = require('./routes/pems/liveSyncTrackerRoutes');
@@ -207,6 +208,7 @@ app.use('/api/ads', adsRoutes);
 // It must be mounted before the wildcard /api routers below; the duplicate
 // GET /tasks route was removed from growthExecutionRoutes entirely.
 app.use('/api/tasks', taskRoutes);
+app.use('/api/oos', oosRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', alertsRoutes);
 app.use('/api/export', exportRoutes);

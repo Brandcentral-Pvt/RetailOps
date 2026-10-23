@@ -48,6 +48,13 @@ const tasksApi = {
     return res.json();
   },
 
+  /** Accurate company-wide template counts (server-side, not a page subset). */
+  getTemplateSummary: async () => {
+    const res = await fetch(`${API_BASE}/pems/templates/summary`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch template summary');
+    return res.json();
+  },
+
   // ── Task Instances ──
   getInstances: async (params = {}) => {
     const q = new URLSearchParams(params).toString();
@@ -333,6 +340,46 @@ const tasksApi = {
     });
     if (!res.ok) throw new Error('Failed');
     return res.json();
+  },
+
+  /**
+   * Atomically create/update a template and its assignment rules in one call.
+   * The server rejects publication of an invalid configuration with a 400 and a
+   * `validation` payload, so callers can show field-level errors.
+   */
+  saveTemplateConfig: async ({ id, template, assignmentRules }) => {
+    const url = id
+      ? `${API_BASE}/pems/templates/config/${id}`
+      : `${API_BASE}/pems/templates/config`;
+    const res = await fetch(url, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ template, assignmentRules }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(body.error || 'Failed to save template');
+      err.validation = body.validation || null;
+      err.status = res.status;
+      throw err;
+    }
+    return body;
+  },
+
+  /** Read-only publication check for the current (unsaved) configuration. */
+  validateTemplate: async (template, assignmentRules) => {
+    const res = await fetch(`${API_BASE}/pems/templates/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ template, assignmentRules }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(body.error || 'Failed to validate template');
+      err.status = res.status;
+      throw err;
+    }
+    return body.data;
   },
 
   recalculateProgress: async () => {

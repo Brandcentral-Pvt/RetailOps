@@ -7,7 +7,7 @@ import {
   WarningOutlined, BarChartOutlined, CheckSquareOutlined, PaperClipOutlined,
   MessageOutlined, TagsOutlined, AuditOutlined, MoreOutlined
 } from '@ant-design/icons';
-import { WORKFLOW_STATUSES, VALID_TRANSITIONS, PRIORITIES, CATEGORY_METRIC_CONFIG, TASK_LIST_GRID, TASK_LIST_MIN_WIDTH } from '../constants';
+import { WORKFLOW_STATUSES, VALID_TRANSITIONS, PRIORITIES, CATEGORY_METRIC_CONFIG, TASK_LIST_GRID, TASK_LIST_MIN_WIDTH, isListingHealthGated } from '../constants';
 import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
 import tasksApi from '../services/tasksApi';
 
@@ -354,7 +354,9 @@ export default function PremiumTaskRow({ task, selected, onSelect, onView, onRef
 
   const allSubTasksDone = !task.subTasks?.length || task.subTasks.every(st => st.IsCompleted);
   const canStart = health.score >= 50;
-  const isNewListing = categoryKey === 'LISTING' && task.InstanceCode?.includes('DLY-004');
+  // Listing-health gating belongs to the catalogue/listing tasks, not to OOS
+  // monitoring (DLY-004). Key off the explicit set so the two cannot drift.
+  const isNewListing = categoryKey === 'LISTING' && isListingHealthGated(task.InstanceCode);
   const aiTargetScore = task.TargetScore ?? task.AITarget ?? 9.0;
   const aiHealthTarget = isNewListing && task.AIHealthScore != null
     ? task.AIHealthScore >= aiTargetScore : true;

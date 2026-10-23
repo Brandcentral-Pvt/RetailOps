@@ -18,6 +18,7 @@ const typeFactory = (name) => {
 };
 
 const FAKE_SQL = {
+    MAX: 'MAX',
     VarChar: typeFactory('VarChar'),
     NVarChar: typeFactory('NVarChar'),
     Int: typeFactory('Int'),
@@ -26,6 +27,7 @@ const FAKE_SQL = {
     Float: typeFactory('Float'),
     Date: typeFactory('Date'),
     DateTime: typeFactory('DateTime'),
+    DateTime2: typeFactory('DateTime2'),
     Bit: typeFactory('Bit'),
     UniqueIdentifier: typeFactory('UniqueIdentifier'),
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Drawer, Typography, Space, Tag, Button, Row, Col, Progress, Card, Input, Badge, Spin, Rate, Empty, Tabs, Tooltip, Avatar, Divider, Modal, App, Select, Table } from 'antd';
 import {
   CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, ArrowRightOutlined,
@@ -15,7 +16,7 @@ import tasksApi from '../services/tasksApi';
 import BrandChecklist from './BrandChecklist';
 import {
   WORKFLOW_STATUSES, VALID_TRANSITIONS, SLA_STATUSES, FREQUENCIES,
-  PRIORITIES, TASK_ISSUE_SOURCES, CATEGORY_METRIC_CONFIG
+  PRIORITIES, TASK_ISSUE_SOURCES, CATEGORY_METRIC_CONFIG, isListingHealthGated
 } from '../constants';
 import { calculateHealth, getDueDateLabel } from '../utils/taskHealth';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -574,6 +575,7 @@ function VisionFeedbackPanel({ task }) {
 }
 
 export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { message } = App.useApp();
   const [task, setTask] = useState(null);
@@ -707,7 +709,7 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
       message.warning(`${openBrands} brand${openBrands > 1 ? 's' : ''} not covered yet — tick them on the SOP tab.`);
       return false;
     }
-    const isNewListing = task.Category === 'LISTING' && task.InstanceCode?.includes('DLY-004');
+    const isNewListing = task.Category === 'LISTING' && isListingHealthGated(task.InstanceCode);
     const aiTarget = task.TargetScore ?? task.AITarget ?? 9.0;
     if (isNewListing && toStatus === 'SUBMITTED' && (task.AIHealthScore ?? 0) < aiTarget) {
       message.warning(`AI Health Score (${task.AIHealthScore}) below target (${aiTarget}).`);
@@ -1121,6 +1123,16 @@ export default function TaskWorkspace({ open, onClose, taskId, onRefresh }) {
                 )}
                 {EXCEPTION_STATUSES.has(task.Status) && <Tag color="warning" style={{ margin: 0, borderRadius: 4, fontSize: 10, fontWeight: 700 }}>Needs attention</Tag>}
                 <div style={{ flex: 1 }} />
+                {task.TemplateCode === 'OOS-RECON-001' && (
+                  <Button
+                    size="small"
+                    icon={<ExportOutlined />}
+                    style={{ borderRadius: 8 }}
+                    onClick={() => { onClose?.(); navigate('/tasks/oos'); }}
+                  >
+                    OOS workspace
+                  </Button>
+                )}
                 <Tooltip title="Reload"><Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => loadTask({ silent: true })} /></Tooltip>
                 <Space size={6}>
                   {reviewStatuses.includes('REJECTED') && <Button size="small" danger icon={<CloseCircleOutlined />} style={{ borderRadius: 8 }} onClick={() => setReviewDecision('REJECT')}>Reject</Button>}

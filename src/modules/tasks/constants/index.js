@@ -93,22 +93,36 @@ export const AUTO_ASSIGN_STRATEGIES = [
   { value: 'round_robin', label: 'Round Robin' },
 ];
 
+// Task identities sourced from the Daily Operations Master workbook
+// (backend/__tests__/fixtures/dailyOpsMaster.csv). DLY-004 was previously
+// mislabelled "New Listing Creation" / LISTING; the master sheet defines it as
+// "OOS Data Monitoring" / INVENTORY, which is also what the backend importer
+// infers. The listing workflows live under DLY-0010A/B.
+//
+// NOTE: several other labels here are still offset from the current sheet
+// (DLY-001, DLY-005..DLY-012). Reconciling them is tracked as a separate
+// follow-up; only the entries the DLY-004 pilot depends on are corrected here.
 export const DLY_TASK_CODES = {
-  'DLY-001': { label: 'Price Mismatch Detection', category: 'PRICING', icon: 'DollarOutlined' },
-  'DLY-002': { label: 'BuyBox Loss Alert', category: 'PRICING', icon: 'ShoppingCartOutlined' },
-  'DLY-003': { label: 'Competitor Price Drop', category: 'PRICING', icon: 'ArrowDownOutlined' },
-  'DLY-004': { label: 'New Listing Creation', category: 'LISTING', icon: 'FileTextOutlined' },
-  'DLY-005': { label: 'Listing Quality Audit', category: 'LISTING', icon: 'SafetyCertificateOutlined' },
-  'DLY-006': { label: 'Image Compliance Check', category: 'LISTING', icon: 'EyeOutlined' },
-  'DLY-007': { label: 'Content Optimization', category: 'LISTING', icon: 'EditOutlined' },
-  'DLY-008': { label: 'Stock Replenishment Alert', category: 'INVENTORY', icon: 'WarningOutlined' },
-  'DLY-009': { label: 'Inventory Accuracy Check', category: 'INVENTORY', icon: 'CheckCircleOutlined' },
-  'DLY-010': { label: 'Overstock Clearance', category: 'INVENTORY', icon: 'ArrowDownOutlined' },
-  'DLY-011': { label: 'Ad Spend Anomaly', category: 'ADS', icon: 'BarChartOutlined' },
-  'DLY-012': { label: 'Campaign Performance Review', category: 'ADS', icon: 'RiseOutlined' },
-  'DLY-013': { label: 'Compliance Documentation', category: 'COMPLIANCE', icon: 'FileTextOutlined' },
-  'DLY-014': { label: 'Regulatory Update Check', category: 'COMPLIANCE', icon: 'SafetyCertificateOutlined' },
+  'DLY-001': { label: 'Top ASIN Performance Monitoring', category: 'PRICING', icon: 'DollarOutlined' },
+  'DLY-002': { label: 'Buy Box Monitoring & Suppression Check', category: 'PRICING', icon: 'ShoppingCartOutlined' },
+  'DLY-003': { label: 'ASP Monitoring & Mismatch Check', category: 'PRICING', icon: 'ArrowDownOutlined' },
+  'DLY-004': { label: 'OOS Data Monitoring', category: 'INVENTORY', icon: 'WarningOutlined' },
+  'DLY-005': { label: 'Order Management (DF)', category: 'INVENTORY', icon: 'ShoppingCartOutlined' },
+  'DLY-006': { label: 'PO Related Activities', category: 'INVENTORY', icon: 'FileTextOutlined' },
+  'DLY-007': { label: 'Ticket Raise & Follow-up', category: 'GENERAL', icon: 'EditOutlined' },
+  'DLY-008': { label: 'Seller Communication & Query Resolution', category: 'GENERAL', icon: 'SafetyCertificateOutlined' },
+  'DLY-009': { label: 'Priority Based Tasks', category: 'GENERAL', icon: 'CheckCircleOutlined' },
+  'DLY-0010A': { label: 'Catalogue & Listing Optimization (Manual Process)', category: 'LISTING', icon: 'EditOutlined' },
+  'DLY-0010B': { label: 'Catalogue & Listing Optimization (Bulk Process)', category: 'LISTING', icon: 'EditOutlined' },
+  'DLY-0011': { label: 'GMS Analysis', category: 'ANALYTICS', icon: 'BarChartOutlined' },
+  'DLY-0012': { label: 'Daily Business Report', category: 'ANALYTICS', icon: 'RiseOutlined' },
 };
+
+// Task codes whose submission carries an AI listing-health gate. Kept as an
+// explicit set so the check never depends on a single hard-coded DLY-004 string.
+export const LISTING_HEALTH_GATED_CODES = ['DLY-0010A', 'DLY-0010B'];
+export const isListingHealthGated = (code) =>
+  LISTING_HEALTH_GATED_CODES.some((c) => String(code || '').includes(c));
 
 export const TASK_ISSUE_SOURCES = {
   PRICING: [

@@ -126,6 +126,41 @@ async function getTemplates(filters = {}) {
   return { templates, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
+/**
+ * Company-wide template summary. Computed on the full table, never on a
+ * paginated subset — the library page must not present filtered counts as
+ * authoritative totals.
+ */
+async function getTemplateSummary() {
+  const pool = await getPool();
+  const r = await pool.request().query(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS active,
+      SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END) AS scheduled
+    FROM PemsTaskTemplates
+  `);
+  // SOP coverage needs the JSON length, which SQL Server cannot count cheaply —
+  // do it in JS over the compact projection rather than pulling every column.
+  const sop = await pool.request().query(`
+    SELECT
+      SUM(CASE WHEN SubTaskDefinitions IS NOT NULL AND LEN(SubTaskDefinitions) > 4 AND SubTaskDefinitions <> '[]' THEN 1 ELSE 0 END) AS withSop
+    FROM PemsTaskTemplates
+  `);
+  const auto = await pool.request().query(`
+    SELECT SUM(CASE WHEN AutoAssign = 1 THEN 1 ELSE 0 END) AS automatic
+    FROM PemsTaskTemplates
+  `);
+  const row = r.recordset[0] || {};
+  return {
+    total: Number(row.total) || 0,
+    active: Number(row.active) || 0,
+    scheduled: Number(row.scheduled) || 0,
+    withSop: Number(sop.recordset[0]?.withSop) || 0,
+    automatic: Number(auto.recordset[0]?.automatic) || 0,
+  };
+}
+
 async function getTemplateById(id) {
   const pool = await getPool();
   const result = await pool.request().input('id', sql.VarChar, id).query('SELECT * FROM PemsTaskTemplates WHERE Id = @id');
@@ -2037,10 +2072,15 @@ async function getReviewerPerformance(filters = {}, requester = null) {
 async function checkEscalations() {
   const pool = await getPool();
   const BATCH_SIZE = 500;
+  // Offset paging while rows are written back into the scanned table can, under
+  // a misbehaving client or an id-collision, never reach an empty page. A hard
+  // iteration cap bounds the scan so the scheduler cannot spin forever.
+  const MAX_BATCHES = 200;
   let offset = 0;
   let escalated = 0;
+  let batches = 0;
 
-  while (true) {
+  while (batches < MAX_BATCHES) {
     const batch = await pool.request()
       .input('offset', sql.Int, offset)
       .input('limit', sql.Int, BATCH_SIZE)
@@ -2101,7 +2141,11 @@ async function checkEscalations() {
       escalated++;
     }
 
-    offset += BATCH_SIZE;
+    // Advance by what was actually returned so a short page still terminates
+    // (a fake/test pool or a race that returns fewer rows must not re-read the
+    // same offset forever).
+    offset += batch.recordset.length;
+    batches++;
   }
   return { escalated };
 }
@@ -2375,32 +2419,294 @@ async function calculateWeightedProgress(taskInstanceId) {
 // ═══════════════════════════════════════════════════════
 
 async function upsertAssignmentRules(templateId, data) {
+  // Delegates to the transaction-aware helper so the typed binding (INT/BIT vs
+  // NVarChar) is defined in exactly one place.
   const pool = await getPool();
-  const existing = await pool.request().input('tid', sql.VarChar, templateId)
+  return upsertAssignmentRulesTx(pool, templateId, data);
+}
+
+async function getAssignmentRules(templateId) {
+  const pool = await getPool();
+  const result = await pool.request().input('tid', sql.VarChar, templateId)
+    .query('SELECT * FROM PemsAssignmentRules WHERE TemplateId = @tid');
+  return result.recordset[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════
+// TEMPLATE CONFIGURATION: VALIDATION + TRANSACTIONAL SAVE
+// ═══════════════════════════════════════════════════════
+
+const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const VALID_FREQUENCIES = ['ONE_TIME', 'DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'CUSTOM'];
+const VALID_APPROVAL_LEVELS = ['single', 'dual', 'multi'];
+
+/**
+ * Backend source of truth for whether a template may be *published* (made
+ * schedulable / active). The frontend mirrors these checks for usability, but
+ * they must be enforced here because REST callers can bypass the UI.
+ *
+ * Returns { ok, errors:[{field, message}], warnings:[] }. `ok:false` means
+ * publication must be blocked; drafts are always allowed to be saved.
+ */
+function validateTemplateForPublish(template, rules) {
+  const t = template || {};
+  const errors = [];
+  const warnings = [];
+
+  if (!t.name || !String(t.name).trim()) {
+    errors.push({ field: 'name', message: 'Task name is required.' });
+  }
+  if (!t.taskCode || !String(t.taskCode).trim()) {
+    errors.push({ field: 'taskCode', message: 'Task code is required.' });
+  }
+  if (!t.category || !String(t.category).trim()) {
+    errors.push({ field: 'category', message: 'Category is required.' });
+  }
+  if (t.priority && !VALID_PRIORITIES.includes(String(t.priority).toUpperCase())) {
+    errors.push({ field: 'priority', message: `Priority must be one of ${VALID_PRIORITIES.join(', ')}.` });
+  }
+  if (t.frequency && !VALID_FREQUENCIES.includes(String(t.frequency).toUpperCase())) {
+    errors.push({ field: 'frequency', message: `Frequency must be one of ${VALID_FREQUENCIES.join(', ')}.` });
+  }
+
+  // Scheduling consistency: a recurring template must have a schedule, and a
+  // one-time template must not pretend to run daily.
+  const freq = String(t.frequency || 'ONE_TIME').toUpperCase();
+  // An empty array means "no run days selected", not "scheduled on nothing".
+  const hasRunDays = Array.isArray(t.runDays) ? t.runDays.length > 0 : Boolean(t.runDays);
+  if (freq !== 'ONE_TIME') {
+    if (!hasRunDays && !t.customCron) {
+      errors.push({ field: 'schedule', message: 'A recurring template needs run days or a cron expression.' });
+    }
+    if (!t.dueTime) {
+      warnings.push({ field: 'dueTime', message: 'No due time set; the routine will use the system default.' });
+    }
+  }
+
+  // SOP completeness: at least one phase, and every phase needs a title and at
+  // least one activity with instructions. Empty mandatory activities may never
+  // pass publication.
+  const phases = Array.isArray(t.subTaskDefinitions) ? t.subTaskDefinitions : [];
+  if (phases.length === 0) {
+    errors.push({ field: 'sop', message: 'At least one SOP phase is required before publishing.' });
+  } else {
+    phases.forEach((phase, pi) => {
+      const acts = Array.isArray(phase.activities) ? phase.activities : [];
+      if (!phase.title || !String(phase.title).trim()) {
+        errors.push({ field: `sop.${pi}.title`, message: `Phase ${pi + 1} needs a title.` });
+      }
+      if (acts.length === 0) {
+        errors.push({ field: `sop.${pi}.activities`, message: `Phase ${pi + 1} needs at least one activity.` });
+      }
+      acts.forEach((act, ai) => {
+        if (act.isMandatory === false) return;
+        if (!act.title || !String(act.title).trim()) {
+          errors.push({ field: `sop.${pi}.${ai}.title`, message: `Phase ${pi + 1} activity ${ai + 1} needs a title.` });
+        }
+        if (!act.instructions || !String(act.instructions).trim()) {
+          errors.push({ field: `sop.${pi}.${ai}.instructions`, message: `Phase ${pi + 1} activity ${ai + 1} is mandatory but has no instructions.` });
+        }
+      });
+    });
+  }
+
+  // Reviewer / separation of duties at the template level.
+  if (t.reviewRequired !== false && !t.reviewerId) {
+    warnings.push({ field: 'reviewerId', message: 'Review is required but no reviewer is set; a default will be assigned.' });
+  }
+
+  // Assignment rules consistency.
+  const r = rules || {};
+  if (r.approvalLevel && !VALID_APPROVAL_LEVELS.includes(String(r.approvalLevel))) {
+    errors.push({ field: 'approvalLevel', message: `Approval level must be one of ${VALID_APPROVAL_LEVELS.join(', ')}.` });
+  }
+  if (r.approvalLevel && String(r.approvalLevel) !== 'single') {
+    // Multi/dual review is modelled but enforcement is not yet proven in the
+    // workflow engine — publishing a template as multi-approval would be a lie.
+    warnings.push({ field: 'approvalLevel', message: 'Dual/multi approval is stored but review enforcement is limited to single-approver today.' });
+  }
+  if (r.escalationHours !== undefined && r.escalationHours !== null) {
+    const n = Number(r.escalationHours);
+    if (Number.isNaN(n) || n < 0 || n > 720) {
+      errors.push({ field: 'escalationHours', message: 'Escalation hours must be between 0 and 720.' });
+    }
+  }
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Atomically persist a template and its assignment rules. Either both land or
+ * neither does — a template can no longer be saved with silently-dropped rules
+ * (the old frontend made two separate calls and swallowed the second failure).
+ *
+ * `id` null/undefined creates; otherwise updates. Returns { id, taskCode, created }.
+ */
+async function saveTemplateConfig({ id, template, assignmentRules, createdBy }, requester = null) {
+  const tpl = template || {};
+  const rules = assignmentRules || {};
+
+  // Validate at the backend edge — never trust the caller.
+  const validation = validateTemplateForPublish(tpl, rules);
+  if (tpl.isActive && !validation.ok) {
+    const err = new Error('Template cannot be published: ' + validation.errors.map(e => e.message).join(' '));
+    err.status = 400;
+    err.validation = validation;
+    throw err;
+  }
+
+  return withTransaction(async (tx) => {
+    let templateId = id;
+    let taskCode = tpl.taskCode;
+    let created = false;
+
+    if (!templateId) {
+      // Create inside the transaction.
+      const countResult = await tx.request().query('SELECT COUNT(*) as c FROM PemsTaskTemplates');
+      const generated = genCode('TPL', (countResult.recordset[0]?.c || 0) + 1);
+      taskCode = tpl.taskCode ? String(tpl.taskCode).slice(0, 20) : generated;
+      templateId = genId();
+      created = true;
+
+      const runDays = tpl.runDays === undefined || tpl.runDays === null || tpl.runDays === ''
+        ? null : parseRunDays(tpl.runDays).join(',');
+      const dueTime = tpl.dueTime ? parseHHmm(tpl.dueTime).text : null;
+      const assigneeUserIds = Array.isArray(tpl.assigneeUserIds) && tpl.assigneeUserIds.length
+        ? JSON.stringify(tpl.assigneeUserIds) : null;
+
+      await tx.request()
+        .input('id', sql.VarChar, templateId)
+        .input('taskCode', sql.VarChar, taskCode)
+        .input('name', sql.NVarChar, tpl.name)
+        .input('description', sql.NVarChar, tpl.description || '')
+        .input('category', sql.VarChar, tpl.category || 'GENERAL')
+        .input('department', sql.VarChar, tpl.department || 'OPERATIONS')
+        .input('frequency', sql.VarChar, tpl.frequency || 'ONE_TIME')
+        .input('customCron', sql.NVarChar, tpl.customCron || null)
+        .input('slaHours', sql.Int, tpl.slaHours || 48)
+        .input('tatHours', sql.Int, tpl.tatHours || 24)
+        .input('priority', sql.VarChar, tpl.priority || 'MEDIUM')
+        .input('targetType', sql.VarChar, tpl.targetType || 'NUMERIC')
+        .input('defaultTarget', sql.Decimal(18, 2), tpl.defaultTarget || 0)
+        .input('expectedOutput', sql.NVarChar, tpl.expectedOutput || '')
+        .input('reviewerId', sql.VarChar, tpl.reviewerId || null)
+        .input('assigneeRole', sql.VarChar, tpl.assigneeRole || 'brand_manager')
+        .input('activities', sql.NVarChar(sql.MAX), JSON.stringify(tpl.activities || []))
+        .input('subTaskDefinitions', sql.NVarChar(sql.MAX), JSON.stringify(tpl.subTaskDefinitions || []))
+        .input('tags', sql.NVarChar(sql.MAX), JSON.stringify(tpl.tags || []))
+        .input('isActive', sql.Bit, tpl.isActive ? 1 : 0)
+        .input('reviewRequired', sql.Bit, tpl.reviewRequired === false ? 0 : 1)
+        .input('criticalityScore', sql.Int, Math.min(10, Math.max(1, parseInt(tpl.criticalityScore, 10) || 5)))
+        .input('estMinutes', sql.Int, Math.max(1, parseInt(tpl.estimatedExecutionMinutes, 10) || 60))
+        .input('createdBy', sql.VarChar, createdBy || null)
+        .input('autoAssign', sql.Bit, tpl.autoAssign ? 1 : 0)
+        .input('dueTime', sql.VarChar, dueTime)
+        .input('runDays', sql.VarChar, runDays)
+        .input('assigneeUserIds', sql.NVarChar(sql.MAX), assigneeUserIds)
+        .input('brandMode', sql.VarChar, tpl.brandMode === 'CHECKLIST' ? 'CHECKLIST' : 'NONE')
+        .query(`
+          INSERT INTO PemsTaskTemplates
+            (Id, TaskCode, Name, Description, Category, Department, Frequency, CustomCron,
+             SLAHours, TATHours, Priority, TargetType, DefaultTarget, ExpectedOutput,
+             ReviewerId, AssigneeRole, Activities, SubTaskDefinitions, Tags, IsActive,
+             ReviewRequired, CriticalityScore, EstimatedExecutionMinutes, CreatedBy,
+             AutoAssign, DueTime, RunDays, AssigneeUserIds, BrandMode)
+          VALUES
+            (@id, @taskCode, @name, @description, @category, @department, @frequency, @customCron,
+             @slaHours, @tatHours, @priority, @targetType, @defaultTarget, @expectedOutput,
+             @reviewerId, @assigneeRole, @activities, @subTaskDefinitions, @tags, @isActive,
+             @reviewRequired, @criticalityScore, @estMinutes, @createdBy,
+             @autoAssign, @dueTime, @runDays, @assigneeUserIds, @brandMode)
+        `);
+    } else {
+      const existing = await tx.request().input('id', sql.VarChar, templateId)
+        .query('SELECT Id, TaskCode FROM PemsTaskTemplates WHERE Id = @id');
+      if (!existing.recordset.length) {
+        const err = new Error('Template not found');
+        err.status = 404;
+        throw err;
+      }
+      taskCode = existing.recordset[0].TaskCode;
+
+      const sets = [];
+      const req = tx.request().input('id', sql.VarChar, templateId);
+      const nvar = ['Name', 'Description', 'Category', 'Department', 'Frequency', 'CustomCron', 'Priority', 'TargetType', 'ExpectedOutput', 'ReviewerId', 'AssigneeRole'];
+      nvar.forEach(f => {
+        const key = f.charAt(0).toLowerCase() + f.slice(1);
+        if (tpl[key] !== undefined) { sets.push(`${f} = @${f}`); req.input(f, sql.NVarChar, tpl[key] === null ? null : String(tpl[key])); }
+      });
+      const ints = { SLAHours: 'slaHours', TATHours: 'tatHours', CriticalityScore: 'criticalityScore', EstimatedExecutionMinutes: 'estimatedExecutionMinutes' };
+      Object.entries(ints).forEach(([col, key]) => {
+        if (tpl[key] !== undefined && tpl[key] !== null && tpl[key] !== '') {
+          let v = parseInt(tpl[key], 10); if (Number.isNaN(v)) return;
+          if (col === 'CriticalityScore') v = Math.min(10, Math.max(1, v));
+          sets.push(`${col} = @${col}`); req.input(col, sql.Int, v);
+        }
+      });
+      if (tpl.defaultTarget !== undefined && tpl.defaultTarget !== null && tpl.defaultTarget !== '') {
+        sets.push('DefaultTarget = @DefaultTarget'); req.input('DefaultTarget', sql.Decimal(18, 2), Number(tpl.defaultTarget) || 0);
+      }
+      if (tpl.autoAssign !== undefined) { sets.push('AutoAssign = @AutoAssign'); req.input('AutoAssign', sql.Bit, tpl.autoAssign ? 1 : 0); }
+      if (tpl.brandMode !== undefined) { sets.push('BrandMode = @BrandMode'); req.input('BrandMode', sql.VarChar, tpl.brandMode === 'CHECKLIST' ? 'CHECKLIST' : 'NONE'); }
+      if (tpl.dueTime !== undefined) { sets.push('DueTime = @DueTime'); req.input('DueTime', sql.VarChar, tpl.dueTime ? parseHHmm(tpl.dueTime).text : null); }
+      if (tpl.runDays !== undefined) { sets.push('RunDays = @RunDays'); req.input('RunDays', sql.VarChar, tpl.runDays === null || tpl.runDays === '' ? null : parseRunDays(tpl.runDays).join(',')); }
+      if (tpl.assigneeUserIds !== undefined) {
+        const ids = Array.isArray(tpl.assigneeUserIds) ? tpl.assigneeUserIds.filter(Boolean) : [];
+        sets.push('AssigneeUserIds = @AssigneeUserIds'); req.input('AssigneeUserIds', sql.NVarChar(sql.MAX), ids.length ? JSON.stringify(ids) : null);
+      }
+      ['isActive', 'reviewRequired'].forEach(key => {
+        if (tpl[key] !== undefined) {
+          const col = key.charAt(0).toUpperCase() + key.slice(1);
+          sets.push(`${col} = @${col}`); req.input(col, sql.Bit, tpl[key] ? 1 : 0);
+        }
+      });
+      if (tpl.activities) { sets.push('Activities = @Activities'); req.input('Activities', sql.NVarChar(sql.MAX), JSON.stringify(tpl.activities)); }
+      if (tpl.subTaskDefinitions) { sets.push('SubTaskDefinitions = @SubTaskDefinitions'); req.input('SubTaskDefinitions', sql.NVarChar(sql.MAX), JSON.stringify(tpl.subTaskDefinitions)); }
+      if (tpl.tags) { sets.push('Tags = @Tags'); req.input('Tags', sql.NVarChar(sql.MAX), JSON.stringify(tpl.tags)); }
+
+      if (sets.length) {
+        sets.push('UpdatedAt = dbo.GetEnvDate()');
+        await req.query(`UPDATE PemsTaskTemplates SET ${sets.join(', ')} WHERE Id = @id`);
+      }
+    }
+
+    // Assignment rules — same transaction, so a failure rolls back the template.
+    if (Object.keys(rules).length > 0) {
+      await upsertAssignmentRulesTx(tx, templateId, rules);
+    }
+
+    return { id: templateId, taskCode, created, validation };
+  });
+}
+
+/** Assignment-rules upsert bound to a transaction (shared by saveTemplateConfig). */
+async function upsertAssignmentRulesTx(tx, templateId, data) {
+  const existing = await tx.request().input('tid', sql.VarChar, templateId)
     .query('SELECT Id FROM PemsAssignmentRules WHERE TemplateId = @tid');
-  
+
   if (existing.recordset.length > 0) {
     const sets = [];
-    const req = pool.request().input('tid', sql.VarChar, templateId);
+    const req = tx.request().input('tid', sql.VarChar, templateId);
     const fields = {
-      AssignmentMode: data.assignmentMode,
-      AutoAssignStrategy: data.autoAssignStrategy,
-      ReviewerId: data.reviewerId,
-      BackupReviewerId: data.backupReviewerId,
-      EscalationHours: data.escalationHours,
-      ApprovalLevel: data.approvalLevel,
-      QualityScoreRequired: data.qualityScoreRequired,
+      AssignmentMode: [data.assignmentMode, sql.NVarChar],
+      AutoAssignStrategy: [data.autoAssignStrategy, sql.NVarChar],
+      ReviewerId: [data.reviewerId, sql.VarChar],
+      BackupReviewerId: [data.backupReviewerId, sql.VarChar],
+      EscalationHours: [data.escalationHours, sql.Int],
+      ApprovalLevel: [data.approvalLevel, sql.NVarChar],
+      QualityScoreRequired: [data.qualityScoreRequired, sql.Bit],
     };
-    Object.entries(fields).forEach(([k, v]) => {
-      if (v !== undefined) { sets.push(`${k} = @${k}`); req.input(k, sql.NVarChar, v); }
+    Object.entries(fields).forEach(([k, [v, type]]) => {
+      if (v === undefined) return;
+      sets.push(`${k} = @${k}`);
+      if (type === sql.Bit) req.input(k, sql.Bit, v ? 1 : 0);
+      else if (type === sql.Int) req.input(k, sql.Int, v === null ? null : Number(v));
+      else req.input(k, type, v === null ? null : String(v));
     });
-    if (sets.length > 0) {
-      await req.query(`UPDATE PemsAssignmentRules SET ${sets.join(', ')} WHERE TemplateId = @tid`);
-    }
+    if (sets.length) await req.query(`UPDATE PemsAssignmentRules SET ${sets.join(', ')} WHERE TemplateId = @tid`);
   } else {
-    const id = genId();
-    await pool.request()
-      .input('id', sql.VarChar, id)
+    await tx.request()
+      .input('id', sql.VarChar, genId())
       .input('tid', sql.VarChar, templateId)
       .input('mode', sql.NVarChar, data.assignmentMode || 'manual')
       .input('strategy', sql.NVarChar, data.autoAssignStrategy || 'lowest_workload')
@@ -2412,13 +2718,6 @@ async function upsertAssignmentRules(templateId, data) {
       .query(`INSERT INTO PemsAssignmentRules (Id, TemplateId, AssignmentMode, AutoAssignStrategy, ReviewerId, BackupReviewerId, EscalationHours, ApprovalLevel, QualityScoreRequired)
         VALUES (@id, @tid, @mode, @strategy, @reviewer, @backup, @escHrs, @approval, @qsReq)`);
   }
-}
-
-async function getAssignmentRules(templateId) {
-  const pool = await getPool();
-  const result = await pool.request().input('tid', sql.VarChar, templateId)
-    .query('SELECT * FROM PemsAssignmentRules WHERE TemplateId = @tid');
-  return result.recordset[0] || null;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2537,7 +2836,7 @@ module.exports = {
   addComment, verifyFix, setBrandCheck,
   bulkTransition,
   submitReviewAndTransition,
-  createTemplate, getTemplates, getTemplateById, updateTemplate, deleteTemplate,
+  createTemplate, getTemplates, getTemplateSummary, getTemplateById, updateTemplate, deleteTemplate,
   createInstance, getInstances, getInstanceById,
   transitionStatus,
   completeSubTask, completeActivity,
@@ -2556,4 +2855,6 @@ module.exports = {
   calculateWeightedProgress, upsertAssignmentRules, getAssignmentRules,
   getTemplateAnalytics, recalculateAllWeightedProgress,
   getAutomationStats,
+  // Template configuration (validation + transactional save)
+  validateTemplateForPublish, saveTemplateConfig,
 };

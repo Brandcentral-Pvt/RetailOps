@@ -30,6 +30,15 @@ exports.getTemplates = async (req, res) => {
   }
 };
 
+exports.getTemplateSummary = async (req, res) => {
+  try {
+    const summary = await pemsService.getTemplateSummary();
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 exports.getTemplateById = async (req, res) => {
   try {
     const template = await pemsService.getTemplateById(req.params.id);
@@ -58,6 +67,40 @@ exports.deleteTemplate = async (req, res) => {
   } catch (err) {
     console.error('deleteTemplate error:', err);
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Validate a (possibly unsaved) template configuration for publication.
+ * Read-only: callers can check without persisting.
+ */
+exports.validateTemplate = async (req, res) => {
+  try {
+    const { template, assignmentRules } = req.body || {};
+    const validation = pemsService.validateTemplateForPublish(template || {}, assignmentRules || {});
+    res.json({ success: true, data: validation });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Atomically save a template and its assignment rules. Either both persist or
+ * neither does. Rejects (400) when the caller attempts to publish an invalid
+ * configuration, and surfaces the field-level errors for the UI.
+ */
+exports.saveTemplateConfiguration = async (req, res) => {
+  try {
+    const { template, assignmentRules } = req.body || {};
+    const id = req.params.id || req.body?.id || null;
+    const result = await pemsService.saveTemplateConfig(
+      { id, template: template || {}, assignmentRules: assignmentRules || {}, createdBy: getUserId(req) },
+      req.user
+    );
+    res.json({ success: true, data: { id: result.id, taskCode: result.taskCode, created: result.created, validation: result.validation } });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ success: false, error: err.message, validation: err.validation || null });
   }
 };
 
