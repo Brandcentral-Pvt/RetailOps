@@ -1,0 +1,26 @@
+{
+  "_note": "Judgement calls for the Daily Operations Master values the sheet leaves empty. This file is DATA, not code: the sheet drives every task, sub-task, SOP text, owner, output and priority. Edit this file (or pass --defaults to the seeder) to change the estimates, due times, per-brand flags, on-demand tasks, run days and SLA without touching any code. Keys are Task Codes as they appear in the sheet's 'Task ID' column; a variant code (e.g. DLY-0012-2) wins over its Task ID (DLY-0012).",
+  "shared": {
+    "frequency": "DAILY",
+    "runDays": "1,2,3,4,5,6",
+    "slaHours": 8,
+    "tatHours": 8,
+    "estimate": { "baseMinutes": 15, "perSubTaskMinutes": 10, "maxMinutes": 120 }
+  },
+  "tasks": {
+    "DLY-001": { "minutes": 12, "brand": true, "dueTime": "18:00" },
+    "DLY-002": { "minutes": 6, "brand": true, "dueTime": "12:00" },
+    "DLY-003": { "minutes": 6, "brand": true, "dueTime": "17:00" },
+    "DLY-004": { "minutes": 6, "brand": true, "dueTime": "12:00" },
+    "DLY-005": { "minutes": 8, "brand": true, "dueTime": "13:30" },
+    "DLY-006": { "minutes": 45, "brand": false, "dueTime": "18:00" },
+    "DLY-007": { "minutes": 5, "brand": true, "dueTime": "17:00" },
+    "DLY-008": { "minutes": 10, "brand": true, "dueTime": "18:00" },
+    "DLY-009": { "minutes": 30, "brand": false, "dueTime": "18:00", "onDemand": true },
+    "DLY-0010A": { "minutes": 45, "brand": false, "dueTime": "18:00", "onDemand": true },
+    "DLY-0010B": { "minutes": 40, "brand": false, "dueTime": "18:00", "onDemand": true },
+    "DLY-0011": { "minutes": 4, "brand": true, "dueTime": "18:00" },
+    "DLY-0012": { "minutes": 8, "brand": true, "dueTime": "18:00" },
+    "DLY-0012-2": { "minutes": 40, "brand": false, "dueTime": "18:00" }
+  }
+}
